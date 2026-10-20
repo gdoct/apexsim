@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Containers/Ticker.h"
 #include "ApexProtocolTypes.h"
+#include "ApexShowcaseRenderer.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexDemoModeSubsystem.generated.h"
@@ -44,6 +45,13 @@ enum class EApexBackdropSource : uint8
  *     matches and its checksums agree with this machine's content, else any;
  *     this needs no server, so the startup splash can end on it offline;
  *  3. a `SessionKind::Demo` session, for a server that predates showcases.
+ *
+ * Every showcase of showcase.yml with no fresh file here (none, or its
+ * track or a car changed since) is rendered by the game itself, one at a
+ * time on a low-priority thread, into `Saved/ApexSim/Showcases/`
+ * (FApexShowcaseRenderer), the player's track first; a finished one joins
+ * the local files. `apexsim.showcase.Render 0` or `-ApexNoShowcaseRender`
+ * turns that off.
  *
  * The shell fades its backdrop in by the director's opacity. A finished race,
  * a change of track, `apexsim.spectate.Next` or a long enough run fades out
@@ -162,6 +170,18 @@ public:
 	static int32 ChooseFile(const TArray<FFileCandidate>& Files, const FContentCrcs& Content, const FString& PendingTrackId,
 		const FString& Avoid, TArray<FString>* OutWhySkipped = nullptr);
 
+	/**
+	 * Which showcases of the list to render, in order: those on a track in
+	 * `Tracks` (stems this machine can draw and simulate) that no file in
+	 * `Files` of the same name (`<name>.apxs`) plays fresh by ChooseFile's
+	 * rule, the pending track's first, `Skip` left out. Pure, for the tests.
+	 */
+	static TArray<FString> ShowcasesToRender(const TArray<FString>& Names, const TArray<FFileCandidate>& Files,
+		const FContentCrcs& Content, const TSet<FString>& Tracks, const FString& PendingStem, const TSet<FString>& Skip);
+
+	/** The showcase the game is rendering, empty when none. */
+	FString GetRenderingShowcase() const { return Renderer ? Renderer->GetCurrent() : FString(); }
+
 private:
 	bool Tick(float DeltaSeconds);
 
@@ -179,6 +199,8 @@ private:
 	/** The local showcase files with their headers, read once and kept. */
 	void ScanLocalFiles();
 	FContentCrcs GatherContentCrcs(const UApexNetSubsystem& Net) const;
+	/** Collect a finished render and start the next one that is needed. */
+	void TickRenders(const UApexNetSubsystem& Net);
 
 	/** Fade out, then stop; the next tick starts again if allowed. */
 	void Restart(const TCHAR* Why);
@@ -240,4 +262,13 @@ private:
 	/** Consecutive requests that came to nothing, for the back-off. */
 	int32 Failures = 0;
 	bool bWarnedNoTracks = false;
+
+	/** The game's own showcase renders; null when off or impossible here. */
+	TUniquePtr<FApexShowcaseRenderer> Renderer;
+	/** The list's showcases, read once. */
+	TArray<FString> ShowcaseNames;
+	/** Showcases that failed to render: not tried again this run. */
+	TSet<FString> RenderFailed;
+	/** Seconds until the needed renders are worked out again. */
+	float RenderCheckIn = 0.0f;
 };

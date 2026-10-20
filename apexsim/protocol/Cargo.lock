@@ -26,6 +26,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_repr",
+ "serde_yaml",
  "thiserror",
  "tracing",
  "uuid",

@@ -231,6 +231,12 @@ the launcher import with the network off.
   AI survey).
 - The chase-near camera behind the Bugotti Chiffon showed a dark blur
   filling the frame once (snow run, 2026-10-15): the camera inside a body.
+- A D3D12 GPU crash (`Error_DMA_PageFault`, Aftermath "MMU Fault") in the
+  menu backdrop at Albert Park, 2026-10-20, in the same second as the
+  game's own showcase render finished on its thread (`Showcase render:
+  ... done`) and the local files were scanned again. Not seen in the next
+  two runs, one with the render and one without; the render thread touches
+  no GPU state. Watch for it in a soak with `-gpucrashdebugging`.
 
 **Check:** the A/B is two screenshots.
 

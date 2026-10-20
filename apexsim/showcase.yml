@@ -6,8 +6,10 @@
 # changed since the render. The same entry and seed write a byte-identical
 # file, so a rebake after a content change is reproducible.
 #
-# Read by scripts/lib/ApexShowcase.ps1 with a hand-rolled parser (PowerShell
-# has no YAML reader), so keep to this exact shape: top-level maps of
+# Read by the render (`apexsim-replay showcase --name <track>.<class>.<variant>`
+# and the game's own render of the same entry, protocol/src/showcase_list.rs)
+# and by scripts/lib/ApexShowcase.ps1 with a hand-rolled parser (PowerShell
+# has no YAML reader) for the plan, so keep to this exact shape: top-level maps of
 # `key: value` and `key: { k: v, ... }`, a `showcases` list of one-line flow
 # maps, lists as `[a, b]`, strings quoted only when they hold a colon.
 #

@@ -28,6 +28,7 @@ pub use apexsim_protocol::render;
 pub use apexsim_protocol::session_stream;
 pub use apexsim_protocol::session_wire;
 pub use apexsim_protocol::setup_sheet;
+pub use apexsim_protocol::showcase_list;
 pub use apexsim_protocol::spectator;
 
 // The simulation lives in `apexsim-sim` (../sim); its modules keep their

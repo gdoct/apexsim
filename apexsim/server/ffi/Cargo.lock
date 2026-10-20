@@ -19,9 +19,27 @@ dependencies = [
 name = "apexsim-physics"
 version = "0.1.0"
 dependencies = [
+ "apexsim-protocol",
  "apexsim-sim",
  "rmp-serde",
  "serde_json",
+ "uuid",
+]
+
+[[package]]
+name = "apexsim-protocol"
+version = "0.1.0"
+dependencies = [
+ "apexsim-sim",
+ "flate2",
+ "rmp",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "serde_yaml",
+ "thiserror",
+ "tracing",
  "uuid",
 ]
 

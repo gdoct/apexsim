@@ -10,6 +10,7 @@
 //! apexsim-replay pose --track ../apexsim-content/tracks/default/SpaFrankenchamps/SpaFrankenchamps.yaml --corner "Eau Rouge" --offset -60 --lateral -25 --height 6
 //! apexsim-replay render --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --class GT3 --cars 20 --laps 2 \
 //!     --seed 7 --out build/showcase/Zandervoort.gt3.day.apxs
+//! apexsim-replay showcase --name Zandervoort.gt3.day --out build/showcase/Zandervoort.gt3.day.apxs
 //! apexsim-replay info build/showcase/Zandervoort.gt3.day.apxs --check
 //! apexsim-replay convert out/zandvoort.bin --rate 30 --out out/zandvoort.apxs
 //! ```
@@ -30,8 +31,9 @@ use apexsim_server::replay_tools::{
     car_of_class, check_stream, corner_station, cut, describe, describe_stream, find_track_yaml,
     find_windows, landmark_point, lateral_on, load_car_folder, parse_time_of_day, parse_weather,
     pose_at, pose_on_ground, render_best, render_stream, replay_to_stream, simulate_race, to_clip,
-    RenderOptions, Side, SimulateOptions, Span,
+    RenderOptions, RenderedStream, Side, SimulateOptions, Span,
 };
+use apexsim_server::showcase_list::ShowcaseList;
 use apexsim_server::spectator::StreamFile;
 use apexsim_server::track_loader::TrackLoader;
 use clap::{Parser, Subcommand};
@@ -165,6 +167,24 @@ enum Command {
         from_tick: Option<u32>,
         #[arg(long)]
         to_tick: Option<u32>,
+        #[arg(long)]
+        out: PathBuf,
+    },
+    /// Render a showcase from showcase.yml by name (`<track>.<class>.<variant>`):
+    /// `render` with the list's options, the same file the game renders
+    /// from the same entry (apx_showcase_render).
+    Showcase {
+        /// The showcase's name, e.g. Zandervoort.gt3.day.
+        #[arg(long)]
+        name: String,
+        #[arg(long, default_value = "showcase.yml")]
+        list: PathBuf,
+        /// Where the track YAMLs are (`default/<stem>/<stem>.yaml`).
+        #[arg(long, default_value = "../apexsim-content/tracks")]
+        tracks_dir: PathBuf,
+        /// The field's cars (`default/` only: the player's own stay out).
+        #[arg(long, default_value = "../apexsim-content/cars/default")]
+        cars_dir: PathBuf,
         #[arg(long)]
         out: PathBuf,
     },
@@ -744,27 +764,18 @@ fn run(args: Args) -> Result<(), String> {
             } else {
                 render_stream(&opts)?
             };
-            rendered
-                .content
-                .write_file(&out)
-                .map_err(|e| e.to_string())?;
-            let file = StreamFile::open(&out).map_err(|e| e.to_string())?;
-            eprintln!(
-                "rendered {} cars on {} ({:.0} s of race) in {:.1} s -> {} ({} KB)",
-                file.roster.entries.len(),
-                file.header.track.display_name,
-                file.header.duration_s(),
-                started.elapsed().as_secs_f32(),
-                out.display(),
-                file.file_len() / 1024
-            );
-            print_json(&serde_json::json!({
-                "out": out,
-                "seed": rendered.seed,
-                "score": rendered.score.score(),
-                "race": rendered.score,
-                "stream": describe_stream(&file)?,
-            }))
+            write_rendered(&rendered, &out, started)
+        }
+        Command::Showcase {
+            name,
+            list,
+            tracks_dir,
+            cars_dir,
+            out,
+        } => {
+            let render = ShowcaseList::load(&list)?.render(&name, &tracks_dir, &cars_dir)?;
+            let started = std::time::Instant::now();
+            write_rendered(&render.run()?, &out, started)
         }
         Command::Convert {
             replay,
@@ -1018,4 +1029,33 @@ fn run(args: Args) -> Result<(), String> {
             }))
         }
     }
+}
+
+/// Write a rendered race to `out` and print what it holds.
+fn write_rendered(
+    rendered: &RenderedStream,
+    out: &Path,
+    started: std::time::Instant,
+) -> Result<(), String> {
+    rendered
+        .content
+        .write_file(out)
+        .map_err(|e| e.to_string())?;
+    let file = StreamFile::open(out).map_err(|e| e.to_string())?;
+    eprintln!(
+        "rendered {} cars on {} ({:.0} s of race) in {:.1} s -> {} ({} KB)",
+        file.roster.entries.len(),
+        file.header.track.display_name,
+        file.header.duration_s(),
+        started.elapsed().as_secs_f32(),
+        out.display(),
+        file.file_len() / 1024
+    );
+    print_json(&serde_json::json!({
+        "out": out,
+        "seed": rendered.seed,
+        "score": rendered.score.score(),
+        "race": rendered.score,
+        "stream": describe_stream(&file)?,
+    }))
 }

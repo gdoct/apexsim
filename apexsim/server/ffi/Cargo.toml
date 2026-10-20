@@ -2,7 +2,7 @@
 name = "apexsim-physics"
 version = "0.1.0"
 edition = "2021"
-description = "The simulation's car step behind a C FFI, for the client's prediction of its own car"
+description = "The simulation behind a C FFI: the client's prediction of its own car, a seeded race, a showcase"
 publish = false
 
 # A staticlib for the client to link, and an rlib so this crate's own tests
@@ -13,6 +13,8 @@ crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 apexsim-sim = { path = "../../sim" }
+# The spectator stream and the render, for showcases.
+apexsim-protocol = { path = "../../protocol" }
 rmp-serde = "1"
 
 [dev-dependencies]

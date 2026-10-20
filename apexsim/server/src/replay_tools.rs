@@ -16,7 +16,7 @@
 
 use crate::session_wire::SessionWire;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
@@ -31,9 +31,10 @@ pub use apexsim_sim::seeded_race::{
 };
 
 pub use apexsim_protocol::render::{
-    car_of_class, frame_spacing, frames_per_second, render_best, render_stream, track_stem,
-    RenderOptions, RenderedStream,
+    car_of_class, frame_spacing, frames_per_second, parse_time_of_day, parse_weather, render_best,
+    render_stream, track_stem, RenderOptions, RenderedStream,
 };
+pub use apexsim_protocol::showcase_list::find_track_yaml;
 
 /// Simulate an AI race and return it as a replay (metadata and frames). The
 /// recording starts with the countdown, so a cut around
@@ -789,46 +790,6 @@ pub fn landmark_point(
     ))
 }
 
-/// Parse `hh:mm` into minutes after midnight.
-pub fn parse_time_of_day(text: &str) -> Result<u16, String> {
-    let (h, m) = text
-        .split_once(':')
-        .ok_or_else(|| format!("time of day '{text}' is not hh:mm"))?;
-    let h: u16 = h
-        .trim()
-        .parse()
-        .map_err(|_| format!("bad hour in '{text}'"))?;
-    let m: u16 = m
-        .trim()
-        .parse()
-        .map_err(|_| format!("bad minute in '{text}'"))?;
-    if h > 23 || m > 59 {
-        return Err(format!("time of day '{text}' is off the clock"));
-    }
-    Ok(h * 60 + m)
-}
-
-/// Parse a weather name as the create screen and the scripts spell it.
-pub fn parse_weather(text: &str) -> Result<Weather, String> {
-    let key: String = text
-        .trim()
-        .to_lowercase()
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric())
-        .collect();
-    match key.as_str() {
-        "sunny" | "clear" | "0" => Ok(Weather::Sunny),
-        "cloudy" | "1" => Ok(Weather::Cloudy),
-        "overcast" | "2" => Ok(Weather::Overcast),
-        "lightrain" | "rain" | "3" => Ok(Weather::LightRain),
-        "heavyrain" | "storm" | "4" => Ok(Weather::HeavyRain),
-        "snow" | "5" => Ok(Weather::Snow),
-        _ => Err(format!(
-            "unknown weather '{text}' (sunny, cloudy, overcast, lightrain, heavyrain, snow)"
-        )),
-    }
-}
-
 // --- Spectator streams (`.apxs`) ----------------------------------------------------
 
 use crate::spectator::{
@@ -1093,16 +1054,6 @@ pub fn describe_stream(file: &StreamFile) -> Result<StreamInfo, String> {
         file_bytes: file.file_len(),
         raw_bytes: records.iter().map(|b| b.len() + 4).sum(),
     })
-}
-
-/// The track YAML a stream's stem names, in its own folder under
-/// `tracks_dir`'s `default/` and `custom/` (or `tracks_dir` itself when it
-/// has neither): `default/<stem>/<stem>.yaml`.
-pub fn find_track_yaml(tracks_dir: &Path, stem: &str) -> Option<PathBuf> {
-    ["default", "custom", ""]
-        .iter()
-        .map(|sub| tracks_dir.join(sub).join(stem).join(format!("{stem}.yaml")))
-        .find(|path| path.is_file())
 }
 
 /// Where a stream no longer matches the content on disk: the track YAML's

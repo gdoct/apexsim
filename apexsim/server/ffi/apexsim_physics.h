@@ -1,6 +1,8 @@
 /*
- * apexsim_physics.h - the server's car step behind a C API, for the client's
- * prediction of its own car (docs/proposals/client-prediction.md).
+ * apexsim_physics.h - the server's simulation behind a C API: the car step
+ * for the client's prediction of its own car
+ * (docs/proposals/client-prediction.md), a seeded race nobody drives, and a
+ * showcase rendered from showcase.yml (docs/game/spectator.md).
  *
  * Built from server/ffi (crate apexsim-physics) as a static library:
  *   cd server/ffi && cargo build --release
@@ -25,7 +27,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 4u
+#define APX_ABI_VERSION 5u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -38,6 +40,8 @@ typedef int32_t ApxStatus;
 #define APX_ERR_STATE 7      /* a state blob of another version or car */
 #define APX_ERR_BUFFER 8     /* buffer too small; the size needed was written */
 #define APX_ERR_PANIC 9      /* the library panicked; the handle may be bad */
+#define APX_ERR_CANCELLED 10 /* the caller's cancel flag was raised */
+#define APX_ERR_IO 11        /* a file could not be read or written */
 
 typedef struct ApxTrack ApxTrack;
 typedef struct ApxCar ApxCar;
@@ -307,6 +311,26 @@ ApxStatus apx_race_digest(const ApxRace *race, uint64_t *out);
 
 /* Free a race (null is ignored). */
 void apx_race_free(ApxRace *race);
+
+/* ---- Showcases (ABI 5) -------------------------------------------------- */
+
+/* Every showcase showcase.yml at list_path names (<track>.<class>.<variant>,
+ * in the list's order), one per line, UTF-8, no terminator. *written gets
+ * the size; with a NULL buf or a short capacity nothing is copied and
+ * APX_ERR_BUFFER is returned. */
+ApxStatus apx_showcase_names(const char *list_path, uint8_t *buf, size_t capacity,
+                             size_t *written);
+
+/* Render showcase `name` of the list into the spectator stream file
+ * out_path: what `apexsim-replay showcase --name <name>` writes from the same
+ * list, tracks_dir (default/<stem>/<stem>.yaml) and cars_dir, byte for
+ * byte. Written beside out_path and moved over it when whole. Takes seconds
+ * (a whole race): call it off the game thread. *cancel (cancel may be
+ * NULL) is read once a simulated second; non-zero stops the render with
+ * APX_ERR_CANCELLED and nothing written. */
+ApxStatus apx_showcase_render(const char *list_path, const char *tracks_dir,
+                              const char *cars_dir, const char *name,
+                              const char *out_path, const volatile uint8_t *cancel);
 
 #ifdef __cplusplus
 }

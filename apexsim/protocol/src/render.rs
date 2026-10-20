@@ -11,6 +11,9 @@ use crate::data::*;
 use crate::seeded_race::{start_race, CarMap, FolderMap, SimulateOptions, StartedRace};
 use crate::spectator::{RaceScore, ScoreKeeper, StreamContent, StreamRender};
 
+/// The error a render given up on returns.
+pub const CANCELLED: &str = "the render was cancelled";
+
 /// Ticks between two recorded frames for a wanted frame rate: the nearest
 /// whole number. Truncating gave 400 / 60 = 6 (66.7 fps) and the header
 /// then claimed 60.
@@ -87,6 +90,15 @@ pub fn car_of_class(cars: &CarMap, folders: &FolderMap, class: &str) -> Option<C
 /// its countdown, `laps` from green, and a tail after the winner's flag.
 /// The same options and seed give the same bytes.
 pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
+    render_stream_unless(opts, &|| false)
+}
+
+/// [`render_stream`], given up (an error, [`CANCELLED`]) as soon as
+/// `cancelled` says so; it is asked once a simulated second.
+pub fn render_stream_unless(
+    opts: &RenderOptions,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<RenderedStream, String> {
     let race_opts = &opts.race;
     let StartedRace {
         mut race,
@@ -114,6 +126,9 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
     loop {
         crate::seeded_race::tick_field(&mut race);
         let tick = race.session.current_tick;
+        if tick % tick_rate as u32 == 0 && cancelled() {
+            return Err(CANCELLED.to_string());
+        }
         let laps = race.take_lap_events();
         let pit_starts = race.take_pit_events();
         let out = stream.tick(&race, &laps, &pit_starts, &names, false);
@@ -177,12 +192,21 @@ pub fn render_stream(opts: &RenderOptions) -> Result<RenderedStream, String> {
 /// keep the race that scores best ([`RaceScore::score`]); its seed and
 /// score go into the header, so the pick can be rendered again alone.
 pub fn render_best(opts: &RenderOptions, count: u32) -> Result<RenderedStream, String> {
+    render_best_unless(opts, count, &|| false)
+}
+
+/// [`render_best`], given up as [`render_stream_unless`] is.
+pub fn render_best_unless(
+    opts: &RenderOptions,
+    count: u32,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<RenderedStream, String> {
     let first = opts.race.seed.unwrap_or(0);
     let mut best: Option<RenderedStream> = None;
     for seed in first..first + count.max(1) as u64 {
         let mut one = opts.clone();
         one.race.seed = Some(seed);
-        let rendered = render_stream(&one)?;
+        let rendered = render_stream_unless(&one, cancelled)?;
         eprintln!(
             "seed {seed}: score {:.1} ({} retired, {:.1} s contact, {:.1} s off the road, {:.1} s close)",
             rendered.score.score(),
@@ -203,4 +227,44 @@ pub fn render_best(opts: &RenderOptions, count: u32) -> Result<RenderedStream, S
         best.content.header.render.score = Some(best.score.score());
     }
     Ok(best)
+}
+
+/// Parse `hh:mm` into minutes after midnight.
+pub fn parse_time_of_day(text: &str) -> Result<u16, String> {
+    let (h, m) = text
+        .split_once(':')
+        .ok_or_else(|| format!("time of day '{text}' is not hh:mm"))?;
+    let h: u16 = h
+        .trim()
+        .parse()
+        .map_err(|_| format!("bad hour in '{text}'"))?;
+    let m: u16 = m
+        .trim()
+        .parse()
+        .map_err(|_| format!("bad minute in '{text}'"))?;
+    if h > 23 || m > 59 {
+        return Err(format!("time of day '{text}' is off the clock"));
+    }
+    Ok(h * 60 + m)
+}
+
+/// Parse a weather name as the create screen and the scripts spell it.
+pub fn parse_weather(text: &str) -> Result<Weather, String> {
+    let key: String = text
+        .trim()
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .collect();
+    match key.as_str() {
+        "sunny" | "clear" | "0" => Ok(Weather::Sunny),
+        "cloudy" | "1" => Ok(Weather::Cloudy),
+        "overcast" | "2" => Ok(Weather::Overcast),
+        "lightrain" | "rain" | "3" => Ok(Weather::LightRain),
+        "heavyrain" | "storm" | "4" => Ok(Weather::HeavyRain),
+        "snow" | "5" => Ok(Weather::Snow),
+        _ => Err(format!(
+            "unknown weather '{text}' (sunny, cloudy, overcast, lightrain, heavyrain, snow)"
+        )),
+    }
 }

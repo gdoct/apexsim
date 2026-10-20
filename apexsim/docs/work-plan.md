@@ -32,7 +32,7 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| N28 | Guides, showcases and Watch hotlap simulated in the client (step 1 built) | Platform + tooling | P2 | 🟢 | L | 2 |
+| N28 | Guides, showcases and Watch hotlap simulated in the client (steps 1-2 built) | Platform + tooling | P2 | 🟢 | L | 2 |
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
 | R7 | Flags in the car: a cue and the dash flag (follow-ups #18) | Race rules | P2 | 🟡 | S | 3 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 4 |
@@ -449,8 +449,11 @@ the server's own code behind the C API), then run `track_guide.rs` and the
 showcase render through it in the game.
 **Built 2026-10-20:** step 1, the session tick in the library
 (`seeded_race`, `apx_race_*`, ABI 4), equal to the render's race tick for
-tick (`server/ffi/tests/seeded_race.rs`). Next: the client side (a showcase
-from its seed, then the guide), roadmap #24.
+tick (`server/ffi/tests/seeded_race.rs`). **Built 2026-10-21:** step 2,
+showcases made in the game (`apexsim-protocol`, `apx_showcase_render` ABI 5,
+`FApexShowcaseRenderer` into `Saved/ApexSim/Showcases/`), byte for byte the
+build's file. Next: the guide (`track_guide` into the library), Watch
+hotlap, then the build stages go; roadmap #24.
 **Watch out:** a showcase must stay bit-identical to the server's render of
 the same seed (determinism across the two builds, prediction's trace test
 is the model); a guide's solo runs take time, so make them on a worker

@@ -4,6 +4,12 @@
 #include "Engine/GameInstance.h"
 #include "ApexSpectatorStream.h"
 #include "ApexSpectatorWriter.h"
+#include "ApexRepoPaths.h"
+#include "ApexShowcaseRenderer.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Race/ApexPhysicsLib.h"
 #include "Race/ApexReplayClip.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -247,6 +253,100 @@ bool FApexBackdropChooseFileTest::RunTest(const FString& Parameters)
 	Content.Cars.Remove(TEXT("lmp2"));
 	Content.Cars.Remove(TEXT("gt3"));
 	TestEqual(TEXT("nothing playable"), UApexDemoModeSubsystem::ChooseFile(Files, Content, FString(), FString()), INDEX_NONE);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// Which showcases the game renders itself: one with no file, or none that is
+// fresh, on a track it can draw and simulate; the player's track first.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexBackdropShowcasesToRenderTest, "ApexSim.Backdrop.ShowcasesToRender", ApexTestFlags)
+
+bool FApexBackdropShowcasesToRenderTest::RunTest(const FString& Parameters)
+{
+	using FFile = UApexDemoModeSubsystem::FFileCandidate;
+	auto Make = [](const TCHAR* Path, const TCHAR* Track, int64 TrackCrc)
+	{
+		FFile F;
+		F.Path = Path;
+		F.TrackId = Track;
+		F.TrackCrc = TrackCrc;
+		F.Cars.Add(TPair<FString, int64>(TEXT("gt3"), 20));
+		return F;
+	};
+	const TArray<FString> Names = { TEXT("Zandervoort.gt3.day"), TEXT("Monzarella.f1.day"), TEXT("SpaFrankenchamps.lmp2.dusk"),
+		TEXT("Armadillos.gt3.day"), TEXT("Nowhere.gt3.day") };
+	TArray<FFile> Files;
+	// Zandervoort shipped and fresh; Monza shipped but its track has moved
+	// since, and rendered again here (fresh); Spa only stale; Armadillos none.
+	Files.Add(Make(TEXT("C:/Game/Showcase/Zandervoort.gt3.day.apxs"), TEXT("zandervoort"), 200));
+	Files.Add(Make(TEXT("C:/Game/Showcase/Monzarella.f1.day.apxs"), TEXT("monzarella"), 300));
+	Files.Add(Make(TEXT("C:/Saved/ApexSim/Showcases/Monzarella.f1.day.apxs"), TEXT("monzarella"), 301));
+	Files.Add(Make(TEXT("C:/Game/Showcase/SpaFrankenchamps.lmp2.dusk.apxs"), TEXT("spafrankenchamps"), 100));
+	UApexDemoModeSubsystem::FContentCrcs Content;
+	Content.Tracks.Add(TEXT("zandervoort"), TPair<FString, int64>(TEXT("Zandervoort"), 200));
+	Content.Tracks.Add(TEXT("monzarella"), TPair<FString, int64>(TEXT("Monzarella"), 301));
+	Content.Tracks.Add(TEXT("spafrankenchamps"), TPair<FString, int64>(TEXT("SpaFrankenchamps"), 101));
+	Content.Cars.Add(TEXT("gt3"), 20);
+	// Nowhere has no export or YAML here.
+	const TSet<FString> Tracks = { TEXT("Zandervoort"), TEXT("Monzarella"), TEXT("SpaFrankenchamps"), TEXT("Armadillos") };
+
+	TArray<FString> Got = UApexDemoModeSubsystem::ShowcasesToRender(Names, Files, Content, Tracks, FString(), {});
+	TestEqual(TEXT("the stale and the missing, in the list's order"), FString::Join(Got, TEXT(" ")),
+		FString(TEXT("SpaFrankenchamps.lmp2.dusk Armadillos.gt3.day")));
+	Got = UApexDemoModeSubsystem::ShowcasesToRender(Names, Files, Content, Tracks, TEXT("Armadillos"), {});
+	TestEqual(TEXT("the player's track first"), FString::Join(Got, TEXT(" ")),
+		FString(TEXT("Armadillos.gt3.day SpaFrankenchamps.lmp2.dusk")));
+	Got = UApexDemoModeSubsystem::ShowcasesToRender(Names, Files, Content, Tracks, FString(), { TEXT("SpaFrankenchamps.lmp2.dusk") });
+	TestEqual(TEXT("a failed render is not tried again"), FString::Join(Got, TEXT(" ")), FString(TEXT("Armadillos.gt3.day")));
+	TestEqual(TEXT("a name's track"), FApexShowcaseRenderer::StemOf(TEXT("Zandervoort.gt3.day")), FString(TEXT("Zandervoort")));
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// The game's own render of a showcase (the physics library in this build) is
+// the file the content build rendered with the server's apexsim-replay, byte
+// for byte: build/showcase/Zandervoort.gt3.day.apxs from the repo's list.
+// A whole 20-car race, some seconds; skipped without the library or the file.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexShowcaseRenderMatchesBuildTest, "ApexSim.Backdrop.ShowcaseRenderMatchesBuild", ApexTestFlags)
+
+bool FApexShowcaseRenderMatchesBuildTest::RunTest(const FString& Parameters)
+{
+	FString Why;
+	if (!ApexPhysics::IsAvailable(&Why))
+	{
+		AddInfo(FString::Printf(TEXT("skipped: %s"), *Why));
+		return true;
+	}
+	const FString Shipped = ApexRepoPaths::CodePath(TEXT("build/showcase/Zandervoort.gt3.day.apxs"));
+	FApexShowcaseRenderer::FInputs Inputs;
+	if (!IFileManager::Get().FileExists(*Shipped) || !FApexShowcaseRenderer::FindInputs(Inputs, Why))
+	{
+		AddInfo(FString::Printf(TEXT("skipped: no %s or no content (%s)"), *Shipped, *Why));
+		return true;
+	}
+	TArray<FString> Names;
+	TestTrue(TEXT("the list reads"), ApexPhysics::ShowcaseNames(Inputs.ListPath, Names, Why));
+	TestTrue(TEXT("the list holds Zandervoort's showcase"), Names.Contains(TEXT("Zandervoort.gt3.day")));
+
+	const FString Out = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("Zandervoort.gt3.day.apxs"));
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(Out), true);
+	const uint8 NoCancel = 0;
+	const ApexPhysics::EShowcaseRender Result = ApexPhysics::RenderShowcase(
+		Inputs.ListPath, Inputs.TracksDir, Inputs.CarsDir, TEXT("Zandervoort.gt3.day"), Out, &NoCancel, Why);
+	if (!TestTrue(FString::Printf(TEXT("rendered (%s)"), *Why), Result == ApexPhysics::EShowcaseRender::Written))
+	{
+		return false;
+	}
+	TArray<uint8> Ours, Theirs;
+	FFileHelper::LoadFileToArray(Ours, *Out);
+	FFileHelper::LoadFileToArray(Theirs, *Shipped);
+	TestEqual(TEXT("the same size as the build's"), Ours.Num(), Theirs.Num());
+	TestTrue(TEXT("the same bytes as the build's"), Ours == Theirs);
+	IFileManager::Get().Delete(*Out);
 	return true;
 }
 

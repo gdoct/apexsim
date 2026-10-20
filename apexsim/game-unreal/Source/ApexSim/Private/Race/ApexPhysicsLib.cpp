@@ -107,6 +107,42 @@ namespace ApexPhysics
 		return true;
 	}
 
+	bool ShowcaseNames(const FString& ListPath, TArray<FString>& OutNames, FString& OutError)
+	{
+		const FTCHARToUTF8 Path(*ListPath);
+		size_t Size = 0;
+		ApxStatus Status = apx_showcase_names(Path.Get(), nullptr, 0, &Size);
+		TArray<uint8> Text;
+		if (Status == APX_ERR_BUFFER)
+		{
+			Text.SetNumUninitialized(static_cast<int32>(Size));
+			Status = apx_showcase_names(Path.Get(), Text.GetData(), Text.Num(), &Size);
+		}
+		OutNames.Reset();
+		if (Status != APX_OK)
+		{
+			OutError = PhysicsError(TEXT("apx_showcase_names"));
+			return false;
+		}
+		const FUTF8ToTCHAR Converted(reinterpret_cast<const ANSICHAR*>(Text.GetData()), Text.Num());
+		const FString Joined(Converted.Length(), Converted.Get());
+		Joined.ParseIntoArray(OutNames, TEXT("\n"), true);
+		return true;
+	}
+
+	EShowcaseRender RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
+		const FString& Name, const FString& OutPath, const volatile uint8* Cancel, FString& OutError)
+	{
+		const FTCHARToUTF8 List(*ListPath), Tracks(*TracksDir), Cars(*CarsDir), ShowcaseName(*Name), Out(*OutPath);
+		const ApxStatus Status = apx_showcase_render(List.Get(), Tracks.Get(), Cars.Get(), ShowcaseName.Get(), Out.Get(), Cancel);
+		if (Status == APX_OK)
+		{
+			return EShowcaseRender::Written;
+		}
+		OutError = PhysicsError(TEXT("apx_showcase_render"));
+		return Status == APX_ERR_CANCELLED ? EShowcaseRender::Cancelled : EShowcaseRender::Failed;
+	}
+
 	bool FTrack::SetRoadRows(uint32 FirstCell, TArrayView<const uint8> Rows, TArrayView<const uint8> SnowRows,
 		TArrayView<const uint8> LaneSnow, FString& OutError)
 	{
@@ -215,6 +251,20 @@ namespace ApexPhysics
 	}
 
 	FString LastError() { return NotBuilt; }
+
+	bool ShowcaseNames(const FString&, TArray<FString>& OutNames, FString& OutError)
+	{
+		OutNames.Reset();
+		OutError = NotBuilt;
+		return false;
+	}
+
+	EShowcaseRender RenderShowcase(const FString&, const FString&, const FString&, const FString&, const FString&,
+		const volatile uint8*, FString& OutError)
+	{
+		OutError = NotBuilt;
+		return EShowcaseRender::Failed;
+	}
 
 	FTrack::~FTrack() = default;
 

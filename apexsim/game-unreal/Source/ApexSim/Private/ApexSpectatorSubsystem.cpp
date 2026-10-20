@@ -1,6 +1,7 @@
 #include "ApexSpectatorSubsystem.h"
 
 #include "ApexNetSubsystem.h"
+#include "ApexShowcaseRenderer.h"
 #include "ApexSim.h"
 #include "Async/Async.h"
 #include "Engine/GameInstance.h"
@@ -91,6 +92,8 @@ TArray<FString> UApexSpectatorSubsystem::ShowcaseDirectories()
 		? FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("Showcase"))
 		: FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("build"), TEXT("showcase"));
 	Dirs.AddUnique(FPaths::ConvertRelativePathToFull(Default));
+	// The ones the game rendered itself (FApexShowcaseRenderer).
+	Dirs.AddUnique(FApexShowcaseRenderer::CacheDirectory());
 	return Dirs;
 }
 

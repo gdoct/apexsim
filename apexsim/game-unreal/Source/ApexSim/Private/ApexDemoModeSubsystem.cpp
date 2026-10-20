@@ -12,6 +12,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Race/ApexPhysicsLib.h"
 #include "Race/ApexRaceDirector.h"
 #include "Track/ApexTrackContentSubsystem.h"
 
@@ -51,6 +52,12 @@ namespace
 		TEXT("apexsim.demo.MaxMinutes"),
 		12.0f,
 		TEXT("A backdrop still running after this long moves on to the next (a car stuck off the road never finishes)."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<int32> CVarShowcaseRender(
+		TEXT("apexsim.showcase.Render"),
+		1,
+		TEXT("1 renders every showcase of showcase.yml that has no fresh file here, in the background, into Saved/ApexSim/Showcases; 0 plays only the files there are."),
 		ECVF_Default);
 
 	FAutoConsoleCommandWithWorldAndArgs DemoRestartCommand(
@@ -104,6 +111,22 @@ void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (!IsDemoDisabled() && !bNoShowcase)
 	{
 		ScanLocalFiles();
+		FString Why;
+		FApexShowcaseRenderer::FInputs Inputs;
+		if (CVarShowcaseRender.GetValueOnGameThread() == 0 || FParse::Param(FCommandLine::Get(), TEXT("ApexNoShowcaseRender"))
+			|| !ForcedShowcase.IsEmpty())
+		{
+			// Off, or one file named to play.
+		}
+		else if (!ApexPhysics::IsAvailable(&Why) || !FApexShowcaseRenderer::FindInputs(Inputs, Why)
+			|| !ApexPhysics::ShowcaseNames(Inputs.ListPath, ShowcaseNames, Why))
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Demo mode: no showcases rendered here (%s)"), *Why);
+		}
+		else
+		{
+			Renderer = MakeUnique<FApexShowcaseRenderer>(Inputs);
+		}
 	}
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateUObject(this, &UApexDemoModeSubsystem::Tick));
@@ -112,6 +135,8 @@ void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UApexDemoModeSubsystem::Deinitialize()
 {
 	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+	// Cancels a render under way and waits for it (a simulated second at most).
+	Renderer.Reset();
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnDemoSessionChanged.Remove(DemoChangedHandle);
@@ -450,6 +475,110 @@ int32 UApexDemoModeSubsystem::ChooseFile(const TArray<FFileCandidate>& Files, co
 	// round every file rather than back and forth between the first two.
 	const int32 Last = Playable.IndexOfByPredicate([&Files, &Avoid](int32 i) { return Files[i].Path == Avoid; });
 	return Playable[(Last + 1) % Playable.Num()];
+}
+
+TArray<FString> UApexDemoModeSubsystem::ShowcasesToRender(const TArray<FString>& Names, const TArray<FFileCandidate>& Files,
+	const FContentCrcs& Content, const TSet<FString>& Tracks, const FString& PendingStem, const TSet<FString>& Skip)
+{
+	TArray<FString> Out;
+	for (const FString& Name : Names)
+	{
+		if (Skip.Contains(Name) || !Tracks.Contains(FApexShowcaseRenderer::StemOf(Name)))
+		{
+			continue;
+		}
+		const FString FileName = Name + TEXT(".apxs");
+		TArray<FFileCandidate> Same;
+		for (const FFileCandidate& File : Files)
+		{
+			if (FPaths::GetCleanFilename(File.Path).Equals(FileName, ESearchCase::IgnoreCase))
+			{
+				Same.Add(File);
+			}
+		}
+		if (ChooseFile(Same, Content, FString(), FString()) == INDEX_NONE)
+		{
+			Out.Add(Name);
+		}
+	}
+	// The player's track first, the list's order otherwise.
+	auto IsPending = [&PendingStem](const FString& Name) {
+		return !PendingStem.IsEmpty() && FApexShowcaseRenderer::StemOf(Name).Equals(PendingStem, ESearchCase::IgnoreCase);
+	};
+	Out.StableSort([&IsPending](const FString& A, const FString& B) { return IsPending(A) && !IsPending(B); });
+	return Out;
+}
+
+void UApexDemoModeSubsystem::TickRenders(const UApexNetSubsystem& Net)
+{
+	if (!Renderer)
+	{
+		return;
+	}
+	FString Name, Path, Error;
+	if (Renderer->Poll(Name, Path, Error))
+	{
+		if (Path.IsEmpty())
+		{
+			RenderFailed.Add(Name);
+		}
+		else
+		{
+			// The new file joins the ones the backdrop chooses from.
+			bFilesScanned = false;
+			ScanLocalFiles();
+		}
+		RenderCheckIn = 0.0f;
+	}
+	// Never while the player drives or a session is being joined.
+	if (Renderer->IsBusy() || Net.IsInSession() || Net.IsSessionRequestPending() || RenderCheckIn > 0.0f)
+	{
+		return;
+	}
+	RenderCheckIn = 5.0f;
+
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
+	if (!Flow || !Content)
+	{
+		return;
+	}
+	// The tracks this machine draws and the render can simulate.
+	TSet<FString> Tracks;
+	for (const FString& Showcase : ShowcaseNames)
+	{
+		const FString Stem = FApexShowcaseRenderer::StemOf(Showcase);
+		if (Tracks.Contains(Stem) || !Content->HasTrack(Stem))
+		{
+			continue;
+		}
+		for (const TCHAR* Sub : { TEXT("default"), TEXT("custom") })
+		{
+			if (IFileManager::Get().FileExists(*FPaths::Combine(Renderer->GetInputs().TracksDir, Sub, Stem, Stem + TEXT(".yaml"))))
+			{
+				Tracks.Add(Stem);
+				break;
+			}
+		}
+	}
+	FString PendingStem;
+	FApexTrackCatalogRow Row;
+	if (Flow->HasPendingTrack() && Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row))
+	{
+		PendingStem = Row.YamlBaseName;
+	}
+	const TArray<FString> Needed = ShowcasesToRender(ShowcaseNames, LocalFiles, GatherContentCrcs(Net), Tracks, PendingStem, RenderFailed);
+	if (Needed.Num() > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Demo mode: %d showcase(s) to render here, %s first"), Needed.Num(), *Needed[0]);
+		Renderer->Start(Needed[0]);
+	}
+	else
+	{
+		// Everything is fresh: look again only after a while (the content
+		// does not change under a running game; the player's track does).
+		RenderCheckIn = 30.0f;
+	}
 }
 
 bool UApexDemoModeSubsystem::StartShowcase(UApexNetSubsystem& Net)
@@ -836,6 +965,8 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 		return true;
 	}
 	Cooldown = FMath::Max(0.0f, Cooldown - DeltaSeconds);
+	RenderCheckIn = FMath::Max(0.0f, RenderCheckIn - DeltaSeconds);
+	TickRenders(*Net);
 	SecondsSinceInit += DeltaSeconds;
 	SecondsSinceAsked += DeltaSeconds;
 	if (Net->GetConnectionState() != EApexConnectionState::Authenticated)

@@ -50,6 +50,9 @@
             Game/Guide/         the track guides (apexsim-content/docs/track-guide.md)
             Game/Showcase/      the rendered AI races (.apxs) the menu plays
                                 behind its screens (docs/game/spectator.md)
+            Game/showcase.yml   the list the game renders a missing or stale
+                                showcase from itself, on Server/content's
+                                tracks and cars
             Server/             apexsim-server.exe + apexsim-replay.exe +
                                 server.toml + server.md (how to start it by
                                 hand) + content/ + showcase/ (the same
@@ -300,7 +303,7 @@ function Build-StarterShowcases {
             if ($arguments[$i] -eq '--out') { $arguments[$i + 1] = Join-Path $work "$($row.Name).apxs" }
         }
         Write-Detail "rendering $($row.Name)"
-        Invoke-Tool -Exe $ReplayExe -Arguments $arguments -What "apexsim-replay render $($row.Name)" -Quiet
+        Invoke-Tool -Exe $ReplayExe -Arguments $arguments -What "apexsim-replay showcase $($row.Name)" -Quiet
         $count++
     }
     foreach ($destination in $Destinations) {
@@ -815,6 +818,9 @@ else {
     [void](Copy-ApexShowcases -RepoRoot $RepoRoot -Destination (Join-Path $ServerDir 'showcase'))
 }
 Write-Detail "$showcaseCount showcase(s) in $(Join-Path $GameDir 'Showcase') and $(Join-Path $ServerDir 'showcase')"
+# The list the game renders its own showcases from when one here is missing
+# or stale (FApexShowcaseRenderer: the tracks and cars of Server\content).
+Copy-Item -LiteralPath (Join-Path $RepoRoot 'showcase.yml') -Destination $GameDir -Force
 Copy-RuntimeTracks -Destination (Join-Path $GameDir 'Tracks')
 $runtimeTrackCount = @(Get-ChildItem (Join-Path $GameDir 'Tracks') -Filter '*.uescene.json' -File).Count
 Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"

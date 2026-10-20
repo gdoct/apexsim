@@ -8,9 +8,9 @@ struct FApexOwnCarSnapshot;
 struct FApexDriverFeedback;
 
 /**
- * The server's car step, linked into the client as a static library
+ * The server's simulation, linked into the client as a static library
  * (server/ffi, the ApexPhysics third-party module): a thin owner of its C
- * handles for the prediction of the local car
+ * handles for the prediction of the local car, and the showcase render
  * (docs/proposals/client-prediction.md, docs/game/client.md).
  *
  * A client built without the library (WITH_APEX_PHYSICS 0, the .lib not
@@ -100,6 +100,26 @@ namespace ApexPhysics
 	/** The bundle the server would build of those files, and its checksum (apx_track_bundle_build; tests and tools). */
 	APEXSIM_API bool BuildTrackBundle(const FString& YamlPath, uint8 RoadContact, TArray<uint8>& OutBundle, uint32& OutCrc,
 		FString& OutError);
+
+	/** Every showcase the showcase.yml at ListPath names (`<track>.<class>.<variant>`), in its order. */
+	APEXSIM_API bool ShowcaseNames(const FString& ListPath, TArray<FString>& OutNames, FString& OutError);
+
+	enum class EShowcaseRender : uint8
+	{
+		Written,
+		Cancelled,
+		Failed,
+	};
+
+	/**
+	 * Render showcase `Name` of the list into the stream file OutPath
+	 * (apx_showcase_render): the file `apexsim-replay showcase` writes from
+	 * the same list, tracks and cars, byte for byte. A whole race: seconds of
+	 * work, so call it off the game thread. *Cancel non-zero stops it with
+	 * nothing written.
+	 */
+	APEXSIM_API EShowcaseRender RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
+		const FString& Name, const FString& OutPath, const volatile uint8* Cancel, FString& OutError);
 
 	/** A player input as the server reads it (sanitised by the step itself). */
 	APEXSIM_API ApxInput ToInput(const FApexPlayerInput& Input);

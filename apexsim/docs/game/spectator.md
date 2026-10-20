@@ -140,6 +140,7 @@ JSON on stdout.
 apexsim-replay render --track ../apexsim-content/tracks/default/Zandervoort/Zandervoort.yaml --class GT3 \
     --cars 20 --laps 2 --weather sunny --time 13:00 --seed 7 [--seeds 10] \
     --cars-dir ../apexsim-content/cars/default --out build/showcase/Zandervoort.gt3.day.apxs
+apexsim-replay showcase --name Zandervoort.gt3.day --out build/showcase/Zandervoort.gt3.day.apxs
 apexsim-replay info  build/showcase/Zandervoort.gt3.day.apxs [--check]
 apexsim-replay convert out/race.bin --rate 30 --out out/race.apxs
 apexsim-replay simulate --track <yaml> --car yotota-lmp2 --ai 12 --laps 3 --seed 1 --out out/race.bin
@@ -164,6 +165,13 @@ apexsim-replay guide ...    # the track guide, see track-guide.md
   mixed field, novice to ace. Recorded at `--rate` (30). The same
   arguments write a byte-identical file (the session and host ids are seeded
   too).
+- **`showcase --name <Stem>.<class>.<variant>`** renders one entry of
+  `showcase.yml` (`--list`, the code root's by default) on
+  `--tracks-dir` / `--cars-dir` (`../apexsim-content/tracks` and
+  `cars/default`): `render` with the entry's options, read by
+  `apexsim_protocol::showcase_list`, which is also what the game's own
+  render reads, so the two write the same file. The pipeline renders
+  through it.
 - **`info --check`** exits non-zero when the track's `source_crc` or a car's
   `content_crc` no longer matches the content on disk (`check_stream`); a 0
   checksum (a converted replay) is not compared. It also calls a version 1
@@ -181,14 +189,39 @@ apexsim-replay guide ...    # the track guide, see track-guide.md
 
 **Showcase files** are named `<Stem>.<class>.<variant>.apxs` (variant a sky:
 `day`, `dusk`, `rain`, `night`) and rendered into `build/showcase/`
-(gitignored) from `showcase.yml` (an entry's `ai_level` becomes
-`--ai-level`; `info --check` does not see it change, so re-render with
-`-Force`). `build_track_levels.ps1` and
+(gitignored) from `showcase.yml` by `apexsim-replay showcase` (an
+entry's `ai_level` is the render's AI level; `info --check` does not see it
+change, so re-render with `-Force`). `build_track_levels.ps1` and
 `initialize_content.ps1` have a showcase stage (`-SkipShowcase`) that renders
 what is missing or stale by `info --check`. Packages copy them to
 `Game/Showcase/`; the release also to `Server/showcase/` with
 `apexsim-replay.exe` beside the server. Imported tracks are never rendered by
-the pipeline. Rendering takes seconds per circuit in a release build.
+the pipeline. Rendering takes seconds per circuit in a release build
+(16 s for Zandervoort's 16 GT3s over two laps).
+
+**Showcases made in the game.** The physics library renders a showcase too
+(`apx_showcase_render`, ABI 5: the list, the tracks and cars, a name, an
+output path and a cancel flag; `apx_showcase_names` lists the entries), with
+the server's own code (`apexsim-protocol`'s `render` and `showcase_list`),
+so its file is the build's byte for byte
+(`server/ffi/tests/showcase.rs`, and its ignored
+`the_shipped_showcase_renders_again_through_the_api` in release against
+`build/showcase/`; `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` in the
+game's own build). `UApexDemoModeSubsystem` works out which entries have no
+fresh local file (`ShowcasesToRender`: none of that name, or none whose
+track and car checksums match the catalog, on a track this machine draws
+and has the YAML of; the pending track's first) and renders them one at a
+time on a below-normal thread (`FApexShowcaseRenderer`) into
+`Saved/ApexSim/Showcases/`, which the backdrop scans with the shipped
+folder; a finished file joins the local files at once. It never starts one
+while the player is in or joining a session, a failed one is not retried
+that run, and leaving the game cancels one under way. The inputs
+(`FApexShowcaseRenderer::FindInputs`): `-ApexShowcaseList=` and
+`-ApexContentDir=`, else in the editor the code root's `showcase.yml` and
+the content root, in a package `Game/showcase.yml` and
+`Server/content`'s tracks and `cars/default`. `apexsim.showcase.Render 0`
+or `-ApexNoShowcaseRender` turns it off; `-ApexShowcase=` (one named file)
+does too.
 
 ## Server showcases
 
@@ -286,7 +319,8 @@ sky; `Path` gives the TV director its trackside cameras.
    startup by preamble (`FApexStreamFile::ReadPreamble`) so the splash hold's
    `IsDemoExpected` can count on one offline. A file whose track or car
    checksums do not match this machine's catalog rows is skipped (0 is
-   unknown and passes).
+   unknown and passes). `Saved/ApexSim/Showcases/`, where the game renders
+   the ones with no fresh file itself (below), is scanned too.
 3. A `SessionKind::Demo` session, for a server that predates showcases.
 4. The static page backgrounds.
 
@@ -418,7 +452,9 @@ switch reference: the header of `ApexReplaySubsystem.h` and
 
 ## Checking it
 
-- Rust: `spectator::tests` (round trips, the epoch patched in place, parts,
+- Rust: `showcase_list::tests` (the list read, names, an unknown variant or
+  key refused), `server/ffi/tests/showcase.rs` (the API's file is the
+  tool's, cancel, names), `spectator::tests` (round trips, the epoch patched in place, parts,
   file seek, newer writers' fields skipped, the score), `replay_tools::tests`
   (`a_seeded_render_is_byte_identical`, `check_stream`, windows, seed
   picking, convert, cut, poses), `showcase::tests` (one clock for two viewers,
@@ -429,7 +465,8 @@ switch reference: the header of `ApexReplaySubsystem.h` and
   `tests/all/live_spectator_test.rs` (a mid-race spectator gets the roster).
 - Client: `ApexSim.Spectator.Codec`, `.File` (the whole file through a
   player), `.Player`, `.Protocol`, `.Writer`, `.PitFlags`;
-  `ApexSim.Backdrop.ChooseFile`; `ApexSim.Replay.Clip.Stream`;
+  `ApexSim.Backdrop.ChooseFile`, `.ShowcasesToRender`,
+  `.ShowcaseRenderMatchesBuild`; `ApexSim.Replay.Clip.Stream`;
   `ApexSim.Spectate.*`; `ApexSim.Tv.LockTarget`.
 
 ## Traps

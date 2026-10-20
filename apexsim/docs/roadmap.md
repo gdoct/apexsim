@@ -124,9 +124,18 @@ against it: no server process, no recorded stream, one simulation.
   `seeded_id`; the server's `replay_tools` re-exports it), and
   `apx_race_start` / `apx_race_tick` / `apx_race_cars` / `apx_race_digest`
   (ABI 4) start and tick it: `server/ffi/tests/seeded_race.rs` holds it to
-  the render's race digest for digest each second. Next: the client calling
-  it (a showcase from its seed in the game, the backdrop with no server),
-  the guide's solo runs (`track_guide` into the simulation as well).
+  the render's race digest for digest each second.
+- Built (2026-10-21): showcases made in the game. The wire, the stream and
+  the render moved into `apexsim-protocol` (the server re-exports it), the
+  library renders an entry of `showcase.yml` into the build's file byte for
+  byte (`apx_showcase_render`, ABI 5), and the menu renders every showcase
+  with no fresh file into `Saved/ApexSim/Showcases/` in the background
+  ([game/spectator.md](game/spectator.md)); `apexsim-replay showcase` and the
+  pipeline read the list through the same code. Next: the build stages and
+  shipped `Showcase\` folders go once a fresh install has been seen to
+  make its own (a first start then plays a demo session or nothing for
+  some seconds), then the guide's solo runs (`track_guide` into the
+  simulation as well) and Watch hotlap.
 - The menu's backdrop and the hotlap watch run in-process from a seed: no
   `SessionKind::Demo` session on the server (which retires its remaining
   uses, see the work plan's X1) and no `.apxs` showcases to render and

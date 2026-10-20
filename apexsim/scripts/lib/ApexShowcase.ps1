@@ -8,7 +8,7 @@
         . (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
 
     A showcase is a spectator stream (<Stem>.<class>.<variant>.apxs,
-    docs/game/spectator.md) rendered by `apexsim-replay render` from a headless AI
+    docs/game/spectator.md) rendered by `apexsim-replay showcase` from a headless AI
     race: the menu plays it behind its screens and the server plays it to
     clients. showcase.yml (at the code root) lists what to render (track, class, sky
     variants, grid, laps, seed); build\showcase holds the files, gitignored
@@ -276,25 +276,14 @@ function Get-ApexShowcasePlan {
                 (Test-Path -LiteralPath ([IO.Path]::ChangeExtension($trackFile, '.import.json')))
         }
         foreach ($variant in @($entry['variants'])) {
-            $sky = $list.Variants[$variant]
-            $name = Get-ApexShowcaseName -Track $stem -Class $class -Variant $variant
+                        $name = Get-ApexShowcaseName -Track $stem -Class $class -Variant $variant
             $outFile = Join-Path $outDir "$name.apxs"
-            $settings = [ordered]@{ cars = '20'; laps = '2'; seed = '0'; seeds = $null; ai_level = $null }
-            foreach ($key in @($list.Defaults.Keys)) { $settings[$key] = [string]$list.Defaults[$key] }
-            foreach ($key in 'cars', 'laps', 'seed', 'seeds', 'ai_level') { if ($entry.Contains($key)) { $settings[$key] = [string]$entry[$key] } }
-
-            $relTrack = if ($trackFile) { '../apexsim-content/' + ([IO.Path]::GetFullPath($trackFile)).Substring($contentRoot.TrimEnd('\').Length + 1).Replace('\', '/') } else { "../apexsim-content/tracks/default/$stem/$stem.yaml" }
-            $renderArgs = @('render', '--track', $relTrack, '--class', $class,
+            # The render reads showcase.yml itself (protocol/src/showcase_list.rs),
+            # as the game does for the same entry, so the two files agree.
+            $renderArgs = @('showcase', '--name', $name, '--list', 'showcase.yml',
+                '--tracks-dir', '../apexsim-content/tracks',
                 '--cars-dir', '../apexsim-content/cars/default',
-                '--cars', $settings['cars'], '--laps', $settings['laps'],
-                '--weather', [string]$sky['weather'], '--time', [string]$sky['time'],
-                '--seed', $settings['seed'])
-            if ($settings['seeds'] -and [int]$settings['seeds'] -gt 1) { $renderArgs += @('--seeds', $settings['seeds']) }
-            if ($settings['ai_level']) { $renderArgs += @('--ai-level', $settings['ai_level']) }
-            if ($sky.Contains('air')) { $renderArgs += @('--air', [string]$sky['air']) }
-            if ($sky.Contains('wind')) { $renderArgs += @('--wind', [string]$sky['wind']) }
-            if ($sky.Contains('wind_from')) { $renderArgs += @('--wind-from', [string]$sky['wind_from']) }
-            $renderArgs += @('--out', "build/showcase/$name.apxs")
+                '--out', "build/showcase/$name.apxs")
 
             $status = 'missing'
             $reason = $null
@@ -409,8 +398,8 @@ function Start-ApexShowcaseRender {
         Write-Host "    $($row.Name)$why" -ForegroundColor DarkGray
         Write-Host "      $tool $($row.Arguments -join ' ')" -ForegroundColor DarkGray
         if ($DryRun) { continue }
-        Start-ApexShowcaseTool -RepoRoot $RepoRoot -Tool $tool -Arguments $row.Arguments -What "apexsim-replay render ($($row.Name))"
-        if (-not (Test-Path -LiteralPath $row.OutFile)) { throw "apexsim-replay render wrote nothing for $($row.Name)" }
+        Start-ApexShowcaseTool -RepoRoot $RepoRoot -Tool $tool -Arguments $row.Arguments -What "apexsim-replay showcase ($($row.Name))"
+        if (-not (Test-Path -LiteralPath $row.OutFile)) { throw "apexsim-replay showcase wrote nothing for $($row.Name)" }
         $done++
     }
     return $done

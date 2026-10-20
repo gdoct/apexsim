@@ -15,6 +15,7 @@ pub mod render;
 pub mod session_stream;
 pub mod session_wire;
 pub mod setup_sheet;
+pub mod showcase_list;
 pub mod spectator;
 
 // The simulation's modules under their own paths, so `crate::data` and

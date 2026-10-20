@@ -36,7 +36,7 @@ use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 4;
+pub const APX_ABI_VERSION: u32 = 5;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -60,6 +60,10 @@ pub const APX_ERR_STATE: ApxStatus = 7;
 pub const APX_ERR_BUFFER: ApxStatus = 8;
 /// The library panicked; the handle involved may be inconsistent.
 pub const APX_ERR_PANIC: ApxStatus = 9;
+/// The caller's cancel flag was raised before the work was done.
+pub const APX_ERR_CANCELLED: ApxStatus = 10;
+/// A file could not be read or written.
+pub const APX_ERR_IO: ApxStatus = 11;
 
 /// A loaded track: its sidecars, and the session's weather and road state
 /// baked in as the server bakes them.
@@ -1107,6 +1111,12 @@ mod tests {
             "apx_track_load_bundle(",
             "apx_track_files_crc(",
             "apx_track_bundle_build(",
+            "apx_race_start(",
+            "apx_race_tick(",
+            "apx_race_cars(",
+            "apx_race_digest(",
+            "apx_showcase_names(",
+            "apx_showcase_render(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }
@@ -1120,6 +1130,8 @@ mod tests {
             ("APX_ERR_STATE", APX_ERR_STATE),
             ("APX_ERR_BUFFER", APX_ERR_BUFFER),
             ("APX_ERR_PANIC", APX_ERR_PANIC),
+            ("APX_ERR_CANCELLED", APX_ERR_CANCELLED),
+            ("APX_ERR_IO", APX_ERR_IO),
         ] {
             assert!(
                 header.contains(&format!("#define {name} {value} ")),
@@ -1345,4 +1357,104 @@ pub unsafe extern "C" fn apx_race_free(race: *mut ApxRace) {
     if !race.is_null() {
         drop(Box::from_raw(race));
     }
+}
+
+// ---------------------------------------------------------------------------
+// Showcases: a seeded race rendered into a spectator stream
+// ---------------------------------------------------------------------------
+
+use apexsim_protocol::showcase_list::ShowcaseList;
+
+/// Every showcase `showcase.yml` at `list_path` names
+/// (`<track>.<class>.<variant>`, in the list's order), one per line, as
+/// UTF-8 into `buf`. `*written` gets the size; with a NULL `buf` or a short
+/// capacity nothing is copied and [`APX_ERR_BUFFER`] is returned.
+///
+/// # Safety
+/// `list_path` is a NUL-terminated string; `buf` has `capacity` writable
+/// bytes when non-null; `written` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_showcase_names(
+    list_path: *const c_char,
+    buf: *mut u8,
+    capacity: usize,
+    written: *mut usize,
+) -> ApxStatus {
+    guard(|| {
+        non_null(list_path, "list_path")?;
+        non_null(written, "written")?;
+        let list = ShowcaseList::load(c_path(list_path)?.as_ref())
+            .map_err(|e| Fail::new(APX_ERR_INVALID, e))?;
+        let text = list.names().join(
+            "
+",
+        );
+        *written = text.len();
+        if buf.is_null() || capacity < text.len() {
+            return Err(Fail::new(
+                APX_ERR_BUFFER,
+                format!("{} bytes needed", text.len()),
+            ));
+        }
+        std::ptr::copy_nonoverlapping(text.as_ptr(), buf, text.len());
+        Ok(())
+    })
+}
+
+/// Render the showcase `name` of the list at `list_path` into the stream
+/// file `out_path`: what `apexsim-replay showcase --name <name>` writes
+/// from the same list, tracks (`tracks_dir`, `default/<stem>/<stem>.yaml`)
+/// and cars (`cars_dir`), byte for byte. The file is written beside
+/// `out_path` and moved over it when whole, so a reader never sees half of
+/// one. It takes seconds: call it off the game thread. `cancel` (or NULL)
+/// is read once a simulated second; a non-zero value stops the render with
+/// [`APX_ERR_CANCELLED`] and writes nothing.
+///
+/// # Safety
+/// The strings are NUL-terminated; `cancel` is null or stays readable
+/// until the call returns.
+#[no_mangle]
+pub unsafe extern "C" fn apx_showcase_render(
+    list_path: *const c_char,
+    tracks_dir: *const c_char,
+    cars_dir: *const c_char,
+    name: *const c_char,
+    out_path: *const c_char,
+    cancel: *const u8,
+) -> ApxStatus {
+    guard(|| {
+        non_null(list_path, "list_path")?;
+        non_null(tracks_dir, "tracks_dir")?;
+        non_null(cars_dir, "cars_dir")?;
+        non_null(name, "name")?;
+        non_null(out_path, "out_path")?;
+        let list = ShowcaseList::load(c_path(list_path)?.as_ref())
+            .map_err(|e| Fail::new(APX_ERR_INVALID, e))?;
+        let render = list
+            .render(
+                c_path(name)?,
+                c_path(tracks_dir)?.as_ref(),
+                c_path(cars_dir)?.as_ref(),
+            )
+            .map_err(|e| Fail::new(APX_ERR_TRACK, e))?;
+        let cancelled = || !cancel.is_null() && std::ptr::read_volatile(cancel) != 0;
+        let rendered = render.run_unless(&cancelled).map_err(|e| {
+            if cancelled() {
+                Fail::new(APX_ERR_CANCELLED, e)
+            } else {
+                Fail::new(APX_ERR_TRACK, e)
+            }
+        })?;
+        let out = std::path::PathBuf::from(c_path(out_path)?);
+        let part = out.with_extension("apxs.part");
+        rendered
+            .content
+            .write_file(&part)
+            .map_err(|e| Fail::new(APX_ERR_IO, format!("{}: {e}", part.display())))?;
+        std::fs::rename(&part, &out).map_err(|e| {
+            let _ = std::fs::remove_file(&part);
+            Fail::new(APX_ERR_IO, format!("{}: {e}", out.display()))
+        })?;
+        Ok(())
+    })
 }
