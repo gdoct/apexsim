@@ -11,7 +11,7 @@ side by side:
 
 | Root | Holds |
 |---|---|
-| `apexsim/` (code) | `sim/` (the simulation crate), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
+| `apexsim/` (code) | `sim/` (the simulation crate), `protocol/` (the wire, the spectator stream, the render), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
 | `apexsim-content/` (content) | `cars/`, `tracks/`, `props/`, `textures/`, `wheels/`, `artwork/`; `track-editor/` (track-core, the `ats-*` tools, the Bevy editor); `tools/` (the Python pipeline, the AC importers, `generators/` for the Blender-built cars, props and wheels, `lib/` for the shared PowerShell); `docs/`; the generated `build/tracks/` (exports, previews, `track_catalog.json`) and `.cache/` (OSM, DEM, previews, import caches) |
 | `apexsim-lib/` (formats) | `formats/`, the `apexsim-formats` crate: the track YAML (`TrackFile`), the ground, curbs, walls, road mesh and pit sidecars, `content_crc` and the format levels |
 
@@ -36,7 +36,8 @@ Where each kind of tool runs from:
   the content's whole bake (ground PNGs, dress, export, previews) with cargo
   and Python only; `scripts/build_track_levels.ps1` runs it and adds the
   code's stages.
-- **Cargo** for the simulation runs in `apexsim/sim`, for the server in
+- **Cargo** for the simulation runs in `apexsim/sim`, for the wire and the
+  stream in `apexsim/protocol`, for the server in
   `apexsim/server` (and `apexsim/server/ffi`), for the formats in
   `apexsim-lib/formats`.
 
@@ -76,6 +77,27 @@ A new file is added there with a `mod` line; `--test all <file>::<name>`
 picks a file or a test. The tests read the content as
 `../../apexsim-content` from `sim/`, as the server's do from `server/`. The crate has its own `Cargo.lock`, started
 from the server's: keep the shared dependencies on the server's versions.
+
+## Protocol (Rust, `protocol/`)
+
+`apexsim-protocol` is what the server and its viewers exchange, apart from
+the sockets: the wire messages (`network`, `session_wire`) and their
+`*_wire_format` golden tests, the spectator stream and its file
+(`spectator`, `session_stream`), the lap records and ghosts (`records`), the
+setup sheet, and `render`, the seeded race rendered into a stream (what
+`apexsim-replay render` writes). It depends on the simulation alone; the
+server re-exports every module under the same path
+(`apexsim_server::network`) and the physics library links it to write the
+same showcase bytes as the server.
+
+```bash
+cd protocol
+cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
+cargo test spectator_wire_format -- --nocapture   # golden bytes for the client
+```
+
+The crate has its own `Cargo.lock`, started from the server's: keep the
+shared dependencies on the server's versions.
 
 ## Server (Rust, `server/`)
 
@@ -202,7 +224,8 @@ content), and none is filtered by path.
   warnings` (which compiles every target, so there is no build step), then
   `cargo test --no-fail-fast` with the test profile at opt-level 2: the
   tests race whole sessions, and optimised they take a couple of minutes
-  instead of twelve. Then fmt, clippy and test for `server/ffi`. CI has no
+  instead of twelve. Then fmt, clippy and test for `protocol/` and for
+  `server/ffi`. CI has no
   baked sidecars (they are gitignored): a test that drives a circuit names
   the sidecars it needs (`TrackConfig::has_sidecars(&[Sidecar::Pit], ..)`,
   `Sidecar::BAKED_ROAD` for one judged on the curbs, walls and verge) and

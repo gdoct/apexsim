@@ -133,7 +133,7 @@ cd apexsim-content && cargo test --manifest-path track-editor/Cargo.toml -p trac
 python apexsim-content/tools/check_direction.py   # the content does not reach into the code
 ```
 
-Wire-format changes are made on both sides at once (`apexsim/server/src/network.rs`
+Wire-format changes are made on both sides at once (`apexsim/protocol/src/network.rs`
 and `apexsim/game-unreal/Source/ApexSimNet`) and pinned by golden bytes on both sides;
 see [apexsim/docs/server/protocol.md](apexsim/docs/server/protocol.md). Keep the doc for the
 area you change up to date.

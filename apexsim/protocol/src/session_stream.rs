@@ -107,7 +107,7 @@ impl SessionStream {
         encoder.observe(session, &[]);
         Self {
             encoder,
-            record_every: crate::replay_tools::frame_spacing(tick_rate, frame_hz),
+            record_every: crate::render::frame_spacing(tick_rate, frame_hz),
             state_every: ((STATE_EVERY_S * tick_rate as f32).round() as u32).max(1),
             road_every: ((crate::road_state::ROAD_SEND_SECONDS * tick_rate as f32).round() as u32)
                 .max(1),
@@ -155,7 +155,7 @@ impl SessionStream {
 
     /// Frames a second, as the header says it.
     pub fn frame_rate(&self, session: &GameSession) -> u16 {
-        crate::replay_tools::frames_per_second(session.tick_rate_hz(), self.record_every)
+        crate::render::frames_per_second(session.tick_rate_hz(), self.record_every)
     }
 
     /// The header of the stream as it begins; the content's last tick and a

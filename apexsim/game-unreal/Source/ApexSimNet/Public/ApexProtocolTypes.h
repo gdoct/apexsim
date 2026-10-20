@@ -6,7 +6,7 @@
 #include "ApexProtocolTypes.generated.h"
 
 /**
- * ApexSim wire protocol v2 — mirrors `server/src/network.rs` and `sim/src/data.rs`.
+ * ApexSim wire protocol v2 — mirrors `protocol/src/network.rs` and `sim/src/data.rs`.
  *
  * Framing: [4-byte big-endian length][MessagePack payload], `to_vec_named`.
  *

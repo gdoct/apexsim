@@ -3541,10 +3541,8 @@ mod tests {
     /// payload over IPv4), so it is never fragmented.
     #[test]
     fn own_car_feedback_fits_one_small_datagram() {
-        let divisor = crate::config::ServerConfig::default()
-            .network
-            .telemetry_divisor
-            .max(1) as usize;
+        // The server's default `network.telemetry_divisor` (its config.rs).
+        let divisor = 7;
         // One steering sample per tick since the last message.
         let samples = divisor;
         let mut snapshot = golden_snapshot();

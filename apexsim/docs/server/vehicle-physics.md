@@ -653,7 +653,7 @@ reordered; effects are the `*_PER_CLICK` consts):
 `tyre_pickup`, `tyre_blister`, `damage_at2` (each zone's second dent,
 [cars](../../../apexsim-content/docs/cars.md#visible-damage))
 (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
-`DriverFeedback.flat_spot`. Golden bytes (in `server/`, `-- --nocapture`): `cargo test
+`DriverFeedback.flat_spot`. Golden bytes (in `protocol/`, `-- --nocapture`): `cargo test
 telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactFlatSpot` (the older
 `S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones,Recover}` stay on the client as older servers'
 frames); `car_setup_wire_format` -> `ApexGolden::C_SetCarSetup`;

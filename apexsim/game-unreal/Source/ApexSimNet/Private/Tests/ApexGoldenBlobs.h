@@ -4,7 +4,7 @@
 //
 // Byte-for-byte output of `rmp_serde::to_vec_named` for every menu-facing
 // protocol message, produced from the serde definitions in
-// `server/src/network.rs` and `sim/src/data.rs` copied verbatim into a
+// `protocol/src/network.rs` and `sim/src/data.rs` copied verbatim into a
 // standalone crate. These are the contract: if the client's encoder stops
 // producing these bytes, or its decoder stops accepting them, the client and
 // the server have diverged.
@@ -1564,7 +1564,7 @@ namespace ApexGolden
 
 	// SetPitPlan { keep_tyres: true, compound: Some(2), fuel_l: Some(5.0),
 	// no_repair: true, pads: Some(true), pad_set: Some(-1), box_this_lap: true }.
-	// From the server crate (`cargo test pit_plan_wire_format -- --nocapture`).
+	// From the protocol crate (`cargo test pit_plan_wire_format -- --nocapture`).
 	inline constexpr uint8 C_SetPitPlan[] = {
 		0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAA, 0x53, 0x65, 0x74, 0x50, 0x69, 0x74, 0x50, 0x6C, 0x61,
 		0x6E, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x87, 0xAA, 0x6B, 0x65, 0x65, 0x70, 0x5F, 0x74, 0x79, 0x72,

@@ -7,7 +7,9 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 
 ## Code
 
-- `server/src/network.rs` - `ClientMessage`, `ServerMessage`, their payload
+- The `apexsim-protocol` crate (`protocol/`), which the server and the
+  physics library both link and the server re-exports under the same paths:
+- `protocol/src/network.rs` - `ClientMessage`, `ServerMessage`, their payload
   structs, `MessagePriority`, `PROTOCOL_VERSION`, and the `*_wire_format`
   tests that print golden bytes.
 - `server/src/transport.rs` - TCP (+TLS) and UDP IO, framing, auth, the UDP
@@ -15,7 +17,7 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 - `server/src/game_loop/dispatch.rs` (handlers), `broadcast.rs` (fan-out,
   UDP or TCP fallback), `tick.rs` (telemetry and feedback serialization),
   `lifecycle.rs` (disconnects, held seats, stale connections).
-- `server/src/spectator.rs` - the spectator stream records
+- `protocol/src/spectator.rs` - the spectator stream records
   ([../game/spectator.md](../game/spectator.md)).
 - Client, `game-unreal/Source/ApexSimNet/`: `ApexProtocolCodec` and
   `MsgPack/` (the codec), `ApexProtocolTypes.h` (the structs),
@@ -290,7 +292,8 @@ them and decode from them.
 Workflow for a wire change:
 
 1. Change the server struct; extend the matching test in `network.rs`.
-2. `cd server && cargo test <test> -- --nocapture` prints the new bytes as
+2. `cd protocol && cargo test <test> -- --nocapture` (`udp_seal_wire_format`:
+   `cd server`) prints the new bytes as
    hex under the client constant's name; paste them into the client header as
    a **new** constant (keep the old blob: it is what an older peer sends, and
    the decoder must still take it).

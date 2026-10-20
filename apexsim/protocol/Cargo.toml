@@ -1,0 +1,22 @@
+[package]
+name = "apexsim-protocol"
+version = "0.1.0"
+edition = "2021"
+description = "What the server and its viewers exchange: the wire messages, the spectator stream, the records, and the render of a seeded race into a stream"
+publish = false
+
+[lib]
+name = "apexsim_protocol"
+
+[dependencies]
+uuid = { version = "1", features = ["v4", "serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_repr = "0.1"
+rmp-serde = "1"
+rmp = "0.8"
+flate2 = "1"
+thiserror = "2"
+tracing = "0.1"
+# The deterministic simulation (car, track, race, session tick).
+apexsim-sim = { path = "../sim" }

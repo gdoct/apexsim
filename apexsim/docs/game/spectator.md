@@ -12,9 +12,9 @@ telemetry, not the stream.
 
 ## Code
 
-- `server/src/spectator.rs`: records, the car row, the file (blocks, index),
+- `protocol/src/spectator.rs`: records, the car row, the file (blocks, index),
   `BroadcastEncoder` (session state to records), `patch_epoch`, `RaceScore`;
-  `server/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
+  `protocol/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
   the records the format promises) and `server/src/stream_recorder.rs` (the
   server's replay files).
 - `server/src/replay_tools.rs` and `server/src/bin/apexsim_replay.rs`: the

@@ -41,16 +41,20 @@ re-exports each of its modules under the same name, so
   (`run_server`, `ServerState`), `config.rs`, `lib.rs`.
 - **Loop and IO**: `game_loop/` (`mod.rs` tick loop, `dispatch.rs`,
   `tick.rs`, `broadcast.rs`, `lifecycle.rs`, `track_loads.rs`,
-  `showcase.rs`), `transport.rs`, `udp_seal.rs`, `network.rs` (messages),
-  `session_wire.rs` (a session's messages and telemetry), `lobby.rs`,
+  `showcase.rs`), `transport.rs`, `udp_seal.rs`, `lobby.rs`,
   `chat.rs`, `timer_resolution.rs`, `tick_jitter.rs`, `health.rs`,
   `metrics.rs`, `webhook.rs`, `admin/` (dashboard).
-- **Files**: `records.rs` and `results.rs` (lap records, race results),
-  `setup_sheet.rs`, `track_content.rs` (lazy sidecar loading).
-- **Spectating and offline tools**: `spectator.rs`, `session_stream.rs`,
-  `stream_recorder.rs`, `showcase.rs`, `replay.rs`, `replay_tools.rs`,
+- **Files**: `results.rs` (race results), `track_content.rs` (lazy sidecar
+  loading).
+- **Spectating and offline tools**: `stream_recorder.rs`, `showcase.rs`, `replay.rs`, `replay_tools.rs`,
   `track_guide.rs`; binaries in `bin/` (`apexsim_replay.rs`,
   `convert_track.rs`).
+
+In `../protocol/src/` (the `apexsim-protocol` crate, re-exported under the
+same paths): `network.rs` (messages), `session_wire.rs` (a session's
+messages and telemetry), `spectator.rs` and `session_stream.rs` (the
+stream), `render.rs` (a seeded race rendered into a stream), `records.rs`
+(lap records, ghosts), `setup_sheet.rs`.
 
 Also here: `ffi/` (the `apexsim-physics` crate on `apexsim-sim` alone: the
 car step as a static library behind a C API, `ffi/apexsim_physics.h`; see

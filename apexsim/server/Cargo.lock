@@ -90,10 +90,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "apexsim-protocol"
+version = "0.1.0"
+dependencies = [
+ "apexsim-sim",
+ "flate2",
+ "rmp",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "thiserror",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "apexsim-server"
 version = "0.1.0"
 dependencies = [
  "apexsim-formats",
+ "apexsim-protocol",
  "apexsim-sim",
  "bytes",
  "clap",

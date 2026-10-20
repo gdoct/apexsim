@@ -5,17 +5,11 @@ pub mod game_loop;
 pub mod health;
 pub mod lobby;
 pub mod metrics;
-pub mod network;
-pub mod records;
 pub mod replay;
 pub mod replay_tools;
 pub mod results;
 pub mod server;
-pub mod session_stream;
-pub mod session_wire;
-pub mod setup_sheet;
 pub mod showcase;
-pub mod spectator;
 pub mod stream_recorder;
 pub mod tick_jitter;
 pub mod timer_resolution;
@@ -24,6 +18,17 @@ pub mod track_guide;
 pub mod transport;
 pub mod udp_seal;
 pub mod webhook;
+
+// The wire, the spectator stream, the records and the render live in
+// `apexsim-protocol` (../protocol), which the physics library links too; they
+// keep their paths here.
+pub use apexsim_protocol::network;
+pub use apexsim_protocol::records;
+pub use apexsim_protocol::render;
+pub use apexsim_protocol::session_stream;
+pub use apexsim_protocol::session_wire;
+pub use apexsim_protocol::setup_sheet;
+pub use apexsim_protocol::spectator;
 
 // The simulation lives in `apexsim-sim` (../sim); its modules keep their
 // paths here, so `crate::physics` and `apexsim_server::physics` still resolve.

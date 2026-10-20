@@ -35,6 +35,8 @@ rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pe
 apexsim-formats = { path = "../../apexsim-lib/formats" }
 # The deterministic simulation (car, track, race, session tick).
 apexsim-sim = { path = "../sim" }
+# The wire, the spectator stream, the records and the render of a seeded race.
+apexsim-protocol = { path = "../protocol" }
 
 [target.'cfg(windows)'.build-dependencies]
 winresource = "0.1"
