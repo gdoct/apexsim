@@ -1961,8 +1961,8 @@ runs:
       - {at: 28, label: "the grid card", checks: "the empty slot in the card's list"}
       - {at: 38, label: "the grid card", checks: "the field lined up with the gap"}
       - {at: 52, label: "the start", checks: "the gap on the grid"}
-      - {at: 41, label: "the grid from above", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt -8.4 42.0 60.0 -25.6 14.4 0.0"}
-      - {at: 43, label: "the grid from ahead", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt 23.5 -1.4 40.0 -34.0 19.7 0.0"}
+      - {at: 46, label: "the grid from above", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt -8.4 42.0 60.0 -25.6 14.4 0.0", lead: 1}
+      - {at: 48, label: "the grid from ahead", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt 8.1 2.3 70.0 -21.3 11.8 0.0", lead: 1}
 
   # An allowance of two laps against a slow AI field (level 70) (four would
   # run the stand-in dry: qualifying fuels three laps, HOTLAP_FUEL_LAPS). Every AI
@@ -2704,7 +2704,6 @@ runs:
       - -ApexTimeOfDay=13:00
       - -ApexForecast=5:cloudy,10:overcast,15:lightrain,20:overcast
       - -ApexView=chase
-      - -ApexHotlapOutAfter=15
     exec:
       10: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
       25: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]

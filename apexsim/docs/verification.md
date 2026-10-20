@@ -208,11 +208,6 @@ session while driving (notice, then the menu).
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost
   of the first lap and its replay.
-- An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
-  seen on 2026-10-17 (`r9-empty-slot`, an order naming "Nobody" second):
-  the grid card's list kept the gap (P1, P3, P4, P5) and, after a fix, the
-  session lobby's GRID list (2 Open slot). Left: the lined-up field with
-  the gap, from above.
 - The racing line aid planned again at a lap's end: after the first lap
   with a full tank, the dots repaint (braking points earlier) without a
   hitch and stay on the road; in rain the braking zones lengthen.
@@ -290,14 +285,6 @@ session's results once every car's laps were used. Luna Swift's Murcetes
 set no time in either run (0/1, 0/2): the AI's laps struck for track
 limits, as in [server/sessions.md](server/sessions.md).
 
-- A weekend whose final round is a shoot-out, live, and the HUD's
-  conditions panel showing the written outlook (the race layout used had no
-  conditions panel up).
-- GO OUT in qualifying starting the car in its pit box and the pit
-  autopilot driving it down the lane to the exit line (`outlap_box_pose`,
-  [server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
-  the car drawn in the box, the limiter and the hand-back past the light,
-  and OUTLAP held until the line after the lane, not the one crossed in it.
 - The Race tab's Race control rows (`r12-race-control`): on 2026-10-19 the
   four rows whole beside the pit rule, reached by arrow keys, and the
   section line and summary naming the picks. Still to see: a session made
@@ -314,18 +301,14 @@ whose first lap bunches (Monza's first chicane). Replays carry neither
 The first `r13-race-control` (2026-10-17) showed YELLOW and DOUBLE YELLOW
 in the `flags` component and the radar's RIGHT marker at the start.
 
-- The `flags` component's BLUE FLAG, with a leader a lap up close behind
-  (a long race, or a slow stand-in).
 - The AI lifting and holding station past an incident.
-- The `radar` component's bars reading at a glance over a chase camera's
-  car (widened to 14 px after the first run), red as a car closes.
-- The `race_phase` banner: FORMATION LAP (green) on a session with
-  `formation_lap`, and VIRTUAL SAFETY CAR / SAFETY CAR (yellow, flashing
-  as it ends) under `safety_car`, beside the `flags` component without
-  overlapping it.
+- The `race_phase` banner and the `flags` component up together (a yellow
+  under the formation lap or a safety car): seen apart on 2026-10-20
+  (`v-r13-phase`, `v-r13-blue`), never side by side.
 - The `penalty` component as a jump start or a pass under a yellow is
   given (flashing for 8 s), then DRIVE-THROUGH with SERVE WITHIN n LAPS
   until it is served; PEN +5S in the standings and the results.
+  `v-r13-phase` runs with penalties on, but the stand-in earned none.
 
 ## 2. Needs a human: hands, ears and hardware
 
