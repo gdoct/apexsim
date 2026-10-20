@@ -26,7 +26,8 @@ telemetry, not the stream.
 - Client codec, pure: `ApexSimNet` `ApexSpectatorStream.h`
   (`FApexStreamFile`, `FApexSpectatorPlayer`), `ApexSpectatorWriter.h`
   (`FApexStreamWriter`, `FApexStreamCarRow::FromTelemetry`).
-- Client playback: `UApexSpectatorSubsystem`, `UApexDemoModeSubsystem`
+- Client playback: `UApexSpectatorSubsystem` (sources: a file, the
+  server's records, or a watched hotlap simulated here, `Local`), `UApexDemoModeSubsystem`
   (backdrop source), `UApexNetSubsystem` (backdrop feed),
   `UApexReplayRecorder`, `UI/ApexReplaysWidget`, `Race/ApexSpectatorView.h`
   (`ApexSpectate`), `UApexReplaySubsystem` (`-ApexReplay=` clips).

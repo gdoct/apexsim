@@ -134,10 +134,15 @@ against it: no server process, no recorded stream, one simulation.
   pipeline read the list through the same code. Track guides likewise
   (`apx_guide_build`): a guide of the car's class that is missing or stale
   is made when opened, in seconds, into `Saved/ApexSim/Guides`
-  ([track-guide.md](../../apexsim-content/docs/track-guide.md)). Next: the build stages and
+  ([track-guide.md](../../apexsim-content/docs/track-guide.md)). Watch
+  hotlap is simulated in the game too (`hotlap_watch::LocalWatch`,
+  `apx_watch_*`), server or not, its level and ghost kept in
+  `Saved/ApexSim/Watch` ([sessions](server/sessions.md#watching-a-hotlap)).
+  Next: the build stages and
   shipped `Showcase\` folders go once a fresh install has been seen to
   make its own (a first start then plays a demo session or nothing for
-  some seconds), and Watch hotlap.
+  some seconds), then the server's `HotlapWatch` kind and its stream path
+  retire with `SessionKind::Demo` (the work plan's X1).
 - The menu's backdrop and the hotlap watch run in-process from a seed: no
   `SessionKind::Demo` session on the server (which retires its remaining
   uses, see the work plan's X1) and no `.apxs` showcases to render and

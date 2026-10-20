@@ -143,6 +143,72 @@ namespace ApexPhysics
 		return Status == APX_ERR_CANCELLED ? EJobResult::Cancelled : EJobResult::Failed;
 	}
 
+	FWatch::~FWatch()
+	{
+		if (Watch)
+		{
+			apx_watch_free(Watch);
+		}
+	}
+
+	TUniquePtr<FWatch> FWatch::Start(TArrayView<const uint8> CreateSession, const FString& TrackYaml, const FString& CarsDir,
+		const FString& Car, const FString& RecordsDir, uint8 RoadContact, int32 TickRateHz, uint64 Seed, FString& OutError)
+	{
+		const FTCHARToUTF8 Track(*TrackYaml), Cars(*CarsDir), CarName(*Car), Records(*RecordsDir);
+		ApxWatch* Handle = nullptr;
+		const ApxStatus Status = apx_watch_start(CreateSession.GetData(), static_cast<size_t>(CreateSession.Num()), Track.Get(),
+			Cars.Get(), CarName.Get(), RecordsDir.IsEmpty() ? nullptr : Records.Get(), RoadContact,
+			static_cast<uint16>(FMath::Clamp(TickRateHz, 0, 65535)), Seed, &Handle);
+		if (Status != APX_OK || !Handle)
+		{
+			OutError = PhysicsError(TEXT("apx_watch_start"));
+			return nullptr;
+		}
+		TUniquePtr<FWatch> Out(new FWatch());
+		Out->Watch = Handle;
+		return Out;
+	}
+
+	bool FWatch::Tick(uint32 Ticks)
+	{
+		return apx_watch_tick(Watch, Ticks) == APX_OK;
+	}
+
+	bool FWatch::Take(TArray<uint8>& Out)
+	{
+		size_t Size = 0;
+		ApxStatus Status = apx_watch_take(Watch, nullptr, 0, &Size);
+		if (Status == APX_OK)
+		{
+			return true;
+		}
+		if (Status != APX_ERR_BUFFER)
+		{
+			return false;
+		}
+		const int32 At = Out.Num();
+		Out.AddUninitialized(static_cast<int32>(Size));
+		Status = apx_watch_take(Watch, Out.GetData() + At, Size, &Size);
+		if (Status != APX_OK)
+		{
+			Out.SetNum(At);
+		}
+		return Status == APX_OK;
+	}
+
+	bool FWatch::Corners(TArray<uint8>& Out) const
+	{
+		size_t Size = 0;
+		ApxStatus Status = apx_watch_corners(Watch, nullptr, 0, &Size);
+		Out.Reset();
+		if (Status == APX_ERR_BUFFER)
+		{
+			Out.SetNumUninitialized(static_cast<int32>(Size));
+			Status = apx_watch_corners(Watch, Out.GetData(), Size, &Size);
+		}
+		return Status == APX_OK;
+	}
+
 	EJobResult BuildGuide(const FString& TrackYaml, const FString& CarsDir, const FString& Class, const FString& OutDir,
 		const volatile uint8* Cancel, FString& OutError)
 	{
@@ -283,6 +349,23 @@ namespace ApexPhysics
 	{
 		OutError = NotBuilt;
 		return EJobResult::Failed;
+	}
+
+	FWatch::~FWatch() = default;
+
+	TUniquePtr<FWatch> FWatch::Start(TArrayView<const uint8>, const FString&, const FString&, const FString&, const FString&,
+		uint8, int32, uint64, FString& OutError)
+	{
+		OutError = NotBuilt;
+		return nullptr;
+	}
+
+	bool FWatch::Tick(uint32) { return false; }
+	bool FWatch::Take(TArray<uint8>&) { return false; }
+	bool FWatch::Corners(TArray<uint8>& Out) const
+	{
+		Out.Reset();
+		return false;
 	}
 
 	FTrack::~FTrack() = default;

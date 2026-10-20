@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "ApexSpectatorStream.h"
 #include "Async/Future.h"
+#include "Race/ApexPhysicsLib.h"
 #include "Containers/Ticker.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -20,6 +21,8 @@ enum class EApexSpectatorSource : uint8
 	File,
 	/** The server's showcase channel, as its records arrive. */
 	Net,
+	/** A watched hotlap the game simulates itself (the physics library), as its records come. */
+	Local,
 };
 
 /**
@@ -63,7 +66,10 @@ public:
 	 * pauses, seeks and changes speed like a file, between its first record
 	 * and the live edge; at the edge it plays as it comes in. Showcases do not.
 	 */
-	bool CanTimeshift() const { return Source == EApexSpectatorSource::Net && bLiveSource && LiveRecords.Num() > 0; }
+	bool CanTimeshift() const
+	{
+		return (Source == EApexSpectatorSource::Net || Source == EApexSpectatorSource::Local) && bLiveSource && LiveRecords.Num() > 0;
+	}
 	/** Speed of the file's clock: 1 real time, 0.25 to 4. */
 	void SetPlaybackRate(float Rate);
 	float GetPlaybackRate() const { return PlaybackRate; }
@@ -92,11 +98,24 @@ public:
 	/** Watch the live session `SessionId` as a stream (the server's SpectateSession). */
 	bool WatchLive(const FString& SessionId);
 	/**
-	 * Watch a hotlap the server drives for this viewer, as a stream
-	 * (UApexNetSubsystem::SpectateHotlapWatch); `Setup` is what the car runs.
+	 * Watch a hotlap of `CarId` as a stream; `Setup` is what the car runs.
+	 * Simulated here when the game can (CanSimulateHotlap: the physics
+	 * library's apx_watch_*, the session a server would make of the same
+	 * create, its ladder level and ghost kept in `Saved/ApexSim/Watch`),
+	 * else driven by the server for this viewer
+	 * (UApexNetSubsystem::SpectateHotlapWatch). False, with why, when
+	 * neither can.
 	 */
 	bool WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup);
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError);
+
+	/**
+	 * A watched hotlap can be simulated here: the physics library, the
+	 * content (ApexSimContent) and `apexsim.watch.Local` 1.
+	 */
+	static bool CanSimulateHotlap(FString* OutWhy = nullptr);
+	/** Where a watch simulated here keeps its ladder levels and ghosts. */
+	static FString WatchRecordsDirectory();
 
 	/** Stop whatever plays and end the backdrop feed. */
 	void Stop();
@@ -144,6 +163,12 @@ private:
 	void Drain();
 	void HandleSpectatorJoined(const FString& StreamId, const FString& ShowcaseId);
 	void HandleSpectatorRecords(TArrayView<const uint8> Run);
+	/** A live stream's framed records: kept for the timeshift, played at once at the edge. */
+	void ApplyLiveRun(TArrayView<const uint8> Run);
+	bool StartLocalHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError);
+	/** Advance the local watch by the time passed and play what it streamed. */
+	void TickLocal(float DeltaSeconds);
 	UApexNetSubsystem* GetNet() const;
 	void Fail(const FString& Why);
 
@@ -164,6 +189,11 @@ private:
 	TArray<FVector2D> Centerline;
 	bool bFeeding = false;
 	FString StreamId;
+
+	// --- Local source ---
+	TUniquePtr<ApexPhysics::FWatch> LocalWatch;
+	/** Ticks of simulation owed to the clock. */
+	double LocalTickDebt = 0.0;
 
 	// --- File source ---
 	TFuture<TSharedPtr<FLoadedFile>> Loading;

@@ -1345,7 +1345,30 @@ store.
 
 **Client** (`UApexRootWidget::StartHotlapWatch` / `ChangeHotlapWatch`): the
 pending circuit and car, the last sky, and stock. `SelectCar` comes first,
-then the create. Against a server with `LobbyState.LiveStream` it is
+then the create.
+
+**Simulated in the game.** When the physics library and the content are
+there (`UApexSpectatorSubsystem::CanSimulateHotlap`: `ApexSimContent`,
+`apexsim.watch.Local` 1), the game runs the watch itself, server or not:
+`hotlap_watch::LocalWatch` (`apexsim-protocol`) builds from the client's
+own `CreateSession` bytes the session `create_session` makes for a
+`HotlapWatch` (one AI car of the asked-for model, the sky resolved as the
+server resolves it, the setup, the corners, the road mesh) with ids seeded
+from the circuit and car, ticks it as the game loop does and hands out the
+records a server sends a stream's newcomer and then each tick
+(`apx_watch_start` / `_tick` / `_take` / `_corners` / `_free`, ABI 5). The
+spectator subsystem's `Local` source ticks it on the game's clock and plays
+its records through the live path (timeshift included);
+`UApexNetSubsystem::BeginLocalHotlapWatch` stands in for the server's
+answer (`IsHotlapWatch`, the corners, the summary). The ladder level and
+the ghost are kept as the server keeps them, by a record store in
+`Saved/ApexSim/Watch` (`watch_levels.json`, `watch_ghosts/`), when the
+watch ends. With no server the circuits and cars are the ones installed
+(the runtime tracks, the car catalog). `server/tests/all/hotlap_watch_test.rs`
+(`a_local_watch_is_the_servers_watch_of_the_same_create`) holds the two
+sessions alike; `server/ffi/tests/watch.rs` the API.
+
+Otherwise, against a server with `LobbyState.LiveStream` it is
 streamed (`bHotlapStreamRoute`: `UApexDemoModeSubsystem::WatchHotlap` ->
 `UApexSpectatorSubsystem::WatchHotlap` ->
 `UApexNetSubsystem::SpectateHotlapWatch`) and played on the backdrop feed

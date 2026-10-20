@@ -312,7 +312,7 @@ ApxStatus apx_race_digest(const ApxRace *race, uint64_t *out);
 /* Free a race (null is ignored). */
 void apx_race_free(ApxRace *race);
 
-/* ---- Showcases and track guides (ABI 5) --------------------------------- */
+/* ---- Showcases, track guides and a watched hotlap (ABI 5) --------------- */
 
 /* Every showcase showcase.yml at list_path names (<track>.<class>.<variant>,
  * in the list's order), one per line, UTF-8, no terminator. *written gets
@@ -342,6 +342,42 @@ ApxStatus apx_showcase_render(const char *list_path, const char *tracks_dir,
 ApxStatus apx_guide_build(const char *track_yaml, const char *cars_dir,
                           const char *class_name, const char *out_dir,
                           const volatile uint8_t *cancel);
+
+/* ---- A watched hotlap (ABI 5) ------------------------------------------- */
+
+typedef struct ApxWatch ApxWatch;
+
+/* Start a watched hotlap from the client's CreateSession (MessagePack as the
+ * codec encodes it: HotlapWatch, its watch setup, the sky): the session a
+ * server makes of it, on the track YAML (road_contact as apx_track_load) in
+ * the car `car` (folder, id or name under cars_dir), at tick_rate (0: the
+ * simulation's DEFAULT_TICK_RATE_HZ, which the stream's header names), its
+ * ids seeded by `seed`. With records_dir (or NULL) it resumes the ladder level
+ * and ghost earlier watches kept there; apx_watch_free keeps this one's. */
+ApxStatus apx_watch_start(const uint8_t *create_session, size_t create_session_len,
+                          const char *track_yaml, const char *cars_dir,
+                          const char *car, const char *records_dir,
+                          uint8_t road_contact, uint16_t tick_rate, uint64_t seed,
+                          ApxWatch **out);
+
+/* Tick it `ticks` times; the stream records wait for apx_watch_take (the
+ * first tick's are the catch-up a server sends a newcomer). */
+ApxStatus apx_watch_tick(ApxWatch *watch, uint32_t ticks);
+
+/* The stream records since the last take, framed as on the wire
+ * ([u32 big-endian length][body], back to back). *written gets their size;
+ * with a NULL buf or a short capacity nothing is copied or taken and
+ * APX_ERR_BUFFER is returned. */
+ApxStatus apx_watch_take(ApxWatch *watch, uint8_t *buf, size_t capacity, size_t *written);
+
+/* The TrackCorners message a server sends a watcher (MessagePack, named
+ * fields); *written 0 for a track with no corners. The buffer rule of
+ * apx_watch_take. */
+ApxStatus apx_watch_corners(const ApxWatch *watch, uint8_t *buf, size_t capacity,
+                            size_t *written);
+
+/* End a watch, keeping its ladder level and ghost (null is ignored). */
+void apx_watch_free(ApxWatch *watch);
 
 #ifdef __cplusplus
 }

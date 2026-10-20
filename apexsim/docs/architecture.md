@@ -124,7 +124,8 @@ plain data the session hands out (`ghost`, `classification`). **Protocol**
 (`protocol/`, the crate `apexsim-protocol`): what goes to a viewer, apart
 from the sockets - the messages (`network`, `session_wire`), the stream
 (`spectator`, `session_stream`, `render`, `showcase_list`), the track
-guide (`track_guide`, `poses`), the files `records` and `setup_sheet`. **Runtime** (`server/`, the crate `apexsim-server`):
+guide (`track_guide`, `poses`), a watched hotlap simulated where it is
+watched (`hotlap_watch`), the files `records` and `setup_sheet`. **Runtime** (`server/`, the crate `apexsim-server`):
 everything else - the sockets (`transport`, `udp_seal`), the loop
 (`game_loop/`, `server`, `lobby`, `chat`, `main`, `config`), operations
 (`health`, `metrics`, `tick_jitter`, `timer_resolution`, `webhook`,

@@ -10,6 +10,7 @@
 //! write the same stream bytes as the server. The server re-exports every
 //! module under the same path (`apexsim_server::network`, ...).
 
+pub mod hotlap_watch;
 pub mod network;
 pub mod poses;
 pub mod records;

@@ -21,6 +21,7 @@ pub mod webhook;
 // The wire, the spectator stream, the records and the render live in
 // `apexsim-protocol` (../protocol), which the physics library links too; they
 // keep their paths here.
+pub use apexsim_protocol::hotlap_watch;
 pub use apexsim_protocol::network;
 pub use apexsim_protocol::poses;
 pub use apexsim_protocol::records;

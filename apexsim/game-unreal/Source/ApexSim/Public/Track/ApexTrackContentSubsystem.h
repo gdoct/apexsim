@@ -65,6 +65,14 @@ public:
 	 * when no export has that id.
 	 */
 	const FApexTrackCatalogRow* FindRuntimeRow(const FString& TrackId) const;
+	/** Every runtime track's catalog row, by `track_id`. */
+	void ForEachRuntimeRow(TFunctionRef<void(const FString& TrackId, const FApexTrackCatalogRow& Row)> Fn) const
+	{
+		for (const TPair<FString, FApexTrackCatalogRow>& Pair : RuntimeRows)
+		{
+			Fn(Pair.Key, Pair.Value);
+		}
+	}
 	/** Row id of the runtime track whose stem is `Stem`, or empty. */
 	FString FindRuntimeTrackIdByStem(const FString& Stem) const;
 

@@ -1,7 +1,10 @@
 #include "ApexSpectatorSubsystem.h"
 
 #include "ApexNetSubsystem.h"
+#include "ApexProtocolCodec.h"
 #include "ApexShowcaseRenderer.h"
+#include "ApexSimJob.h"
+#include "Misc/Crc.h"
 #include "ApexSim.h"
 #include "Async/Async.h"
 #include "Engine/GameInstance.h"
@@ -176,13 +179,126 @@ bool UApexSpectatorSubsystem::WatchLive(const FString& SessionId)
 	return true;
 }
 
+bool UApexSpectatorSubsystem::CanSimulateHotlap(FString* OutWhy)
+{
+	static TAutoConsoleVariable<int32> CVarLocalWatch(
+		TEXT("apexsim.watch.Local"),
+		1,
+		TEXT("1 simulates Watch hotlap in the game (the physics library) when it can; 0 asks the server for it."),
+		ECVF_Default);
+	FString Why, TracksDir, CarsDir;
+	const bool bCan = CVarLocalWatch.GetValueOnGameThread() != 0 && ApexPhysics::IsAvailable(&Why)
+		&& ApexSimContent::Find(TracksDir, CarsDir, Why);
+	if (OutWhy)
+	{
+		*OutWhy = CVarLocalWatch.GetValueOnGameThread() == 0 ? FString(TEXT("apexsim.watch.Local is 0")) : Why;
+	}
+	return bCan;
+}
+
+FString UApexSpectatorSubsystem::WatchRecordsDirectory()
+{
+	return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ApexSim"), TEXT("Watch")));
+}
+
+bool UApexSpectatorSubsystem::StartLocalHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError)
+{
+	FString TracksDir, CarsDir;
+	if (!ApexSimContent::Find(TracksDir, CarsDir, OutError))
+	{
+		return false;
+	}
+	const FString Yaml = ApexSimContent::TrackYaml(TracksDir, TrackStem);
+	if (Yaml.IsEmpty())
+	{
+		OutError = FString::Printf(TEXT("no track YAML for %s"), *TrackStem);
+		return false;
+	}
+	// Any car, the player's own among them: the cars folder holds both.
+	const FString CarsRoot = FPaths::GetCleanFilename(CarsDir) == TEXT("default") ? FPaths::GetPath(CarsDir) : CarsDir;
+	// The create a server would get (SpectateHotlapWatch's).
+	ApexProtocol::FHotlapWatchOptions Options;
+	Options.bStream = true;
+	if (Setup)
+	{
+		Options.bHasSetup = true;
+		Options.Setup = *Setup;
+	}
+	const TArray<uint8> Create = ApexProtocol::EncodeCreateSession(TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch,
+		FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Mixed, 0, TArray<FString>(), 0,
+		FApexWeekendFormat(), &Options);
+	// One watch of a circuit and car is one set of laps (the sky's own draws
+	// included), as a seeded race is.
+	const uint64 Seed = FCrc::StrCrc32(*(TrackStem + TEXT("/") + CarId));
+	TUniquePtr<ApexPhysics::FWatch> Watch = ApexPhysics::FWatch::Start(Create, Yaml, CarsRoot, CarId, WatchRecordsDirectory(),
+		/*RoadContact: the live server's road mesh*/ 1, /*the simulation's own rate*/ 0, Seed, OutError);
+	if (!Watch)
+	{
+		return false;
+	}
+	TArray<uint8> Corners;
+	Watch->Corners(Corners);
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Net->BeginLocalHotlapWatch(TrackConfigId, TrackName, TrackStem, Conditions, Corners);
+	}
+	LocalWatch = MoveTemp(Watch);
+	LocalTickDebt = 0.0;
+	Source = EApexSpectatorSource::Local;
+	bLiveSource = true;
+	SourceName = FString::Printf(TEXT("hotlap at %s, simulated here"), *TrackStem);
+	bLoading = true;
+	UE_LOG(LogApexSim, Log, TEXT("Spectator: watching a hotlap at %s in %s, simulated here"), *TrackStem, *CarId);
+	return true;
+}
+
+void UApexSpectatorSubsystem::TickLocal(float DeltaSeconds)
+{
+	if (Source != EApexSpectatorSource::Local || !LocalWatch || bFailed)
+	{
+		return;
+	}
+	const double Rate = static_cast<double>(LiveTickRate());
+	// A long frame (a hitch, a level load) catches up a quarter second at a
+	// time rather than simulating the gap in one frame.
+	LocalTickDebt = FMath::Min(LocalTickDebt + static_cast<double>(DeltaSeconds) * Rate, Rate * 0.25);
+	// The first tick gives the catch-up (the header names the rate).
+	const uint32 Ticks = Player.HasHeader() ? static_cast<uint32>(LocalTickDebt) : 1u;
+	if (Ticks == 0)
+	{
+		return;
+	}
+	LocalTickDebt = FMath::Max(0.0, LocalTickDebt - Ticks);
+	TArray<uint8> Run;
+	if (!LocalWatch->Tick(Ticks) || !LocalWatch->Take(Run))
+	{
+		Fail(FString::Printf(TEXT("the hotlap stopped: %s"), *ApexPhysics::LastError()));
+		return;
+	}
+	if (Run.Num() > 0)
+	{
+		ApplyLiveRun(Run);
+	}
+}
+
 bool UApexSpectatorSubsystem::WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
+	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError)
 {
 	Stop();
+	FString Why;
+	if (CanSimulateHotlap(&Why))
+	{
+		if (StartLocalHotlap(TrackConfigId, TrackName, TrackStem, Conditions, Setup, CarId, OutError))
+		{
+			return true;
+		}
+		UE_LOG(LogApexSim, Warning, TEXT("Spectator: the hotlap cannot be simulated here (%s); asking the server"), *OutError);
+	}
 	UApexNetSubsystem* Net = GetNet();
 	if (!Net || !Net->IsAuthenticated())
 	{
+		OutError = OutError.IsEmpty() ? FString::Printf(TEXT("not connected to a server (%s)"), *Why) : OutError;
 		return false;
 	}
 	Source = EApexSpectatorSource::Net;
@@ -190,6 +306,7 @@ bool UApexSpectatorSubsystem::WatchHotlap(const FString& TrackConfigId, const FS
 	SourceName = FString::Printf(TEXT("hotlap at %s"), *TrackStem);
 	bLoading = true;
 	Net->SpectateHotlapWatch(TrackConfigId, TrackName, TrackStem, Conditions, Setup);
+	OutError.Reset();
 	return true;
 }
 
@@ -200,6 +317,15 @@ void UApexSpectatorSubsystem::Stop()
 		if (UApexNetSubsystem* Net = GetNet())
 		{
 			Net->LeaveSpectate();
+		}
+	}
+	if (Source == EApexSpectatorSource::Local)
+	{
+		// Freed, the watch keeps its ladder level and ghost.
+		LocalWatch.Reset();
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->EndLocalHotlapWatch();
 		}
 	}
 	if (bFeeding)
@@ -521,14 +647,7 @@ void UApexSpectatorSubsystem::HandleSpectatorRecords(TArrayView<const uint8> Run
 	}
 	if (bLiveSource)
 	{
-		// Kept for the timeshift; played at once at the live edge.
-		KeepLive(Run);
-		if (bAtLiveEdge)
-		{
-			ApplyLiveUpTo(static_cast<double>(LiveEdgeTick()), /*bSkipFrames*/ false);
-			LiveClock = static_cast<double>(LiveEdgeTick());
-		}
-		Drain();
+		ApplyLiveRun(Run);
 		return;
 	}
 	FString Error;
@@ -539,8 +658,23 @@ void UApexSpectatorSubsystem::HandleSpectatorRecords(TArrayView<const uint8> Run
 	Drain();
 }
 
+void UApexSpectatorSubsystem::ApplyLiveRun(TArrayView<const uint8> Run)
+{
+	// Kept for the timeshift; played at once at the live edge.
+	KeepLive(Run);
+	if (bAtLiveEdge)
+	{
+		ApplyLiveUpTo(static_cast<double>(LiveEdgeTick()), /*bSkipFrames*/ false);
+		LiveClock = static_cast<double>(LiveEdgeTick());
+	}
+	Drain();
+}
+
 bool UApexSpectatorSubsystem::Tick(float DeltaSeconds)
 {
+	// A watch simulated here runs on the game's clock whatever is on screen
+	// (paused or behind, the timeshift plays what it kept).
+	TickLocal(DeltaSeconds);
 	if (CanTimeshift() && !bAtLiveEdge && !bFailed)
 	{
 		// Behind the edge: the kept records on the play clock, until it
@@ -642,7 +776,7 @@ void UApexSpectatorSubsystem::Drain()
 	}
 	if (Player.TakeHeaderChanged())
 	{
-		if (Source == EApexSpectatorSource::Net)
+		if (Source == EApexSpectatorSource::Net || Source == EApexSpectatorSource::Local)
 		{
 			bLoading = false;
 		}
@@ -650,6 +784,10 @@ void UApexSpectatorSubsystem::Drain()
 		if (StreamId.IsEmpty())
 		{
 			StreamId = Header.StreamId;
+			if (Source == EApexSpectatorSource::Local)
+			{
+				Net->SetLocalHotlapWatchId(StreamId);
+			}
 		}
 		if (!bFeeding)
 		{
@@ -698,7 +836,9 @@ void UApexSpectatorSubsystem::Drain()
 
 FString UApexSpectatorSubsystem::DescribeState() const
 {
-	const TCHAR* SourceText = Source == EApexSpectatorSource::File ? TEXT("file") : Source == EApexSpectatorSource::Net ? (bLiveSource ? TEXT("live session") : TEXT("showcase")) : TEXT("none");
+	const TCHAR* SourceText = Source == EApexSpectatorSource::File ? TEXT("file")
+		: Source == EApexSpectatorSource::Net ? (bLiveSource ? TEXT("live session") : TEXT("showcase"))
+		: Source == EApexSpectatorSource::Local ? TEXT("simulated here") : TEXT("none");
 	FString Line = FString::Printf(TEXT("Spectator: source %s %s"), SourceText, *SourceName);
 	if (bLoading)
 	{

@@ -682,6 +682,54 @@ void UApexNetSubsystem::SpectateHotlapWatch(const FString& TrackConfigId, const 
 		FApexWeekendFormat(), &Options));
 }
 
+void UApexNetSubsystem::BeginLocalHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
+	const FString& TrackStem, const FApexSessionConditions& Conditions, TArrayView<const uint8> Corners)
+{
+	// A server's watch or demo gives way, as for any other backdrop.
+	LeaveDemoSession();
+	if (bSpectating || bSpectateRequested)
+	{
+		LeaveSpectate();
+	}
+	bHotlapWatchLocal = true;
+	HotlapWatchSummary = HotlapSummary(TrackConfigId, TrackName, TrackStem, Conditions);
+	CachedCorners = FApexTrackCorners();
+	if (Corners.Num() > 0)
+	{
+		FApexServerMessage Message;
+		FString Error;
+		if (ApexProtocol::DecodeServerMessage(Corners, Message, Error) && Message.Type == EApexServerMessageType::TrackCorners)
+		{
+			CachedCorners = Message.TrackCorners;
+		}
+		else
+		{
+			UE_LOG(LogApexSimNet, Warning, TEXT("The local watch's corners did not decode: %s"), *Error);
+		}
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("Hotlap watch simulated here: track=%s conditions=%s, %d corner(s)"), *TrackConfigId,
+		*Conditions.Describe(), CachedCorners.Corners.Num());
+}
+
+void UApexNetSubsystem::SetLocalHotlapWatchId(const FString& StreamId)
+{
+	if (bHotlapWatchLocal)
+	{
+		HotlapWatchSummary.Id = StreamId;
+		CachedCorners.SessionId = StreamId;
+	}
+}
+
+void UApexNetSubsystem::EndLocalHotlapWatch()
+{
+	if (!bHotlapWatchLocal)
+	{
+		return;
+	}
+	bHotlapWatchLocal = false;
+	CachedCorners = FApexTrackCorners();
+}
+
 void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
 	const FString& TrackStem, const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
 {

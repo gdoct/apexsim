@@ -87,6 +87,36 @@ namespace ApexPhysics
 		ApxCar* Car = nullptr;
 	};
 
+	/**
+	 * A watched hotlap simulated here (apx_watch_*): the session a server
+	 * makes of the same CreateSession, ticked on the caller's thread, its
+	 * spectator stream taken as framed records. Freed, it keeps its ladder
+	 * level and ghost in its records folder.
+	 */
+	class APEXSIM_API FWatch : public FNoncopyable
+	{
+	public:
+		~FWatch();
+
+		/**
+		 * From the codec's CreateSession bytes, on the track YAML in the car
+		 * (folder, id or name under CarsDir); RecordsDir empty keeps nothing.
+		 * TickRateHz 0 is the simulation's own rate (the stream's header names it).
+		 */
+		static TUniquePtr<FWatch> Start(TArrayView<const uint8> CreateSession, const FString& TrackYaml, const FString& CarsDir,
+			const FString& Car, const FString& RecordsDir, uint8 RoadContact, int32 TickRateHz, uint64 Seed, FString& OutError);
+
+		bool Tick(uint32 Ticks);
+		/** The framed records since the last take, appended to Out. */
+		bool Take(TArray<uint8>& Out);
+		/** The TrackCorners message (MessagePack), empty for a track with none. */
+		bool Corners(TArray<uint8>& Out) const;
+
+	private:
+		FWatch() = default;
+		ApxWatch* Watch = nullptr;
+	};
+
 	/** The library's last failure on this thread. */
 	APEXSIM_API FString LastError();
 

@@ -11,6 +11,7 @@
 #include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "ApexSpectatorSubsystem.h"
+#include "Cars/ApexCarContentSubsystem.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Hud/ApexHudLayout.h"
@@ -3393,11 +3394,22 @@ namespace
 			}
 			Out.Add({Track.Id, Row.DisplayName.IsEmpty() ? Track.Name : Row.DisplayName, Row.YamlBaseName});
 		}
+		// No server's list: every circuit installed here, for a watch the game
+		// simulates itself.
+		if (Out.IsEmpty() && Content && UApexSpectatorSubsystem::CanSimulateHotlap())
+		{
+			Content->ForEachRuntimeRow([&Out, Content](const FString& Id, const FApexTrackCatalogRow& Row) {
+				if (!Row.YamlBaseName.IsEmpty() && Content->HasTrack(Row.YamlBaseName))
+				{
+					Out.Add({Id, Row.DisplayName.IsEmpty() ? Row.YamlBaseName : Row.DisplayName, Row.YamlBaseName});
+				}
+			});
+		}
 		SortByName(Out);
 		return Out;
 	}
 
-	/** Every car the server has, by name. */
+	/** Every car the server has (else, for a watch simulated here, every car installed), by name. */
 	TArray<FHotlapOption> HotlapCars(const UApexNetSubsystem& Net, const UApexMenuFlowSubsystem& Flow)
 	{
 		TArray<FHotlapOption> Out;
@@ -3406,6 +3418,16 @@ namespace
 			FApexCarCatalogRow Row;
 			const bool bRow = Flow.GetCarCatalogRow(Car.Id, Row);
 			Out.Add({Car.Id, bRow && !Row.DisplayName.IsEmpty() ? Row.DisplayName : Car.Name, FString()});
+		}
+		const UApexCarContentSubsystem* Cars = UApexCarContentSubsystem::Get();
+		if (Out.IsEmpty() && Cars && UApexSpectatorSubsystem::CanSimulateHotlap())
+		{
+			Cars->ForEachRow([&Out](const FString& Id, const FApexCarCatalogRow& Row) {
+				if (!Row.FolderName.IsEmpty())
+				{
+					Out.Add({Id, Row.DisplayName.IsEmpty() ? Row.FolderName : Row.DisplayName, FString()});
+				}
+			});
 		}
 		SortByName(Out);
 		return Out;
@@ -3423,7 +3445,9 @@ bool UApexRootWidget::StartHotlapWatch()
 {
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
 	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
-	if (!Net || !Flow || !Net->IsAuthenticated())
+	// Simulated here, a watch needs no server.
+	const bool bLocal = UApexSpectatorSubsystem::CanSimulateHotlap();
+	if (!Net || !Flow || (!Net->IsAuthenticated() && !bLocal))
 	{
 		ShowToast(TEXT("Not connected to a server yet"), true);
 		return false;
@@ -3444,8 +3468,8 @@ bool UApexRootWidget::StartHotlapWatch()
 	HotlapTrackId = PickOption(Tracks, Flow->GetPendingTrackId())->Id;
 	HotlapCarId = PickOption(Cars, Flow->GetPendingCarId())->Id;
 	HotlapSetupId.Invalidate();
-	// A server that streams a live session streams this one too.
-	bHotlapStreamRoute = Net->IsLiveStreamAvailable();
+	// Simulated here, or streamed by a server that streams a live session.
+	bHotlapStreamRoute = bLocal || Net->IsLiveStreamAvailable();
 	if (!bHotlapConditionsKnown)
 	{
 		// The first watch is under the sky of the last session set up; after
@@ -3497,12 +3521,15 @@ void UApexRootWidget::SendHotlapWatchRequest()
 		HudData->SetHotlapSetup(Setup ? Saved.Name : FString());
 	}
 	// SelectCar before CreateSession, the order the rest of the shell uses.
-	Net->SelectCar(HotlapCarId);
+	if (Net->IsAuthenticated())
+	{
+		Net->SelectCar(HotlapCarId);
+	}
 	if (bHotlapStreamRoute)
 	{
 		UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
 		FString Error;
-		if (!Demo || !Demo->WatchHotlap(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup, Error))
+		if (!Demo || !Demo->WatchHotlap(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup, HotlapCarId, Error))
 		{
 			ShowToast(FString::Printf(TEXT("Cannot watch the hotlap: %s"), *Error), true);
 			StopWatching();
@@ -3763,8 +3790,13 @@ void UApexRootWidget::ApplyHotlapWatchCommandLine()
 	}
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
 	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
-	if (!Net || !Flow || !Net->IsAuthenticated() || !Net->IsUdpReady() || !AApexRaceDirector::Find(this)
-		|| Net->GetCachedLobbyState().TrackConfigs.IsEmpty() || Net->GetCachedLobbyState().CarConfigs.IsEmpty())
+	// A server's lists once it has sent them; simulated here, the content
+	// installed, after a moment for a server to answer first.
+	const bool bServerReady = Net && Net->IsAuthenticated() && Net->IsUdpReady()
+		&& !Net->GetCachedLobbyState().TrackConfigs.IsEmpty() && !Net->GetCachedLobbyState().CarConfigs.IsEmpty();
+	const bool bLocalReady = Net && !Net->IsAuthenticated() && UApexSpectatorSubsystem::CanSimulateHotlap()
+		&& FPlatformTime::Seconds() - GStartTime > 8.0;
+	if (!Net || !Flow || !AApexRaceDirector::Find(this) || (!bServerReady && !bLocalReady))
 	{
 		return;
 	}

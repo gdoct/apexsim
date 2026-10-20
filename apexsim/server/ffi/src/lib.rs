@@ -1118,6 +1118,11 @@ mod tests {
             "apx_showcase_names(",
             "apx_showcase_render(",
             "apx_guide_build(",
+            "apx_watch_start(",
+            "apx_watch_tick(",
+            "apx_watch_take(",
+            "apx_watch_corners(",
+            "apx_watch_free(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }
@@ -1519,4 +1524,169 @@ pub unsafe extern "C" fn apx_guide_build(
         let _ = std::fs::remove_dir_all(&aside);
         moved.map_err(io)
     })
+}
+
+// ---------------------------------------------------------------------------
+// A watched hotlap, simulated where it is watched
+// ---------------------------------------------------------------------------
+
+use apexsim_protocol::hotlap_watch::{open_store, LocalWatch, WatchOptions};
+
+/// A watched hotlap: [`apx_watch_start`] to [`apx_watch_free`].
+pub struct ApxWatch {
+    watch: LocalWatch,
+}
+
+/// Start a watched hotlap from the client's `CreateSession` (MessagePack, as
+/// the codec encodes it: `HotlapWatch`, its `watch` setup, the sky): the
+/// session a server makes of that message (`hotlap_watch::LocalWatch`), on
+/// the track YAML (`road_contact` as for [`apx_track_load`]) in the car
+/// `car` (folder, id or name under `cars_dir`), at `tick_rate` (0: the
+/// simulation's `DEFAULT_TICK_RATE_HZ`), its ids
+/// seeded by `seed`. With `records_dir` (or null) it resumes the ladder
+/// level and ghost earlier watches kept there, and [`apx_watch_free`] keeps
+/// this one's.
+///
+/// # Safety
+/// `create_session` points at `create_session_len` bytes; the strings are
+/// NUL-terminated (`records_dir` may be null); `out` is writable.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn apx_watch_start(
+    create_session: *const u8,
+    create_session_len: usize,
+    track_yaml: *const c_char,
+    cars_dir: *const c_char,
+    car: *const c_char,
+    records_dir: *const c_char,
+    road_contact: u8,
+    tick_rate: u16,
+    seed: u64,
+    out: *mut *mut ApxWatch,
+) -> ApxStatus {
+    guard(|| {
+        non_null(track_yaml, "track_yaml")?;
+        non_null(cars_dir, "cars_dir")?;
+        non_null(car, "car")?;
+        non_null(out, "out")?;
+        *out = std::ptr::null_mut();
+        // 0: the simulation's own rate, which the stream's header then names.
+        let tick_rate = if tick_rate == 0 {
+            apexsim_sim::game_session::DEFAULT_TICK_RATE_HZ
+        } else {
+            tick_rate
+        };
+        let opts = WatchOptions {
+            create_session: bytes(create_session, create_session_len, "create_session")?.to_vec(),
+            track_path: c_path(track_yaml)?.into(),
+            cars_dir: c_path(cars_dir)?.into(),
+            car: c_path(car)?.to_string(),
+            road_contact: road_contact_mode(road_contact)?,
+            tick_rate,
+            seed,
+        };
+        let store = if records_dir.is_null() {
+            None
+        } else {
+            Some(open_store(c_path(records_dir)?.as_ref()))
+        };
+        let watch = LocalWatch::start(&opts, store).map_err(|e| Fail::new(APX_ERR_TRACK, e))?;
+        *out = Box::into_raw(Box::new(ApxWatch { watch }));
+        Ok(())
+    })
+}
+
+/// Tick the watch `ticks` times; their stream records wait for
+/// [`apx_watch_take`] (the first tick's are the catch-up a newcomer gets).
+///
+/// # Safety
+/// `watch` is a live handle.
+#[no_mangle]
+pub unsafe extern "C" fn apx_watch_tick(watch: *mut ApxWatch, ticks: u32) -> ApxStatus {
+    guard(|| {
+        non_null(watch, "watch")?;
+        (*watch).watch.tick(ticks);
+        Ok(())
+    })
+}
+
+/// The stream records since the last take, framed as on the wire
+/// (`[u32 big-endian length][body]`, back to back). `*written` gets their
+/// size; with a NULL `buf` or a short capacity nothing is copied, nothing is
+/// taken and [`APX_ERR_BUFFER`] is returned.
+///
+/// # Safety
+/// `watch` is a live handle; `buf` has `capacity` writable bytes when
+/// non-null; `written` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_watch_take(
+    watch: *mut ApxWatch,
+    buf: *mut u8,
+    capacity: usize,
+    written: *mut usize,
+) -> ApxStatus {
+    guard(|| {
+        non_null(watch, "watch")?;
+        non_null(written, "written")?;
+        let watch = &mut (*watch).watch;
+        *written = watch.pending_len();
+        if *written == 0 {
+            return Ok(());
+        }
+        if buf.is_null() || capacity < *written {
+            return Err(Fail::new(
+                APX_ERR_BUFFER,
+                format!("{} bytes needed", *written),
+            ));
+        }
+        let records = watch.take();
+        std::ptr::copy_nonoverlapping(records.as_ptr(), buf, records.len());
+        Ok(())
+    })
+}
+
+/// The `TrackCorners` message a server sends a watcher (MessagePack, named
+/// fields, as the TCP stream carries it); `*written` 0 for a track with no
+/// corners. The buffer rule of [`apx_watch_take`].
+///
+/// # Safety
+/// As [`apx_watch_take`].
+#[no_mangle]
+pub unsafe extern "C" fn apx_watch_corners(
+    watch: *const ApxWatch,
+    buf: *mut u8,
+    capacity: usize,
+    written: *mut usize,
+) -> ApxStatus {
+    guard(|| {
+        non_null(watch, "watch")?;
+        non_null(written, "written")?;
+        let message = (*watch).watch.corners_message().unwrap_or_default();
+        *written = message.len();
+        if message.is_empty() {
+            return Ok(());
+        }
+        if buf.is_null() || capacity < message.len() {
+            return Err(Fail::new(
+                APX_ERR_BUFFER,
+                format!("{} bytes needed", message.len()),
+            ));
+        }
+        std::ptr::copy_nonoverlapping(message.as_ptr(), buf, message.len());
+        Ok(())
+    })
+}
+
+/// End a watch, keeping its ladder level and ghost in its records folder.
+/// A null handle is ignored.
+///
+/// # Safety
+/// `watch` is a handle from [`apx_watch_start`], not used again.
+#[no_mangle]
+pub unsafe extern "C" fn apx_watch_free(watch: *mut ApxWatch) {
+    if watch.is_null() {
+        return;
+    }
+    let watch = Box::from_raw(watch);
+    let _ = catch_unwind(AssertUnwindSafe(|| watch.watch.keep()));
 }

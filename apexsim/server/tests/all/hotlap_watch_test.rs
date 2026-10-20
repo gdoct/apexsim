@@ -772,3 +772,118 @@ async fn test_a_hotlap_watched_as_a_stream_goes_with_its_viewer() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
 }
+
+/// The client's own watch (`hotlap_watch::LocalWatch`, what the physics
+/// library runs for Watch hotlap) is the session the server makes from the
+/// same `CreateSession`: the sky resolved alike (a sky seed fixes what a
+/// server would draw from its random session id), the setup run, the
+/// corners, one car of the asked-for model on the run-up. Then it laps.
+#[tokio::test]
+async fn a_local_watch_is_the_servers_watch_of_the_same_create() {
+    use apexsim_server::hotlap_watch::{LocalWatch, WatchOptions};
+    use apexsim_server::track_loader::RoadContactMode;
+
+    let server = common::start_test_server().await;
+    let (mut host, lobby) = Client::connect("LocalWatcher", server.tcp_addr).await;
+    let car = lobby.car_configs.first().expect("a car").id;
+    let Some(track) = lobby
+        .track_configs
+        .iter()
+        .find(|t| t.name.contains("Monzarella"))
+    else {
+        eprintln!("skipped: no Monzarella in the test server's lobby");
+        return;
+    };
+    let mut message = create_streamed_hotlap_watch(track.id);
+    if let ClientMessage::CreateSession { conditions, .. } = &mut message {
+        conditions.sky_seed = Some(42);
+        conditions.weather = Weather::Cloudy;
+    }
+    host.send(&ClientMessage::SelectCar {
+        car_config_id: car,
+        livery: 0,
+    })
+    .await;
+    host.send(&message).await;
+    let joined = host
+        .recv_until(|msg| match msg {
+            ServerMessage::SpectatorJoined(data) => Some(data),
+            ServerMessage::Error { message, .. } => panic!("creation failed: {message}"),
+            _ => None,
+        })
+        .await;
+
+    let mut local = LocalWatch::start(
+        &WatchOptions {
+            create_session: rmp_serde::to_vec_named(&message).unwrap(),
+            track_path: MONZA.into(),
+            cars_dir: "../../apexsim-content/cars".into(),
+            car: car.to_string(),
+            road_contact: RoadContactMode::Mesh,
+            tick_rate: HZ as u16,
+            seed: 7,
+        },
+        None,
+    )
+    .expect("the local watch starts");
+    {
+        let state = server.state.read().await;
+        let theirs = &state.sessions[&joined.stream_id];
+        let ours = &local.race;
+        assert_eq!(
+            ours.session.conditions, theirs.session.conditions,
+            "the sky"
+        );
+        assert_eq!(ours.session.session_kind, SessionKind::HotlapWatch);
+        assert_eq!(ours.session.game_mode, theirs.session.game_mode);
+        assert_eq!(ours.session.lap_limit, theirs.session.lap_limit);
+        assert_eq!(ours.track_config.id, theirs.track_config.id);
+        assert_eq!(ours.session.participants.len(), 1);
+        let our_driver = *ours.session.participants.keys().next().unwrap();
+        let their_driver = *theirs.session.participants.keys().next().unwrap();
+        assert_eq!(
+            ours.session.participants[&our_driver].car_config_id,
+            theirs.session.participants[&their_driver].car_config_id
+        );
+        assert_eq!(
+            ours.car_setup(&our_driver),
+            theirs.car_setup(&their_driver),
+            "the setup"
+        );
+        assert_eq!(ours.car_setup(&our_driver).rear_wing, 1);
+        let corners = |gs: &GameSession| match gs.track_corners_message(gs.session.id) {
+            Some(ServerMessage::TrackCorners(data)) => data.corners.len(),
+            _ => 0,
+        };
+        assert!(corners(ours) > 0);
+        assert_eq!(corners(ours), corners(theirs), "the corners");
+    }
+
+    // Its stream begins with the catch-up (a header first), then laps.
+    local.tick(1);
+    let first = local.take();
+    let len = u32::from_be_bytes(first[..4].try_into().unwrap()) as usize;
+    assert!(first.len() > 4 + len, "more than one record");
+    assert_eq!(first[4] & 0xF0, 0x90, "a positional record");
+    assert_eq!(first[5], 1, "the header first");
+    let lap = |watch: &LocalWatch| {
+        watch
+            .race
+            .session
+            .participants
+            .values()
+            .next()
+            .unwrap()
+            .current_lap
+    };
+    for _ in 0..240 {
+        local.tick(HZ as u32);
+        if lap(&local) >= 2 {
+            break;
+        }
+    }
+    let lap = lap(&local);
+    assert!(lap >= 2, "a lap closed in four minutes (lap {lap})");
+    assert!(local.take().len() > 100_000, "the laps were streamed");
+    host.send(&ClientMessage::LeaveSpectate).await;
+}

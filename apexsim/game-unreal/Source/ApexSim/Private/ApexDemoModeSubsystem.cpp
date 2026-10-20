@@ -868,7 +868,7 @@ bool UApexDemoModeSubsystem::WatchLive(const FString& SessionId, FString& OutErr
 }
 
 bool UApexDemoModeSubsystem::WatchHotlap(const FString& InTrackId, const FString& TrackName, const FString& Stem,
-	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, FString& OutError)
+	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError)
 {
 	UApexNetSubsystem* Net = GetNet();
 	UApexSpectatorSubsystem* Spectator = GetSpectator();
@@ -899,15 +899,15 @@ bool UApexDemoModeSubsystem::WatchHotlap(const FString& InTrackId, const FString
 	{
 		Centerline = Track.Centerline;
 	}
-	if (!Spectator->WatchHotlap(InTrackId, TrackName, Stem, Conditions, Setup))
+	if (!Spectator->WatchHotlap(InTrackId, TrackName, Stem, Conditions, Setup, CarId, OutError))
 	{
-		OutError = TEXT("not connected to the server");
 		return false;
 	}
 	Source = EApexBackdropSource::Live;
 	Cooldown = 0.0f;
 	Failures = 0;
-	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching a hotlap at %s as a stream"), *Stem);
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching a hotlap at %s as a stream (%s)"), *Stem,
+		Spectator->GetSource() == EApexSpectatorSource::Local ? TEXT("simulated here") : TEXT("from the server"));
 	return true;
 }
 

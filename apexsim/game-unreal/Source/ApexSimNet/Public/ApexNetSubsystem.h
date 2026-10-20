@@ -472,12 +472,26 @@ public:
 		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup = nullptr);
 
 	/**
+	 * A watched hotlap the game simulates itself (the physics library's
+	 * apx_watch_*, fed to the backdrop by UApexSpectatorSubsystem): nothing
+	 * is sent, and no server is needed. It counts as a streamed watch, with
+	 * `Corners` (the TrackCorners message's bytes, as the server would send
+	 * them) for GetTrackCorners, until EndLocalHotlapWatch.
+	 */
+	void BeginLocalHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
+		const FApexSessionConditions& Conditions, TArrayView<const uint8> Corners);
+	/** The local watch's stream id, once its header names it (FindSessionById answers for it). */
+	void SetLocalHotlapWatchId(const FString& StreamId);
+	void EndLocalHotlapWatch();
+	bool IsLocalHotlapWatch() const { return bHotlapWatchLocal; }
+
+	/**
 	 * A watched hotlap (SessionKind::HotlapWatch) is on: joined, from its join
 	 * until it is left, or watched as a stream, from the ask until LeaveSpectate.
 	 */
-	bool IsHotlapWatch() const { return bHotlapWatch || bHotlapWatchStream; }
-	/** The watched hotlap comes as a stream (SpectateHotlapWatch). */
-	bool IsHotlapWatchStream() const { return bHotlapWatchStream; }
+	bool IsHotlapWatch() const { return bHotlapWatch || bHotlapWatchStream || bHotlapWatchLocal; }
+	/** The watched hotlap comes as a stream (SpectateHotlapWatch, or simulated here). */
+	bool IsHotlapWatchStream() const { return bHotlapWatchStream || bHotlapWatchLocal; }
 
 	/** The session joined was joined as a spectator: there is no local car in it. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -958,6 +972,8 @@ private:
 	bool bHotlapWatch = false;
 	/** The watched hotlap is a stream (SpectateHotlapWatch), until LeaveSpectate. */
 	bool bHotlapWatchStream = false;
+	/** The watched hotlap is simulated here (BeginLocalHotlapWatch). */
+	bool bHotlapWatchLocal = false;
 	/** What the lobby would list for it, had it been listed (FindSessionById). */
 	FApexSessionSummary HotlapWatchSummary;
 

@@ -131,13 +131,13 @@ public:
 	 */
 	bool WatchLive(const FString& SessionId, FString& OutError);
 	/**
-	 * WatchLive for a hotlap the server drives for this viewer
-	 * (UApexSpectatorSubsystem::WatchHotlap): one AI car lapping `TrackStem`
-	 * in the car last selected, under `Conditions`, on `Setup` when given.
-	 * Asking again replaces it. Stays until StopLive.
+	 * WatchLive for a watched hotlap (UApexSpectatorSubsystem::WatchHotlap,
+	 * simulated here when it can be, else driven by the server for this
+	 * viewer): one AI car lapping `TrackStem` in `CarId`, under `Conditions`,
+	 * on `Setup` when given. Asking again replaces it. Stays until StopLive.
 	 */
 	bool WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, FString& OutError);
+		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError);
 	/** Back to the ordinary backdrop. */
 	void StopLive();
 	bool IsWatchingLive() const { return Source == EApexBackdropSource::Live; }

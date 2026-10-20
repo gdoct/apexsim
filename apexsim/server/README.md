@@ -55,7 +55,8 @@ same paths): `network.rs` (messages), `session_wire.rs` (a session's
 messages and telemetry), `spectator.rs` and `session_stream.rs` (the
 stream), `render.rs` (a seeded race rendered into a stream),
 `showcase_list.rs` (showcase.yml), `track_guide.rs` and `poses.rs` (the
-track guide, camera poses), `records.rs` (lap records, ghosts),
+track guide, camera poses), `hotlap_watch.rs` (a watched hotlap simulated
+in the client), `records.rs` (lap records, ghosts),
 `setup_sheet.rs`.
 
 Also here: `ffi/` (the `apexsim-physics` crate on `apexsim-sim` alone: the
