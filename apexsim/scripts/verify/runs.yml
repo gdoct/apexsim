@@ -1961,6 +1961,8 @@ runs:
       - {at: 28, label: "the grid card", checks: "the empty slot in the card's list"}
       - {at: 38, label: "the grid card", checks: "the field lined up with the gap"}
       - {at: 52, label: "the start", checks: "the gap on the grid"}
+      - {at: 41, label: "the grid from above", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt -8.4 42.0 60.0 -25.6 14.4 0.0"}
+      - {at: 43, label: "the grid from ahead", checks: "the lined-up field with the gap", exec: "apexsim.cam.LookAt 23.5 -1.4 40.0 -34.0 19.7 0.0"}
 
   # An allowance of two laps against a slow AI field (level 70) (four would
   # run the stand-in dry: qualifying fuels three laps, HOTLAP_FUEL_LAPS). Every AI
@@ -2316,3 +2318,472 @@ runs:
       - {at: 150, label: "2:30 away", checks: "N25 the band drifting in"}
       - {at: 270, label: "0:30 away", checks: "N25 the band at the circuit's edge"}
       - {at: 340, label: "raining", checks: "N25 the rain over the circuit"}
+
+  # What R13 had left (2026-10-20): the race_phase banner on a formation lap
+  # and under a virtual safety car beside the flags, the penalty component,
+  # the radar and the field lifting past trouble. Car 3 crawls on two flats
+  # from 20 s of green (a yellow, passes under it), car 5's engine stops at
+  # 70 s (the VSC). The green comes after the formation lap, so the shots
+  # run every 6 s and the client log's data points say what was up.
+  - id: v-r13-phase
+    about: "R13. The phase banner, the VSC, penalties and the radar at the Snorisring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=9
+      - -ApexLaps=6
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+      - -ApexFormationLap
+      - -ApexSafetyCar=virtual
+      - -ApexPenalties
+    server:
+      stand_in: true
+      events:
+        - "20:3:puncture=FL"
+        - "20:3:puncture=RL"
+        - "70:5:damage=engine:100"
+    exec:
+      10: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      20: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      30: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      40: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      50: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      60: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      70: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      80: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      90: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      100: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      110: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      120: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      130: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      140: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      150: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      160: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      170: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      180: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      190: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      200: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      210: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      220: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      230: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      240: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      250: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      260: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      270: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      280: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      290: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      300: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      310: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      320: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      330: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      340: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      350: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+      360: ["apexsim.hud.Data race.", "apexsim.hud.Data flag.", "apexsim.hud.Data penalty.", "apexsim.hud.Data radar."]
+    shots:
+      - {at: 8, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 14, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 20, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 26, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 32, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 38, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 44, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 50, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 56, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 62, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 68, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 74, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 80, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 86, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 92, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 98, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 104, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 110, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 116, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 122, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 128, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 134, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 140, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 146, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 152, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 158, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 164, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 170, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 176, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 182, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 188, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 194, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 200, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 206, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 212, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 218, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 224, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 230, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 236, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 242, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 248, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 254, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 260, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 266, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 272, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 278, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 284, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 290, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 296, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 302, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 308, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 314, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 320, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 326, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 332, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 338, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 344, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 350, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 356, label: "", checks: "race_phase / flags / penalty / radar"}
+      - {at: 362, label: "", checks: "race_phase / flags / penalty / radar"}
+
+  # A blue flag on the player's car: the stand-in is sent in at 10, 55 and
+  # 100 s of green (each stop costs it most of a lap at the Snorisring), so
+  # the leader comes up to lap it.
+  - id: v-r13-blue
+    about: "R13. BLUE FLAG on the player's car, lapped by the leader"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=5
+      - -ApexLaps=12
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+      events:
+        - "5:host:damage=engine:20"
+        - "10:host:pit"
+        - "85:host:pit"
+        - "160:host:pit"
+        - "235:host:pit"
+        - "310:host:pit"
+        - "50:host:damage=engine:20"
+        - "125:host:damage=engine:20"
+        - "200:host:damage=engine:20"
+        - "275:host:damage=engine:20"
+    exec:
+      150: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      155: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      160: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      165: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      170: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      175: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      180: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      185: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      190: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      195: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      200: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      205: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      210: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      215: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      220: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      225: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      230: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      235: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      240: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      245: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      250: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      255: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      260: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      265: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      270: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      275: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      280: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      285: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      290: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      295: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      300: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      305: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      310: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      315: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      320: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      325: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      330: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      335: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      340: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      345: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      350: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      355: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      360: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      365: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      370: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      375: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      380: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      385: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      390: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      395: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      400: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      405: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      410: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      415: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      420: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      425: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      430: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      435: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      440: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      445: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      450: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+    shots:
+      - {at: 150, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 155, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 160, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 165, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 170, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 175, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 180, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 185, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 190, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 195, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 200, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 205, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 210, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 215, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 220, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 225, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 230, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 235, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 240, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 245, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 250, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 255, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 260, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 265, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 270, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 275, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 280, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 285, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 290, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 295, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 300, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 305, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 310, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 315, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 320, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 325, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 330, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 335, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 340, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 345, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 350, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 355, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 360, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 365, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 370, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 375, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 380, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 385, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 390, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 395, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 400, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 405, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 410, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 415, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 420, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 425, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 430, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 435, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 440, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 445, label: "", checks: "BLUE FLAG with the leader close behind"}
+      - {at: 450, label: "", checks: "BLUE FLAG with the leader close behind"}
+
+  # GO OUT in open qualifying: the car drawn in its box, the autopilot down
+  # the lane under the limiter, handed back past the light, OUTLAP until
+  # the line after the lane.
+  - id: v-r12-go-out
+    about: "R12. GO OUT from the pit box, the autopilot down the lane"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexMode=6
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexHotlapOutAfter=12
+    exec:
+      10: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      13: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      16: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      19: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      22: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      25: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      28: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      31: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      34: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      37: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      40: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      43: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      46: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      49: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      52: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      55: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      58: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      61: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      64: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      67: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      70: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      73: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      76: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      79: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      82: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      85: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      88: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      91: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      94: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      97: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+      100: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data pit."]
+    shots:
+      - {at: 10, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 13, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 16, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 19, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 22, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 25, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 28, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 31, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 34, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 37, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 40, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 43, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 46, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 49, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 52, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 55, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 58, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 61, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 64, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 67, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 70, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 73, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 76, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 79, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 82, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 85, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 88, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 91, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 94, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 97, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+      - {at: 100, label: "", checks: "in the box, the limiter, hand-back past the light, OUTLAP"}
+
+  # A weekend whose final round is a shoot-out, live, with a written
+  # forecast. The conditions panel ships off: run it with
+  # --game-arg=-ApexHudDir=<a folder holding conditions/component.json
+  # with default_enabled true>.
+  - id: v-r12-weekend-shootout
+    about: "R12. A weekend's shoot-out final round, and the outlook on the conditions panel"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexWeekend=0,1,4
+      - -ApexQualifyingFormat=shootout
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexForecast=5:cloudy,10:overcast,15:lightrain,20:overcast
+      - -ApexView=chase
+      - -ApexHotlapOutAfter=15
+    exec:
+      10: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      25: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      40: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      55: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      70: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      85: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      100: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      115: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      130: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      145: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      160: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      175: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      190: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      205: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      220: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      235: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      250: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      265: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      280: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      295: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      310: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      325: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      340: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      355: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      370: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      385: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      400: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      415: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      430: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      445: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      460: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      475: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      490: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      505: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      520: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      535: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      550: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      565: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      580: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+      595: ["apexsim.hud.Data qualifying.", "apexsim.hud.Data sky.", "apexsim.hud.Data weekend."]
+    shots:
+      - {at: 10, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 25, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 40, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 55, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 70, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 85, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 100, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 115, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 130, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 145, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 160, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 175, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 190, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 205, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 220, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 235, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 250, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 265, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 280, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 295, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 310, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 325, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 340, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 355, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 370, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 385, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 400, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 415, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 430, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 445, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 460, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 475, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 490, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 505, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 520, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 535, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 550, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 565, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 580, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
+      - {at: 595, label: "", checks: "the weekend's phase, the shoot-out, the conditions panel"}
