@@ -1,7 +1,7 @@
 # Work plan
 
-A prioritised view over the four backlogs, snapshot of 2026-10-16 at
-`8dc654b`. The backlogs stay the source of truth for *what* is open
+A prioritised view over the four backlogs, snapshot of 2026-10-20 at
+`01099ec`. The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
 file says *in what order*, *what kind of work* and *who has to be there*.
@@ -28,7 +28,7 @@ When an item is done, delete it from its backlog and from here.
 
 | ID | Item | Type | Pri | Human | Effort |
 |---|---|---|---|---|---|
-| V1 | Verify the newest session screens (R9, R11, R12) | Verification | P1 | 🟡 | S |
+| V1 | Verify the newest session screens (R9, R11, R12, R13) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
@@ -37,6 +37,8 @@ When an item is done, delete it from its backlog and from here.
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
+| A6 | AI lifts for trouble it sees ahead | AI | P2 | 🟢 | M |
+| R6 | Race control on screen: safety car, dash, lobby rules | Client + wire | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
@@ -63,6 +65,7 @@ When an item is done, delete it from its backlog and from here.
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each |
 | X1 | `SessionKind::Demo` removal | Cleanup | P3 | 🟢 | S |
+| X2 | Circuit tests declare the sidecars they need | Cleanup | P3 | 🟢 | S |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M |
 | N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M |
 | N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M |
@@ -77,14 +80,57 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-1. **Verify what was just built** — V1: what is left of R9, R11 and R12 (two clients, a watcher's results screen, the lap allowance's garage), then H1 in one sitting with B8's fix on the wheel. Fresh features are where the bugs are.
-2. **One content refresh** — B7 (curb kinks), F2 (light panels laid by `ats-dress`), B11 (the tyre bridge's shape) and D1 (the real pit layout) all regenerate every track's sidecars: do them on one branch, re-export once, run the AI survey once against the commit before. S1 (road crown) changes the same files and could join it if there is room. Showcases and guides go stale after it; rebake once at the end.
-3. **HUD** — N25 (rain radar): a new component and data points, one `ApexSim.Hud.Data` run.
-4. **The simulation in the client** — N28, then X1 on top of it. Do it before N26: once guides, showcases and Watch hotlap are made in the game, packs no longer carry them and the build loses its two slowest stages.
-5. **Built on the decisions of 2026-10-18** — N26 phase 0 (the rest after the two roots) and phase 1 (pack format, local install), R3 phase 1 (a key per install), N7 (an offline season). None of them waits on you; N26 phase 2 waits on the repository and the signing key.
-6. **Visual quality pass** — G4 (close-ups can be held: `apexsim.replay.Hold`) and N10 (DLSS and FSR beside the built render scale), checked together on the RTX machine.
-7. **Online and depth** — N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
-8. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+### Overnight, 2026-10-20 (unattended)
+
+Decided 2026-10-20: S1 joins the refresh, the client may be run
+unattended (back up `ApexProfile.sav` first), CI tests declare their
+backend (X2), and what is left of the night goes to N28. One heavy job at
+a time (builds, survey, client): parallel load froze the machine before.
+Commit each item when it is solved, per CLAUDE.md.
+
+1. **Baseline.** At `01099ec`, before any change: the AI survey
+   (seeds 1-2, centerline) and close-up shots of the worst inside curbs,
+   the tyre bridge at Le Mans and two pit exits. Every later comparison is
+   against these.
+2. **The content refresh, on one branch.** B7 (curb kinks, in the
+   generator) → B11 (tyre bridge rebuilt headless in Blender, kit
+   re-imported) → D1 (pit lines and exit light where the dossier puts them)
+   → F2 (`ats-dress` lays light panels; a dynamic glow instance each,
+   driven by the flags) → S1 (crown and bump field on both backends,
+   `edge_low` follows the crown). Re-export every track once, full
+   `track-editor` tests, `pit_stop_test` and `ai_pit_survey`, the survey
+   against step 1, the after shots. Commit per item. If the survey moves
+   by more than noise, bisect by item before going on. The 🟡 halves wait
+   for a person in the morning.
+3. **A6**, judged by the survey against the end of step 2 (the target is
+   the +35% off-road from the 1.5 s incident wait).
+4. **R6** (one wire change with goldens on both sides), then **N25** (rain
+   radar, one `ApexSim.Hud.Data` run), then **V1** (R9/R11/R12's left
+   items and R13) as one unattended client batch that also shoots F2's
+   panels and R6's safety car.
+5. **X2** (small, server tests only).
+6. **N28** for the rest of the night: grow `server/ffi` to the session
+   tick behind the C API with a determinism test against the server's
+   render of the same seed. Stop at a green, committed step, not
+   mid-refactor. Showcases and guides went stale in step 2: rebake once,
+   at the end, unless N28 already makes them in the client.
+
+Skip tonight: everything 🔴 (H1, H2, P3, N26 phase 2, AU1, F1), and the
+epics R3, N5 and N7, which need review sittings.
+
+### After tonight
+
+1. **Verify what was just built.** The morning's 🟡 reviews (refresh
+   shots, R6, N25, follow-ups #26), then H1 in one sitting with B8's fix
+   and S1's crown on the wheel.
+2. **N28 to its end, then X1** on top of it. Do this before N26: once guides, showcases
+   and Watch hotlap are made in the game, packs no longer carry them.
+3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
+   local install), R3 phase 1 (a key per install), N7 (an offline season).
+   N26 phase 2 waits on the repository and the signing key.
+4. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
+5. **Online and depth.** N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
+6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -137,6 +183,14 @@ lane choice rather than an offset on the line.
 **Watch out:** the previous attempt failed — start with the survey's
 contact count on Zandvoort as the target number; human review on R7.
 
+#### A6. AI lifts for trouble it sees ahead — P2 · 🟢 · M
+*Source: follow-ups #20.* Since a yellow waits `INCIDENT_CONFIRM_S`
+(1.5 s), the AI no longer slows for a car only briefly in trouble ahead:
+the whole-calendar survey (seeds 1-2) went from 485 to 654 car-seconds
+off the road. An AI driver lifts for a car it sees off or crawling within
+its view, apart from the flag rules. Judged by the survey against the
+commit before; the target is back near 485.
+
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:
 
@@ -178,6 +232,14 @@ Saturday, race Sunday, same drivers, results kept.
 machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
 sim path free of persistence reads.
 
+#### R6. Race control on screen — P2 · 🟡 · M
+*Source: follow-ups #20.* Draw the safety car
+(`FApexTelemetryFrame::SafetyCar`: a car with roof light bars, lit until
+`race_phase` 6, interpolated like a car), the safety-car phase and pace
+on the cockpit dash, the race rules in the lobby listing (a wire change:
+append, goldens on both sides), and a note in the session browser when a
+server balances its cars. Checked in V1's R13 run; a person judges.
+
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.
 - A qualifying HUD (not race standings).
@@ -199,6 +261,8 @@ more convincing wet behaviour.
 **Implementation:** Add a crown and a seeded bump field to the road
 cross-section in `ue_export road` *and* to the centerline backend's surface;
 let `road_state::edge_low` follow the crown.
+**Decided 2026-10-20:** in the content refresh, a 2% crown and a
+small seeded bump field.
 **Watch out:** must land on both backends at once (the survey drives the
 centerline, the live server the mesh); re-export tracks; AI survey before
 and after; this changes every track's checksum, so showcases and guides go
@@ -350,6 +414,14 @@ Planned block by block, with the agent's prep and follow-up, in
 Only once showcases exist everywhere; the backdrop still falls back to it
 with stale or missing showcases, and `HotlapWatch` shares its create path.
 Wire: remove only by leaving the variant decodable (append-only rule).
+
+#### X2. Circuit tests declare the sidecars they need — P3 · 🟢 · S
+*Source: follow-ups #99.* Decided 2026-10-20: CI keeps racing a checkout
+without the gitignored sidecars. Every test that drives a circuit states
+which sidecars it needs (curbs, walls, ground, pit, road mesh) through one
+helper, and skips with a printed reason when they are missing, so the
+narrowed tests can return to full strength on a baked tree. Check against
+`git archive HEAD` in a scratch folder with its own `CARGO_TARGET_DIR`.
 
 ### New features (added 2026-10-16, also in the roadmap)
 
@@ -554,7 +626,8 @@ What only you can do, roughly in the order it pays off:
 1. **Decided 2026-10-18:** D1 real layout, R3 a key per install, N7 an
    offline season first, N8 parked, N26 on GitHub releases with a
    class-wide seed, B9 and B10, N10 DLSS and FSR, N14 offline TTS, AU1's
-   four targets, UDP encryption closed. Left: create `apexsim-content` and
+   four targets, UDP encryption closed; 2026-10-20: S1 in the refresh,
+   X2 tests declare their backend, N28 before R3/N7. Left: create `apexsim-content` and
    its signing key (N26 phase 2).
 2. **Judge the 2026-10-18 fixes** — B8's cooling (with H1), B6's create
    screen and B10's mouse and pad feel: [follow-ups #26](follow-ups.md).
