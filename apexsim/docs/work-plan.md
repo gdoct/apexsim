@@ -1,7 +1,7 @@
 # Work plan
 
 A prioritised view over the four backlogs, snapshot of 2026-10-20 at
-`01099ec`. The backlogs stay the source of truth for *what* is open
+`943bd29`. The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
 file says *in what order*, *what kind of work* and *who has to be there*.
@@ -72,57 +72,24 @@ When an item is done, delete it from its backlog and from here.
 
 ## 2. Recommended order
 
-### Overnight, 2026-10-20 (unattended)
-
-Decided 2026-10-20: S1 joins the refresh, the client may be run
-unattended (back up `ApexProfile.sav` first), CI tests declare their
-backend (X2), and what is left of the night goes to N28. One heavy job at
-a time (builds, survey, client): parallel load froze the machine before.
-Commit each item when it is solved, per CLAUDE.md.
-
-1. **Baseline.** At `01099ec`, before any change: the AI survey
-   (seeds 1-2, centerline) and close-up shots of the worst inside curbs,
-   the tyre bridge at Le Mans and two pit exits. Every later comparison is
-   against these.
-2. **The content refresh, on one branch.** B7 (curb kinks, in the
-   generator) → B11 (tyre bridge rebuilt headless in Blender, kit
-   re-imported) → D1 (pit lines and exit light where the dossier puts them)
-   → F2 (`ats-dress` lays light panels; a dynamic glow instance each,
-   driven by the flags) → S1 (crown and bump field on both backends,
-   `edge_low` follows the crown). Re-export every track once, full
-   `track-editor` tests, `pit_stop_test` and `ai_pit_survey`, the survey
-   against step 1, the after shots. Commit per item. If the survey moves
-   by more than noise, bisect by item before going on. The 🟡 halves wait
-   for a person in the morning.
-3. **A6**, judged by the survey against the end of step 2 (the target is
-   the +35% off-road from the 1.5 s incident wait).
-4. **R6** (one wire change with goldens on both sides), then **N25** (rain
-   radar, one `ApexSim.Hud.Data` run), then **V1** (R9/R11/R12's left
-   items and R13) as one unattended client batch that also shoots F2's
-   panels and R6's safety car.
-5. **X2** (small, server tests only).
-6. **N28** for the rest of the night: grow `server/ffi` to the session
-   tick behind the C API with a determinism test against the server's
-   render of the same seed. Stop at a green, committed step, not
-   mid-refactor. Showcases and guides went stale in step 2: rebake once,
-   at the end, unless N28 already makes them in the client.
-
-Skip tonight: everything 🔴 (H1, H2, P3, N26 phase 2, AU1, F1), and the
-epics R3, N5 and N7, which need review sittings.
-
-### After tonight
-
-1. **Verify what was just built.** The morning's 🟡 reviews (refresh
-   shots, R6, N25, follow-ups #26), then H1 in one sitting with B8's fix
-   and S1's crown on the wheel.
-2. **N28 to its end, then X1** on top of it. Do this before N26: once guides, showcases
-   and Watch hotlap are made in the game, packs no longer carry them.
-3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
+1. **Judge what was just built.** Follow-ups #27 (the content refresh:
+   B7 curbs, B11 tyre bridge, D1 pit entry line, F2 light panels, S1 crown,
+   before/after shots in `out/verify/o1-*`), #26 (the 2026-10-18 fixes),
+   R13's safety car and dash (`r13b-safety-car`) and R14's rain radar
+   (`n25-rain-radar`) in [verification.md](verification.md). Then H1 in
+   one sitting with B8's fix and S1's crown on the wheel.
+2. **N28 to its end, then X1** on top of it: the library runs a seeded race
+   (step 1, 2026-10-20); next the client calling it for a showcase from its
+   seed and the backdrop with no server, then the guide. Do this before
+   N26: once guides, showcases and Watch hotlap are made in the game, packs
+   no longer carry them.
+3. **A6 again**, from the Nordschleife's seed 2 (follow-ups #20).
+4. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install), R3 phase 1 (a key per install), N7 (an offline season).
    N26 phase 2 waits on the repository and the signing key.
-4. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
-5. **Online and depth.** N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
-6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+5. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
+6. **Online and depth.** N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
+7. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
