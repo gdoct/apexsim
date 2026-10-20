@@ -163,7 +163,9 @@ contact count on Zandvoort as the target number; human review on R7.
 the whole-calendar survey (seeds 1-2) went from 485 to 654 car-seconds
 off the road. An AI driver lifts for a car it sees off or crawling within
 its view, apart from the flag rules. Judged by the survey against the
-commit before; the target is back near 485.
+commit before; the target is back near 485. Tried 2026-10-20 and not
+landed (the survey split by seed; the Nordschleife got worse): see
+follow-ups #20 for the numbers and where to look next.
 
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:
