@@ -100,6 +100,12 @@ them again).
   curbs at Sudoku 1890 m and 1400 m, Monza 977 m and Silverstone 1024 m
   (`o1-*`), and any corner you remember.
 
+- **Pit entry line (D1).** The speed limit (and the autopilot) now
+  starts 60 m before the first box instead of where the lane first runs
+  clear of the track (300 m before it at Sudoku, 230 m at Monza); the
+  exit line and light stay at the lane's end. Judge the lines (`o1-sudoku`,
+  `o1-monza`) and drive a stop: the run in to the line is now yours.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records
@@ -271,13 +277,6 @@ the launcher import with the network off.
 
 ### Top view
 - If we use the top view with formula cars, somehow the image looks really cheap and lacks the visual fidelity seen in other camera angles. This needs to be further investigated and fixed.
-
-### Pit lane entry and exit 
-- Review and improve the visual and functional aspects of pit lane entry and exit, ensuring smooth transitions and accurate representation in the game. 
-- The pit lane entries should be closer to the actual pit boxes and clearly marked by a line.
-- The pit lane exits should be immediately after the last pit box. That should be where the light is located. From that point, the player can already get control there and have no speed limit.
-  Decided 2026-10-18 against this: the limit line and the light sit where the real circuit has them (work plan D1).
-
 
 ## P5: Cleanup
 

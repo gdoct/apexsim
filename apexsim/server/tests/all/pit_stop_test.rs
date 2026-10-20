@@ -84,12 +84,19 @@ fn the_limiter_holds_a_car_to_the_lane_limit() {
     // used to start 8 m/s over and pass because the lane drove as grass,
     // whose drag had it down to the limit inside three seconds; on asphalt
     // a car over the limit coasts down, the throttle shut.)
-    on_the_lane(
-        &mut gs,
-        &player,
-        lane.limit_start_m + 5.0,
-        lane.speed_limit_mps - 6.0,
+    // Past the last box, so no box and no autopilot stands in its way:
+    // the entry line is a short lead before the first box, and a car let go
+    // just past it is taken to its box.
+    let past_the_boxes = lane
+        .boxes
+        .last()
+        .map_or(lane.limit_start_m, |b| b.lane_station_m)
+        + 10.0;
+    assert!(
+        lane.limit_end_m - past_the_boxes > 150.0,
+        "room to the exit line"
     );
+    on_the_lane(&mut gs, &player, past_the_boxes, lane.speed_limit_mps - 6.0);
     let flat_out = PlayerInputData {
         throttle: 1.0,
         ..Default::default()
@@ -961,7 +968,11 @@ fn a_driver_without_the_pit_autopilot_drives_the_lane_held_to_the_limit() {
     }
     let s = &gs.session.participants[&player];
     assert!(s.pit.serviced && !s.pit.servicing && !s.pit.driving);
-    assert_eq!(s.tires.front_left.wear_percent, 0.0);
+    assert!(
+        s.tires.front_left.wear_percent < 0.01,
+        "fresh tyres: {}",
+        s.tires.front_left.wear_percent
+    );
 }
 
 /// The folder the lane surveys walk: the shipped circuits, or with

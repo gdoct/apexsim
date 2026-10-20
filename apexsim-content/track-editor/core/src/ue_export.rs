@@ -2782,9 +2782,9 @@ impl Bake<'_> {
             }
         }
 
-        // The speed limit: a line across the lane where it starts and where
-        // it ends — the ends of the longest parallel stretch, which is where
-        // the bake stands the garages and where a real limit line is.
+        // The speed limit: a line across the lane where it starts, a short
+        // lead before the first box, and where it ends, at the end of the
+        // stretch clear of the road ([`pit_layout`]).
         let total = lane.total_length_m();
         for at in [layout.limit_start, layout.limit_end] {
             if at <= PIT_LIMIT_LINE_M || at >= total - PIT_LIMIT_LINE_M {
@@ -4325,11 +4325,18 @@ struct PitLayout {
 /// road: the module's depth and a little.
 const PIT_GARAGE_ROOM_M: f32 = 15.5;
 
-/// The lane's [`PitLayout`]. The limit is the longest stretch that runs
-/// clear of the road; the garages stand on the longest run of it with
-/// room behind the lane for a garage (another leg of the course passes
-/// close behind some pits: Zandvoort's stood on its own back straight),
-/// as many as the scene asks for and the run holds, centred on it.
+/// How far before the first box the speed limit starts. A real circuit
+/// paints its entry line a short way before the garages, not where the
+/// lane first runs clear of the track: the run in from there is driven.
+const PIT_ENTRY_LEAD_M: f32 = 60.0;
+
+/// The lane's [`PitLayout`]. The garages stand on the longest run of the
+/// stretch clear of the road with room behind the lane for a garage
+/// (another leg of the course passes close behind some pits: Zandvoort's
+/// stood on its own back straight), as many as the scene asks for and the
+/// run holds, centred on it. The limit starts [`PIT_ENTRY_LEAD_M`] before
+/// the first box (no earlier than the clear stretch) and ends where the
+/// clear stretch does, where the exit light stands at a real lane's end.
 fn pit_layout(
     lane: &CenterlinePath,
     width_m: f32,
@@ -4397,10 +4404,16 @@ fn pit_layout(
         .min(((best.1 - best.0) / PIT_MODULE_M).floor())
         .max(0.0) as u32;
     let row = boxes as f32 * PIT_MODULE_M;
+    let row_start = (best.0 + best.1) / 2.0 - row / 2.0;
+    let limit_start = if boxes > 0 {
+        limit_start.max(row_start - PIT_ENTRY_LEAD_M)
+    } else {
+        limit_start
+    };
     PitLayout {
         limit_start,
         limit_end,
-        row_start: (best.0 + best.1) / 2.0 - row / 2.0,
+        row_start,
         boxes,
     }
 }

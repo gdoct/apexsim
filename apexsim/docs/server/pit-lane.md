@@ -56,9 +56,12 @@ alone ([apexsim-content/docs/track-pipeline.md](../../../apexsim-content/docs/tr
 - `dress::PitZone`: nothing dressed (stands, buildings, car parks,
   landmarks...) may stand on the lane, its apron or the garages' depth
   behind it, tested over the whole footprint.
-- `ue_export::pit_layout` decides once where the limit holds (the longest
-  stretch clear of the road) and where the garages stand (the longest run
-  of it with `PIT_GARAGE_ROOM_M` behind the lane clear of every road). The
+- `ue_export::pit_layout` decides once where the garages stand (the
+  longest run of the longest stretch clear of the road with
+  `PIT_GARAGE_ROOM_M` behind the lane clear of every road) and where the
+  limit holds: from `PIT_ENTRY_LEAD_M` (60 m) before the first box, as a
+  real entry line sits, to the end of the clear stretch, where a real
+  lane's exit light stands. The
   sidecar, the garages and the paint share it, so a car stops where it sees
   its box. It also places `sign/pit_speed_limit` at the first limit line and
   `sign/pit_exit_light` at the last (the client's `ApexProps::FacesUpCourse`

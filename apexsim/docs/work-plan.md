@@ -32,7 +32,6 @@ When an item is done, delete it from its backlog and from here.
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
-| D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
 | S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
 | A6 | AI lifts for trouble it sees ahead | AI | P2 | 🟢 | M |
@@ -272,23 +271,6 @@ levels or use hardware RT Lumen.
 Investigate LOD selection, shadow and material quality at that distance.
 
 ### Content and circuits
-
-#### D1. Pit lane entry/exit layout — P2 · 🟡 · M
-*Source: follow-ups P4 (your note).*
-
-**What:** Entry should be closer to the boxes and marked with a line; the
-exit light should sit right after the last box, and control (no limit)
-should return there.
-**Outcome:** Pit lanes look and behave like real ones; shorter autopilot.
-**Implementation:** Lines and the light come from the pit sidecar
-(`<Stem>.pit.msgpack`) via the track pipeline; move `limit_end_m` / the exit
-line to where the circuit's dossier puts them and draw entry/exit lines on
-the road mesh.
-**Decided 2026-10-18:** the real circuit's layout. The limit line and the
-exit light sit where the circuit has them (usually well past the last box,
-at the lane's end), not right after the last box.
-**Watch out:** regenerate sidecars (never edit),
-`pit_stop_test` and `ai_pit_survey`, imports keep their AC lines.
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*
