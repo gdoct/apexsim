@@ -25,9 +25,9 @@ use crate::ai_driver::AiDriverProfile;
 use crate::curbs::CurbQuery as _;
 use crate::data::*;
 use crate::game_session::GameSession;
-use crate::replay_tools::{
-    load_car_folder, pose_at, pose_on_ground, track_stem, CarMap, FolderMap,
-};
+use crate::poses::{pose_at, pose_on_ground};
+use crate::render::track_stem;
+use crate::seeded_race::{load_car_folder, CarMap, FolderMap};
 use crate::spectator::{
     encode_frames, BroadcastEncoder, CarRow, StreamContent, StreamRender, StreamRoster,
     StreamRosterEntry,
@@ -693,6 +693,9 @@ fn solo_session(
         1,
         9,
     );
+    // RaceSession::new draws its own id: the stream's id is the session's,
+    // so a guide is the same file every time only with it seeded too.
+    session.id = seeded_id(seed, u64::MAX);
     session.host_player_id = seeded_id(seed, u64::MAX - 1);
     session.host_car_id = Some(car);
     session.conditions = track_conditions(track);
@@ -931,6 +934,15 @@ const OVERVIEW_SHORT_M: f32 = 25.0;
 const TAIL_S: f32 = 9.0;
 
 pub fn build_guide(opts: &GuideOptions) -> Result<BuiltGuide, String> {
+    build_guide_unless(opts, &|| false)
+}
+
+/// [`build_guide`], given up (an error, [`crate::render::CANCELLED`]) as
+/// soon as `cancelled` says so; it is asked before each car's runs.
+pub fn build_guide_unless(
+    opts: &GuideOptions,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<BuiltGuide, String> {
     let stem = track_stem(&opts.track_path).ok_or("the track path has no stem")?;
     let mut track = TrackLoader::load_from_file(&opts.track_path)
         .map_err(|e| format!("track {}: {e}", opts.track_path.display()))?;
@@ -962,6 +974,9 @@ pub fn build_guide(opts: &GuideOptions) -> Result<BuiltGuide, String> {
     let mut runs: Vec<SoloRun> = Vec::with_capacity(count);
     let mut broken: Vec<CarConfigId> = Vec::new();
     for k in 0..count {
+        if cancelled() {
+            return Err(crate::render::CANCELLED.to_string());
+        }
         let mut last_err = String::new();
         let mut done = false;
         for step in 0..field.len() {

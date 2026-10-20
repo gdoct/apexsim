@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ApexSimJob.h"
 #include "Async/Future.h"
 #include "Guide/ApexGuidePlayer.h"
 #include "Guide/ApexTrackGuide.h"
@@ -33,6 +34,8 @@ enum class EApexGuideState : uint8
 	Building,
 	/** Playing. */
 	Running,
+	/** Making the guide first (none of the class here, or a stale one): the game's own simulation on a thread. */
+	Making,
 };
 
 /** A camera of the guide's cycle: a tripod from the file, or one of the client's own on car 0. */
@@ -66,6 +69,14 @@ enum class EApexGuideCameraKind : uint8
  * A car-relative camera chosen stays chosen from corner to corner; a tripod
  * choice starts over on the next corner's first.
  *
+ * A guide that is missing (of the class of the car picked), or made from
+ * another version of the circuit, is made by the game itself when it has
+ * the physics library and the track's YAML (ApexSimContent): the library's
+ * apx_guide_build on a low-priority thread into `Saved/ApexSim/Guides/`,
+ * searched before the shipped folder, while the guide screen says so
+ * (EApexGuideState::Making). It is the file `apexsim-replay guide` writes,
+ * byte for byte. `apexsim.guide.Make 0` turns that off.
+ *
  * The shell (UApexRootWidget) listens to OnActiveChanged to hide the menu
  * and show UApexTrackGuideWidget, and routes the guide's keys to Run.
  *
@@ -92,13 +103,19 @@ public:
 	/** The folders searched, first first. */
 	static TArray<FString> GuideDirectories();
 
+	/** `Saved/ApexSim/Guides`, where the game puts the guides it makes. */
+	static FString CacheDirectory();
+
+	/** This machine can make a guide of the track itself (the library, its YAML, apexsim.guide.Make). */
+	bool CanMake(const FString& Stem) const;
+
 	/** Read the folders again (`apexsim.guide.Rescan`). */
 	void Rescan();
 
 	/** Every guide found, in the order the folders were searched. */
 	const TArray<FApexGuideFileInfo>& GetFiles() const { return Files; }
 
-	/** The track has a guide of some class, and this machine has its export to build it from. */
+	/** The track has a guide of some class or can make one, and this machine has its export to build it from. */
 	bool HasGuide(const FString& Stem) const;
 
 	/** The guide `Open` would play for a track (see ApexTrackGuide::ChooseClass), or null. */
@@ -173,6 +190,12 @@ private:
 
 	AApexRaceDirector* GetDirector() const;
 	void Fail(const FString& Why);
+	/** Read a guide file and start loading its recording (the state goes to Loading). */
+	bool StartLoading(const FApexGuideFileInfo& File, FString& OutError);
+	/** Make the guide of a class first (the state goes to Making). */
+	bool StartMaking(const FString& Stem, const FString& Class, FString& OutError);
+	/** The file was made from another version of the circuit than the catalog's. */
+	bool IsStale(const FApexGuideFileInfo& File) const;
 	/** The cameras of the overview or of a corner, then the client's own. */
 	void BuildCameras();
 	/** Put the camera at CameraIndex (or the next usable one) on the director. */
@@ -191,6 +214,14 @@ private:
 
 	TArray<FApexGuideFileInfo> Files;
 	bool bScanned = false;
+
+	/** The game's own guide being made, and what it is. */
+	FApexSimJob MakeJob;
+	FString MakingStem;
+	FString MakingClass;
+	/** Where the simulation reads tracks and cars; empty when it cannot run here. */
+	FString SimTracksDir;
+	FString SimCarsDir;
 
 	EApexGuideState State = EApexGuideState::Idle;
 	FApexTrackGuide Guide;

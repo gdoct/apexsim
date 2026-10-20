@@ -163,9 +163,10 @@ replace `target/*/apexsim-server.exe`; build and test into a scratch
 `apexsim-physics` is the simulation's car step behind a C API for the
 client's prediction of its own car ([proposals/client-prediction.md](proposals/client-prediction.md)),
 a whole seeded race nobody drives (`apx_race_*`: `seeded_race`, the
-setup and tick `apexsim-replay render` runs; roadmap #24) and a showcase
+setup and tick `apexsim-replay render` runs; roadmap #24), a showcase
 rendered into a stream file (`apx_showcase_*`, the protocol crate's
-`render` and `showcase_list`): a small crate of its own that depends on the
+`render` and `showcase_list`) and a track guide (`apx_guide_build`,
+`track_guide`): a small crate of its own that depends on the
 simulation and protocol crates alone, not on the server, so the server's
 build is untouched and the library carries no network or TLS code.
 It builds a static library and an rlib (for its tests); the header is the
@@ -175,6 +176,7 @@ hand-written `server/ffi/apexsim_physics.h`.
 cd server/ffi
 cargo test                     # the trace and rewind tests, the seeded race against the render, the showcase against the tool, the header check
 cargo test --release --test showcase -- --ignored   # the real list's Zandervoort showcase against build/showcase
+cargo test --release --test guide -- --ignored      # Zandervoort's GT3 guide against build/guide
 cargo build --release          # target/release/apexsim_physics.lib (Windows x64 MSVC)
 cargo rustc --release --lib --crate-type staticlib -- --print native-static-libs
 ```

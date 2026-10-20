@@ -13,6 +13,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Race/ApexChaseView.h"
+#include "Race/ApexPhysicsLib.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexRaceDirector.h"
 #include "Race/ApexReplayClip.h"
@@ -30,6 +31,12 @@ namespace ApexGuideSub
 	constexpr float RevealPerSecond = 2.5f;
 	/** A tripod turns toward the car by at most this share of its field of view. */
 	constexpr float PanShareOfFov = 0.3f;
+
+	TAutoConsoleVariable<int32> CVarMake(
+		TEXT("apexsim.guide.Make"),
+		1,
+		TEXT("1 makes a track guide in the game when there is none of the class wanted or it is stale (seconds, on a thread); 0 plays only the files there are."),
+		ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarFrameBias(
 		TEXT("apexsim.guide.FrameBias"),
@@ -122,11 +129,19 @@ void UApexTrackGuideSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Super::Initialize(Collection);
 	Collection.InitializeDependency<UApexMenuFlowSubsystem>();
 	Collection.InitializeDependency<UApexTrackContentSubsystem>();
+	FString Why;
+	if (!ApexPhysics::IsAvailable(&Why) || !ApexSimContent::Find(SimTracksDir, SimCarsDir, Why))
+	{
+		SimTracksDir.Reset();
+		SimCarsDir.Reset();
+		UE_LOG(LogApexSim, Log, TEXT("Track guides: none made here (%s)"), *Why);
+	}
 	Rescan();
 }
 
 void UApexTrackGuideSubsystem::Deinitialize()
 {
+	MakeJob.Cancel();
 	State = EApexGuideState::Idle;
 	Clip.Reset();
 	Super::Deinitialize();
@@ -150,6 +165,9 @@ TArray<FString> UApexTrackGuideSubsystem::GuideDirectories()
 			Dirs.Add(FPaths::ConvertRelativePathToFull(Part));
 		}
 	}
+	// The ones the game made itself, ahead of the shipped ones: one is made
+	// only when the shipped guide is missing or stale.
+	Dirs.AddUnique(CacheDirectory());
 	// Beside ApexSim.exe in a package (ProjectDir is <Release>/Game/ApexSim/),
 	// the repo's build/guide in the editor: the same rule as the tracks.
 	const FString Default = FPlatformProperties::RequiresCookedData()
@@ -189,9 +207,22 @@ void UApexTrackGuideSubsystem::Rescan()
 	UE_LOG(LogApexSim, Log, TEXT("Track guides: %d file(s) in %s"), Files.Num(), *FString::Join(GuideDirectories(), TEXT(", ")));
 }
 
+FString UApexTrackGuideSubsystem::CacheDirectory()
+{
+	return FPaths::ConvertRelativePathToFull(FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ApexSim"), TEXT("Guides")));
+}
+
+bool UApexTrackGuideSubsystem::CanMake(const FString& Stem) const
+{
+	return !SimTracksDir.IsEmpty() && ApexGuideSub::CVarMake.GetValueOnGameThread() != 0
+		&& !ApexSimContent::TrackYaml(SimTracksDir, Stem).IsEmpty();
+}
+
 bool UApexTrackGuideSubsystem::HasGuide(const FString& Stem) const
 {
-	if (Stem.IsEmpty() || !Files.ContainsByPredicate([&Stem](const FApexGuideFileInfo& F) { return F.Stem.Equals(Stem, ESearchCase::IgnoreCase); }))
+	if (Stem.IsEmpty()
+		|| (!Files.ContainsByPredicate([&Stem](const FApexGuideFileInfo& F) { return F.Stem.Equals(Stem, ESearchCase::IgnoreCase); })
+			&& !CanMake(Stem)))
 	{
 		return false;
 	}
@@ -232,20 +263,32 @@ AApexRaceDirector* UApexTrackGuideSubsystem::GetDirector() const
 	return GameInstance ? AApexRaceDirector::Find(GameInstance->GetWorld()) : nullptr;
 }
 
+bool UApexTrackGuideSubsystem::IsStale(const FApexGuideFileInfo& File) const
+{
+	FString Json;
+	FApexTrackGuide Parsed;
+	FString Error;
+	const UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+	if (!Flow || !FFileHelper::LoadFileToString(Json, *File.Path) || !ApexTrackGuide::Parse(Json, Parsed, Error))
+	{
+		return false;
+	}
+	FApexTrackCatalogRow Row;
+	const FString TrackId = Flow->FindTrackIdByStem(File.Stem);
+	return Parsed.SourceCrc != 0 && !TrackId.IsEmpty() && Flow->GetTrackCatalogRow(TrackId, Row) && Row.SourceCrc != 0
+		&& Row.SourceCrc != Parsed.SourceCrc;
+}
+
 bool UApexTrackGuideSubsystem::Open(const FString& Stem, const FString& Class, FString& OutError)
 {
 	if (!bScanned)
 	{
 		Rescan();
 	}
-	const FApexGuideFileInfo* File = FindGuide(Stem, Class.IsEmpty() ? GetPreferredClass() : Class);
-	if (!File)
-	{
-		OutError = FString::Printf(TEXT("there is no track guide for %s"), *Stem);
-		return false;
-	}
+	const FString Wanted = Class.IsEmpty() ? GetPreferredClass() : Class;
+	const FApexGuideFileInfo* File = FindGuide(Stem, Wanted);
 	const UApexTrackContentSubsystem* Content = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>() : nullptr;
-	if (!Content || !Content->HasTrack(File->Stem))
+	if (!Content || !Content->HasTrack(File ? File->Stem : Stem))
 	{
 		OutError = TEXT("the circuit is not installed on this machine");
 		return false;
@@ -255,20 +298,80 @@ bool UApexTrackGuideSubsystem::Open(const FString& Stem, const FString& Class, F
 		OutError = TEXT("the game is not ready");
 		return false;
 	}
-	FString Json;
-	if (!FFileHelper::LoadFileToString(Json, *File->Path))
+	// The guide of the car's class, made from this version of the circuit,
+	// is made here first when it is not on disk and can be.
+	const bool bOfClass = File && (Wanted.IsEmpty() || File->Class.Equals(Wanted, ESearchCase::IgnoreCase));
+	if (CanMake(Stem) && (!bOfClass || IsStale(*File)))
 	{
-		OutError = FString::Printf(TEXT("cannot read %s"), *File->Path);
+		return StartMaking(File ? File->Stem : Stem, Wanted.IsEmpty() ? (File ? File->Class : FString(TEXT("GT3"))) : Wanted, OutError);
+	}
+	if (!File)
+	{
+		OutError = FString::Printf(TEXT("there is no track guide for %s"), *Stem);
+		return false;
+	}
+	return StartLoading(*File, OutError);
+}
+
+bool UApexTrackGuideSubsystem::StartMaking(const FString& Stem, const FString& Class, FString& OutError)
+{
+	const FString Yaml = ApexSimContent::TrackYaml(SimTracksDir, Stem);
+	if (Yaml.IsEmpty())
+	{
+		OutError = FString::Printf(TEXT("no track YAML for %s to make a guide from"), *Stem);
+		return false;
+	}
+	Close();
+	const FString OutDir = CacheDirectory();
+	const FString CarsDir = SimCarsDir;
+	if (!MakeJob.Start(FString::Printf(TEXT("Track guide %s %s"), *Stem, *Class),
+			[Yaml, CarsDir, Class, OutDir](const volatile uint8* Cancel, FString& Error) {
+				return ApexPhysics::BuildGuide(Yaml, CarsDir, Class, OutDir, Cancel, Error);
+			}))
+	{
+		OutError = TEXT("a guide is being made already");
+		return false;
+	}
+	// What the loading card shows meanwhile.
+	Guide = FApexTrackGuide();
+	Guide.Class = Class;
+	Guide.Track.Stem = Stem;
+	if (const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>())
+	{
+		FApexTrackCatalogRow Row;
+		if (Flow->GetTrackCatalogRow(Flow->FindTrackIdByStem(Stem), Row))
+		{
+			Guide.Track.DisplayName = Row.DisplayName;
+		}
+	}
+	MakingStem = Stem;
+	MakingClass = Class;
+	State = EApexGuideState::Making;
+	StateSeconds = 0.0f;
+	Reveal = 0.0f;
+	UE_LOG(LogApexSim, Log, TEXT("Track guide: making %s %s into %s"), *Stem, *Class, *OutDir);
+	OnActiveChanged.Broadcast(true);
+	return true;
+}
+
+bool UApexTrackGuideSubsystem::StartLoading(const FApexGuideFileInfo& InFile, FString& OutError)
+{
+	// The file may be one of Files, which Close does not touch.
+	const FApexGuideFileInfo File = InFile;
+	FString Json;
+	if (!FFileHelper::LoadFileToString(Json, *File.Path))
+	{
+		OutError = FString::Printf(TEXT("cannot read %s"), *File.Path);
 		return false;
 	}
 	FApexTrackGuide Parsed;
 	FString Error;
 	if (!ApexTrackGuide::Parse(Json, Parsed, Error))
 	{
-		OutError = FString::Printf(TEXT("%s: %s"), *FPaths::GetCleanFilename(File->Path), *Error);
+		OutError = FString::Printf(TEXT("%s: %s"), *FPaths::GetCleanFilename(File.Path), *Error);
 		return false;
 	}
-	const FString Recording = FPaths::Combine(FPaths::GetPath(File->Path), Parsed.Recording);
+	const FString Recording = FPaths::Combine(FPaths::GetPath(File.Path), Parsed.Recording);
 	if (!IFileManager::Get().FileExists(*Recording))
 	{
 		OutError = FString::Printf(TEXT("the guide's recording %s is missing"), *Parsed.Recording);
@@ -276,25 +379,25 @@ bool UApexTrackGuideSubsystem::Open(const FString& Stem, const FString& Class, F
 	}
 	if (Parsed.Track.Stem.IsEmpty())
 	{
-		Parsed.Track.Stem = File->Stem;
+		Parsed.Track.Stem = File.Stem;
 	}
 
-	// Made from another version of the circuit: it still plays, and says so.
-	if (const UApexMenuFlowSubsystem* Flow = GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>())
+	// Made from another version of the circuit (and none can be made here):
+	// it still plays, and says so.
+	if (IsStale(File))
 	{
-		FApexTrackCatalogRow Row;
-		const FString TrackId = Flow->FindTrackIdByStem(File->Stem);
-		if (Parsed.SourceCrc != 0 && !TrackId.IsEmpty() && Flow->GetTrackCatalogRow(TrackId, Row) && Row.SourceCrc != 0
-			&& Row.SourceCrc != Parsed.SourceCrc)
-		{
-			UE_LOG(LogApexSim, Warning, TEXT("Track guide %s was made from another version of the track (crc %lld, here %lld); regenerate it with apexsim-replay guide"),
-				*FPaths::GetCleanFilename(File->Path), Parsed.SourceCrc, static_cast<int64>(Row.SourceCrc));
-		}
+		UE_LOG(LogApexSim, Warning, TEXT("Track guide %s was made from another version of the track; regenerate it with apexsim-replay guide"),
+			*FPaths::GetCleanFilename(File.Path));
 	}
 
-	Close();
+	// Straight on from making it, the guide screen is up already.
+	const bool bWasMaking = State == EApexGuideState::Making;
+	if (!bWasMaking)
+	{
+		Close();
+	}
 	Guide = MoveTemp(Parsed);
-	GuidePath = File->Path;
+	GuidePath = File.Path;
 	State = EApexGuideState::Loading;
 	StateSeconds = 0.0f;
 	Reveal = 0.0f;
@@ -317,7 +420,10 @@ bool UApexTrackGuideSubsystem::Open(const FString& Stem, const FString& Class, F
 		return Out;
 	});
 	UE_LOG(LogApexSim, Log, TEXT("Track guide: opening %s (%s, %d corner(s))"), *GuidePath, *Guide.Class, Guide.Corners.Num());
-	OnActiveChanged.Broadcast(true);
+	if (!bWasMaking)
+	{
+		OnActiveChanged.Broadcast(true);
+	}
 	return true;
 }
 
@@ -328,7 +434,9 @@ void UApexTrackGuideSubsystem::Close()
 		return;
 	}
 	State = EApexGuideState::Idle;
-	// A load still running finishes into a future nobody reads.
+	// A guide being made is given up; a load still running finishes into a
+	// future nobody reads.
+	MakeJob.Cancel();
 	Loading = TFuture<FLoaded>();
 	if (AApexRaceDirector* Director = GetDirector(); Director && Director->IsGuideViewActive())
 	{
@@ -361,6 +469,32 @@ void UApexTrackGuideSubsystem::Tick(float DeltaTime)
 
 	switch (State)
 	{
+	case EApexGuideState::Making:
+	{
+		ApexPhysics::EJobResult Result;
+		FString Error;
+		double Seconds = 0.0;
+		if (!MakeJob.Poll(Result, Error, Seconds))
+		{
+			return;
+		}
+		if (Result != ApexPhysics::EJobResult::Done)
+		{
+			Fail(FString::Printf(TEXT("the guide could not be made: %s"), *Error));
+			return;
+		}
+		UE_LOG(LogApexSim, Log, TEXT("Track guide: made %s %s in %.1f s"), *MakingStem, *MakingClass, Seconds);
+		Rescan();
+		const FApexGuideFileInfo* File = Files.FindByPredicate([this](const FApexGuideFileInfo& F) {
+			return F.Stem.Equals(MakingStem, ESearchCase::IgnoreCase) && F.Class.Equals(MakingClass, ESearchCase::IgnoreCase);
+		});
+		if (!File || !StartLoading(*File, Error))
+		{
+			Fail(File ? Error : FString(TEXT("the guide made is not where it was written")));
+		}
+		return;
+	}
+
 	case EApexGuideState::Loading:
 	{
 		if (!Loading.IsValid() || !Loading.IsReady())

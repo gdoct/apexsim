@@ -335,9 +335,9 @@ bool FApexShowcaseRenderMatchesBuildTest::RunTest(const FString& Parameters)
 	const FString Out = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("Zandervoort.gt3.day.apxs"));
 	IFileManager::Get().MakeDirectory(*FPaths::GetPath(Out), true);
 	const uint8 NoCancel = 0;
-	const ApexPhysics::EShowcaseRender Result = ApexPhysics::RenderShowcase(
+	const ApexPhysics::EJobResult Result = ApexPhysics::RenderShowcase(
 		Inputs.ListPath, Inputs.TracksDir, Inputs.CarsDir, TEXT("Zandervoort.gt3.day"), Out, &NoCancel, Why);
-	if (!TestTrue(FString::Printf(TEXT("rendered (%s)"), *Why), Result == ApexPhysics::EShowcaseRender::Written))
+	if (!TestTrue(FString::Printf(TEXT("rendered (%s)"), *Why), Result == ApexPhysics::EJobResult::Done))
 	{
 		return false;
 	}

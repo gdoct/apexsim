@@ -258,8 +258,8 @@ void UApexTrackGuideWidget::RefreshLive()
 	const bool bShowWorld = bRunning && Guide->GetReveal() > 0.0f;
 	LoadingPanel->SetVisibility(bShowWorld ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	LoadingTitle->SetText(FText::FromString(Data.Track.DisplayName.IsEmpty() ? Data.Track.Stem : Data.Track.DisplayName));
-	LoadingText->SetText(FText::FromString(Guide->GetState() == EApexGuideState::Loading
-		? TEXT("READING THE RECORDING…") : TEXT("BUILDING THE CIRCUIT…")));
+	LoadingText->SetText(FText::FromString(Guide->GetState() == EApexGuideState::Making ? TEXT("MAKING THE GUIDE…")
+		: Guide->GetState() == EApexGuideState::Loading ? TEXT("READING THE RECORDING…") : TEXT("BUILDING THE CIRCUIT…")));
 	const ESlateVisibility Live = bShowWorld ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 	Card->SetVisibility(Live);
 	Controls->SetVisibility(Live);

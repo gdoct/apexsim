@@ -312,7 +312,7 @@ ApxStatus apx_race_digest(const ApxRace *race, uint64_t *out);
 /* Free a race (null is ignored). */
 void apx_race_free(ApxRace *race);
 
-/* ---- Showcases (ABI 5) -------------------------------------------------- */
+/* ---- Showcases and track guides (ABI 5) --------------------------------- */
 
 /* Every showcase showcase.yml at list_path names (<track>.<class>.<variant>,
  * in the list's order), one per line, UTF-8, no terminator. *written gets
@@ -331,6 +331,17 @@ ApxStatus apx_showcase_names(const char *list_path, uint8_t *buf, size_t capacit
 ApxStatus apx_showcase_render(const char *list_path, const char *tracks_dir,
                               const char *cars_dir, const char *name,
                               const char *out_path, const volatile uint8_t *cancel);
+
+/* Make the track guide of `class` (car.toml class: GT3, F1, ...) on the track
+ * YAML with the class's cars under cars_dir, into out_dir as
+ * <Stem>.<class>.guide.json and its .guide.apxs: what `apexsim-replay guide
+ * <yaml> --class <class>` writes with its defaults, byte for byte. Both are
+ * written aside and moved in, the stream first. Seconds of work: call it
+ * off the game thread. *cancel as for apx_showcase_render, read before each
+ * car's runs. */
+ApxStatus apx_guide_build(const char *track_yaml, const char *cars_dir,
+                          const char *class_name, const char *out_dir,
+                          const volatile uint8_t *cancel);
 
 #ifdef __cplusplus
 }

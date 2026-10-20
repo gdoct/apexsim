@@ -10,11 +10,13 @@ gotchas. The player steps between corners, changes camera, pauses or leaves.
 
 ## Code
 
-- `apexsim/server/src/track_guide.rs`: corner detection, the solo runs, measuring,
+- `apexsim/protocol/src/track_guide.rs` (the `apexsim-protocol` crate, which the
+  server re-exports and the physics library links): corner detection, the solo runs, measuring,
   gotchas, cameras, the guide file (`TrackGuide`), and `wire_corners` (the
   same corners sent as `TrackCorners` to a watched hotlap, see
   [sessions](../../apexsim/docs/server/sessions.md)).
-- `apexsim/server/src/bin/apexsim_replay.rs`: the `guide` subcommand.
+- `apexsim/server/src/bin/apexsim_replay.rs`: the `guide` subcommand;
+  `apexsim/server/ffi` (`apx_guide_build`): the same guide made in the game.
 - `tracks/default/<Stem>/<Stem>.guide.yml`: hand-written notes,
   checked in.
 - Client: `apexsim/game-unreal/Source/ApexSim/Public/Guide/` (`UApexTrackGuideSubsystem`,
@@ -39,7 +41,9 @@ its recording `<Stem>.<Class>.guide.apxs`, an ordinary
 `initialize_content.ps1` builds what is missing or stale (stage 8),
 `build_game_standalone.ps1` copies `build/guide` to `Guide\` beside
 `ApexSim.exe` (`-SkipGuide`), `build_release.ps1` builds stale guides and
-ships them in `Game\Guide`.
+ships them in `Game\Guide`. A guide is the same bytes every time it is
+made from the same content (its stream's id is seeded), so the game's own
+(below) and the build's can be compared file for file.
 
 ### The recording
 
@@ -152,8 +156,24 @@ corners:
 ## The client
 
 `UApexTrackGuideSubsystem` finds `<Stem>.<Class>.guide.json` in
-`-ApexGuideDir=`, `Guide/` beside the exe, or the code root's `build/guide` (first
-hit wins; a guide counts only when the track's export is installed). It picks
+`-ApexGuideDir=`, `Saved/ApexSim/Guides`, `Guide/` beside the exe, or the code
+root's `build/guide` (first hit wins; a guide counts only when the track's
+export is installed).
+
+**Guides made in the game.** When the guide of the pending car's class is
+not on disk, or its `source_crc` is not the catalog's (made from another
+version of the circuit), and the game can simulate the track (the physics
+library, the track's YAML under the content `ApexSimContent::Find` names:
+`-ApexContentDir=`, the content root in the editor, `Server/content` in a
+package, which ships the `.guide.yml` and `.layout.json` beside each YAML
+for it), `Open` makes it first: `apx_guide_build` on a below-normal thread
+(`FApexSimJob`) into `Saved/ApexSim/Guides`, with the guide screen saying
+MAKING THE GUIDE (`EApexGuideState::Making`), then plays it. Three to five
+seconds in a Development build (2.6 s for Snorisring's GT3s); the file is
+what `apexsim-replay guide` writes with its defaults, byte for byte. Back
+or closing gives it up. A track with no file but a YAML counts as having a
+guide. `apexsim.guide.Make 0` turns it off. Without one of the class and
+unable to make it, the class order below applies. It picks
 the class of the create flow's pending car, else F1, Hypercar, LMP2, GT3 in
 that order, loads the `.apxs` as an `FApexReplayClip` and drives the race
 director's replay view with its own clock (`BeginGuideView`,
@@ -182,9 +202,13 @@ Unattended: `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N -ApexGuideCamera=N`
 
 ## Checking it
 
-- `cargo test track_guide` in `../apexsim/server` (`track_guide::tests`: stops, names, notes, the
+- `cargo test track_guide` in `../apexsim/protocol` (`track_guide::tests`: stops, names, notes, the
   turn count at Zandvoort).
-- `ApexSim.Guide.*` (parser, file index, player, keys, text).
+- `server/ffi/tests/guide.rs`: the API's guide is the tool's, both files;
+  cancel; its ignored release test against `build/guide`.
+- `ApexSim.Guide.*` (parser, file index, player, keys, text;
+  `MadeMatchesBuild`: the game's build makes Zandervoort's GT3 guide as
+  `build/guide` holds it).
 - `apexsim-replay guide <yaml> --report` to see the detected corners.
 
 ## Traps
@@ -193,5 +217,8 @@ Unattended: `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N -ApexGuideCamera=N`
   `display_name`, and a `.guide.yml` `name` override must not be the real one.
 - A guide is stale when its YAML, notes, dossier or a car.toml of the class
   changes (`--missing-only` checks file times); rebuild after any of them.
+  The game sees only the YAML's checksum: a guide made before a notes or
+  car change keeps playing until it is made again (delete it from
+  `Saved/ApexSim/Guides`).
 - Retrying a solo run with a new seed alone does nothing at skill 110; the
   retry must change the skill.

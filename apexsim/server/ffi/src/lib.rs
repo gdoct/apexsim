@@ -1117,6 +1117,7 @@ mod tests {
             "apx_race_digest(",
             "apx_showcase_names(",
             "apx_showcase_render(",
+            "apx_guide_build(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }
@@ -1456,5 +1457,66 @@ pub unsafe extern "C" fn apx_showcase_render(
             Fail::new(APX_ERR_IO, format!("{}: {e}", out.display()))
         })?;
         Ok(())
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Track guides: solo AI laps measured corner by corner
+// ---------------------------------------------------------------------------
+
+use apexsim_protocol::track_guide::{build_guide_unless, guide_name, write_guide, GuideOptions};
+
+/// Make the track guide of `class` (car.toml `class`: GT3, F1...) on the
+/// track YAML `track_yaml` with the class's cars under `cars_dir`, and write
+/// `<Stem>.<class>.guide.json` and its `.guide.apxs` into `out_dir`: what
+/// `apexsim-replay guide <yaml> --class <class>` writes with its defaults,
+/// byte for byte. Both files are written aside and moved in, the stream
+/// first, so a reader finding the JSON finds the stream. Seconds of work:
+/// call it off the game thread. `cancel` as for [`apx_showcase_render`]
+/// (read before each car's runs).
+///
+/// # Safety
+/// The strings are NUL-terminated; `cancel` is null or stays readable
+/// until the call returns.
+#[no_mangle]
+pub unsafe extern "C" fn apx_guide_build(
+    track_yaml: *const c_char,
+    cars_dir: *const c_char,
+    class: *const c_char,
+    out_dir: *const c_char,
+    cancel: *const u8,
+) -> ApxStatus {
+    guard(|| {
+        non_null(track_yaml, "track_yaml")?;
+        non_null(cars_dir, "cars_dir")?;
+        non_null(class, "class")?;
+        non_null(out_dir, "out_dir")?;
+        let opts = GuideOptions {
+            track_path: c_path(track_yaml)?.into(),
+            cars_dir: c_path(cars_dir)?.into(),
+            class: c_path(class)?.to_string(),
+            ..GuideOptions::default()
+        };
+        let cancelled = || !cancel.is_null() && std::ptr::read_volatile(cancel) != 0;
+        let built = build_guide_unless(&opts, &cancelled).map_err(|e| {
+            if cancelled() {
+                Fail::new(APX_ERR_CANCELLED, e)
+            } else {
+                Fail::new(APX_ERR_TRACK, e)
+            }
+        })?;
+        let out = std::path::PathBuf::from(c_path(out_dir)?);
+        let io = |e: String| Fail::new(APX_ERR_IO, e);
+        std::fs::create_dir_all(&out).map_err(|e| io(format!("{}: {e}", out.display())))?;
+        let name = guide_name(&built.guide.track.stem, &built.guide.class);
+        let aside = out.join(format!(".{name}.part"));
+        let _ = std::fs::remove_dir_all(&aside);
+        let (json, stream) = write_guide(&built, &aside).map_err(io)?;
+        let moved = [stream, json].into_iter().try_for_each(|from| {
+            let to = out.join(from.file_name().unwrap_or_default());
+            std::fs::rename(&from, &to).map_err(|e| format!("{}: {e}", to.display()))
+        });
+        let _ = std::fs::remove_dir_all(&aside);
+        moved.map_err(io)
     })
 }

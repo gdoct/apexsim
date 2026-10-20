@@ -46,15 +46,17 @@ re-exports each of its modules under the same name, so
   `metrics.rs`, `webhook.rs`, `admin/` (dashboard).
 - **Files**: `results.rs` (race results), `track_content.rs` (lazy sidecar
   loading).
-- **Spectating and offline tools**: `stream_recorder.rs`, `showcase.rs`, `replay.rs`, `replay_tools.rs`,
-  `track_guide.rs`; binaries in `bin/` (`apexsim_replay.rs`,
+- **Spectating and offline tools**: `stream_recorder.rs`, `showcase.rs`, `replay.rs`, `replay_tools.rs`;
+  binaries in `bin/` (`apexsim_replay.rs`,
   `convert_track.rs`).
 
 In `../protocol/src/` (the `apexsim-protocol` crate, re-exported under the
 same paths): `network.rs` (messages), `session_wire.rs` (a session's
 messages and telemetry), `spectator.rs` and `session_stream.rs` (the
-stream), `render.rs` (a seeded race rendered into a stream), `records.rs`
-(lap records, ghosts), `setup_sheet.rs`.
+stream), `render.rs` (a seeded race rendered into a stream),
+`showcase_list.rs` (showcase.yml), `track_guide.rs` and `poses.rs` (the
+track guide, camera poses), `records.rs` (lap records, ghosts),
+`setup_sheet.rs`.
 
 Also here: `ffi/` (the `apexsim-physics` crate on `apexsim-sim` alone: the
 car step as a static library behind a C API, `ffi/apexsim_physics.h`; see

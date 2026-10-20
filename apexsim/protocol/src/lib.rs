@@ -3,13 +3,15 @@
 //! stream and its file (`spectator`, `session_stream`), the lap records and
 //! ghosts (`records`), the setup sheet (`setup_sheet`), and the render of a
 //! seeded race into a stream (`render`, what `apexsim-replay render` and
-//! the physics library's showcases run).
+//! the physics library's showcases run), the track guide made from solo AI
+//! laps (`track_guide`) and the camera poses beside the road (`poses`).
 //!
 //! It depends only on the simulation, so the client's physics library can
 //! write the same stream bytes as the server. The server re-exports every
 //! module under the same path (`apexsim_server::network`, ...).
 
 pub mod network;
+pub mod poses;
 pub mod records;
 pub mod render;
 pub mod session_stream;
@@ -17,6 +19,7 @@ pub mod session_wire;
 pub mod setup_sheet;
 pub mod showcase_list;
 pub mod spectator;
+pub mod track_guide;
 
 // The simulation's modules under their own paths, so `crate::data` and
 // `crate::game_session` resolve here as they do in the server.

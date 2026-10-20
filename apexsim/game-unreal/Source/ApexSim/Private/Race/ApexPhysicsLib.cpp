@@ -130,17 +130,30 @@ namespace ApexPhysics
 		return true;
 	}
 
-	EShowcaseRender RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
+	EJobResult RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
 		const FString& Name, const FString& OutPath, const volatile uint8* Cancel, FString& OutError)
 	{
 		const FTCHARToUTF8 List(*ListPath), Tracks(*TracksDir), Cars(*CarsDir), ShowcaseName(*Name), Out(*OutPath);
 		const ApxStatus Status = apx_showcase_render(List.Get(), Tracks.Get(), Cars.Get(), ShowcaseName.Get(), Out.Get(), Cancel);
 		if (Status == APX_OK)
 		{
-			return EShowcaseRender::Written;
+			return EJobResult::Done;
 		}
 		OutError = PhysicsError(TEXT("apx_showcase_render"));
-		return Status == APX_ERR_CANCELLED ? EShowcaseRender::Cancelled : EShowcaseRender::Failed;
+		return Status == APX_ERR_CANCELLED ? EJobResult::Cancelled : EJobResult::Failed;
+	}
+
+	EJobResult BuildGuide(const FString& TrackYaml, const FString& CarsDir, const FString& Class, const FString& OutDir,
+		const volatile uint8* Cancel, FString& OutError)
+	{
+		const FTCHARToUTF8 Track(*TrackYaml), Cars(*CarsDir), ClassName(*Class), Out(*OutDir);
+		const ApxStatus Status = apx_guide_build(Track.Get(), Cars.Get(), ClassName.Get(), Out.Get(), Cancel);
+		if (Status == APX_OK)
+		{
+			return EJobResult::Done;
+		}
+		OutError = PhysicsError(TEXT("apx_guide_build"));
+		return Status == APX_ERR_CANCELLED ? EJobResult::Cancelled : EJobResult::Failed;
 	}
 
 	bool FTrack::SetRoadRows(uint32 FirstCell, TArrayView<const uint8> Rows, TArrayView<const uint8> SnowRows,
@@ -259,11 +272,17 @@ namespace ApexPhysics
 		return false;
 	}
 
-	EShowcaseRender RenderShowcase(const FString&, const FString&, const FString&, const FString&, const FString&,
+	EJobResult RenderShowcase(const FString&, const FString&, const FString&, const FString&, const FString&,
 		const volatile uint8*, FString& OutError)
 	{
 		OutError = NotBuilt;
-		return EShowcaseRender::Failed;
+		return EJobResult::Failed;
+	}
+
+	EJobResult BuildGuide(const FString&, const FString&, const FString&, const FString&, const volatile uint8*, FString& OutError)
+	{
+		OutError = NotBuilt;
+		return EJobResult::Failed;
 	}
 
 	FTrack::~FTrack() = default;

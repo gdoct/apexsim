@@ -123,14 +123,13 @@ the crate `apexsim-sim`): the car (`physics`, `car_step`, `aero`, `brakes`,
 plain data the session hands out (`ghost`, `classification`). **Protocol**
 (`protocol/`, the crate `apexsim-protocol`): what goes to a viewer, apart
 from the sockets - the messages (`network`, `session_wire`), the stream
-(`spectator`, `session_stream`, `render`), the files `records` and
-`setup_sheet`. **Runtime** (`server/`, the crate `apexsim-server`):
+(`spectator`, `session_stream`, `render`, `showcase_list`), the track
+guide (`track_guide`, `poses`), the files `records` and `setup_sheet`. **Runtime** (`server/`, the crate `apexsim-server`):
 everything else - the sockets (`transport`, `udp_seal`), the loop
 (`game_loop/`, `server`, `lobby`, `chat`, `main`, `config`), operations
 (`health`, `metrics`, `tick_jitter`, `timer_resolution`, `webhook`,
 `admin/`), files (`results`, `track_content`) and spectating and tools
-(`stream_recorder`, `showcase`, `replay`, `replay_tools`, `track_guide`,
-`bin/`).
+(`stream_recorder`, `showcase`, `replay`, `replay_tools`, `bin/`).
 
 `apexsim-sim` depends on serde, MessagePack, YAML, TOML, JSON, flate2,
 uuid, thiserror, the `tracing` facade and `apexsim-formats`: no tokio,

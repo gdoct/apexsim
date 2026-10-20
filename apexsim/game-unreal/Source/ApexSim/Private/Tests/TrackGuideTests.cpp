@@ -1,6 +1,11 @@
 #include "ApexTestCommon.h"
 #include "Guide/ApexGuidePlayer.h"
 #include "Guide/ApexTrackGuide.h"
+#include "ApexRepoPaths.h"
+#include "ApexSimJob.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Race/ApexReplayCamera.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -416,6 +421,46 @@ bool FApexGuideTextTest::RunTest(const FString& Parameters)
 	// Clear of the card: a tenth of a 60-degree lens puts the subject 6 degrees right, by turning left.
 	TestNearlyEqual(TEXT("frame bias"), ApexReplayCam::FrameYawOffset(0.10f, 60.0f), -6.0f, 1e-4f);
 	TestNearlyEqual(TEXT("centred"), ApexReplayCam::FrameYawOffset(0.0f, 60.0f), 0.0f, 1e-6f);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// A guide the game makes itself (the physics library in this build) is the
+// one the content build made with the server's apexsim-replay guide, both
+// files byte for byte: build/guide/Zandervoort.GT3.*. Seconds of solo laps;
+// skipped without the library, the content or the build's guide.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexGuideMadeMatchesBuildTest, "ApexSim.Guide.MadeMatchesBuild", ApexTestFlags)
+
+bool FApexGuideMadeMatchesBuildTest::RunTest(const FString& Parameters)
+{
+	FString Why, TracksDir, CarsDir;
+	const FString Shipped = ApexRepoPaths::CodePath(TEXT("build/guide"));
+	if (!ApexPhysics::IsAvailable(&Why) || !ApexSimContent::Find(TracksDir, CarsDir, Why)
+		|| !IFileManager::Get().FileExists(*(Shipped / TEXT("Zandervoort.GT3.guide.json"))))
+	{
+		AddInfo(FString::Printf(TEXT("skipped: %s"), Why.IsEmpty() ? TEXT("no build/guide") : *Why));
+		return true;
+	}
+	const FString Yaml = ApexSimContent::TrackYaml(TracksDir, TEXT("Zandervoort"));
+	TestFalse(TEXT("the track's YAML is found"), Yaml.IsEmpty());
+	const FString Out = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("Guide"));
+	IFileManager::Get().DeleteDirectory(*Out, false, true);
+	const uint8 NoCancel = 0;
+	const ApexPhysics::EJobResult Result = ApexPhysics::BuildGuide(Yaml, CarsDir, TEXT("GT3"), Out, &NoCancel, Why);
+	if (!TestTrue(FString::Printf(TEXT("made (%s)"), *Why), Result == ApexPhysics::EJobResult::Done))
+	{
+		return false;
+	}
+	for (const TCHAR* Name : { TEXT("Zandervoort.GT3.guide.json"), TEXT("Zandervoort.GT3.guide.apxs") })
+	{
+		TArray<uint8> Ours, Theirs;
+		FFileHelper::LoadFileToArray(Ours, *(Out / Name));
+		FFileHelper::LoadFileToArray(Theirs, *(Shipped / Name));
+		TestTrue(FString::Printf(TEXT("%s is the build's"), Name), Ours.Num() > 0 && Ours == Theirs);
+	}
+	IFileManager::Get().DeleteDirectory(*Out, false, true);
 	return true;
 }
 

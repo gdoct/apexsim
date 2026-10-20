@@ -1,20 +1,16 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HAL/Runnable.h"
-
-class FRunnableThread;
+#include "ApexSimJob.h"
 
 /**
  * Showcases rendered by the game itself: the physics library's
- * apx_showcase_render, one at a time on a low-priority thread, into
- * `Saved/ApexSim/Showcases/` (docs/game/spectator.md, "Showcases made in
- * the game"). The file is the one `apexsim-replay showcase` writes for the
- * same showcase.yml entry, tracks and cars, so the menu's backdrop needs
- * neither a server nor a shipped file that is still fresh.
- *
- * Game thread only, apart from the render itself. Destroying it cancels a
- * render under way and waits for its thread (a simulated second at most).
+ * apx_showcase_render, one at a time on a low-priority thread
+ * (FApexSimJob), into `Saved/ApexSim/Showcases/` (docs/game/spectator.md,
+ * "Showcases made in the game"). The file is the one `apexsim-replay
+ * showcase` writes for the same showcase.yml entry, tracks and cars, so the
+ * menu's backdrop needs neither a server nor a shipped file that is still
+ * fresh. Game thread only, apart from the render itself.
  */
 class APEXSIM_API FApexShowcaseRenderer : public FNoncopyable
 {
@@ -30,11 +26,10 @@ public:
 	};
 
 	/**
-	 * Where the inputs are: `-ApexShowcaseList=` and `-ApexContentDir=`
-	 * (a content root holding `tracks/` and `cars/`), else the repo's
-	 * showcase.yml and content root in the editor, and in a package the
-	 * `showcase.yml` beside ApexSim.exe and the server's `content/`. False,
-	 * with the missing piece in OutWhy, when one is not on disk.
+	 * Where the inputs are: `-ApexShowcaseList=`, else the repo's
+	 * showcase.yml in the editor and the one beside ApexSim.exe in a
+	 * package; the content as ApexSimContent::Find. False, with the missing
+	 * piece in OutWhy, when one is not on disk.
 	 */
 	static bool FindInputs(FInputs& Out, FString& OutWhy);
 
@@ -45,14 +40,13 @@ public:
 	static FString StemOf(const FString& Name);
 
 	explicit FApexShowcaseRenderer(const FInputs& InInputs);
-	~FApexShowcaseRenderer();
 
 	const FInputs& GetInputs() const { return Inputs; }
 
 	/** Start rendering `Name` into the cache; false while another is under way. */
 	bool Start(const FString& Name);
 
-	bool IsBusy() const { return Job.IsValid(); }
+	bool IsBusy() const { return Job.IsBusy(); }
 
 	/** The showcase being rendered, empty when idle. */
 	const FString& GetCurrent() const { return Current; }
@@ -67,10 +61,8 @@ public:
 	void Cancel();
 
 private:
-	struct FJob;
-
 	FInputs Inputs;
 	FString Current;
-	TUniquePtr<FJob> Job;
-	TUniquePtr<FRunnableThread> Thread;
+	FString CurrentPath;
+	FApexSimJob Job;
 };

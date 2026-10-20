@@ -574,6 +574,15 @@ function Copy-ServerContent {
         if (Test-Path -LiteralPath $pit) {
             Copy-Item -LiteralPath $pit -Destination $tracksOut -Force
         }
+        # What a track guide reads beside the YAML (corner notes, the
+        # dossier's corner names): the game makes a missing or stale guide
+        # from this folder, and it must come out as the build's.
+        foreach ($extra in '.guide.yml', '.layout.json') {
+            $file = Join-Path $track.DirectoryName ($track.BaseName + $extra)
+            if (Test-Path -LiteralPath $file) {
+                Copy-Item -LiteralPath $file -Destination $tracksOut -Force
+            }
+        }
     }
     if ($missingGround.Count -gt 0) {
         Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))

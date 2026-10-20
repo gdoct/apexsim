@@ -548,17 +548,9 @@ void UApexDemoModeSubsystem::TickRenders(const UApexNetSubsystem& Net)
 	for (const FString& Showcase : ShowcaseNames)
 	{
 		const FString Stem = FApexShowcaseRenderer::StemOf(Showcase);
-		if (Tracks.Contains(Stem) || !Content->HasTrack(Stem))
+		if (!Tracks.Contains(Stem) && Content->HasTrack(Stem) && !ApexSimContent::TrackYaml(Renderer->GetInputs().TracksDir, Stem).IsEmpty())
 		{
-			continue;
-		}
-		for (const TCHAR* Sub : { TEXT("default"), TEXT("custom") })
-		{
-			if (IFileManager::Get().FileExists(*FPaths::Combine(Renderer->GetInputs().TracksDir, Sub, Stem, Stem + TEXT(".yaml"))))
-			{
-				Tracks.Add(Stem);
-				break;
-			}
+			Tracks.Add(Stem);
 		}
 	}
 	FString PendingStem;

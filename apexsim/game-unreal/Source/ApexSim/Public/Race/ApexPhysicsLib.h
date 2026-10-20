@@ -104,9 +104,10 @@ namespace ApexPhysics
 	/** Every showcase the showcase.yml at ListPath names (`<track>.<class>.<variant>`), in its order. */
 	APEXSIM_API bool ShowcaseNames(const FString& ListPath, TArray<FString>& OutNames, FString& OutError);
 
-	enum class EShowcaseRender : uint8
+	/** How a long piece of the library's work (a showcase, a guide) ended. */
+	enum class EJobResult : uint8
 	{
-		Written,
+		Done,
 		Cancelled,
 		Failed,
 	};
@@ -118,8 +119,17 @@ namespace ApexPhysics
 	 * work, so call it off the game thread. *Cancel non-zero stops it with
 	 * nothing written.
 	 */
-	APEXSIM_API EShowcaseRender RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
+	APEXSIM_API EJobResult RenderShowcase(const FString& ListPath, const FString& TracksDir, const FString& CarsDir,
 		const FString& Name, const FString& OutPath, const volatile uint8* Cancel, FString& OutError);
+
+	/**
+	 * Make the track guide of `Class` for the track YAML into OutDir
+	 * (apx_guide_build): `<Stem>.<Class>.guide.json` and its recording, as
+	 * `apexsim-replay guide` writes them, byte for byte. Seconds of work:
+	 * call it off the game thread.
+	 */
+	APEXSIM_API EJobResult BuildGuide(const FString& TrackYaml, const FString& CarsDir, const FString& Class,
+		const FString& OutDir, const volatile uint8* Cancel, FString& OutError);
 
 	/** A player input as the server reads it (sanitised by the step itself). */
 	APEXSIM_API ApxInput ToInput(const FApexPlayerInput& Input);

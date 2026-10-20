@@ -14,7 +14,6 @@ pub mod stream_recorder;
 pub mod tick_jitter;
 pub mod timer_resolution;
 pub mod track_content;
-pub mod track_guide;
 pub mod transport;
 pub mod udp_seal;
 pub mod webhook;
@@ -23,6 +22,7 @@ pub mod webhook;
 // `apexsim-protocol` (../protocol), which the physics library links too; they
 // keep their paths here.
 pub use apexsim_protocol::network;
+pub use apexsim_protocol::poses;
 pub use apexsim_protocol::records;
 pub use apexsim_protocol::render;
 pub use apexsim_protocol::session_stream;
@@ -30,6 +30,7 @@ pub use apexsim_protocol::session_wire;
 pub use apexsim_protocol::setup_sheet;
 pub use apexsim_protocol::showcase_list;
 pub use apexsim_protocol::spectator;
+pub use apexsim_protocol::track_guide;
 
 // The simulation lives in `apexsim-sim` (../sim); its modules keep their
 // paths here, so `crate::physics` and `apexsim_server::physics` still resolve.
