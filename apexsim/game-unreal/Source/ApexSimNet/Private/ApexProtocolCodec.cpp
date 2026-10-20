@@ -765,6 +765,23 @@ namespace
 			else if (Key == TEXT("bundle_crc"))   { bOk = Reader.ReadUInt64(Raw); Out.BundleCrc = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
 			else if (Key == TEXT("bundle_bytes")) { bOk = Reader.ReadUInt64(Raw); Out.BundleBytes = static_cast<int64>(FMath::Min<uint64>(Raw, MAX_uint32)); }
 			else if (Key == TEXT("bundle_chunks")) { bOk = Reader.ReadUInt64(Raw); Out.BundleChunks = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
+			else if (Key == TEXT("balance"))
+			{
+				int32 Figures = 0;
+				// Nil (none) reads as no figures.
+				bOk = Reader.TryReadNil() || Reader.ReadMapHeader(Figures);
+				for (int32 f = 0; bOk && f < Figures; ++f)
+				{
+					FString Figure;
+					bOk = Reader.ReadString(Figure);
+					if (!bOk) { break; }
+					if (Figure == TEXT("ballast_kg"))     { bOk = Reader.ReadFloat(Out.BallastKg); }
+					else if (Figure == TEXT("power"))     { bOk = Reader.ReadFloat(Out.Power); }
+					else if (Figure == TEXT("downforce")) { bOk = Reader.ReadFloat(Out.Downforce); }
+					else                                  { bOk = Reader.SkipValue(); }
+				}
+				Out.bBalanced = bOk && Figures > 0;
+			}
 			else                                  { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

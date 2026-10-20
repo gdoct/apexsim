@@ -244,12 +244,14 @@ namespace ApexPhysics
 	}
 
 	TUniquePtr<FCar> FCar::Create(const FTrack& Track, TArrayView<const uint8> CarToml, TArrayView<const int8> Clicks,
-		int32 GridSlot, FString& OutError)
+		int32 GridSlot, FString& OutError, const ApxBalance* Balance)
 	{
 		ApxCar* Handle = nullptr;
-		const ApxStatus Status = apx_car_create(Track.Handle(), CarToml.GetData(), CarToml.Num(),
-			Clicks.Num() > 0 ? Clicks.GetData() : nullptr, Clicks.Num(), static_cast<uint8>(FMath::Clamp(GridSlot, 0, 255)),
-			&Handle);
+		const int8* ClickData = Clicks.Num() > 0 ? Clicks.GetData() : nullptr;
+		const uint8 Slot = static_cast<uint8>(FMath::Clamp(GridSlot, 0, 255));
+		const ApxStatus Status = Balance
+			? apx_car_create_balanced(Track.Handle(), CarToml.GetData(), CarToml.Num(), ClickData, Clicks.Num(), Slot, Balance, &Handle)
+			: apx_car_create(Track.Handle(), CarToml.GetData(), CarToml.Num(), ClickData, Clicks.Num(), Slot, &Handle);
 		if (Status != APX_OK || !Handle)
 		{
 			OutError = PhysicsError(TEXT("apx_car_create"));
@@ -405,7 +407,8 @@ namespace ApexPhysics
 
 	FCar::~FCar() = default;
 
-	TUniquePtr<FCar> FCar::Create(const FTrack&, TArrayView<const uint8>, TArrayView<const int8>, int32, FString& OutError)
+	TUniquePtr<FCar> FCar::Create(const FTrack&, TArrayView<const uint8>, TArrayView<const int8>, int32, FString& OutError,
+		const ApxBalance*)
 	{
 		OutError = NotBuilt;
 		return nullptr;

@@ -107,10 +107,6 @@ the client does not show all of them yet, and the server leaves a few edges.
 - client: the safety car is a car of its own (the Murcetes-AMD GT3's body,
   amber roof lamps); it drives through a lapped car passing it (it is no
   body on the server), so the pass is seen as an overlap.
-- Balance of performance (`[[balance]]`, server only): the client's
-  predicted car (`apexsim.net.Predict`) steps its own car.toml without the
-  ballast, power and downforce, so a balanced car's prediction errs until
-  the snapshot corrects it.
 - Since a yellow waits `INCIDENT_CONFIRM_S` (1.5 s), the AI no longer slows
   for a car that is only briefly in trouble ahead: the whole-calendar
   survey (seeds 1-2) went from 485 to 654 car-seconds off the road
@@ -245,6 +241,11 @@ the launcher import with the network off.
 
 Small and independent. Do one or two alongside whatever package touches
 the same files.
+
+- Server tests: `protocol_test::test_the_track_bundle_comes_in_chunks_on_request`
+  times out (15 s) in the whole suite under load, and passes alone; the
+  join and tick-rate tests do too in a debug build. Run the suite at
+  opt-level 2, as CI does, or give the bundle test a longer timeout.
 
 - Wire: `SessionKind::Demo` is kept for servers without showcases and can
   go once showcases are everywhere. The backdrop still falls back to it

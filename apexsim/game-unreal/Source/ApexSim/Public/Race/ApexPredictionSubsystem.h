@@ -219,6 +219,8 @@ private:
 	int32 GridPosition = 0;
 	int32 TickRateHz = 0;
 	int32 RoadContact = 0;
+	/** The car as the server balances it (SessionJoined.Physics), when it does. */
+	TOptional<ApxBalance> Balance;
 
 	/** RoadState messages heard before the track loaded, replayed onto it in order. */
 	TArray<FApexRoadState> PendingRoad;

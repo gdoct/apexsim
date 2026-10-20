@@ -296,6 +296,11 @@ bool UApexPredictionSubsystem::StartLoad(const FString& Key, const FString& Trac
 	TrackName = Stem;
 	TickRateHz = Physics.TickRateHz;
 	RoadContact = Physics.RoadContact;
+	Balance.Reset();
+	if (Physics.bBalanced)
+	{
+		Balance = ApxBalance{ Physics.BallastKg, Physics.Power, Physics.Downforce };
+	}
 	GridPosition = FMath::Max(Net->GetSessionGridPosition(), 1);
 
 	// The track's load (the road mesh is megabytes) runs off the game thread;
@@ -366,7 +371,8 @@ void UApexPredictionSubsystem::CreateCar()
 		Clicks.Add(static_cast<int8>(FMath::Clamp(Click, -128, 127)));
 	}
 	FString Error;
-	TUniquePtr<ApexPhysics::FCar> Car = ApexPhysics::FCar::Create(*Track, CarToml, Clicks, GridPosition, Error);
+	TUniquePtr<ApexPhysics::FCar> Car =
+		ApexPhysics::FCar::Create(*Track, CarToml, Clicks, GridPosition, Error, Balance.IsSet() ? &Balance.GetValue() : nullptr);
 	if (!Car)
 	{
 		FailedKey = LoadedKey;

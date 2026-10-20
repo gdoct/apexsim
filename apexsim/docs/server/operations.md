@@ -106,7 +106,9 @@ Every section and its keys (defaults from `config.rs`):
   coefficients, drag left alone). Applied once to the cars as loaded, so
   every session, the AI's plans, the racing line and the setups see the
   balanced car; a car no table names is untouched, and a table naming no
-  car is logged. Out-of-range values fail the config check.
+  car is logged. Out-of-range values fail the config check. A driver's
+  `SessionJoined.Physics` names their car's figures (`balance`), so a
+  predicting client steps the balanced car too.
 - `[debug]` - below.
 
 An `[ai]` table left in an older server.toml is ignored: the AI's driving

@@ -663,6 +663,75 @@ pub unsafe extern "C" fn apx_car_create(
     grid_position: u8,
     out: *mut *mut ApxCar,
 ) -> ApxStatus {
+    create_car(
+        track,
+        car_toml,
+        car_toml_len,
+        setup_clicks,
+        n_clicks,
+        grid_position,
+        None,
+        out,
+    )
+}
+
+/// A car's balance of performance (`[[balance]]`, `SessionJoined.Physics`'s
+/// `balance`): ballast added, kg; the engine's torque and the downforce
+/// against the car's own.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ApxBalance {
+    pub ballast_kg: f32,
+    pub power: f32,
+    pub downforce: f32,
+}
+
+/// [`apx_car_create`] for a car the server balances: `balance` applied to
+/// the car.toml as the server applies its table to the car as loaded
+/// (`balance::CarBalance::apply`), before the setup. Figures out of the
+/// server's bounds are refused (`APX_ERR_INVALID`).
+///
+/// # Safety
+/// As [`apx_car_create`]; `balance` is readable.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn apx_car_create_balanced(
+    track: *const ApxTrack,
+    car_toml: *const u8,
+    car_toml_len: usize,
+    setup_clicks: *const i8,
+    n_clicks: usize,
+    grid_position: u8,
+    balance: *const ApxBalance,
+    out: *mut *mut ApxCar,
+) -> ApxStatus {
+    if balance.is_null() {
+        set_last_error("balance is null");
+        return APX_ERR_NULL;
+    }
+    create_car(
+        track,
+        car_toml,
+        car_toml_len,
+        setup_clicks,
+        n_clicks,
+        grid_position,
+        Some(*balance),
+        out,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+unsafe fn create_car(
+    track: *const ApxTrack,
+    car_toml: *const u8,
+    car_toml_len: usize,
+    setup_clicks: *const i8,
+    n_clicks: usize,
+    grid_position: u8,
+    balance: Option<ApxBalance>,
+    out: *mut *mut ApxCar,
+) -> ApxStatus {
     guard(|| {
         non_null(track, "track")?;
         non_null(out, "out")?;
@@ -670,8 +739,20 @@ pub unsafe extern "C" fn apx_car_create(
         let track = &(*track).track;
         let text = std::str::from_utf8(bytes(car_toml, car_toml_len, "car_toml")?)
             .map_err(|_| Fail::new(APX_ERR_UTF8, "car_toml is not UTF-8"))?;
-        let shared = CarLoader::load_from_str(text, "car.toml")
+        let mut shared = CarLoader::load_from_str(text, "car.toml")
             .map_err(|e| Fail::new(APX_ERR_CAR, e.to_string()))?;
+        if let Some(b) = balance {
+            let table = apexsim_sim::balance::CarBalance {
+                car: shared.name.clone(),
+                ballast_kg: b.ballast_kg,
+                power: b.power,
+                downforce: b.downforce,
+            };
+            if let Some(problem) = table.problem() {
+                return Err(Fail::new(APX_ERR_INVALID, problem));
+            }
+            table.apply(&mut shared);
+        }
         if n_clicks > KNOB_COUNT {
             return Err(Fail::new(
                 APX_ERR_INVALID,
@@ -1078,6 +1159,10 @@ mod tests {
             std::mem::size_of::<ApxRaceCar>()
         )));
         assert!(header.contains(&format!(
+            "sizeof(ApxBalance) == {}",
+            std::mem::size_of::<ApxBalance>()
+        )));
+        assert!(header.contains(&format!(
             "#define APX_FEEDBACK_SAMPLES {APX_FEEDBACK_SAMPLES}"
         )));
         for (name, value) in [
@@ -1124,6 +1209,7 @@ mod tests {
             "apx_watch_take(",
             "apx_watch_corners(",
             "apx_watch_free(",
+            "apx_car_create_balanced(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }

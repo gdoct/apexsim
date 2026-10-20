@@ -678,7 +678,13 @@ async fn handle_create_session(
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
-        let physics = physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
+        let mut physics =
+            physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
+        // The car as the server balances it, for the client's copy of the step.
+        physics.balance = state_write
+            .car_configs
+            .get(&car_id)
+            .and_then(|car| crate::network::BalanceFigures::of(&state_write.config.balance, car));
         drop(state_write);
         let _ = ctx
             .send(
@@ -1005,7 +1011,13 @@ pub(crate) async fn handle_join_session(
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
-        let physics = physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
+        let mut physics =
+            physics.with_bundle(state_write.track_content.bundle(track_id).as_deref());
+        // The car as the server balances it, for the client's copy of the step.
+        physics.balance = state_write
+            .car_configs
+            .get(&car_id)
+            .and_then(|car| crate::network::BalanceFigures::of(&state_write.config.balance, car));
         drop(state_write);
         let _ = ctx
             .send(
@@ -1067,6 +1079,7 @@ async fn rejoin_session(
 ) {
     let records = state_write.records.clone();
     let track_content = state_write.track_content.clone();
+    let balance_tables = state_write.config.balance.clone();
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         return;
     };
@@ -1098,13 +1111,17 @@ async fn rejoin_session(
         qualifying_format: game_session.session.qualifying_format,
         qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
         race_rules: game_session.session.race_rules,
-        physics: Some(
-            game_session.session_physics().with_bundle(
+        physics: Some(crate::network::SessionPhysics {
+            balance: game_session
+                .car_configs
+                .get(&car_id)
+                .and_then(|car| crate::network::BalanceFigures::of(&balance_tables, car)),
+            ..game_session.session_physics().with_bundle(
                 track_content
                     .bundle(game_session.track_config.id)
                     .as_deref(),
-            ),
-        ),
+            )
+        }),
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());

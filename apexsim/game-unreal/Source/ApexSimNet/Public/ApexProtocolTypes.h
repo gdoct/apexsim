@@ -3412,6 +3412,15 @@ struct FApexSessionPhysics
 	uint32 BundleCrc = 0;
 	int64 BundleBytes = 0;
 	int32 BundleChunks = 0;
+	/**
+	 * The driver's car as the server balances it (`balance`, the server's
+	 * `[[balance]]`): ballast kg, the torque and the downforce against the
+	 * car's own. bBalanced false for a car no table names.
+	 */
+	bool bBalanced = false;
+	float BallastKg = 0.0f;
+	float Power = 1.0f;
+	float Downforce = 1.0f;
 };
 
 /**

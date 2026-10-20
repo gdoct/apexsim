@@ -553,7 +553,7 @@ pub struct SessionJoinedData {
 
 /// The session's physics as the client's copy of the car step needs them
 /// (`SessionJoined.Physics`; its keys stay snake_case).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 pub struct SessionPhysics {
     /// The session's tick rate, Hz: the step's `dt` is its inverse.
     pub tick_rate_hz: u16,
@@ -572,6 +572,41 @@ pub struct SessionPhysics {
     pub bundle_bytes: u32,
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub bundle_chunks: u32,
+    /// The joining driver's car as the server balances it (`[[balance]]`,
+    /// `crate::balance`): what the client's copy of the car step applies to
+    /// its own car.toml. Left off for a car no table names.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub balance: Option<BalanceFigures>,
+}
+
+/// A car's balance of performance as figures (`crate::balance::CarBalance`
+/// without the car's name).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BalanceFigures {
+    pub ballast_kg: f32,
+    pub power: f32,
+    pub downforce: f32,
+}
+
+impl BalanceFigures {
+    /// The figures of the table that names `car`, if one does.
+    pub fn of(tables: &[crate::balance::CarBalance], car: &CarConfig) -> Option<Self> {
+        tables.iter().find(|t| t.names(car)).map(|t| Self {
+            ballast_kg: t.ballast_kg,
+            power: t.power,
+            downforce: t.downforce,
+        })
+    }
+
+    /// The table these figures make, naming no car (to apply directly).
+    pub fn table(&self) -> crate::balance::CarBalance {
+        crate::balance::CarBalance {
+            car: String::new(),
+            ballast_kg: self.ballast_kg,
+            power: self.power,
+            downforce: self.downforce,
+        }
+    }
 }
 
 impl SessionPhysics {
@@ -4596,6 +4631,51 @@ mod tests {
         assert_eq!(bytes, GOLDEN);
     }
 
+    /// A balanced car's figures in `SessionJoined.Physics`
+    /// (`cargo test session_joined_balance_wire_format -- --nocapture` ->
+    /// `ApexGolden::S_SessionJoinedPhysicsBalance`): `balance` after the
+    /// rest, left off for a car no table names.
+    #[test]
+    fn session_joined_balance_wire_format() {
+        let physics = SessionPhysics {
+            tick_rate_hz: 420,
+            road_contact: 1,
+            balance: Some(BalanceFigures {
+                ballast_kg: 25.0,
+                power: 0.95,
+                downforce: 1.1,
+            }),
+            ..Default::default()
+        };
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 2,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: Default::default(),
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: Some(physics),
+        });
+        let bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        print_golden("S_SessionJoinedPhysicsBalance", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.physics, Some(physics)),
+            _ => panic!("Wrong message type"),
+        }
+        let tail: &[u8] = b"balance";
+        assert!(bytes.windows(tail.len()).any(|w| w == tail));
+    }
+
     /// The track's physics bundle (`crate::track_bundle`): `SessionJoined`'s
     /// `Physics` names it (`bundle_crc`, `bundle_bytes`, `bundle_chunks`,
     /// left off without one: the bytes above), the client asks for a chunk
@@ -4663,6 +4743,7 @@ mod tests {
             bundle_crc: 0xC0FF_EE01,
             bundle_bytes: 2_190_000,
             bundle_chunks: 9,
+            balance: None,
         };
         let joined = ServerMessage::SessionJoined(SessionJoinedData {
             session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),

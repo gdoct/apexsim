@@ -637,6 +637,16 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Bundle.BundleBytes"), Message.Physics.BundleBytes, static_cast<int64>(2190000));
 			TestEqual(TEXT("Bundle.BundleChunks"), Message.Physics.BundleChunks, 9);
 		}
+		FApexServerMessage Balanced;
+		if (Decode(TEXT("SessionJoined with a balanced car"), ApexGolden::S_SessionJoinedPhysicsBalance, Balanced))
+		{
+			TestTrue(TEXT("Balance named"), Balanced.Physics.bBalanced);
+			TestEqual(TEXT("Balance.BallastKg"), Balanced.Physics.BallastKg, 25.0f);
+			TestEqual(TEXT("Balance.Power"), Balanced.Physics.Power, 0.95f);
+			TestEqual(TEXT("Balance.Downforce"), Balanced.Physics.Downforce, 1.1f);
+			TestEqual(TEXT("Balance: the rest as before"), Balanced.Physics.TickRateHz, 420);
+		}
+		TestFalse(TEXT("No balance without the key"), Message.Physics.bBalanced);
 		FApexServerMessage Chunk;
 		if (Decode(TEXT("TrackBundleChunk"), ApexGolden::S_TrackBundleChunk, Chunk))
 		{

@@ -468,8 +468,10 @@ by default.
   off the game thread: the track's physics, with the session's conditions
   as `SessionJoined` carried them and the backend it names
   (`SessionJoined.Physics`); the car.toml from the car folders the game
-  builds cars from, the setup last sent (`GetLastSentCarSetup`, the car
-  made again when a knob moves) and the grid slot. The track, from a server
+  builds cars from, balanced as the server balances it when `Physics`
+  names a `balance` (`apx_car_create_balanced`: the server's `[[balance]]`
+  applied before the setup), the setup last sent (`GetLastSentCarSetup`,
+  the car made again when a knob moves) and the grid slot. The track, from a server
   that names its physics bundle (`Physics.bundle_crc`,
   [server/protocol.md](../server/protocol.md#the-own-car-for-prediction)),
   in this order: this client's own YAML under the content root (`apexsim-content/`)

@@ -62,9 +62,13 @@ namespace ApexPhysics
 	public:
 		~FCar();
 
-		/** A car from its car.toml text and setup clicks (CarSetup order), on a grid slot (1-based). */
+		/**
+		 * A car from its car.toml text and setup clicks (CarSetup order), on a
+		 * grid slot (1-based); `Balance`, when given, as the server balances
+		 * the car (apx_car_create_balanced).
+		 */
 		static TUniquePtr<FCar> Create(const FTrack& Track, TArrayView<const uint8> CarToml, TArrayView<const int8> Clicks,
-			int32 GridSlot, FString& OutError);
+			int32 GridSlot, FString& OutError, const ApxBalance* Balance = nullptr);
 
 		/** One tick of `Tick` at the session's rate, as the server steps a car alone. */
 		bool Step(FTrack& Track, const ApxInput& Input, uint32 Tick, int32 TickRateHz);

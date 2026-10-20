@@ -213,6 +213,23 @@ ApxStatus apx_car_create(const ApxTrack *track, const uint8_t *car_toml,
                          size_t n_clicks, uint8_t grid_position, ApxCar **out);
 void apx_car_free(ApxCar *car);
 
+/* A car's balance of performance (SessionJoined.Physics.balance): ballast
+ * added, kg; the engine's torque and the downforce against the car's own. */
+typedef struct ApxBalance {
+    float ballast_kg;
+    float power;
+    float downforce;
+} ApxBalance;
+
+/* apx_car_create for a car the server balances (ABI 5): `balance` applied to
+ * the car.toml before the setup, as the server applies its [[balance]]
+ * table to the car as loaded. Figures out of the server's bounds are
+ * refused (APX_ERR_INVALID). */
+ApxStatus apx_car_create_balanced(const ApxTrack *track, const uint8_t *car_toml,
+                                  size_t car_toml_len, const int8_t *setup_clicks,
+                                  size_t n_clicks, uint8_t grid_position,
+                                  const ApxBalance *balance, ApxCar **out);
+
 /* Step the car one tick as the server steps a car alone on the track: the
  * car model, its place on the lap, the walls, with the wind of `tick`.
  * tick: the session tick being simulated; tick_rate_hz: the session's rate
@@ -278,8 +295,10 @@ typedef struct ApxRaceCar {
 
 #ifdef __cplusplus
 static_assert(sizeof(ApxRaceCar) == 36, "ApxRaceCar layout");
+static_assert(sizeof(ApxBalance) == 12, "ApxBalance layout");
 #else
 typedef char apx_race_car_layout[(sizeof(ApxRaceCar) == 36) ? 1 : -1];
+typedef char apx_balance_layout[(sizeof(ApxBalance) == 12) ? 1 : -1];
 #endif
 
 /* Start a seeded race as `apexsim-replay render` starts one
