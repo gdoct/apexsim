@@ -1,7 +1,7 @@
 # Work plan
 
 A prioritised view over the four backlogs, snapshot of 2026-10-20 at
-`943bd29`. The backlogs stay the source of truth for *what* is open
+`1bbdb81`. The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
 file says *in what order*, *what kind of work* and *who has to be there*.
@@ -26,70 +26,83 @@ When an item is done, delete it from its backlog and from here.
 
 ## 1. At a glance
 
-| ID | Item | Type | Pri | Human | Effort |
-|---|---|---|---|---|---|
-| V1 | Verify the newest session screens (R9, R11, R12, R13) | Verification | P1 | 🟡 | S |
-| H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
-| R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
-| A6 | AI lifts for trouble it sees ahead | AI | P2 | 🟢 | M |
-| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each |
-| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
-| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S |
-| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
-| N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S |
-| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M |
-| N26 | Content packs and a content repository (proposal) | Platform (epic) | P2 | 🔴 | L |
-| N28 | Guides, showcases and Watch hotlap simulated in the client (roadmap #24) | Platform + tooling | P2 | 🟢 | L |
-| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M |
-| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M |
-| B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S |
-| G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M |
-| F1 | Windshield wipers | Feature | P3 | 🔴 | M |
-| AU1 | Audio overhaul | Audio | P3 | 🔴 | L |
-| C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L |
-| C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each |
-| C4 | AC import fidelity gaps | Content | P3 | 🟢 | M |
-| S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L |
-| S3 | Environment: climate, dew, fog, snow detail | Simulation | P3 | 🟢 | M |
-| A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each |
-| A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M |
-| R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each |
-| V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each |
-| X1 | `SessionKind::Demo` removal | Cleanup | P3 | 🟢 | S |
-| N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M |
-| N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M |
-| N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M |
-| N15 | Driver profile and stats | Progression | P3 | 🟢 | M |
-| N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M |
-| N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each |
-| N19 | Incident review for stewards | Online | P3 | 🟡 | M |
-| N20 | Photo mode | Rendering | P3 | 🟡 | M |
-| N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M |
-| N23 | VR (OpenXR) | Platform | P3 | 🔴 | L |
-| — | Driver rating, shared leaderboards, more screens, public server list (N8), Windows on Arm | — | Parked | — | — |
+Sorted by priority, then by the step in [§2](#2-recommended-order) that
+takes it up (— : no step, taken opportunistically).
+
+| ID | Item | Type | Pri | Human | Effort | Step |
+|---|---|---|---|---|---|---|
+| J1 | Judge the 2026-10-20 content refresh and the 2026-10-18 fixes (follow-ups #27, #26) | Verification | P1 | 🔴 | S | 1 |
+| V1 | Newest session screens' leftovers (R9, R11, R12, R13, R14) | Verification | P1 | 🟡 | S | 1 |
+| H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
+| N28 | Guides, showcases and Watch hotlap simulated in the client (step 1 built) | Platform + tooling | P2 | 🟢 | L | 2 |
+| A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
+| R7 | Flags in the car: a cue and the dash flag (follow-ups #18) | Race rules | P2 | 🟡 | S | 3 |
+| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 4 |
+| R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 4, 6 |
+| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 4, 6 |
+| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 5 |
+| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 6 |
+| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 6 |
+| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 6 |
+| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 7 |
+| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 7 |
+| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 7 |
+| X1 | `SessionKind::Demo` removal (after N28) | Cleanup | P3 | 🟢 | S | 2 |
+| R8 | Race control's edges: pace on the dash, safety-car overlap, BoP prediction, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 3 |
+| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 5 |
+| A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
+| N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
+| B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S | — |
+| G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
+| C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
+| C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
+| C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
+| S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
+| S3 | Environment: climate, dew, fog, snow detail | Simulation | P3 | 🟢 | M | — |
+| A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
+| A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M | — |
+| R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
+| N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each | — |
+| N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M | — |
+| N15 | Driver profile and stats | Progression | P3 | 🟢 | M | — |
+| N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
+| N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M | — |
+| N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
+| N19 | Incident review for stewards | Online | P3 | 🟡 | M | — |
+| N20 | Photo mode | Rendering | P3 | 🟡 | M | — |
+| V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
+| F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
+| AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
+| N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M | — |
+| N23 | VR (OpenXR) | Platform | P3 | 🔴 | L | — |
+| — | Driver rating, shared leaderboards, more screens, public server list (N8), Windows on Arm | — | Parked | — | — | — |
 
 ## 2. Recommended order
 
-1. **Judge what was just built.** Follow-ups #27 (the content refresh:
-   B7 curbs, B11 tyre bridge, D1 pit entry line, F2 light panels, S1 crown,
-   before/after shots in `out/verify/o1-*`), #26 (the 2026-10-18 fixes),
-   R13's safety car and dash (`r13b-safety-car`) and R14's rain radar
-   (`n25-rain-radar`) in [verification.md](verification.md). Then H1 in
-   one sitting with B8's fix and S1's crown on the wheel.
+1. **Judge what was just built.** J1: the content refresh (B7 curbs, B11
+   tyre bridge, D1 pit entry line, F2 light panels, S1 crown; before/after
+   shots in `out/verify/o1-*`) and the 2026-10-18 fixes. V1: R13's safety
+   car and dash (`r13b-safety-car`), R14's rain radar (`n25-rain-radar`)
+   and R9/R11/R12's leftovers. Then H1 in one sitting with B8's fix and
+   S1's crown on the wheel.
 2. **N28 to its end, then X1** on top of it: the library runs a seeded race
    (step 1, 2026-10-20); next the client calling it for a showcase from its
    seed and the backdrop with no server, then the guide. Do this before
    N26: once guides, showcases and Watch hotlap are made in the game, packs
    no longer carry them.
-3. **A6 again**, from the Nordschleife's seed 2 (follow-ups #20).
+3. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
+   (follow-ups #20); R7's cue and dash flag; R8's edges where they touch
+   the same files.
 4. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install), R3 phase 1 (a key per install), N7 (an offline season).
    N26 phase 2 waits on the repository and the signing key.
 5. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
-6. **Online and depth.** N5 (multi-class), N11 (liveries), then the rest of R3, and N7 online on top of identity.
-7. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+6. **Online and depth.** N5 (multi-class) with A3 (its speed differences
+   stress side by side), N11 (liveries), then the rest of R3, and N7
+   online on top of identity.
+7. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
+   close-ups wait on T2), P3 on an integrated-GPU machine.
+8. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -131,6 +144,13 @@ commit before; the target is back near 485. Tried 2026-10-20 and not
 landed (the survey split by seed; the Nordschleife got worse): see
 follow-ups #20 for the numbers and where to look next.
 
+#### A7. AI in imported cars — P3 · 🟢 · M
+*Source: follow-ups #19.* Imported F1s and prototypes finish their races
+but leave the road two to four times as much as the shipped F1, in
+traffic: find the lane or dodge their short lock cannot turn
+(`SURVEY_EVENTS`, `SURVEY_TRACE`), judged by the survey on those cars,
+seeds 1-3.
+
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:
 
@@ -171,6 +191,19 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** the key signs a challenge at join and never leaves the
 machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
 sim path free of persistence reads.
+
+#### R7. Flags in the car — P2 · 🟡 · S
+*Source: follow-ups #18.* Yellows and blues reach the HUD and the light
+panels; the car does not show them. An audible cue as a yellow or the blue
+comes up (the synthesised UI cues, `game/audio.md`) and the flag on the
+cockpit dash. Checked on a seeded pile-up (R7 run) and a lapping race.
+
+#### R8. Race control's edges — P3 · 🟢/🟡 · S each
+*Source: follow-ups #20* (A6 is its own item). The dash shows no held pace
+(`speed_cap_mps` not on the wire); the safety car drives through a lapped
+car passing it; the client's prediction ignores `[[balance]]`; the
+formation lap puts no warmth in (`FORMATION_LAP_WARMTH`); rolling starts
+run single file.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.
@@ -255,7 +288,16 @@ beyond the weather already on the wire. 🔴 for the models.
 
 ### Verification
 
-#### V1. Newest session screens (R9, R11, R12) — P1 · 🟡 · S
+#### J1. Judge the content refresh and the 2026-10-18 fixes — P1 · 🔴 · S
+*Source: follow-ups #27, #26.* Built and checked by tests and the survey;
+each needs a person's eye or hands before it is closed. #27: the tyre
+bridge at Le Mans, the inside curbs, the pit entry lines, the light panels
+lit and dark, the crown low across a straight (`o1-*` before/after). #26:
+the HUD tyre graphic in a race, the create screen's crowding
+(`m1-menu-pages`), car and track select by mouse and pad. B8's cooling and
+S1's feel go to H1.
+
+#### V1. Newest session screens (R9, R11–R14) — P1 · 🟡 · S
 Seen on 2026-10-17: the grid card with one client, DNQ in the standings and
 results, PEN in the standings, the pit plan sent after a rejoin, the empty
 grid slot in the card and (after a fix) the lobby. Left, per
@@ -268,6 +310,8 @@ Run again on 2026-10-20: the stop after a rejoin and the grid card's DNQ
 seen; PEN on the overlay again; the lap allowance's garage and the
 watcher's results screen still not caught (verification R11, R12, R9);
 R13's safety car and panels confirmed in the log (`r13b-safety-car`).
+Left beside those: R13's safety car and dash and R14's rain radar
+(`n25-rain-radar`) judged from their shots.
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (needs T2).
@@ -503,8 +547,9 @@ What only you can do, roughly in the order it pays off:
    four targets, UDP encryption closed; 2026-10-20: S1 in the refresh,
    X2 tests declare their backend, N28 before R3/N7. Left: create `apexsim-content` and
    its signing key (N26 phase 2).
-2. **Judge the 2026-10-18 fixes** — B8's cooling (with H1), B6's create
-   screen and B10's mouse and pad feel: [follow-ups #26](follow-ups.md).
+2. **J1: judge the content refresh and the 2026-10-18 fixes** — the
+   `o1-*` shots of B7, B11, D1, F2 and S1, B6's create screen, B10's mouse
+   and pad feel, B8's cooling (with H1): [follow-ups #27, #26](follow-ups.md).
 3. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
    client prediction over real latency ([verification.md](verification.md)).
 4. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
