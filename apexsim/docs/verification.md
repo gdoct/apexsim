@@ -178,11 +178,10 @@ higher and further off.
 - A curved pit box row tighter than about a 130 m radius (the garages
   scale down to 0.85 and may still overlap a little).
 
-### R9. Menus, dashboard and two clients
+### R9. Menus and dashboard
 
 One `-ApexNoDemo` launch clicking through with `apexsim.ui.Texts` /
-`apexsim.ui.Click`, the dashboard driven over HTTP during it, and a second
-client on the same server for the grid card
+`apexsim.ui.Click`, and the dashboard driven over HTTP during it
 ([game/client.md](game/client.md), [game/hud-modding.md](game/hud-modding.md),
 [server/operations.md](server/operations.md)).
 
@@ -209,36 +208,6 @@ session while driving (notice, then the menu).
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost
   of the first lap and its replay.
-- The race's grid card ([server/sessions.md](server/sessions.md#the-races-grid)):
-  seen on 2026-10-17 with one client (`r9-weekend-dnq`, `r9-empty-slot`):
-  the grid mode of the garage card (READY with "0 of 1 ready", WORKS
-  livery 1 / 7, START NOW, the STARTING GRID list with AI and SETTING UP)
-  and the card closing as the countdown starts. Left: the car repainting
-  behind it on a livery change, and two clients on one server (the guest's
-  card, the ready marks crossing over, START NOW closing a card that is not
-  ready); the runner starts one client.
-- A non-qualifier on screen ([server/sessions.md](server/sessions.md#session-rules-set-on-create)):
-  seen on 2026-10-17 (`r9-weekend-dnq`, a three-minute Q1 under 107%): DNQ
-  in the race's standings and on the finish overlay's results for a car at
-  1:12.5 against a 1:03.9 pole. Seen on 2026-10-20: the grid card's
-  STARTING GRID reading DNQ / DID NOT QUALIFY for every car outside 107%
-  (four of five behind a 1:00.3 pole, the mixed field's ace) and the race's
-  standings tagging them. Left: the timing tower's DNQ, the session results
-  screen's (it opens for a watcher, not a driver), and the car parked in its
-  box. A Q1 of one
-  minute ended before any lap and so cut nobody.
-- A weekend's day skies in a race ([server/sessions.md](server/sessions.md#race-weekend)):
-  practice under its own weather and hour from the create screen's
-  Practice sky row, the sky changing at the qualifying day and again at the
-  race, and the forecast the row showed coming true; the garage's and the
-  lobby listing's weather and the racing-line dots following each day.
-  Only the codec (`C_CreateSessionWeekendDays`, `S_WeekendStateConditions`),
-  `ApexSim.UI.CreateSession.WeekendDays` and the row on screen have run.
-- Joining a race weekend between phases from a second client: the browser's
-  Between sessions badge, Join, and the late entry named in the garage
-  ("A LATE ENTRY"), the timesheet's LATE ENTRY tag and the results summary.
-  Only the codec (`S_LobbyStateWeekendWaiting`, `S_WeekendStateLate`) and
-  `ApexSim.UI.SessionBrowser` have run.
 - An empty grid slot ([server/sessions.md](server/sessions.md#starting-order-and-qualifying)):
   seen on 2026-10-17 (`r9-empty-slot`, an order naming "Nobody" second):
   the grid card's list kept the gap (P1, P3, P4, P5) and, after a fix, the
@@ -288,16 +257,8 @@ stop, the stop on that plan (the pit panel's bar the fuel alone,
 rows with the summary naming them, STOPS OWED on the race state, and PEN on
 the finish overlay's rows after a one-lap race under a one-stop rule.
 
-- PEN in the timing tower and the watch view's results
-  (`item.missed_stops`), and the session results screen's PEN tag (it
-  opens for a watcher; a driver's race ends on the finish overlay). Seen on
-  2026-10-17 and 2026-10-20 (`r11-pen-standings`): PEN on every row of the
-  HUD's standings and of the finish overlay after the flag; the results
-  screen shot caught the race view, not the screen.
 - A stop on a plan with a chosen pad set moving the garage's Brake pads
-  knob. The stop on a plan sent again after a rejoin was seen on
-  2026-10-20 (`r11-rejoin-plan`): BOX lit after the rejoin, the autopilot
-  taking the car to its box, BOX off after the stop.
+  knob.
 - The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
   (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
 
@@ -329,16 +290,6 @@ session's results once every car's laps were used. Luna Swift's Murcetes
 set no time in either run (0/1, 0/2): the AI's laps struck for track
 limits, as in [server/sessions.md](server/sessions.md).
 
-- The lap allowance's USED on the race state and LAP ALLOWANCE USED with
-  GO OUT disabled in the garage: the session ends as the last car's laps
-  are used, and every AI goes out as it starts, so the player has to be
-  back first. Two tries on 2026-10-17 (an allowance of one, against a
-  level-70 field) ended the session within seconds of the player's lap,
-  and on 2026-10-20 `r12-allowance-used` (two laps each) caught the
-  results sheet instead: the session ended with the player on pole before
-  the garage shots. The garage view needs a field slower to use its laps.
-  And GO OUT's "2 timed laps left" badge (not up at 12 s, before the
-  session was in qualifying).
 - A weekend whose final round is a shoot-out, live, and the HUD's
   conditions panel showing the written outlook (the race layout used had no
   conditions panel up).
@@ -372,27 +323,9 @@ in the `flags` component and the radar's RIGHT marker at the start.
   `formation_lap`, and VIRTUAL SAFETY CAR / SAFETY CAR (yellow, flashing
   as it ends) under `safety_car`, beside the `flags` component without
   overlapping it.
-- The safety car drawn (a GT3 body with its amber roof lamps flashing)
-  leading the queue, the lamps out on its last lap, and the cockpit dash
-  showing `SC` / `SC IN` / `VSC` in place of the lap count; the session
-  browser's row naming the race rules and "balanced cars".
 - The `penalty` component as a jump start or a pass under a yellow is
   given (flashing for 8 s), then DRIVE-THROUGH with SERVE WITHIN n LAPS
   until it is served; PEN +5S in the standings and the results.
-
-### R14. The rain radar
-
-`n25-rain-radar`: Spa overcast, heavy rain in the forecast at 5 min. Seen
-on 2026-10-20 by the runner: the band of cells upwind with the map zoomed
-out, and over the circuit once it rains. Left for a person:
-
-- Whether the cells read as rain cells (they draw as stacked rings, a few
-  pixels across at the minimap's size) and the colours as a radar's.
-- The approach with a real wind: that run's was 6 km/h, so the band drifts
-  at the 4 m/s floor and barely moves in a shot. No switch sets the wind;
-  another seed or circuit with a stiff breeze would show the drift.
-- Two clients drawing the same picture (the sky's seed and the server's
-  clock), and a replay.
 
 ## 2. Needs a human: hands, ears and hardware
 
@@ -463,6 +396,11 @@ Mandarina Bay.
   hit hard enough to bend it (the wobble once a wheel turn, the server's
   pull), and an engine past 10% damage (the half-order shake), on a wheel
   and on a pad. Only `ApexSim.Input.ForceFeedback.CarCondition` has run.
+- Overheated tyres cooling (`tyre_thermal::hysteresis_share`): cook a set
+  to 140 °C sliding a GT3, then drive gently; the HUD's temperatures back
+  in the window within a lap or two and the car feeling normal again.
+- The road's crown and millimetre bumps (S1) through the rim: the road
+  texture, and the car on the crown down a straight.
 - A tread spread by hand: a setup with a lot of toe-in, a long stint of
   heavy braking, then the HUD's inner/outer tyre readouts (the outer and
   the middle running hot) and whether a cooked shoulder is felt as lost

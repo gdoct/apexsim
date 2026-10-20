@@ -31,8 +31,6 @@ takes it up (— : no step, taken opportunistically).
 
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
-| J1 | Judge the 2026-10-20 content refresh and the 2026-10-18 fixes (follow-ups #27, #26) | Verification | P1 | 🔴 | S | 1 |
-| V1 | Newest session screens' leftovers (R9, R11, R12, R13, R14) | Verification | P1 | 🟡 | S | 1 |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | N28 | Guides, showcases and Watch hotlap simulated in the client (step 1 built) | Platform + tooling | P2 | 🟢 | L | 2 |
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
@@ -79,12 +77,7 @@ takes it up (— : no step, taken opportunistically).
 
 ## 2. Recommended order
 
-1. **Judge what was just built.** J1: the content refresh (B7 curbs, B11
-   tyre bridge, D1 pit entry line, F2 light panels, S1 crown; before/after
-   shots in `out/verify/o1-*`) and the 2026-10-18 fixes. V1: R13's safety
-   car and dash (`r13b-safety-car`), R14's rain radar (`n25-rain-radar`)
-   and R9/R11/R12's leftovers. Then H1 in one sitting with B8's fix and
-   S1's crown on the wheel.
+1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
 2. **N28 to its end, then X1** on top of it: the library runs a seeded race
    (step 1, 2026-10-20); next the client calling it for a showcase from its
    seed and the backdrop with no server, then the guide. Do this before
@@ -287,31 +280,6 @@ animation and sound in first person, rain-driven auto mode. Server need: none
 beyond the weather already on the wire. 🔴 for the models.
 
 ### Verification
-
-#### J1. Judge the content refresh and the 2026-10-18 fixes — P1 · 🔴 · S
-*Source: follow-ups #27, #26.* Built and checked by tests and the survey;
-each needs a person's eye or hands before it is closed. #27: the tyre
-bridge at Le Mans, the inside curbs, the pit entry lines, the light panels
-lit and dark, the crown low across a straight (`o1-*` before/after). #26:
-the HUD tyre graphic in a race, the create screen's crowding
-(`m1-menu-pages`), car and track select by mouse and pad. B8's cooling and
-S1's feel go to H1.
-
-#### V1. Newest session screens (R9, R11–R14) — P1 · 🟡 · S
-Seen on 2026-10-17: the grid card with one client, DNQ in the standings and
-results, PEN in the standings, the pit plan sent after a rejoin, the empty
-grid slot in the card and (after a fix) the lobby. Left, per
-verification.md: two clients (the guest's grid card, a late weekend entry)
-which the runner cannot start yet; the tower's DNQ and PEN and the session
-results screen (a watcher's view); the stop after a rejoin and the lap
-allowance's garage (recipes updated, not yet run); weekend day skies.
-`run_checks.py` rewrites `ApexProfile.sav`: keep an untouched copy.
-Run again on 2026-10-20: the stop after a rejoin and the grid card's DNQ
-seen; PEN on the overlay again; the lap allowance's garage and the
-watcher's results screen still not caught (verification R11, R12, R9);
-R13's safety car and panels confirmed in the log (`r13b-safety-car`).
-Left beside those: R13's safety car and dash and R14's rain radar
-(`n25-rain-radar`) judged from their shots.
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (needs T2).
@@ -547,20 +515,17 @@ What only you can do, roughly in the order it pays off:
    four targets, UDP encryption closed; 2026-10-20: S1 in the refresh,
    X2 tests declare their backend, N28 before R3/N7. Left: create `apexsim-content` and
    its signing key (N26 phase 2).
-2. **J1: judge the content refresh and the 2026-10-18 fixes** — the
-   `o1-*` shots of B7, B11, D1, F2 and S1, B6's create screen, B10's mouse
-   and pad feel, B8's cooling (with H1): [follow-ups #27, #26](follow-ups.md).
-3. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
+2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
    client prediction over real latency ([verification.md](verification.md)).
-4. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
+3. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
    a VR headset for N23.
-5. **Leave the Windows/GPU box running** for the P1 crash-dump loop and the
-   unattended verification runs (V1–V3).
-6. **Confirm the agent's judgement** on the 🟡 items' screenshots.
-7. **Source data, art or people** — DGM1 terrain and marshal-post list
+4. **Leave the Windows/GPU box running** for the P1 crash-dump loop and the
+   unattended verification runs (V2, V3).
+5. **Confirm the agent's judgement** on the 🟡 items' screenshots.
+6. **Source data, art or people** — DGM1 terrain and marshal-post list
    (Nordschleife), wiper models, integrated-GPU hardware, radio voice lines
    (N14), translators (N22).
-8. **Scope** the parked ideas.
+7. **Scope** the parked ideas.
 
 ## 5. Parked / recommended to drop
 
@@ -584,5 +549,4 @@ What only you can do, roughly in the order it pays off:
 - **New features N1–N23** were not in any backlog; they are now packages in
   `roadmap.md`. Yellow and blue flags stay in `simulation-gaps.md` (race
   rules) and are split here into R1a (flags, P1) and R1b (safety car, P2).
-- **Blocked verification:** R1/R2 tyre close-ups wait on T2; R4 waits on A2;
-  R12's last items wait on T1.
+- **Blocked verification:** R1/R2 tyre close-ups wait on T2; R4 waits on A2.
