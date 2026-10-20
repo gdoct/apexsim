@@ -160,6 +160,9 @@ fn without_session_fields(mut s: CarState) -> CarState {
     s.last_hit_angle = 0.0;
     s.headlights = false;
     s.headlight_flash = false;
+    // How long a car has been out of the race: the session counts it
+    // toward its tow, the lone car step does not.
+    s.retired_s = fresh.retired_s;
     s
 }
 
@@ -318,6 +321,7 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
         // shed, a puncture rolled), as is a piece of debris picked up: race
         // events, which reach a predicting client as a correction.
         let hit_before = session.session.participants[&human].last_hit_pct;
+        let driven = session.session.participants[&human].damage.is_drivable;
         let debris_before = session.debris.len();
         session.tick(&inputs);
         let race_event = hit_before >= PUNCTURE_HIT_PCT || session.debris.len() < debris_before;
@@ -347,7 +351,13 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
                 ApxFeedback::from(&served_feel),
                 "tick {tick}: the library's feedback left the session's"
             );
-            assert_eq!(felt.steer_samples, 1);
+            // One sample a tick the car is driven; none once a wall has
+            // left it undrivable (the trace runs off the road on purpose).
+            assert_eq!(
+                felt.steer_samples,
+                driven as u32,
+                "tick {tick}: one steering sample a driven tick"
+            );
             kicks += (felt.steer_kick != 0.0) as u32;
             surfaces += felt.surface.iter().any(|&s| s != 0) as u32;
         }
