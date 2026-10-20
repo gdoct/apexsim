@@ -274,6 +274,10 @@ fn grip_temperatures(tyres: (f32, f32, f32, f32, f32)) -> (f32, f32) {
 
 #[test]
 fn every_class_warms_into_its_window_and_stays_there() {
+    // How hard the AI uses the kerbs (and so how much it slides and heats
+    // the tyres) is the curbs sidecar's: without the baked road (a fresh
+    // checkout, as CI) the laps are run and the grip judged, the window not.
+    let baked = probe_track().has_sidecars(Sidecar::BAKED_ROAD, "the tyres' window on lap 3");
     for folder in [
         "fugazzi-sf26",
         "panini-zomba-hypercar",
@@ -290,6 +294,9 @@ fn every_class_warms_into_its_window_and_stays_there() {
         );
         let (front, rear) = grip_temperatures(logs[2].tyres);
         for (axle, temp) in [("front", front), ("rear", rear)] {
+            if !baked {
+                continue;
+            }
             assert!(
                 (lo..=hi).contains(&temp),
                 "{folder}: the {axle} tyres run at {temp:.1} °C on lap 3, outside {lo}..{hi}"

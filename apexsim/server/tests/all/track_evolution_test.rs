@@ -131,7 +131,10 @@ fn rain_from_the_forecast_wets_the_road_and_the_ai_stops_for_wets() {
         ..SessionConditions::DEFAULT
     };
     let (mut gs, ids) = race(conditions, 2);
-    if gs.track_config.pit_lane.is_none() {
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "a wet stop's tyres")
+    {
         return;
     }
     // The forecast laid out from the id would rain at some point; set one

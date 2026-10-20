@@ -26,8 +26,7 @@ fn race() -> Option<GameSession> {
         "../apexsim-content/tracks/default/Snorisring/Snorisring.yaml",
     ))
     .expect("track loads");
-    if track.pit_lane.is_none() {
-        eprintln!("no pit sidecar for the Norisring: run ats-export; skipped");
+    if !track.has_sidecars(&[Sidecar::Pit], "penalty_test") {
         return None;
     }
     let car =

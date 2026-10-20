@@ -406,8 +406,7 @@ fn without_a_pit_lane_a_car_is_topped_up_at_the_line() {
     );
     // The pit lane comes from the baked pit sidecar, which a checkout
     // without an export (CI) does not have.
-    if monza().pit_lane.is_none() {
-        eprintln!("no pit sidecar for Monza: run ats-export; the pit-lane half is skipped");
+    if !monza().has_sidecars(&[Sidecar::Pit], "the fuel test's pit-lane half") {
         return;
     }
     let (left, ..) = fuel_after_first_lap(true);

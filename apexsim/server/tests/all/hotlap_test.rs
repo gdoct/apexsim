@@ -180,10 +180,14 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
         "the outlap is the warm-up: it leaves on cold tyres"
     );
 
-    // The flying lap is timed whether or not it stays inside track limits:
-    // whether it does depends on the gitignored curb sidecar, so a fresh
-    // checkout (CI) runs wide at the Lesmos where a baked tree does not.
-    // Track limits are the survey's business; here the clock is.
+    // The flying lap is timed whether or not it stays inside track limits;
+    // on the road as baked it stays inside them and is the driver's best.
+    // Without the curb sidecar (a fresh checkout, as CI) the cool-down
+    // driver runs wide at the Lesmos, and only the clock is judged.
+    let baked = gs.track_config.has_sidecars(
+        Sidecar::BAKED_ROAD,
+        "a legal first flying lap (the clock only)",
+    );
     let mut first_crossing = None;
     let mut timed = None;
     for tick in 0..(HZ * 400) {
@@ -211,6 +215,13 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
         lap_ms > 60_000,
         "timed from the line round to it: {lap_ms} ms"
     );
+    if baked {
+        assert_eq!(
+            gs.session.participants[&driver].best_lap_time_ms,
+            Some(lap_ms),
+            "a legal lap, the driver's best"
+        );
+    }
     // The server's tick loop offers every legal lap to the classification.
     assert!(gs.note_qualifying_lap(driver, lap_ms).is_some());
     assert_eq!(gs.qualifying_order(), vec![driver]);
@@ -224,8 +235,10 @@ fn qualifying_goes_out_for_a_full_outlap_before_the_first_timed_lap() {
 fn qualifying_goes_out_from_the_box_down_the_pit_lane() {
     let (mut gs, ids) = hotlap_session(1);
     let driver = ids[0];
-    if gs.track_config.pit_lane.is_none() {
-        println!("no pit-lane sidecar for Monza (a fresh checkout): skipped");
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "qualifying out of the box")
+    {
         return;
     }
     gs.set_game_mode(GameMode::Qualification);

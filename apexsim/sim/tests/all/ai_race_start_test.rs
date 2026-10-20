@@ -302,19 +302,21 @@ fn ai_field_stays_composed_off_the_grid() {
 /// the ±PI yaw seam. The AI's heading error wrapped the wrong way there and
 /// every car turned right at full lock into the grass.
 ///
-/// Time off the road is counted only round the seam: the first lap's
-/// traffic elsewhere is the survey's business, and it differs between a
-/// tree with the gitignored track sidecars and a fresh checkout (CI), which
-/// race the same seed on different curbs and walls.
+/// On a baked tree time off the road is counted over the whole first lap;
+/// without the curb, wall and ground sidecars (a fresh checkout, as CI) the
+/// same seed races a different road, and only the seam is counted.
 #[test]
 fn ai_field_makes_the_first_lap_at_le_mans() {
     const SEAM_M: std::ops::Range<f32> = 3800.0..4600.0;
     let mut race = ai_race("Lemons", "yotota-lmp2", 4);
+    let whole_lap = race
+        .track_config
+        .has_sidecars(Sidecar::BAKED_ROAD, "the whole first lap off the road (the seam only)");
     let mut off_ticks: HashMap<u8, u32> = HashMap::new();
     for _ in 0..(TICK_RATE as u32 * 150) {
         tick(&mut race);
         for car in race.session.participants.values() {
-            if !car.is_on_track && SEAM_M.contains(&car.track_progress) {
+            if !car.is_on_track && (whole_lap || SEAM_M.contains(&car.track_progress)) {
                 *off_ticks.entry(car.grid_position).or_default() += 1;
             }
         }

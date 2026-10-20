@@ -309,19 +309,6 @@ the same files.
   when a server has none rendered or all of them stale (a fresh clone
   before `initialize_content.ps1`, or right after a car.toml or track
   edit), and `HotlapWatch` shares its create path.
-- Tests: CI's server job races a fresh checkout without the gitignored
-  track sidecars (curbs, walls, ground, pit lane, road mesh), so an AI
-  test at Monza or Le Mans drives a different road there than on a baked
-  tree: curbs the line uses are off the track, and a seeded run spreads
-  differently. Three tests have been narrowed to what they guard for it
-  (the Le Mans seam, the qualifying outlap, the racecraft pass), and the
-  pit-lane tests (penalties, fuel top-up, the safety car on the road) skip
-  without the pit sidecar. Either CI bakes the sidecars it needs, or every
-  test that drives a circuit says which backend it expects and skips
-  without it. Check a test change
-  against `git archive HEAD server content` in a scratch folder, with its
-  own `CARGO_TARGET_DIR`.
-
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
   (verification, platforms). If a client shows it, pace the loop on a

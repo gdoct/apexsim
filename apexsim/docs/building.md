@@ -200,8 +200,13 @@ content), and none is filtered by path.
   `cargo test --no-fail-fast` with the test profile at opt-level 2: the
   tests race whole sessions, and optimised they take a couple of minutes
   instead of twelve. Then fmt, clippy and test for `server/ffi`. CI has no
-  baked sidecars (they are gitignored), so a test that needs one skips
-  itself with a note rather than failing.
+  baked sidecars (they are gitignored): a test that drives a circuit names
+  the sidecars it needs (`TrackConfig::has_sidecars(&[Sidecar::Pit], ..)`,
+  `Sidecar::BAKED_ROAD` for one judged on the curbs, walls and verge) and
+  skips that part with a note without them, so the same test runs at full
+  strength on a baked tree. Check a test change on a copy without them
+  (`git archive HEAD` of the code and `apexsim-content/{tracks,cars}` in a
+  scratch folder, with its own `CARGO_TARGET_DIR`).
 - `track-editor` ("Track pipeline", from `apexsim-content/`):
   `tools/check_direction.py`, which fails on any path from the content
   into the code beyond the one allowed test-only edge (a path into

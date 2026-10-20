@@ -125,16 +125,25 @@ fn a_quicker_driver_gets_past_a_slower_one() {
         if passed_at.is_none() && lead(&race, 1, 0) > 10.0 {
             passed_at = Some(t);
         }
-        // The pass sticks: the novice does not come straight back by. Not
-        // to the end of the minute: past the Lesmos the ace runs wide where
-        // a fresh checkout (CI) lacks the gitignored curb sidecar, and how
-        // the next corners go is the survey's business.
+        // The pass sticks: the novice does not come straight back by.
         if passed_at.is_some_and(|p| t - p < TICK_RATE as u32 * 2) {
             assert!(lead(&race, 1, 0) > 0.0, "the novice came straight back by");
         }
     }
     let passed_at = passed_at.expect("the ace never got past the novice");
     assert!(attacked, "the pass was made without an attack");
+    // And for the rest of the minute, on the road as baked: without the
+    // curb sidecar (a fresh checkout, as CI) the ace runs wide past the
+    // Lesmos, and only the first two seconds are judged.
+    if race
+        .track_config
+        .has_sidecars(Sidecar::BAKED_ROAD, "keeping the place to the end of the minute")
+    {
+        assert!(
+            lead(&race, 1, 0) > 0.0,
+            "the novice is back ahead at the end"
+        );
+    }
     let contact_s = contact as f32 / TICK_RATE as f32;
     assert!(contact_s < 1.0, "{contact_s:.1} s of contact passing");
     println!(

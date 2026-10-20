@@ -1299,7 +1299,67 @@ impl Default for TrackConfig {
     }
 }
 
+/// A baked sidecar of a circuit (`ats-export`, gitignored): what a test
+/// that drives one names before it starts ([`TrackConfig::has_sidecars`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sidecar {
+    /// `<Stem>.ground.msgpack`: the verge and the terrain off the road.
+    Ground,
+    /// `<Stem>.curbs.msgpack`: the curbs and run-off the track limits count.
+    Curbs,
+    /// `<Stem>.walls.msgpack`: the barriers.
+    Walls,
+    /// `<Stem>.pit.msgpack`: the pit lane.
+    Pit,
+    /// `<Stem>.road.msgpack`: the road mesh (loaded only on that backend).
+    Road,
+}
+
+impl Sidecar {
+    /// The road a car drives on a baked tree: a test whose result depends
+    /// on the curbs, walls or verge (a lap's limits, a line through the
+    /// kerbs, a car running wide) names these.
+    pub const BAKED_ROAD: &'static [Sidecar] = &[Sidecar::Ground, Sidecar::Curbs, Sidecar::Walls];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Sidecar::Ground => "ground",
+            Sidecar::Curbs => "curbs",
+            Sidecar::Walls => "walls",
+            Sidecar::Pit => "pit",
+            Sidecar::Road => "road",
+        }
+    }
+}
+
 impl TrackConfig {
+    /// Whether the track was loaded with every sidecar of `need`. When it
+    /// was not (a checkout that has not baked its tracks, as CI), says so
+    /// on stderr with `what` (the test or the part of it that needs them),
+    /// so the test can skip that part with its reason rather than race a
+    /// different road and fail.
+    pub fn has_sidecars(&self, need: &[Sidecar], what: &str) -> bool {
+        let missing: Vec<&str> = need
+            .iter()
+            .filter(|s| match s {
+                Sidecar::Ground => self.ground.is_none(),
+                Sidecar::Curbs => self.curbs.is_none(),
+                Sidecar::Walls => self.walls.is_none(),
+                Sidecar::Pit => self.pit_lane.is_none(),
+                Sidecar::Road => self.road_mesh.is_none(),
+            })
+            .map(|s| s.name())
+            .collect();
+        if !missing.is_empty() {
+            eprintln!(
+                "{what}: skipped, {} has no {} sidecar (run ats-export)",
+                self.name,
+                missing.join(", ")
+            );
+        }
+        missing.is_empty()
+    }
+
     /// Where the circuit is, (degrees north, degrees east), when its
     /// metadata names a longitude: what `SessionConditions::at_site` works
     /// solar noon out from. None for a track that does not say.

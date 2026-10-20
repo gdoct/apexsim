@@ -32,10 +32,13 @@ fn gt3() -> CarConfig {
     .expect("car loads")
 }
 
-/// One human on Monza in practice; skipped without the pit sidecar.
+/// One human on Monza in practice; `None` (the test skipped, and said so)
+/// without the pit sidecar.
 fn practice() -> Option<(GameSession, PlayerId)> {
     let track = monza();
-    track.pit_lane.as_ref()?;
+    if !track.has_sidecars(&[Sidecar::Pit], "pit_stop_test") {
+        return None;
+    }
     let car = gt3();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
@@ -76,7 +79,6 @@ fn on_the_lane(gs: &mut GameSession, player: &PlayerId, station: f32, speed: f32
 #[test]
 fn the_limiter_holds_a_car_to_the_lane_limit() {
     let Some((mut gs, player)) = practice() else {
-        eprintln!("no pit sidecar for Monza: run ats-export");
         return;
     };
     let lane = gs.track_config.pit_lane.clone().unwrap();
@@ -379,7 +381,10 @@ fn an_ai_on_worn_tyres_pits_and_races_on() {
 #[test]
 fn an_ai_short_of_fuel_late_on_splashes_and_keeps_its_tyres() {
     let track = monza();
-    if track.pit_lane.is_none() {
+    if !track.has_sidecars(
+        &[Sidecar::Pit],
+        "an_ai_short_of_fuel_late_on_splashes_and_keeps_its_tyres",
+    ) {
         return;
     }
     let car = gt3();
@@ -454,7 +459,10 @@ fn an_ai_short_of_fuel_late_on_splashes_and_keeps_its_tyres() {
 #[test]
 fn an_away_drivers_car_is_brought_in_for_its_stop() {
     let track = monza();
-    if track.pit_lane.is_none() {
+    if !track.has_sidecars(
+        &[Sidecar::Pit],
+        "an_away_drivers_car_is_brought_in_for_its_stop",
+    ) {
         return;
     }
     let car = gt3();
@@ -507,7 +515,10 @@ fn an_away_drivers_car_is_brought_in_for_its_stop() {
 #[test]
 fn a_server_planned_stop_fits_the_compound_it_was_planned_for() {
     let track = monza();
-    if track.pit_lane.is_none() {
+    if !track.has_sidecars(
+        &[Sidecar::Pit],
+        "a_server_planned_stop_fits_the_compound_it_was_planned_for",
+    ) {
         return;
     }
     let car = CarLoader::load_from_file(Path::new(
@@ -780,7 +791,10 @@ fn drive_a_trip(track: TrackConfig, car: CarConfig, limit_s: f32) -> Option<Trip
 #[test]
 fn a_human_driving_into_the_pit_lane_is_driven_to_their_box_and_out() {
     let track = monza();
-    if track.pit_lane.is_none() {
+    if !track.has_sidecars(
+        &[Sidecar::Pit],
+        "a_human_driving_into_the_pit_lane_is_driven_to_their_box_and_out",
+    ) {
         return;
     }
     let trip = drive_a_trip(track, gt3(), 120.0).expect("a lane");

@@ -60,7 +60,6 @@ When an item is done, delete it from its backlog and from here.
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each |
 | X1 | `SessionKind::Demo` removal | Cleanup | P3 | 🟢 | S |
-| X2 | Circuit tests declare the sidecars they need | Cleanup | P3 | 🟢 | S |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M |
 | N13 | Rewind / restart from a point (offline) | Driver tools | P3 | 🟢 | M |
 | N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M |
@@ -346,14 +345,6 @@ Planned block by block, with the agent's prep and follow-up, in
 Only once showcases exist everywhere; the backdrop still falls back to it
 with stale or missing showcases, and `HotlapWatch` shares its create path.
 Wire: remove only by leaving the variant decodable (append-only rule).
-
-#### X2. Circuit tests declare the sidecars they need — P3 · 🟢 · S
-*Source: follow-ups #99.* Decided 2026-10-20: CI keeps racing a checkout
-without the gitignored sidecars. Every test that drives a circuit states
-which sidecars it needs (curbs, walls, ground, pit, road mesh) through one
-helper, and skips with a printed reason when they are missing, so the
-narrowed tests can return to full strength on a baked tree. Check against
-`git archive HEAD` in a scratch folder with its own `CARGO_TARGET_DIR`.
 
 ### New features (added 2026-10-16, also in the roadmap)
 

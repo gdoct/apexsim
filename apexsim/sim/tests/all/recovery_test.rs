@@ -168,8 +168,10 @@ fn a_car_already_on_the_spot_is_not_landed_on() {
 #[test]
 fn a_car_towed_to_its_box_is_serviced_and_driven_out() {
     let (mut gs, ids) = practice(1);
-    if gs.track_config.pit_lane.is_none() {
-        eprintln!("no pit sidecar for Monza: run ats-export");
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "a towed car serviced in its box")
+    {
         return;
     }
     let me = ids[0];

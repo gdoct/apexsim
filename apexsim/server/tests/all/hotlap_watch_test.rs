@@ -137,10 +137,9 @@ fn a_watched_hotlap_laps_the_track_alone_lap_after_lap() {
     // limit and a lap on that line is struck, which also steps the driver
     // down its ladder, so the laps are neither all legal nor the same lap:
     // both are only judged where the kerbs are there to count.
-    let kerbs = gs.track_config.curbs.is_some();
-    if !kerbs {
-        eprintln!("Monza has no curbs sidecar: lap validity and drift not checked");
-    }
+    let kerbs = gs
+        .track_config
+        .has_sidecars(&[Sidecar::Curbs], "lap validity and drift");
     for (i, (time, valid)) in laps.iter().enumerate() {
         assert!(
             (60.0..200.0).contains(time),
@@ -534,7 +533,9 @@ fn the_fastest_watched_lap_is_the_ghost_and_the_stream_carries_it() {
     use apexsim_server::spectator::{Record, RECORD_GHOST};
 
     let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
-    let kerbs = gs.track_config.curbs.is_some();
+    let kerbs = gs
+        .track_config
+        .has_sidecars(&[Sidecar::Curbs], "the ghost of a legal lap");
     let names = HashMap::new();
     let mut stream = SessionStream::new(&gs, 30, &names);
     let mut ghosts = Vec::new();
@@ -597,8 +598,10 @@ fn the_fastest_watched_lap_is_the_ghost_and_the_stream_carries_it() {
 #[test]
 fn clean_laps_climb_the_ladder_back() {
     let (mut gs, driver) = watched_hotlap("posh-gt3rs", SessionConditions::DEFAULT);
-    if gs.track_config.curbs.is_none() {
-        eprintln!("Monza has no curbs sidecar: the laps are struck, nothing to climb on");
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Curbs], "climbing the ladder on legal laps")
+    {
         return;
     }
     gs.set_hotlap_watch_level(2);
