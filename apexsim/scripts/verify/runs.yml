@@ -2206,3 +2206,47 @@ runs:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
       - {at: 45, label: "backdrop", checks: "GPU soak: no hang"}
+
+  # The content refresh of 2026-10-20 (work plan: B7 curb kinks, B11 tyre
+  # bridge, D1 pit entry line, F2 light panels, S1 road crown), shot from
+  # fixed poses before and after the re-export. Poses: spots.py (curbs,
+  # bridge, crown) and the pit sidecar (the old and new entry lines, the
+  # exit light). The track stands still under a held TV camera; a field of
+  # three keeps the circuit quiet.
+  - id: o1-sudoku
+    about: "Refresh 2026-10-20: Sudoku curbs, crown, pit lines"
+    args: [-ApexAutoRace, -ApexTrack=Sudoku, -ApexCar=SF-26, -ApexAiCount=2, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    server: {stand_in: true}
+    shots:
+      - {at: 10, label: "inside curb at 1890 m (worst kink, 5.5 deg)", checks: "B7", exec: "apexsim.cam.LookAt -211.3 -8.4 12.4 -224.1 -2.2 11.1"}
+      - {at: 15, label: "inside curb at 1400 m", checks: "B7", exec: "apexsim.cam.LookAt 32.7 -317.2 -2.2 22.1 -307.6 -3.5"}
+      - {at: 20, label: "low along the road at 600 m", checks: "S1 crown", exec: "apexsim.cam.LookAt 371.4 -434.9 -17.7 392.0 -456.8 -18.1"}
+      - {at: 25, label: "pit lane: the old entry line (72 m)", checks: "D1", exec: "apexsim.cam.LookAt -178.1 108.8 12.0 -160.7 104.1 8.6"}
+      - {at: 30, label: "pit lane: the new entry line (314 m, 60 m before box 1)", checks: "D1", exec: "apexsim.cam.LookAt 10.0 -32.5 2.2 21.7 -46.2 -0.2"}
+      - {at: 35, label: "pit lane: exit light (813 m)", checks: "D1", exec: "apexsim.cam.LookAt 334.4 -412.0 -13.7 347.0 -424.8 -16.3"}
+      - {at: 40, label: "marshal light panel (first in the .ats), dark under green", checks: "F2", exec: "apexsim.cam.LookAt -13.4 18.9 1.9 15.8 15.2 0.9"}
+
+  - id: o1-lemons
+    about: "Refresh 2026-10-20: Le Mans tyre bridge"
+    args: [-ApexAutoRace, -ApexTrack=Lemons, -ApexCar=SF-26, -ApexAiCount=2, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    server: {stand_in: true}
+    shots:
+      - {at: 10, label: "tyre bridge from the road, 70 m", checks: "B11", exec: "apexsim.cam.LookAt 852.9 -285.4 83.3 891.5 -342.3 84.3"}
+      - {at: 15, label: "tyre bridge from the road, 25 m", checks: "B11", exec: "apexsim.cam.LookAt 878.2 -322.6 84.4 891.5 -342.3 84.3"}
+      - {at: 20, label: "pit lane: entry line", checks: "D1", exec: "apexsim.cam.LookAt 54.1 -11.2 57.5 71.8 -14.3 55.4"}
+
+  - id: o1-monza
+    about: "Refresh 2026-10-20: Monza curb and pit entry"
+    args: [-ApexAutoRace, -ApexTrack=Monzarella, -ApexCar=SF-26, -ApexAiCount=2, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    server: {stand_in: true}
+    shots:
+      - {at: 10, label: "inside curb at 977 m (6.2 deg)", checks: "B7", exec: "apexsim.cam.LookAt 120.8 935.6 2.6 127.9 948.0 1.3"}
+      - {at: 15, label: "pit lane: the old entry line (73 m)", checks: "D1", exec: "apexsim.cam.LookAt 6.2 -194.3 3.0 8.3 -176.5 0.7"}
+      - {at: 20, label: "pit lane: the new entry line (243 m)", checks: "D1", exec: "apexsim.cam.LookAt 15.5 -24.5 2.5 17.1 -6.6 0.3"}
+
+  - id: o1-silverstone
+    about: "Refresh 2026-10-20: Silverstone's worst curb kink"
+    args: [-ApexAutoRace, -ApexTrack=Shiverstone, -ApexCar=SF-26, -ApexAiCount=2, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    server: {stand_in: true}
+    shots:
+      - {at: 10, label: "inside curb at 1024 m (9.3 deg)", checks: "B7", exec: "apexsim.cam.LookAt 729.0 380.2 11.4 734.5 366.1 10.1"}
