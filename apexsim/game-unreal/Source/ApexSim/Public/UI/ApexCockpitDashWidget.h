@@ -38,6 +38,13 @@ public:
 	 */
 	void SetValues(int32 Gear, float SpeedKph, bool bMetric, float RpmFraction, int32 Lap, int32 LapTimeMs, int32 CountdownMs);
 
+	/**
+	 * What the race is doing, shown where the lap count is (`SC`, `VSC`,
+	 * `FORM`) while it lasts, as a real wheel's display flags it; empty for
+	 * a race at green. Takes effect with the next SetValues.
+	 */
+	void SetPhaseLabel(const FString& Label);
+
 private:
 	void BuildTree();
 
@@ -53,6 +60,8 @@ private:
 	int32 LastSpeed = INT32_MIN;
 	bool bLastMetric = true;
 	int32 LastLap = INT32_MIN;
+	FString PhaseLabel;
+	bool bPhaseChanged = false;
 	int32 LastTimeTenths = INT32_MIN;
 
 	static constexpr int32 LightCount = 15;

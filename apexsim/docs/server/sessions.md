@@ -298,8 +298,10 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
-car" and "Safety car". Not listed in the lobby; a hosted
-session does not take them yet.
+car" and "Safety car". The lobby lists them with each session
+(`SessionSummary.race_rules`, left off at the defaults) and says when the
+server balances its cars (`LobbyState.balanced`); the session browser shows
+both on the session's row. A hosted session does not take them yet.
 
 Client: `FApexRaceRules` (`ApexProtocolTypes.h`) is the table; the
 CreateSession encoder writes it only when a rule is set, each key only off
@@ -596,8 +598,12 @@ call to the green.
 - On the wire: `CompactTelemetry.race_phase` 5 (out) and 6 (in this lap, and
   the restart), and `CompactTelemetry.safety_car`, its pose from its call
   until it is off the road ([protocol](protocol.md)). Client:
-  `FApexTelemetryFrame::RacePhase` / `SafetyCar` are decoded; nothing draws
-  or shows them yet ([follow-ups](../follow-ups.md)).
+  `FApexTelemetryFrame::RacePhase` / `SafetyCar`; the race director draws
+  the safety car as a car of its own (`AApexRaceDirector::UpdateSafetyCar`:
+  the Murcetes-AMD GT3's body, moved by the field's interpolation, amber
+  roof lamps flashing until `race_phase` 6) and the cockpit dash flags the
+  phase where the lap count is (`SC`, `SC IN`, `VSC`, `FORM`:
+  `ApexRacePhase::DashLabel`).
 
 ## Penalties
 

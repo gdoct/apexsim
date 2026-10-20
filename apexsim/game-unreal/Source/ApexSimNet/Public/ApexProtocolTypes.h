@@ -1539,6 +1539,10 @@ struct APEXSIMNET_API FApexSessionSummary
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	bool bCompoundChange = false;
 
+	/** The race-control rules (`RaceRules`); the defaults from an older server or a plain race. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	FApexRaceRules RaceRules;
+
 	/** A race is being driven: there is something to watch. */
 	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
 
@@ -1672,6 +1676,14 @@ struct APEXSIMNET_API FApexLobbyState
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	int32 RecordingsPort = 0;
+
+	/**
+	 * The server balances its cars (`[[balance]]`: ballast, power,
+	 * downforce), so a car drives there unlike its car.toml; false from a
+	 * server that does not, or predates the field.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	bool bBalanced = false;
 };
 
 /** What a spectator stream is of (`SpectatorKind`, network.rs). */
@@ -3256,6 +3268,21 @@ namespace ApexRacePhase
 	inline constexpr int32 VscEnding = 4;
 	inline constexpr int32 SafetyCar = 5;
 	inline constexpr int32 ScInThisLap = 6;
+
+	/** A wheel display's short flag for the phase; empty at green. */
+	inline FString DashLabel(int32 Phase)
+	{
+		switch (Phase)
+		{
+		case Formation: return TEXT("FORM");
+		case PaceLap: return TEXT("PACE");
+		case Vsc: return TEXT("VSC");
+		case VscEnding: return TEXT("VSC END");
+		case SafetyCar: return TEXT("SC");
+		case ScInThisLap: return TEXT("SC IN");
+		default: return FString();
+		}
+	}
 }
 
 /** `CompactTelemetry` (network.rs:415) — positional encoding, UDP. */

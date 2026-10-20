@@ -178,6 +178,7 @@ pub(crate) async fn open(
     gs.set_pit_rule(spec.pit_rule.mandatory_stops, spec.pit_rule.compound_change);
     gs.set_race_rules(spec.race_rules);
     let pit_rule = gs.session.pit_rule;
+    let race_rules = gs.session.race_rules;
     let (conditions, lap_limit, race_seconds) = (
         gs.session.conditions,
         gs.session.lap_limit,
@@ -198,6 +199,7 @@ pub(crate) async fn open(
         race_seconds,
         weekend_waiting: false,
         pit_rule,
+        race_rules,
         max_players: ai_count + player_slots,
         current_player_count: 0,
         spectator_count: 0,

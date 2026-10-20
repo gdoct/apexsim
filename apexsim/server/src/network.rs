@@ -708,6 +708,12 @@ pub struct LobbyStateData {
     /// client connected to). Left off the wire when it does not.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recordings_port: Option<u16>,
+    /// The server balances its cars (`[[balance]]` in server.toml:
+    /// ballast, power, downforce), so a car drives here unlike its
+    /// car.toml; for the session browser. Left off the wire when it does
+    /// not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub balanced: bool,
 }
 
 /// What a spectator stream is of.
@@ -1057,6 +1063,10 @@ pub struct SessionSummary {
     /// left off the wire when false.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub compound_change: bool,
+    /// The race-control rules (`CreateSession.race_rules`), for the session
+    /// browser; left off the wire at their defaults.
+    #[serde(default, skip_serializing_if = "RaceRules::is_default")]
+    pub race_rules: RaceRules,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3064,6 +3074,7 @@ mod tests {
                 showcase_available: false,
                 live_stream: true,
                 recordings_port,
+                balanced: false,
             })
         };
         let bytes = rmp_serde::to_vec_named(&lobby(Some(9002))).unwrap();
@@ -3079,6 +3090,69 @@ mod tests {
         }
         let none = rmp_serde::to_vec_named(&lobby(None)).unwrap();
         assert!(!String::from_utf8_lossy(&none).contains("RecordingsPort"));
+    }
+
+    /// A listed session names its race rules, and a lobby says when the
+    /// server balances its cars (`ApexGolden::S_LobbyStateRaceRules`);
+    /// both stay off the wire at their defaults. `cargo test
+    /// lobby_race_rules_wire_format -- --nocapture` prints it.
+    #[test]
+    fn test_lobby_race_rules_wire_format() {
+        let lobby = |race_rules: RaceRules, balanced| {
+            ServerMessage::LobbyState(LobbyStateData {
+                players_in_lobby: vec![],
+                available_sessions: vec![SessionSummary {
+                    id: Uuid::nil(),
+                    track_name: "Monzarella".into(),
+                    track_file: String::new(),
+                    track_id: Uuid::nil(),
+                    host_name: "host".into(),
+                    session_kind: SessionKind::Multiplayer,
+                    player_count: 1,
+                    max_players: 8,
+                    state: SessionState::Lobby,
+                    conditions: SessionConditions::DEFAULT,
+                    damage: DamageLevel::Full,
+                    lap_limit: 5,
+                    race_seconds: None,
+                    weekend_waiting: false,
+                    mandatory_stops: 0,
+                    compound_change: false,
+                    race_rules,
+                }],
+                car_configs: vec![],
+                track_configs: vec![],
+                showcase_available: false,
+                live_stream: true,
+                recordings_port: None,
+                balanced,
+            })
+        };
+        let rules = RaceRules {
+            formation_lap: true,
+            jump_start: true,
+            yellow_penalty: true,
+            safety_car: crate::data::SafetyCar::Full,
+            reverse_grid: 6,
+            ..Default::default()
+        };
+        let bytes = rmp_serde::to_vec_named(&lobby(rules, true)).unwrap();
+        let hex = bytes
+            .iter()
+            .map(|b| format!("0x{:02X}", b))
+            .collect::<Vec<_>>()
+            .join(", ");
+        println!("S_LobbyStateRaceRules: {hex}");
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => {
+                assert!(l.balanced);
+                assert_eq!(l.available_sessions[0].race_rules, rules);
+            }
+            _ => panic!("wrong message type"),
+        }
+        let plain = rmp_serde::to_vec_named(&lobby(RaceRules::default(), false)).unwrap();
+        let text = String::from_utf8_lossy(&plain);
+        assert!(!text.contains("RaceRules") && !text.contains("Balanced"));
     }
 
     /// A track that says where it is lists its site, so the create screen
@@ -3104,6 +3178,7 @@ mod tests {
                 showcase_available: false,
                 live_stream: true,
                 recordings_port: None,
+                balanced: false,
             })
         };
         let bytes = rmp_serde::to_vec_named(&lobby(track(Some((52.0786, -1.0169))))).unwrap();
@@ -3149,6 +3224,7 @@ mod tests {
                 weekend_waiting: false,
                 mandatory_stops: 0,
                 compound_change: false,
+                race_rules: Default::default(),
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),
@@ -3169,6 +3245,7 @@ mod tests {
             showcase_available: true,
             live_stream: true,
             recordings_port: None,
+            balanced: false,
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         let text = String::from_utf8_lossy(&bytes);
@@ -4627,6 +4704,7 @@ mod tests {
             weekend_waiting: false,
             mandatory_stops: 0,
             compound_change: false,
+            race_rules: Default::default(),
         };
         let reduced = rmp_serde::to_vec_named(&summary(DamageLevel::Reduced)).unwrap();
         let full = rmp_serde::to_vec_named(&summary(DamageLevel::Full)).unwrap();
@@ -6003,12 +6081,14 @@ mod tests {
                 weekend_waiting: true,
                 mandatory_stops: 0,
                 compound_change: false,
+                race_rules: Default::default(),
             }],
             car_configs: vec![],
             track_configs: vec![],
             showcase_available: false,
             live_stream: true,
             recordings_port: None,
+            balanced: false,
         });
         let waiting_bytes = rmp_serde::to_vec_named(&waiting).unwrap();
         println!("S_LobbyStateWeekendWaiting: {}", hex(&waiting_bytes));

@@ -154,9 +154,21 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 			bCountdown ? FString::Printf(TEXT("%d.%d"), CountdownMs / 1000, (CountdownMs / 100) % 10) : FormatLapTime(LapTimeMs)));
 	}
 
-	if (Lap != LastLap && LapText)
+	if ((Lap != LastLap || bPhaseChanged) && LapText)
 	{
 		LastLap = Lap;
-		LapText->SetText(FText::FromString(Lap > 0 ? FString::Printf(TEXT("LAP %d"), Lap) : TEXT("LAP -")));
+		bPhaseChanged = false;
+		LapText->SetText(FText::FromString(!PhaseLabel.IsEmpty() ? PhaseLabel
+				: Lap > 0                                    ? FString::Printf(TEXT("LAP %d"), Lap)
+				                                             : FString(TEXT("LAP -"))));
+	}
+}
+
+void UApexCockpitDashWidget::SetPhaseLabel(const FString& Label)
+{
+	if (Label != PhaseLabel)
+	{
+		PhaseLabel = Label;
+		bPhaseChanged = true;
 	}
 }

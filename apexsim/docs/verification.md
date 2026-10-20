@@ -370,6 +370,10 @@ in the `flags` component and the radar's RIGHT marker at the start.
   `formation_lap`, and VIRTUAL SAFETY CAR / SAFETY CAR (yellow, flashing
   as it ends) under `safety_car`, beside the `flags` component without
   overlapping it.
+- The safety car drawn (a GT3 body with its amber roof lamps flashing)
+  leading the queue, the lamps out on its last lap, and the cockpit dash
+  showing `SC` / `SC IN` / `VSC` in place of the lap count; the session
+  browser's row naming the race rules and "balanced cars".
 - The `penalty` component as a jump start or a pass under a yellow is
   given (flashing for 8 s), then DRIVE-THROUGH with SERVE WITHIN n LAPS
   until it is served; PEN +5S in the standings and the results.

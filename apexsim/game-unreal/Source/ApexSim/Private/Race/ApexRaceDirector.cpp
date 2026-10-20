@@ -883,6 +883,11 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
 	UpdateFlagPanels(Frame);
+	UpdateSafetyCar(Frame);
+	if (Rig)
+	{
+		Rig->SetRacePhase(Frame.RacePhase);
+	}
 	UpdateRaceBleeps(Frame, PreviousState);
 	if (Rig)
 	{
@@ -1185,6 +1190,85 @@ void AApexRaceDirector::UpdateFlagPanels(const FApexTelemetryFrame& Frame)
 		Lamp->SetVectorParameterValue(ColorParam, Color);
 		Lamp->SetVectorParameterValue(BaseParam, Color * 0.05f);
 		Lamp->SetScalarParameterValue(EmissiveParam, Lit != 0 ? PitExitLampEmissive : 0.0f);
+	}
+}
+
+void AApexRaceDirector::UpdateSafetyCar(const FApexTelemetryFrame& Frame)
+{
+	const FApexSafetyCarPose& Pose = Frame.SafetyCar;
+	if (!Pose.bValid || !IsTrackVisible())
+	{
+		if (SafetyCarActor)
+		{
+			SafetyCarActor->SetActorHiddenInGame(true);
+			for (UPointLightComponent* Lamp : SafetyCarLamps)
+			{
+				if (Lamp)
+				{
+					Lamp->SetVisibility(false);
+				}
+			}
+		}
+		return;
+	}
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	if (!SafetyCarActor)
+	{
+		FActorSpawnParameters Params;
+		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		SafetyCarActor = World->SpawnActor<AApexRaceCarActor>(
+			AApexRaceCarActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator, Params);
+		if (!SafetyCarActor)
+		{
+			return;
+		}
+		SafetyCarActor->SetCarIndex(SafetyCarIndex);
+		SafetyCarActor->SetDisplayName(TEXT("SAFETY CAR"));
+		ApplyCatalogMesh(SafetyCarActor, SafetyCarModelId, 0);
+		// Two amber lamps on the roof, left and right of its middle.
+		const FBox Body = SafetyCarActor->GetBodyBox();
+		const FVector Roof(Body.GetCenter().X, 0.0, Body.Max.Z + 6.0);
+		SafetyCarLamps.Reset();
+		for (const float Side : { -35.0f, 35.0f })
+		{
+			UPointLightComponent* Lamp = NewObject<UPointLightComponent>(SafetyCarActor);
+			Lamp->SetupAttachment(SafetyCarActor->GetRootComponent());
+			Lamp->SetRelativeLocation(Roof + FVector(0.0, Side, 0.0));
+			Lamp->SetLightColor(FLinearColor(1.0f, 0.55f, 0.05f));
+			Lamp->SetIntensity(30000.0f);
+			Lamp->SetAttenuationRadius(1500.0f);
+			Lamp->SetCastShadows(false);
+			Lamp->RegisterComponent();
+			SafetyCarActor->AddInstanceComponent(Lamp);
+			SafetyCarLamps.Add(Lamp);
+		}
+		UE_LOG(LogApexSim, Log, TEXT("Safety car on the road"));
+	}
+
+	FApexCarTelemetry Car;
+	Car.CarIndex = SafetyCarIndex;
+	Car.Position = Pose.Position;
+	Car.YawRad = Pose.YawRad;
+	Car.SpeedMps = Pose.SpeedMps;
+	Car.bIsOnTrack = true;
+	SafetyCarActor->ApplyTelemetry(Car, Frame.ServerTick);
+	SafetyCarActor->SetActorHiddenInGame(false);
+	SafetyCarActor->SetHeadlights(bRaceViewActive);
+
+	// Lit, each side in turn, until it is in this lap.
+	const bool bLit = Frame.RacePhase != ApexRacePhase::ScInThisLap;
+	const double Now = World->GetRealTimeSeconds();
+	const bool bLeft = FMath::Frac(Now * SafetyCarFlashHz) < 0.5;
+	for (int32 Index = 0; Index < SafetyCarLamps.Num(); ++Index)
+	{
+		if (UPointLightComponent* Lamp = SafetyCarLamps[Index])
+		{
+			Lamp->SetVisibility(bLit && ((Index == 0) == bLeft));
+		}
 	}
 }
 
@@ -3675,6 +3759,12 @@ void AApexRaceDirector::DestroyAllCars()
 	Cars.Reset();
 	CarIdShown.Reset();
 	VerifiedCarId.Reset();
+	if (SafetyCarActor)
+	{
+		SafetyCarActor->Destroy();
+		SafetyCarActor = nullptr;
+	}
+	SafetyCarLamps.Reset();
 	// Their smoke and the bodywork they shed go with them.
 	if (AApexCarEffectsActor* Effects = AApexCarEffectsActor::Get(GetWorld(), /*bSpawn*/ false))
 	{
@@ -5004,6 +5094,11 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
 	UpdateFlagPanels(Frame);
+	UpdateSafetyCar(Frame);
+	if (Rig)
+	{
+		Rig->SetRacePhase(Frame.RacePhase);
+	}
 }
 
 void AApexRaceDirector::SeatReplayEye()

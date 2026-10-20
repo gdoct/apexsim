@@ -760,6 +760,26 @@ private:
 	/** Panels flash at this rate, half the period lit. */
 	static constexpr float FlagPanelFlashHz = 1.5f;
 
+	/**
+	 * The safety car on the road (`FApexTelemetryFrame::SafetyCar`): a car
+	 * of its own, moved by the same interpolation as the field, with amber
+	 * roof lamps flashing until it is in this lap (`race_phase` 6). Hidden
+	 * while there is none. It is no body on the server, so a lapped car let
+	 * by drives through it.
+	 */
+	void UpdateSafetyCar(const FApexTelemetryFrame& Frame);
+
+	UPROPERTY(Transient)
+	TObjectPtr<AApexRaceCarActor> SafetyCarActor;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<class UPointLightComponent>> SafetyCarLamps;
+	/** Its index in the actor's own telemetry; no car of the field has it. */
+	static constexpr int32 SafetyCarIndex = -2;
+	/** The body it wears: the Murcetes-AMD GT3 (`cars/default/murcetes-amd-gt3`). */
+	static constexpr const TCHAR* SafetyCarModelId = TEXT("a442d320-0aec-4d60-822a-289563bc558b");
+	/** The roof lamps' flash, each side in turn. */
+	static constexpr float SafetyCarFlashHz = 2.0f;
+
 	/** The session's circuit, built from its export. */
 	UPROPERTY(Transient)
 	TObjectPtr<class UApexTrackInstance> Track;

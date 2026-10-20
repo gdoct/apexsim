@@ -33,7 +33,6 @@ When an item is done, delete it from its backlog and from here.
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
 | A6 | AI lifts for trouble it sees ahead | AI | P2 | 🟢 | M |
-| R6 | Race control on screen: safety car, dash, lobby rules | Client + wire | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each |
@@ -206,14 +205,6 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** the key signs a challenge at join and never leaves the
 machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
 sim path free of persistence reads.
-
-#### R6. Race control on screen — P2 · 🟡 · M
-*Source: follow-ups #20.* Draw the safety car
-(`FApexTelemetryFrame::SafetyCar`: a car with roof light bars, lit until
-`race_phase` 6, interpolated like a car), the safety-car phase and pace
-on the cockpit dash, the race rules in the lobby listing (a wire change:
-append, goldens on both sides), and a note in the session browser when a
-server balances its cars. Checked in V1's R13 run; a person judges.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.

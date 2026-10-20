@@ -1113,6 +1113,25 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("its recordings port"), WithPort.LobbyState.RecordingsPort, 9002);
 		TestTrue(TEXT("and the live stream"), WithPort.LobbyState.bLiveStream);
 	}
+	TestFalse(TEXT("an older lobby does not balance its cars"), Lobby.bBalanced);
+	{
+		FApexServerMessage Rules;
+		if (TestTrue(TEXT("a lobby listing race rules decodes"),
+				ApexProtocol::DecodeServerMessage(ApexGolden::S_LobbyStateRaceRules, Rules, Error))
+			&& TestEqual(TEXT("one session"), Rules.LobbyState.AvailableSessions.Num(), 1))
+		{
+			const FApexRaceRules& Race = Rules.LobbyState.AvailableSessions[0].RaceRules;
+			TestTrue(TEXT("the server balances its cars"), Rules.LobbyState.bBalanced);
+			TestTrue(TEXT("a formation lap"), Race.bFormationLap);
+			TestTrue(TEXT("jump starts"), Race.bJumpStart);
+			TestTrue(TEXT("yellow passes"), Race.bYellowPenalty);
+			TestFalse(TEXT("no pit exit penalty"), Race.bPitExitPenalty);
+			TestEqual(TEXT("the safety car"), Race.SafetyCar, EApexSafetyCar::Full);
+			TestEqual(TEXT("reverse grid"), static_cast<int32>(Race.ReverseGrid), 6);
+			TestEqual(TEXT("the browser's words"), Race.Normalised().Describe(),
+				FString(TEXT("formation lap · 2 penalties · safety car · reverse 6")));
+		}
+	}
 	{
 		FApexServerMessage Site;
 		if (TestTrue(TEXT("a lobby with a track's site decodes"),

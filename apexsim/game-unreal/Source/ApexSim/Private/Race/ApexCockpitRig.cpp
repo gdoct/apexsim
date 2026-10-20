@@ -730,6 +730,7 @@ void AApexCockpitRig::PushDash()
 	// The wire never states a redline; the bar's full scale is the highest
 	// the engine has been seen to rev, which it reaches by the first shift.
 	ObservedMaxRpm = FMath::Max(ObservedMaxRpm, Car->GetEngineRpm());
+	Widget->SetPhaseLabel(ApexRacePhase::DashLabel(RacePhase));
 	Widget->SetValues(Car->GetGear(), ApexRace::MpsToKph(Car->GetSpeedMps()), Features.bMetric,
 		Car->GetEngineRpm() / ObservedMaxRpm, Car->GetCurrentLap(), Car->GetCurrentLapTimeMs(), CountdownMs);
 }

@@ -191,6 +191,8 @@ namespace
 		return true;
 	}
 
+	bool ParseRaceRules(FMsgPackReader& Reader, FApexRaceRules& Out);
+
 	bool ParseSessionSummary(FMsgPackReader& Reader, FApexSessionSummary& Out)
 	{
 		int32 FieldCount = 0;
@@ -223,6 +225,7 @@ namespace
 			else if (Key == TEXT("WeekendWaiting")) { bOk = Reader.ReadBool(Out.bWeekendWaiting); }
 			else if (Key == TEXT("MandatoryStops")) { bOk = Reader.ReadUInt64(Raw); Out.MandatoryStops = ApexMandatoryStops::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("CompoundChange")) { bOk = Reader.ReadBool(Out.bCompoundChange); }
+			else if (Key == TEXT("RaceRules"))  { bOk = ParseRaceRules(Reader, Out.RaceRules); }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -464,6 +467,10 @@ namespace
 				uint64 Port = 0;
 				bOk = Reader.ReadUInt64(Port);
 				Out.RecordingsPort = static_cast<int32>(FMath::Min<uint64>(Port, 65535));
+			}
+			else if (Key == TEXT("Balanced"))
+			{
+				bOk = Reader.ReadBool(Out.bBalanced);
 			}
 			else
 			{

@@ -88,6 +88,8 @@ public:
 
 	/** Session countdown for the display; negative when not counting. */
 	void SetCountdownMs(int32 Ms) { CountdownMs = Ms; }
+	/** The race's phase (`ApexRacePhase`), flagged on the dash while it lasts. */
+	void SetRacePhase(int32 Phase) { RacePhase = Phase; }
 
 	/** The rear view for the HUD, or null while the virtual mirror is off. */
 	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
@@ -216,6 +218,7 @@ private:
 	FVector EyeLocal = FVector::ZeroVector;
 	FApexCockpitFeatures Features;
 	int32 CountdownMs = -1;
+	int32 RacePhase = 0;
 
 	float WheelRollDeg = 0.0f;
 	float DriverRimLockDeg = 0.0f;

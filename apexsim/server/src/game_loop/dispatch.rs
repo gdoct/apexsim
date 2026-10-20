@@ -580,6 +580,7 @@ async fn handle_create_session(
         race_seconds,
         weekend_waiting: false,
         pit_rule,
+        race_rules,
         track_config_id,
         damage,
         max_players,

@@ -188,17 +188,15 @@ The race-start rules and penalties ([server/sessions.md](server/sessions.md#race
 are on the wire and run on the server, and the create screen offers them;
 the client does not show all of them yet, and the server leaves a few edges.
 
-- client: the safety car phase on the cockpit dash, with the pace (the
-  HUD's `race_phase` banner and `race.phase` data points are built).
-- client: draw the safety car (`FApexTelemetryFrame::SafetyCar`, decoded
-  and not drawn): a car model with roof light bars, lit until `race_phase`
-  6, interpolated like a car; it drives through a lapped car passing it
-  (it is no body on the server), so the pass is seen as an overlap.
+- client: the cockpit dash flags the phase (`SC`, `VSC`, `FORM`) but not
+  the pace a car is held to (`speed_cap_mps` is not on the wire).
+- client: the safety car is a car of its own (the Murcetes-AMD GT3's body,
+  amber roof lamps); it drives through a lapped car passing it (it is no
+  body on the server), so the pass is seen as an overlap.
 - Balance of performance (`[[balance]]`, server only): the client's
   predicted car (`apexsim.net.Predict`) steps its own car.toml without the
   ballast, power and downforce, so a balanced car's prediction errs until
-  the snapshot corrects it; the session browser does not say a server
-  balances its cars.
+  the snapshot corrects it.
 - Since a yellow waits `INCIDENT_CONFIRM_S` (1.5 s), the AI no longer slows
   for a car that is only briefly in trouble ahead: the whole-calendar
   survey (seeds 1-2) went from 485 to 654 car-seconds off the road
@@ -220,7 +218,6 @@ the client does not show all of them yet, and the server leaves a few edges.
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.
 - A rolling start runs single file; real ones line up two by two.
-- The lobby listing does not carry the race rules.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,

@@ -44,6 +44,9 @@ pub struct LobbySessionInfo {
     pub weekend_waiting: bool,
     /// The race's pit-stop rule, for the session browser.
     pub pit_rule: PitRule,
+    /// The race-control rules (start, penalties, safety car, reverse
+    /// grid), for the session browser.
+    pub race_rules: crate::data::RaceRules,
     pub max_players: u8,
     pub current_player_count: u8,
     pub spectator_count: u8,
@@ -414,6 +417,7 @@ impl LobbyManager {
                 weekend_waiting: s.weekend_waiting,
                 mandatory_stops: s.pit_rule.mandatory_stops,
                 compound_change: s.pit_rule.compound_change,
+                race_rules: s.race_rules,
             })
             .collect()
     }
@@ -527,6 +531,7 @@ mod tests {
             race_seconds: None,
             weekend_waiting: false,
             pit_rule: PitRule::default(),
+            race_rules: Default::default(),
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -592,6 +597,7 @@ mod tests {
             race_seconds: None,
             weekend_waiting: false,
             pit_rule: PitRule::default(),
+            race_rules: Default::default(),
             max_players: 8,
             current_player_count: 0,
             spectator_count: 0,
@@ -645,6 +651,7 @@ mod tests {
             race_seconds: None,
             weekend_waiting: false,
             pit_rule: PitRule::default(),
+            race_rules: Default::default(),
             max_players: 8,
             current_player_count: 2,
             spectator_count: 0,

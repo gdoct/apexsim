@@ -321,6 +321,17 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	{
 		Parts.Add(PitRule);
 	}
+	// Its race-control rules, when off their defaults: "formation lap ·
+	// 2 penalties · safety car".
+	if (const FString Rules = Session.RaceRules.Normalised().Describe(); !Rules.IsEmpty())
+	{
+		Parts.Add(Rules);
+	}
+	// A server that balances its cars drives them unlike their car.toml.
+	if (const UApexNetSubsystem* Net = GetNet(); Net && Net->GetCachedLobbyState().bBalanced)
+	{
+		Parts.Add(TEXT("balanced cars"));
+	}
 
 	FLinearColor BadgeColour;
 	FApexButtonSpec Spec;

@@ -291,6 +291,7 @@ async fn build_lobby_state_with(
 
     let showcase_available = state_read.showcase.is_available();
     let recordings_port = state_read.recordings_port;
+    let balanced = !state_read.config.balance.is_empty();
     drop(state_read);
 
     ServerMessage::LobbyState(LobbyStateData {
@@ -301,6 +302,7 @@ async fn build_lobby_state_with(
         showcase_available,
         live_stream: true,
         recordings_port,
+        balanced,
     })
 }
 
