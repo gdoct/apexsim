@@ -38,6 +38,7 @@ pub mod recovery;
 pub mod road_mesh;
 pub mod road_state;
 pub mod safety_car;
+pub mod seeded_race;
 pub mod slipstream;
 pub mod track_bundle;
 pub mod track_loader;

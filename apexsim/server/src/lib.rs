@@ -63,6 +63,7 @@ pub use apexsim_sim::recovery;
 pub use apexsim_sim::road_mesh;
 pub use apexsim_sim::road_state;
 pub use apexsim_sim::safety_car;
+pub use apexsim_sim::seeded_race;
 pub use apexsim_sim::slipstream;
 pub use apexsim_sim::track_bundle;
 pub use apexsim_sim::track_loader;

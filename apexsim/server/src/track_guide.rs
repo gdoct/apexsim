@@ -15,6 +15,7 @@
 //! Every position in the guide is the server frame, as `-ApexCamera=`
 //! takes it; every time is seconds from the stream's first frame.
 
+use crate::seeded_race::seeded_id;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -714,20 +715,6 @@ pub fn guide_conditions() -> SessionConditions {
 
 fn track_conditions(_track: &TrackConfig) -> SessionConditions {
     guide_conditions().resolve(0)
-}
-
-fn seeded_id(seed: u64, index: u64) -> uuid::Uuid {
-    let mut state = seed ^ index.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ 0x6775_6964_6500_0000;
-    let mut next = || {
-        state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = state;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    };
-    let high = next() as u128;
-    let low = next() as u128;
-    uuid::Builder::from_random_bytes(((high << 64) | low).to_be_bytes()).into_uuid()
 }
 
 /// Run one car from the grid through its first flying lap and `tail_s`

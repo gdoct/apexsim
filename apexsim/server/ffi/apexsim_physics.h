@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 3u
+#define APX_ABI_VERSION 4u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -256,6 +256,57 @@ ApxStatus apx_track_road_rows(ApxTrack *track, uint32_t first_cell,
                               const uint8_t *rows, size_t rows_len,
                               const uint8_t *snow_rows, size_t snow_rows_len,
                               const uint8_t *lane_snow, size_t lane_snow_len);
+
+/* ---- A seeded race nobody drives (ABI 4) ------------------------------- */
+
+typedef struct ApxRace ApxRace;
+
+/* One car of a race, in grid order: the server's frame, metres. */
+typedef struct ApxRaceCar {
+    uint32_t grid_position;
+    float x, y, z;
+    float yaw_rad;
+    float speed_mps;
+    uint32_t lap;            /* laps begun (current_lap) */
+    float track_progress_m;  /* the place on this lap */
+    uint8_t finished;        /* 1 once it has finished */
+} ApxRaceCar;
+
+#ifdef __cplusplus
+static_assert(sizeof(ApxRaceCar) == 36, "ApxRaceCar layout");
+#else
+typedef char apx_race_car_layout[(sizeof(ApxRaceCar) == 36) ? 1 : -1];
+#endif
+
+/* Start a seeded race as `apexsim-replay render` starts one
+ * (seeded_race::start_race): the track, conditions as apx_track_load takes
+ * them (null for the defaults) resolved for the seed, ai_count cars of
+ * host_car's class (a folder, id or name under cars_dir), laps to the flag,
+ * countdown_s of countdown, at tick_rate. The same arguments give the same
+ * race, tick for tick, as the server's render of that seed. */
+ApxStatus apx_race_start(const char *track_yaml, const char *cars_dir,
+                         const char *host_car, uint8_t ai_count, uint8_t laps,
+                         uint16_t countdown_s, uint16_t tick_rate, uint64_t seed,
+                         const uint8_t *conditions, size_t conditions_len,
+                         ApxRace **out);
+
+/* Tick it `ticks` times, every car driven by its AI (seeded_race::tick_field). */
+ApxStatus apx_race_tick(ApxRace *race, uint32_t ticks);
+
+/* The session's tick count. */
+ApxStatus apx_race_current_tick(const ApxRace *race, uint32_t *out);
+
+/* Every car in grid order into out (room for capacity); written is the
+ * field's size. APX_ERR_BUFFER, nothing but written set, when it does not fit. */
+ApxStatus apx_race_cars(const ApxRace *race, ApxRaceCar *out, size_t capacity,
+                        size_t *written);
+
+/* A digest of every car's full state and the tick (FNV-1a over their
+ * MessagePack): two races that agree on it agree bit for bit. */
+ApxStatus apx_race_digest(const ApxRace *race, uint64_t *out);
+
+/* Free a race (null is ignored). */
+void apx_race_free(ApxRace *race);
 
 #ifdef __cplusplus
 }

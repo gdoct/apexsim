@@ -225,7 +225,9 @@ fn print_bundle_sizes() {
         .map(PathBuf::from)
         .unwrap_or_else(|_| repo("../apexsim-content/tracks/default"));
     let names: Vec<String> = std::env::var("BUNDLE_TRACKS")
-        .unwrap_or_else(|_| "Monzarella,SpaFrankenchamps,Mordschleife,Lemons,Sudoku,Snorisring".into())
+        .unwrap_or_else(|_| {
+            "Monzarella,SpaFrankenchamps,Mordschleife,Lemons,Sudoku,Snorisring".into()
+        })
         .split(',')
         .map(|s| s.trim().to_string())
         .collect();

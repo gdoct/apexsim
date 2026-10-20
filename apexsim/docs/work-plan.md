@@ -479,6 +479,10 @@ session kind retires (as Demo does, X1).
 to the session tick (AI drivers, contact, walls, road state, race control:
 the server's own code behind the C API), then run `track_guide.rs` and the
 showcase render through it in the game.
+**Built 2026-10-20:** step 1, the session tick in the library
+(`seeded_race`, `apx_race_*`, ABI 4), equal to the render's race tick for
+tick (`server/ffi/tests/seeded_race.rs`). Next: the client side (a showcase
+from its seed, then the guide), roadmap #24.
 **Watch out:** a showcase must stay bit-identical to the server's render of
 the same seed (determinism across the two builds, prediction's trace test
 is the model); a guide's solo runs take time, so make them on a worker

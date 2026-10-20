@@ -354,8 +354,7 @@ fn run_trace(mode: RoadContactMode, aids: Option<DriverAids>, ticks: u32) {
             // One sample a tick the car is driven; none once a wall has
             // left it undrivable (the trace runs off the road on purpose).
             assert_eq!(
-                felt.steer_samples,
-                driven as u32,
+                felt.steer_samples, driven as u32,
                 "tick {tick}: one steering sample a driven tick"
             );
             kicks += (felt.steer_kick != 0.0) as u32;

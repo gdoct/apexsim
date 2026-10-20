@@ -118,9 +118,15 @@ The client links the server's physics for prediction
 same library can run whole sessions in the game where nobody races
 against it: no server process, no recorded stream, one simulation.
 
-- Grow the library from one car's step to the session's tick: AI drivers,
-  car-to-car contact, walls, the road state and race control, the server's
-  own code behind the same C API (no copy), seeded as the server seeds it.
+- Built (2026-10-20): the library runs a whole seeded race, the server's
+  own code behind the C API. The setup `apexsim-replay render` runs lives in
+  the simulation (`apexsim_sim::seeded_race`: `start_race`, `tick_field`,
+  `seeded_id`; the server's `replay_tools` re-exports it), and
+  `apx_race_start` / `apx_race_tick` / `apx_race_cars` / `apx_race_digest`
+  (ABI 4) start and tick it: `server/ffi/tests/seeded_race.rs` holds it to
+  the render's race digest for digest each second. Next: the client calling
+  it (a showcase from its seed in the game, the backdrop with no server),
+  the guide's solo runs (`track_guide` into the simulation as well).
 - The menu's backdrop and the hotlap watch run in-process from a seed: no
   `SessionKind::Demo` session on the server (which retires its remaining
   uses, see the work plan's X1) and no `.apxs` showcases to render and

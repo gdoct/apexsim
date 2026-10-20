@@ -4,8 +4,11 @@
 //!
 //! One physics: [`apx_car_step`] calls `car_step::step_lone_car`, the very
 //! function a `GameSession` runs for each car, with the session's own `dt`
-//! and the wind the session gives the tick. Nothing here simulates; it
-//! loads, converts and guards.
+//! and the wind the session gives the tick. A whole race nobody drives (a
+//! showcase, a guide's field, Watch hotlap) is [`apx_race_start`] and
+//! [`apx_race_tick`]: `seeded_race::start_race` and `tick_field`, the setup
+//! and tick `apexsim-replay render` runs. Nothing here simulates; it loads,
+//! converts and guards.
 //!
 //! Every function catches panics and returns an [`ApxStatus`]; the message
 //! of the last failure on a thread is [`apx_last_error`]. Handles are owned
@@ -33,7 +36,7 @@ use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 3;
+pub const APX_ABI_VERSION: u32 = 4;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -1066,6 +1069,10 @@ mod tests {
             std::mem::size_of::<ApxFeedback>()
         )));
         assert!(header.contains(&format!(
+            "sizeof(ApxRaceCar) == {}",
+            std::mem::size_of::<ApxRaceCar>()
+        )));
+        assert!(header.contains(&format!(
             "#define APX_FEEDBACK_SAMPLES {APX_FEEDBACK_SAMPLES}"
         )));
         for (name, value) in [
@@ -1119,5 +1126,223 @@ mod tests {
                 "{name}"
             );
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// A seeded race nobody drives
+// ---------------------------------------------------------------------------
+
+/// A seeded AI race: `seeded_race::start_race`, the very setup a showcase
+/// render runs, counting down from its start. Owned by the caller, freed
+/// with [`apx_race_free`]; one thread at a time.
+pub struct ApxRace {
+    race: apexsim_sim::game_session::GameSession,
+}
+
+impl ApxRace {
+    /// The session, for a Rust caller (the tests compare it with the
+    /// server's own render of the same seed).
+    pub fn session(&self) -> &apexsim_sim::game_session::GameSession {
+        &self.race
+    }
+}
+
+/// One car of a race, in grid order: where it is (the server's frame,
+/// metres), which way it points and how fast, and how far it has got.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ApxRaceCar {
+    pub grid_position: u32,
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub yaw_rad: f32,
+    pub speed_mps: f32,
+    /// Laps begun (`current_lap`) and the place on this one, m.
+    pub lap: u32,
+    pub track_progress_m: f32,
+    /// 1 once the car has finished the race.
+    pub finished: u8,
+}
+
+/// Start a seeded race as `apexsim-replay render` starts one: the track at
+/// `track_yaml` with `conditions` (as [`apx_track_load`] takes them, null
+/// for the defaults) resolved for `seed`, the field of `ai_count` cars of
+/// `host_car`'s class (a folder, id or name under `cars_dir`), `laps` to
+/// the flag, `countdown_s` of countdown, ticked at `tick_rate`. The same
+/// arguments give the same race, tick for tick, as the server's render of
+/// that seed.
+///
+/// # Safety
+/// The strings are NUL-terminated; `conditions` points at
+/// `conditions_len` bytes; `out` is writable.
+#[no_mangle]
+#[allow(clippy::too_many_arguments)]
+pub unsafe extern "C" fn apx_race_start(
+    track_yaml: *const c_char,
+    cars_dir: *const c_char,
+    host_car: *const c_char,
+    ai_count: u8,
+    laps: u8,
+    countdown_s: u16,
+    tick_rate: u16,
+    seed: u64,
+    conditions: *const u8,
+    conditions_len: usize,
+    out: *mut *mut ApxRace,
+) -> ApxStatus {
+    guard(|| {
+        non_null(track_yaml, "track_yaml")?;
+        non_null(cars_dir, "cars_dir")?;
+        non_null(host_car, "host_car")?;
+        non_null(out, "out")?;
+        *out = std::ptr::null_mut();
+        if tick_rate == 0 || ai_count == 0 {
+            return Err(Fail::new(
+                APX_ERR_INVALID,
+                "a race needs a tick rate and a car",
+            ));
+        }
+        let opts = apexsim_sim::seeded_race::SimulateOptions {
+            track_path: c_path(track_yaml)?.into(),
+            cars_dir: c_path(cars_dir)?.into(),
+            host_car: c_path(host_car)?.to_string(),
+            ai_count,
+            laps,
+            countdown_seconds: countdown_s,
+            conditions: session_conditions(bytes(conditions, conditions_len, "conditions")?)?,
+            tick_rate,
+            seed: Some(seed),
+            ..Default::default()
+        };
+        let started =
+            apexsim_sim::seeded_race::start_race(&opts).map_err(|e| Fail::new(APX_ERR_TRACK, e))?;
+        *out = Box::into_raw(Box::new(ApxRace { race: started.race }));
+        Ok(())
+    })
+}
+
+/// Tick the race `ticks` times, every car driven by its AI
+/// (`seeded_race::tick_field`).
+///
+/// # Safety
+/// `race` is a live handle.
+#[no_mangle]
+pub unsafe extern "C" fn apx_race_tick(race: *mut ApxRace, ticks: u32) -> ApxStatus {
+    guard(|| {
+        non_null(race, "race")?;
+        let race = &mut (*race).race;
+        for _ in 0..ticks {
+            apexsim_sim::seeded_race::tick_field(race);
+        }
+        Ok(())
+    })
+}
+
+/// The session's tick count (`current_tick`).
+///
+/// # Safety
+/// `race` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_race_current_tick(race: *const ApxRace, out: *mut u32) -> ApxStatus {
+    guard(|| {
+        non_null(race, "race")?;
+        non_null(out, "out")?;
+        *out = (*race).race.session.current_tick;
+        Ok(())
+    })
+}
+
+/// Every car, in grid order, into `out` (room for `capacity`); `written`
+/// is the field's size. [`APX_ERR_BUFFER`] (nothing written but `written`)
+/// when it does not fit.
+///
+/// # Safety
+/// `race` is a live handle; `out` has room for `capacity` cars; `written`
+/// is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_race_cars(
+    race: *const ApxRace,
+    out: *mut ApxRaceCar,
+    capacity: usize,
+    written: *mut usize,
+) -> ApxStatus {
+    guard(|| {
+        non_null(race, "race")?;
+        non_null(written, "written")?;
+        let cars = race_cars(&(*race).race);
+        *written = cars.len();
+        if cars.len() > capacity {
+            return Err(Fail::new(APX_ERR_BUFFER, format!("{} cars", cars.len())));
+        }
+        non_null(out, "out")?;
+        std::ptr::copy_nonoverlapping(cars.as_ptr(), out, cars.len());
+        Ok(())
+    })
+}
+
+/// The cars of a session in grid order, as [`apx_race_cars`] gives them.
+pub fn race_cars(race: &apexsim_sim::game_session::GameSession) -> Vec<ApxRaceCar> {
+    let mut cars: Vec<ApxRaceCar> = race
+        .session
+        .participants
+        .values()
+        .map(|c| ApxRaceCar {
+            grid_position: c.grid_position as u32,
+            x: c.pos_x,
+            y: c.pos_y,
+            z: c.pos_z,
+            yaw_rad: c.yaw_rad,
+            speed_mps: c.speed_mps,
+            lap: c.current_lap as u32,
+            track_progress_m: c.track_progress,
+            finished: c.finish_position.is_some() as u8,
+        })
+        .collect();
+    cars.sort_by_key(|c| c.grid_position);
+    cars
+}
+
+/// A digest of every car's full state (its MessagePack, in the
+/// participants' order) and the tick: two races that agree on it agree bit
+/// for bit. FNV-1a, 64 bits.
+///
+/// # Safety
+/// `race` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_race_digest(race: *const ApxRace, out: *mut u64) -> ApxStatus {
+    guard(|| {
+        non_null(race, "race")?;
+        non_null(out, "out")?;
+        *out = race_digest(&(*race).race);
+        Ok(())
+    })
+}
+
+/// [`apx_race_digest`] of a session, for a Rust caller.
+pub fn race_digest(race: &apexsim_sim::game_session::GameSession) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    let mut eat = |bytes: &[u8]| {
+        for b in bytes {
+            hash ^= *b as u64;
+            hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    };
+    eat(&race.session.current_tick.to_le_bytes());
+    for state in race.session.participants.values() {
+        eat(&rmp_serde::to_vec(state).unwrap_or_default());
+    }
+    hash
+}
+
+/// Free a race. A null handle is ignored.
+///
+/// # Safety
+/// `race` is a handle from [`apx_race_start`], not used again.
+#[no_mangle]
+pub unsafe extern "C" fn apx_race_free(race: *mut ApxRace) {
+    if !race.is_null() {
+        drop(Box::from_raw(race));
     }
 }
