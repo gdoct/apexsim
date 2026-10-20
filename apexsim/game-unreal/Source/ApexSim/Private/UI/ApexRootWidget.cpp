@@ -2062,10 +2062,32 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		OrderText.ParseIntoArray(GridOrder, TEXT(","));
 	}
+	// The race-control rules (none by default): -ApexRollingStart,
+	// -ApexFormationLap, -ApexPenalties (jump starts, yellow passes and the
+	// pit exit light), -ApexSafetyCar=virtual|on, -ApexReverseGrid=N.
+	FApexRaceRules RaceRules;
+	RaceRules.Start = FParse::Param(FCommandLine::Get(), TEXT("ApexRollingStart")) ? EApexStartType::Rolling : EApexStartType::Standing;
+	RaceRules.bFormationLap = FParse::Param(FCommandLine::Get(), TEXT("ApexFormationLap"));
+	const bool bPenalties = FParse::Param(FCommandLine::Get(), TEXT("ApexPenalties"));
+	RaceRules.bJumpStart = bPenalties;
+	RaceRules.bYellowPenalty = bPenalties;
+	RaceRules.bPitExitPenalty = bPenalties;
+	FString SafetyCarText;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexSafetyCar="), SafetyCarText))
+	{
+		RaceRules.SafetyCar = SafetyCarText.StartsWith(TEXT("v"), ESearchCase::IgnoreCase) ? EApexSafetyCar::Virtual
+			: SafetyCarText.Equals(TEXT("off"), ESearchCase::IgnoreCase)                  ? EApexSafetyCar::Off
+			                                                                                 : EApexSafetyCar::Full;
+	}
+	int32 ReverseGrid = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexReverseGrid="), ReverseGrid))
+	{
+		RaceRules.ReverseGrid = static_cast<uint8>(FMath::Clamp(ReverseGrid, 0, 255));
+	}
 	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
 		AiSkill, Flow->EffectiveRaceSeconds(), GridOrder, Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
 		ApexQualifyingCutoff::Clamp(Cutoff), ApexMandatoryStops::Clamp(MandatoryStops), bCompoundChange,
-		QualifyingFormat, ApexQualifyingLapAllowance::Clamp(LapAllowance));
+		QualifyingFormat, ApexQualifyingLapAllowance::Clamp(LapAllowance), RaceRules.Normalised());
 }
 
 void UApexRootWidget::HandleUdpReady()

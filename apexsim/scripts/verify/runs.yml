@@ -2250,3 +2250,40 @@ runs:
     server: {stand_in: true}
     shots:
       - {at: 10, label: "inside curb at 1024 m (9.3 deg)", checks: "B7", exec: "apexsim.cam.LookAt 729.0 380.2 11.4 734.5 366.1 10.1"}
+
+  # R13 with tonight's pieces (2026-10-20): a car's engine killed on the
+  # road at 20 s of green brings out a yellow (the marshal light panels
+  # flash in its sector), then the safety car (drawn, roof lamps), the
+  # stand-in queueing behind it; the cockpit dash flags SC. The lobby's
+  # race rules show in the session browser (r9 runs), not here.
+  - id: r13b-safety-car
+    about: "R13. The safety car drawn, the dash's SC, the light panels lit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Caravan
+      - -ApexAiCount=7
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+      - -ApexSafetyCar=on
+    server:
+      stand_in: true
+      events:
+        - "20:4:damage=engine:100"
+    exec:
+      30: ["apexsim.hud.Data flag.", "apexsim.hud.Data race."]
+      60: ["apexsim.hud.Data race."]
+      90: ["apexsim.hud.Data race."]
+    shots:
+      - {at: 28, label: "the yellow out: a light panel ahead?", checks: "F2 panels flash yellow in the incident's sector"}
+      - {at: 31, label: "", checks: "F2 panels"}
+      - {at: 45, label: "safety car called", checks: "R6 the safety car drawn, lamps"}
+      - {at: 60, label: "the queue behind the safety car", checks: "R6 the safety car leading the queue"}
+      - {at: 75, label: "", checks: "R6 the safety car"}
+      - {at: 90, label: "cockpit: the dash", checks: "R6 the dash shows SC", exec: "apexsim.cam.Chase cockpit"}
+      - {at: 105, label: "TV", checks: "R6 the safety car from the TV camera", exec: "apexsim.tv.Shot trackside"}
+      - {at: 120, label: "", checks: "R6 the safety car in this lap: lamps out"}

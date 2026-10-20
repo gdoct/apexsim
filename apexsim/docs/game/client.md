@@ -688,7 +688,10 @@ session), `-ApexNoStart`
 `-ApexLockAssists=abs,tc,gearbox,steering,line`, `-ApexQualifyingCutoff=N`
 (the cut-off, percent of pole; 107 is the rule), `-ApexMandatoryStops=N`
 (0-3) and `-ApexCompoundChange` (the race's pit rule),
-`-ApexQualifyingFormat=shootout`, `-ApexLapAllowance=N`,
+`-ApexQualifyingFormat=shootout`, `-ApexLapAllowance=N`, the race-control
+rules `-ApexRollingStart`, `-ApexFormationLap`, `-ApexPenalties` (jump
+starts, yellow passes, the pit exit light), `-ApexSafetyCar=virtual|on`
+and `-ApexReverseGrid=N`,
 `-ApexGridOrder=@host,@ai:1,...` (the start order), sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
