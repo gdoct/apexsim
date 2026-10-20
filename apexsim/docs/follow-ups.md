@@ -103,6 +103,13 @@ them again).
   car comes up to it (flashing blue). Judge them lit in a race
   (`r13-race-control`) and dark in `o1-*`.
 
+- **Road crown and bumps (S1).** Every circuit but an import falls 2% from
+  a rounded crown to each edge (none where it is banked) and carries
+  millimetre bumps, on both backends; in the rain each cell holds a strip
+  of water along one edge. Judge the feel on the wheel (H1: road texture,
+  the car on the crown) and the wet edges; the look low across a straight
+  (`o1-sudoku`).
+
 ## P2: depth
 
 ### 5. Hotlap and lap records

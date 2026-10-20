@@ -325,12 +325,15 @@ banking, a stream along the inside of a cambered corner (and so never a
 `puddle_cells` dip). Water over 1 is standing water. The puddle of a low
 cell lies across part of the road (`RoadState::bin_depth`): at the low edge
 where the road is banked over half a degree (positive banking lowers the
-right), at a seeded spot (`wind::hash01` of the cell) on a flat one, 1.5-3 m
-half-wide plus 3 m for a full dip; the rest of the cell holds the flat
-road's share (`1 / (1 + PUDDLE_GAIN x low)`). A tyre, the ice and the line's
-water read the bin's depth; the grass holds the cell's. The road has no
-crown in the track data, so a crowned straight drains no differently from a
-flat one.
+right), at a seeded one of the two edges (`wind::hash01` of the cell) on a
+crowned one, at a seeded spot on a flat road without a crown (an imported
+circuit), 1.5-3 m half-wide plus 3 m for a full dip; the rest of the cell
+holds the flat road's share (`1 / (1 + PUDDLE_GAIN x low)`). A tyre, the ice
+and the line's water read the bin's depth; the grass holds the cell's. The
+crown (`apexsim_formats::road_profile`, `TrackConfig::road_profile`) counts
+as a bank of its 2% grade for `edge_low`, fading out as the road's banking
+takes over, so every crowned cell holds a strip of water along an edge in
+the rain.
 
 ### Snow on the road
 

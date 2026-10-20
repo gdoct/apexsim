@@ -27,7 +27,6 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| The road has no crown or bumps: the road mesh's cross-section is flat edge to edge (`ue_export` `road`) and the centerline backend's surface is the bank plane, so a car rides a road with no drainage camber, ripples or seams, and the road state's water runs only to a banked edge (`road_state::edge_low`). A crown has to land on both backends at once. | Med | Med |
 | A circuit's time zone is a coarse map (`data::legal_clock`), not the real zone boundaries; the season's air is one cosine by latitude (`data::season_air_c`), with no continental or maritime climate, no wet or dry season in the tropics and no altitude lapse. | Low | Low |
 | Rain falls on the whole circuit at once: the weather is one figure eased in time (`conditions.rs`), with no cells moving across the circuit on the wind, so one end cannot be wet while the other is dry, and the rain radar (roadmap #26) can only draw cells from the forecast. Rain by place goes into the road state's cells and the baked grip, on the server only. | High | Med |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |

@@ -89,6 +89,9 @@ const M_TO_CM: f32 = 100.0;
 const STEP_M: f32 = 1.0;
 /// Ground patches are big and flat; they do not need road tessellation.
 const SURFACE_STEP_M: f32 = 4.0;
+/// Widest column across the road and the paint on it, so a section
+/// follows the crown (`apexsim_formats::road_profile`).
+const ROAD_COLUMN_M: f32 = 1.0;
 
 /// Strips are cut at multiples of this station, and chunks that share a
 /// section and a material are merged into one mesh. Without it a circuit
@@ -2123,6 +2126,9 @@ impl Bake<'_> {
         lat_b: f32,
         lift_m: f32,
     ) {
+        // Columns no wider than the road's own, so paint across the road
+        // lies on its crown rather than bridging it.
+        let columns = ((lat_b - lat_a).abs() / ROAD_COLUMN_M).ceil().max(1.0) as usize;
         self.strip(
             path,
             start_m,
@@ -2130,8 +2136,10 @@ impl Bake<'_> {
             step_m,
             key,
             move |_, _, out| {
-                out.push(ProfilePoint::lifted(lat_a, lift_m));
-                out.push(ProfilePoint::lifted(lat_b, lift_m));
+                for c in 0..=columns {
+                    let lat = lat_a + (lat_b - lat_a) * c as f32 / columns as f32;
+                    out.push(ProfilePoint::lifted(lat, lift_m));
+                }
             },
             |_, _, p| p.2,
         );
@@ -2609,6 +2617,23 @@ impl Bake<'_> {
         }
         self.register("road", "road", [0.24, 0.24, 0.26, 1.0]);
         let surface = self.physics.surface(RoadSurface::road());
+        // Columns across, out from the centerline on each side, so the
+        // section follows the road's crown and bumps (`offset_point`); a
+        // strip keeps one count, so each side takes it from its widest.
+        let (mut widest_left, mut widest_right) = (0.0f32, 0.0f32);
+        for s in path.samples() {
+            widest_left = widest_left.max(s.width_left_m);
+            widest_right = widest_right.max(s.width_right_m);
+        }
+        let profiled = path.samples().first().is_some_and(|s| s.profiled);
+        let columns = |widest: f32| {
+            if profiled {
+                ((widest / ROAD_COLUMN_M).ceil() as usize).clamp(1, 32)
+            } else {
+                1
+            }
+        };
+        let (left_columns, right_columns) = (columns(widest_left), columns(widest_right));
         for (start, end, is_concrete) in pieces {
             self.strip_physics(
                 path,
@@ -2621,9 +2646,18 @@ impl Bake<'_> {
                     flatten: false,
                     clip_to_road: false,
                 },
-                |sample, _, out| {
-                    out.push(ProfilePoint::lifted(sample.width_left_m, 0.0));
-                    out.push(ProfilePoint::lifted(-sample.width_right_m, 0.0));
+                move |sample, _, out| {
+                    for k in (1..=left_columns).rev() {
+                        let lat = sample.width_left_m * k as f32 / left_columns as f32;
+                        out.push(ProfilePoint::lifted(lat, 0.0));
+                    }
+                    if left_columns > 1 || right_columns > 1 {
+                        out.push(ProfilePoint::lifted(0.0, 0.0));
+                    }
+                    for k in 1..=right_columns {
+                        let lat = -sample.width_right_m * k as f32 / right_columns as f32;
+                        out.push(ProfilePoint::lifted(lat, 0.0));
+                    }
                 },
                 |_, _, p| p.2,
             );

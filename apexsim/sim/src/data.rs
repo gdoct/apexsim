@@ -1075,6 +1075,13 @@ pub struct TrackConfig {
     /// track: it is read-only and can be tens of megabytes.
     #[serde(skip)]
     pub road_mesh: Option<std::sync::Arc<crate::road_mesh::RoadMesh>>,
+    /// The road has the crown and bumps of
+    /// [`apexsim_formats::road_profile`], which the content's road mesh is
+    /// baked with too: set by the loader for every circuit read from a
+    /// track file but an imported one (`TrackFile::has_road_profile`); a
+    /// track built in code has a flat road.
+    #[serde(default)]
+    pub road_profile: bool,
 }
 
 /// What a car's DRS does when open: fractions of the drag and of the rear
@@ -1287,6 +1294,7 @@ impl Default for TrackConfig {
             walls: None,
             road_state: None,
             road_mesh: None,
+            road_profile: false,
         }
     }
 }

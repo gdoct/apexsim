@@ -71,6 +71,15 @@ vertices are the rendered ones, with these differences:
   Paint (markings, decals, wear bands, grid boxes) is not a surface and is
   not in the mesh. The ground grid and the horizon are not in it either:
   past the outermost band the ground sidecar is the terrain.
+- **The road is crowned and bumpy**: the road's sections carry columns a
+  metre apart (`ROAD_COLUMN_M`), and every point on it stands at
+  `apexsim_formats::road_profile::height_offset` above the banked plane
+  (`track_path::offset_point`): a 2% fall from a rounded crown to each
+  edge, gone on a banked road, and a field of millimetre bumps over the
+  plan. The centerline backend adds the same (`physics::surface_elevation`),
+  so `the_road_mesh_agrees_with_the_centerline_on_monza` holds; an imported
+  circuit (`category: Imported`) has neither. Paint across the road is cut
+  into the same columns, so it lies on the crown.
 - **The verge is a step**: ground bands sit `VERGE_DROP_M` (8 cm,
   `terrain.rs`) below the road edge, as on screen.
 - **Layer order matters.** The road is baked first, then the bands in layer

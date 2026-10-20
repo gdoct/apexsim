@@ -25,8 +25,10 @@
 //!   rain leaves on the flat (`water` over 1 is a puddle, which costs every
 //!   tyre: `tyre_thermal::Compound::grip_on`). The puddle lies across part
 //!   of the road ([`RoadState::bin_depth`]): at the low edge of a banked
-//!   road, at a seeded spot on a flat one, as wide as a dip is deep; the
-//!   rest of the cell holds the flat road's water;
+//!   road, at a seeded one of the two edges of a crowned one (the crown's
+//!   cross fall counts as a bank of its grade, `apexsim_formats::road_profile`),
+//!   at a seeded spot on a flat road without a crown (an imported one), as
+//!   wide as a dip is deep; the rest of the cell holds the flat road's water;
 //!
 //! and per bin:
 //!
@@ -442,6 +444,7 @@ impl RoadState {
         let mut zs = Vec::with_capacity(n);
         let mut banks = Vec::with_capacity(n);
         let mut hint = None;
+        let crowned = track.road_profile;
         for (i, cell) in cells.iter_mut().enumerate() {
             let station = (i as f32 + 0.5) * CELL_M;
             if track.centerline.is_empty() {
@@ -473,6 +476,14 @@ impl RoadState {
                 right - 0.5 * cell.puddle_half_m
             } else if bank < -PUDDLE_BANK_RAD {
                 -left + 0.5 * cell.puddle_half_m
+            } else if crowned {
+                // A crowned road sheds its water to both edges: the puddle
+                // stands at one of them, a seeded one.
+                if spread(PUDDLE_SPOT_SALT) < 0.5 {
+                    -left + 0.5 * cell.puddle_half_m
+                } else {
+                    right - 0.5 * cell.puddle_half_m
+                }
             } else {
                 -left + (left + right) * spread(PUDDLE_SPOT_SALT)
             };
@@ -497,6 +508,14 @@ impl RoadState {
             let mean = sum / count.max(1.0);
             let dip = ((mean - zs[i]) / LOW_DEPTH_M).clamp(0.0, 1.0);
             cells[i].low = dip.max(edge_low(banks[i]));
+            if crowned {
+                // The crown's cross fall runs the water to its edges as a
+                // bank of the same grade would, less as the crown gives way
+                // to a banked road's single fall.
+                let crown = apexsim_formats::road_profile::CROWN_GRADE.atan();
+                let share = apexsim_formats::road_profile::crown_share(banks[i]);
+                cells[i].low = cells[i].low.max(edge_low(crown) * share);
+            }
             cells[i].puddle_half_m += PUDDLE_HALF_LOW_M * dip;
             cells[i].depth = Self::standing_depth(rain + SNOW_WATER * baked_snow, cells[i].low);
             cells[i].verge_snow = baked_snow;

@@ -187,12 +187,14 @@ fn the_upper_road_keeps_its_embankment_and_the_lower_road_its_slot() {
     let high = the_underpass(&f).clearance_m;
     let wall = HALF_WIDTH_M + UNDERPASS_WALL_GAP_M;
 
-    // Beside the upper road, clear of the slot: the verge, not a valley.
+    // Beside the upper road, clear of the slot: the verge, not a valley,
+    // below the edge the road's crown leaves.
+    let crown = apexsim_formats::road_profile::crown_max_drop(HALF_WIDTH_M);
     for y in [wall + 3.0, wall + 12.0, -(wall + 3.0), -(wall + 12.0)] {
         let g = f.ground_height_at(HALF_WIDTH_M + 2.0, y);
         assert!(
-            (g - (high - VERGE_DROP_M)).abs() < 0.6,
-            "ground {g} beside the bridge at y = {y}"
+            (g - (high - crown - VERGE_DROP_M)).abs() < 0.6,
+            "ground {g} beside the bridge at y = {y} (high {high})"
         );
     }
     // In the slot, under and beside the bridge: the lower road's verge.
@@ -227,7 +229,13 @@ fn nothing_but_air_is_in_the_slot_under_the_bridge() {
     let baked = ue_export::bake(&track, &scene_with_dressing(&track, &u)).unwrap();
 
     let slot = HALF_WIDTH_M + UNDERPASS_WALL_GAP_M - 0.2;
-    let ceiling = u.clearance_m - DECK_DEPTH_M - 0.1;
+    // The deck follows the road over it, crown and bumps, so its underside
+    // sits that much lower at the edges.
+    let ceiling = u.clearance_m
+        - DECK_DEPTH_M
+        - 0.1
+        - apexsim_formats::road_profile::crown_max_drop(HALF_WIDTH_M)
+        - apexsim_formats::road_profile::BUMP_MAX_M;
     let mut offenders: Vec<String> = Vec::new();
     for mesh in &baked.meshes {
         for p in sample_points(mesh) {

@@ -187,14 +187,15 @@ mod tests {
         );
 
         // Within the shoulder the band hugs its own road edge (less the
-        // verge drop). Far out it obeys the terrain, which 120 m from a
-        // 40 m ridge is well below it.
+        // verge drop), the edge the crown leaves. Far out it obeys the
+        // terrain, which 120 m from a 40 m ridge is well below it.
         // (Loose: this synthetic loop climbs at 40 % through a corner, so
         // a centimetre of station error is a few centimetres of height.)
+        let edge_z = offset_point(&sample, sample.width_left_m).2;
         assert!(
-            (near - (sample.pos.2 - terrain::VERGE_DROP_M)).abs() < 0.1,
+            (near - (edge_z - terrain::VERGE_DROP_M)).abs() < 0.1,
             "near {near} vs {}",
-            sample.pos.2 - terrain::VERGE_DROP_M
+            edge_z - terrain::VERGE_DROP_M
         );
         assert!(
             far < sample.pos.2 - 1.0,

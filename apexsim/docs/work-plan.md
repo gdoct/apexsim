@@ -32,7 +32,6 @@ When an item is done, delete it from its backlog and from here.
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | R3 | Race events across days (persistence, identity, schedule) | Race rules (epic) | P2 | 🟡 | L |
-| S1 | Road crown and bumps | Simulation | P2 | 🟡 | M |
 | A6 | AI lifts for trouble it sees ahead | AI | P2 | 🟢 | M |
 | R6 | Race control on screen: safety car, dash, lobby rules | Client + wire | P2 | 🟡 | M |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L |
@@ -225,23 +224,6 @@ server balances its cars. Checked in V1's R13 run; a person judges.
 - Recovery vehicles and marshals (the safety car is built).
 
 ### Simulation
-
-#### S1. Road crown and bumps — P2 · 🟡 · M
-*Source: simulation-gaps.*
-
-**What:** The road is flat edge to edge; no drainage camber, ripples or
-seams; water runs only to a banked edge.
-**Outcome:** More road feel through FFB, realistic puddling at the edges,
-more convincing wet behaviour.
-**Implementation:** Add a crown and a seeded bump field to the road
-cross-section in `ue_export road` *and* to the centerline backend's surface;
-let `road_state::edge_low` follow the crown.
-**Decided 2026-10-20:** in the content refresh, a 2% crown and a
-small seeded bump field.
-**Watch out:** must land on both backends at once (the survey drives the
-centerline, the live server the mesh); re-export tracks; AI survey before
-and after; this changes every track's checksum, so showcases and guides go
-stale.
 
 #### S2. Low-impact physics gaps — P3 · 🟢 · M–L
 Roll-centre migration and jacking; kerb steps as vertical body

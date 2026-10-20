@@ -388,7 +388,15 @@ impl TerrainHeightfield {
                 max_y = max_y.max(s.pos.1);
                 if s.station_m >= next_station {
                     let half_width = s.width_left_m.max(s.width_right_m);
-                    let edge_drop = half_width * s.banking_rad.sin().abs();
+                    // The crown drops a profiled road's edges further, and a
+                    // bump can dip it ([`apexsim_formats::road_profile`]).
+                    let profile_drop = if s.profiled {
+                        apexsim_formats::road_profile::crown_max_drop(half_width)
+                            + apexsim_formats::road_profile::BUMP_MAX_M
+                    } else {
+                        0.0
+                    };
+                    let edge_drop = half_width * s.banking_rad.sin().abs() + profile_drop;
                     sources.push(Source {
                         x: s.pos.0,
                         y: s.pos.1,
@@ -1664,11 +1672,14 @@ mod tests {
             "ground {z} under the high road's edge should be its verge"
         );
         // …and half a metre past the low road's edge (y = 5) it is the
-        // low road's, not a step up toward the high one.
+        // low road's, under the edge its crown leaves, not a step up toward
+        // the high one.
+        let edge_z = crate::track_path::offset_point(&path.sample_at(250.0), 5.0).2;
         let z = f.ground_height_at(250.0, 5.5);
         assert!(
-            (z - (0.0 - VERGE_DROP_M)).abs() < 0.05,
-            "ground {z} beside the low road should be its verge"
+            (z - (edge_z - VERGE_DROP_M)).abs() < 0.05,
+            "ground {z} beside the low road should be its verge ({})",
+            edge_z - VERGE_DROP_M
         );
         // Neither road is buried.
         assert!(f.ground_height_at(250.0, 0.0) < -0.05);

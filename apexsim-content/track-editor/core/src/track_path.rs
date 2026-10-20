@@ -25,6 +25,11 @@ pub struct PathSample {
     pub banking_rad: f32,
     /// Preview color for the surface type at this sample (linear RGBA).
     pub surface_color: [f32; 4],
+    /// Whether the road has the crown and bumps of
+    /// [`apexsim_formats::road_profile`], which [`offset_point`] adds:
+    /// a circuit's road, but not a pit lane or another polyline, nor an
+    /// imported circuit's.
+    pub profiled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -95,6 +100,7 @@ impl CenterlinePath {
                     width_right_m: lerp(w_right_a, w_right_b, t),
                     banking_rad: lerp(banking_a, banking_b, t),
                     surface_color: color,
+                    profiled: false,
                 });
             }
         }
@@ -112,10 +118,17 @@ impl CenterlinePath {
                 width_right_m,
                 banking_rad: last.banking.unwrap_or(0.0),
                 surface_color: surface_color(last.surface_type.as_deref()),
+                profiled: false,
             });
         }
 
-        Self::finish(samples, track.closed_loop)
+        let mut path = Self::finish(samples, track.closed_loop)?;
+        if track.has_road_profile() {
+            for sample in &mut path.samples {
+                sample.profiled = true;
+            }
+        }
+        Some(path)
     }
 
     /// Sample a free-standing open polyline (e.g. the pit lane) with a
@@ -163,6 +176,7 @@ impl CenterlinePath {
                     width_right_m: half_width_m,
                     banking_rad: 0.0,
                     surface_color: color,
+                    profiled: false,
                 });
             }
         }
@@ -176,6 +190,7 @@ impl CenterlinePath {
                 width_right_m: half_width_m,
                 banking_rad: 0.0,
                 surface_color: color,
+                profiled: false,
             });
         }
 
@@ -275,6 +290,7 @@ impl CenterlinePath {
             width_right_m: lerp(a.width_right_m, b.width_right_m),
             banking_rad: lerp(a.banking_rad, b.banking_rad),
             surface_color: a.surface_color,
+            profiled: a.profiled,
         }
     }
 }
@@ -303,16 +319,32 @@ pub fn curvature_at(path: &CenterlinePath, station_m: f32) -> f32 {
 }
 
 /// Point at `lateral_m` (positive = left) from a cross-section's centerline,
-/// banking applied as the same vertical shear the track ribbon uses.
+/// banking applied as the same vertical shear the track ribbon uses, and
+/// on a profiled road its crown and bumps
+/// ([`apexsim_formats::road_profile::height_offset`], the edge's past it),
+/// as the simulation's centerline backend stands on them.
 pub fn offset_point(sample: &PathSample, lateral_m: f32) -> (f32, f32, f32) {
     let (sin_h, cos_h) = sample.heading_rad.sin_cos();
     // Left-normal in the track XY plane: heading rotated +90 degrees.
     let (nx, ny) = (-sin_h, cos_h);
     let bank_sin = sample.banking_rad.sin();
+    let profile = if sample.profiled {
+        apexsim_formats::road_profile::height_offset(
+            sample.pos.0,
+            sample.pos.1,
+            sample.heading_rad,
+            lateral_m,
+            sample.width_left_m,
+            sample.width_right_m,
+            sample.banking_rad,
+        )
+    } else {
+        0.0
+    };
     (
         sample.pos.0 + nx * lateral_m,
         sample.pos.1 + ny * lateral_m,
-        sample.pos.2 + lateral_m * bank_sin,
+        sample.pos.2 + lateral_m * bank_sin + profile,
     )
 }
 
@@ -472,6 +504,7 @@ mod tests {
             width_right_m: 5.0,
             banking_rad: 0.0,
             surface_color: [0.0; 4],
+            profiled: false,
         };
         let (x, y, z) = offset_point(&sample, 3.0);
         assert!((x - 0.0).abs() < 1e-6);

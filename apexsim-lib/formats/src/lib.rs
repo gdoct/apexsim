@@ -11,6 +11,8 @@
 //!   sidecars `ats-export` bakes beside the YAML (`<Stem>.<kind>.msgpack`,
 //!   written with `rmp_serde::to_vec_named`).
 //! - [`content_crc`]: the checksum both sides put on a source file.
+//! - [`road_profile`]: the road's crown and bumps, which the content's road
+//!   mesh and the simulation's centerline backend both stand on.
 //!
 //! Serde attributes are load-bearing: the tools rewrite YAMLs through
 //! [`track::TrackFile`], so a changed attribute changes the bytes of every
@@ -21,6 +23,7 @@ pub mod curbs;
 pub mod ground;
 pub mod pit;
 pub mod road_mesh;
+pub mod road_profile;
 pub mod track;
 pub mod walls;
 

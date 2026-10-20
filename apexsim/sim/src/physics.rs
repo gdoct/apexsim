@@ -3290,7 +3290,10 @@ const OTHER_LEVEL_M: f32 = 3.0;
 /// centerline point and the signed lateral offset (positive = right).
 ///
 /// On the asphalt it is the centerline elevation sheared by the banking, the
-/// formula the track editor bakes the road ribbon with. Off the asphalt it is
+/// formula the track editor bakes the road ribbon with, and on a profiled
+/// road ([`TrackConfig::road_profile`]) its crown and bumps
+/// ([`apexsim_formats::road_profile`]), which the road mesh is baked with
+/// too; the road edge holds the edge's. Off the asphalt it is
 /// the baked ground heightfield when the track ships one (the grass the
 /// client actually draws), blended in over [`ROAD_EDGE_BLEND_M`]. Without a
 /// heightfield the road-edge height is held, as before.
@@ -3307,11 +3310,26 @@ fn surface_elevation(
         (nearest.width_left_m, -nearest.width_left_m)
     };
     let shear = nearest.banking_rad.sin();
+    // Positive left, as the profile (and the content) count it; past an
+    // edge it holds the edge's.
+    let profile = if track.road_profile {
+        apexsim_formats::road_profile::height_offset(
+            nearest.x,
+            nearest.y,
+            nearest.heading_rad,
+            -lateral_offset,
+            nearest.width_left_m,
+            nearest.width_right_m,
+            nearest.banking_rad,
+        )
+    } else {
+        0.0
+    };
     let overhang = lateral_offset.abs() - half_width;
     if overhang <= 0.0 {
-        return nearest.z - lateral_offset * shear;
+        return nearest.z - lateral_offset * shear + profile;
     }
-    let edge_z = nearest.z - edge_lateral * shear;
+    let edge_z = nearest.z - edge_lateral * shear + profile;
     match track.ground.as_ref() {
         Some(ground) => {
             let ground_z = ground.sample(world_x, world_y);
@@ -7331,6 +7349,7 @@ mod tests {
             walls: None,
             road_state: None,
             road_mesh: None,
+            road_profile: false,
         };
 
         state.pos_x = 0.0;

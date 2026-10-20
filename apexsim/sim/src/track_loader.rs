@@ -196,6 +196,7 @@ impl TrackLoader {
         )?;
 
         let metadata = track_file.metadata.clone().unwrap_or_default();
+        let road_profile = track_file.has_road_profile();
 
         let start_positions = Self::generate_start_positions(&track_file, &centerline_points);
 
@@ -303,6 +304,7 @@ impl TrackLoader {
             walls: None,
             road_state: None,
             road_mesh: None,
+            road_profile,
         };
         config.rebuild_raceline_distances();
         Ok(config)

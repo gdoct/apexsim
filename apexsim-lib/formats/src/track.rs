@@ -57,6 +57,18 @@ pub struct TrackFile {
     pub metadata: Option<TrackMetadata>,
 }
 
+impl TrackFile {
+    /// Whether the road carries the crown and bumps of
+    /// [`crate::road_profile`]: every circuit but an imported one, whose
+    /// road its importer measured (`metadata.category: Imported`).
+    pub fn has_road_profile(&self) -> bool {
+        self.metadata
+            .as_ref()
+            .and_then(|m| m.category.as_deref())
+            .is_none_or(|c| !c.eq_ignore_ascii_case("imported"))
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TrackNode {
     pub x: f32,
