@@ -378,6 +378,20 @@ in the `flags` component and the radar's RIGHT marker at the start.
   given (flashing for 8 s), then DRIVE-THROUGH with SERVE WITHIN n LAPS
   until it is served; PEN +5S in the standings and the results.
 
+### R14. The rain radar
+
+`n25-rain-radar`: Spa overcast, heavy rain in the forecast at 5 min. Seen
+on 2026-10-20 by the runner: the band of cells upwind with the map zoomed
+out, and over the circuit once it rains. Left for a person:
+
+- Whether the cells read as rain cells (they draw as stacked rings, a few
+  pixels across at the minimap's size) and the colours as a radar's.
+- The approach with a real wind: that run's was 6 km/h, so the band drifts
+  at the 4 m/s floor and barely moves in a shot. No switch sets the wind;
+  another seed or circuit with a stiff breeze would show the drift.
+- Two clients drawing the same picture (the sky's seed and the server's
+  clock), and a replay.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

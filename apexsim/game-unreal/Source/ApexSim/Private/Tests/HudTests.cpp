@@ -4,6 +4,7 @@
 #include "Hud/ApexHudData.h"
 #include "Hud/ApexHudExpression.h"
 #include "Hud/ApexHudLayout.h"
+#include "UI/ApexMinimapWidget.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Guid.h"
 #include "Misc/Paths.h"
@@ -1720,6 +1721,71 @@ bool FApexHudLayoutSnapTest::RunTest(const FString& Parameters)
 	const FSlateRect Same = ApexHudPlace::Snap(Free, Screen, {}, 8.0f, Lines);
 	TestTrue(TEXT("not moved"), HudSame(FVector2D(Same.GetTopLeft()), FVector2D(Free.GetTopLeft())));
 	TestFalse(TEXT("no lines"), Lines.X.IsSet() || Lines.Y.IsSet());
+	return true;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudRainRadarTest, "ApexSim.Hud.RainRadar", ApexTestFlags)
+
+bool FApexHudRainRadarTest::RunTest(const FString& Parameters)
+{
+	ApexRainRadar::FInputs In;
+	In.Seed = 42;
+	In.TrackCentreM = FVector2D(100.0f, -50.0f);
+	In.TrackRadiusM = 1000.0f;
+	In.Weather = static_cast<int32>(EApexWeather::Sunny);
+	In.WindKph = 36.0f; // 10 m/s
+	In.WindToDeg = 0.0f; // toward +X: the rain comes from -X
+	TestEqual(TEXT("a dry sky with nothing ahead has no radar"), ApexRainRadar::Cells(In).Num(), 0);
+
+	// Heavy rain in ten minutes: the band upwind, its front 6 km plus the
+	// circuit's size out, and nearer as the time runs down.
+	In.NextWeather = static_cast<int32>(EApexWeather::HeavyRain);
+	In.NextInS = 600;
+	const TArray<FApexRainCell> Far = ApexRainRadar::Cells(In);
+	TestTrue(TEXT("rain ahead shows cells"), Far.Num() > 0);
+	float FarFront = -1e9f;
+	for (const FApexRainCell& Cell : Far)
+	{
+		FarFront = FMath::Max(FarFront, Cell.CentreM.X);
+		TestTrue(TEXT("heavy rain is strong"), Cell.Intensity > 0.5f);
+	}
+	TestTrue(TEXT("upwind of the circuit, 6 km out"), FarFront <= In.TrackCentreM.X - 1000.0f - 6000.0f + 1.0f);
+	In.NextInS = 60;
+	float NearFront = -1e9f;
+	for (const FApexRainCell& Cell : ApexRainRadar::Cells(In))
+	{
+		NearFront = FMath::Max(NearFront, Cell.CentreM.X);
+	}
+	TestTrue(TEXT("nearer a minute out"), NearFront > FarFront + 5000.0f);
+	TestTrue(TEXT("still short of the circuit"), NearFront <= In.TrackCentreM.X - 1000.0f + 1.0f);
+
+	// The same sky draws the same picture; another seed another.
+	const TArray<FApexRainCell> Again = ApexRainRadar::Cells(In);
+	const TArray<FApexRainCell> Once = ApexRainRadar::Cells(In);
+	TestEqual(TEXT("as many cells"), Again.Num(), Once.Num());
+	TestTrue(TEXT("the same first cell"), Again.Num() > 0 && Again[0].CentreM.Equals(Once[0].CentreM) && Again[0].RadiusM == Once[0].RadiusM);
+	ApexRainRadar::FInputs Other = In;
+	Other.Seed = 43;
+	TestFalse(TEXT("another seed, another shape"), ApexRainRadar::Cells(Other)[0].CentreM.Equals(Once[0].CentreM, 1.0f));
+
+	// Raining with the sky holding: the band covers the circuit.
+	In.Weather = static_cast<int32>(EApexWeather::LightRain);
+	In.RainPct = 45;
+	In.NextWeather = -1;
+	In.NextInS = 0;
+	bool bOver = false;
+	for (const FApexRainCell& Cell : ApexRainRadar::Cells(In))
+	{
+		bOver |= FVector2D::Distance(Cell.CentreM, In.TrackCentreM) < 1500.0f;
+	}
+	TestTrue(TEXT("rain falling covers the circuit"), bOver);
+
+	// Snow is white.
+	FApexRainCell Snow;
+	Snow.bSnow = true;
+	const FLinearColor White = ApexRainRadar::Colour(Snow);
+	TestTrue(TEXT("snow white"), White.R > 0.8f && White.G > 0.8f && White.B > 0.8f);
 	return true;
 }
 

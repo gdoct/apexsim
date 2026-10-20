@@ -180,30 +180,6 @@ open takes; Watch hotlap with no server running, its lap time the server's
 for the same car, setup and sky; a release built without the showcase and
 guide stages.
 
-### 26. Rain radar on the HUD
-
-A rain radar laid over the minimap: rain cells drifting in with the wind,
-so a driver sees rain coming before it reaches the circuit.
-
-- The server's rain is circuit-wide and follows the forecast in time
-  (`conditions.rs` `forecast`, `RAIN_EASE_S`); there are no clouds in
-  space. The radar draws them from what is known: the forecast's next
-  wetter step and when (`sky.next_weather`, `sky.next_in_s`) and the wind's
-  direction and speed. A band of cells sits upwind at the distance the wind
-  covers before that step, drifts in at the wind's speed and reaches the
-  circuit as the rain starts; drying weather moves the band off downwind.
-- Cell shapes come from the sky's seed (`wind::hash01`), so every client and
-  a replay draws the same picture. Intensity in the usual radar colours
-  (light rain green-blue, heavy rain yellow-red, snow white).
-- A `rain_radar` HUD component (or a layer of `minimap`), with a zoom out
-  past the circuit; any new data points listed in `game/hud-modding.md`.
-- Later, with rain that falls on part of the circuit (a sim gap, not this
-  package), the same picture becomes the server's real cells.
-
-**Check:** a session with a host forecast of sunny then heavy rain in
-10 min: the band seen arriving as the rain starts, on two clients the same;
-`ApexSim.Hud.Data.Stable` / `.Documented`; a person judges the look.
-
 ### 27. Content packs and a content repository
 
 Split the cars, circuits, props and the tools that make them out of the

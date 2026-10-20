@@ -162,7 +162,7 @@ Keys on every element:
 | `divider` | a hairline rule | `vertical` |
 | `keycap` | a key hint chip, `ESC MENU` | `text` (fixed, or an expression such as `=watch.key.tower + ' TIMING'` for a key the player can rebind) |
 | `image` | a PNG from the component's folder | `file`, `color` (tint) |
-| `minimap` | the circuit outline with a dot per car | `color` (the player's dot) |
+| `minimap` | the circuit outline with a dot per car, and the rain radar under it: rain coming drifts in on the wind (a band of cells upwind that reaches the circuit as the forecast's next wetter step starts, light rain green-blue, heavy yellow-red, snow white), rain falling covers the circuit, and the map zooms out to take the band in (`ApexRainRadar::Cells`, from `sky.next_weather` / `sky.next_in_s`, the wind and the sky's seed, so every client draws the same) | `color` (the player's dot) |
 | `mirror` | the virtual rear-view mirror, while the setting is on | `width`, `height` |
 
 ### Clicking

@@ -593,6 +593,45 @@ const TArray<FVector2D>& UApexHudDataSubsystem::GetTrackOutline()
 	return TrackOutline;
 }
 
+void UApexHudDataSubsystem::MakeRainCells(TArray<FApexRainCell>& Out)
+{
+	Out.Reset();
+	if (!LastFrame || !LastFrame->Sky.bValid)
+	{
+		return;
+	}
+	const TArray<FVector2D>& Outline = GetTrackOutline();
+	if (Outline.Num() < 2)
+	{
+		return;
+	}
+	FVector2D Min = Outline[0];
+	FVector2D Max = Outline[0];
+	for (const FVector2D& Point : Outline)
+	{
+		Min = FVector2D(FMath::Min(Min.X, Point.X), FMath::Min(Min.Y, Point.Y));
+		Max = FVector2D(FMath::Max(Max.X, Point.X), FMath::Max(Max.Y, Point.Y));
+	}
+	const FApexSkyNow& Sky = LastFrame->Sky;
+	ApexRainRadar::FInputs In;
+	// The sky's own seed where the session names one; the circuit's size
+	// otherwise, which every client of the session shares too.
+	const UApexNetSubsystem* Net = GetNet();
+	In.Seed = Net && Net->GetSessionConditions().HasSkySeed()
+		? Net->GetSessionConditions().SkySeed
+		: static_cast<uint64>(FMath::RoundToInt64((Max.X - Min.X) * 7.0 + (Max.Y - Min.Y) * 13.0));
+	In.TrackCentreM = (Min + Max) * 0.5f;
+	In.TrackRadiusM = FMath::Max(Max.X - Min.X, Max.Y - Min.Y) * 0.5f;
+	In.Weather = static_cast<int32>(Sky.Weather);
+	In.RainPct = Sky.RainPct;
+	In.NextWeather = Sky.NextWeather;
+	In.NextInS = Sky.NextInS;
+	In.WindKph = static_cast<float>(Sky.WindKph);
+	In.WindToDeg = static_cast<float>(Sky.WindToDeg);
+	In.ClockS = Sky.ClockS;
+	Out = ApexRainRadar::Cells(In);
+}
+
 void UApexHudDataSubsystem::MakeMinimapBlips(TArray<FApexMinimapBlip>& Out, const FLinearColor& LocalColour) const
 {
 	if (!LastFrame)

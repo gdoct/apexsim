@@ -40,7 +40,6 @@ When an item is done, delete it from its backlog and from here.
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M |
-| N25 | Rain radar over the minimap | HUD | P2 | 🟡 | M |
 | N26 | Content packs and a content repository (proposal) | Platform (epic) | P2 | 🔴 | L |
 | N28 | Guides, showcases and Watch hotlap simulated in the client (roadmap #24) | Platform + tooling | P2 | 🟢 | L |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M |
@@ -399,20 +398,6 @@ Online: send the livery to other clients (size-capped, cached by hash).
 **Watch out:** `content/cars/custom` is the player's and never ships; the
 car's material comes from `ApexCarContent::OwnMaterialInstance`; no
 trademarks on screen (decals are user content — say so).
-
-#### N25. Rain radar over the minimap — P2 · 🟡 · M
-*Source: roadmap #26 (testing, 2026-10-18).*
-**What:** Coming rain is only a line of text (`sky.forecast`).
-**Outcome:** A radar picture over the minimap: rain cells drifting in on
-the wind, reaching the circuit when the rain starts.
-**Implementation:** The server's rain is circuit-wide and timed, with no
-clouds in space, so the radar draws them from the forecast's next step and
-time and the wind's direction and speed, cell shapes seeded from the sky's
-seed so every client and a replay agree.
-**Watch out:** it must not run ahead of or behind the forecast (the band
-arrives as `sky.next_in_s` reaches 0); new data points into
-`game/hud-modding.md`; true rain over part of the circuit is a separate
-sim gap.
 
 #### N26. Content packs and a content repository — P2 · 🔴 · L (epic)
 *Source: roadmap #27, [proposals/split-off-content.md](proposals/split-off-content.md).*

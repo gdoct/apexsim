@@ -1000,6 +1000,9 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 				TArray<FApexMinimapBlip> Blips;
 				Hud->MakeMinimapBlips(Blips, Node.bHasColour ? Node.LastColour : Palette::Accent);
 				Minimap->SetBlips(MoveTemp(Blips));
+				TArray<FApexRainCell> Rain;
+				Hud->MakeRainCells(Rain);
+				Minimap->SetRain(MoveTemp(Rain));
 			}
 		}
 		break;

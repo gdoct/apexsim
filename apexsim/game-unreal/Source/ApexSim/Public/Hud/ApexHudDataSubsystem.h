@@ -72,6 +72,13 @@ public:
 	void MakeMinimapBlips(TArray<FApexMinimapBlip>& Out, const FLinearColor& LocalColour) const;
 
 	/**
+	 * The rain radar's cells over the minimap (ApexRainRadar::Cells) from the
+	 * last frame's sky, the session's sky seed and the circuit's outline;
+	 * none for a dry sky with no rain ahead, or before a frame's sky.
+	 */
+	void MakeRainCells(TArray<struct FApexRainCell>& Out);
+
+	/**
 	 * The shell's watch view (UApexRootWidget): what is being watched
 	 * (`showcase`, `file`, `demo`, `live`; empty while not watching) and
 	 * the timing tower's column. The watched car and the camera are the race

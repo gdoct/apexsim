@@ -2287,3 +2287,32 @@ runs:
       - {at: 90, label: "cockpit: the dash", checks: "R6 the dash shows SC", exec: "apexsim.cam.Chase cockpit"}
       - {at: 105, label: "TV", checks: "R6 the safety car from the TV camera", exec: "apexsim.tv.Shot trackside"}
       - {at: 120, label: "", checks: "R6 the safety car in this lap: lamps out"}
+
+  # N25 (2026-10-20): the rain radar over the minimap. Heavy rain in the
+  # forecast 3 min into the session: a band of cells upwind, drifting in,
+  # reaching the circuit as the rain starts (the map zooms out to take it
+  # in); then the rain over the circuit.
+  - id: n25-rain-radar
+    about: "N25. The rain radar on the minimap"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=Caravan
+      - -ApexAiCount=5
+      - -ApexLaps=8
+      - -ApexCountdown=5
+      - -ApexWeather=overcast
+      - -ApexForecast=5:heavyrain
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    exec:
+      30: ["apexsim.hud.Data sky."]
+      240: ["apexsim.hud.Data sky."]
+    shots:
+      - {at: 30, label: "rain 4:30 away: the band far upwind", checks: "N25 the band upwind, the map zoomed out"}
+      - {at: 150, label: "2:30 away", checks: "N25 the band drifting in"}
+      - {at: 270, label: "0:30 away", checks: "N25 the band at the circuit's edge"}
+      - {at: 340, label: "raining", checks: "N25 the rain over the circuit"}
