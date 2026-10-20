@@ -12,6 +12,7 @@
 //! ats-smooth --all                              # every real circuit
 //! ats-smooth tracks/default/RedPullRing/RedPullRing.yaml # one
 //! ats-smooth --all --dry-run                    # report, write nothing
+//! ats-smooth --all --widths-only                # the road's half-widths alone
 //! ats-smooth --report tracks/default/*.yaml  # what is tight today
 //! ```
 //!
@@ -40,6 +41,8 @@ usage: ats-smooth [--all] [--dry-run] [--report] [--tolerance M] [--passes N]
 
   --all, -a        every track under tracks/{default,custom}
   --dry-run, -n    report what would change without writing
+  --widths-only    filter the half-widths alone; the centerline, its
+                   elevation and the raceline stay as they are
   --report, -r     report the centerline as it is now and stop
   --tolerance M    how far a node may move from its traced position
   --tight-tol M    the same, inside a corner the trace pinched. Raising
@@ -62,6 +65,7 @@ fn main() -> ExitCode {
         match arg.as_str() {
             "--all" | "-a" => all = true,
             "--dry-run" | "-n" => dry_run = true,
+            "--widths-only" => config.widths_only = true,
             "--report" | "-r" => report_only = true,
             "--help" | "-h" => {
                 println!("{USAGE}");
@@ -164,7 +168,7 @@ fn main() -> ExitCode {
         };
         let after = tight_nodes(&track, TIGHT_RADIUS_M).len();
         print_report(&name.to_string(), &report, before, after);
-        if report.min_radius_after_m < config.min_radius_m {
+        if report.min_radius_after_m < config.min_radius_m && !config.widths_only {
             // The default allowance is deliberately tight: a surveyed
             // line should not be moved metres without someone deciding
             // to. Say so, and say what the decision would look like.
@@ -204,8 +208,12 @@ fn main() -> ExitCode {
 
 fn print_report(name: &str, report: &SmoothReport, tight_before: usize, tight_after: usize) {
     println!(
-        "{name}: {} node(s), moved {:.2} m at most ({:.3} m mean), z by {:.2} m",
-        report.nodes, report.max_shift_m, report.mean_shift_m, report.max_z_shift_m
+        "{name}: {} node(s), moved {:.2} m at most ({:.3} m mean), z by {:.2} m, widths by {:.2} m",
+        report.nodes,
+        report.max_shift_m,
+        report.mean_shift_m,
+        report.max_z_shift_m,
+        report.max_width_shift_m
     );
     println!(
         "    tightest radius {:.1} m -> {:.1} m; worst curvature jump {:.4} -> {:.4} per m",

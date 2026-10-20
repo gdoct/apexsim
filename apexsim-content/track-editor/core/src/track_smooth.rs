@@ -70,6 +70,15 @@ pub const DEFAULT_ITERATIONS: usize = 6;
 /// and with a tolerance of its own.
 pub const DEFAULT_Z_TOLERANCE_M: f32 = 0.35;
 
+/// The road's half-widths are traced too, each side on its own from the
+/// edge to the centerline, and carry the centerline's wander: the total
+/// holds while one side shrinks as the other grows, a few decimetres from
+/// node to node. The width is linear between nodes, so every change in its
+/// slope is a corner in the road edge, and on a 5 m node spacing a 0.3 m
+/// wobble is a 7 degree kink in a curb. They are filtered like the
+/// elevation, each side on its own, held this close to the trace.
+pub const DEFAULT_WIDTH_TOLERANCE_M: f32 = 0.3;
+
 /// How far a node may move where the trace has it on a radius no road
 /// could be built on. A node whose three-point radius is under
 /// [`CERTAINLY_WRONG_RADIUS_M`] is not a tight corner, it is an error:
@@ -102,11 +111,18 @@ pub struct SmoothConfig {
     /// radius. See [`DEFAULT_TIGHT_TOLERANCE_M`].
     pub tight_tolerance_m: f32,
     pub z_tolerance_m: f32,
+    /// See [`DEFAULT_WIDTH_TOLERANCE_M`].
+    pub width_tolerance_m: f32,
     /// Half-width of the fitting window, in nodes.
     pub window: usize,
     pub iterations: usize,
     /// The tightest centerline radius the turn cap will leave.
     pub min_radius_m: f32,
+    /// Filter the half-widths alone, leaving the centerline, its
+    /// elevation and the raceline exactly as they are: the widths can be
+    /// taken through without re-running everything fitted to the line
+    /// (the refresh order in `docs/track-pipeline.md`).
+    pub widths_only: bool,
 }
 
 impl Default for SmoothConfig {
@@ -115,9 +131,11 @@ impl Default for SmoothConfig {
             tolerance_m: DEFAULT_TOLERANCE_M,
             tight_tolerance_m: DEFAULT_TIGHT_TOLERANCE_M,
             z_tolerance_m: DEFAULT_Z_TOLERANCE_M,
+            width_tolerance_m: DEFAULT_WIDTH_TOLERANCE_M,
             window: DEFAULT_WINDOW,
             iterations: DEFAULT_ITERATIONS,
             min_radius_m: DEFAULT_MIN_RADIUS_M,
+            widths_only: false,
         }
     }
 }
@@ -137,6 +155,8 @@ pub struct SmoothReport {
     pub max_shift_m: f32,
     pub mean_shift_m: f32,
     pub max_z_shift_m: f32,
+    /// Furthest any half-width moved.
+    pub max_width_shift_m: f32,
     pub length_before_m: f32,
     pub length_after_m: f32,
     /// How far the raceline strays outside the road edge, as a fraction
@@ -153,7 +173,7 @@ impl SmoothReport {
     /// up. Everything else (a clean line, a second run over a smoothed
     /// one) leaves the file alone.
     pub fn changed(&self) -> bool {
-        self.max_shift_m > 0.005
+        self.max_shift_m > 0.005 || self.max_width_shift_m > 0.005
     }
 }
 
@@ -169,8 +189,23 @@ pub fn smooth_track(track: &mut TrackFile, config: SmoothConfig) -> Option<Smoot
     let plan: Vec<(f32, f32)> = original.iter().map(|p| (p.0, p.1)).collect();
     let elevation: Vec<f32> = original.iter().map(|p| p.2).collect();
 
-    let smoothed_plan = savgol_2d(&plan, closed, &config);
-    let smoothed_z = savgol_1d(&elevation, closed, config.z_tolerance_m, &config);
+    let (smoothed_plan, smoothed_z) = if config.widths_only {
+        (plan.clone(), elevation.clone())
+    } else {
+        (
+            savgol_2d(&plan, closed, &config),
+            savgol_1d(&elevation, closed, config.z_tolerance_m, &config),
+        )
+    };
+    let halves: Vec<(f32, f32)> = track
+        .nodes
+        .iter()
+        .map(|node| node.resolved_half_widths(track.default_width))
+        .collect();
+    let left: Vec<f32> = halves.iter().map(|h| h.0).collect();
+    let right: Vec<f32> = halves.iter().map(|h| h.1).collect();
+    let smoothed_left = savgol_1d(&left, closed, config.width_tolerance_m, &config);
+    let smoothed_right = savgol_1d(&right, closed, config.width_tolerance_m, &config);
 
     let report = SmoothReport {
         nodes: n,
@@ -187,6 +222,13 @@ pub fn smooth_track(track: &mut TrackFile, config: SmoothConfig) -> Option<Smoot
             / n as f32,
         max_z_shift_m: (0..n)
             .map(|i| (smoothed_z[i] - elevation[i]).abs())
+            .fold(0.0, f32::max),
+        max_width_shift_m: (0..n)
+            .map(|i| {
+                (smoothed_left[i] - left[i])
+                    .abs()
+                    .max((smoothed_right[i] - right[i]).abs())
+            })
             .fold(0.0, f32::max),
         length_before_m: polyline_length(&plan, closed),
         length_after_m: polyline_length(&smoothed_plan, closed),
@@ -209,7 +251,7 @@ pub fn smooth_track(track: &mut TrackFile, config: SmoothConfig) -> Option<Smoot
     // only then filtered for its own noise.
     let raceline: Vec<(f32, f32)> = track.raceline.iter().map(|p| (p.x, p.y)).collect();
     let raceline_before = raceline_worst(&plan, &smoothed_plan, &raceline, track);
-    let smoothed_raceline = if raceline.len() >= 8 {
+    let smoothed_raceline = if raceline.len() >= 8 && !config.widths_only {
         let carried: Vec<(f32, f32)> = raceline
             .iter()
             .map(|point| {
@@ -248,6 +290,21 @@ pub fn smooth_track(track: &mut TrackFile, config: SmoothConfig) -> Option<Smoot
         node.x = round_cm(smoothed_plan[i].0);
         node.y = round_cm(smoothed_plan[i].1);
         node.z = round_cm(smoothed_z[i]);
+    }
+    for (i, node) in track.nodes.iter_mut().enumerate() {
+        let (l, r) = (round_mm(smoothed_left[i]), round_mm(smoothed_right[i]));
+        if (l - left[i]).abs() < 0.0005 && (r - right[i]).abs() < 0.0005 {
+            // Untouched (an open course's ends, a clean stretch): the
+            // file keeps its own value and form.
+            continue;
+        }
+        if node.width_left.is_some() || node.width_right.is_some() || (l - r).abs() > 0.0005 {
+            node.width = None;
+            node.width_left = Some(l);
+            node.width_right = Some(r);
+        } else {
+            node.width = Some(round_mm(l + r));
+        }
     }
     for (point, smoothed) in track.raceline.iter_mut().zip(&smoothed_raceline) {
         point.x = round_cm(smoothed.0);
@@ -334,6 +391,11 @@ fn raceline_worst(
 /// an already-smoothed file a no-op instead of a drift.
 fn round_cm(v: f32) -> f32 {
     (v * 100.0).round() / 100.0
+}
+
+/// Widths are written to the millimetre, as the traced files have them.
+fn round_mm(v: f32) -> f32 {
+    (v * 1000.0).round() / 1000.0
 }
 
 fn neighbours(i: usize, n: usize, closed: bool) -> Option<(usize, usize)> {
@@ -923,6 +985,62 @@ pub fn node_stations(track: &TrackFile) -> Vec<f32> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_width_wobble_is_ironed_out_and_a_real_widening_kept() {
+        // A long straight whose centerline wanders inside the road: one side
+        // a few decimetres wider at every other node, the other narrower,
+        // the total steady; and a real widening of 4 m over 100 m.
+        let mut track = TrackFile {
+            name: "Widths".into(),
+            display_name: None,
+            track_id: None,
+            nodes: (0..120)
+                .map(|i| {
+                    let wobble = if i % 2 == 0 { 0.25 } else { -0.25 };
+                    let widening = ((i as f32 - 60.0) / 20.0).clamp(0.0, 1.0) * 2.0;
+                    TrackNode {
+                        x: i as f32 * 5.0,
+                        y: 0.0,
+                        z: 0.0,
+                        width: None,
+                        width_left: Some(5.0 + wobble + widening),
+                        width_right: Some(5.0 - wobble + widening),
+                        banking: None,
+                        friction: None,
+                        surface_type: None,
+                    }
+                })
+                .collect(),
+            checkpoints: vec![],
+            sectors: vec![],
+            spawn_points: vec![],
+            default_width: 10.0,
+            closed_loop: false,
+            raceline: vec![],
+            drs_zones: vec![],
+            metadata: None,
+        };
+        let before: Vec<(f32, f32)> = track.nodes.iter().map(|n| (n.x, n.y)).collect();
+        let config = SmoothConfig {
+            widths_only: true,
+            ..Default::default()
+        };
+        let report = smooth_track(&mut track, config).unwrap();
+        assert!(report.changed());
+        // The line itself did not move.
+        for (node, at) in track.nodes.iter().zip(&before) {
+            assert_eq!((node.x, node.y), *at);
+        }
+        // The wobble is mostly gone mid-straight...
+        let left: Vec<f32> = track.nodes.iter().map(|n| n.width_left.unwrap()).collect();
+        for i in 10..50 {
+            assert!((left[i] - 5.0).abs() < 0.08, "node {i}: {}", left[i]);
+        }
+        // ...and the road still widens by its 2 m a side.
+        assert!((left[100] - 7.0).abs() < 0.08, "{}", left[100]);
+    }
+
     use super::*;
 
     /// A deterministic hash-based wobble in -1..1, standing in for the

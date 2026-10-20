@@ -30,7 +30,6 @@ When an item is done, delete it from its backlog and from here.
 |---|---|---|---|---|---|
 | V1 | Verify the newest session screens (R9, R11, R12, R13) | Verification | P1 | 🟡 | S |
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S |
-| B7 | Kinks in the inside curb of some corners, all circuits | Bug | P2 | 🟡 | M |
 | F2 | Trackside light panels showing yellow and blue | Feature + content | P2 | 🟡 | M |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M |
 | D1 | Pit lane entry/exit layout and markings | Design + content | P2 | 🟡 | M |
@@ -139,16 +138,6 @@ epics R3, N5 and N7, which need review sittings.
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
 ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
 with `-ApexScreenshotAfter` on that car.
-
-#### B7. Kinks in the inside curb of some corners, all circuits — P2 · 🟡 · M
-*Source: follow-ups #22 (testing, 2026-10-18).* In some corners the inside
-curb kinks instead of following the bend. Find the corners and the cause
-(first guess: the inside offset of the centerline folds or steps on a tight
-radius or uneven samples) and fix it in the generator, not per track. The
-curb sidecar feeds physics too: re-export the tracks, run the full
-`track-editor` tests and the AI survey against the commit before; a person
-judges close-up shots of the worst corners.
-Image: /docs/roadkink.png
 
 ### Platform and stability
 

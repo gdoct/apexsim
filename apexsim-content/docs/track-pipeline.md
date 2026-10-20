@@ -287,7 +287,14 @@ turn at a node and spilling the excess to its neighbours floors the radius
 (`--min-radius`, 22 m) without changing the corner's total turn, each window
 pinned at both ends. The raceline moves with the road node beneath it rather
 than being filtered on its own (filtered alone it drifted off the road).
-`metadata.length_m` is rewritten. Laplacian and Taubin smoothing rescale a
+`metadata.length_m` is rewritten. The half-widths are filtered the same
+way, each side on its own, within `DEFAULT_WIDTH_TOLERANCE_M` (0.3 m) of
+the trace: a traced centerline wanders inside the road, one side widening
+as the other narrows from node to node, and since a width is linear between
+nodes every change in its slope is a corner in the road edge and its curb
+(7 degrees from a 0.3 m wobble). `--widths-only` filters the widths alone,
+leaving the line, its elevation and the raceline (and so everything fitted
+to them) as they are. Laplacian and Taubin smoothing rescale a
 surveyed circuit and were rejected; the tests check shape. The exporter's
 corner guards (`clamp_profile`, strip breaking, dropping folded facets) remain
 as a backstop.

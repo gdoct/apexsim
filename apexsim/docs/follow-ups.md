@@ -91,6 +91,15 @@ them again).
   brand band across both sidewalls. Judge it from the road at Le Mans
   (`o1-lemons`) beside [tirebridge.png](tirebridge.png)'s photos.
 
+- **Curb kinks (B7).** The kinks were the road's half-widths: a traced
+  centerline wanders inside the road, one side widening as the other
+  narrows from node to node, and every change in a width's slope is a
+  corner in the edge and its curb. `ats-smooth --widths-only` filtered
+  them on every circuit (within 0.3 m of the trace); a probe of the curb
+  edges found kinks over 4 degrees down from 102 to 3. Judge the inside
+  curbs at Sudoku 1890 m and 1400 m, Monza 977 m and Silverstone 1024 m
+  (`o1-*`), and any corner you remember.
+
 ## P2: depth
 
 ### 5. Hotlap and lap records
@@ -191,23 +200,6 @@ the client does not show all of them yet, and the server leaves a few edges.
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
-
-### 22. Curb shape in corners
-
-Seen testing, 2026-10-18, on all circuits: in some corners the inside curb
-has a kink and does not follow the bend smoothly.
-
-- Find which corners do it and why. A first guess, not checked: the
-  inside edge is an offset of the centerline, and where the offset nears
-  the bend's radius, or the centerline samples are sparse or uneven, the
-  offset folds or steps. The curb mesh is built in `ue_export.rs` /
-  `road_mesh.rs` from the curb bands in `curbs.rs`.
-- Fix it where the curb is generated, not per track. The curb sidecar
-  feeds physics too, so a change to the bands moves the AI survey.
-
-**Check:** close-up shots of the inside curb at the worst corners on a few
-circuits (`-ApexCameraLookAt`), before and after; full `track-editor`
-tests; the AI survey against the commit before.
 
 ## P3: nice to have
 
