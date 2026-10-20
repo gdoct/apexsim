@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Shebang/gpd-grandstand-map-2026.jpg", "url": "https://gpdestinations.com/wp-content/uploads/2026/08/2026-Bahrain-Grand-Prix-in-Malaysia-Grandstand-Map.jpg", "kind": "grandstand-map", "year": 2026, "source": "GP Destinations", "verified": true},
+  {"file": "maps/Shebang/f1-track-map-2026.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackkualalumpurdetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula 1", "verified": true},
+  {"file": "maps/Shebang/sic-mgp23-sales-kit.pdf", "url": "https://www.sepangcircuit.com/getattachment/Events/RACE-EVENTS/PETRONAS-GRAND-PRIX-OF-MALAYSIA-2023/Event-Info/MGP23_Corp-Sales-Kit_for-web.pdf.aspx", "kind": "spectator-map", "year": 2023, "source": "Sepang International Circuit (official)", "verified": true},
+  {"file": "maps/Shebang/says-grandstand-map-2026.png", "url": "https://media.says.com/2026/07/Screenshot-2026-07-29-at-14-13-16-Map-of-the-Grandstands-motogpsepang.com_-1024x804.png", "kind": "grandstand-map", "year": 2026, "source": "SAYS (screenshot of motogpsepang.com map)", "verified": true},
+  {"file": "maps/Shebang/rci-sepang-gp.png", "url": "https://www.racingcircuits.info/assets/images/maps/Asia/Malaysia/Sepang/Sepang.png", "kind": "circuit-map", "year": null, "source": "Racing Circuits Info", "verified": true}
+]

@@ -1,0 +1,5 @@
+[
+  {"file": "maps/Lemons/aco-2026-plan-parkings.pdf", "url": "https://assets.lemans.org/explorer/pdf/courses/2026/24-heures-du-mans/Plans/24ha_aco_plan_pkg.pdf", "kind": "spectator-map", "year": 2026, "source": "ACO (Automobile Club de l'Ouest)", "verified": true},
+  {"file": "maps/Lemons/racingcircuits-sarthe-15.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/France/Le%20Mans/Sarthe/Le-Mans-Sarthe15.png", "kind": "circuit-map", "year": 2015, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Lemons/racingcircuits-bugatti-15.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/France/Le%20Mans/Bugatti/Le-Mans-Bugatti-15.png", "kind": "circuit-map", "year": 2015, "source": "racingcircuits.info", "verified": true}
+]

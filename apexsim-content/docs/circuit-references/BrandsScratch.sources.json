@@ -1,0 +1,7 @@
+[
+  {"file": "maps/BrandsScratch/msv-grandstand-map.jpg", "url": "https://images.msv.com/high-res/6da23175-e842-4b34-bd89-ceb0f06b7b19.jpg", "kind": "grandstand-map", "year": 2026, "source": "MotorSport Vision / brandshatch.co.uk (Grandstands page)", "verified": true},
+  {"file": "maps/BrandsScratch/oversteer48-gp-parking-map.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/01/Brands-hatch-gp-circuit-parking-map.jpg", "kind": "spectator-map", "year": 2023, "source": "oversteer48.com", "verified": true},
+  {"file": "maps/BrandsScratch/oversteer48-gp-corner-names.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/01/Brands-Hatch-GP-corner-names.jpg", "kind": "circuit-map", "year": 2023, "source": "oversteer48.com", "verified": true},
+  {"file": "maps/BrandsScratch/oversteer48-grandstands.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/01/Brands-Hatch-grandstands.jpg", "kind": "grandstand-map", "year": 2023, "source": "oversteer48.com", "verified": true},
+  {"file": "maps/BrandsScratch/wikimedia-brands-hatch-2003.svg", "url": "https://upload.wikimedia.org/wikipedia/commons/4/45/Brands_Hatch_2003.svg", "kind": "layout-svg", "year": 2018, "source": "Wikimedia Commons (Pyrope)", "verified": true}
+]

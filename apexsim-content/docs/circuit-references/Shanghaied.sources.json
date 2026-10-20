@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Shanghaied/shanghai-gov-2026-grandstand-locations.png", "url": "https://english.shanghai.gov.cn/cmsres/59/596077c5ef8441e09eb5239fd740b25b/29a1050812c99e3abd007407e8a1b81a.png", "kind": "spectator-map", "year": 2026, "source": "Shanghai Municipal People's Government", "verified": true},
+  {"file": "maps/Shanghaied/shanghai-gov-2026-grandstand-e.jpg", "url": "https://english.shanghai.gov.cn/cmsres/83/832ec12372744b55834e57dee6ee371a/a352da59c760470fd8ce2b4407ef1623.jpg", "kind": "grandstand-map", "year": 2026, "source": "Shanghai Municipal People's Government", "verified": true},
+  {"file": "maps/Shanghaied/fia-2024-chinese-gp-circuit-map-pit-lane.pdf", "url": "https://FIA.com/sites/default/files/decision-document/2024%20Chinese%20Grand%20Prix%20-%20Event%20Notes%20-%20Circuit%20Map,%20Pit%20Lane%20Drawing%20and%20Red%20Zone.pdf", "kind": "circuit-map", "year": 2024, "source": "FIA", "verified": true},
+  {"file": "maps/Shanghaied/gpdestinations-grandstand-map.jpg", "url": "https://gpdestinations.com/wp-content/uploads/2024/05/Chinese-Grand-Prix-Grandstand-Map.jpg", "kind": "grandstand-map", "year": 2024, "source": "GP Destinations", "verified": true},
+  {"file": "maps/Shanghaied/racingcircuits-shanghai-gp-2012.png", "url": "https://www.racingcircuits.info/assets/images/maps/Asia/China/Shanghai/Shanghai-International-2012.png", "kind": "circuit-map", "year": 2012, "source": "racingcircuits.info", "verified": true}
+]

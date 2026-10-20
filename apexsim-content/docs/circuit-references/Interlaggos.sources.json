@@ -1,0 +1,6 @@
+[
+  {"file": "maps/Interlaggos/gpsp-sector-map-2026.webp", "url": "https://f1saopaulo.com.br/wp-content/uploads/2026/08/Mapa-completo.webp", "kind": "spectator-map", "year": 2026, "source": "GP São Paulo (f1saopaulo.com.br), official", "verified": true},
+  {"file": "maps/Interlaggos/gpgt-grandstand-map-2025.webp", "url": "https://www.grandprixgrandtours.com/wp-content/uploads/2025/01/Circuit-Map-Brazil-F1-_1_-Tile.webp", "kind": "grandstand-map", "year": 2025, "source": "Grand Prix Grand Tours", "verified": true},
+  {"file": "maps/Interlaggos/f1-circuit-map.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Brazil_Circuit.webp", "kind": "circuit-map", "year": 2025, "source": "Formula 1", "verified": true},
+  {"file": "maps/Interlaggos/commons-track-map.svg", "url": "https://upload.wikimedia.org/wikipedia/commons/c/cf/Aut%C3%B3dromo_Jos%C3%A9_Carlos_Pace_%28AKA_Interlagos%29_track_map.svg", "kind": "layout-svg", "year": null, "source": "Wikimedia Commons (URL derived from file name; not opened)", "verified": false}
+]

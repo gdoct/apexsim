@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Oskarsleben/mao-uebersichtskarte-2021.pdf", "url": "https://www.motorsportarena.com/Media/public/wwwMotorsportarenacom/Die-Arena/Rennstrecke/Downloads/uebersichtskarte_MAO_2021_mit_logo.pdf", "kind": "spectator-map", "year": 2021, "source": "Motorsport Arena Oschersleben", "verified": true},
+  {"file": "maps/Oskarsleben/mao-uebersichtskarte-2021.jpg", "url": "https://www.motorsportarena.com/Media/public/wwwMotorsportarenacom/Die-Arena/Rennstrecke/Downloads/Uebersichtskarte_ab_2021.jpg", "kind": "spectator-map", "year": 2021, "source": "Motorsport Arena Oschersleben", "verified": true},
+  {"file": "maps/Oskarsleben/mao-parkplaetze.jpg", "url": "https://www.motorsportarena.com/Media/public/wwwMotorsportarenacom/Die-Arena/AnfahrtParken/Parkplaetze.jpg", "kind": "spectator-map", "year": 2026, "source": "Motorsport Arena Oschersleben", "verified": true},
+  {"file": "maps/Oskarsleben/racingcircuits-oschersleben-2007.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/Germany/Oschersleben/Oschersleben07.png", "kind": "circuit-map", "year": 2007, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Oskarsleben/racetrack4you-oschersleben.svg", "url": "https://www.racetrack4you.de/images/tracks/Oschersleben.svg", "kind": "layout-svg", "year": 2026, "source": "racetrack4you.de", "verified": true}
+]

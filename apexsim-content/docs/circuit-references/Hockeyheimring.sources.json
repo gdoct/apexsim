@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Hockeyheimring/hori-streckenplan-2024.pdf", "url": "https://www.hockenheimring.de/wp-content/uploads/2024/02/streckenplan-hockenheimring-2024-1.pdf", "kind": "spectator-map", "year": 2024, "source": "Hockenheimring GmbH (official)", "verified": true},
+  {"file": "maps/Hockeyheimring/gpd-grandstand-map-2019.jpg", "url": "https://gpdestinations.com/wp-content/uploads/2018/01/2019-German-Grand-Prix-Hockenheim-grandstand-map.jpg", "kind": "grandstand-map", "year": 2019, "source": "GP Destinations", "verified": true},
+  {"file": "maps/Hockeyheimring/f1-circuit-map-hockenheim.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Germany_Circuit_Hockenheim.webp", "kind": "circuit-map", "year": 2019, "source": "Formula 1", "verified": true},
+  {"file": "maps/Hockeyheimring/hori-parken-camping-2026.pdf", "url": "https://www.hockenheimring.de/wp-content/uploads/2026/03/Parken-und-Camping.pdf", "kind": "spectator-map", "year": 2026, "source": "Hockenheimring GmbH (official)", "verified": true},
+  {"file": "maps/Hockeyheimring/hori-anfahrt-2023.pdf", "url": "https://www.hockenheimring.de/wp-content/uploads/2023/06/230629_HoRi_Streckenplan_web_Anfahrt.pdf", "kind": "spectator-map", "year": 2023, "source": "Hockenheimring GmbH (official)", "verified": true}
+]

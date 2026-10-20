@@ -1,0 +1,7 @@
+[
+  {"file": "maps/YasMarinara/fia-2025-abu-dhabi-circuit-map-pit-lane.pdf", "url": "https://www.fia.com/system/files/decision-document/2025_abu_dhabi_grand_prix_-_event_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_quarantine_zone_and_red_zones.pdf", "kind": "circuit-map", "year": 2025, "source": "FIA", "verified": true},
+  {"file": "maps/YasMarinara/fia-2025-abu-dhabi-media-kit.pdf", "url": "https://api.fia.com/sites/default/files/media_kit-2025_abu_dhabi_gp.pdf", "kind": "spectator-map", "year": 2025, "source": "FIA / Yas Marina Circuit", "verified": true},
+  {"file": "maps/YasMarinara/oversteer48-circuit-map-2021-present.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/11/Yas-Marina-Grand-Prix-circuit-map-2021-present.jpg", "kind": "circuit-map", "year": 2023, "source": "oversteer48 (fan site)", "verified": true},
+  {"file": "maps/YasMarinara/oversteer48-circuit-map-2009-2020.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/11/Yas-Marina-Grand-Prix-circuit-map-2009-2020.jpg", "kind": "circuit-map", "year": 2023, "source": "oversteer48 (fan site)", "verified": true},
+  {"file": "maps/YasMarinara/gpgt-circuit-map-abu-dhabi.webp", "url": "https://www.grandprixgrandtours.com/wp-content/uploads/2025/01/Circuit-Map-Abu-Dhabi-F1-Tile.webp", "kind": "grandstand-map", "year": 2025, "source": "Grand Prix Grand Tours", "verified": true}
+]

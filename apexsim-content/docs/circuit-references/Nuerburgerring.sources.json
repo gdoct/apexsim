@@ -1,0 +1,6 @@
+[
+  {"file": "maps/Nuerburgerring/fia-2020-eifel-circuit-map.pdf", "url": "https://www.fia.com/sites/default/files/decision-document/2020%20Eifel%20Grand%20Prix%20-%20Circuit%20Map.pdf", "kind": "circuit-map", "year": 2020, "source": "FIA", "verified": true},
+  {"file": "maps/Nuerburgerring/racingcircuits-gp-f1chicane-arena-03.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/Germany/Nurburgring/Nurburgring-GP+F1Chicane+Arena-03.png", "kind": "circuit-map", "year": 2003, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Nuerburgerring/racingcircuits-sprint-f1chicane-arena-03.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/Germany/Nurburgring/Nurburgring-Sprint+F1Chicane+Arena-03.png", "kind": "circuit-map", "year": 2003, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Nuerburgerring/racingcircuits-muellenbach-03.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/Germany/Nurburgring/Nurburgring-Mullenbach-03.png", "kind": "circuit-map", "year": 2003, "source": "racingcircuits.info", "verified": true}
+]

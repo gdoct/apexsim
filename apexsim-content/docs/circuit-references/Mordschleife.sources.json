@@ -1,0 +1,5 @@
+[
+  {"file": "maps/Mordschleife/24h-lageplan-nordschleife-2020.jpg", "url": "https://www.24h-rennen.de/wp-content/uploads/2020/07/24h-Rennen-Lageplan-Nordschleife-1030x686-1.jpg", "kind": "spectator-map", "year": 2020, "source": "ADAC Nordrhein / 24h-rennen.de", "verified": true},
+  {"file": "maps/Mordschleife/fastcar-nordschleife-cornering-map.jpg", "url": "https://transport.kelsey.host/wp-content/uploads/sites/2/_archive/2012/01/nurburgring-cornering-map-guide-download.jpg", "kind": "circuit-map", "year": 2012, "source": "Fast Car magazine", "verified": true},
+  {"file": "maps/Mordschleife/oversteer48-corner-names.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/03/Nurburgring-corner-names.jpg", "kind": "circuit-map", "year": 2023, "source": "oversteer48", "verified": true}
+]

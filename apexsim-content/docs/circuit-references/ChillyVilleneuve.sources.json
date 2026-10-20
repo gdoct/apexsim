@@ -1,0 +1,8 @@
+[
+  {"file": "maps/ChillyVilleneuve/fia-2026-circuit-map.pdf", "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_v2.pdf", "kind": "circuit-map", "year": 2026, "source": "FIA", "verified": true},
+  {"file": "maps/ChillyVilleneuve/f1-2026-track-montreal-detailed.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackmontrealdetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true},
+  {"file": "maps/ChillyVilleneuve/fia-2024-circuit-map-pit-lane.pdf", "url": "https://www.fia.com/sites/default/files/decision-document/2024%20Canadian%20Grand%20Prix%20-%20Event%20Notes%20-%20Circuit%20Map,%20Pit%20Lane%20Drawing%20and%20Red%20Zones.pdf", "kind": "circuit-map", "year": 2024, "source": "FIA", "verified": true},
+  {"file": "maps/ChillyVilleneuve/oversteer48-grandstand-map-2023.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/07/Canadian-Grand-Prix-Grandstand-Map-e1690823415156.jpg", "kind": "grandstand-map", "year": 2023, "source": "Oversteer48", "verified": true},
+  {"file": "maps/ChillyVilleneuve/oversteer48-ga-viewpoints-2026.jpg", "url": "https://oversteer48.com/wp-content/uploads/2026/06/Circuit-Gilles-Villeneuve-General-Admission-view-points-2027.jpg", "kind": "spectator-map", "year": 2026, "source": "Oversteer48", "verified": true},
+  {"file": "maps/ChillyVilleneuve/commons-circuit-gilles-villeneuve.svg", "url": "https://upload.wikimedia.org/wikipedia/commons/2/21/Circuit_Gilles_Villeneuve.svg", "kind": "layout-svg", "year": 2002, "source": "Wikimedia Commons", "verified": false}
+]

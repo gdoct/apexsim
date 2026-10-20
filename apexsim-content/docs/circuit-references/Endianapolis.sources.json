@@ -1,0 +1,8 @@
+[
+  {"file": "maps/Endianapolis/ims-master-2027.pdf", "url": "https://www.indianapolismotorspeedway.com/-/media/IMS/maps/2027/master/27IMSMaster.pdf", "kind": "spectator-map", "year": 2027, "source": "Indianapolis Motor Speedway", "verified": true},
+  {"file": "maps/Endianapolis/ims-master-2026.pdf", "url": "https://www.indianapolismotorspeedway.com/-/media/IMS/maps/2026/master/26_MAP_IMS_MASTER.pdf", "kind": "spectator-map", "year": 2026, "source": "Indianapolis Motor Speedway", "verified": true},
+  {"file": "maps/Endianapolis/ims-indy500-raceday-gates-2026.pdf", "url": "https://www.indianapolismotorspeedway.com/-/media/IMS/maps/gate-stands/2026/pdf/9_I500_Race-Day_Gate.pdf", "kind": "grandstand-map", "year": 2026, "source": "Indianapolis Motor Speedway", "verified": true},
+  {"file": "maps/Endianapolis/ims-sonsio-gp-raceday-2026.pdf", "url": "https://www.indianapolismotorspeedway.com/-/media/IMS/maps/gate-stands/2026/pdf/2_SGP_RaceDay_Gate.pdf", "kind": "grandstand-map", "year": 2026, "source": "Indianapolis Motor Speedway", "verified": true},
+  {"file": "maps/Endianapolis/racingcircuits-oval-14.png", "url": "https://www.racingcircuits.info/assets/images/maps/North%20America/USA/IndianapolisMS/Indianapolis%2014.png", "kind": "circuit-map", "year": 2014, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Endianapolis/racingcircuits-roadcourse-14.png", "url": "https://www.racingcircuits.info/assets/images/maps/North%20America/USA/IndianapolisMS/IndianapolisRC%2014.png", "kind": "circuit-map", "year": 2014, "source": "racingcircuits.info", "verified": true}
+]

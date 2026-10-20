@@ -1,0 +1,7 @@
+[
+  {"file": "maps/HermanosRodriQueso/f1-2026-track-mexicocity-detailed.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackmexicocitydetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true},
+  {"file": "maps/HermanosRodriQueso/oversteer48-spectator-map-2026.jpg", "url": "https://oversteer48.com/wp-content/uploads/2026/05/Mexico-Grand-Prix-Autodromo-Hermanos-Rodriguez-Spectator-Map.jpg", "kind": "spectator-map", "year": 2026, "source": "Oversteer48", "verified": true},
+  {"file": "maps/HermanosRodriQueso/oversteer48-grandstand-zone-map-2026.jpg", "url": "https://oversteer48.com/wp-content/uploads/2026/06/Mexico-Grand-Prix-Grandstand-and-Zone-map.jpg", "kind": "grandstand-map", "year": 2026, "source": "Oversteer48", "verified": true},
+  {"file": "maps/HermanosRodriQueso/fia-2024-circuit-map-pit-lane.pdf", "url": "https://fia.com/sites/default/files/decision-document/2024 Mexico City Grand Prix - Event Notes - Circuit Map, Pit Lane Drawing and Red Zones.pdf", "kind": "circuit-map", "year": 2024, "source": "FIA", "verified": true},
+  {"file": "maps/HermanosRodriQueso/oversteer48-corner-names.jpg", "url": "https://oversteer48.com/wp-content/uploads/2026/05/Autodromo-Hermanos-Rodrigues-Mexico-GP-corner-names.jpg", "kind": "circuit-map", "year": 2026, "source": "Oversteer48", "verified": true}
+]

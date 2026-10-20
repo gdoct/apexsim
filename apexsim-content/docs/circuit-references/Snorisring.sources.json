@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Snorisring/norisring-lageplan-2026.pdf", "url": "https://norisring.de/wp-content/uploads/2026/05/Norisring-Lageplan-V2_ORGA-260519.pdf", "kind": "spectator-map", "year": 2026, "source": "norisring.de (MCN / ADAC Norisring Speedweekend)", "verified": true},
+  {"file": "maps/Snorisring/norisring-lageplan-2024-crop.jpg", "url": "https://norisring.de/wp-content/uploads/2024/11/Norisring-Lageplan-V4_ORGA-241114_Ausschnitt-1210x262.jpg", "kind": "grandstand-map", "year": 2024, "source": "norisring.de", "verified": true},
+  {"file": "maps/Snorisring/motorsportmagazine-norisring.svg", "url": "https://motorsportmagazine.b-cdn.net/database/wp-content/uploads/sites/2/2023/01/Norisring-732-v2.svg", "kind": "circuit-map", "year": 2023, "source": "Motor Sport Magazine database", "verified": true},
+  {"file": "maps/Snorisring/racingcircuits-norisring-1972.png", "url": "https://www.racingcircuits.info/assets/images/maps/Europe/Germany/Norisring/Norisring72.png", "kind": "circuit-map", "year": 1972, "source": "racingcircuits.info", "verified": true},
+  {"file": "maps/Snorisring/boxengassentribuene-draufsicht-2022.jpg", "url": "https://norisring.de/wp-content/uploads/2023/02/2022-Boxengassentribuene-Draufsicht-1030x634.jpg", "kind": "grandstand-map", "year": 2022, "source": "norisring.de", "verified": true}
+]

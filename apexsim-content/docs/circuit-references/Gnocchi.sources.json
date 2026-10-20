@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Gnocchi/f1-circuit-map-russia.webp", "url": "https://media.formula1.com/image/upload/c_lfill,w_3392/q_auto/v1740000001/content/dam/fom-website/2018-redesign-assets/Circuit%20maps%2016x9/Russia_Circuit.webp", "kind": "circuit-map", "year": 2021, "source": "Formula 1", "verified": true},
+  {"file": "maps/Gnocchi/fia-2019-media-guide.pdf", "url": "https://www.fia.com/file/98626/download", "kind": "spectator-map", "year": 2019, "source": "FIA (Russian GP media guide, media locations map p.6)", "verified": true},
+  {"file": "maps/Gnocchi/fia-2018-media-kit.pdf", "url": "https://www.fia.com/sites/default/files/2018_fia_formula_1_russian_grand_prix_-_media_kit.pdf", "kind": "spectator-map", "year": 2018, "source": "FIA (Russian GP media kit, media locations map p.6)", "verified": true},
+  {"file": "maps/Gnocchi/racefans-sochi-autodrom.jpg", "url": "https://www.racefans.net/wp-content/uploads/2019/09/racefans-sochi-autodrom.jpg", "kind": "circuit-map", "year": 2019, "source": "RaceFans", "verified": true},
+  {"file": "maps/Gnocchi/tilke-sochi-09.jpg", "url": "https://tilke.de/wp-content/uploads/2026/06/Sochi-09.jpg", "kind": "aerial", "year": 2014, "source": "Tilke GmbH", "verified": true}
+]

@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Hungoverring/hungary-2026-wayfinding.pdf", "url": "https://gpdestinations.com/wp-content/uploads/2026/07/2026_F1_Hungary_WayfindingMap_Positive_VISUAL.pdf", "kind": "spectator-map", "year": 2026, "source": "Formula 1 / Hungaroring (hosted by GP Destinations)", "verified": true},
+  {"file": "maps/Hungoverring/hungaroring-gpticketshop-map-2027.jpg", "url": "https://www.gpticketshop.hu/upload/2026_09/25/179032303748552027/hungaroring_map_2027_v01___1.__tem___ap2_1920px.jpg", "kind": "grandstand-map", "year": 2026, "source": "GP Ticket Shop Hungary (official ticketing)", "verified": true},
+  {"file": "maps/Hungoverring/hungaroring-spectator-map-2026.jpg", "url": "https://gpdestinations.com/wp-content/uploads/2026/06/2026-Hungaroring-spectator-map.jpg", "kind": "grandstand-map", "year": 2026, "source": "GP Destinations", "verified": true},
+  {"file": "maps/Hungoverring/hungaroring-fia-circuit-map-2026.pdf", "url": "https://www.fia.com/system/files/decision-document/2026_budapest_event_-_circuit_map_-_budapest_2026_0.pdf", "kind": "circuit-map", "year": 2026, "source": "FIA", "verified": true},
+  {"file": "maps/Hungoverring/hungaroring-f1-2026-track.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackhungaroringdetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true}
+]

@@ -21,6 +21,7 @@ neither.
 - [track-format.md](track-format.md): track YAML, `.ats` scenes and the export format.
 - [road-mesh.md](road-mesh.md): the road mesh sidecar and mesh wheel contact.
 - [circuits.md](circuits.md): circuit styles and per-circuit notes (Nordschleife, Mandarina Bay).
+- [circuit-references/](circuit-references/README.md): the real venues the circuits are modelled on, at building level: layout history, corners, pits, grandstands, structures, maps.
 - [naming.md](naming.md): no trademarks on screen: display names for tracks, corners and classes.
 - [track-guide.md](track-guide.md): the corner-by-corner track guide.
 - [cars.md](cars.md): car folders and car.toml, generated models, runtime loading, wheels, liveries, damage parts.

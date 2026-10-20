@@ -1,0 +1,7 @@
+[
+  {"file": "maps/RedPullRing/redbullring-2026-wayfinding.pdf", "url": "https://gpdestinations.com/wp-content/uploads/2026/06/2026-Austrian-GP-Red-Bull-Ring-Map.pdf", "kind": "spectator-map", "year": 2026, "source": "Formula 1 / Red Bull Ring (hosted by GP Destinations)", "verified": true},
+  {"file": "maps/RedPullRing/redbullring-2026-spectator-map.png", "url": "https://gpdestinations.com/wp-content/uploads/2026/04/2026-Austrian-Grand-Prix-spectator-map.png", "kind": "grandstand-map", "year": 2026, "source": "GP Destinations", "verified": true},
+  {"file": "maps/RedPullRing/redbullring-fia-media-kit-2026.pdf", "url": "https://www.fia.com/sites/default/files/media_kit_-_2026_austrian_grand_prix.pdf", "kind": "spectator-map", "year": 2026, "source": "FIA / Projekt Spielberg", "verified": true},
+  {"file": "maps/RedPullRing/redbullring-f1-2026-track.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackspielbergdetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true},
+  {"file": "maps/RedPullRing/redbullring-lageplan-2021.jpg", "url": "https://www.projekt-spielberg.com/assets/der-spielberg.at/public/formula1/map/overview/_1000x/Red_Bull_Ring_Lageplan_F1_AGP_2021_ENGLISH_SPG2021_0224.jpg", "kind": "spectator-map", "year": 2021, "source": "Projekt Spielberg", "verified": false}
+]

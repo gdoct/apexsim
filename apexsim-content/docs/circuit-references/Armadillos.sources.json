@@ -1,0 +1,7 @@
+[
+  {"file": "maps/Armadillos/f1-2026-track-austin-detailed.webp", "url": "https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackaustindetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true},
+  {"file": "maps/Armadillos/fia-2024-circuit-map-pit-lane.pdf", "url": "https://fia.com/sites/default/files/decision-document/2024 United States Grand Prix - Event Notes - Circuit Map, Pit Lane Drawing and Red Zones.pdf", "kind": "circuit-map", "year": 2024, "source": "FIA", "verified": true},
+  {"file": "maps/Armadillos/oversteer48-grandstand-map-2025.jpg", "url": "https://oversteer48.com/wp-content/uploads/2025/02/COTA-grandstand-map-2025.jpg", "kind": "grandstand-map", "year": 2025, "source": "Oversteer48", "verified": true},
+  {"file": "maps/Armadillos/oversteer48-entrance-map-2025.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/04/COTA-entrance-map-2025.jpg", "kind": "spectator-map", "year": 2025, "source": "Oversteer48", "verified": true},
+  {"file": "maps/Armadillos/f1-programme-usa-circuit-2025.webp", "url": "https://assets.foleon.com/eu-central-1/de-uploads-7e3kk3/52082/usa_circuit.6458c6f439d3.png?ext=webp", "kind": "circuit-map", "year": 2025, "source": "Formula 1 race programme", "verified": true}
+]

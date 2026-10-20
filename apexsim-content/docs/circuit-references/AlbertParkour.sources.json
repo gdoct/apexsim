@@ -1,0 +1,7 @@
+[
+  {"file": "maps/AlbertParkour/f1-2026-melbourne-detailed.webp", "url": "https://media.formula1.com/image/upload/c_lfill,w_3392/q_auto/v1740000001/fom-website/2026/Circuit%20maps/2026trackmelbournedetailed.webp", "kind": "circuit-map", "year": 2026, "source": "Formula1.com", "verified": true},
+  {"file": "maps/AlbertParkour/oversteer48-gates-entrances-map.jpg", "url": "https://oversteer48.com/wp-content/uploads/2024/01/Albert-Park-Gates-and-entrances-map-F1.jpg", "kind": "grandstand-map", "year": 2024, "source": "oversteer48 (fan site)", "verified": true},
+  {"file": "maps/AlbertParkour/oversteer48-fangio-grandstand-map-2026.jpg", "url": "https://oversteer48.com/wp-content/uploads/2023/12/Fangio-Grandstand-map-Australian-Grand-Prix-2026.jpg", "kind": "grandstand-map", "year": 2026, "source": "oversteer48 (fan site)", "verified": true},
+  {"file": "maps/AlbertParkour/agp-program-track-overview.png", "url": "https://tlc-endpoint-h2gjb2fjapgef8ar.z03.azurefd.net/media/s3lhpxs2/f89a110f-9fdf-4f3b-be3f-92c59f185efb.png", "kind": "circuit-map", "year": 2022, "source": "Australian Grand Prix Corporation (official program)", "verified": true},
+  {"file": "maps/AlbertParkour/racingcircuits-melbourne-2021.png", "url": "https://www.racingcircuits.info/assets/images/maps/Australasia/Australia/Albert%20Park/Melbourne-2021.png", "kind": "circuit-map", "year": 2021, "source": "racingcircuits.info", "verified": true}
+]

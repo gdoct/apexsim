@@ -1,0 +1,6 @@
+[
+  {"file": "maps/Bahrainless/fia-2024-bahrain-circuit-map-red-zone.pdf", "url": "https://FIA.com/sites/default/files/decision-document/2024%20Bahrain%20Grand%20Prix%20-%20Event%20Notes%20-%20Circuit%20Map%20and%20Red%20Zone.pdf", "kind": "circuit-map", "year": 2024, "source": "FIA", "verified": true},
+  {"file": "maps/Bahrainless/gpgt-circuit-map-bahrain.webp", "url": "https://www.grandprixgrandtours.com/wp-content/uploads/2025/01/Circuit-Map-Bahrain-F1-Tile.webp", "kind": "grandstand-map", "year": 2025, "source": "Grand Prix Grand Tours", "verified": true},
+  {"file": "maps/Bahrainless/f1-programme-2025-bahrain-circuit.webp", "url": "https://assets.foleon.com/eu-central-1/de-uploads-7e3kk3/52082/bahrain_circuit-16by9centre.8676847a1b7b.png?ext=webp", "kind": "circuit-map", "year": 2025, "source": "Formula 1 official race programme", "verified": true},
+  {"file": "maps/Bahrainless/oversteer48-main-grandstand-seating.jpg", "url": "https://oversteer48.com/wp-content/uploads/2024/02/Bahrain-main-grandstand-seating-chart.jpg", "kind": "grandstand-map", "year": 2024, "source": "oversteer48 (fan site)", "verified": true}
+]
