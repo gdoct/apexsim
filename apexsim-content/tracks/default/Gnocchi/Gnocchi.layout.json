@@ -21,11 +21,148 @@
  },
  "corners": [
   {
-   "name": "Сириус Автодром",
-   "display_name": null,
-   "station_m": 5560.1,
-   "from_m": 4535.3,
-   "to_m": 4535.3
+   "name": "Turn 1",
+   "display_name": "Turn 1",
+   "station_m": 482.0,
+   "from_m": 396,
+   "to_m": 568,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 2",
+   "display_name": "Turn 2",
+   "station_m": 1186.0,
+   "from_m": 1152,
+   "to_m": 1220,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 1640.0,
+   "from_m": 1374,
+   "to_m": 1906,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 4",
+   "display_name": "Turn 4",
+   "station_m": 2056.0,
+   "from_m": 2016,
+   "to_m": 2096,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 5",
+   "display_name": "Turn 5",
+   "station_m": 2495.0,
+   "from_m": 2444,
+   "to_m": 2546,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 2755.0,
+   "from_m": 2694,
+   "to_m": 2816,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 7",
+   "display_name": "Turn 7",
+   "station_m": 2924.0,
+   "from_m": 2890,
+   "to_m": 2958,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 3226.0,
+   "from_m": 3192,
+   "to_m": 3260,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 3326.0,
+   "from_m": 3288,
+   "to_m": 3364,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 10",
+   "display_name": "Turn 10",
+   "station_m": 3608.0,
+   "from_m": 3568,
+   "to_m": 3648,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 11",
+   "display_name": "Turn 11",
+   "station_m": 4020.0,
+   "from_m": 3990,
+   "to_m": 4050,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 12",
+   "display_name": "Turn 12",
+   "station_m": 4584.0,
+   "from_m": 4524,
+   "to_m": 4644,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 4724.0,
+   "from_m": 4688,
+   "to_m": 4760,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 14",
+   "display_name": "Turn 14",
+   "station_m": 4878.0,
+   "from_m": 4772,
+   "to_m": 4984,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 15",
+   "display_name": "Turn 15",
+   "station_m": 5098.0,
+   "from_m": 5060,
+   "to_m": 5136,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 16",
+   "display_name": "Turn 16",
+   "station_m": 5188.0,
+   "from_m": 5144,
+   "to_m": 5232,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 17",
+   "display_name": "Turn 17",
+   "station_m": 5567.0,
+   "from_m": 5532,
+   "to_m": 5602,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 18",
+   "display_name": "Turn 18",
+   "station_m": 5730.0,
+   "from_m": 5690,
+   "to_m": 5770,
+   "source": "authored"
   }
  ],
  "pit_lane": {

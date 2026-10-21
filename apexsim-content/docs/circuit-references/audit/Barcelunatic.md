@@ -117,3 +117,8 @@ In the tables and rules:
 Left:
 
 - "Behind the stadium" is car parks and roads in the layout: no belt there.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 14 turns, the sponsor names as sound-alikes; the RACC chicane on the centerline gets no corner. T11's name is unconfirmed.
+- Marshal posts every 150 m along the straights (the rule).

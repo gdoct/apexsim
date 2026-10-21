@@ -21,11 +21,124 @@
  },
  "corners": [
   {
-   "name": "Grand Prix Circuit",
-   "display_name": null,
-   "station_m": 739.2,
-   "from_m": 4130.0,
-   "to_m": 1593.3
+   "name": "Michael Schumacher",
+   "display_name": "Schuster",
+   "station_m": 742.0,
+   "from_m": 694,
+   "to_m": 790,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 2",
+   "display_name": "Turn 2",
+   "station_m": 837.0,
+   "from_m": 806,
+   "to_m": 868,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 953.0,
+   "from_m": 920,
+   "to_m": 986,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 4",
+   "display_name": "Turn 4",
+   "station_m": 1546.0,
+   "from_m": 1488,
+   "to_m": 1604,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 5",
+   "display_name": "Turn 5",
+   "station_m": 1800.0,
+   "from_m": 1768,
+   "to_m": 1832,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 1896.0,
+   "from_m": 1844,
+   "to_m": 1948,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 7",
+   "display_name": "Turn 7",
+   "station_m": 2015.0,
+   "from_m": 1964,
+   "to_m": 2066,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 2265.0,
+   "from_m": 2212,
+   "to_m": 2318,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 2626.0,
+   "from_m": 2568,
+   "to_m": 2684,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 10",
+   "display_name": "Turn 10",
+   "station_m": 2726.0,
+   "from_m": 2686,
+   "to_m": 2766,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 11",
+   "display_name": "Turn 11",
+   "station_m": 3533.0,
+   "from_m": 3398,
+   "to_m": 3668,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 12",
+   "display_name": "Turn 12",
+   "station_m": 3826.0,
+   "from_m": 3714,
+   "to_m": 3938,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 4106.0,
+   "from_m": 4012,
+   "to_m": 4200,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 14",
+   "display_name": "Turn 14",
+   "station_m": 4916.0,
+   "from_m": 4878,
+   "to_m": 4954,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 15",
+   "display_name": "Turn 15",
+   "station_m": 5003.0,
+   "from_m": 4976,
+   "to_m": 5030,
+   "source": "authored"
   }
  ],
  "pit_lane": {

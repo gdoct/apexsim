@@ -105,3 +105,8 @@ In the tables and rules:
 Left:
 
 - The west shoreline is not in the layout, so the belts stop at 80 m out.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 14 turns; T1/T2 show "Virage Seine", L'Epingle and the Wall of Champions as they are. T11 is a left kink on this centerline.
+- Marshal posts every 150 m along the straights (the rule).

@@ -84,3 +84,8 @@ Left, or for later columns:
 In the tables and rules:
 
 - `WOOD_LEAF` `*` needleleaved (the Eifel's spruce).
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 15 turns; the OSM names kept where their parodies apply, new parodies for the sponsors, the connectors without a name dropped.
+- Marshal posts every 150 m along the straights (the rule).

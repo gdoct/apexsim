@@ -71,3 +71,8 @@ Left, or for later columns:
 ## Trees dossier pass
 
 - The 15 tree rows (R8: no cached extract).
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 14 turns (the circuit's own count, seven each way), T8-T14 numbered here; "Hasenroeder-Kurve", "Muschel-S", "Schikane".
+- Marshal posts every 150 m along the straights (the rule).

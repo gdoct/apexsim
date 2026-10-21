@@ -123,3 +123,8 @@ Left, or for later columns:
 In the tables and rules:
 
 - `PRAIRIE` style: broadleaf clumps in Sakhir's spacing over open prairie, no conifers or poplars.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): Turn 11 added, Turns 15-17 laid again one bend on, the short-course ways dropped: 20 turns.
+- Marshal posts every 150 m along the straights (the rule).

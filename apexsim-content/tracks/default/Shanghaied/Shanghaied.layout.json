@@ -19,7 +19,136 @@
   "centerline_covered": 0.993,
   "centerline_covered_m": 4330
  },
- "corners": [],
+ "corners": [
+  {
+   "name": "Turn 1",
+   "display_name": "Turn 1",
+   "station_m": 588.0,
+   "from_m": 486,
+   "to_m": 690,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 2",
+   "display_name": "Turn 2",
+   "station_m": 769.0,
+   "from_m": 690,
+   "to_m": 848,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 906.0,
+   "from_m": 852,
+   "to_m": 960,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 4",
+   "display_name": "Turn 4",
+   "station_m": 1019.0,
+   "from_m": 960,
+   "to_m": 1078,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 5",
+   "display_name": "Turn 5",
+   "station_m": 1349.0,
+   "from_m": 1318,
+   "to_m": 1380,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 1645.0,
+   "from_m": 1548,
+   "to_m": 1742,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 7",
+   "display_name": "Turn 7",
+   "station_m": 2054.0,
+   "from_m": 1908,
+   "to_m": 2200,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 2357.0,
+   "from_m": 2246,
+   "to_m": 2468,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 2554.0,
+   "from_m": 2504,
+   "to_m": 2604,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 10",
+   "display_name": "Turn 10",
+   "station_m": 2666.0,
+   "from_m": 2624,
+   "to_m": 2708,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 11",
+   "display_name": "Turn 11",
+   "station_m": 3140.0,
+   "from_m": 3104,
+   "to_m": 3176,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 12",
+   "display_name": "Turn 12",
+   "station_m": 3226.0,
+   "from_m": 3182,
+   "to_m": 3270,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 3430.0,
+   "from_m": 3270,
+   "to_m": 3590,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 14",
+   "display_name": "Turn 14",
+   "station_m": 4792.0,
+   "from_m": 4752,
+   "to_m": 4832,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 15",
+   "display_name": "Turn 15",
+   "station_m": 4886.0,
+   "from_m": 4858,
+   "to_m": 4914,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 16",
+   "display_name": "Turn 16",
+   "station_m": 5163.0,
+   "from_m": 5130,
+   "to_m": 5196,
+   "source": "authored"
+  }
+ ],
  "pit_lane": {
   "side": "right",
   "length_m": 707.6,

@@ -28,13 +28,6 @@
    "to_m": 475.8
   },
   {
-   "name": "CM.com Circuit Zandvoort",
-   "display_name": null,
-   "station_m": 712.5,
-   "from_m": 671.1,
-   "to_m": 712.5
-  },
-  {
    "name": "Gerlachbocht",
    "display_name": "Gelachbocht",
    "station_m": 735.4,
@@ -63,6 +56,14 @@
    "to_m": 1587.0
   },
   {
+   "name": "Bocht 6",
+   "display_name": "Bocht 6",
+   "station_m": 1508.0,
+   "from_m": 1448,
+   "to_m": 1568,
+   "source": "authored"
+  },
+  {
    "name": "Scheivlak",
    "display_name": "Scheivlak",
    "station_m": 1786.8,
@@ -77,6 +78,14 @@
    "to_m": 2227.0
   },
   {
+   "name": "Bocht 9",
+   "display_name": "Bocht 9",
+   "station_m": 2309.0,
+   "from_m": 2182,
+   "to_m": 2436,
+   "source": "authored"
+  },
+  {
    "name": "CM.com bocht",
    "display_name": "Sms-bocht",
    "station_m": 2578.3,
@@ -89,6 +98,14 @@
    "station_m": 3246.9,
    "from_m": 3166.8,
    "to_m": 3319.5
+  },
+  {
+   "name": "Bocht 13",
+   "display_name": "Bocht 13",
+   "station_m": 3602.0,
+   "from_m": 3542,
+   "to_m": 3662,
+   "source": "authored"
   },
   {
    "name": "Arie Luyendykbocht",

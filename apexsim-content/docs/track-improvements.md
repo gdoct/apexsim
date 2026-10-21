@@ -297,14 +297,6 @@ stay as they are.
   Shanghaied's 13) are never extracted, so the rows that edge an open
   bowl or an access road are missing; the extract needs a refetch, and
   only MandarinaBay and Shiverstone have one cached.
-- **R10. No manual corner table.** Corner signs and marshal posts come
-  from the dossier's named corners, and a circuit OSM names none of gets
-  no signs and a post every 400 m: ChillyVilleneuve, Gnocchi, Snorisring,
-  Shanghaied, Bahrainless, Barcelunatic, Hungoverring, MandarinaBay,
-  Nuerburgerring, Oskarsleben, and single corners at Armadillos and
-  Zandervoort. The real posts are about three times as many
-  (Nuerburgerring 51 against 13, Bahrainless 40 against 12, Shanghaied 35
-  against 12). Wanted: a `MANUAL_CORNERS` table in `osm_layout.py`.
 - **R12. The podium sits on the middle garage** and roof screens have no
   height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
   screens on the pit roof.

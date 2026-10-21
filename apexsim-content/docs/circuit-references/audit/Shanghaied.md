@@ -99,3 +99,8 @@ In the tables and rules:
 Left:
 
 - OSM's 37 tree rows (R8).
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 16 turns, all "Turn N"; T1/T2, T3/T4 and T12/T13 split by the curvature profile.
+- Marshal posts every 150 m along the straights (the rule).

@@ -21,46 +21,124 @@
  },
  "corners": [
   {
-   "name": "Nürburgring Sprintstrecke",
-   "display_name": null,
-   "station_m": 818.1,
-   "from_m": 397.3,
-   "to_m": 1200.2
+   "name": "Yokohama-S",
+   "display_name": "Yakitori-S",
+   "station_m": 404.0,
+   "from_m": 362,
+   "to_m": 446,
+   "source": "authored"
   },
   {
-   "name": "Anbindung zur Müllenbachschleife",
-   "display_name": null,
-   "station_m": 1399.1,
-   "from_m": 1324.8,
-   "to_m": 1399.1
+   "name": "Mercedes-Arena",
+   "display_name": "Mercato-Arena",
+   "station_m": 601.0,
+   "from_m": 522,
+   "to_m": 680,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 819.0,
+   "from_m": 726,
+   "to_m": 912,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 4",
+   "display_name": "Turn 4",
+   "station_m": 957.0,
+   "from_m": 916,
+   "to_m": 998,
+   "source": "authored"
+  },
+  {
+   "name": "Valvoline-Kurve",
+   "display_name": "Vanille-Kurve",
+   "station_m": 1457.0,
+   "from_m": 1392,
+   "to_m": 1522,
+   "source": "authored"
   },
   {
    "name": "Ford-Kurve",
    "display_name": "Furt-Kurve",
-   "station_m": 1626.9,
-   "from_m": 1564.9,
-   "to_m": 1693.2
+   "station_m": 1627.0,
+   "from_m": 1566,
+   "to_m": 1688,
+   "source": "authored"
+  },
+  {
+   "name": "Dunlop-Kehre",
+   "display_name": "Dunflop-Kehre",
+   "station_m": 2239.0,
+   "from_m": 2156,
+   "to_m": 2322,
+   "source": "authored"
   },
   {
    "name": "Michael-Schumacher-S",
    "display_name": "Schuster-S",
-   "station_m": 2694.2,
-   "from_m": 2576.7,
-   "to_m": 2818.4
+   "station_m": 2632.0,
+   "from_m": 2570,
+   "to_m": 2694,
+   "source": "authored"
   },
   {
-   "name": "Anbindung zur Sprintstrecke",
-   "display_name": null,
-   "station_m": 2974.7,
-   "from_m": 2857.9,
-   "to_m": 2974.7
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 2752.0,
+   "from_m": 2706,
+   "to_m": 2798,
+   "source": "authored"
+  },
+  {
+   "name": "Kumho-Kurve",
+   "display_name": "Kuckuck-Kurve",
+   "station_m": 3186.0,
+   "from_m": 3142,
+   "to_m": 3230,
+   "source": "authored"
+  },
+  {
+   "name": "Bit-Kurve",
+   "display_name": "Bitter-Kurve",
+   "station_m": 3402.0,
+   "from_m": 3330,
+   "to_m": 3474,
+   "source": "authored"
+  },
+  {
+   "name": "Advan-Bogen",
+   "display_name": "Advent-Bogen",
+   "station_m": 3842.0,
+   "from_m": 3794,
+   "to_m": 3890,
+   "source": "authored"
   },
   {
    "name": "NGK-Schikane",
    "display_name": "Zündkerzen-Schikane",
-   "station_m": 4350.3,
-   "from_m": 4277.2,
-   "to_m": 4401.2
+   "station_m": 4315.0,
+   "from_m": 4284,
+   "to_m": 4346,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 14",
+   "display_name": "Turn 14",
+   "station_m": 4391.0,
+   "from_m": 4348,
+   "to_m": 4434,
+   "source": "authored"
+  },
+  {
+   "name": "Coca-Cola-Kurve",
+   "display_name": "Kakao-Kurve",
+   "station_m": 4622.0,
+   "from_m": 4546,
+   "to_m": 4698,
+   "source": "authored"
   }
  ],
  "pit_lane": {

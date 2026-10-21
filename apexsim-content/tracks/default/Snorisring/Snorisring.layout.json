@@ -19,7 +19,72 @@
   "centerline_covered": 0.92,
   "centerline_covered_m": 1694
  },
- "corners": [],
+ "corners": [
+  {
+   "name": "Turn 1",
+   "display_name": "Turn 1",
+   "station_m": 412.0,
+   "from_m": 386,
+   "to_m": 438,
+   "source": "authored"
+  },
+  {
+   "name": "Grundig-Kehre",
+   "display_name": "Grantig-Kehre",
+   "station_m": 493.0,
+   "from_m": 452,
+   "to_m": 534,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 670.0,
+   "from_m": 640,
+   "to_m": 700,
+   "source": "authored"
+  },
+  {
+   "name": "Schöller-S 1",
+   "display_name": "Scholle-S",
+   "station_m": 911.0,
+   "from_m": 874,
+   "to_m": 948,
+   "source": "authored"
+  },
+  {
+   "name": "Schöller-S 2",
+   "display_name": "Scholle-S",
+   "station_m": 991.0,
+   "from_m": 954,
+   "to_m": 1028,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 1441.0,
+   "from_m": 1388,
+   "to_m": 1494,
+   "source": "authored"
+  },
+  {
+   "name": "Dutzendteich-Kehre",
+   "display_name": "Dutzendteich-Kehre",
+   "station_m": 1644.0,
+   "from_m": 1596,
+   "to_m": 1692,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 1873.0,
+   "from_m": 1824,
+   "to_m": 1922,
+   "source": "authored"
+  }
+ ],
  "pit_lane": {
   "side": "right",
   "length_m": 424.9,

@@ -100,3 +100,8 @@ Left, or for later columns:
 In the tables and rules:
 
 - The 49 dune-scrub areas grow bushes (R8).
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): Bocht 6, 9 and 13 added; OSM's circuit way, which was taken for a corner, dropped.
+- Marshal posts every 150 m along the straights (the rule).

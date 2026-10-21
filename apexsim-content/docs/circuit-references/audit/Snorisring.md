@@ -103,3 +103,8 @@ In the tables and rules:
 Left:
 
 - The wood south-west of the Zeppelinfeld overlaps the lake and stands: left out.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 8 turns; Grundig shows "Grantig-Kehre", the Schoeller-S "Scholle-S", the Dutzendteich-Kehre as it is. T1 could be the right at 270-312; T3 is a weak left.
+- Marshal posts every 150 m along the straights (the rule).

@@ -118,3 +118,8 @@ Left, or for later columns:
 ## Trees dossier pass
 
 - Nothing needed: the poplar rule (R9) is the only change it sees.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 14 turns, the 2026 names: people as sound-alikes, places as they are; "Buda" and "Pest" at T8/T9 are a guess.
+- Marshal posts every 150 m along the straights (the rule).

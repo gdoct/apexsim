@@ -21,11 +21,116 @@
  },
  "corners": [
   {
-   "name": "Hungaroring",
-   "display_name": null,
-   "station_m": 402.7,
-   "from_m": 4194.7,
-   "to_m": 600.5
+   "name": "Piquet",
+   "display_name": "Picket",
+   "station_m": 644.0,
+   "from_m": 588,
+   "to_m": 700,
+   "source": "authored"
+  },
+  {
+   "name": "Hamilton",
+   "display_name": "Hamlet",
+   "station_m": 1154.0,
+   "from_m": 1072,
+   "to_m": 1236,
+   "source": "authored"
+  },
+  {
+   "name": "Spring",
+   "display_name": "Spring",
+   "station_m": 1341.0,
+   "from_m": 1306,
+   "to_m": 1376,
+   "source": "authored"
+  },
+  {
+   "name": "Mansell",
+   "display_name": "Mantel",
+   "station_m": 1819.0,
+   "from_m": 1786,
+   "to_m": 1852,
+   "source": "authored"
+  },
+  {
+   "name": "Mogyoród",
+   "display_name": "Mogyoród",
+   "station_m": 2074.0,
+   "from_m": 1984,
+   "to_m": 2164,
+   "source": "authored"
+  },
+  {
+   "name": "Driving Center",
+   "display_name": "Driving Center",
+   "station_m": 2383.0,
+   "from_m": 2354,
+   "to_m": 2412,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 7",
+   "display_name": "Turn 7",
+   "station_m": 2434.0,
+   "from_m": 2412,
+   "to_m": 2456,
+   "source": "authored"
+  },
+  {
+   "name": "Buda",
+   "display_name": "Buda",
+   "station_m": 2601.0,
+   "from_m": 2558,
+   "to_m": 2644,
+   "source": "authored"
+  },
+  {
+   "name": "Pest",
+   "display_name": "Pest",
+   "station_m": 2736.0,
+   "from_m": 2682,
+   "to_m": 2790,
+   "source": "authored"
+  },
+  {
+   "name": "Danube",
+   "display_name": "Danube",
+   "station_m": 2942.0,
+   "from_m": 2898,
+   "to_m": 2986,
+   "source": "authored"
+  },
+  {
+   "name": "Alesi",
+   "display_name": "Alley",
+   "station_m": 3124.0,
+   "from_m": 3064,
+   "to_m": 3184,
+   "source": "authored"
+  },
+  {
+   "name": "Schumacher",
+   "display_name": "Schuster",
+   "station_m": 3540.0,
+   "from_m": 3502,
+   "to_m": 3578,
+   "source": "authored"
+  },
+  {
+   "name": "Senna",
+   "display_name": "Sonho",
+   "station_m": 3802.0,
+   "from_m": 3722,
+   "to_m": 3882,
+   "source": "authored"
+  },
+  {
+   "name": "Szisz",
+   "display_name": "Sizzle",
+   "station_m": 4099.0,
+   "from_m": 3984,
+   "to_m": 4214,
+   "source": "authored"
   }
  ],
  "pit_lane": {

@@ -117,3 +117,8 @@ Left, or for later columns:
 In the tables and rules:
 
 - The desert set plants date palms (`date_palm_l`).
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 15 turns; T1 shows "Schuster". T9/T10 split at 2684. Stations follow the line, which sits early (follow-ups).
+- Marshal posts every 150 m along the straights (the rule).

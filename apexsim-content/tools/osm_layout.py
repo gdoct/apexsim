@@ -2438,6 +2438,222 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
 # added to them, less the scanned ones `drop` names. Corner signs and
 # marshal posts stand at each.
 MANUAL_CORNERS: dict[str, dict] = {
+    "ChillyVilleneuve": dict(
+        replace=True,
+        corners=[
+            dict(name="Virage Senna (T1)", display_name="Virage Seine", from_m=220, to_m=288),  # L; dossier T1, FIA 2026 map; Senna is a person's mark -> sound-alike
+            dict(name="Virage Senna (T2)", display_name="Virage Seine", from_m=290, to_m=440),  # R hairpin-like; dossier T2
+            dict(name="Turn 3", display_name="Turn 3", from_m=688, to_m=760),    # R chicane entry
+            dict(name="Turn 4", display_name="Turn 4", from_m=764, to_m=824),    # L chicane exit
+            dict(name="Turn 5", display_name="Turn 5", from_m=964, to_m=1110),   # R kink (S1 at ~1092, '150 m before T6')
+            dict(name="Turn 6", display_name="Turn 6", from_m=1214, to_m=1296),  # L; Grandstand 32/33 at 1220/1295
+            dict(name="Turn 7", display_name="Turn 7", from_m=1300, to_m=1430),  # R
+            dict(name="Turn 8", display_name="Turn 8", from_m=1980, to_m=2038),  # R; Grandstand 31 at 2026
+            dict(name="Turn 9", display_name="Turn 9", from_m=2042, to_m=2140),  # L; GA Turn 9 at 2166
+            dict(name="L'Épingle", display_name="L'Épingle", from_m=2646, to_m=2770),  # T10 R hairpin; descriptive name, shown as is
+            dict(name="Turn 11", display_name="Turn 11", from_m=2778, to_m=2858),  # L kink after the hairpin (FIA map + geometry)
+            dict(name="Turn 12", display_name="Turn 12", from_m=3176, to_m=3230),  # R kink on the Casino straight
+            dict(name="Turn 13", display_name="Turn 13", from_m=3862, to_m=3910),  # R final-chicane entry
+            dict(name="Wall of Champions", display_name="Wall of Champions", from_m=3914, to_m=3962),  # T14 L; descriptive
+        ],
+    ),
+    "Gnocchi": dict(
+        replace=True,
+        corners=[
+            dict(name="Turn 1", display_name="Turn 1", from_m=396, to_m=568),     # R kink; T1 Grandstand 421
+            dict(name="Turn 2", display_name="Turn 2", from_m=1152, to_m=1220),   # R 90; T2 Grandstand 1186 (left kink 1224-1266 unnumbered)
+            dict(name="Turn 3", display_name="Turn 3", from_m=1374, to_m=1906),   # L long multi-apex round the Medals Plaza; T3 Grandstand 1551
+            dict(name="Turn 4", display_name="Turn 4", from_m=2016, to_m=2096),   # R; T4 Grandstand 2055
+            dict(name="Turn 5", display_name="Turn 5", from_m=2444, to_m=2546),   # R; T5 Grandstand 2496
+            dict(name="Turn 6", display_name="Turn 6", from_m=2694, to_m=2816),   # R; Ice Dome GA T6 2689
+            dict(name="Turn 7", display_name="Turn 7", from_m=2890, to_m=2958),   # R
+            dict(name="Turn 8", display_name="Turn 8", from_m=3192, to_m=3260),   # L
+            dict(name="Turn 9", display_name="Turn 9", from_m=3288, to_m=3364),   # L
+            dict(name="Turn 10", display_name="Turn 10", from_m=3568, to_m=3648), # R; T10 Grandstand 3606
+            dict(name="Turn 11", display_name="Turn 11", from_m=3990, to_m=4050), # R flat sweep
+            dict(name="Turn 12", display_name="Turn 12", from_m=4524, to_m=4644), # L flat sweep
+            dict(name="Turn 13", display_name="Turn 13", from_m=4688, to_m=4760), # R; T13 Grandstand 4732
+            dict(name="Turn 14", display_name="Turn 14", from_m=4772, to_m=4984), # L
+            dict(name="Turn 15", display_name="Turn 15", from_m=5060, to_m=5136), # L; T15 Grandstand 5101
+            dict(name="Turn 16", display_name="Turn 16", from_m=5144, to_m=5232), # R
+            dict(name="Turn 17", display_name="Turn 17", from_m=5532, to_m=5602), # R
+            dict(name="Turn 18", display_name="Turn 18", from_m=5690, to_m=5770), # R onto the pit straight
+        ],
+    ),
+    "Snorisring": dict(
+        replace=True,
+        corners=[
+            dict(name="Turn 1", display_name="Turn 1", from_m=386, to_m=438),     # R sweeper at the end of the S/F straight
+            dict(name="Grundig-Kehre", display_name="Grantig-Kehre", from_m=452, to_m=534),  # T2 L 180 deg hairpin; Grundig is a brand -> sound-alike
+            dict(name="Turn 3", display_name="Turn 3", from_m=640, to_m=700),     # L sweeper on the return leg (8 deg, faint)
+            dict(name="Schöller-S 1", display_name="Scholle-S", from_m=874, to_m=948),   # T4 R; Schöller is an ice-cream brand -> sound-alike
+            dict(name="Schöller-S 2", display_name="Scholle-S", from_m=954, to_m=1028),  # T5 L
+            dict(name="Turn 6", display_name="Turn 6", from_m=1388, to_m=1494),   # R kink on the back leg
+            dict(name="Dutzendteich-Kehre", display_name="Dutzendteich-Kehre", from_m=1596, to_m=1692),  # T7 L hairpin; lake name, shown as is
+            dict(name="Turn 8", display_name="Turn 8", from_m=1824, to_m=1922),   # L kink onto the S/F straight
+        ],
+    ),
+    "Shanghaied": dict(
+        replace=True,
+        corners=[
+            dict(name="Turn 1", display_name="Turn 1", from_m=486, to_m=690),     # R snail, broad first part; Grandstand B1-B3 512-642
+            dict(name="Turn 2", display_name="Turn 2", from_m=690, to_m=848),     # R snail, tightening
+            dict(name="Turn 3", display_name="Turn 3", from_m=852, to_m=960),     # L out of the snail
+            dict(name="Turn 4", display_name="Turn 4", from_m=960, to_m=1078),    # L flat
+            dict(name="Turn 5", display_name="Turn 5", from_m=1318, to_m=1380),   # R kink; Grass Stand C 1347
+            dict(name="Turn 6", display_name="Turn 6", from_m=1548, to_m=1742),   # R hairpin
+            dict(name="Turn 7", display_name="Turn 7", from_m=1908, to_m=2200),   # L long fast
+            dict(name="Turn 8", display_name="Turn 8", from_m=2246, to_m=2468),   # R
+            dict(name="Turn 9", display_name="Turn 9", from_m=2504, to_m=2604),   # L
+            dict(name="Turn 10", display_name="Turn 10", from_m=2624, to_m=2708), # L
+            dict(name="Turn 11", display_name="Turn 11", from_m=3104, to_m=3176), # L tight; Grandstand E
+            dict(name="Turn 12", display_name="Turn 12", from_m=3182, to_m=3270), # R, tight entry of the opening snail
+            dict(name="Turn 13", display_name="Turn 13", from_m=3270, to_m=3590), # R, long constant part onto the back straight
+            dict(name="Turn 14", display_name="Turn 14", from_m=4752, to_m=4832), # R hairpin; H 4652, J 4787, K 4948
+            dict(name="Turn 15", display_name="Turn 15", from_m=4858, to_m=4914), # R
+            dict(name="Turn 16", display_name="Turn 16", from_m=5130, to_m=5196), # L onto the main straight
+        ],
+    ),
+    "Bahrainless": dict(
+        replace=True,
+        corners=[
+            dict(name="Michael Schumacher", display_name="Schuster", from_m=694, to_m=790),  # T1 R; a person's mark -> 'Schuster' as Nuerburgerring's Schuster-S
+            dict(name="Turn 2", display_name="Turn 2", from_m=806, to_m=868),     # L
+            dict(name="Turn 3", display_name="Turn 3", from_m=920, to_m=986),     # R kink; University Grandstands 922-1052
+            dict(name="Turn 4", display_name="Turn 4", from_m=1488, to_m=1604),   # R; GA Turn 4 at 1327 before it
+            dict(name="Turn 5", display_name="Turn 5", from_m=1768, to_m=1832),   # L fast
+            dict(name="Turn 6", display_name="Turn 6", from_m=1844, to_m=1948),   # R
+            dict(name="Turn 7", display_name="Turn 7", from_m=1964, to_m=2066),   # L
+            dict(name="Turn 8", display_name="Turn 8", from_m=2212, to_m=2318),   # R hairpin
+            dict(name="Turn 9", display_name="Turn 9", from_m=2568, to_m=2684),   # L long
+            dict(name="Turn 10", display_name="Turn 10", from_m=2686, to_m=2766), # L tight, onto the back straight
+            dict(name="Turn 11", display_name="Turn 11", from_m=3398, to_m=3668), # L long radius
+            dict(name="Turn 12", display_name="Turn 12", from_m=3714, to_m=3938), # R fast sweeper
+            dict(name="Turn 13", display_name="Turn 13", from_m=4012, to_m=4200), # R; GA Turn 13 at 4511
+            dict(name="Turn 14", display_name="Turn 14", from_m=4878, to_m=4954), # R; Victory Grandstand 2 at 4891
+            dict(name="Turn 15", display_name="Turn 15", from_m=4976, to_m=5030), # R onto the main straight
+        ],
+    ),
+    "Barcelunatic": dict(
+        replace=True,
+        corners=[
+            dict(name="Elf", display_name="Elfo", from_m=780, to_m=882),            # T1 R; oil brand -> 'Elfo'
+            dict(name="Turn 2", display_name="Turn 2", from_m=888, to_m=982),       # L
+            dict(name="Renault", display_name="Reno", from_m=1040, to_m=1452),      # T3 R long; car maker -> 'Reno' (reindeer)
+            dict(name="Repsol", display_name="Repollo", from_m=1656, to_m=1926),    # T4 R; oil brand -> 'Repollo' (cabbage)
+            dict(name="Seat", display_name="Seta", from_m=2064, to_m=2196),         # T5 L; car maker -> 'Seta' (mushroom); Tribuna M 2099
+            dict(name="Turn 6", display_name="Turn 6", from_m=2312, to_m=2438),     # L kink; Pelouse T6 2285
+            dict(name="Würth", display_name="Wurstel", from_m=2498, to_m=2596),     # T7 L; tool brand -> 'Wurstel'; Pelouse T7 2446
+            dict(name="Turn 8", display_name="Turn 8", from_m=2604, to_m=2678),     # R; Pelouse T8 2652
+            dict(name="Campsa", display_name="Campo", from_m=2824, to_m=2992),      # T9 R; fuel brand -> 'Campo'; Tribuna N 2900
+            dict(name="La Caixa", display_name="La Faixa", from_m=3438, to_m=3536), # T10 L; bank -> 'La Faixa' (Catalan sash); Tribuna T10 3476
+            dict(name="Banc Sabadell", display_name="Banc Sabata", from_m=3590, to_m=3648),  # T11 L; bank -> 'Banc Sabata' (shoe)
+            dict(name="Europcar", display_name="Europaca", from_m=3654, to_m=3866), # T12 R; car hire -> 'Europaca'; Tribuna B/G 3730-3851
+            dict(name="Turn 13", display_name="Turn 13", from_m=3974, to_m=4044),   # R; Tribuna C 4007
+            dict(name="New Holland", display_name="New Hollandaise", from_m=4252, to_m=4416),  # T14 R; tractor maker -> sound-alike; Tribuna I 4379
+        ],
+    ),
+    "Hungoverring": dict(
+        replace=True,
+        corners=[
+            dict(name="Piquet", display_name="Picket", from_m=588, to_m=700),            # T1 R hairpin, 140 deg, R 21 m
+            dict(name="Hamilton", display_name="Hamlet", from_m=1072, to_m=1236),        # T2 L, 158 deg (Hamlet as at Shiverstone)
+            dict(name="Spring", display_name="Spring", from_m=1306, to_m=1376),          # T3 R kink, 55 deg
+            dict(name="Mansell", display_name="Mantel", from_m=1786, to_m=1852),         # T4 L over the crest, 61 deg
+            dict(name="Mogyoród", display_name="Mogyoród", from_m=1984, to_m=2164),      # T5 long R, 139 deg (place name)
+            dict(name="Driving Center", display_name="Driving Center", from_m=2354, to_m=2412),  # T6 R, chicane entry, 84 deg
+            dict(name="Turn 7", display_name="Turn 7", from_m=2412, to_m=2456),          # T7 L, chicane exit, 57 deg
+            dict(name="Buda", display_name="Buda", from_m=2558, to_m=2644),              # T8 L, 71 deg
+            dict(name="Pest", display_name="Pest", from_m=2682, to_m=2790),              # T9 R, 94 deg
+            dict(name="Danube", display_name="Danube", from_m=2898, to_m=2986),          # T10 L kink, 40 deg
+            dict(name="Alesi", display_name="Alley", from_m=3064, to_m=3184),            # T11 R, 75 deg
+            dict(name="Schumacher", display_name="Schuster", from_m=3502, to_m=3578),    # T12 R, 99 deg, R 23 m (Schuster as at Nuerburgerring)
+            dict(name="Senna", display_name="Sonho", from_m=3722, to_m=3882),            # T13 U-shaped L, 184 deg (Sonho as at Interlaggos)
+            dict(name="Szisz", display_name="Sizzle", from_m=3984, to_m=4214),           # T14 R onto the straight, 181 deg
+        ],
+    ),
+    "MandarinaBay": dict(
+        replace=True,
+        corners=[
+            dict(name="Sheares", display_name="Shears", from_m=402, to_m=462),          # T1 L, 87 deg
+            dict(name="Turn 2", display_name="Turn 2", from_m=464, to_m=538),           # T2 R, 62 deg
+            dict(name="Turn 3", display_name="Turn 3", from_m=540, to_m=650),           # T3 L under the bridge, 147 deg
+            dict(name="Turn 4", display_name="Turn 4", from_m=678, to_m=744),           # T4 kink on Republic Blvd, L 28 deg
+            dict(name="Turn 5", display_name="Turn 5", from_m=920, to_m=1062),          # T5 R onto Raffles Blvd, 103 deg
+            dict(name="Turn 6", display_name="Turn 6", from_m=1404, to_m=1486),         # T6 flat kink into Nicoll Hwy, R 24 deg
+            dict(name="Memorial", display_name="Memorial", from_m=1778, to_m=1848),     # T7 L, 99 deg, 780 m after T5
+            dict(name="Turn 8", display_name="Turn 8", from_m=1986, to_m=2062),         # T8 R onto Stamford Rd, 124 deg
+            dict(name="Turn 9", display_name="Turn 9", from_m=2144, to_m=2278),         # T9 L onto St Andrew's Rd, 108 deg
+            dict(name="Singapore Sling", display_name="Singapore Sling", from_m=2636, to_m=2704),  # T10 L, 91 deg
+            dict(name="Turn 11", display_name="Turn 11", from_m=2768, to_m=2824),       # T11 R onto Fullerton Rd, 55 deg
+            dict(name="Turn 12", display_name="Turn 12", from_m=2824, to_m=2892),       # T12 L onto Anderson Bridge, 49 deg
+            dict(name="Turn 13", display_name="Turn 13", from_m=3016, to_m=3098),       # T13 L hairpin, 152 deg, R 20 m
+            dict(name="Turn 14", display_name="Turn 14", from_m=3562, to_m=3638),       # T14 R onto Raffles Ave, 131 deg
+            dict(name="Turn 15", display_name="Turn 15", from_m=3806, to_m=3912),       # T15 L kink, 39 deg
+            dict(name="Turn 16", display_name="Turn 16", from_m=4310, to_m=4378),       # T16 R, 88 deg, after the 400 m straight
+            dict(name="Turn 17", display_name="Turn 17", from_m=4378, to_m=4454),       # T17 L, 85 deg
+            dict(name="Turn 18", display_name="Turn 18", from_m=4676, to_m=4736),       # T18 L, 65 deg
+            dict(name="Turn 19", display_name="Turn 19", from_m=4774, to_m=4836),       # T19 L onto the pit straight, 41 deg
+        ],
+    ),
+    "Nuerburgerring": dict(
+        replace=True,
+        corners=[
+            dict(name="Yokohama-S", display_name="Yakitori-S", from_m=362, to_m=446),            # T1 R, 150 deg (ex-Castrol-S)
+            dict(name="Mercedes-Arena", display_name="Mercato-Arena", from_m=522, to_m=680),     # T2 L, 130 deg
+            dict(name="Turn 3", display_name="Turn 3", from_m=726, to_m=912),                    # T3 L, tightening, 179 deg (arena)
+            dict(name="Turn 4", display_name="Turn 4", from_m=916, to_m=998),                    # T4 R, 106 deg (arena exit)
+            dict(name="Valvoline-Kurve", display_name="Vanille-Kurve", from_m=1392, to_m=1522),  # T5 L, 82 deg
+            dict(name="Ford-Kurve", display_name="Furt-Kurve", from_m=1566, to_m=1688),          # T6 R, 125 deg (OSM name kept)
+            dict(name="Dunlop-Kehre", display_name="Dunflop-Kehre", from_m=2156, to_m=2322),     # T7 R hairpin, 198 deg (Dunflop as at Lemons)
+            dict(name="Michael-Schumacher-S", display_name="Schuster-S", from_m=2570, to_m=2694),  # T8 L, 63 deg (OSM name kept)
+            dict(name="Turn 9", display_name="Turn 9", from_m=2706, to_m=2798),                  # T9 R, 36 deg (S exit)
+            dict(name="Kumho-Kurve", display_name="Kuckuck-Kurve", from_m=3142, to_m=3230),      # T10 L, 86 deg
+            dict(name="Bit-Kurve", display_name="Bitter-Kurve", from_m=3330, to_m=3474),         # T11 R onto the back straight, 108 deg
+            dict(name="Advan-Bogen", display_name="Advent-Bogen", from_m=3794, to_m=3890),       # T12 R kink, 33 deg
+            dict(name="NGK-Schikane", display_name="Zündkerzen-Schikane", from_m=4284, to_m=4346),  # T13 L, 61 deg (OSM name kept)
+            dict(name="Turn 14", display_name="Turn 14", from_m=4348, to_m=4434),                # T14 R, 61 deg (chicane exit)
+            dict(name="Coca-Cola-Kurve", display_name="Kakao-Kurve", from_m=4546, to_m=4698),    # T15 R onto the straight, 147 deg
+        ],
+    ),
+    "Oskarsleben": dict(
+        replace=True,
+        corners=[
+            dict(name="Variante", display_name="Variante", from_m=356, to_m=418),                 # T1 L 90 (2007), OSM name kept
+            dict(name="Hotelkurve", display_name="Hotelkurve", from_m=422, to_m=662),             # T2 R, 226 deg
+            dict(name="Hasseröder-Kurve", display_name="Hasenröder-Kurve", from_m=904, to_m=1068),  # T3 L 180 deg hairpin
+            dict(name="Triple", display_name="Triple", from_m=1364, to_m=1436),                   # T4 L, 45 deg (Triple 1)
+            dict(name="Turn 5", display_name="Turn 5", from_m=1470, to_m=1538),                   # T5 L, 52 deg (Triple 2)
+            dict(name="Turn 6", display_name="Turn 6", from_m=1578, to_m=1630),                   # T6 L, 43 deg (Triple 3)
+            dict(name="Turn 7", display_name="Turn 7", from_m=1632, to_m=1836),                   # T7 R hairpin, 214 deg
+            dict(name="Schikane", display_name="Schikane", from_m=1958, to_m=2006),               # T8 R, 54 deg (Profi-Car Schikane), OSM name kept
+            dict(name="Turn 9", display_name="Turn 9", from_m=2006, to_m=2050),                   # T9 L, 56 deg (chicane exit)
+            dict(name="Turn 10", display_name="Turn 10", from_m=2052, to_m=2198),                 # T10 R onto the Stadiongerade, 104 deg
+            dict(name="Shell-S", display_name="Muschel-S", from_m=2712, to_m=2776),               # T11 R, 60 deg
+            dict(name="Turn 12", display_name="Turn 12", from_m=2810, to_m=2880),                 # T12 L, 62 deg (S exit)
+            dict(name="Turn 13", display_name="Turn 13", from_m=3072, to_m=3146),                 # T13 R, 64 deg
+            dict(name="Zeppelin-Kurve", display_name="Zappelin-Kurve", from_m=3266, to_m=3384),   # T14 R onto the straight, 125 deg, OSM name kept
+        ],
+    ),
+    "Armadillos": dict(
+        replace=False,
+        drop=['Short Course 2', 'COTA Short Track', 'Turn 15', 'Turn 16', 'Turn 17'],
+        corners=[
+            dict(name="Turn 11", display_name="Turn 11", from_m=2540, to_m=2630),  # L hairpin, 153 deg, R 20 m, before the 1.06 km back straight
+            dict(name="Turn 15", display_name="Turn 15", from_m=4200, to_m=4328),  # L hairpin, 173 deg (OSM's ran 4129-4254)
+            dict(name="Turn 16", display_name="Turn 16", from_m=4458, to_m=4548),  # R, 49 deg, carousel apex 1 (OSM's sat on T15's exit, 4254-4332)
+            dict(name="Turn 17", display_name="Turn 17", from_m=4556, to_m=4632),  # R, 48 deg, carousel apex 2 (OSM's covered T16+T17, 4450-4653)
+        ],
+    ),
+    "Zandervoort": dict(
+        replace=False,
+        drop=['CM.com Circuit Zandvoort'],
+        corners=[
+            dict(name="Bocht 6", display_name="Bocht 6", from_m=1448, to_m=1568),    # R, 37 deg, after Slotemaker's L (1290-1392)
+            dict(name="Bocht 9", display_name="Bocht 9", from_m=2182, to_m=2436),    # R ~180, 167 deg (ex-Renaultbocht), after Masters
+            dict(name="Bocht 13", display_name="Bocht 13", from_m=3542, to_m=3662),  # R, 98 deg (ex-Kumhobocht), before Arie Luyendyk
+        ],
+    ),
 }
 
 

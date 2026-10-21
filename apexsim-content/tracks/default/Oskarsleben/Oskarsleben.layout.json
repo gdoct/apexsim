@@ -23,37 +23,114 @@
   {
    "name": "Variante",
    "display_name": "Variante",
-   "station_m": 410.7,
-   "from_m": 366.1,
-   "to_m": 454.0
+   "station_m": 387.0,
+   "from_m": 356,
+   "to_m": 418,
+   "source": "authored"
   },
   {
    "name": "Hotelkurve",
    "display_name": "Hotelkurve",
-   "station_m": 554.5,
-   "from_m": 462.3,
-   "to_m": 638.9
+   "station_m": 542.0,
+   "from_m": 422,
+   "to_m": 662,
+   "source": "authored"
+  },
+  {
+   "name": "Hasseröder-Kurve",
+   "display_name": "Hasenröder-Kurve",
+   "station_m": 986.0,
+   "from_m": 904,
+   "to_m": 1068,
+   "source": "authored"
   },
   {
    "name": "Triple",
    "display_name": "Triple",
-   "station_m": 1471.4,
-   "from_m": 1383.0,
-   "to_m": 1507.6
+   "station_m": 1400.0,
+   "from_m": 1364,
+   "to_m": 1436,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 5",
+   "display_name": "Turn 5",
+   "station_m": 1504.0,
+   "from_m": 1470,
+   "to_m": 1538,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 1604.0,
+   "from_m": 1578,
+   "to_m": 1630,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 7",
+   "display_name": "Turn 7",
+   "station_m": 1734.0,
+   "from_m": 1632,
+   "to_m": 1836,
+   "source": "authored"
   },
   {
    "name": "Schikane",
    "display_name": "Schikane",
-   "station_m": 2014.5,
-   "from_m": 1971.7,
-   "to_m": 2057.1
+   "station_m": 1982.0,
+   "from_m": 1958,
+   "to_m": 2006,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 2028.0,
+   "from_m": 2006,
+   "to_m": 2050,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 10",
+   "display_name": "Turn 10",
+   "station_m": 2125.0,
+   "from_m": 2052,
+   "to_m": 2198,
+   "source": "authored"
+  },
+  {
+   "name": "Shell-S",
+   "display_name": "Muschel-S",
+   "station_m": 2744.0,
+   "from_m": 2712,
+   "to_m": 2776,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 12",
+   "display_name": "Turn 12",
+   "station_m": 2845.0,
+   "from_m": 2810,
+   "to_m": 2880,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 3109.0,
+   "from_m": 3072,
+   "to_m": 3146,
+   "source": "authored"
   },
   {
    "name": "Zeppelin-Kurve",
    "display_name": "Zappelin-Kurve",
-   "station_m": 3334.3,
-   "from_m": 3288.3,
-   "to_m": 3373.9
+   "station_m": 3325.0,
+   "from_m": 3266,
+   "to_m": 3384,
+   "source": "authored"
   }
  ],
  "pit_lane": {

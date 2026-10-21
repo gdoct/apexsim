@@ -100,3 +100,8 @@ In the tables and rules:
 Left:
 
 - No columnar cypress in the kit; the coastal-plain impostors.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 18 turns, all "Turn N" (12 right, 6 left). T11 and T12 are faint sweeps placed by their spacing on the map.
+- Marshal posts every 150 m along the straights (the rule).

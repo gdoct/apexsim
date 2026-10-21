@@ -21,11 +21,156 @@
  },
  "corners": [
   {
-   "name": "Marina Bay Street Circuit",
-   "display_name": null,
-   "station_m": 0.1,
-   "from_m": 4580.0,
-   "to_m": 520.6
+   "name": "Sheares",
+   "display_name": "Shears",
+   "station_m": 432.0,
+   "from_m": 402,
+   "to_m": 462,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 2",
+   "display_name": "Turn 2",
+   "station_m": 501.0,
+   "from_m": 464,
+   "to_m": 538,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 3",
+   "display_name": "Turn 3",
+   "station_m": 595.0,
+   "from_m": 540,
+   "to_m": 650,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 4",
+   "display_name": "Turn 4",
+   "station_m": 711.0,
+   "from_m": 678,
+   "to_m": 744,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 5",
+   "display_name": "Turn 5",
+   "station_m": 991.0,
+   "from_m": 920,
+   "to_m": 1062,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 1445.0,
+   "from_m": 1404,
+   "to_m": 1486,
+   "source": "authored"
+  },
+  {
+   "name": "Memorial",
+   "display_name": "Memorial",
+   "station_m": 1813.0,
+   "from_m": 1778,
+   "to_m": 1848,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 2024.0,
+   "from_m": 1986,
+   "to_m": 2062,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 9",
+   "display_name": "Turn 9",
+   "station_m": 2211.0,
+   "from_m": 2144,
+   "to_m": 2278,
+   "source": "authored"
+  },
+  {
+   "name": "Singapore Sling",
+   "display_name": "Singapore Sling",
+   "station_m": 2670.0,
+   "from_m": 2636,
+   "to_m": 2704,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 11",
+   "display_name": "Turn 11",
+   "station_m": 2796.0,
+   "from_m": 2768,
+   "to_m": 2824,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 12",
+   "display_name": "Turn 12",
+   "station_m": 2858.0,
+   "from_m": 2824,
+   "to_m": 2892,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 3057.0,
+   "from_m": 3016,
+   "to_m": 3098,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 14",
+   "display_name": "Turn 14",
+   "station_m": 3600.0,
+   "from_m": 3562,
+   "to_m": 3638,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 15",
+   "display_name": "Turn 15",
+   "station_m": 3859.0,
+   "from_m": 3806,
+   "to_m": 3912,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 16",
+   "display_name": "Turn 16",
+   "station_m": 4344.0,
+   "from_m": 4310,
+   "to_m": 4378,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 17",
+   "display_name": "Turn 17",
+   "station_m": 4416.0,
+   "from_m": 4378,
+   "to_m": 4454,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 18",
+   "display_name": "Turn 18",
+   "station_m": 4706.0,
+   "from_m": 4676,
+   "to_m": 4736,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 19",
+   "display_name": "Turn 19",
+   "station_m": 4805.0,
+   "from_m": 4774,
+   "to_m": 4836,
+   "source": "authored"
   }
  ],
  "pit_lane": {

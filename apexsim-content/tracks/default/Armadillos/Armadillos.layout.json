@@ -91,11 +91,12 @@
    "to_m": 2203.9
   },
   {
-   "name": "Short Course 2",
-   "display_name": null,
-   "station_m": 3416.3,
-   "from_m": 3398.9,
-   "to_m": 1698.2
+   "name": "Turn 11",
+   "display_name": "Turn 11",
+   "station_m": 2585.0,
+   "from_m": 2540,
+   "to_m": 2630,
+   "source": "authored"
   },
   {
    "name": "Turn 12",
@@ -103,13 +104,6 @@
    "station_m": 3778.0,
    "from_m": 3683.2,
    "to_m": 3807.7
-  },
-  {
-   "name": "COTA Short Track",
-   "display_name": null,
-   "station_m": 3916.4,
-   "from_m": 303.8,
-   "to_m": 303.8
   },
   {
    "name": "Turn 13",
@@ -128,23 +122,26 @@
   {
    "name": "Turn 15",
    "display_name": "Turn 15",
-   "station_m": 4212.6,
-   "from_m": 4129.4,
-   "to_m": 4254.1
+   "station_m": 4264.0,
+   "from_m": 4200,
+   "to_m": 4328,
+   "source": "authored"
   },
   {
    "name": "Turn 16",
    "display_name": "Turn 16",
-   "station_m": 4286.0,
-   "from_m": 4254.1,
-   "to_m": 4332.5
+   "station_m": 4503.0,
+   "from_m": 4458,
+   "to_m": 4548,
+   "source": "authored"
   },
   {
    "name": "Turn 17",
    "display_name": "Turn 17",
-   "station_m": 4537.7,
-   "from_m": 4449.8,
-   "to_m": 4653.3
+   "station_m": 4594.0,
+   "from_m": 4556,
+   "to_m": 4632,
+   "source": "authored"
   },
   {
    "name": "Turn 18",

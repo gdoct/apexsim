@@ -93,3 +93,8 @@ Left, or for later columns:
 ## Trees dossier pass
 
 - Nothing needed.
+
+## Boards dossier pass
+
+- `MANUAL_CORNERS` (R10): 19 turns: "Shears", "Memorial", "Singapore Sling", the rest "Turn N"; T6 is uncertain.
+- Marshal posts every 150 m along the straights (the rule).

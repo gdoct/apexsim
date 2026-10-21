@@ -21,25 +21,116 @@
  },
  "corners": [
   {
-   "name": "Circuit de Barcelona-Catalunya",
-   "display_name": null,
-   "station_m": 1865.0,
-   "from_m": 4028.2,
-   "to_m": 4028.2
+   "name": "Elf",
+   "display_name": "Elfo",
+   "station_m": 831.0,
+   "from_m": 780,
+   "to_m": 882,
+   "source": "authored"
   },
   {
-   "name": "Rallycross",
-   "display_name": null,
-   "station_m": 3616.0,
-   "from_m": 3528.2,
-   "to_m": 3641.7
+   "name": "Turn 2",
+   "display_name": "Turn 2",
+   "station_m": 935.0,
+   "from_m": 888,
+   "to_m": 982,
+   "source": "authored"
   },
   {
-   "name": "AZ",
-   "display_name": null,
-   "station_m": 4192.0,
-   "from_m": 4178.3,
-   "to_m": 4192.0
+   "name": "Renault",
+   "display_name": "Reno",
+   "station_m": 1246.0,
+   "from_m": 1040,
+   "to_m": 1452,
+   "source": "authored"
+  },
+  {
+   "name": "Repsol",
+   "display_name": "Repollo",
+   "station_m": 1791.0,
+   "from_m": 1656,
+   "to_m": 1926,
+   "source": "authored"
+  },
+  {
+   "name": "Seat",
+   "display_name": "Seta",
+   "station_m": 2130.0,
+   "from_m": 2064,
+   "to_m": 2196,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 6",
+   "display_name": "Turn 6",
+   "station_m": 2375.0,
+   "from_m": 2312,
+   "to_m": 2438,
+   "source": "authored"
+  },
+  {
+   "name": "Würth",
+   "display_name": "Wurstel",
+   "station_m": 2547.0,
+   "from_m": 2498,
+   "to_m": 2596,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 8",
+   "display_name": "Turn 8",
+   "station_m": 2641.0,
+   "from_m": 2604,
+   "to_m": 2678,
+   "source": "authored"
+  },
+  {
+   "name": "Campsa",
+   "display_name": "Campo",
+   "station_m": 2908.0,
+   "from_m": 2824,
+   "to_m": 2992,
+   "source": "authored"
+  },
+  {
+   "name": "La Caixa",
+   "display_name": "La Faixa",
+   "station_m": 3487.0,
+   "from_m": 3438,
+   "to_m": 3536,
+   "source": "authored"
+  },
+  {
+   "name": "Banc Sabadell",
+   "display_name": "Banc Sabata",
+   "station_m": 3619.0,
+   "from_m": 3590,
+   "to_m": 3648,
+   "source": "authored"
+  },
+  {
+   "name": "Europcar",
+   "display_name": "Europaca",
+   "station_m": 3760.0,
+   "from_m": 3654,
+   "to_m": 3866,
+   "source": "authored"
+  },
+  {
+   "name": "Turn 13",
+   "display_name": "Turn 13",
+   "station_m": 4009.0,
+   "from_m": 3974,
+   "to_m": 4044,
+   "source": "authored"
+  },
+  {
+   "name": "New Holland",
+   "display_name": "New Hollandaise",
+   "station_m": 4334.0,
+   "from_m": 4252,
+   "to_m": 4416,
+   "source": "authored"
   }
  ],
  "pit_lane": {
