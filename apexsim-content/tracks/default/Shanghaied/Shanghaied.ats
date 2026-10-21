@@ -2601,25 +2601,25 @@
     {
       "id": 9165,
       "kind": "bridge",
-      "asset": "tyre_bridge",
+      "asset": "sky_platform",
       "x": -14.616324,
       "y": -3.1192267,
       "z": 0.06998497,
       "yaw_rad": -2.934211,
       "scale": 1.0,
-      "text": "piretti",
+      "text": null,
       "source": "bridge Press Centre Wing"
     },
     {
       "id": 9166,
       "kind": "bridge",
-      "asset": "tyre_bridge",
+      "asset": "sky_platform",
       "x": -327.3171,
       "y": -71.06555,
       "z": 1.5401105,
       "yaw_rad": -2.939415,
       "scale": 1.0,
-      "text": "piretti",
+      "text": null,
       "source": "bridge Sky Restaurant Wing"
     },
     {

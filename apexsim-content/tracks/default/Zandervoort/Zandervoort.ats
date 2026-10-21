@@ -2497,6 +2497,30 @@
     {
       "id": 4218,
       "kind": "attraction",
+      "asset": "fanzone_stage",
+      "x": -281.47,
+      "y": -570.39,
+      "z": 2.490804,
+      "yaw_rad": 2.2012894,
+      "scale": 1.0,
+      "text": null,
+      "source": "landmark Fanzone stage"
+    },
+    {
+      "id": 4219,
+      "kind": "attraction",
+      "asset": "ferris_wheel",
+      "x": -136.0,
+      "y": -140.24,
+      "z": 0.4407252,
+      "yaw_rad": 1.2021018,
+      "scale": 1.0,
+      "text": null,
+      "source": "landmark Fanzone wheel"
+    },
+    {
+      "id": 4220,
+      "kind": "attraction",
       "asset": "video_screen",
       "x": 11.47,
       "y": -63.44,
@@ -2507,35 +2531,11 @@
       "source": "landmark Pit straight south screen"
     },
     {
-      "id": 4219,
+      "id": 7465,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -480.88,
       "y": -580.03,
-      "z": 8.04,
-      "yaw_rad": 3.14,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Parking NH"
-    },
-    {
-      "id": 4220,
-      "kind": "vehicle",
-      "asset": "car_c",
-      "x": -471.26,
-      "y": -580.03,
-      "z": 7.34,
-      "yaw_rad": 3.14,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Parking NH"
-    },
-    {
-      "id": 7465,
-      "kind": "vehicle",
-      "asset": "car_c",
-      "x": -480.88,
-      "y": -570.41,
       "z": 8.04,
       "yaw_rad": 3.14,
       "scale": 1.0,
@@ -2547,6 +2547,30 @@
       "kind": "vehicle",
       "asset": "car_c",
       "x": -471.26,
+      "y": -580.03,
+      "z": 7.34,
+      "yaw_rad": 3.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: car park Parking NH"
+    },
+    {
+      "id": 7467,
+      "kind": "vehicle",
+      "asset": "car_c",
+      "x": -480.88,
+      "y": -570.41,
+      "z": 8.04,
+      "yaw_rad": 3.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: car park Parking NH"
+    },
+    {
+      "id": 7468,
+      "kind": "vehicle",
+      "asset": "car_c",
+      "x": -471.26,
       "y": -570.41,
       "z": 7.49,
       "yaw_rad": 0.0,
@@ -2555,7 +2579,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7467,
+      "id": 7469,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -490.49,
@@ -2567,7 +2591,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7468,
+      "id": 7470,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -480.88,
@@ -2579,7 +2603,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7469,
+      "id": 7471,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -471.26,
@@ -2591,7 +2615,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7470,
+      "id": 7472,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -490.49,
@@ -2603,7 +2627,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7471,
+      "id": 7473,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -480.88,
@@ -2615,7 +2639,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7472,
+      "id": 7474,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -471.26,
@@ -2627,7 +2651,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7473,
+      "id": 7475,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -490.49,
@@ -2639,7 +2663,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7474,
+      "id": 7476,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -480.88,
@@ -2651,7 +2675,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7475,
+      "id": 7477,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -471.26,
@@ -2663,7 +2687,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7476,
+      "id": 7478,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -471.26,
@@ -2675,7 +2699,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7477,
+      "id": 7479,
       "kind": "light",
       "asset": "lamp_post",
       "x": -473.64,
@@ -2687,7 +2711,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7478,
+      "id": 7480,
       "kind": "light",
       "asset": "lamp_post",
       "x": -456.4,
@@ -2699,7 +2723,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7479,
+      "id": 7481,
       "kind": "light",
       "asset": "lamp_post",
       "x": -443.31,
@@ -2711,7 +2735,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7480,
+      "id": 7482,
       "kind": "light",
       "asset": "lamp_post",
       "x": -469.56,
@@ -2723,7 +2747,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7481,
+      "id": 7483,
       "kind": "light",
       "asset": "lamp_post",
       "x": -486.61,
@@ -2735,7 +2759,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7482,
+      "id": 7484,
       "kind": "light",
       "asset": "lamp_post",
       "x": -499.67,
@@ -2747,7 +2771,7 @@
       "source": "surroundings: car park Parking NH"
     },
     {
-      "id": 7483,
+      "id": 7485,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -471.83,
@@ -2759,7 +2783,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7484,
+      "id": 7486,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -462.3,
@@ -2771,7 +2795,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7485,
+      "id": 7487,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -462.3,
@@ -2783,7 +2807,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7486,
+      "id": 7488,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -462.3,
@@ -2795,7 +2819,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7487,
+      "id": 7489,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -452.76,
@@ -2807,7 +2831,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7488,
+      "id": 7490,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -452.76,
@@ -2819,7 +2843,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7489,
+      "id": 7491,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -452.76,
@@ -2831,7 +2855,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7490,
+      "id": 7492,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -443.23,
@@ -2843,7 +2867,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7491,
+      "id": 7493,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -452.76,
@@ -2855,7 +2879,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7492,
+      "id": 7494,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -443.23,
@@ -2867,7 +2891,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7493,
+      "id": 7495,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -443.23,
@@ -2879,7 +2903,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7494,
+      "id": 7496,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -443.23,
@@ -2891,7 +2915,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7495,
+      "id": 7497,
       "kind": "light",
       "asset": "lamp_post",
       "x": -447.41,
@@ -2903,7 +2927,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7496,
+      "id": 7498,
       "kind": "light",
       "asset": "lamp_post",
       "x": -458.23,
@@ -2915,7 +2939,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7497,
+      "id": 7499,
       "kind": "light",
       "asset": "lamp_post",
       "x": -469.04,
@@ -2927,7 +2951,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7498,
+      "id": 7500,
       "kind": "light",
       "asset": "lamp_post",
       "x": -479.85,
@@ -2939,7 +2963,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7499,
+      "id": 7501,
       "kind": "light",
       "asset": "lamp_post",
       "x": -490.67,
@@ -2951,7 +2975,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7500,
+      "id": 7502,
       "kind": "light",
       "asset": "lamp_post",
       "x": -493.29,
@@ -2963,7 +2987,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7501,
+      "id": 7503,
       "kind": "light",
       "asset": "lamp_post",
       "x": -477.62,
@@ -2975,7 +2999,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7502,
+      "id": 7504,
       "kind": "light",
       "asset": "lamp_post",
       "x": -466.88,
@@ -2987,7 +3011,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7503,
+      "id": 7505,
       "kind": "light",
       "asset": "lamp_post",
       "x": -456.14,
@@ -2999,7 +3023,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7504,
+      "id": 7506,
       "kind": "light",
       "asset": "lamp_post",
       "x": -445.4,
@@ -3011,7 +3035,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7505,
+      "id": 9891,
       "kind": "light",
       "asset": "lamp_post",
       "x": -434.66,
@@ -3023,7 +3047,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 7506,
+      "id": 9892,
       "kind": "light",
       "asset": "lamp_post",
       "x": -423.92,
@@ -3035,7 +3059,7 @@
       "source": "surroundings: car park P7 Noord Boulevard Bernaart"
     },
     {
-      "id": 9891,
+      "id": 9893,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -405.69,
@@ -3047,7 +3071,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9892,
+      "id": 9894,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -396.09,
@@ -3059,7 +3083,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9893,
+      "id": 9895,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -396.09,
@@ -3071,7 +3095,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9894,
+      "id": 9896,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -396.09,
@@ -3083,7 +3107,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9895,
+      "id": 9897,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -386.5,
@@ -3095,7 +3119,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9896,
+      "id": 9898,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -396.09,
@@ -3107,7 +3131,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9897,
+      "id": 9899,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -386.5,
@@ -3119,7 +3143,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9898,
+      "id": 9900,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -386.5,
@@ -3131,7 +3155,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9899,
+      "id": 9901,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -386.5,
@@ -3143,7 +3167,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9900,
+      "id": 9902,
       "kind": "light",
       "asset": "lamp_post",
       "x": -407.48,
@@ -3155,7 +3179,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9901,
+      "id": 9903,
       "kind": "light",
       "asset": "lamp_post",
       "x": -396.65,
@@ -3167,7 +3191,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9902,
+      "id": 9904,
       "kind": "light",
       "asset": "lamp_post",
       "x": -385.83,
@@ -3179,7 +3203,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9903,
+      "id": 9905,
       "kind": "light",
       "asset": "lamp_post",
       "x": -375.01,
@@ -3191,7 +3215,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9904,
+      "id": 9906,
       "kind": "light",
       "asset": "lamp_post",
       "x": -357.46,
@@ -3203,7 +3227,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9905,
+      "id": 9907,
       "kind": "light",
       "asset": "lamp_post",
       "x": -364.04,
@@ -3215,7 +3239,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9906,
+      "id": 9908,
       "kind": "light",
       "asset": "lamp_post",
       "x": -375.01,
@@ -3227,7 +3251,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9907,
+      "id": 9909,
       "kind": "light",
       "asset": "lamp_post",
       "x": -385.98,
@@ -3239,7 +3263,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9908,
+      "id": 9910,
       "kind": "light",
       "asset": "lamp_post",
       "x": -396.95,
@@ -3251,7 +3275,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9909,
+      "id": 9911,
       "kind": "light",
       "asset": "lamp_post",
       "x": -413.28,
@@ -3263,7 +3287,7 @@
       "source": "surroundings: car park P6 Noord Boulevard Bernaart"
     },
     {
-      "id": 9910,
+      "id": 9912,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -416.9,
@@ -3275,7 +3299,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9911,
+      "id": 9913,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -416.9,
@@ -3287,7 +3311,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9912,
+      "id": 9914,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -407.3,
@@ -3299,7 +3323,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9913,
+      "id": 9915,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -407.3,
@@ -3311,7 +3335,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9914,
+      "id": 9916,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -397.69,
@@ -3323,7 +3347,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9915,
+      "id": 9917,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -388.09,
@@ -3335,7 +3359,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9916,
+      "id": 9918,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -407.3,
@@ -3347,7 +3371,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9917,
+      "id": 9919,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -397.69,
@@ -3359,7 +3383,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9918,
+      "id": 9920,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -388.09,
@@ -3371,7 +3395,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9919,
+      "id": 9921,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -378.49,
@@ -3383,7 +3407,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9920,
+      "id": 9922,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -397.69,
@@ -3395,7 +3419,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9921,
+      "id": 9923,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -388.09,
@@ -3407,7 +3431,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9922,
+      "id": 9924,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -378.49,
@@ -3419,7 +3443,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9923,
+      "id": 9925,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -397.69,
@@ -3431,7 +3455,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9924,
+      "id": 9926,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -388.09,
@@ -3443,7 +3467,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9925,
+      "id": 9927,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -378.49,
@@ -3455,7 +3479,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9926,
+      "id": 9928,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -388.09,
@@ -3467,7 +3491,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9927,
+      "id": 9929,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -378.49,
@@ -3479,7 +3503,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9928,
+      "id": 9930,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -388.09,
@@ -3491,7 +3515,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9929,
+      "id": 9931,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -378.49,
@@ -3503,7 +3527,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9930,
+      "id": 9932,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -378.49,
@@ -3515,7 +3539,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9931,
+      "id": 9933,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -378.49,
@@ -3527,7 +3551,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9932,
+      "id": 9934,
       "kind": "light",
       "asset": "lamp_post",
       "x": -403.65,
@@ -3539,7 +3563,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9933,
+      "id": 9935,
       "kind": "light",
       "asset": "lamp_post",
       "x": -380.37,
@@ -3551,7 +3575,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9934,
+      "id": 9936,
       "kind": "light",
       "asset": "lamp_post",
       "x": -368.5,
@@ -3563,7 +3587,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9935,
+      "id": 9937,
       "kind": "light",
       "asset": "lamp_post",
       "x": -352.35,
@@ -3575,7 +3599,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9936,
+      "id": 9938,
       "kind": "light",
       "asset": "lamp_post",
       "x": -359.96,
@@ -3587,7 +3611,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9937,
+      "id": 9939,
       "kind": "light",
       "asset": "lamp_post",
       "x": -381.27,
@@ -3599,7 +3623,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9938,
+      "id": 9940,
       "kind": "light",
       "asset": "lamp_post",
       "x": -394.1,
@@ -3611,7 +3635,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9939,
+      "id": 9941,
       "kind": "light",
       "asset": "lamp_post",
       "x": -406.93,
@@ -3623,7 +3647,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9940,
+      "id": 9942,
       "kind": "light",
       "asset": "lamp_post",
       "x": -419.75,
@@ -3635,7 +3659,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9941,
+      "id": 9943,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -353.22,
@@ -3647,7 +3671,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9942,
+      "id": 9944,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -372.56,
@@ -3659,7 +3683,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9943,
+      "id": 9945,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -362.89,
@@ -3671,7 +3695,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9944,
+      "id": 9946,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -353.22,
@@ -3683,7 +3707,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9945,
+      "id": 9947,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -372.56,
@@ -3695,7 +3719,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9946,
+      "id": 9948,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -362.89,
@@ -3707,7 +3731,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9947,
+      "id": 9949,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -353.22,
@@ -3719,7 +3743,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9948,
+      "id": 9950,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -372.56,
@@ -3731,7 +3755,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9949,
+      "id": 9951,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -362.89,
@@ -3743,7 +3767,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9950,
+      "id": 9952,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -353.22,
@@ -3755,7 +3779,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9951,
+      "id": 9953,
       "kind": "light",
       "asset": "lamp_post",
       "x": -353.01,
@@ -3767,7 +3791,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9952,
+      "id": 9954,
       "kind": "light",
       "asset": "lamp_post",
       "x": -375.88,
@@ -3779,7 +3803,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9953,
+      "id": 9955,
       "kind": "light",
       "asset": "lamp_post",
       "x": -361.16,
@@ -3791,7 +3815,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9954,
+      "id": 9956,
       "kind": "light",
       "asset": "lamp_post",
       "x": -336.26,
@@ -3803,7 +3827,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 9955,
+      "id": 9957,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -316.86,
@@ -3815,7 +3839,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9956,
+      "id": 9958,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -307.22,
@@ -3827,7 +3851,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9957,
+      "id": 9959,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -307.22,
@@ -3839,7 +3863,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9958,
+      "id": 9960,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -307.22,
@@ -3851,7 +3875,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9959,
+      "id": 9961,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -297.57,
@@ -3863,7 +3887,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9960,
+      "id": 9962,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -307.22,
@@ -3875,7 +3899,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9961,
+      "id": 9963,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -297.57,
@@ -3887,7 +3911,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9962,
+      "id": 9964,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -297.57,
@@ -3899,7 +3923,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9963,
+      "id": 9965,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -297.57,
@@ -3911,7 +3935,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9964,
+      "id": 9966,
       "kind": "light",
       "asset": "lamp_post",
       "x": -319.0,
@@ -3923,7 +3947,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9965,
+      "id": 9967,
       "kind": "light",
       "asset": "lamp_post",
       "x": -308.21,
@@ -3935,7 +3959,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9966,
+      "id": 9968,
       "kind": "light",
       "asset": "lamp_post",
       "x": -297.41,
@@ -3947,7 +3971,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9967,
+      "id": 9969,
       "kind": "light",
       "asset": "lamp_post",
       "x": -286.62,
@@ -3959,7 +3983,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9968,
+      "id": 9970,
       "kind": "light",
       "asset": "lamp_post",
       "x": -274.75,
@@ -3971,7 +3995,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9969,
+      "id": 9971,
       "kind": "light",
       "asset": "lamp_post",
       "x": -268.43,
@@ -3983,7 +4007,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9970,
+      "id": 9972,
       "kind": "light",
       "asset": "lamp_post",
       "x": -279.26,
@@ -3995,7 +4019,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9971,
+      "id": 9973,
       "kind": "light",
       "asset": "lamp_post",
       "x": -290.09,
@@ -4007,7 +4031,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9972,
+      "id": 9974,
       "kind": "light",
       "asset": "lamp_post",
       "x": -300.92,
@@ -4019,7 +4043,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9973,
+      "id": 9975,
       "kind": "light",
       "asset": "lamp_post",
       "x": -311.75,
@@ -4031,7 +4055,7 @@
       "source": "surroundings: car park P5 Noord Boulevard Bernaart"
     },
     {
-      "id": 9974,
+      "id": 9976,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -106.32,
@@ -4043,7 +4067,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9975,
+      "id": 9977,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -92.69,
@@ -4055,7 +4079,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9976,
+      "id": 9978,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -215.42,
@@ -4067,7 +4091,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9977,
+      "id": 9979,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -188.15,
@@ -4079,7 +4103,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9978,
+      "id": 9980,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -174.51,
@@ -4091,7 +4115,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9979,
+      "id": 9981,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -160.87,
@@ -4103,7 +4127,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9980,
+      "id": 9982,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -147.24,
@@ -4115,7 +4139,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9981,
+      "id": 9983,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -133.6,
@@ -4127,7 +4151,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9982,
+      "id": 9984,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -119.96,
@@ -4139,7 +4163,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9983,
+      "id": 9985,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -106.32,
@@ -4151,7 +4175,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9984,
+      "id": 9986,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -92.69,
@@ -4163,7 +4187,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9985,
+      "id": 9987,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -215.42,
@@ -4175,7 +4199,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9986,
+      "id": 9988,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -201.79,
@@ -4187,7 +4211,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9987,
+      "id": 9989,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -188.15,
@@ -4199,7 +4223,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9988,
+      "id": 9990,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -174.51,
@@ -4211,7 +4235,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9989,
+      "id": 9991,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -160.87,
@@ -4223,7 +4247,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9990,
+      "id": 9992,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -147.24,
@@ -4235,7 +4259,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9991,
+      "id": 9993,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -133.6,
@@ -4247,7 +4271,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9992,
+      "id": 9994,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -119.96,
@@ -4259,7 +4283,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9993,
+      "id": 9995,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -106.32,
@@ -4271,7 +4295,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9994,
+      "id": 9996,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -92.69,
@@ -4283,7 +4307,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9995,
+      "id": 9997,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -215.42,
@@ -4295,7 +4319,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9996,
+      "id": 9998,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -201.79,
@@ -4307,7 +4331,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9997,
+      "id": 9999,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -188.15,
@@ -4319,7 +4343,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9998,
+      "id": 10000,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -174.51,
@@ -4331,7 +4355,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 9999,
+      "id": 10001,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -160.87,
@@ -4343,7 +4367,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10000,
+      "id": 10002,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -147.24,
@@ -4355,7 +4379,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10001,
+      "id": 10003,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -133.6,
@@ -4367,7 +4391,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10002,
+      "id": 10004,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -119.96,
@@ -4379,7 +4403,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10003,
+      "id": 10005,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -215.42,
@@ -4391,7 +4415,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10004,
+      "id": 10006,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -201.79,
@@ -4403,7 +4427,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10005,
+      "id": 10007,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -188.15,
@@ -4415,7 +4439,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10006,
+      "id": 10008,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -174.51,
@@ -4427,7 +4451,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10007,
+      "id": 10009,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -160.87,
@@ -4439,7 +4463,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10008,
+      "id": 10010,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -147.24,
@@ -4451,7 +4475,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10009,
+      "id": 10011,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -133.6,
@@ -4463,7 +4487,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10010,
+      "id": 10012,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -119.96,
@@ -4475,7 +4499,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10011,
+      "id": 10013,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -215.42,
@@ -4487,7 +4511,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10012,
+      "id": 10014,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -201.79,
@@ -4499,7 +4523,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10013,
+      "id": 10015,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -188.15,
@@ -4511,7 +4535,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10014,
+      "id": 10016,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -174.51,
@@ -4523,7 +4547,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10015,
+      "id": 10017,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -160.87,
@@ -4535,7 +4559,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10016,
+      "id": 10018,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -147.24,
@@ -4547,7 +4571,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10017,
+      "id": 10019,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -133.6,
@@ -4559,7 +4583,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10018,
+      "id": 10020,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -201.79,
@@ -4571,7 +4595,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10019,
+      "id": 10021,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -188.15,
@@ -4583,7 +4607,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10020,
+      "id": 10022,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -174.51,
@@ -4595,7 +4619,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10021,
+      "id": 10023,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -160.87,
@@ -4607,7 +4631,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10022,
+      "id": 10024,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -188.15,
@@ -4619,7 +4643,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10023,
+      "id": 10025,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -174.51,
@@ -4631,7 +4655,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10024,
+      "id": 10026,
       "kind": "light",
       "asset": "lamp_post",
       "x": -267.37,
@@ -4643,7 +4667,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10025,
+      "id": 10027,
       "kind": "light",
       "asset": "lamp_post",
       "x": -291.66,
@@ -4655,7 +4679,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10026,
+      "id": 10028,
       "kind": "light",
       "asset": "lamp_post",
       "x": -317.96,
@@ -4667,7 +4691,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10027,
+      "id": 10029,
       "kind": "light",
       "asset": "lamp_post",
       "x": -304.84,
@@ -4679,7 +4703,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10028,
+      "id": 10030,
       "kind": "light",
       "asset": "lamp_post",
       "x": -284.35,
@@ -4691,7 +4715,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10029,
+      "id": 10031,
       "kind": "light",
       "asset": "lamp_post",
       "x": -263.86,
@@ -4703,7 +4727,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10030,
+      "id": 10032,
       "kind": "light",
       "asset": "lamp_post",
       "x": -237.9,
@@ -4715,7 +4739,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10031,
+      "id": 10033,
       "kind": "light",
       "asset": "lamp_post",
       "x": -217.58,
@@ -4727,7 +4751,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10032,
+      "id": 10034,
       "kind": "light",
       "asset": "lamp_post",
       "x": -197.26,
@@ -4739,7 +4763,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10033,
+      "id": 10035,
       "kind": "light",
       "asset": "lamp_post",
       "x": -177.54,
@@ -4751,7 +4775,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10034,
+      "id": 10036,
       "kind": "light",
       "asset": "lamp_post",
       "x": -155.71,
@@ -4763,7 +4787,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10035,
+      "id": 10037,
       "kind": "light",
       "asset": "lamp_post",
       "x": -128.87,
@@ -4775,7 +4799,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10036,
+      "id": 10038,
       "kind": "light",
       "asset": "lamp_post",
       "x": -118.07,
@@ -4787,7 +4811,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10037,
+      "id": 10039,
       "kind": "light",
       "asset": "lamp_post",
       "x": -98.43,
@@ -4799,7 +4823,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10038,
+      "id": 10040,
       "kind": "light",
       "asset": "lamp_post",
       "x": -70.88,
@@ -4811,7 +4835,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10039,
+      "id": 10041,
       "kind": "light",
       "asset": "lamp_post",
       "x": -41.85,
@@ -4823,7 +4847,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10040,
+      "id": 10042,
       "kind": "light",
       "asset": "lamp_post",
       "x": -13.53,
@@ -4835,7 +4859,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10041,
+      "id": 10043,
       "kind": "light",
       "asset": "lamp_post",
       "x": 9.64,
@@ -4847,7 +4871,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10042,
+      "id": 10044,
       "kind": "light",
       "asset": "lamp_post",
       "x": 36.27,
@@ -4859,7 +4883,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10043,
+      "id": 10045,
       "kind": "light",
       "asset": "lamp_post",
       "x": 65.39,
@@ -4871,7 +4895,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10044,
+      "id": 10046,
       "kind": "light",
       "asset": "lamp_post",
       "x": 78.33,
@@ -4883,7 +4907,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10045,
+      "id": 10047,
       "kind": "light",
       "asset": "lamp_post",
       "x": 56.53,
@@ -4895,7 +4919,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10046,
+      "id": 10048,
       "kind": "light",
       "asset": "lamp_post",
       "x": 28.54,
@@ -4907,7 +4931,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10047,
+      "id": 10049,
       "kind": "light",
       "asset": "lamp_post",
       "x": 0.54,
@@ -4919,7 +4943,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10048,
+      "id": 10050,
       "kind": "light",
       "asset": "lamp_post",
       "x": -27.46,
@@ -4931,7 +4955,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10049,
+      "id": 10051,
       "kind": "light",
       "asset": "lamp_post",
       "x": -55.7,
@@ -4943,7 +4967,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10050,
+      "id": 10052,
       "kind": "light",
       "asset": "lamp_post",
       "x": -84.8,
@@ -4955,7 +4979,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10051,
+      "id": 10053,
       "kind": "light",
       "asset": "lamp_post",
       "x": -113.9,
@@ -4967,7 +4991,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10052,
+      "id": 10054,
       "kind": "light",
       "asset": "lamp_post",
       "x": -143.22,
@@ -4979,7 +5003,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10053,
+      "id": 10055,
       "kind": "light",
       "asset": "lamp_post",
       "x": -173.21,
@@ -4991,7 +5015,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10054,
+      "id": 10056,
       "kind": "light",
       "asset": "lamp_post",
       "x": -201.04,
@@ -5003,7 +5027,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10055,
+      "id": 10057,
       "kind": "light",
       "asset": "lamp_post",
       "x": -226.44,
@@ -5015,7 +5039,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10056,
+      "id": 10058,
       "kind": "light",
       "asset": "lamp_post",
       "x": -230.31,
@@ -5027,7 +5051,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10057,
+      "id": 10059,
       "kind": "light",
       "asset": "lamp_post",
       "x": -234.18,
@@ -5039,7 +5063,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10058,
+      "id": 10060,
       "kind": "light",
       "asset": "lamp_post",
       "x": -238.05,
@@ -5051,7 +5075,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10059,
+      "id": 10061,
       "kind": "light",
       "asset": "lamp_post",
       "x": -254.09,
@@ -5063,7 +5087,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10060,
+      "id": 10062,
       "kind": "light",
       "asset": "lamp_post",
       "x": -276.26,
@@ -5075,7 +5099,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking C"
     },
     {
-      "id": 10061,
+      "id": 10063,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -261.67,
@@ -5087,7 +5111,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10062,
+      "id": 10064,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -252.16,
@@ -5099,7 +5123,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10063,
+      "id": 10065,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -252.16,
@@ -5111,7 +5135,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10064,
+      "id": 10066,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -242.66,
@@ -5123,7 +5147,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10065,
+      "id": 10067,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -252.16,
@@ -5135,7 +5159,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10066,
+      "id": 10068,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -242.66,
@@ -5147,7 +5171,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10067,
+      "id": 10069,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -242.66,
@@ -5159,7 +5183,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10068,
+      "id": 10070,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -242.66,
@@ -5171,7 +5195,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10069,
+      "id": 10071,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -233.15,
@@ -5183,7 +5207,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10070,
+      "id": 10072,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -242.66,
@@ -5195,7 +5219,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10071,
+      "id": 10073,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -233.15,
@@ -5207,7 +5231,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10072,
+      "id": 10074,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -233.15,
@@ -5219,7 +5243,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10073,
+      "id": 10075,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -233.15,
@@ -5231,7 +5255,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10074,
+      "id": 10076,
       "kind": "light",
       "asset": "lamp_post",
       "x": -265.68,
@@ -5243,7 +5267,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10075,
+      "id": 10077,
       "kind": "light",
       "asset": "lamp_post",
       "x": -254.87,
@@ -5255,7 +5279,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10076,
+      "id": 10078,
       "kind": "light",
       "asset": "lamp_post",
       "x": -244.05,
@@ -5267,7 +5291,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10077,
+      "id": 10079,
       "kind": "light",
       "asset": "lamp_post",
       "x": -233.24,
@@ -5279,7 +5303,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10078,
+      "id": 10080,
       "kind": "light",
       "asset": "lamp_post",
       "x": -222.42,
@@ -5291,7 +5315,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10079,
+      "id": 10081,
       "kind": "light",
       "asset": "lamp_post",
       "x": -210.5,
@@ -5303,7 +5327,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10080,
+      "id": 10082,
       "kind": "light",
       "asset": "lamp_post",
       "x": -204.02,
@@ -5315,7 +5339,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10081,
+      "id": 10083,
       "kind": "light",
       "asset": "lamp_post",
       "x": -214.85,
@@ -5327,7 +5351,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10082,
+      "id": 10084,
       "kind": "light",
       "asset": "lamp_post",
       "x": -225.67,
@@ -5339,7 +5363,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10083,
+      "id": 10085,
       "kind": "light",
       "asset": "lamp_post",
       "x": -236.5,
@@ -5351,7 +5375,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10084,
+      "id": 10086,
       "kind": "light",
       "asset": "lamp_post",
       "x": -247.33,
@@ -5363,7 +5387,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10085,
+      "id": 10087,
       "kind": "light",
       "asset": "lamp_post",
       "x": -258.16,
@@ -5375,7 +5399,7 @@
       "source": "surroundings: car park P4 Noord Boulevard Bernaart"
     },
     {
-      "id": 10086,
+      "id": 10088,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -230.51,
@@ -5387,7 +5411,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10087,
+      "id": 10089,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -220.14,
@@ -5399,7 +5423,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10088,
+      "id": 10090,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -209.77,
@@ -5411,7 +5435,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10089,
+      "id": 10091,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -199.4,
@@ -5423,7 +5447,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10090,
+      "id": 10092,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -5435,7 +5459,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10091,
+      "id": 10093,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -5447,7 +5471,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10092,
+      "id": 10094,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -230.51,
@@ -5459,7 +5483,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10093,
+      "id": 10095,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -220.14,
@@ -5471,7 +5495,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10094,
+      "id": 10096,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -209.77,
@@ -5483,7 +5507,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10095,
+      "id": 10097,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -199.4,
@@ -5495,7 +5519,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10096,
+      "id": 10098,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -5507,7 +5531,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10097,
+      "id": 10099,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -5519,7 +5543,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10098,
+      "id": 10100,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -230.51,
@@ -5531,7 +5555,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10099,
+      "id": 10101,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -220.14,
@@ -5543,7 +5567,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10100,
+      "id": 10102,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -209.77,
@@ -5555,7 +5579,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10101,
+      "id": 10103,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -199.4,
@@ -5567,7 +5591,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10102,
+      "id": 10104,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -189.04,
@@ -5579,7 +5603,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10103,
+      "id": 10105,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -5591,7 +5615,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10104,
+      "id": 10106,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -220.14,
@@ -5603,7 +5627,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10105,
+      "id": 10107,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -209.77,
@@ -5615,7 +5639,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10106,
+      "id": 10108,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -5627,7 +5651,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10107,
+      "id": 10109,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -5639,7 +5663,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10108,
+      "id": 10110,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -178.67,
@@ -5651,7 +5675,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10109,
+      "id": 10111,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -220.14,
@@ -5663,7 +5687,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10110,
+      "id": 10112,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -209.77,
@@ -5675,7 +5699,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10111,
+      "id": 10113,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -5687,7 +5711,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10112,
+      "id": 10114,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -5699,7 +5723,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10113,
+      "id": 10115,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -5711,7 +5735,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10114,
+      "id": 10116,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -5723,7 +5747,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10115,
+      "id": 10117,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -220.14,
@@ -5735,7 +5759,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10116,
+      "id": 10118,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -209.77,
@@ -5747,7 +5771,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10117,
+      "id": 10119,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -199.4,
@@ -5759,7 +5783,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10118,
+      "id": 10120,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -5771,7 +5795,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10119,
+      "id": 10121,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -5783,7 +5807,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10120,
+      "id": 10122,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -168.3,
@@ -5795,7 +5819,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10121,
+      "id": 10123,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -220.14,
@@ -5807,7 +5831,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10122,
+      "id": 10124,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -209.77,
@@ -5819,7 +5843,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10123,
+      "id": 10125,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -5831,7 +5855,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10124,
+      "id": 10126,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -189.04,
@@ -5843,7 +5867,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10125,
+      "id": 10127,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -5855,7 +5879,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10126,
+      "id": 10128,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -168.3,
@@ -5867,7 +5891,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10127,
+      "id": 10129,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -220.14,
@@ -5879,7 +5903,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10128,
+      "id": 10130,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -209.77,
@@ -5891,7 +5915,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10129,
+      "id": 10131,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -199.4,
@@ -5903,7 +5927,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10130,
+      "id": 10132,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -5915,7 +5939,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10131,
+      "id": 10133,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -178.67,
@@ -5927,7 +5951,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10132,
+      "id": 10134,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -5939,7 +5963,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10133,
+      "id": 10135,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -209.77,
@@ -5951,7 +5975,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10134,
+      "id": 10136,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -5963,7 +5987,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10135,
+      "id": 10137,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -5975,7 +5999,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10136,
+      "id": 10138,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -5987,7 +6011,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10137,
+      "id": 10139,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -168.3,
@@ -5999,7 +6023,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10138,
+      "id": 10140,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -157.93,
@@ -6011,7 +6035,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10139,
+      "id": 10141,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -209.77,
@@ -6023,7 +6047,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10140,
+      "id": 10142,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -199.4,
@@ -6035,7 +6059,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10141,
+      "id": 10143,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -6047,7 +6071,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10142,
+      "id": 10144,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -178.67,
@@ -6059,7 +6083,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10143,
+      "id": 10145,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -168.3,
@@ -6071,7 +6095,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10144,
+      "id": 10146,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -157.93,
@@ -6083,7 +6107,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10145,
+      "id": 10147,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -209.77,
@@ -6095,7 +6119,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10146,
+      "id": 10148,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -199.4,
@@ -6107,7 +6131,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10147,
+      "id": 10149,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -189.04,
@@ -6119,7 +6143,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10148,
+      "id": 10150,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -6131,7 +6155,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10149,
+      "id": 10151,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -168.3,
@@ -6143,7 +6167,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10150,
+      "id": 10152,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -157.93,
@@ -6155,7 +6179,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10151,
+      "id": 10153,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -209.77,
@@ -6167,7 +6191,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10152,
+      "id": 10154,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -6179,7 +6203,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10153,
+      "id": 10155,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -189.04,
@@ -6191,7 +6215,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10154,
+      "id": 10156,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -6203,7 +6227,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10155,
+      "id": 10157,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -6215,7 +6239,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10156,
+      "id": 10158,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -157.93,
@@ -6227,7 +6251,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10157,
+      "id": 10159,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -209.77,
@@ -6239,7 +6263,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10158,
+      "id": 10160,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -6251,7 +6275,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10159,
+      "id": 10161,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -6263,7 +6287,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10160,
+      "id": 10162,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -6275,7 +6299,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10161,
+      "id": 10163,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -6287,7 +6311,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10162,
+      "id": 10164,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -157.93,
@@ -6299,7 +6323,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10163,
+      "id": 10165,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -199.4,
@@ -6311,7 +6335,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10164,
+      "id": 10166,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -189.04,
@@ -6323,7 +6347,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10165,
+      "id": 10167,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -178.67,
@@ -6335,7 +6359,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10166,
+      "id": 10168,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -6347,7 +6371,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10167,
+      "id": 10169,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -157.93,
@@ -6359,7 +6383,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10168,
+      "id": 10170,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -199.4,
@@ -6371,7 +6395,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10169,
+      "id": 10171,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -6383,7 +6407,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10170,
+      "id": 10172,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -6395,7 +6419,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10171,
+      "id": 10173,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -168.3,
@@ -6407,7 +6431,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10172,
+      "id": 10174,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -157.93,
@@ -6419,7 +6443,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10173,
+      "id": 10175,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -189.04,
@@ -6431,7 +6455,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10174,
+      "id": 10176,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -178.67,
@@ -6443,7 +6467,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10175,
+      "id": 10177,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -168.3,
@@ -6455,7 +6479,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10176,
+      "id": 10178,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -157.93,
@@ -6467,7 +6491,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10177,
+      "id": 10179,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -178.67,
@@ -6479,7 +6503,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10178,
+      "id": 10180,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -168.3,
@@ -6491,7 +6515,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10179,
+      "id": 10181,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -157.93,
@@ -6503,7 +6527,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10180,
+      "id": 10182,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -168.3,
@@ -6515,7 +6539,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10181,
+      "id": 10183,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -157.93,
@@ -6527,7 +6551,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10182,
+      "id": 10184,
       "kind": "light",
       "asset": "lamp_post",
       "x": -217.18,
@@ -6539,7 +6563,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10183,
+      "id": 10185,
       "kind": "light",
       "asset": "lamp_post",
       "x": -189.83,
@@ -6551,7 +6575,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10184,
+      "id": 10186,
       "kind": "light",
       "asset": "lamp_post",
       "x": -178.83,
@@ -6563,7 +6587,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10185,
+      "id": 10187,
       "kind": "light",
       "asset": "lamp_post",
       "x": -172.37,
@@ -6575,7 +6599,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10186,
+      "id": 10188,
       "kind": "light",
       "asset": "lamp_post",
       "x": -165.91,
@@ -6587,7 +6611,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10187,
+      "id": 10189,
       "kind": "light",
       "asset": "lamp_post",
       "x": -159.45,
@@ -6599,7 +6623,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10188,
+      "id": 10190,
       "kind": "light",
       "asset": "lamp_post",
       "x": -152.99,
@@ -6611,7 +6635,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10189,
+      "id": 10191,
       "kind": "light",
       "asset": "lamp_post",
       "x": -146.53,
@@ -6623,7 +6647,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10190,
+      "id": 10192,
       "kind": "light",
       "asset": "lamp_post",
       "x": -140.08,
@@ -6635,7 +6659,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10191,
+      "id": 10193,
       "kind": "light",
       "asset": "lamp_post",
       "x": -151.92,
@@ -6647,7 +6671,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10192,
+      "id": 10194,
       "kind": "light",
       "asset": "lamp_post",
       "x": -176.01,
@@ -6659,7 +6683,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10193,
+      "id": 10195,
       "kind": "light",
       "asset": "lamp_post",
       "x": -195.63,
@@ -6671,7 +6695,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10194,
+      "id": 10196,
       "kind": "light",
       "asset": "lamp_post",
       "x": -210.95,
@@ -6683,7 +6707,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10195,
+      "id": 10197,
       "kind": "light",
       "asset": "lamp_post",
       "x": -216.84,
@@ -6695,7 +6719,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10196,
+      "id": 10198,
       "kind": "light",
       "asset": "lamp_post",
       "x": -222.74,
@@ -6707,7 +6731,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10197,
+      "id": 10199,
       "kind": "light",
       "asset": "lamp_post",
       "x": -228.63,
@@ -6719,7 +6743,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10198,
+      "id": 10200,
       "kind": "light",
       "asset": "lamp_post",
       "x": -234.53,
@@ -6731,7 +6755,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10199,
+      "id": 10201,
       "kind": "light",
       "asset": "lamp_post",
       "x": -240.42,
@@ -6743,7 +6767,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10200,
+      "id": 10202,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -89.86,
@@ -6755,7 +6779,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10201,
+      "id": 10203,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -71.93,
@@ -6767,7 +6791,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10202,
+      "id": 10204,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -89.86,
@@ -6779,7 +6803,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10203,
+      "id": 10205,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -71.93,
@@ -6791,7 +6815,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10204,
+      "id": 10206,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -53.99,
@@ -6803,7 +6827,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10205,
+      "id": 10207,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -71.93,
@@ -6815,7 +6839,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10206,
+      "id": 10208,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -53.99,
@@ -6827,7 +6851,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10207,
+      "id": 10209,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -71.93,
@@ -6839,7 +6863,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10208,
+      "id": 10210,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -53.99,
@@ -6851,7 +6875,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10209,
+      "id": 10211,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -36.06,
@@ -6863,7 +6887,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10210,
+      "id": 10212,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -53.99,
@@ -6875,7 +6899,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10211,
+      "id": 10213,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -36.06,
@@ -6887,7 +6911,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10212,
+      "id": 10214,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -18.12,
@@ -6899,7 +6923,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10213,
+      "id": 10215,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -0.19,
@@ -6911,7 +6935,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10214,
+      "id": 10216,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -53.99,
@@ -6923,7 +6947,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10215,
+      "id": 10217,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -36.06,
@@ -6935,7 +6959,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10216,
+      "id": 10218,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -18.12,
@@ -6947,7 +6971,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10217,
+      "id": 10219,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -0.19,
@@ -6959,7 +6983,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10218,
+      "id": 10220,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -36.06,
@@ -6971,7 +6995,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10219,
+      "id": 10221,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -18.12,
@@ -6983,7 +7007,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10220,
+      "id": 10222,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -0.19,
@@ -6995,7 +7019,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10221,
+      "id": 10223,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 17.74,
@@ -7007,7 +7031,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10222,
+      "id": 10224,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -36.06,
@@ -7019,7 +7043,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10223,
+      "id": 10225,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -18.12,
@@ -7031,7 +7055,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10224,
+      "id": 10226,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -0.19,
@@ -7043,7 +7067,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10225,
+      "id": 10227,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 17.74,
@@ -7055,7 +7079,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10226,
+      "id": 10228,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -36.06,
@@ -7067,7 +7091,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10227,
+      "id": 10229,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -18.12,
@@ -7079,7 +7103,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10228,
+      "id": 10230,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -0.19,
@@ -7091,7 +7115,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10229,
+      "id": 10231,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 17.74,
@@ -7103,7 +7127,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10230,
+      "id": 10232,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -18.12,
@@ -7115,7 +7139,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10231,
+      "id": 10233,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -0.19,
@@ -7127,7 +7151,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10232,
+      "id": 10234,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 17.74,
@@ -7139,7 +7163,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10233,
+      "id": 10235,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 35.68,
@@ -7151,7 +7175,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10234,
+      "id": 10236,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -18.12,
@@ -7163,7 +7187,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10235,
+      "id": 10237,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -0.19,
@@ -7175,7 +7199,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10236,
+      "id": 10238,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 17.74,
@@ -7187,7 +7211,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10237,
+      "id": 10239,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 35.68,
@@ -7199,7 +7223,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10238,
+      "id": 10240,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -0.19,
@@ -7211,7 +7235,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10239,
+      "id": 10241,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 17.74,
@@ -7223,7 +7247,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10240,
+      "id": 10242,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 35.68,
@@ -7235,7 +7259,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10241,
+      "id": 10243,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -0.19,
@@ -7247,7 +7271,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10242,
+      "id": 10244,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 17.74,
@@ -7259,7 +7283,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10243,
+      "id": 10245,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 35.68,
@@ -7271,7 +7295,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10244,
+      "id": 10246,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -0.19,
@@ -7283,35 +7307,11 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10245,
-      "kind": "vehicle",
-      "asset": "car_b",
-      "x": 17.74,
-      "y": 239.6,
-      "z": 0.92,
-      "yaw_rad": 0.0,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Zandvoort Racing Parking A"
-    },
-    {
-      "id": 10246,
-      "kind": "vehicle",
-      "asset": "car_c",
-      "x": 35.68,
-      "y": 239.6,
-      "z": 0.96,
-      "yaw_rad": 3.14,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Zandvoort Racing Parking A"
-    },
-    {
       "id": 10247,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 17.74,
-      "y": 257.54,
+      "y": 239.6,
       "z": 0.92,
       "yaw_rad": 0.0,
       "scale": 1.0,
@@ -7323,7 +7323,7 @@
       "kind": "vehicle",
       "asset": "car_c",
       "x": 35.68,
-      "y": 257.54,
+      "y": 239.6,
       "z": 0.96,
       "yaw_rad": 3.14,
       "scale": 1.0,
@@ -7332,6 +7332,30 @@
     },
     {
       "id": 10249,
+      "kind": "vehicle",
+      "asset": "car_b",
+      "x": 17.74,
+      "y": 257.54,
+      "z": 0.92,
+      "yaw_rad": 0.0,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: car park Zandvoort Racing Parking A"
+    },
+    {
+      "id": 10250,
+      "kind": "vehicle",
+      "asset": "car_c",
+      "x": 35.68,
+      "y": 257.54,
+      "z": 0.96,
+      "yaw_rad": 3.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: car park Zandvoort Racing Parking A"
+    },
+    {
+      "id": 10251,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 17.74,
@@ -7343,7 +7367,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10250,
+      "id": 10252,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 35.68,
@@ -7355,7 +7379,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10251,
+      "id": 10253,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 17.74,
@@ -7367,7 +7391,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10252,
+      "id": 10254,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 35.68,
@@ -7379,7 +7403,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10253,
+      "id": 10255,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 35.68,
@@ -7391,7 +7415,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10254,
+      "id": 10256,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 35.68,
@@ -7403,7 +7427,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10255,
+      "id": 10257,
       "kind": "light",
       "asset": "lamp_post",
       "x": -52.94,
@@ -7415,7 +7439,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10256,
+      "id": 10258,
       "kind": "light",
       "asset": "lamp_post",
       "x": -48.09,
@@ -7427,7 +7451,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10257,
+      "id": 10259,
       "kind": "light",
       "asset": "lamp_post",
       "x": -37.01,
@@ -7439,7 +7463,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10258,
+      "id": 10260,
       "kind": "light",
       "asset": "lamp_post",
       "x": -20.56,
@@ -7451,7 +7475,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10259,
+      "id": 10261,
       "kind": "light",
       "asset": "lamp_post",
       "x": 108.07,
@@ -7463,7 +7487,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10260,
+      "id": 10262,
       "kind": "light",
       "asset": "lamp_post",
       "x": 113.57,
@@ -7475,7 +7499,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10261,
+      "id": 10263,
       "kind": "light",
       "asset": "lamp_post",
       "x": 85.02,
@@ -7487,7 +7511,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10262,
+      "id": 10264,
       "kind": "light",
       "asset": "lamp_post",
       "x": 61.8,
@@ -7499,7 +7523,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10263,
+      "id": 10265,
       "kind": "light",
       "asset": "lamp_post",
       "x": 42.82,
@@ -7511,7 +7535,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10264,
+      "id": 10266,
       "kind": "light",
       "asset": "lamp_post",
       "x": 31.92,
@@ -7523,7 +7547,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10265,
+      "id": 10267,
       "kind": "light",
       "asset": "lamp_post",
       "x": 21.02,
@@ -7535,7 +7559,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10266,
+      "id": 10268,
       "kind": "light",
       "asset": "lamp_post",
       "x": 10.12,
@@ -7547,7 +7571,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10267,
+      "id": 10269,
       "kind": "light",
       "asset": "lamp_post",
       "x": 16.81,
@@ -7559,7 +7583,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10268,
+      "id": 10270,
       "kind": "light",
       "asset": "lamp_post",
       "x": 7.27,
@@ -7571,7 +7595,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10269,
+      "id": 10271,
       "kind": "light",
       "asset": "lamp_post",
       "x": -4.81,
@@ -7583,7 +7607,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10270,
+      "id": 10272,
       "kind": "light",
       "asset": "lamp_post",
       "x": -15.76,
@@ -7595,7 +7619,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10271,
+      "id": 10273,
       "kind": "light",
       "asset": "lamp_post",
       "x": -26.71,
@@ -7607,7 +7631,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10272,
+      "id": 10274,
       "kind": "light",
       "asset": "lamp_post",
       "x": -37.67,
@@ -7619,7 +7643,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10273,
+      "id": 10275,
       "kind": "light",
       "asset": "lamp_post",
       "x": -48.62,
@@ -7631,7 +7655,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10274,
+      "id": 10276,
       "kind": "light",
       "asset": "lamp_post",
       "x": -59.57,
@@ -7643,7 +7667,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10275,
+      "id": 10277,
       "kind": "light",
       "asset": "lamp_post",
       "x": -70.52,
@@ -7655,7 +7679,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10276,
+      "id": 10278,
       "kind": "light",
       "asset": "lamp_post",
       "x": -87.93,
@@ -7667,7 +7691,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10277,
+      "id": 10279,
       "kind": "light",
       "asset": "lamp_post",
       "x": -100.04,
@@ -7679,7 +7703,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10278,
+      "id": 10280,
       "kind": "light",
       "asset": "lamp_post",
       "x": -111.72,
@@ -7691,7 +7715,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10279,
+      "id": 10281,
       "kind": "light",
       "asset": "lamp_post",
       "x": -108.93,
@@ -7703,7 +7727,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10280,
+      "id": 10282,
       "kind": "light",
       "asset": "lamp_post",
       "x": -120.71,
@@ -7715,7 +7739,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10281,
+      "id": 10283,
       "kind": "light",
       "asset": "lamp_post",
       "x": -132.48,
@@ -7727,7 +7751,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10282,
+      "id": 10284,
       "kind": "light",
       "asset": "lamp_post",
       "x": -144.26,
@@ -7739,7 +7763,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10283,
+      "id": 10285,
       "kind": "light",
       "asset": "lamp_post",
       "x": -144.05,
@@ -7751,7 +7775,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10284,
+      "id": 10286,
       "kind": "light",
       "asset": "lamp_post",
       "x": -127.6,
@@ -7763,7 +7787,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10285,
+      "id": 10287,
       "kind": "light",
       "asset": "lamp_post",
       "x": -125.07,
@@ -7775,7 +7799,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10286,
+      "id": 10288,
       "kind": "light",
       "asset": "lamp_post",
       "x": -108.46,
@@ -7787,7 +7811,7 @@
       "source": "surroundings: car park Zandvoort Racing Parking A"
     },
     {
-      "id": 10287,
+      "id": 10289,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -104.9,
@@ -7799,7 +7823,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10288,
+      "id": 10290,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -104.9,
@@ -7811,7 +7835,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10289,
+      "id": 10291,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -95.27,
@@ -7823,7 +7847,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10290,
+      "id": 10292,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -104.9,
@@ -7835,7 +7859,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10291,
+      "id": 10293,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -95.27,
@@ -7847,7 +7871,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10292,
+      "id": 10294,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -95.27,
@@ -7859,7 +7883,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10293,
+      "id": 10295,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -95.27,
@@ -7871,7 +7895,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10294,
+      "id": 10296,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -85.63,
@@ -7883,7 +7907,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10295,
+      "id": 10297,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -95.27,
@@ -7895,7 +7919,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10296,
+      "id": 10298,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -85.63,
@@ -7907,7 +7931,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10297,
+      "id": 10299,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -85.63,
@@ -7919,7 +7943,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10298,
+      "id": 10300,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -85.63,
@@ -7931,7 +7955,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10299,
+      "id": 10301,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -85.63,
@@ -7943,7 +7967,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10300,
+      "id": 10302,
       "kind": "light",
       "asset": "lamp_post",
       "x": -67.22,
@@ -7955,7 +7979,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10301,
+      "id": 10303,
       "kind": "light",
       "asset": "lamp_post",
       "x": -77.16,
@@ -7967,7 +7991,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10302,
+      "id": 10304,
       "kind": "light",
       "asset": "lamp_post",
       "x": -87.1,
@@ -7979,7 +8003,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10303,
+      "id": 10305,
       "kind": "light",
       "asset": "lamp_post",
       "x": -97.04,
@@ -7991,7 +8015,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10304,
+      "id": 10306,
       "kind": "light",
       "asset": "lamp_post",
       "x": -106.98,
@@ -8003,7 +8027,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10305,
+      "id": 10307,
       "kind": "light",
       "asset": "lamp_post",
       "x": -116.92,
@@ -8015,7 +8039,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10306,
+      "id": 10308,
       "kind": "light",
       "asset": "lamp_post",
       "x": -126.86,
@@ -8027,7 +8051,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10307,
+      "id": 10309,
       "kind": "light",
       "asset": "lamp_post",
       "x": -137.12,
@@ -8039,7 +8063,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10308,
+      "id": 10310,
       "kind": "light",
       "asset": "lamp_post",
       "x": -127.18,
@@ -8051,7 +8075,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10309,
+      "id": 10311,
       "kind": "light",
       "asset": "lamp_post",
       "x": -117.24,
@@ -8063,7 +8087,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10310,
+      "id": 10312,
       "kind": "light",
       "asset": "lamp_post",
       "x": -107.3,
@@ -8075,7 +8099,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10311,
+      "id": 10313,
       "kind": "light",
       "asset": "lamp_post",
       "x": -97.36,
@@ -8087,7 +8111,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10312,
+      "id": 10314,
       "kind": "light",
       "asset": "lamp_post",
       "x": -87.42,
@@ -8099,7 +8123,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10313,
+      "id": 10315,
       "kind": "light",
       "asset": "lamp_post",
       "x": -77.48,
@@ -8111,7 +8135,7 @@
       "source": "surroundings: car park P3 Noord Boulevard Barnaart"
     },
     {
-      "id": 10314,
+      "id": 10316,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -37.34,
@@ -8123,7 +8147,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10315,
+      "id": 10317,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -20.56,
@@ -8135,7 +8159,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10316,
+      "id": 10318,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8147,7 +8171,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10317,
+      "id": 10319,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8159,7 +8183,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10318,
+      "id": 10320,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8171,7 +8195,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10319,
+      "id": 10321,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.56,
@@ -8183,7 +8207,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10320,
+      "id": 10322,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 63.34,
@@ -8195,7 +8219,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10321,
+      "id": 10323,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -37.34,
@@ -8207,7 +8231,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10322,
+      "id": 10324,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -20.56,
@@ -8219,7 +8243,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10323,
+      "id": 10325,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -3.78,
@@ -8231,7 +8255,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10324,
+      "id": 10326,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 13.0,
@@ -8243,7 +8267,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10325,
+      "id": 10327,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8255,7 +8279,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10326,
+      "id": 10328,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.56,
@@ -8267,7 +8291,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10327,
+      "id": 10329,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 63.34,
@@ -8279,7 +8303,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10328,
+      "id": 10330,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -37.34,
@@ -8291,7 +8315,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10329,
+      "id": 10331,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -20.56,
@@ -8303,7 +8327,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10330,
+      "id": 10332,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8315,7 +8339,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10331,
+      "id": 10333,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8327,7 +8351,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10332,
+      "id": 10334,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 29.78,
@@ -8339,7 +8363,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10333,
+      "id": 10335,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 46.56,
@@ -8351,7 +8375,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10334,
+      "id": 10336,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -37.34,
@@ -8363,7 +8387,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10335,
+      "id": 10337,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -20.56,
@@ -8375,7 +8399,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10336,
+      "id": 10338,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -3.78,
@@ -8387,7 +8411,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10337,
+      "id": 10339,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8399,7 +8423,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10338,
+      "id": 10340,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 29.78,
@@ -8411,7 +8435,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10339,
+      "id": 10341,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.56,
@@ -8423,7 +8447,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10340,
+      "id": 10342,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -37.34,
@@ -8435,7 +8459,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10341,
+      "id": 10343,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -20.56,
@@ -8447,7 +8471,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10342,
+      "id": 10344,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8459,7 +8483,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10343,
+      "id": 10345,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 13.0,
@@ -8471,7 +8495,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10344,
+      "id": 10346,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 29.78,
@@ -8483,7 +8507,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10345,
+      "id": 10347,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 46.56,
@@ -8495,7 +8519,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10346,
+      "id": 10348,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -37.34,
@@ -8507,7 +8531,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10347,
+      "id": 10349,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -20.56,
@@ -8519,7 +8543,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10348,
+      "id": 10350,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8531,7 +8555,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10349,
+      "id": 10351,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8543,7 +8567,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10350,
+      "id": 10352,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 29.78,
@@ -8555,7 +8579,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10351,
+      "id": 10353,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.56,
@@ -8567,7 +8591,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10352,
+      "id": 10354,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -20.56,
@@ -8579,7 +8603,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10353,
+      "id": 10355,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -3.78,
@@ -8591,7 +8615,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10354,
+      "id": 10356,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 13.0,
@@ -8603,7 +8627,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10355,
+      "id": 10357,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8615,7 +8639,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10356,
+      "id": 10358,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.56,
@@ -8627,7 +8651,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10357,
+      "id": 10359,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -37.34,
@@ -8639,7 +8663,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10358,
+      "id": 10360,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -20.56,
@@ -8651,7 +8675,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10359,
+      "id": 10361,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8663,7 +8687,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10360,
+      "id": 10362,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8675,7 +8699,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10361,
+      "id": 10363,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8687,7 +8711,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10362,
+      "id": 10364,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.56,
@@ -8699,7 +8723,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10363,
+      "id": 10365,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -37.34,
@@ -8711,7 +8735,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10364,
+      "id": 10366,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -20.56,
@@ -8723,7 +8747,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10365,
+      "id": 10367,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -3.78,
@@ -8735,7 +8759,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10366,
+      "id": 10368,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 13.0,
@@ -8747,7 +8771,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10367,
+      "id": 10369,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 29.78,
@@ -8759,7 +8783,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10368,
+      "id": 10370,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -20.56,
@@ -8771,7 +8795,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10369,
+      "id": 10371,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -3.78,
@@ -8783,7 +8807,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10370,
+      "id": 10372,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8795,7 +8819,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10371,
+      "id": 10373,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 29.78,
@@ -8807,7 +8831,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10372,
+      "id": 10374,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -20.56,
@@ -8819,7 +8843,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10373,
+      "id": 10375,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8831,7 +8855,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10374,
+      "id": 10376,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8843,7 +8867,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10375,
+      "id": 10377,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8855,7 +8879,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10376,
+      "id": 10378,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.56,
@@ -8867,7 +8891,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10377,
+      "id": 10379,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -3.78,
@@ -8879,7 +8903,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10378,
+      "id": 10380,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 13.0,
@@ -8891,7 +8915,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10379,
+      "id": 10381,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 29.78,
@@ -8903,7 +8927,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10380,
+      "id": 10382,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.56,
@@ -8915,7 +8939,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10381,
+      "id": 10383,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 63.34,
@@ -8927,7 +8951,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10382,
+      "id": 10384,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -3.78,
@@ -8939,7 +8963,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10383,
+      "id": 10385,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 13.0,
@@ -8951,7 +8975,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10384,
+      "id": 10386,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 29.78,
@@ -8963,7 +8987,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10385,
+      "id": 10387,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 80.12,
@@ -8975,7 +8999,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10386,
+      "id": 10388,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 96.9,
@@ -8987,7 +9011,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10387,
+      "id": 10389,
       "kind": "light",
       "asset": "lamp_post",
       "x": 88.47,
@@ -8999,7 +9023,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10388,
+      "id": 10390,
       "kind": "light",
       "asset": "lamp_post",
       "x": 58.53,
@@ -9011,7 +9035,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10389,
+      "id": 10391,
       "kind": "light",
       "asset": "lamp_post",
       "x": 57.79,
@@ -9023,7 +9047,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10390,
+      "id": 10392,
       "kind": "light",
       "asset": "lamp_post",
       "x": 46.5,
@@ -9035,7 +9059,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10391,
+      "id": 10393,
       "kind": "light",
       "asset": "lamp_post",
       "x": 16.53,
@@ -9047,7 +9071,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10392,
+      "id": 10394,
       "kind": "light",
       "asset": "lamp_post",
       "x": -13.45,
@@ -9059,7 +9083,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10393,
+      "id": 10395,
       "kind": "light",
       "asset": "lamp_post",
       "x": -43.42,
@@ -9071,7 +9095,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10394,
+      "id": 10396,
       "kind": "light",
       "asset": "lamp_post",
       "x": -56.19,
@@ -9083,7 +9107,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10395,
+      "id": 10397,
       "kind": "light",
       "asset": "lamp_post",
       "x": -50.58,
@@ -9095,7 +9119,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10396,
+      "id": 10398,
       "kind": "light",
       "asset": "lamp_post",
       "x": -59.1,
@@ -9107,7 +9131,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10397,
+      "id": 10399,
       "kind": "light",
       "asset": "lamp_post",
       "x": -69.69,
@@ -9119,7 +9143,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10398,
+      "id": 10400,
       "kind": "light",
       "asset": "lamp_post",
       "x": -61.17,
@@ -9131,7 +9155,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10399,
+      "id": 10401,
       "kind": "light",
       "asset": "lamp_post",
       "x": -62.77,
@@ -9143,7 +9167,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10400,
+      "id": 10402,
       "kind": "light",
       "asset": "lamp_post",
       "x": -48.94,
@@ -9155,7 +9179,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10401,
+      "id": 10403,
       "kind": "light",
       "asset": "lamp_post",
       "x": -26.16,
@@ -9167,7 +9191,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10402,
+      "id": 10404,
       "kind": "light",
       "asset": "lamp_post",
       "x": -38.57,
@@ -9179,7 +9203,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10403,
+      "id": 10405,
       "kind": "light",
       "asset": "lamp_post",
       "x": -7.28,
@@ -9191,7 +9215,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10404,
+      "id": 10406,
       "kind": "light",
       "asset": "lamp_post",
       "x": 22.09,
@@ -9203,7 +9227,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10405,
+      "id": 10407,
       "kind": "light",
       "asset": "lamp_post",
       "x": 51.45,
@@ -9215,7 +9239,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10406,
+      "id": 10408,
       "kind": "light",
       "asset": "lamp_post",
       "x": 80.13,
@@ -9227,7 +9251,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10407,
+      "id": 10409,
       "kind": "light",
       "asset": "lamp_post",
       "x": 108.49,
@@ -9239,7 +9263,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10408,
+      "id": 10410,
       "kind": "light",
       "asset": "lamp_post",
       "x": 136.86,
@@ -9251,7 +9275,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10409,
+      "id": 10411,
       "kind": "light",
       "asset": "lamp_post",
       "x": 165.23,
@@ -9263,7 +9287,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10410,
+      "id": 10412,
       "kind": "light",
       "asset": "lamp_post",
       "x": 193.6,
@@ -9275,7 +9299,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10411,
+      "id": 10413,
       "kind": "light",
       "asset": "lamp_post",
       "x": 187.3,
@@ -9287,7 +9311,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10412,
+      "id": 10414,
       "kind": "light",
       "asset": "lamp_post",
       "x": 181.83,
@@ -9299,7 +9323,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10413,
+      "id": 10415,
       "kind": "light",
       "asset": "lamp_post",
       "x": 185.36,
@@ -9311,7 +9335,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10414,
+      "id": 10416,
       "kind": "light",
       "asset": "lamp_post",
       "x": 177.07,
@@ -9323,7 +9347,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10415,
+      "id": 10417,
       "kind": "light",
       "asset": "lamp_post",
       "x": 149.64,
@@ -9335,7 +9359,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10416,
+      "id": 10418,
       "kind": "light",
       "asset": "lamp_post",
       "x": 120.82,
@@ -9347,7 +9371,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10417,
+      "id": 10419,
       "kind": "light",
       "asset": "lamp_post",
       "x": 92.16,
@@ -9359,7 +9383,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10418,
+      "id": 10420,
       "kind": "light",
       "asset": "lamp_post",
       "x": 67.1,
@@ -9371,7 +9395,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10419,
+      "id": 10421,
       "kind": "light",
       "asset": "lamp_post",
       "x": 47.6,
@@ -9383,7 +9407,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10420,
+      "id": 10422,
       "kind": "light",
       "asset": "lamp_post",
       "x": 44.92,
@@ -9395,7 +9419,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10421,
+      "id": 10423,
       "kind": "light",
       "asset": "lamp_post",
       "x": 50.46,
@@ -9407,7 +9431,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10422,
+      "id": 10424,
       "kind": "light",
       "asset": "lamp_post",
       "x": 56.0,
@@ -9419,7 +9443,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10423,
+      "id": 10425,
       "kind": "light",
       "asset": "lamp_post",
       "x": 61.54,
@@ -9431,7 +9455,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10424,
+      "id": 10426,
       "kind": "light",
       "asset": "lamp_post",
       "x": 67.08,
@@ -9443,7 +9467,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10425,
+      "id": 10427,
       "kind": "light",
       "asset": "lamp_post",
       "x": 72.62,
@@ -9455,7 +9479,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10426,
+      "id": 10428,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 75.41,
@@ -9467,7 +9491,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10427,
+      "id": 10429,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 84.94,
@@ -9479,7 +9503,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10428,
+      "id": 10430,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.47,
@@ -9491,7 +9515,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10429,
+      "id": 10431,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 104.01,
@@ -9503,7 +9527,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10430,
+      "id": 10432,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 113.54,
@@ -9515,7 +9539,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10431,
+      "id": 10433,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.94,
@@ -9527,7 +9551,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10432,
+      "id": 10434,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.47,
@@ -9539,7 +9563,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10433,
+      "id": 10435,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 104.01,
@@ -9551,7 +9575,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10434,
+      "id": 10436,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 113.54,
@@ -9563,7 +9587,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10435,
+      "id": 10437,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 123.08,
@@ -9575,7 +9599,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10436,
+      "id": 10438,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 84.94,
@@ -9587,7 +9611,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10437,
+      "id": 10439,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 94.47,
@@ -9599,7 +9623,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10438,
+      "id": 10440,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 104.01,
@@ -9611,7 +9635,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10439,
+      "id": 10441,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 113.54,
@@ -9623,7 +9647,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10440,
+      "id": 10442,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 123.08,
@@ -9635,7 +9659,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10441,
+      "id": 10443,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 84.94,
@@ -9647,7 +9671,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10442,
+      "id": 10444,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 94.47,
@@ -9659,7 +9683,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10443,
+      "id": 10445,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 104.01,
@@ -9671,7 +9695,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10444,
+      "id": 10446,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 113.54,
@@ -9683,7 +9707,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10445,
+      "id": 10447,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 123.08,
@@ -9695,7 +9719,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10446,
+      "id": 10448,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 94.47,
@@ -9707,7 +9731,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10447,
+      "id": 10449,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 104.01,
@@ -9719,7 +9743,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10448,
+      "id": 10450,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 113.54,
@@ -9731,7 +9755,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10449,
+      "id": 10451,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 123.08,
@@ -9743,7 +9767,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10450,
+      "id": 10452,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 94.47,
@@ -9755,7 +9779,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10451,
+      "id": 10453,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 104.01,
@@ -9767,7 +9791,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10452,
+      "id": 10454,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 113.54,
@@ -9779,7 +9803,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10453,
+      "id": 10455,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 123.08,
@@ -9791,7 +9815,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10454,
+      "id": 10456,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.47,
@@ -9803,7 +9827,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10455,
+      "id": 10457,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 104.01,
@@ -9815,7 +9839,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10456,
+      "id": 10458,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 113.54,
@@ -9827,7 +9851,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10457,
+      "id": 10459,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 123.08,
@@ -9839,7 +9863,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10458,
+      "id": 10460,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 104.01,
@@ -9851,7 +9875,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10459,
+      "id": 10461,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 113.54,
@@ -9863,7 +9887,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10460,
+      "id": 10462,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 123.08,
@@ -9875,7 +9899,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10461,
+      "id": 10463,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 104.01,
@@ -9887,7 +9911,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10462,
+      "id": 10464,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 113.54,
@@ -9899,7 +9923,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10463,
+      "id": 10465,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 123.08,
@@ -9911,7 +9935,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10464,
+      "id": 10466,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 113.54,
@@ -9923,7 +9947,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10465,
+      "id": 10467,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 123.08,
@@ -9935,7 +9959,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10466,
+      "id": 10468,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 113.54,
@@ -9947,7 +9971,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10467,
+      "id": 10469,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 123.08,
@@ -9959,7 +9983,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10468,
+      "id": 10470,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 113.54,
@@ -9971,7 +9995,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10469,
+      "id": 10471,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 123.08,
@@ -9983,7 +10007,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10470,
+      "id": 10472,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 123.08,
@@ -9995,7 +10019,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10471,
+      "id": 10473,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 113.54,
@@ -10007,7 +10031,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10472,
+      "id": 10474,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 123.08,
@@ -10019,7 +10043,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10473,
+      "id": 10475,
       "kind": "light",
       "asset": "lamp_post",
       "x": 128.09,
@@ -10031,7 +10055,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10474,
+      "id": 10476,
       "kind": "light",
       "asset": "lamp_post",
       "x": 49.2,
@@ -10043,7 +10067,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10475,
+      "id": 10477,
       "kind": "light",
       "asset": "lamp_post",
       "x": 66.58,
@@ -10055,7 +10079,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10476,
+      "id": 10478,
       "kind": "light",
       "asset": "lamp_post",
       "x": 77.29,
@@ -10067,7 +10091,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10477,
+      "id": 10479,
       "kind": "light",
       "asset": "lamp_post",
       "x": 88.0,
@@ -10079,7 +10103,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10478,
+      "id": 10480,
       "kind": "light",
       "asset": "lamp_post",
       "x": 98.72,
@@ -10091,7 +10115,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10479,
+      "id": 10481,
       "kind": "light",
       "asset": "lamp_post",
       "x": 109.43,
@@ -10103,7 +10127,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10480,
+      "id": 10482,
       "kind": "light",
       "asset": "lamp_post",
       "x": 113.09,
@@ -10115,7 +10139,7 @@
       "source": "surroundings: car park Paddock"
     },
     {
-      "id": 10481,
+      "id": 10483,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 144.88,
@@ -10127,7 +10151,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10482,
+      "id": 10484,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 154.4,
@@ -10139,7 +10163,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10483,
+      "id": 10485,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 135.37,
@@ -10151,7 +10175,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10484,
+      "id": 10486,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 144.88,
@@ -10163,7 +10187,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10485,
+      "id": 10487,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 154.4,
@@ -10175,7 +10199,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10486,
+      "id": 10488,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 135.37,
@@ -10187,7 +10211,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10487,
+      "id": 10489,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 144.88,
@@ -10199,7 +10223,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10488,
+      "id": 10490,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 154.4,
@@ -10211,7 +10235,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10489,
+      "id": 10491,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 135.37,
@@ -10223,7 +10247,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10490,
+      "id": 10492,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 144.88,
@@ -10235,7 +10259,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10491,
+      "id": 10493,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 154.4,
@@ -10247,7 +10271,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10492,
+      "id": 10494,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 135.37,
@@ -10259,7 +10283,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10493,
+      "id": 10495,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 144.88,
@@ -10271,7 +10295,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10494,
+      "id": 10496,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 154.4,
@@ -10283,7 +10307,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10495,
+      "id": 10497,
       "kind": "light",
       "asset": "lamp_post",
       "x": 155.9,
@@ -10295,7 +10319,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10496,
+      "id": 10498,
       "kind": "light",
       "asset": "lamp_post",
       "x": 168.79,
@@ -10307,7 +10331,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10497,
+      "id": 10499,
       "kind": "light",
       "asset": "lamp_post",
       "x": 167.66,
@@ -10319,7 +10343,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10498,
+      "id": 10500,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 214.86,
@@ -10331,7 +10355,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10499,
+      "id": 10501,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 225.06,
@@ -10343,7 +10367,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10500,
+      "id": 10502,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 214.86,
@@ -10355,7 +10379,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10501,
+      "id": 10503,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 225.06,
@@ -10367,7 +10391,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10502,
+      "id": 10504,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 235.26,
@@ -10379,7 +10403,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10503,
+      "id": 10505,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 245.45,
@@ -10391,7 +10415,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10504,
+      "id": 10506,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 214.86,
@@ -10403,7 +10427,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10505,
+      "id": 10507,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 225.06,
@@ -10415,7 +10439,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10506,
+      "id": 10508,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 235.26,
@@ -10427,7 +10451,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10507,
+      "id": 10509,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 245.45,
@@ -10439,7 +10463,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10508,
+      "id": 10510,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 255.65,
@@ -10451,7 +10475,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10509,
+      "id": 10511,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 265.84,
@@ -10463,7 +10487,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10510,
+      "id": 10512,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 225.06,
@@ -10475,7 +10499,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10511,
+      "id": 10513,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 235.26,
@@ -10487,7 +10511,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10512,
+      "id": 10514,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 245.45,
@@ -10499,7 +10523,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10513,
+      "id": 10515,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 255.65,
@@ -10511,7 +10535,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10514,
+      "id": 10516,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 265.84,
@@ -10523,7 +10547,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10515,
+      "id": 10517,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 276.04,
@@ -10535,7 +10559,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10516,
+      "id": 10518,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 286.23,
@@ -10547,7 +10571,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10517,
+      "id": 10519,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 296.43,
@@ -10559,7 +10583,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10518,
+      "id": 10520,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 306.63,
@@ -10571,7 +10595,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10519,
+      "id": 10521,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 245.45,
@@ -10583,7 +10607,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10520,
+      "id": 10522,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 255.65,
@@ -10595,7 +10619,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10521,
+      "id": 10523,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 265.84,
@@ -10607,7 +10631,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10522,
+      "id": 10524,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 276.04,
@@ -10619,7 +10643,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10523,
+      "id": 10525,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 286.23,
@@ -10631,7 +10655,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10524,
+      "id": 10526,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 296.43,
@@ -10643,7 +10667,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10525,
+      "id": 10527,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 306.63,
@@ -10655,7 +10679,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10526,
+      "id": 10528,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 265.84,
@@ -10667,7 +10691,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10527,
+      "id": 10529,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 276.04,
@@ -10679,7 +10703,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10528,
+      "id": 10530,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 286.23,
@@ -10691,7 +10715,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10529,
+      "id": 10531,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 296.43,
@@ -10703,7 +10727,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10530,
+      "id": 10532,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 306.63,
@@ -10715,7 +10739,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10531,
+      "id": 10533,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 276.04,
@@ -10727,7 +10751,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10532,
+      "id": 10534,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 286.23,
@@ -10739,7 +10763,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10533,
+      "id": 10535,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 296.43,
@@ -10751,7 +10775,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10534,
+      "id": 10536,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 306.63,
@@ -10763,7 +10787,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10535,
+      "id": 10537,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 306.63,
@@ -10775,7 +10799,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10536,
+      "id": 10538,
       "kind": "light",
       "asset": "lamp_post",
       "x": 163.59,
@@ -10787,7 +10811,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10537,
+      "id": 10539,
       "kind": "light",
       "asset": "lamp_post",
       "x": 190.08,
@@ -10799,7 +10823,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10538,
+      "id": 10540,
       "kind": "light",
       "asset": "lamp_post",
       "x": 216.57,
@@ -10811,7 +10835,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10539,
+      "id": 10541,
       "kind": "light",
       "asset": "lamp_post",
       "x": 243.06,
@@ -10823,7 +10847,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10540,
+      "id": 10542,
       "kind": "light",
       "asset": "lamp_post",
       "x": 270.3,
@@ -10835,7 +10859,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10541,
+      "id": 10543,
       "kind": "light",
       "asset": "lamp_post",
       "x": 299.55,
@@ -10847,7 +10871,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10542,
+      "id": 10544,
       "kind": "light",
       "asset": "lamp_post",
       "x": 326.23,
@@ -10859,7 +10883,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10543,
+      "id": 10545,
       "kind": "light",
       "asset": "lamp_post",
       "x": 354.34,
@@ -10871,7 +10895,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10544,
+      "id": 10546,
       "kind": "light",
       "asset": "lamp_post",
       "x": 383.49,
@@ -10883,7 +10907,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10545,
+      "id": 10547,
       "kind": "light",
       "asset": "lamp_post",
       "x": 412.65,
@@ -10895,7 +10919,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10546,
+      "id": 10548,
       "kind": "light",
       "asset": "lamp_post",
       "x": 434.7,
@@ -10907,7 +10931,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10547,
+      "id": 10549,
       "kind": "light",
       "asset": "lamp_post",
       "x": 433.62,
@@ -10919,7 +10943,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10548,
+      "id": 10550,
       "kind": "light",
       "asset": "lamp_post",
       "x": 271.13,
@@ -10931,7 +10955,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10549,
+      "id": 10551,
       "kind": "light",
       "asset": "lamp_post",
       "x": 165.38,
@@ -10943,7 +10967,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10550,
+      "id": 10552,
       "kind": "light",
       "asset": "lamp_post",
       "x": 139.97,
@@ -10955,7 +10979,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10551,
+      "id": 10553,
       "kind": "light",
       "asset": "lamp_post",
       "x": 131.34,
@@ -10967,7 +10991,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10552,
+      "id": 10554,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 381.72,
@@ -10979,7 +11003,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10553,
+      "id": 10555,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 391.23,
@@ -10991,7 +11015,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10554,
+      "id": 10556,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 400.74,
@@ -11003,7 +11027,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10555,
+      "id": 10557,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 381.72,
@@ -11015,7 +11039,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10556,
+      "id": 10558,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 391.23,
@@ -11027,7 +11051,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10557,
+      "id": 10559,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 400.74,
@@ -11039,7 +11063,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10558,
+      "id": 10560,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 410.25,
@@ -11051,7 +11075,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10559,
+      "id": 10561,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 381.72,
@@ -11063,7 +11087,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10560,
+      "id": 10562,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 391.23,
@@ -11075,7 +11099,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10561,
+      "id": 10563,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 400.74,
@@ -11087,7 +11111,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10562,
+      "id": 10564,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 410.25,
@@ -11099,7 +11123,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10563,
+      "id": 10565,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 391.23,
@@ -11111,7 +11135,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10564,
+      "id": 10566,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 400.74,
@@ -11123,7 +11147,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10565,
+      "id": 10567,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 410.25,
@@ -11135,7 +11159,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10566,
+      "id": 10568,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 419.76,
@@ -11147,7 +11171,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10567,
+      "id": 10569,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 400.74,
@@ -11159,7 +11183,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10568,
+      "id": 10570,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 410.25,
@@ -11171,7 +11195,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10569,
+      "id": 10571,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 419.76,
@@ -11183,7 +11207,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10570,
+      "id": 10572,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 400.74,
@@ -11195,7 +11219,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10571,
+      "id": 10573,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 410.25,
@@ -11207,7 +11231,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10572,
+      "id": 10574,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 419.76,
@@ -11219,7 +11243,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10573,
+      "id": 10575,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 410.25,
@@ -11231,7 +11255,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10574,
+      "id": 10576,
       "kind": "light",
       "asset": "lamp_post",
       "x": 414.88,
@@ -11243,7 +11267,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10575,
+      "id": 10577,
       "kind": "light",
       "asset": "lamp_post",
       "x": 394.05,
@@ -11255,7 +11279,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10576,
+      "id": 10578,
       "kind": "light",
       "asset": "lamp_post",
       "x": 373.42,
@@ -11267,7 +11291,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10577,
+      "id": 10579,
       "kind": "light",
       "asset": "lamp_post",
       "x": 368.69,
@@ -11279,7 +11303,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10578,
+      "id": 10580,
       "kind": "light",
       "asset": "lamp_post",
       "x": 391.09,
@@ -11291,7 +11315,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10579,
+      "id": 10581,
       "kind": "light",
       "asset": "lamp_post",
       "x": 411.41,
@@ -11303,7 +11327,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10580,
+      "id": 10582,
       "kind": "light",
       "asset": "lamp_post",
       "x": 431.73,
@@ -11315,7 +11339,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10581,
+      "id": 10583,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 539.88,
@@ -11327,7 +11351,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10582,
+      "id": 10584,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 530.07,
@@ -11339,7 +11363,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10583,
+      "id": 10585,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 539.88,
@@ -11351,7 +11375,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10584,
+      "id": 10586,
       "kind": "light",
       "asset": "lamp_post",
       "x": 525.77,
@@ -11363,7 +11387,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10585,
+      "id": 10587,
       "kind": "light",
       "asset": "lamp_post",
       "x": 540.59,
@@ -11375,7 +11399,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10586,
+      "id": 10588,
       "kind": "light",
       "asset": "lamp_post",
       "x": 554.85,
@@ -11387,7 +11411,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10587,
+      "id": 10589,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 571.07,
@@ -11399,7 +11423,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10588,
+      "id": 10590,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 580.63,
@@ -11411,7 +11435,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10589,
+      "id": 10591,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 590.18,
@@ -11423,7 +11447,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10590,
+      "id": 10592,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 561.51,
@@ -11435,7 +11459,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10591,
+      "id": 10593,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 571.07,
@@ -11447,7 +11471,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10592,
+      "id": 10594,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 580.63,
@@ -11459,7 +11483,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10593,
+      "id": 10595,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 590.18,
@@ -11471,7 +11495,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10594,
+      "id": 10596,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 599.74,
@@ -11483,7 +11507,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10595,
+      "id": 10597,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 609.3,
@@ -11495,7 +11519,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10596,
+      "id": 10598,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 618.85,
@@ -11507,7 +11531,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10597,
+      "id": 10599,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 628.41,
@@ -11519,7 +11543,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10598,
+      "id": 10600,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 561.51,
@@ -11531,7 +11555,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10599,
+      "id": 10601,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 571.07,
@@ -11543,7 +11567,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10600,
+      "id": 10602,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 580.63,
@@ -11555,7 +11579,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10601,
+      "id": 10603,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 590.18,
@@ -11567,7 +11591,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10602,
+      "id": 10604,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 599.74,
@@ -11579,7 +11603,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10603,
+      "id": 10605,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 609.3,
@@ -11591,7 +11615,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10604,
+      "id": 10606,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 618.85,
@@ -11603,7 +11627,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10605,
+      "id": 10607,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 628.41,
@@ -11615,7 +11639,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10606,
+      "id": 10608,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 561.51,
@@ -11627,7 +11651,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10607,
+      "id": 10609,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 571.07,
@@ -11639,7 +11663,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10608,
+      "id": 10610,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 580.63,
@@ -11651,7 +11675,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10609,
+      "id": 10611,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 590.18,
@@ -11663,7 +11687,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10610,
+      "id": 10612,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 599.74,
@@ -11675,7 +11699,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10611,
+      "id": 10613,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 609.3,
@@ -11687,7 +11711,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10612,
+      "id": 10614,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 618.85,
@@ -11699,7 +11723,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10613,
+      "id": 10615,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 628.41,
@@ -11711,7 +11735,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10614,
+      "id": 10616,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 561.51,
@@ -11723,7 +11747,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10615,
+      "id": 10617,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 571.07,
@@ -11735,7 +11759,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10616,
+      "id": 10618,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 580.63,
@@ -11747,7 +11771,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10617,
+      "id": 10619,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 590.18,
@@ -11759,7 +11783,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10618,
+      "id": 10620,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 599.74,
@@ -11771,7 +11795,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10619,
+      "id": 10621,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 609.3,
@@ -11783,7 +11807,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10620,
+      "id": 10622,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 618.85,
@@ -11795,7 +11819,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10621,
+      "id": 10623,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 628.41,
@@ -11807,7 +11831,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10622,
+      "id": 10624,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 561.51,
@@ -11819,7 +11843,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10623,
+      "id": 10625,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 571.07,
@@ -11831,7 +11855,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10624,
+      "id": 10626,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 580.63,
@@ -11843,7 +11867,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10625,
+      "id": 10627,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 590.18,
@@ -11855,7 +11879,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10626,
+      "id": 10628,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 599.74,
@@ -11867,7 +11891,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10627,
+      "id": 10629,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 609.3,
@@ -11879,7 +11903,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10628,
+      "id": 10630,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 618.85,
@@ -11891,7 +11915,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10629,
+      "id": 10631,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 628.41,
@@ -11903,7 +11927,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10630,
+      "id": 10632,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 561.51,
@@ -11915,7 +11939,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10631,
+      "id": 10633,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 571.07,
@@ -11927,7 +11951,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10632,
+      "id": 10634,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 580.63,
@@ -11939,7 +11963,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10633,
+      "id": 10635,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 590.18,
@@ -11951,7 +11975,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10634,
+      "id": 10636,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 599.74,
@@ -11963,7 +11987,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10635,
+      "id": 10637,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 609.3,
@@ -11975,7 +11999,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10636,
+      "id": 10638,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 618.85,
@@ -11987,7 +12011,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10637,
+      "id": 10639,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 628.41,
@@ -11999,7 +12023,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10638,
+      "id": 10640,
       "kind": "light",
       "asset": "lamp_post",
       "x": 560.13,
@@ -12011,7 +12035,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10639,
+      "id": 10641,
       "kind": "light",
       "asset": "lamp_post",
       "x": 561.46,
@@ -12023,7 +12047,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10640,
+      "id": 10642,
       "kind": "light",
       "asset": "lamp_post",
       "x": 581.46,
@@ -12035,7 +12059,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10641,
+      "id": 10643,
       "kind": "light",
       "asset": "lamp_post",
       "x": 610.75,
@@ -12047,7 +12071,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10642,
+      "id": 10644,
       "kind": "light",
       "asset": "lamp_post",
       "x": 640.04,
@@ -12059,7 +12083,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10643,
+      "id": 10645,
       "kind": "light",
       "asset": "lamp_post",
       "x": 662.52,
@@ -12071,7 +12095,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10644,
+      "id": 10646,
       "kind": "light",
       "asset": "lamp_post",
       "x": 657.57,
@@ -12083,7 +12107,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10645,
+      "id": 10647,
       "kind": "light",
       "asset": "lamp_post",
       "x": 637.08,
@@ -12095,7 +12119,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10646,
+      "id": 10648,
       "kind": "light",
       "asset": "lamp_post",
       "x": 607.08,
@@ -12107,7 +12131,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10647,
+      "id": 10649,
       "kind": "light",
       "asset": "lamp_post",
       "x": 577.08,
@@ -12119,7 +12143,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 10648,
+      "id": 10650,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -417.42,
@@ -12131,7 +12155,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10649,
+      "id": 10651,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -424.08,
@@ -12143,7 +12167,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10650,
+      "id": 10652,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -416.89,
@@ -12155,7 +12179,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10651,
+      "id": 10653,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -423.55,
@@ -12167,7 +12191,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10652,
+      "id": 10654,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -416.36,
@@ -12179,7 +12203,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10653,
+      "id": 10655,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -423.02,
@@ -12191,7 +12215,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10654,
+      "id": 10656,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -429.68,
@@ -12203,7 +12227,7 @@
       "source": "surroundings: camp site Camperparkeren Boulevard Barnaart - Zandvoort"
     },
     {
-      "id": 10655,
+      "id": 10657,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -182.61,
@@ -12215,7 +12239,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10656,
+      "id": 10658,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -92.84,
@@ -12227,7 +12251,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10657,
+      "id": 10659,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -121.99,
@@ -12239,7 +12263,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10658,
+      "id": 10660,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -90.52,
@@ -12251,7 +12275,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10659,
+      "id": 10661,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -148.82,
@@ -12263,7 +12287,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10660,
+      "id": 10662,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -88.2,
@@ -12275,7 +12299,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10661,
+      "id": 10663,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -146.5,
@@ -12287,7 +12311,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10662,
+      "id": 10664,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -85.88,
@@ -12299,7 +12323,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10663,
+      "id": 10665,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -115.03,
@@ -12311,7 +12335,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10664,
+      "id": 10666,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -173.33,
@@ -12323,7 +12347,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10665,
+      "id": 10667,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -83.56,
@@ -12335,7 +12359,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10666,
+      "id": 10668,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -112.71,
@@ -12347,7 +12371,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10667,
+      "id": 10669,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -81.24,
@@ -12359,7 +12383,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10668,
+      "id": 10670,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -139.54,
@@ -12371,7 +12395,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10669,
+      "id": 10671,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -78.92,
@@ -12383,7 +12407,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10670,
+      "id": 10672,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -166.36,
@@ -12395,7 +12419,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10671,
+      "id": 10673,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -76.6,
@@ -12407,7 +12431,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10672,
+      "id": 10674,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -105.75,
@@ -12419,7 +12443,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10673,
+      "id": 10675,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -164.04,
@@ -12431,7 +12455,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10674,
+      "id": 10676,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -74.28,
@@ -12443,7 +12467,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10675,
+      "id": 10677,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -71.96,
@@ -12455,7 +12479,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10676,
+      "id": 10678,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -130.26,
@@ -12467,7 +12491,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10677,
+      "id": 10679,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -98.79,
@@ -12479,7 +12503,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10678,
+      "id": 10680,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -157.08,
@@ -12491,7 +12515,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10679,
+      "id": 10681,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -67.32,
@@ -12503,7 +12527,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10680,
+      "id": 10682,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -96.47,
@@ -12515,7 +12539,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10681,
+      "id": 10683,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -154.76,
@@ -12527,7 +12551,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10682,
+      "id": 10684,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -65.0,
@@ -12539,7 +12563,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10683,
+      "id": 10685,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -94.15,
@@ -12551,7 +12575,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10684,
+      "id": 10686,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -123.29,
@@ -12563,7 +12587,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10685,
+      "id": 10687,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -91.83,
@@ -12575,7 +12599,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10686,
+      "id": 10688,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -120.97,
@@ -12587,7 +12611,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10687,
+      "id": 10689,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -89.51,
@@ -12599,7 +12623,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10688,
+      "id": 10690,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -147.8,
@@ -12611,7 +12635,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10689,
+      "id": 10691,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -87.19,
@@ -12623,7 +12647,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10690,
+      "id": 10692,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -174.63,
@@ -12635,7 +12659,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10691,
+      "id": 10693,
       "kind": "vehicle",
       "asset": "camper_van",
       "x": -84.86,
@@ -12647,7 +12671,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10692,
+      "id": 10694,
       "kind": "vehicle",
       "asset": "motorhome",
       "x": -114.01,
@@ -12659,7 +12683,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10693,
+      "id": 10695,
       "kind": "attraction",
       "asset": "tent_6m",
       "x": -82.54,
@@ -12671,7 +12695,7 @@
       "source": "surroundings: camp site Camping Caravanpark De Duinrand"
     },
     {
-      "id": 10694,
+      "id": 10696,
       "kind": "building",
       "asset": "village_house_b",
       "x": -425.52,
@@ -12683,7 +12707,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10695,
+      "id": 10697,
       "kind": "building",
       "asset": "village_house_b",
       "x": -399.52,
@@ -12695,7 +12719,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10696,
+      "id": 10698,
       "kind": "building",
       "asset": "village_house_a",
       "x": -373.52,
@@ -12707,7 +12731,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10697,
+      "id": 10699,
       "kind": "building",
       "asset": "village_house_b",
       "x": -347.52,
@@ -12719,7 +12743,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10698,
+      "id": 10700,
       "kind": "building",
       "asset": "village_house_a",
       "x": -321.52,
@@ -12731,7 +12755,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10699,
+      "id": 10701,
       "kind": "building",
       "asset": "village_house_c",
       "x": -295.52,
@@ -12743,7 +12767,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10700,
+      "id": 10702,
       "kind": "building",
       "asset": "village_house_b",
       "x": -269.52,
@@ -12755,7 +12779,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10701,
+      "id": 10703,
       "kind": "building",
       "asset": "village_house_b",
       "x": -243.52,
@@ -12767,7 +12791,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10702,
+      "id": 10704,
       "kind": "building",
       "asset": "village_house_b",
       "x": -217.52,
@@ -12779,7 +12803,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10703,
+      "id": 10705,
       "kind": "building",
       "asset": "village_house_b",
       "x": -191.52,
@@ -12791,7 +12815,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10704,
+      "id": 10706,
       "kind": "building",
       "asset": "village_house_a",
       "x": -165.52,
@@ -12803,7 +12827,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10705,
+      "id": 10707,
       "kind": "building",
       "asset": "village_house_a",
       "x": -139.52,
@@ -12815,7 +12839,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10706,
+      "id": 10708,
       "kind": "building",
       "asset": "village_house_b",
       "x": -113.52,
@@ -12827,7 +12851,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10707,
+      "id": 10709,
       "kind": "building",
       "asset": "village_house_c",
       "x": -87.52,
@@ -12839,7 +12863,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 10708,
+      "id": 10710,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 3284.53,
@@ -12851,7 +12875,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10709,
+      "id": 10711,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 3204.52,
@@ -12863,7 +12887,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10710,
+      "id": 10712,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 3326.2,
@@ -12875,7 +12899,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 10711,
+      "id": 10713,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -17.75,
@@ -12887,7 +12911,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10712,
+      "id": 10714,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 188.19,
@@ -12899,7 +12923,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10713,
+      "id": 10715,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 162.92,
@@ -12911,7 +12935,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10714,
+      "id": 10716,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 152.43,
@@ -12923,7 +12947,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10715,
+      "id": 10717,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 13.37,
@@ -12935,7 +12959,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10716,
+      "id": 10718,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 249.35,
@@ -12947,7 +12971,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10717,
+      "id": 10719,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 521.87,
@@ -12959,7 +12983,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10718,
+      "id": 10720,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 853.16,
@@ -12971,7 +12995,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10719,
+      "id": 10722,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 688.28,
@@ -12983,7 +13007,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10720,
+      "id": 10723,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 730.48,
@@ -12995,7 +13019,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10722,
+      "id": 10724,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 532.13,
@@ -13007,7 +13031,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10723,
+      "id": 10725,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 123.76,
@@ -13019,7 +13043,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10724,
+      "id": 10726,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 138.55,
@@ -13031,7 +13055,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10725,
+      "id": 10727,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -114.47,
@@ -13043,7 +13067,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 10726,
+      "id": 10728,
       "kind": "board",
       "asset": "light_panel",
       "x": -18.83,
@@ -13055,7 +13079,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10727,
+      "id": 10729,
       "kind": "board",
       "asset": "light_panel",
       "x": 184.24,
@@ -13067,7 +13091,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10728,
+      "id": 10730,
       "kind": "board",
       "asset": "light_panel",
       "x": 163.46,
@@ -13079,7 +13103,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10729,
+      "id": 10731,
       "kind": "board",
       "asset": "light_panel",
       "x": 154.56,
@@ -13091,7 +13115,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10730,
+      "id": 10732,
       "kind": "board",
       "asset": "light_panel",
       "x": 10.67,
@@ -13103,7 +13127,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10731,
+      "id": 10733,
       "kind": "board",
       "asset": "light_panel",
       "x": 246.17,
@@ -13115,7 +13139,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10732,
+      "id": 10734,
       "kind": "board",
       "asset": "light_panel",
       "x": 519.26,
@@ -13127,7 +13151,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10733,
+      "id": 10735,
       "kind": "board",
       "asset": "light_panel",
       "x": 697.91,
@@ -13139,7 +13163,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10734,
+      "id": 10736,
       "kind": "board",
       "asset": "light_panel",
       "x": 851.85,
@@ -13151,7 +13175,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10735,
+      "id": 101069,
       "kind": "board",
       "asset": "light_panel",
       "x": 691.81,
@@ -13163,7 +13187,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 10736,
+      "id": 101070,
       "kind": "board",
       "asset": "light_panel",
       "x": 520.33,
@@ -13175,7 +13199,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101069,
+      "id": 101071,
       "kind": "board",
       "asset": "light_panel",
       "x": 729.13,
@@ -13187,7 +13211,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101070,
+      "id": 107355,
       "kind": "board",
       "asset": "light_panel",
       "x": 535.25,
@@ -13199,7 +13223,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101071,
+      "id": 107356,
       "kind": "board",
       "asset": "light_panel",
       "x": 128.09,
@@ -13211,7 +13235,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107355,
+      "id": 107357,
       "kind": "board",
       "asset": "light_panel",
       "x": 83.72,
@@ -13223,7 +13247,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107356,
+      "id": 107358,
       "kind": "board",
       "asset": "light_panel",
       "x": 140.6,
@@ -13235,7 +13259,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107357,
+      "id": 107359,
       "kind": "board",
       "asset": "light_panel",
       "x": -112.44,
@@ -13247,7 +13271,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107358,
+      "id": 107360,
       "kind": "board",
       "asset": "light_panel",
       "x": -86.95,
@@ -13259,7 +13283,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107359,
+      "id": 107361,
       "kind": "board",
       "asset": "light_panel",
       "x": -19.19,
@@ -13271,7 +13295,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 107360,
+      "id": 107362,
       "kind": "board",
       "asset": "corner_sign",
       "x": 110.17,
@@ -13283,7 +13307,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107361,
+      "id": 107363,
       "kind": "board",
       "asset": "corner_sign",
       "x": 160.96,
@@ -13295,7 +13319,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107362,
+      "id": 107364,
       "kind": "board",
       "asset": "corner_sign",
       "x": 59.65,
@@ -13307,7 +13331,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107363,
+      "id": 107365,
       "kind": "board",
       "asset": "corner_sign",
       "x": 95.3,
@@ -13319,7 +13343,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107364,
+      "id": 107366,
       "kind": "board",
       "asset": "corner_sign",
       "x": 364.27,
@@ -13331,7 +13355,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107365,
+      "id": 107367,
       "kind": "board",
       "asset": "corner_sign",
       "x": 731.43,
@@ -13343,7 +13367,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107366,
+      "id": 107368,
       "kind": "board",
       "asset": "corner_sign",
       "x": 741.09,
@@ -13355,7 +13379,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107367,
+      "id": 107369,
       "kind": "board",
       "asset": "corner_sign",
       "x": 585.46,
@@ -13367,7 +13391,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107368,
+      "id": 107370,
       "kind": "board",
       "asset": "corner_sign",
       "x": 182.59,
@@ -13379,7 +13403,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107369,
+      "id": 107371,
       "kind": "board",
       "asset": "corner_sign",
       "x": 9.72,
@@ -13391,7 +13415,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 107370,
+      "id": 107372,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -27.05,
@@ -13403,7 +13427,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107371,
+      "id": 107373,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 224.62,
@@ -13415,7 +13439,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107372,
+      "id": 107374,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 121.3,
@@ -13427,7 +13451,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107373,
+      "id": 107375,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 193.42,
@@ -13439,7 +13463,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107374,
+      "id": 107376,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 614.48,
@@ -13451,7 +13475,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107375,
+      "id": 107377,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 845.43,
@@ -13463,7 +13487,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107376,
+      "id": 107378,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 753.08,
@@ -13475,7 +13499,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107377,
+      "id": 107379,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 621.79,
@@ -13487,7 +13511,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107378,
+      "id": 107380,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 568.56,
@@ -13499,7 +13523,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107379,
+      "id": 107381,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 706.06,
@@ -13511,7 +13535,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107380,
+      "id": 107382,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 252.32,
@@ -13523,7 +13547,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107381,
+      "id": 107383,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 61.53,
@@ -13535,7 +13559,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107382,
+      "id": 107384,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 154.55,
@@ -13547,7 +13571,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107383,
+      "id": 107385,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -10.63,
@@ -13559,7 +13583,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107384,
+      "id": 107386,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -152.21,
@@ -13571,7 +13595,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107385,
+      "id": 107387,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -75.27,
@@ -13583,7 +13607,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 107386,
+      "id": 107388,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 208.3,
@@ -13595,7 +13619,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107387,
+      "id": 107389,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 192.48,
@@ -13607,7 +13631,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107388,
+      "id": 107390,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 164.54,
@@ -13619,7 +13643,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107389,
+      "id": 107391,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 154.03,
@@ -13631,7 +13655,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107390,
+      "id": 107392,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 115.81,
@@ -13643,7 +13667,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107391,
+      "id": 107393,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 74.35,
@@ -13655,7 +13679,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107392,
+      "id": 107394,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 61.85,
@@ -13667,7 +13691,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107393,
+      "id": 107395,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 89.05,
@@ -13679,7 +13703,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107394,
+      "id": 107396,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 295.08,
@@ -13691,7 +13715,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107395,
+      "id": 107397,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 338.17,
@@ -13703,7 +13727,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107396,
+      "id": 107398,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 385.13,
@@ -13715,7 +13739,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107397,
+      "id": 107399,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 518.09,
@@ -13727,7 +13751,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107398,
+      "id": 107400,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 630.73,
@@ -13739,7 +13763,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107399,
+      "id": 107401,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 674.98,
@@ -13751,7 +13775,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107400,
+      "id": 107402,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 831.63,
@@ -13763,7 +13787,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107401,
+      "id": 107403,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 807.13,
@@ -13775,7 +13799,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107402,
+      "id": 107404,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 780.49,
@@ -13787,7 +13811,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107403,
+      "id": 107405,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 763.73,
@@ -13799,7 +13823,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107404,
+      "id": 107406,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 573.91,
@@ -13811,7 +13835,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107405,
+      "id": 107407,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 617.14,
@@ -13823,7 +13847,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107406,
+      "id": 107408,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 650.93,
@@ -13835,7 +13859,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107407,
+      "id": 107409,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 650.1,
@@ -13847,7 +13871,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107408,
+      "id": 107410,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 371.82,
@@ -13859,7 +13883,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107409,
+      "id": 107411,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 334.2,
@@ -13871,7 +13895,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107410,
+      "id": 107412,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 158.13,
@@ -13883,7 +13907,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107411,
+      "id": 107413,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 100.58,
@@ -13895,7 +13919,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107412,
+      "id": 107414,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 77.63,
@@ -13907,7 +13931,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107413,
+      "id": 107415,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 33.58,
@@ -13919,7 +13943,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107414,
+      "id": 107416,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -123.55,
@@ -13931,7 +13955,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107415,
+      "id": 107417,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -107.58,
@@ -13943,7 +13967,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107416,
+      "id": 107418,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 128.28,
@@ -13955,7 +13979,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107417,
+      "id": 107419,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 141.75,
@@ -13967,7 +13991,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107418,
+      "id": 107420,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 90.93,
@@ -13979,7 +14003,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107419,
+      "id": 107421,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 73.33,
@@ -13991,7 +14015,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107420,
+      "id": 107422,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 114.45,
@@ -14003,7 +14027,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107421,
+      "id": 107423,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 238.85,
@@ -14015,7 +14039,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107422,
+      "id": 107424,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 314.21,
@@ -14027,7 +14051,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107423,
+      "id": 107425,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 506.16,
@@ -14039,7 +14063,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107424,
+      "id": 113712,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 652.29,
@@ -14051,7 +14075,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 107425,
+      "id": 113713,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 734.37,
@@ -14063,7 +14087,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113712,
+      "id": 113714,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 810.34,
@@ -14075,7 +14099,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113713,
+      "id": 113715,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 726.61,
@@ -14087,7 +14111,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113714,
+      "id": 113716,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 598.5,
@@ -14099,7 +14123,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113715,
+      "id": 113717,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 673.75,
@@ -14111,7 +14135,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113716,
+      "id": 113718,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 629.3,
@@ -14123,7 +14147,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113717,
+      "id": 113719,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 194.01,
@@ -14135,7 +14159,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113718,
+      "id": 113720,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 158.18,
@@ -14147,7 +14171,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113719,
+      "id": 113721,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 84.14,
@@ -14159,7 +14183,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113720,
+      "id": 113722,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 92.74,
@@ -14171,7 +14195,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113721,
+      "id": 113723,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 126.47,
@@ -14183,7 +14207,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113722,
+      "id": 113724,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 54.95,
@@ -14195,7 +14219,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113723,
+      "id": 116794,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 17.21,
@@ -14207,7 +14231,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 113724,
+      "id": 116795,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -103.32,
@@ -89471,5 +89495,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 116794
+  "next_id": 116796
 }

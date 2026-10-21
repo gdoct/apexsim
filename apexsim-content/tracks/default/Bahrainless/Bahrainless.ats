@@ -3180,10 +3180,10 @@
     {
       "id": 8572,
       "kind": "building",
-      "asset": "control_tower",
-      "x": 105.6,
-      "y": 577.17,
-      "z": 1.0755532,
+      "asset": "round_glass_tower",
+      "x": 117.49,
+      "y": 576.69,
+      "z": 1.2595755,
       "yaw_rad": 1.5307443,
       "scale": 1.0,
       "text": null,
@@ -65098,7 +65098,7 @@
       "source": "groom hoarding"
     },
     {
-      "id": 76877,
+      "id": 77083,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": -73.32111,
@@ -65110,7 +65110,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76878,
+      "id": 77084,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": -71.08597,
@@ -65122,7 +65122,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76879,
+      "id": 77085,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 47.28047,
@@ -65134,7 +65134,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76880,
+      "id": 77086,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": -77.80584,
@@ -65146,7 +65146,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76881,
+      "id": 77087,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 77.03957,
@@ -65158,7 +65158,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76882,
+      "id": 77088,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 88.23692,
@@ -65170,7 +65170,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76883,
+      "id": 77089,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 116.37596,
@@ -65182,7 +65182,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76884,
+      "id": 77090,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 58.65887,
@@ -65194,7 +65194,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76885,
+      "id": 77091,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 66.40466,
@@ -65206,7 +65206,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76886,
+      "id": 77092,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 54.88815,
@@ -65218,7 +65218,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76887,
+      "id": 77093,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 58.729977,
@@ -65230,7 +65230,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76888,
+      "id": 77094,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 132.133,
@@ -65242,19 +65242,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76889,
-      "kind": "tree",
-      "asset": "bush_cluster",
-      "x": 163.90227,
-      "y": 586.5462,
-      "z": 1.9329978,
-      "yaw_rad": 1.7127206,
-      "scale": 0.8077845,
-      "text": null,
-      "source": "groom tree"
-    },
-    {
-      "id": 76890,
+      "id": 77095,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 130.3309,
@@ -65266,7 +65254,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76891,
+      "id": 77096,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 182.19095,
@@ -65278,7 +65266,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76892,
+      "id": 77097,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 232.53204,
@@ -65290,7 +65278,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76893,
+      "id": 77098,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 232.10513,
@@ -65302,7 +65290,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76894,
+      "id": 77099,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 237.70638,
@@ -65314,7 +65302,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76895,
+      "id": 77100,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 300.413,
@@ -65326,7 +65314,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76896,
+      "id": 77101,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 423.60547,
@@ -65338,7 +65326,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76897,
+      "id": 77102,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 484.25803,
@@ -65350,7 +65338,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76898,
+      "id": 77103,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 470.32733,
@@ -65362,7 +65350,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76899,
+      "id": 77104,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 513.7742,
@@ -65374,7 +65362,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76900,
+      "id": 77105,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 491.2565,
@@ -65386,7 +65374,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76901,
+      "id": 77106,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 489.9045,
@@ -65398,7 +65386,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76902,
+      "id": 77107,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 540.22217,
@@ -65410,7 +65398,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76903,
+      "id": 77108,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 548.57587,
@@ -65422,7 +65410,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76904,
+      "id": 77109,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 540.91614,
@@ -65434,7 +65422,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76905,
+      "id": 77110,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 542.566,
@@ -65446,7 +65434,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76906,
+      "id": 77111,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 570.9911,
@@ -65458,7 +65446,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76907,
+      "id": 77112,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 627.3647,
@@ -65470,7 +65458,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76908,
+      "id": 77113,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 660.48846,
@@ -65482,7 +65470,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76909,
+      "id": 77114,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 670.94183,
@@ -65494,7 +65482,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76910,
+      "id": 77115,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 705.73926,
@@ -65506,7 +65494,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76911,
+      "id": 77116,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 705.4694,
@@ -65518,7 +65506,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76912,
+      "id": 77117,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 855.7283,
@@ -65530,7 +65518,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76913,
+      "id": 77118,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 844.34283,
@@ -65542,7 +65530,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76914,
+      "id": 77119,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 865.0855,
@@ -65554,7 +65542,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76915,
+      "id": 77120,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 852.95685,
@@ -65566,7 +65554,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76916,
+      "id": 77121,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 747.04144,
@@ -65578,7 +65566,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76917,
+      "id": 77122,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 757.20166,
@@ -65590,7 +65578,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76918,
+      "id": 77123,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 718.9714,
@@ -65602,7 +65590,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76919,
+      "id": 77124,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 827.4997,
@@ -65614,7 +65602,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76920,
+      "id": 77125,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 784.9802,
@@ -65626,7 +65614,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76921,
+      "id": 77126,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 803.4506,
@@ -65638,7 +65626,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76922,
+      "id": 77127,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 791.90955,
@@ -65650,7 +65638,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76923,
+      "id": 77128,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 695.07416,
@@ -65662,7 +65650,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76924,
+      "id": 77129,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 713.8255,
@@ -65674,7 +65662,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76925,
+      "id": 77130,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 686.4065,
@@ -65686,7 +65674,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76926,
+      "id": 77131,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 680.22925,
@@ -65698,7 +65686,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76927,
+      "id": 77132,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 773.794,
@@ -65710,7 +65698,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76928,
+      "id": 77133,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 623.0115,
@@ -65722,7 +65710,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76929,
+      "id": 77134,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 657.1162,
@@ -65734,7 +65722,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76930,
+      "id": 77135,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 617.8523,
@@ -65746,7 +65734,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76931,
+      "id": 77136,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 604.87634,
@@ -65758,7 +65746,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76932,
+      "id": 77137,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 665.9638,
@@ -65770,7 +65758,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76933,
+      "id": 77138,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 525.6498,
@@ -65782,7 +65770,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76934,
+      "id": 77139,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 685.12335,
@@ -65794,7 +65782,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76935,
+      "id": 77140,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 556.15027,
@@ -65806,7 +65794,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76936,
+      "id": 77141,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 548.37024,
@@ -65818,7 +65806,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76937,
+      "id": 77142,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 524.7898,
@@ -65830,7 +65818,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76938,
+      "id": 77143,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 530.1595,
@@ -65842,7 +65830,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76939,
+      "id": 77144,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 517.1689,
@@ -65854,7 +65842,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76940,
+      "id": 77145,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 514.0334,
@@ -65866,7 +65854,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76941,
+      "id": 77146,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 526.6257,
@@ -65878,7 +65866,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76942,
+      "id": 77147,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 522.87225,
@@ -65890,7 +65878,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76943,
+      "id": 77148,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 500.966,
@@ -65902,7 +65890,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76944,
+      "id": 77149,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 454.86295,
@@ -65914,7 +65902,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76945,
+      "id": 77150,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 482.02646,
@@ -65926,7 +65914,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76946,
+      "id": 77151,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 454.10718,
@@ -65938,7 +65926,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76947,
+      "id": 77152,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 364.95886,
@@ -65950,7 +65938,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76948,
+      "id": 77153,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 493.44537,
@@ -65962,7 +65950,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76949,
+      "id": 77154,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 459.38733,
@@ -65974,7 +65962,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76950,
+      "id": 77155,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 336.26147,
@@ -65986,7 +65974,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76951,
+      "id": 77156,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 405.67874,
@@ -65998,7 +65986,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76952,
+      "id": 77157,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 397.10428,
@@ -66010,7 +65998,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76953,
+      "id": 77158,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 241.14337,
@@ -66022,7 +66010,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76954,
+      "id": 77159,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 233.08011,
@@ -66034,7 +66022,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76955,
+      "id": 77160,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 365.5071,
@@ -66046,7 +66034,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76956,
+      "id": 77161,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 367.85056,
@@ -66058,7 +66046,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76957,
+      "id": 77162,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 387.6114,
@@ -66070,7 +66058,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76958,
+      "id": 77163,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 344.87845,
@@ -66082,7 +66070,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76959,
+      "id": 77164,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 254.7788,
@@ -66094,7 +66082,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76960,
+      "id": 77165,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 269.62906,
@@ -66106,7 +66094,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76961,
+      "id": 77166,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 330.0753,
@@ -66118,7 +66106,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76962,
+      "id": 77167,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 325.21555,
@@ -66130,7 +66118,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76963,
+      "id": 77168,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 239.96107,
@@ -66142,7 +66130,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76964,
+      "id": 77169,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 278.59042,
@@ -66154,7 +66142,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76965,
+      "id": 77170,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 157.04219,
@@ -66166,7 +66154,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76966,
+      "id": 77171,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 262.5165,
@@ -66178,7 +66166,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76967,
+      "id": 77172,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 136.68797,
@@ -66190,7 +66178,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76968,
+      "id": 77173,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 266.89905,
@@ -66202,7 +66190,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76969,
+      "id": 77174,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 257.27225,
@@ -66214,7 +66202,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76970,
+      "id": 77175,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 251.7045,
@@ -66226,7 +66214,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76971,
+      "id": 77176,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 237.67368,
@@ -66238,7 +66226,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76972,
+      "id": 77177,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 242.75961,
@@ -66250,7 +66238,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76973,
+      "id": 77178,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 233.27979,
@@ -66262,7 +66250,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76974,
+      "id": 77179,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 293.4866,
@@ -66274,7 +66262,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76975,
+      "id": 77180,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 266.33765,
@@ -66286,7 +66274,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76976,
+      "id": 77181,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 272.41144,
@@ -66298,7 +66286,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76977,
+      "id": 77182,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 164.61897,
@@ -66310,7 +66298,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76978,
+      "id": 77183,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 162.93102,
@@ -66322,7 +66310,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76979,
+      "id": 77184,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 278.70966,
@@ -66334,7 +66322,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76980,
+      "id": 77185,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 238.74666,
@@ -66346,7 +66334,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76981,
+      "id": 77186,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 247.828,
@@ -66358,7 +66346,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76982,
+      "id": 77187,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 126.6595,
@@ -66370,7 +66358,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76983,
+      "id": 77188,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 110.065125,
@@ -66382,7 +66370,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76984,
+      "id": 77189,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 264.5423,
@@ -66394,7 +66382,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76985,
+      "id": 77190,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 170.6732,
@@ -66406,7 +66394,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76986,
+      "id": 77191,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 190.84251,
@@ -66418,7 +66406,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76987,
+      "id": 77192,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 241.47162,
@@ -66430,7 +66418,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76988,
+      "id": 77193,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 240.05998,
@@ -66442,7 +66430,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76989,
+      "id": 77194,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 250.58578,
@@ -66454,7 +66442,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76990,
+      "id": 77195,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 279.0187,
@@ -66466,7 +66454,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76991,
+      "id": 77196,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 311.3597,
@@ -66478,7 +66466,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76992,
+      "id": 77197,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 309.7073,
@@ -66490,7 +66478,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76993,
+      "id": 77198,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 340.20905,
@@ -66502,7 +66490,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76994,
+      "id": 77199,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 294.91287,
@@ -66514,7 +66502,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76995,
+      "id": 77200,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 369.1331,
@@ -66526,7 +66514,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76996,
+      "id": 77201,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 450.66254,
@@ -66538,7 +66526,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76997,
+      "id": 77202,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 405.68994,
@@ -66550,7 +66538,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76998,
+      "id": 77203,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 333.5028,
@@ -66562,7 +66550,7 @@
       "source": "groom tree"
     },
     {
-      "id": 76999,
+      "id": 77204,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 340.32437,
@@ -66574,7 +66562,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77000,
+      "id": 77205,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 347.3295,
@@ -66586,7 +66574,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77001,
+      "id": 77206,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 338.76685,
@@ -66598,7 +66586,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77002,
+      "id": 77207,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 326.65747,
@@ -66610,7 +66598,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77003,
+      "id": 77208,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 459.4979,
@@ -66622,7 +66610,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77004,
+      "id": 77209,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 489.17883,
@@ -66634,7 +66622,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77005,
+      "id": 77210,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 483.28998,
@@ -66646,7 +66634,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77006,
+      "id": 77211,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 414.95752,
@@ -66658,7 +66646,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77007,
+      "id": 77212,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 455.31635,
@@ -66670,7 +66658,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77008,
+      "id": 77213,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 489.53268,
@@ -66682,7 +66670,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77009,
+      "id": 77214,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 495.3483,
@@ -66694,7 +66682,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77010,
+      "id": 77215,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 509.49597,
@@ -66706,7 +66694,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77011,
+      "id": 77216,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 509.98373,
@@ -66718,7 +66706,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77012,
+      "id": 77217,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 510.19458,
@@ -66730,7 +66718,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77013,
+      "id": 77218,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 537.1979,
@@ -66742,7 +66730,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77014,
+      "id": 77219,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 518.20215,
@@ -66754,7 +66742,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77015,
+      "id": 77220,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 551.0734,
@@ -66766,7 +66754,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77016,
+      "id": 77221,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 519.1213,
@@ -66778,7 +66766,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77017,
+      "id": 77222,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 535.64905,
@@ -66790,7 +66778,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77018,
+      "id": 77223,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 553.70825,
@@ -66802,7 +66790,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77019,
+      "id": 77224,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 572.47595,
@@ -66814,7 +66802,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77020,
+      "id": 77225,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 710.6026,
@@ -66826,7 +66814,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77021,
+      "id": 77226,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 628.1405,
@@ -66838,7 +66826,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77022,
+      "id": 77227,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 646.8821,
@@ -66850,7 +66838,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77023,
+      "id": 77228,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 657.47754,
@@ -66862,7 +66850,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77024,
+      "id": 77229,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 771.9703,
@@ -66874,7 +66862,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77025,
+      "id": 77230,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 624.751,
@@ -66886,7 +66874,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77026,
+      "id": 77231,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 637.4215,
@@ -66898,7 +66886,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77027,
+      "id": 77232,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 675.36536,
@@ -66910,7 +66898,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77028,
+      "id": 77233,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 764.1943,
@@ -66922,7 +66910,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77029,
+      "id": 77234,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 658.7769,
@@ -66934,7 +66922,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77030,
+      "id": 77235,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 699.7687,
@@ -66946,7 +66934,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77031,
+      "id": 77236,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 622.6306,
@@ -66958,7 +66946,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77032,
+      "id": 77237,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 655.0922,
@@ -66970,7 +66958,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77033,
+      "id": 77238,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 599.67664,
@@ -66982,7 +66970,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77034,
+      "id": 77239,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 568.07605,
@@ -66994,7 +66982,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77035,
+      "id": 77240,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 572.19794,
@@ -67006,7 +66994,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77036,
+      "id": 77241,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 514.963,
@@ -67018,7 +67006,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77037,
+      "id": 77242,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 523.6315,
@@ -67030,7 +67018,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77038,
+      "id": 77243,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 557.6951,
@@ -67042,7 +67030,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77039,
+      "id": 77244,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 473.71716,
@@ -67054,7 +67042,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77040,
+      "id": 77245,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 515.4598,
@@ -67066,7 +67054,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77041,
+      "id": 77246,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 424.0111,
@@ -67078,7 +67066,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77042,
+      "id": 77247,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 475.92578,
@@ -67090,7 +67078,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77043,
+      "id": 77248,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 456.62064,
@@ -67102,7 +67090,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77044,
+      "id": 77249,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 410.79956,
@@ -67114,7 +67102,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77045,
+      "id": 77250,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 450.93127,
@@ -67126,7 +67114,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77046,
+      "id": 77251,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 407.58047,
@@ -67138,7 +67126,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77047,
+      "id": 77252,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 400.98096,
@@ -67150,7 +67138,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77048,
+      "id": 77253,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 370.94443,
@@ -67162,7 +67150,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77049,
+      "id": 77254,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 337.66583,
@@ -67174,7 +67162,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77050,
+      "id": 77255,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 418.49646,
@@ -67186,7 +67174,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77051,
+      "id": 77256,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 336.23438,
@@ -67198,7 +67186,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77052,
+      "id": 77257,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 304.42648,
@@ -67210,7 +67198,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77053,
+      "id": 77258,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 282.9548,
@@ -67222,7 +67210,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77054,
+      "id": 77259,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 238.32596,
@@ -67234,7 +67222,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77055,
+      "id": 77260,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 210.9062,
@@ -67246,7 +67234,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77056,
+      "id": 77261,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 199.84845,
@@ -67258,7 +67246,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77057,
+      "id": 77262,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 210.72218,
@@ -67270,7 +67258,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77058,
+      "id": 77263,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 135.16635,
@@ -67282,7 +67270,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77059,
+      "id": 77264,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 106.07114,
@@ -67294,7 +67282,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77060,
+      "id": 77265,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 99.01138,
@@ -67306,7 +67294,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77061,
+      "id": 77266,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 52.459038,
@@ -67318,7 +67306,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77062,
+      "id": 77267,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 27.503408,
@@ -67330,7 +67318,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77063,
+      "id": 77268,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 26.450335,
@@ -67342,7 +67330,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77064,
+      "id": 77269,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -35.051163,
@@ -67354,7 +67342,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77065,
+      "id": 77270,
       "kind": "tree",
       "asset": "palm_oil",
       "x": -38.1538,
@@ -67366,7 +67354,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77066,
+      "id": 77271,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 26.086622,
@@ -67378,7 +67366,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77067,
+      "id": 77272,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 43.398407,
@@ -67390,7 +67378,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77068,
+      "id": 77273,
       "kind": "tree",
       "asset": "palm_oil",
       "x": -53.586662,
@@ -67402,7 +67390,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77069,
+      "id": 77274,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 80.39128,
@@ -67414,7 +67402,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77070,
+      "id": 77275,
       "kind": "tree",
       "asset": "palm_oil",
       "x": -112.721985,
@@ -67426,7 +67414,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77071,
+      "id": 77276,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 58.480366,
@@ -67438,7 +67426,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77072,
+      "id": 77277,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -104.62601,
@@ -67450,7 +67438,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77073,
+      "id": 77278,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 29.216011,
@@ -67462,7 +67450,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77074,
+      "id": 77279,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": 61.732353,
@@ -67474,7 +67462,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77075,
+      "id": 77280,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": -104.735855,
@@ -67486,7 +67474,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77076,
+      "id": 77281,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 66.28427,
@@ -67498,7 +67486,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77077,
+      "id": 77282,
       "kind": "tree",
       "asset": "bush_cluster",
       "x": -51.003326,
@@ -67510,7 +67498,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77078,
+      "id": 77283,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 44.02585,
@@ -67522,7 +67510,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77079,
+      "id": 77284,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": 75.42568,
@@ -67534,7 +67522,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77080,
+      "id": 77285,
       "kind": "tree",
       "asset": "palm_ornamental",
       "x": -52.586132,
@@ -67546,7 +67534,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77081,
+      "id": 77286,
       "kind": "tree",
       "asset": "palm_oil",
       "x": 67.56925,
@@ -67558,7 +67546,7 @@
       "source": "groom tree"
     },
     {
-      "id": 77082,
+      "id": 77287,
       "kind": "tree",
       "asset": "palm_oil",
       "x": -90.12933,
@@ -67570,5 +67558,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 77083
+  "next_id": 77288
 }

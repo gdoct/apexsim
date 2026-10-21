@@ -2008,6 +2008,18 @@
     {
       "id": 4921,
       "kind": "attraction",
+      "asset": "camera_tower",
+      "x": -334.05,
+      "y": 309.32,
+      "z": -0.05046134,
+      "yaw_rad": 2.2154942,
+      "scale": 1.0,
+      "text": null,
+      "source": "landmark DEKRA fan tower"
+    },
+    {
+      "id": 4922,
+      "kind": "attraction",
       "asset": "video_screen",
       "x": -293.71,
       "y": 195.63,
@@ -2018,7 +2030,7 @@
       "source": "landmark Steintribüne west screen"
     },
     {
-      "id": 4922,
+      "id": 4923,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -532.48,
@@ -2030,7 +2042,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 4923,
+      "id": 4924,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -542.13,
@@ -2042,7 +2054,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 4924,
+      "id": 4925,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -551.78,
@@ -2054,7 +2066,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 4925,
+      "id": 4926,
       "kind": "light",
       "asset": "lamp_post",
       "x": -569.59,
@@ -2066,7 +2078,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 4926,
+      "id": 4927,
       "kind": "light",
       "asset": "lamp_post",
       "x": -544.78,
@@ -2078,7 +2090,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 4927,
+      "id": 5942,
       "kind": "light",
       "asset": "lamp_post",
       "x": -519.96,
@@ -2090,7 +2102,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5942,
+      "id": 5943,
       "kind": "light",
       "asset": "lamp_post",
       "x": -495.15,
@@ -2102,7 +2114,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5943,
+      "id": 5944,
       "kind": "light",
       "asset": "lamp_post",
       "x": -470.34,
@@ -2114,7 +2126,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5944,
+      "id": 5945,
       "kind": "light",
       "asset": "lamp_post",
       "x": -445.53,
@@ -2126,7 +2138,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5945,
+      "id": 5946,
       "kind": "light",
       "asset": "lamp_post",
       "x": -467.41,
@@ -2138,7 +2150,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5946,
+      "id": 5947,
       "kind": "light",
       "asset": "lamp_post",
       "x": -492.22,
@@ -2150,7 +2162,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5947,
+      "id": 5948,
       "kind": "light",
       "asset": "lamp_post",
       "x": -517.04,
@@ -2162,7 +2174,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5948,
+      "id": 5949,
       "kind": "light",
       "asset": "lamp_post",
       "x": -541.85,
@@ -2174,7 +2186,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5949,
+      "id": 5950,
       "kind": "light",
       "asset": "lamp_post",
       "x": -566.67,
@@ -2186,7 +2198,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5950,
+      "id": 5951,
       "kind": "light",
       "asset": "lamp_post",
       "x": -591.48,
@@ -2198,7 +2210,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 5951,
+      "id": 5952,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -478.48,
@@ -2210,7 +2222,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5952,
+      "id": 5953,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -468.95,
@@ -2222,7 +2234,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5953,
+      "id": 5954,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -478.48,
@@ -2234,7 +2246,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5954,
+      "id": 5955,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -468.95,
@@ -2246,7 +2258,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5955,
+      "id": 5956,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -468.95,
@@ -2258,7 +2270,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5956,
+      "id": 5957,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -468.95,
@@ -2270,7 +2282,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5957,
+      "id": 5958,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -459.42,
@@ -2282,7 +2294,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5958,
+      "id": 5959,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -459.42,
@@ -2294,7 +2306,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5959,
+      "id": 5960,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -449.89,
@@ -2306,7 +2318,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5960,
+      "id": 5961,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -449.89,
@@ -2318,7 +2330,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5961,
+      "id": 5962,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -449.89,
@@ -2330,7 +2342,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5962,
+      "id": 5963,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -440.36,
@@ -2342,7 +2354,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5963,
+      "id": 5964,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -440.36,
@@ -2354,7 +2366,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5964,
+      "id": 5965,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -440.36,
@@ -2366,7 +2378,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5965,
+      "id": 5966,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -430.82,
@@ -2378,7 +2390,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5966,
+      "id": 5967,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -430.82,
@@ -2390,7 +2402,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5967,
+      "id": 5968,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -430.82,
@@ -2402,7 +2414,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5968,
+      "id": 5969,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -421.29,
@@ -2414,7 +2426,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5969,
+      "id": 5970,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -421.29,
@@ -2426,7 +2438,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5970,
+      "id": 5971,
       "kind": "light",
       "asset": "lamp_post",
       "x": -500.37,
@@ -2438,7 +2450,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5971,
+      "id": 5972,
       "kind": "light",
       "asset": "lamp_post",
       "x": -485.75,
@@ -2450,7 +2462,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5972,
+      "id": 5973,
       "kind": "light",
       "asset": "lamp_post",
       "x": -471.12,
@@ -2462,7 +2474,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5973,
+      "id": 5974,
       "kind": "light",
       "asset": "lamp_post",
       "x": -464.8,
@@ -2474,7 +2486,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5974,
+      "id": 5975,
       "kind": "light",
       "asset": "lamp_post",
       "x": -450.6,
@@ -2486,7 +2498,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5975,
+      "id": 5976,
       "kind": "light",
       "asset": "lamp_post",
       "x": -435.45,
@@ -2498,7 +2510,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5976,
+      "id": 5977,
       "kind": "light",
       "asset": "lamp_post",
       "x": -420.31,
@@ -2510,7 +2522,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5977,
+      "id": 5978,
       "kind": "light",
       "asset": "lamp_post",
       "x": -405.16,
@@ -2522,7 +2534,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5978,
+      "id": 5979,
       "kind": "light",
       "asset": "lamp_post",
       "x": -390.02,
@@ -2534,7 +2546,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5979,
+      "id": 5980,
       "kind": "light",
       "asset": "lamp_post",
       "x": -374.87,
@@ -2546,7 +2558,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5980,
+      "id": 5981,
       "kind": "light",
       "asset": "lamp_post",
       "x": -359.73,
@@ -2558,7 +2570,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5981,
+      "id": 5982,
       "kind": "light",
       "asset": "lamp_post",
       "x": -344.58,
@@ -2570,7 +2582,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5982,
+      "id": 5983,
       "kind": "light",
       "asset": "lamp_post",
       "x": -329.44,
@@ -2582,7 +2594,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5983,
+      "id": 5984,
       "kind": "light",
       "asset": "lamp_post",
       "x": -314.29,
@@ -2594,7 +2606,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5984,
+      "id": 5985,
       "kind": "light",
       "asset": "lamp_post",
       "x": -332.5,
@@ -2606,7 +2618,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5985,
+      "id": 5986,
       "kind": "light",
       "asset": "lamp_post",
       "x": -347.38,
@@ -2618,7 +2630,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5986,
+      "id": 5987,
       "kind": "light",
       "asset": "lamp_post",
       "x": -362.25,
@@ -2630,7 +2642,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5987,
+      "id": 5988,
       "kind": "light",
       "asset": "lamp_post",
       "x": -377.13,
@@ -2642,7 +2654,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5988,
+      "id": 5989,
       "kind": "light",
       "asset": "lamp_post",
       "x": -392.01,
@@ -2654,7 +2666,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5989,
+      "id": 5990,
       "kind": "light",
       "asset": "lamp_post",
       "x": -406.89,
@@ -2666,7 +2678,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5990,
+      "id": 5991,
       "kind": "light",
       "asset": "lamp_post",
       "x": -421.77,
@@ -2678,7 +2690,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5991,
+      "id": 5992,
       "kind": "light",
       "asset": "lamp_post",
       "x": -436.65,
@@ -2690,7 +2702,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5992,
+      "id": 5993,
       "kind": "light",
       "asset": "lamp_post",
       "x": -451.53,
@@ -2702,7 +2714,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5993,
+      "id": 5994,
       "kind": "light",
       "asset": "lamp_post",
       "x": -466.41,
@@ -2714,7 +2726,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5994,
+      "id": 5995,
       "kind": "light",
       "asset": "lamp_post",
       "x": -481.28,
@@ -2726,7 +2738,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5995,
+      "id": 5996,
       "kind": "light",
       "asset": "lamp_post",
       "x": -496.16,
@@ -2738,7 +2750,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5996,
+      "id": 5997,
       "kind": "light",
       "asset": "lamp_post",
       "x": -511.04,
@@ -2750,7 +2762,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5997,
+      "id": 5998,
       "kind": "light",
       "asset": "lamp_post",
       "x": -525.92,
@@ -2762,7 +2774,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5998,
+      "id": 5999,
       "kind": "light",
       "asset": "lamp_post",
       "x": -516.82,
@@ -2774,7 +2786,7 @@
       "source": "surroundings: car park S 3"
     },
     {
-      "id": 5999,
+      "id": 6000,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -329.31,
@@ -2786,7 +2798,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6000,
+      "id": 6001,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -319.79,
@@ -2798,7 +2810,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6001,
+      "id": 6002,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -310.27,
@@ -2810,7 +2822,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6002,
+      "id": 6003,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -300.75,
@@ -2822,7 +2834,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6003,
+      "id": 6004,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -348.35,
@@ -2834,7 +2846,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6004,
+      "id": 6005,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -338.83,
@@ -2846,7 +2858,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6005,
+      "id": 6006,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -329.31,
@@ -2858,7 +2870,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6006,
+      "id": 6007,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -319.79,
@@ -2870,7 +2882,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6007,
+      "id": 6008,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -310.27,
@@ -2882,7 +2894,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6008,
+      "id": 6009,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -357.87,
@@ -2894,7 +2906,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6009,
+      "id": 6010,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -348.35,
@@ -2906,7 +2918,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6010,
+      "id": 6011,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -338.83,
@@ -2918,7 +2930,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6011,
+      "id": 6012,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -329.31,
@@ -2930,7 +2942,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6012,
+      "id": 6013,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -319.79,
@@ -2942,7 +2954,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6013,
+      "id": 6014,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -310.27,
@@ -2954,7 +2966,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6014,
+      "id": 6015,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -376.9,
@@ -2966,7 +2978,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6015,
+      "id": 6016,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -367.38,
@@ -2978,7 +2990,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6016,
+      "id": 6017,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -357.87,
@@ -2990,7 +3002,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6017,
+      "id": 6018,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -348.35,
@@ -3002,7 +3014,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6018,
+      "id": 6019,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -338.83,
@@ -3014,7 +3026,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6019,
+      "id": 6020,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -329.31,
@@ -3026,7 +3038,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6020,
+      "id": 6021,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -319.79,
@@ -3038,7 +3050,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6021,
+      "id": 6022,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -310.27,
@@ -3050,7 +3062,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6022,
+      "id": 6023,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -300.75,
@@ -3062,7 +3074,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6023,
+      "id": 6024,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -376.9,
@@ -3074,7 +3086,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6024,
+      "id": 6025,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -367.38,
@@ -3086,7 +3098,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6025,
+      "id": 6026,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -357.87,
@@ -3098,7 +3110,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6026,
+      "id": 6027,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -348.35,
@@ -3110,7 +3122,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6027,
+      "id": 6028,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -338.83,
@@ -3122,7 +3134,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6028,
+      "id": 6029,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -329.31,
@@ -3134,7 +3146,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6029,
+      "id": 6030,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -319.79,
@@ -3146,7 +3158,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6030,
+      "id": 6031,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -310.27,
@@ -3158,7 +3170,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6031,
+      "id": 6032,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -300.75,
@@ -3170,7 +3182,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6032,
+      "id": 6033,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -291.23,
@@ -3182,7 +3194,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6033,
+      "id": 6034,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -367.38,
@@ -3194,7 +3206,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6034,
+      "id": 6035,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -357.87,
@@ -3206,7 +3218,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6035,
+      "id": 6036,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -348.35,
@@ -3218,7 +3230,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6036,
+      "id": 6037,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -338.83,
@@ -3230,7 +3242,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6037,
+      "id": 6038,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -329.31,
@@ -3242,7 +3254,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6038,
+      "id": 6039,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -319.79,
@@ -3254,7 +3266,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6039,
+      "id": 6040,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -310.27,
@@ -3266,7 +3278,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6040,
+      "id": 6041,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -300.75,
@@ -3278,7 +3290,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6041,
+      "id": 6042,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -291.23,
@@ -3290,7 +3302,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6042,
+      "id": 6043,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -367.38,
@@ -3302,7 +3314,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6043,
+      "id": 6044,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -357.87,
@@ -3314,7 +3326,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6044,
+      "id": 6045,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -348.35,
@@ -3326,7 +3338,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6045,
+      "id": 6046,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -338.83,
@@ -3338,7 +3350,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6046,
+      "id": 6047,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -319.79,
@@ -3350,7 +3362,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6047,
+      "id": 6048,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -310.27,
@@ -3362,7 +3374,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6048,
+      "id": 6049,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -300.75,
@@ -3374,7 +3386,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6049,
+      "id": 6050,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -291.23,
@@ -3386,7 +3398,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6050,
+      "id": 6051,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -367.38,
@@ -3398,7 +3410,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6051,
+      "id": 6052,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -357.87,
@@ -3410,7 +3422,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6052,
+      "id": 6053,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -348.35,
@@ -3422,7 +3434,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6053,
+      "id": 6054,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -310.27,
@@ -3434,7 +3446,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6054,
+      "id": 6055,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -300.75,
@@ -3446,7 +3458,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6055,
+      "id": 6056,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -291.23,
@@ -3458,7 +3470,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6056,
+      "id": 6057,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -367.38,
@@ -3470,7 +3482,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6057,
+      "id": 6058,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -357.87,
@@ -3482,7 +3494,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6058,
+      "id": 6059,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -348.35,
@@ -3494,7 +3506,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6059,
+      "id": 6060,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -338.83,
@@ -3506,7 +3518,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6060,
+      "id": 6061,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -310.27,
@@ -3518,7 +3530,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6061,
+      "id": 6062,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -367.38,
@@ -3530,7 +3542,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6062,
+      "id": 6063,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -357.87,
@@ -3542,7 +3554,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6063,
+      "id": 6064,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -348.35,
@@ -3554,7 +3566,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6064,
+      "id": 6065,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -338.83,
@@ -3566,7 +3578,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6065,
+      "id": 6066,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -376.9,
@@ -3578,7 +3590,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6066,
+      "id": 6067,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -367.38,
@@ -3590,7 +3602,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6067,
+      "id": 6068,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -357.87,
@@ -3602,7 +3614,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6068,
+      "id": 6069,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -348.35,
@@ -3614,7 +3626,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6069,
+      "id": 6070,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -338.83,
@@ -3626,7 +3638,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6070,
+      "id": 6071,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -376.9,
@@ -3638,7 +3650,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6071,
+      "id": 6072,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -367.38,
@@ -3650,7 +3662,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6072,
+      "id": 6073,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -357.87,
@@ -3662,7 +3674,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6073,
+      "id": 6074,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -348.35,
@@ -3674,7 +3686,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6074,
+      "id": 6075,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -376.9,
@@ -3686,7 +3698,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6075,
+      "id": 6076,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -367.38,
@@ -3698,7 +3710,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6076,
+      "id": 6077,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -376.9,
@@ -3710,7 +3722,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6077,
+      "id": 6078,
       "kind": "light",
       "asset": "lamp_post",
       "x": -380.53,
@@ -3722,7 +3734,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6078,
+      "id": 6079,
       "kind": "light",
       "asset": "lamp_post",
       "x": -355.46,
@@ -3734,7 +3746,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6079,
+      "id": 6080,
       "kind": "light",
       "asset": "lamp_post",
       "x": -330.39,
@@ -3746,7 +3758,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6080,
+      "id": 6081,
       "kind": "light",
       "asset": "lamp_post",
       "x": -341.16,
@@ -3758,7 +3770,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6081,
+      "id": 6082,
       "kind": "light",
       "asset": "lamp_post",
       "x": -325.74,
@@ -3770,7 +3782,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6082,
+      "id": 6083,
       "kind": "light",
       "asset": "lamp_post",
       "x": -305.99,
@@ -3782,7 +3794,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6083,
+      "id": 6084,
       "kind": "light",
       "asset": "lamp_post",
       "x": -280.84,
@@ -3794,7 +3806,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6084,
+      "id": 6085,
       "kind": "light",
       "asset": "lamp_post",
       "x": -285.54,
@@ -3806,7 +3818,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6085,
+      "id": 6086,
       "kind": "light",
       "asset": "lamp_post",
       "x": -303.93,
@@ -3818,7 +3830,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6086,
+      "id": 6087,
       "kind": "light",
       "asset": "lamp_post",
       "x": -289.67,
@@ -3830,7 +3842,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6087,
+      "id": 6088,
       "kind": "light",
       "asset": "lamp_post",
       "x": -267.88,
@@ -3842,7 +3854,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6088,
+      "id": 6089,
       "kind": "light",
       "asset": "lamp_post",
       "x": -252.2,
@@ -3854,7 +3866,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6089,
+      "id": 6090,
       "kind": "light",
       "asset": "lamp_post",
       "x": -250.05,
@@ -3866,7 +3878,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6090,
+      "id": 6091,
       "kind": "light",
       "asset": "lamp_post",
       "x": -275.01,
@@ -3878,7 +3890,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6091,
+      "id": 6092,
       "kind": "light",
       "asset": "lamp_post",
       "x": -299.98,
@@ -3890,7 +3902,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6092,
+      "id": 6093,
       "kind": "light",
       "asset": "lamp_post",
       "x": -324.94,
@@ -3902,7 +3914,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6093,
+      "id": 6094,
       "kind": "light",
       "asset": "lamp_post",
       "x": -349.91,
@@ -3914,7 +3926,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6094,
+      "id": 6095,
       "kind": "light",
       "asset": "lamp_post",
       "x": -374.87,
@@ -3926,7 +3938,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6095,
+      "id": 6096,
       "kind": "light",
       "asset": "lamp_post",
       "x": -378.08,
@@ -3938,7 +3950,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6096,
+      "id": 6097,
       "kind": "light",
       "asset": "lamp_post",
       "x": -374.7,
@@ -3950,7 +3962,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6097,
+      "id": 6098,
       "kind": "light",
       "asset": "lamp_post",
       "x": -379.87,
@@ -3962,7 +3974,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6098,
+      "id": 6099,
       "kind": "light",
       "asset": "lamp_post",
       "x": -402.85,
@@ -3974,7 +3986,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6099,
+      "id": 6100,
       "kind": "light",
       "asset": "lamp_post",
       "x": -405.6,
@@ -3986,7 +3998,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6100,
+      "id": 6101,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -261.53,
@@ -3998,7 +4010,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6101,
+      "id": 6102,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -261.53,
@@ -4010,7 +4022,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6102,
+      "id": 6103,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -251.78,
@@ -4022,7 +4034,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6103,
+      "id": 6104,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -251.78,
@@ -4034,7 +4046,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6104,
+      "id": 6105,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -242.03,
@@ -4046,7 +4058,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6105,
+      "id": 6106,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -251.78,
@@ -4058,7 +4070,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6106,
+      "id": 6107,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -242.03,
@@ -4070,7 +4082,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6107,
+      "id": 6108,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -242.03,
@@ -4082,7 +4094,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6108,
+      "id": 6109,
       "kind": "light",
       "asset": "lamp_post",
       "x": -241.41,
@@ -4094,7 +4106,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6109,
+      "id": 6110,
       "kind": "light",
       "asset": "lamp_post",
       "x": -221.82,
@@ -4106,7 +4118,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6110,
+      "id": 6111,
       "kind": "light",
       "asset": "lamp_post",
       "x": -244.01,
@@ -4118,7 +4130,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6111,
+      "id": 6112,
       "kind": "light",
       "asset": "lamp_post",
       "x": -257.76,
@@ -4130,7 +4142,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6112,
+      "id": 6113,
       "kind": "light",
       "asset": "lamp_post",
       "x": -261.99,
@@ -4142,7 +4154,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6113,
+      "id": 6114,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -101.67,
@@ -4154,7 +4166,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6114,
+      "id": 6115,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -92.17,
@@ -4166,7 +4178,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6115,
+      "id": 6116,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -92.17,
@@ -4178,7 +4190,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6116,
+      "id": 6117,
       "kind": "light",
       "asset": "lamp_post",
       "x": -81.54,
@@ -4190,7 +4202,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6117,
+      "id": 6118,
       "kind": "light",
       "asset": "lamp_post",
       "x": -65.67,
@@ -4202,7 +4214,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6118,
+      "id": 6119,
       "kind": "light",
       "asset": "lamp_post",
       "x": -89.47,
@@ -4214,7 +4226,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6119,
+      "id": 6120,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -15.72,
@@ -4226,7 +4238,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6120,
+      "id": 6121,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -6.21,
@@ -4238,7 +4250,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6121,
+      "id": 6122,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 3.29,
@@ -4250,7 +4262,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6122,
+      "id": 6123,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -25.22,
@@ -4262,7 +4274,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6123,
+      "id": 6124,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -15.72,
@@ -4274,7 +4286,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6124,
+      "id": 6125,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -6.21,
@@ -4286,7 +4298,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6125,
+      "id": 6126,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 3.29,
@@ -4298,7 +4310,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6126,
+      "id": 6127,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -25.22,
@@ -4310,7 +4322,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6127,
+      "id": 6128,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -15.72,
@@ -4322,7 +4334,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6128,
+      "id": 6129,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -6.21,
@@ -4334,7 +4346,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6129,
+      "id": 6130,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 3.29,
@@ -4346,7 +4358,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6130,
+      "id": 6131,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -44.23,
@@ -4358,7 +4370,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6131,
+      "id": 6132,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -34.73,
@@ -4370,7 +4382,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6132,
+      "id": 6133,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -25.22,
@@ -4382,7 +4394,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6133,
+      "id": 6134,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -15.72,
@@ -4394,7 +4406,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6134,
+      "id": 6135,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -6.21,
@@ -4406,7 +4418,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6135,
+      "id": 6136,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 3.29,
@@ -4418,7 +4430,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6136,
+      "id": 6137,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -34.73,
@@ -4430,7 +4442,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6137,
+      "id": 6138,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -25.22,
@@ -4442,7 +4454,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6138,
+      "id": 6139,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -15.72,
@@ -4454,7 +4466,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6139,
+      "id": 6140,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -6.21,
@@ -4466,7 +4478,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6140,
+      "id": 6141,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 3.29,
@@ -4478,7 +4490,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6141,
+      "id": 6142,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -25.22,
@@ -4490,7 +4502,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6142,
+      "id": 6143,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -15.72,
@@ -4502,7 +4514,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6143,
+      "id": 6144,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -6.21,
@@ -4514,7 +4526,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6144,
+      "id": 6145,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 3.29,
@@ -4526,7 +4538,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6145,
+      "id": 6146,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -15.72,
@@ -4538,7 +4550,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6146,
+      "id": 6147,
       "kind": "light",
       "asset": "lamp_post",
       "x": -37.21,
@@ -4550,7 +4562,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6147,
+      "id": 6148,
       "kind": "light",
       "asset": "lamp_post",
       "x": -60.93,
@@ -4562,7 +4574,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6148,
+      "id": 6149,
       "kind": "light",
       "asset": "lamp_post",
       "x": -69.83,
@@ -4574,7 +4586,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6149,
+      "id": 6150,
       "kind": "light",
       "asset": "lamp_post",
       "x": -48.2,
@@ -4586,7 +4598,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6150,
+      "id": 6151,
       "kind": "light",
       "asset": "lamp_post",
       "x": -28.33,
@@ -4598,7 +4610,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6151,
+      "id": 6152,
       "kind": "light",
       "asset": "lamp_post",
       "x": -9.16,
@@ -4610,7 +4622,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6152,
+      "id": 6153,
       "kind": "light",
       "asset": "lamp_post",
       "x": 12.14,
@@ -4622,7 +4634,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6153,
+      "id": 6154,
       "kind": "light",
       "asset": "lamp_post",
       "x": 18.53,
@@ -4634,7 +4646,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6154,
+      "id": 6155,
       "kind": "light",
       "asset": "lamp_post",
       "x": 2.79,
@@ -4646,7 +4658,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6155,
+      "id": 6156,
       "kind": "light",
       "asset": "lamp_post",
       "x": 17.76,
@@ -4658,7 +4670,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6156,
+      "id": 6157,
       "kind": "light",
       "asset": "lamp_post",
       "x": 7.48,
@@ -4670,7 +4682,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6157,
+      "id": 6158,
       "kind": "light",
       "asset": "lamp_post",
       "x": -6.49,
@@ -4682,7 +4694,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6158,
+      "id": 6159,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -95.72,
@@ -4694,7 +4706,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6159,
+      "id": 6160,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -86.22,
@@ -4706,7 +4718,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6160,
+      "id": 6161,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -114.71,
@@ -4718,7 +4730,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6161,
+      "id": 6162,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -105.21,
@@ -4730,7 +4742,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6162,
+      "id": 6163,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -124.21,
@@ -4742,7 +4754,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6163,
+      "id": 6164,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -114.71,
@@ -4754,7 +4766,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6164,
+      "id": 6165,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -143.2,
@@ -4766,7 +4778,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6165,
+      "id": 6166,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -133.7,
@@ -4778,7 +4790,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6166,
+      "id": 6167,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -162.19,
@@ -4790,7 +4802,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6167,
+      "id": 6168,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -152.7,
@@ -4802,7 +4814,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6168,
+      "id": 6169,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -171.69,
@@ -4814,7 +4826,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6169,
+      "id": 6170,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -162.19,
@@ -4826,7 +4838,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6170,
+      "id": 6171,
       "kind": "light",
       "asset": "lamp_post",
       "x": -7.99,
@@ -4838,7 +4850,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6171,
+      "id": 6172,
       "kind": "light",
       "asset": "lamp_post",
       "x": -30.89,
@@ -4850,7 +4862,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6172,
+      "id": 6173,
       "kind": "light",
       "asset": "lamp_post",
       "x": -56.83,
@@ -4862,7 +4874,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6173,
+      "id": 6174,
       "kind": "light",
       "asset": "lamp_post",
       "x": -82.77,
@@ -4874,7 +4886,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6174,
+      "id": 6175,
       "kind": "light",
       "asset": "lamp_post",
       "x": -108.7,
@@ -4886,7 +4898,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6175,
+      "id": 6176,
       "kind": "light",
       "asset": "lamp_post",
       "x": -134.64,
@@ -4898,7 +4910,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6176,
+      "id": 6177,
       "kind": "light",
       "asset": "lamp_post",
       "x": -160.58,
@@ -4910,7 +4922,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6177,
+      "id": 6178,
       "kind": "light",
       "asset": "lamp_post",
       "x": -186.51,
@@ -4922,7 +4934,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6178,
+      "id": 6179,
       "kind": "light",
       "asset": "lamp_post",
       "x": -212.45,
@@ -4934,7 +4946,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6179,
+      "id": 6180,
       "kind": "light",
       "asset": "lamp_post",
       "x": -238.39,
@@ -4946,7 +4958,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6180,
+      "id": 6181,
       "kind": "light",
       "asset": "lamp_post",
       "x": -264.33,
@@ -4958,7 +4970,7 @@
       "source": "surroundings: car park S 4"
     },
     {
-      "id": 6181,
+      "id": 6182,
       "kind": "light",
       "asset": "lamp_post",
       "x": 9.6,
@@ -4970,7 +4982,7 @@
       "source": "surroundings: car park Messe P 21"
     },
     {
-      "id": 6182,
+      "id": 6183,
       "kind": "light",
       "asset": "lamp_post",
       "x": 35.59,
@@ -4982,7 +4994,7 @@
       "source": "surroundings: car park Messe P 21"
     },
     {
-      "id": 6183,
+      "id": 6184,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 7.9,
@@ -4994,7 +5006,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6184,
+      "id": 6185,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 17.51,
@@ -5006,7 +5018,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6185,
+      "id": 6186,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 27.13,
@@ -5018,7 +5030,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6186,
+      "id": 6187,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 36.74,
@@ -5030,7 +5042,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6187,
+      "id": 6188,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.36,
@@ -5042,7 +5054,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6188,
+      "id": 6189,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5054,7 +5066,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6189,
+      "id": 6190,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 65.59,
@@ -5066,7 +5078,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6190,
+      "id": 6191,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 75.2,
@@ -5078,7 +5090,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6191,
+      "id": 6192,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 7.9,
@@ -5090,7 +5102,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6192,
+      "id": 6193,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 17.51,
@@ -5102,7 +5114,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6193,
+      "id": 6194,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 27.13,
@@ -5114,7 +5126,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6194,
+      "id": 6195,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 36.74,
@@ -5126,7 +5138,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6195,
+      "id": 6196,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.36,
@@ -5138,7 +5150,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6196,
+      "id": 6197,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 55.97,
@@ -5150,7 +5162,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6197,
+      "id": 6198,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5162,7 +5174,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6198,
+      "id": 6199,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 75.2,
@@ -5174,7 +5186,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6199,
+      "id": 6200,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 84.82,
@@ -5186,7 +5198,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6200,
+      "id": 6201,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 7.9,
@@ -5198,7 +5210,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6201,
+      "id": 6202,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 17.51,
@@ -5210,7 +5222,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6202,
+      "id": 6203,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 27.13,
@@ -5222,7 +5234,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6203,
+      "id": 6204,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 36.74,
@@ -5234,7 +5246,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6204,
+      "id": 6205,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.36,
@@ -5246,7 +5258,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6205,
+      "id": 6206,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5258,7 +5270,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6206,
+      "id": 6207,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 65.59,
@@ -5270,7 +5282,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6207,
+      "id": 6208,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 75.2,
@@ -5282,7 +5294,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6208,
+      "id": 6209,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.82,
@@ -5294,7 +5306,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6209,
+      "id": 6210,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 17.51,
@@ -5306,7 +5318,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6210,
+      "id": 6211,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 27.13,
@@ -5318,7 +5330,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6211,
+      "id": 6212,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 36.74,
@@ -5330,7 +5342,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6212,
+      "id": 6213,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 46.36,
@@ -5342,7 +5354,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6213,
+      "id": 6214,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5354,7 +5366,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6214,
+      "id": 6215,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 65.59,
@@ -5366,7 +5378,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6215,
+      "id": 6216,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 75.2,
@@ -5378,7 +5390,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6216,
+      "id": 6217,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.82,
@@ -5390,7 +5402,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6217,
+      "id": 6218,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 94.43,
@@ -5402,7 +5414,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6218,
+      "id": 6219,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 27.13,
@@ -5414,7 +5426,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6219,
+      "id": 6220,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 36.74,
@@ -5426,7 +5438,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6220,
+      "id": 6221,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.36,
@@ -5438,7 +5450,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6221,
+      "id": 6222,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5450,7 +5462,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6222,
+      "id": 6223,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5462,7 +5474,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6223,
+      "id": 6224,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 75.2,
@@ -5474,7 +5486,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6224,
+      "id": 6225,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.82,
@@ -5486,7 +5498,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6225,
+      "id": 6226,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.43,
@@ -5498,7 +5510,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6226,
+      "id": 6227,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 27.13,
@@ -5510,7 +5522,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6227,
+      "id": 6228,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 36.74,
@@ -5522,7 +5534,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6228,
+      "id": 6229,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 46.36,
@@ -5534,7 +5546,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6229,
+      "id": 6230,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 55.97,
@@ -5546,7 +5558,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6230,
+      "id": 6231,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5558,7 +5570,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6231,
+      "id": 6232,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 75.2,
@@ -5570,7 +5582,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6232,
+      "id": 6233,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.82,
@@ -5582,7 +5594,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6233,
+      "id": 6234,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.43,
@@ -5594,7 +5606,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6234,
+      "id": 6235,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 36.74,
@@ -5606,7 +5618,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6235,
+      "id": 6236,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.36,
@@ -5618,7 +5630,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6236,
+      "id": 6237,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 55.97,
@@ -5630,7 +5642,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6237,
+      "id": 6238,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5642,7 +5654,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6238,
+      "id": 6239,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 75.2,
@@ -5654,7 +5666,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6239,
+      "id": 6240,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 84.82,
@@ -5666,7 +5678,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6240,
+      "id": 6241,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 94.43,
@@ -5678,7 +5690,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6241,
+      "id": 6242,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 36.74,
@@ -5690,7 +5702,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6242,
+      "id": 6243,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.36,
@@ -5702,7 +5714,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6243,
+      "id": 6244,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5714,7 +5726,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6244,
+      "id": 6245,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 65.59,
@@ -5726,7 +5738,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6245,
+      "id": 6246,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 75.2,
@@ -5738,7 +5750,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6246,
+      "id": 6247,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 84.82,
@@ -5750,7 +5762,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6247,
+      "id": 6248,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.43,
@@ -5762,7 +5774,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6248,
+      "id": 6249,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 46.36,
@@ -5774,7 +5786,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6249,
+      "id": 6250,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 55.97,
@@ -5786,7 +5798,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6250,
+      "id": 6251,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 65.59,
@@ -5798,7 +5810,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6251,
+      "id": 6252,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 75.2,
@@ -5810,7 +5822,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6252,
+      "id": 6253,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 84.82,
@@ -5822,7 +5834,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6253,
+      "id": 6254,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 94.43,
@@ -5834,7 +5846,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6254,
+      "id": 6255,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 55.97,
@@ -5846,7 +5858,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6255,
+      "id": 6256,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 65.59,
@@ -5858,7 +5870,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6256,
+      "id": 6257,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 75.2,
@@ -5870,7 +5882,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6257,
+      "id": 6258,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 84.82,
@@ -5882,7 +5894,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6258,
+      "id": 6259,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 94.43,
@@ -5894,7 +5906,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6259,
+      "id": 6260,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 55.97,
@@ -5906,7 +5918,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6260,
+      "id": 6261,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5918,7 +5930,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6261,
+      "id": 6262,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 75.2,
@@ -5930,7 +5942,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6262,
+      "id": 6263,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 65.59,
@@ -5942,7 +5954,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6263,
+      "id": 6264,
       "kind": "light",
       "asset": "lamp_post",
       "x": 119.74,
@@ -5954,7 +5966,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6264,
+      "id": 6265,
       "kind": "light",
       "asset": "lamp_post",
       "x": 104.45,
@@ -5966,7 +5978,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6265,
+      "id": 6266,
       "kind": "light",
       "asset": "lamp_post",
       "x": 89.15,
@@ -5978,7 +5990,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6266,
+      "id": 6267,
       "kind": "light",
       "asset": "lamp_post",
       "x": 73.85,
@@ -5990,7 +6002,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6267,
+      "id": 6268,
       "kind": "light",
       "asset": "lamp_post",
       "x": 58.55,
@@ -6002,7 +6014,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6268,
+      "id": 6269,
       "kind": "light",
       "asset": "lamp_post",
       "x": 38.48,
@@ -6014,7 +6026,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6269,
+      "id": 6270,
       "kind": "light",
       "asset": "lamp_post",
       "x": 12.66,
@@ -6026,7 +6038,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6270,
+      "id": 6271,
       "kind": "light",
       "asset": "lamp_post",
       "x": -10.51,
@@ -6038,7 +6050,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6271,
+      "id": 6272,
       "kind": "light",
       "asset": "lamp_post",
       "x": 4.79,
@@ -6050,7 +6062,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6272,
+      "id": 6273,
       "kind": "light",
       "asset": "lamp_post",
       "x": 20.09,
@@ -6062,7 +6074,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6273,
+      "id": 6274,
       "kind": "light",
       "asset": "lamp_post",
       "x": 35.4,
@@ -6074,7 +6086,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6274,
+      "id": 6275,
       "kind": "light",
       "asset": "lamp_post",
       "x": 50.7,
@@ -6086,7 +6098,7 @@
       "source": "surroundings: car park S5"
     },
     {
-      "id": 6275,
+      "id": 6276,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 162.13,
@@ -6098,7 +6110,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6276,
+      "id": 6277,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.1,
@@ -6110,7 +6122,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6277,
+      "id": 6278,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 152.62,
@@ -6122,7 +6134,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6278,
+      "id": 6279,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.13,
@@ -6134,7 +6146,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6279,
+      "id": 6280,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 124.07,
@@ -6146,7 +6158,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6280,
+      "id": 6281,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 133.59,
@@ -6158,7 +6170,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6281,
+      "id": 6282,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 143.1,
@@ -6170,7 +6182,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6282,
+      "id": 6283,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 152.62,
@@ -6182,7 +6194,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6283,
+      "id": 6284,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.13,
@@ -6194,7 +6206,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6284,
+      "id": 6285,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 124.07,
@@ -6206,7 +6218,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6285,
+      "id": 6286,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 133.59,
@@ -6218,7 +6230,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6286,
+      "id": 6287,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 143.1,
@@ -6230,7 +6242,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6287,
+      "id": 6288,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 152.62,
@@ -6242,7 +6254,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6288,
+      "id": 6289,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.13,
@@ -6254,7 +6266,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6289,
+      "id": 6290,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 133.59,
@@ -6266,7 +6278,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6290,
+      "id": 6291,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 143.1,
@@ -6278,7 +6290,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6291,
+      "id": 6292,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 152.62,
@@ -6290,7 +6302,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6292,
+      "id": 6293,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 162.13,
@@ -6302,7 +6314,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6293,
+      "id": 6294,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 133.59,
@@ -6314,7 +6326,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6294,
+      "id": 6295,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.1,
@@ -6326,7 +6338,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6295,
+      "id": 6296,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 152.62,
@@ -6338,7 +6350,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6296,
+      "id": 6297,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.13,
@@ -6350,7 +6362,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6297,
+      "id": 6298,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.1,
@@ -6362,7 +6374,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6298,
+      "id": 6299,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 152.62,
@@ -6374,7 +6386,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6299,
+      "id": 6300,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 162.13,
@@ -6386,7 +6398,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6300,
+      "id": 6301,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.1,
@@ -6398,7 +6410,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6301,
+      "id": 6302,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 152.62,
@@ -6410,7 +6422,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6302,
+      "id": 6303,
       "kind": "light",
       "asset": "lamp_post",
       "x": 171.27,
@@ -6422,7 +6434,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6303,
+      "id": 6304,
       "kind": "light",
       "asset": "lamp_post",
       "x": 187.49,
@@ -6434,7 +6446,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6304,
+      "id": 6305,
       "kind": "light",
       "asset": "lamp_post",
       "x": 172.5,
@@ -6446,7 +6458,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6305,
+      "id": 6306,
       "kind": "light",
       "asset": "lamp_post",
       "x": 147.68,
@@ -6458,7 +6470,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6306,
+      "id": 6307,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 124.52,
@@ -6470,7 +6482,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6307,
+      "id": 6308,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 134.06,
@@ -6482,7 +6494,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6308,
+      "id": 6309,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 143.61,
@@ -6494,7 +6506,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6309,
+      "id": 6310,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 114.97,
@@ -6506,7 +6518,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6310,
+      "id": 6311,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 124.52,
@@ -6518,7 +6530,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6311,
+      "id": 6312,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 134.06,
@@ -6530,7 +6542,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6312,
+      "id": 6313,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 143.61,
@@ -6542,7 +6554,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6313,
+      "id": 6314,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 153.16,
@@ -6554,7 +6566,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6314,
+      "id": 6315,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 114.97,
@@ -6566,7 +6578,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6315,
+      "id": 6316,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 124.52,
@@ -6578,7 +6590,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6316,
+      "id": 6317,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 134.06,
@@ -6590,7 +6602,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6317,
+      "id": 6318,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.61,
@@ -6602,7 +6614,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6318,
+      "id": 6319,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 153.16,
@@ -6614,7 +6626,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6319,
+      "id": 6320,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 124.52,
@@ -6626,7 +6638,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6320,
+      "id": 6321,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 134.06,
@@ -6638,7 +6650,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6321,
+      "id": 6322,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 143.61,
@@ -6650,7 +6662,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6322,
+      "id": 6323,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 153.16,
@@ -6662,7 +6674,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6323,
+      "id": 6324,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 162.71,
@@ -6674,7 +6686,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6324,
+      "id": 6325,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 124.52,
@@ -6686,22 +6698,10 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6325,
+      "id": 6326,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 134.06,
-      "y": 263.06,
-      "z": 2.5,
-      "yaw_rad": 3.14,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car parks"
-    },
-    {
-      "id": 6326,
-      "kind": "vehicle",
-      "asset": "car_a",
-      "x": 143.61,
       "y": 263.06,
       "z": 2.5,
       "yaw_rad": 3.14,
@@ -6713,6 +6713,18 @@
       "id": 6327,
       "kind": "vehicle",
       "asset": "car_a",
+      "x": 143.61,
+      "y": 263.06,
+      "z": 2.5,
+      "yaw_rad": 3.14,
+      "scale": 1.0,
+      "text": null,
+      "source": "surroundings: car parks"
+    },
+    {
+      "id": 6328,
+      "kind": "vehicle",
+      "asset": "car_a",
       "x": 153.16,
       "y": 263.06,
       "z": 3.12,
@@ -6722,7 +6734,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6328,
+      "id": 6329,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.71,
@@ -6734,7 +6746,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6329,
+      "id": 6330,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 134.06,
@@ -6746,7 +6758,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6330,
+      "id": 6331,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 143.61,
@@ -6758,7 +6770,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6331,
+      "id": 6332,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 153.16,
@@ -6770,7 +6782,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6332,
+      "id": 6333,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 162.71,
@@ -6782,7 +6794,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6333,
+      "id": 6334,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 134.06,
@@ -6794,7 +6806,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6334,
+      "id": 6335,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.61,
@@ -6806,7 +6818,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6335,
+      "id": 6336,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 153.16,
@@ -6818,7 +6830,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6336,
+      "id": 6337,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 162.71,
@@ -6830,7 +6842,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6337,
+      "id": 6338,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 143.61,
@@ -6842,7 +6854,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6338,
+      "id": 6339,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 153.16,
@@ -6854,7 +6866,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6339,
+      "id": 6340,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 162.71,
@@ -6866,7 +6878,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6340,
+      "id": 6341,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 143.61,
@@ -6878,7 +6890,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6341,
+      "id": 6342,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 153.16,
@@ -6890,7 +6902,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6342,
+      "id": 6343,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 153.16,
@@ -6902,7 +6914,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6343,
+      "id": 6344,
       "kind": "light",
       "asset": "lamp_post",
       "x": 135.92,
@@ -6914,7 +6926,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6344,
+      "id": 6345,
       "kind": "light",
       "asset": "lamp_post",
       "x": 122.55,
@@ -6926,7 +6938,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6345,
+      "id": 6346,
       "kind": "light",
       "asset": "lamp_post",
       "x": 109.17,
@@ -6938,7 +6950,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6346,
+      "id": 6347,
       "kind": "light",
       "asset": "lamp_post",
       "x": 108.5,
@@ -6950,7 +6962,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6347,
+      "id": 6348,
       "kind": "light",
       "asset": "lamp_post",
       "x": 98.95,
@@ -6962,7 +6974,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6348,
+      "id": 6349,
       "kind": "light",
       "asset": "lamp_post",
       "x": 124.66,
@@ -6974,7 +6986,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6349,
+      "id": 6350,
       "kind": "light",
       "asset": "lamp_post",
       "x": 140.31,
@@ -6986,7 +6998,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6350,
+      "id": 6351,
       "kind": "light",
       "asset": "lamp_post",
       "x": 155.49,
@@ -6998,7 +7010,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6351,
+      "id": 6352,
       "kind": "light",
       "asset": "lamp_post",
       "x": 170.68,
@@ -7010,7 +7022,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6352,
+      "id": 6353,
       "kind": "light",
       "asset": "lamp_post",
       "x": 174.86,
@@ -7022,7 +7034,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6353,
+      "id": 6354,
       "kind": "light",
       "asset": "lamp_post",
       "x": 161.47,
@@ -7034,7 +7046,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6354,
+      "id": 6355,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 187.99,
@@ -7046,7 +7058,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6355,
+      "id": 6356,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 197.89,
@@ -7058,7 +7070,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6356,
+      "id": 6357,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 187.99,
@@ -7070,7 +7082,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6357,
+      "id": 6358,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 197.89,
@@ -7082,7 +7094,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6358,
+      "id": 6359,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 187.99,
@@ -7094,7 +7106,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6359,
+      "id": 6360,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 197.89,
@@ -7106,7 +7118,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6360,
+      "id": 6361,
       "kind": "light",
       "asset": "lamp_post",
       "x": 191.03,
@@ -7118,7 +7130,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6361,
+      "id": 6362,
       "kind": "light",
       "asset": "lamp_post",
       "x": 217.06,
@@ -7130,7 +7142,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6362,
+      "id": 6363,
       "kind": "light",
       "asset": "lamp_post",
       "x": 202.62,
@@ -7142,7 +7154,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6363,
+      "id": 6364,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 226.2,
@@ -7154,7 +7166,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6364,
+      "id": 6365,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 236.24,
@@ -7166,7 +7178,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6365,
+      "id": 6366,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 236.24,
@@ -7178,7 +7190,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6366,
+      "id": 6367,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 236.24,
@@ -7190,7 +7202,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6367,
+      "id": 6368,
       "kind": "light",
       "asset": "lamp_post",
       "x": 224.5,
@@ -7202,7 +7214,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6368,
+      "id": 6369,
       "kind": "light",
       "asset": "lamp_post",
       "x": 242.71,
@@ -7214,7 +7226,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6369,
+      "id": 6370,
       "kind": "light",
       "asset": "lamp_post",
       "x": 245.94,
@@ -7226,7 +7238,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6370,
+      "id": 6371,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 232.81,
@@ -7238,7 +7250,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6371,
+      "id": 6372,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 242.5,
@@ -7250,7 +7262,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6372,
+      "id": 6373,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 242.5,
@@ -7262,7 +7274,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6373,
+      "id": 6374,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 242.5,
@@ -7274,7 +7286,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6374,
+      "id": 6375,
       "kind": "light",
       "asset": "lamp_post",
       "x": 232.18,
@@ -7286,7 +7298,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6375,
+      "id": 6376,
       "kind": "light",
       "asset": "lamp_post",
       "x": 253.63,
@@ -7298,7 +7310,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6376,
+      "id": 6377,
       "kind": "light",
       "asset": "lamp_post",
       "x": 247.66,
@@ -7310,7 +7322,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6377,
+      "id": 6378,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 312.25,
@@ -7322,7 +7334,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6378,
+      "id": 6379,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 312.25,
@@ -7334,7 +7346,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6379,
+      "id": 6380,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 292.79,
@@ -7346,7 +7358,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6380,
+      "id": 6381,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 302.52,
@@ -7358,7 +7370,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6381,
+      "id": 6382,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 312.25,
@@ -7370,7 +7382,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6382,
+      "id": 6383,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 292.79,
@@ -7382,7 +7394,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6383,
+      "id": 6384,
       "kind": "light",
       "asset": "lamp_post",
       "x": 291.16,
@@ -7394,7 +7406,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6384,
+      "id": 6385,
       "kind": "light",
       "asset": "lamp_post",
       "x": 318.74,
@@ -7406,7 +7418,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6385,
+      "id": 6386,
       "kind": "light",
       "asset": "lamp_post",
       "x": 312.43,
@@ -7418,7 +7430,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6386,
+      "id": 6387,
       "kind": "light",
       "asset": "lamp_post",
       "x": 331.5,
@@ -7430,7 +7442,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6387,
+      "id": 6388,
       "kind": "light",
       "asset": "lamp_post",
       "x": 330.07,
@@ -7442,7 +7454,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6388,
+      "id": 6389,
       "kind": "light",
       "asset": "lamp_post",
       "x": 303.16,
@@ -7454,7 +7466,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6389,
+      "id": 6390,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 408.87,
@@ -7466,7 +7478,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6390,
+      "id": 6391,
       "kind": "light",
       "asset": "lamp_post",
       "x": 403.85,
@@ -7478,7 +7490,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6391,
+      "id": 6392,
       "kind": "light",
       "asset": "lamp_post",
       "x": 418.64,
@@ -7490,7 +7502,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6392,
+      "id": 6393,
       "kind": "light",
       "asset": "lamp_post",
       "x": 416.65,
@@ -7502,7 +7514,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 6393,
+      "id": 6394,
       "kind": "building",
       "asset": "village_house_c",
       "x": -1106.09,
@@ -7514,7 +7526,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6394,
+      "id": 6395,
       "kind": "building",
       "asset": "village_house_b",
       "x": -1080.09,
@@ -7526,7 +7538,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6395,
+      "id": 6396,
       "kind": "building",
       "asset": "village_house_c",
       "x": -1002.09,
@@ -7538,7 +7550,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6396,
+      "id": 6397,
       "kind": "building",
       "asset": "village_house_a",
       "x": -1106.09,
@@ -7550,7 +7562,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6397,
+      "id": 6398,
       "kind": "building",
       "asset": "village_house_a",
       "x": -1080.09,
@@ -7562,7 +7574,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6398,
+      "id": 6399,
       "kind": "building",
       "asset": "village_house_c",
       "x": -1054.09,
@@ -7574,7 +7586,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6399,
+      "id": 6400,
       "kind": "building",
       "asset": "village_house_a",
       "x": -1028.09,
@@ -7586,7 +7598,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6400,
+      "id": 6401,
       "kind": "building",
       "asset": "village_house_c",
       "x": -1002.09,
@@ -7598,7 +7610,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6401,
+      "id": 6402,
       "kind": "building",
       "asset": "village_house_a",
       "x": -976.09,
@@ -7610,7 +7622,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6402,
+      "id": 6403,
       "kind": "building",
       "asset": "village_house_b",
       "x": -950.09,
@@ -7622,7 +7634,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6403,
+      "id": 6404,
       "kind": "building",
       "asset": "village_house_b",
       "x": -1106.09,
@@ -7634,7 +7646,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6404,
+      "id": 6405,
       "kind": "building",
       "asset": "village_house_b",
       "x": -1080.09,
@@ -7646,7 +7658,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6405,
+      "id": 6406,
       "kind": "building",
       "asset": "village_house_b",
       "x": -1054.09,
@@ -7658,7 +7670,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6406,
+      "id": 6407,
       "kind": "building",
       "asset": "village_house_c",
       "x": -1028.09,
@@ -7670,7 +7682,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6407,
+      "id": 6408,
       "kind": "building",
       "asset": "village_house_c",
       "x": -570.41,
@@ -7682,7 +7694,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6408,
+      "id": 6409,
       "kind": "building",
       "asset": "village_house_b",
       "x": -648.41,
@@ -7694,7 +7706,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6409,
+      "id": 6410,
       "kind": "building",
       "asset": "village_house_a",
       "x": -216.11,
@@ -7706,7 +7718,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6410,
+      "id": 6411,
       "kind": "building",
       "asset": "village_house_a",
       "x": -190.11,
@@ -7718,7 +7730,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6411,
+      "id": 6412,
       "kind": "building",
       "asset": "village_house_a",
       "x": -164.11,
@@ -7730,7 +7742,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6412,
+      "id": 6413,
       "kind": "building",
       "asset": "village_house_c",
       "x": -138.11,
@@ -7742,7 +7754,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6413,
+      "id": 6414,
       "kind": "building",
       "asset": "village_house_c",
       "x": -112.11,
@@ -7754,7 +7766,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6414,
+      "id": 6415,
       "kind": "building",
       "asset": "village_house_c",
       "x": -86.11,
@@ -7766,7 +7778,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6415,
+      "id": 6416,
       "kind": "building",
       "asset": "village_house_c",
       "x": -60.11,
@@ -7778,7 +7790,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6416,
+      "id": 6417,
       "kind": "building",
       "asset": "village_house_c",
       "x": -34.11,
@@ -7790,7 +7802,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6417,
+      "id": 6418,
       "kind": "building",
       "asset": "village_house_c",
       "x": -8.11,
@@ -7802,7 +7814,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6418,
+      "id": 6419,
       "kind": "building",
       "asset": "village_house_a",
       "x": 17.89,
@@ -7814,7 +7826,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6419,
+      "id": 6420,
       "kind": "building",
       "asset": "village_house_c",
       "x": 43.89,
@@ -7826,7 +7838,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6420,
+      "id": 6421,
       "kind": "building",
       "asset": "village_house_a",
       "x": 69.89,
@@ -7838,7 +7850,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6421,
+      "id": 6422,
       "kind": "building",
       "asset": "village_house_b",
       "x": 95.89,
@@ -7850,7 +7862,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6422,
+      "id": 6423,
       "kind": "building",
       "asset": "village_house_a",
       "x": 121.89,
@@ -7862,7 +7874,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6423,
+      "id": 6424,
       "kind": "building",
       "asset": "village_house_c",
       "x": 788.06,
@@ -7874,7 +7886,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6424,
+      "id": 6425,
       "kind": "building",
       "asset": "village_house_b",
       "x": 736.06,
@@ -7886,7 +7898,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6425,
+      "id": 6426,
       "kind": "building",
       "asset": "village_house_a",
       "x": 762.06,
@@ -7898,7 +7910,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6426,
+      "id": 6427,
       "kind": "building",
       "asset": "village_house_b",
       "x": 788.06,
@@ -7910,7 +7922,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6427,
+      "id": 6428,
       "kind": "building",
       "asset": "village_house_b",
       "x": 710.06,
@@ -7922,7 +7934,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6428,
+      "id": 6429,
       "kind": "building",
       "asset": "village_house_b",
       "x": 736.06,
@@ -7934,7 +7946,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6429,
+      "id": 6430,
       "kind": "building",
       "asset": "village_house_c",
       "x": 762.06,
@@ -7946,7 +7958,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6430,
+      "id": 6431,
       "kind": "building",
       "asset": "village_house_b",
       "x": 788.06,
@@ -7958,7 +7970,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6431,
+      "id": 6432,
       "kind": "building",
       "asset": "village_house_b",
       "x": 684.06,
@@ -7970,7 +7982,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6432,
+      "id": 6433,
       "kind": "building",
       "asset": "village_house_a",
       "x": 710.06,
@@ -7982,7 +7994,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6433,
+      "id": 6434,
       "kind": "building",
       "asset": "village_house_c",
       "x": 736.06,
@@ -7994,7 +8006,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6434,
+      "id": 6435,
       "kind": "building",
       "asset": "village_house_b",
       "x": 762.06,
@@ -8006,7 +8018,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6435,
+      "id": 6436,
       "kind": "building",
       "asset": "village_house_c",
       "x": 788.06,
@@ -8018,7 +8030,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6436,
+      "id": 6437,
       "kind": "building",
       "asset": "village_house_c",
       "x": 606.06,
@@ -8030,7 +8042,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 6437,
+      "id": 6438,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 243.93,
@@ -8042,7 +8054,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6438,
+      "id": 6439,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 293.97,
@@ -8054,7 +8066,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6439,
+      "id": 6440,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 217.05,
@@ -8066,7 +8078,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6440,
+      "id": 6441,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 11.29,
@@ -8078,7 +8090,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6441,
+      "id": 6442,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -53.22,
@@ -8090,7 +8102,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6442,
+      "id": 6443,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -393.08,
@@ -8102,7 +8114,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6443,
+      "id": 6444,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -417.13,
@@ -8114,7 +8126,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6444,
+      "id": 6445,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -387.16,
@@ -8126,7 +8138,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6445,
+      "id": 6446,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -625.17,
@@ -8138,7 +8150,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6446,
+      "id": 6447,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -376.0,
@@ -8150,7 +8162,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6447,
+      "id": 6448,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -381.18,
@@ -8162,7 +8174,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6448,
+      "id": 6449,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -468.43,
@@ -8174,7 +8186,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6449,
+      "id": 6450,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -647.22,
@@ -8186,7 +8198,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6450,
+      "id": 6451,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -671.92,
@@ -8198,7 +8210,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6451,
+      "id": 6452,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": -558.85,
@@ -8210,7 +8222,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 6452,
+      "id": 6453,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1762.85,
@@ -8222,7 +8234,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6453,
+      "id": 6454,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1818.46,
@@ -8234,7 +8246,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6454,
+      "id": 6455,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1810.42,
@@ -8246,7 +8258,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6455,
+      "id": 6456,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1855.15,
@@ -8258,7 +8270,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6456,
+      "id": 6457,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1853.99,
@@ -8270,7 +8282,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6457,
+      "id": 6458,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1889.13,
@@ -8282,7 +8294,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6458,
+      "id": 6459,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1938.77,
@@ -8294,7 +8306,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6459,
+      "id": 6460,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1981.15,
@@ -8306,7 +8318,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6460,
+      "id": 6461,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -846.07,
@@ -8318,7 +8330,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6461,
+      "id": 6462,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1728.62,
@@ -8330,7 +8342,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6462,
+      "id": 6463,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1040.72,
@@ -8342,7 +8354,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6463,
+      "id": 6464,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -802.86,
@@ -8354,7 +8366,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6464,
+      "id": 6465,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -758.35,
@@ -8366,7 +8378,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6465,
+      "id": 6466,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1723.14,
@@ -8378,7 +8390,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6466,
+      "id": 6467,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1771.8,
@@ -8390,7 +8402,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6467,
+      "id": 6468,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1813.69,
@@ -8402,7 +8414,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6468,
+      "id": 6469,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1845.14,
@@ -8414,7 +8426,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6469,
+      "id": 6470,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1900.71,
@@ -8426,7 +8438,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6470,
+      "id": 6471,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1016.62,
@@ -8438,7 +8450,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6471,
+      "id": 6472,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -773.35,
@@ -8450,7 +8462,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6472,
+      "id": 6473,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -728.51,
@@ -8462,7 +8474,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6473,
+      "id": 6474,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1628.78,
@@ -8474,7 +8486,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6474,
+      "id": 6475,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1938.04,
@@ -8486,7 +8498,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6475,
+      "id": 6476,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1029.89,
@@ -8498,7 +8510,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6476,
+      "id": 6477,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -995.45,
@@ -8510,7 +8522,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6477,
+      "id": 6478,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -951.25,
@@ -8522,7 +8534,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 6478,
+      "id": 7678,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -863.41,
@@ -8534,7 +8546,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7678,
+      "id": 7679,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -724.88,
@@ -8546,7 +8558,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7679,
+      "id": 7680,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -674.15,
@@ -8558,7 +8570,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7680,
+      "id": 7681,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1598.42,
@@ -8570,7 +8582,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7681,
+      "id": 7682,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1629.67,
@@ -8582,7 +8594,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7682,
+      "id": 7683,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1018.59,
@@ -8594,7 +8606,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7683,
+      "id": 7684,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -868.15,
@@ -8606,7 +8618,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7684,
+      "id": 7685,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -802.78,
@@ -8618,7 +8630,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7685,
+      "id": 7686,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1598.1,
@@ -8630,7 +8642,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7686,
+      "id": 7687,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1817.61,
@@ -8642,7 +8654,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7687,
+      "id": 7688,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1885.89,
@@ -8654,7 +8666,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7688,
+      "id": 7689,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -811.09,
@@ -8666,7 +8678,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7689,
+      "id": 7690,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -691.23,
@@ -8678,7 +8690,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7690,
+      "id": 7691,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1590.31,
@@ -8690,7 +8702,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7691,
+      "id": 7692,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1723.25,
@@ -8702,7 +8714,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7692,
+      "id": 7693,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1760.81,
@@ -8714,7 +8726,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7693,
+      "id": 7694,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1606.79,
@@ -8726,7 +8738,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7694,
+      "id": 7695,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1683.39,
@@ -8738,7 +8750,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7695,
+      "id": 7696,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1713.1,
@@ -8750,7 +8762,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7696,
+      "id": 7697,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 2833.8,
@@ -8762,7 +8774,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7697,
+      "id": 7698,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1198.54,
@@ -8774,7 +8786,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7698,
+      "id": 7699,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1243.04,
@@ -8786,7 +8798,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7699,
+      "id": 7700,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1293.23,
@@ -8798,7 +8810,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7700,
+      "id": 7701,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1326.39,
@@ -8810,7 +8822,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7701,
+      "id": 7702,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1380.09,
@@ -8822,7 +8834,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7702,
+      "id": 7703,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1414.34,
@@ -8834,7 +8846,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7703,
+      "id": 7704,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1476.48,
@@ -8846,7 +8858,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7704,
+      "id": 7705,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1507.15,
@@ -8858,7 +8870,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7705,
+      "id": 7706,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1605.46,
@@ -8870,7 +8882,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7706,
+      "id": 7707,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1722.21,
@@ -8882,7 +8894,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7707,
+      "id": 7708,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1767.99,
@@ -8894,7 +8906,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7708,
+      "id": 7709,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1204.79,
@@ -8906,7 +8918,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7709,
+      "id": 7710,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1348.9,
@@ -8918,7 +8930,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7710,
+      "id": 7711,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1369.2,
@@ -8930,7 +8942,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7711,
+      "id": 7712,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1421.04,
@@ -8942,7 +8954,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7712,
+      "id": 7713,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1464.14,
@@ -8954,7 +8966,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7713,
+      "id": 7714,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1518.44,
@@ -8966,7 +8978,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7714,
+      "id": 7715,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1538.91,
@@ -8978,7 +8990,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7715,
+      "id": 7716,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1732.43,
@@ -8990,7 +9002,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7716,
+      "id": 7717,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1773.56,
@@ -9002,7 +9014,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7717,
+      "id": 7718,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1812.26,
@@ -9014,7 +9026,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7718,
+      "id": 7719,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1840.99,
@@ -9026,7 +9038,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7719,
+      "id": 7720,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1078.06,
@@ -9038,7 +9050,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7720,
+      "id": 7721,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1381.77,
@@ -9050,7 +9062,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7721,
+      "id": 7722,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1430.01,
@@ -9062,7 +9074,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7722,
+      "id": 7723,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1474.0,
@@ -9074,7 +9086,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7723,
+      "id": 7724,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1512.47,
@@ -9086,7 +9098,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7724,
+      "id": 7725,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1562.91,
@@ -9098,7 +9110,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7725,
+      "id": 7726,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1723.15,
@@ -9110,7 +9122,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7726,
+      "id": 7727,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1762.49,
@@ -9122,7 +9134,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7727,
+      "id": 7728,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1805.15,
@@ -9134,7 +9146,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7728,
+      "id": 7729,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1862.22,
@@ -9146,7 +9158,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7729,
+      "id": 7730,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 986.04,
@@ -9158,7 +9170,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7730,
+      "id": 7731,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1026.96,
@@ -9170,7 +9182,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7731,
+      "id": 7732,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1073.62,
@@ -9182,7 +9194,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7732,
+      "id": 7733,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1423.37,
@@ -9194,7 +9206,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7733,
+      "id": 7734,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1457.32,
@@ -9206,7 +9218,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7734,
+      "id": 7735,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1500.62,
@@ -9218,7 +9230,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7735,
+      "id": 7736,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1548.06,
@@ -9230,7 +9242,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7736,
+      "id": 7737,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1596.58,
@@ -9242,7 +9254,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7737,
+      "id": 7738,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1634.58,
@@ -9254,7 +9266,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7738,
+      "id": 7739,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1693.13,
@@ -9266,7 +9278,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7739,
+      "id": 7740,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1726.28,
@@ -9278,7 +9290,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7740,
+      "id": 7741,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1761.1,
@@ -9290,7 +9302,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7741,
+      "id": 7742,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1817.4,
@@ -9302,7 +9314,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7742,
+      "id": 7743,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 955.69,
@@ -9314,7 +9326,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7743,
+      "id": 7744,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 992.51,
@@ -9326,7 +9338,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7744,
+      "id": 7745,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1040.87,
@@ -9338,7 +9350,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7745,
+      "id": 7746,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1545.09,
@@ -9350,7 +9362,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7746,
+      "id": 7747,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1602.55,
@@ -9362,7 +9374,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7747,
+      "id": 7748,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1645.67,
@@ -9374,7 +9386,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7748,
+      "id": 7749,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 913.28,
@@ -9386,7 +9398,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7749,
+      "id": 7750,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 958.43,
@@ -9398,7 +9410,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7750,
+      "id": 7751,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1588.69,
@@ -9410,7 +9422,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7751,
+      "id": 7752,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1649.07,
@@ -9422,7 +9434,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7752,
+      "id": 7753,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1684.39,
@@ -9434,7 +9446,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7753,
+      "id": 7754,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 952.72,
@@ -9446,7 +9458,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7754,
+      "id": 7755,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1411.11,
@@ -9458,7 +9470,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7755,
+      "id": 7756,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1672.01,
@@ -9470,7 +9482,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7756,
+      "id": 7757,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 915.4,
@@ -9482,7 +9494,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7757,
+      "id": 7758,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 937.13,
@@ -9494,7 +9506,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7758,
+      "id": 7759,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1555.15,
@@ -9506,7 +9518,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7759,
+      "id": 7760,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1586.02,
@@ -9518,7 +9530,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7760,
+      "id": 7761,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 938.22,
@@ -9530,7 +9542,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7761,
+      "id": 7762,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1497.76,
@@ -9542,7 +9554,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7762,
+      "id": 7763,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1125.93,
@@ -9554,7 +9566,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7763,
+      "id": 7764,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1167.75,
@@ -9566,7 +9578,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7764,
+      "id": 7765,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1166.09,
@@ -9578,7 +9590,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7765,
+      "id": 7766,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1205.66,
@@ -9590,7 +9602,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7766,
+      "id": 7767,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1261.92,
@@ -9602,7 +9614,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7767,
+      "id": 7768,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1204.43,
@@ -9614,7 +9626,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7768,
+      "id": 7769,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1257.02,
@@ -9626,7 +9638,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7769,
+      "id": 7770,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1303.88,
@@ -9638,7 +9650,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7770,
+      "id": 7771,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1338.71,
@@ -9650,7 +9662,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7771,
+      "id": 7772,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1249.08,
@@ -9662,7 +9674,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7772,
+      "id": 7773,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1289.65,
@@ -9674,7 +9686,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 7773,
+      "id": 30713,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 8.95,
@@ -9686,7 +9698,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 30713,
+      "id": 30714,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 343.64,
@@ -9698,7 +9710,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 30714,
+      "id": 30715,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 191.75,
@@ -9710,7 +9722,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 30715,
+      "id": 30716,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -68.12,
@@ -9722,7 +9734,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 30716,
+      "id": 30717,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -345.14,
@@ -9734,7 +9746,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 30717,
+      "id": 30718,
       "kind": "board",
       "asset": "light_panel",
       "x": 6.41,
@@ -9746,7 +9758,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30718,
+      "id": 30719,
       "kind": "board",
       "asset": "light_panel",
       "x": 341.22,
@@ -9758,7 +9770,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30719,
+      "id": 30720,
       "kind": "board",
       "asset": "light_panel",
       "x": 318.21,
@@ -9770,7 +9782,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30720,
+      "id": 30721,
       "kind": "board",
       "asset": "light_panel",
       "x": 194.23,
@@ -9782,7 +9794,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30721,
+      "id": 30722,
       "kind": "board",
       "asset": "light_panel",
       "x": -65.5,
@@ -9794,7 +9806,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30722,
+      "id": 30723,
       "kind": "board",
       "asset": "light_panel",
       "x": -217.32,
@@ -9806,7 +9818,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30723,
+      "id": 30724,
       "kind": "board",
       "asset": "light_panel",
       "x": -343.61,
@@ -9818,7 +9830,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30724,
+      "id": 30725,
       "kind": "board",
       "asset": "light_panel",
       "x": -363.93,
@@ -9830,7 +9842,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30725,
+      "id": 30726,
       "kind": "board",
       "asset": "light_panel",
       "x": 5.56,
@@ -9842,7 +9854,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 30726,
+      "id": 30727,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 14.21,
@@ -9854,7 +9866,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30727,
+      "id": 30728,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 170.88,
@@ -9866,7 +9878,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30728,
+      "id": 30729,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 317.22,
@@ -9878,7 +9890,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30729,
+      "id": 30730,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 43.94,
@@ -9890,7 +9902,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30730,
+      "id": 30731,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -146.76,
@@ -9902,7 +9914,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30731,
+      "id": 30732,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -304.51,
@@ -9914,7 +9926,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30732,
+      "id": 30733,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -349.57,
@@ -9926,7 +9938,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30733,
+      "id": 30734,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -273.6,
@@ -9938,7 +9950,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30734,
+      "id": 30735,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -52.72,
@@ -9950,7 +9962,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 30735,
+      "id": 30736,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 82.26,
@@ -9962,7 +9974,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30736,
+      "id": 30737,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 122.8,
@@ -9974,7 +9986,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30737,
+      "id": 30738,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 257.93,
@@ -9986,7 +9998,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30738,
+      "id": 30739,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 291.91,
@@ -9998,7 +10010,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30739,
+      "id": 30740,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 368.95,
@@ -10010,7 +10022,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30740,
+      "id": 30741,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 381.44,
@@ -10022,7 +10034,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30741,
+      "id": 30742,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 295.79,
@@ -10034,7 +10046,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30742,
+      "id": 30743,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 258.34,
@@ -10046,7 +10058,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30743,
+      "id": 30744,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 83.98,
@@ -10058,7 +10070,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30744,
+      "id": 30745,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 74.09,
@@ -10070,7 +10082,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30745,
+      "id": 30746,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -305.68,
@@ -10082,7 +10094,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30746,
+      "id": 30747,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -332.13,
@@ -10094,7 +10106,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30747,
+      "id": 30748,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -380.78,
@@ -10106,7 +10118,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30748,
+      "id": 30749,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -375.32,
@@ -10118,7 +10130,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30749,
+      "id": 30750,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -343.66,
@@ -10130,7 +10142,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30750,
+      "id": 30751,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -284.09,
@@ -10142,7 +10154,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 30751,
+      "id": 34507,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 87.91,
@@ -10154,7 +10166,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34507,
+      "id": 34508,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 227.94,
@@ -10166,7 +10178,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34508,
+      "id": 34509,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 263.57,
@@ -10178,7 +10190,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34509,
+      "id": 34510,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 406.74,
@@ -10190,7 +10202,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34510,
+      "id": 34511,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 374.04,
@@ -10202,7 +10214,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34511,
+      "id": 34512,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 113.5,
@@ -10214,7 +10226,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34512,
+      "id": 34513,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 112.3,
@@ -10226,7 +10238,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34513,
+      "id": 34514,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 101.76,
@@ -10238,7 +10250,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34514,
+      "id": 34515,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 63.73,
@@ -10250,7 +10262,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34515,
+      "id": 34516,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -269.51,
@@ -10262,7 +10274,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34516,
+      "id": 34517,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -302.82,
@@ -10274,7 +10286,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34517,
+      "id": 34518,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -404.04,
@@ -10286,7 +10298,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34518,
+      "id": 34519,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -391.32,
@@ -10298,7 +10310,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 34519,
+      "id": 36038,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -313.01,
@@ -55070,5 +55082,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 36038
+  "next_id": 36039
 }

@@ -3656,3 +3656,441 @@ runs:
         checks: "C5 S/F: the audit page's S/F dossier pass, against the maps"
         exec: "apexsim.cam.LookAt 78.9 202.8 36.4 -16.4 -39.1 0.2"
 
+
+  - id: c5-lm-albertparkour
+    about: "C5. Landmarks: AlbertParkour"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=AlbertParkour
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Fangio footbridge"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 213.8 -208.0 9.6 202.1 -196.7 4.2"
+
+  - id: c5-lm-armadillos
+    about: "C5. Landmarks: Armadillos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the observation tower in the carousel"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 469.5 41.3 21.5 425.5 84.4 34.0"
+
+  - id: c5-lm-bahrainless
+    about: "C5. Landmarks: Bahrainless"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Bahrainless
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Sakhir glass tower"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 24.0 559.9 9.2 117.5 576.7 16.9"
+
+  - id: c5-lm-barcelunatic
+    about: "C5. Landmarks: Barcelunatic"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Barcelunatic
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the rooftop over the road"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -122.2 139.4 22.4 -107.2 146.9 21.9"
+      - at: 17
+        label: "the fan zone stage"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -489.8 -58.3 25.0 -593.1 62.2 22.1"
+
+  - id: c5-lm-brandsscratch
+    about: "C5. Landmarks: BrandsScratch"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsScratch
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a road bridge (R4) (1)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 238.9 -388.4 21.0 255.1 -397.0 14.5"
+      - at: 17
+        label: "a road bridge (R4) (2)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -129.7 -376.1 24.0 -145.6 -369.6 16.5"
+
+  - id: c5-lm-chillyvilleneuve
+    about: "C5. Landmarks: ChillyVilleneuve"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=ChillyVilleneuve
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the casino pavilion"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -106.2 616.0 8.7 -240.8 565.5 18.2"
+      - at: 17
+        label: "the Biosphere"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -413.7 1522.4 12.1 -705.7 1552.1 34.3"
+      - at: 22
+        label: "the Concorde road bridge (R4)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -545.7 830.3 11.8 -540.7 849.6 5.7"
+
+  - id: c5-lm-gnocchi
+    about: "C5. Landmarks: Gnocchi"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Olympic cauldron"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1334.1 -738.5 10.0 -1190.4 -693.2 24.0"
+      - at: 17
+        label: "an ice arena (1)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -974.6 -544.0 8.1 -907.2 -440.8 24.2"
+      - at: 22
+        label: "an ice arena (2)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1453.6 -908.3 9.3 -1420.0 -1003.3 15.2"
+      - at: 27
+        label: "an ice arena (3)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1625.7 -608.1 9.6 -1582.5 -759.3 41.5"
+
+  - id: c5-lm-hungoverring
+    about: "C5. Landmarks: Hungoverring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hungoverring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the fan zone wheel"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 363.7 22.7 3.5 406.9 -40.9 23.6"
+      - at: 17
+        label: "the fan zone stage"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 339.9 -3.0 2.6 351.5 -104.2 1.3"
+      - at: 22
+        label: "the road bridge (R4)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -196.2 325.4 -2.4 -183.8 315.1 -8.3"
+
+  - id: c5-lm-monzarella
+    about: "C5. Landmarks: Monzarella"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the banked oval over the road"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 671.4 969.4 12.9 656.6 956.3 9.4"
+      - at: 17
+        label: "the footbridge after it"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 528.7 844.1 13.0 516.5 833.3 7.5"
+
+  - id: c5-lm-mordschleife
+    about: "C5. Landmarks: Mordschleife"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a fuel station (1)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 136.4 186.7 -4.3 -42.0 234.7 -3.1"
+      - at: 17
+        label: "a fuel station (2)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 3015.3 -3221.2 -275.1 3077.6 -3182.9 -272.9"
+      - at: 22
+        label: "a fuel station (3)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -565.6 -2632.5 -61.3 -583.9 -2606.4 -68.5"
+
+  - id: c5-lm-nuerburgerring
+    about: "C5. Landmarks: Nuerburgerring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "Burg Nurburg on the skyline"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 292.3 403.9 10.5 622.1 1398.1 52.4"
+      - at: 17
+        label: "the covered bridge"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 148.0 139.0 12.3 136.4 127.9 6.7"
+      - at: 22
+        label: "the lap's own bridge"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -417.0 -366.3 -2.9 -421.2 -384.0 -11.6"
+      - at: 27
+        label: "the trackside tower"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -488.7 -604.6 -7.9 -535.1 -647.1 -16.6"
+
+  - id: c5-lm-redpullring
+    about: "C5. Landmarks: RedPullRing"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the media wing behind the stand"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -104.5 -28.7 10.8 -107.9 -94.7 16.3"
+
+  - id: c5-lm-shanghaied
+    about: "C5. Landmarks: Shanghaied"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shanghaied
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a sky platform over the straight (1)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 3.0 0.6 10.0 -14.6 -3.1 7.3"
+      - at: 17
+        label: "a sky platform over the straight (2)"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -309.7 -67.3 11.5 -327.3 -71.1 8.7"
+
+  - id: c5-lm-shiverstone
+    about: "C5. Landmarks: Shiverstone"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Wing behind the garages"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 4.6 1.1 10.0 59.4 -16.3 12.8"
+      - at: 17
+        label: "the giant wheel"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 174.8 834.1 17.8 189.3 733.9 35.9"
+      - at: 22
+        label: "the main stage"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 486.5 818.2 20.2 450.0 799.6 13.8"
+
+  - id: c5-lm-snorisring
+    about: "C5. Landmarks: Snorisring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the fan tower in the hairpin"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -295.3 316.0 10.1 -334.1 309.3 6.2"
+
+  - id: c5-lm-spafrankenchamps
+    about: "C5. Landmarks: SpaFrankenchamps"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Combes wheel"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 834.5 -1431.8 63.6 923.8 -1433.0 71.8"
+      - at: 17
+        label: "the fan zone stage"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 325.4 -55.3 -15.3 392.5 38.7 -10.6"
+
+  - id: c5-lm-zandervoort
+    about: "C5. Landmarks: Zandervoort"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandervoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the fan zone wheel"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -72.0 -181.6 10.7 -136.0 -140.2 29.2"
+      - at: 17
+        label: "the fan zone stage"
+        checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -88.3 -451.0 10.0 -281.5 -570.4 6.9"
+
