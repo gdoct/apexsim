@@ -280,16 +280,13 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # https://www.sepangcircuit.com/main-grandstand), between the pit
     # straight and the back straight, which oriented_box() and
     # front_edge() cannot turn into a sane single front. Authored here as
-    # its two real faces instead: the pit-straight face is on the
-    # circuit's right (the same side as the pit lane -- confirmed by this
-    # card's own risk note, which is only true if both stands are on the
-    # pit lane's side: "the double-sided main stand is inside 20 m of the
-    # pit lane on the pit-straight side and will be dropped there
-    # (correct)"), and the back-straight face carries the same name and
-    # side since it is physically the other side of one stand.
+    # its two real faces instead: the stand sits between the two straights
+    # (sepangcircuit.com's grandstand map, the dossier's "Start/finish"),
+    # so it is on the circuit's left of both, opposite the pits on the pit
+    # straight and north of the back straight.
     "Shebang": [
-        dict(name="Main Grandstand", from_m=20, to_m=560, side="right", depth_m=20, covered=True),
-        dict(name="Main Grandstand", from_m=4300, to_m=4950, side="right", depth_m=20, covered=True),
+        dict(name="Main Grandstand", from_m=20, to_m=560, side="left", depth_m=20, covered=True),
+        dict(name="Main Grandstand", from_m=4300, to_m=4950, side="left", depth_m=20, covered=True),
         # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
         # opposite the K1 Grandstand OSM already gives us
         # (sepangcircuit.com spectator guide: "K2 Hillstand... open-air
@@ -466,6 +463,14 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Grandstand 46", from_m=2230, to_m=2290, side="right", depth_m=12),
     ],
 }
+
+# A stand's roof by name, from the circuit's own seating map, for the OSM
+# stands (whose `covered` comes from their tags alone) and the
+# `MANUAL_STANDS` ones alike, written as the stand's `roof`: "covered"
+# roofs it, "open" keeps the dress pass from roofing it for its depth
+# (25 m or more is otherwise taken to be roofed). Every stand of that name
+# on the circuit takes it.
+STAND_COVER: dict[str, dict[str, str]] = {}
 
 # Landmarks that span the road and are not in OSM as bridges.
 MANUAL_CROSSINGS: dict[str, list[dict]] = {
@@ -2365,37 +2370,12 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                     entry["asset"] = asset
                     break
             structures.append(entry)
-    for spec in MANUAL_STANDS.get(stem, []):
-        side = spec["side"]
-        if side in ("outside", "inside"):
-            side = track.turn_side(spec["from_m"], spec["to_m"], side)
-        front = track.edge_run(spec["from_m"], spec["to_m"], side, spec.get("gap_m", 10.0))
-        length = float(np.hypot(*np.diff(front, axis=0).T).sum())
-        centre = front.mean(0)
-        s, _ = track.locate(centre[None, :])
-        head = front[-1] - front[0]
-        stands.append(
-            {
-                "name": spec["name"],
-                "source": "seating map",
-                "station_m": round(float(s[0]), 1),
-                "side": side,
-                "offset_m": spec.get("gap_m", 10.0),
-                "length_m": round(length, 1),
-                "depth_m": float(spec.get("depth_m", 16.0)),
-                "covered": bool(spec.get("covered", False)),
-                "yaw_rad": round(float(math.atan2(head[1], head[0])), 4),
-                "centre": round_pts(centre[None, :])[0],
-                "front": round_pts(front),
-                **({"family": spec["family"]} if "family" in spec else {}),
-            }
-        )
+    stands.extend(manual_stands(stem, track))
     # A MANUAL_STANDS entry promoting a named OSM building (tagged plain
     # `building=yes`, so extract() filed it as a structure rather than a
     # stand) replaces that structure instead of doubling it up as a
     # building standing behind its own grandstand.
-    manual_stand_names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
-    structures = [s for s in structures if s.get("name") not in manual_stand_names]
+    structures = drop_promoted_structures(stem, structures)
     structures.extend(MANUAL_STRUCTURES.get(stem, []))
     if stem in NO_OSM_STANDS:
         # Every `building=grandstand`/`leisure=grandstand` way within range
@@ -2405,6 +2385,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         # Albert Park's real (all-temporary) grandstands, so an "osm"
         # source hit for this stem is always someone else's building.
         stands = [s for s in stands if s.get("source") != "osm"]
+    stands = with_stand_cover(stem, stands)
     stands.sort(key=lambda e: e["station_m"])
     structures.sort(key=lambda e: e["station_m"])
 
@@ -3004,10 +2985,90 @@ def rename_dossiers(stems: list[str], dry_run: bool) -> int:
     return 0
 
 
+def manual_stands(stem: str, track) -> list[dict]:
+    """The `MANUAL_STANDS` entries laid along the centerline, as dossier
+    stands (`source: "seating map"`)."""
+    out = []
+    for spec in MANUAL_STANDS.get(stem, []):
+        side = spec["side"]
+        if side in ("outside", "inside"):
+            side = track.turn_side(spec["from_m"], spec["to_m"], side)
+        front = track.edge_run(spec["from_m"], spec["to_m"], side, spec.get("gap_m", 10.0))
+        length = float(np.hypot(*np.diff(front, axis=0).T).sum())
+        centre = front.mean(0)
+        s, _ = track.locate(centre[None, :])
+        head = front[-1] - front[0]
+        out.append(
+            {
+                "name": spec["name"],
+                "source": "seating map",
+                "station_m": round(float(s[0]), 1),
+                "side": side,
+                "offset_m": spec.get("gap_m", 10.0),
+                "length_m": round(length, 1),
+                "depth_m": float(spec.get("depth_m", 16.0)),
+                "covered": bool(spec.get("covered", False)),
+                "yaw_rad": round(float(math.atan2(head[1], head[0])), 4),
+                "centre": round_pts(centre[None, :])[0],
+                "front": round_pts(front),
+                **({"family": spec["family"]} if "family" in spec else {}),
+            }
+        )
+    return out
+
+
+# How far a rebuilt seating-map stand may sit from the dossier's and still
+# be the same entry: the centerline moves by centimetres when it is
+# smoothed after the dossier is built, and that is not an edit.
+SAME_STAND_M = 0.5
+
+
+def same_stand_or(laid: list[dict], stand: dict) -> dict:
+    """The dossier's own copy of `stand` when its table entry has not
+    changed (same name, side, depth, roof and family, the front within
+    `SAME_STAND_M`), so a re-apply leaves an untouched stand byte for byte;
+    `stand` otherwise."""
+    keys = ("name", "side", "offset_m", "depth_m", "covered", "family")
+    for old in laid:
+        if any(old.get(k) != stand.get(k) for k in keys):
+            continue
+        a, b = old.get("front", []), stand["front"]
+        if abs(len(a) - len(b)) > 1 or abs(old["length_m"] - stand["length_m"]) > SAME_STAND_M:
+            continue
+        ends = (a[0], b[0]), (a[-1], b[-1]), (old["centre"], stand["centre"])
+        if all(math.dist(p, q) <= SAME_STAND_M for p, q in ends):
+            return old
+    return stand
+
+
+def drop_promoted_structures(stem: str, structures: list[dict]) -> list[dict]:
+    """Structures less the named OSM buildings a `MANUAL_STANDS` entry
+    stands in for."""
+    names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
+    return [s for s in structures if s.get("name") not in names]
+
+
+def with_stand_cover(stem: str, stands: list[dict]) -> list[dict]:
+    """`stands` with `STAND_COVER` applied as each stand's `roof`, which
+    the dress pass takes over `covered` and the depth rule; a stand the
+    table does not name loses any `roof` an earlier run gave it."""
+    cover = STAND_COVER.get(stem, {})
+    out = []
+    for s in stands:
+        roof = cover.get(s.get("name"))
+        if roof not in (None, "covered", "open"):
+            raise SystemExit(f"STAND_COVER[{stem!r}][{s.get('name')!r}]: {roof!r} is not covered or open")
+        s = {k: v for k, v in s.items() if k != "roof"}
+        if roof:
+            s["roof"] = roof
+        out.append(s)
+    return out
+
+
 def reapply_manual(stems: list[str], dry_run: bool) -> int:
-    """`--manual-only`: re-apply the hand-authored layers (MANUAL_LANDMARKS,
-    MANUAL_CROSSINGS and CROSSING_KINDS, the graffiti, decal runs and skid
-    marks, MANUAL_FURNITURE) to a checked-in dossier without the OSM
+    """`--manual-only`: re-apply the hand-authored layers (MANUAL_STANDS and
+    STAND_COVER, MANUAL_LANDMARKS, MANUAL_CROSSINGS and CROSSING_KINDS, the
+    graffiti, decal runs and skid marks, MANUAL_FURNITURE) to a checked-in dossier without the OSM
     extract, through the georeference the DEM sidecar records (the same fit
     the dossier was built from, `dem_fetch.py`). Everything the extract
     gave is left byte for byte. A circuit without a DEM sidecar is skipped."""
@@ -3044,17 +3105,27 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
         crossings = dedup_crossings(surveyed + manual_crossings(stem, track, Frame, to_track))
         graffiti = manual_graffiti(stem, track, Frame, to_track) + manual_decal_runs(stem, track) + skid_marks(stem, track)
         furniture = MANUAL_FURNITURE.get(stem, []) + generated_furniture(stem) if stem in MANUAL_FURNITURE else []
+        # The seating-map stands are rebuilt from the table, the surveyed
+        # ones kept, and the roofs re-read for both.
+        stands = [s for s in layout.get("stands", []) if s.get("source") != "seating map"]
+        laid = [s for s in layout.get("stands", []) if s.get("source") == "seating map"]
+        manual = [same_stand_or(laid, s) for s in manual_stands(stem, track)]
+        stands = with_stand_cover(stem, stands + manual)
+        stands.sort(key=lambda e: e["station_m"])
         new = dict(layout)
+        new["stands"] = stands
         new["landmarks"] = landmarks
         new["crossings"] = crossings
-        new["structures"] = drop_structures_under_landmarks(layout.get("structures", []), landmarks)
+        new["structures"] = drop_structures_under_landmarks(
+            drop_promoted_structures(stem, layout.get("structures", [])), landmarks
+        )
         for key, value in (("graffiti", graffiti), ("furniture", furniture)):
             if value:
                 new[key] = value
             else:
                 new.pop(key, None)
         changed = [k for k in new if new.get(k) != layout.get(k)] + [k for k in layout if k not in new]
-        print(f"{stem}: {len(landmarks)} landmarks, {len(crossings)} crossings, {len(graffiti)} decals"
+        print(f"{stem}: {len(stands)} stands, {len(landmarks)} landmarks, {len(crossings)} crossings, {len(graffiti)} decals"
               + (f"; changed: {', '.join(changed)}" if changed else "; unchanged"))
         if not dry_run and changed:
             out.write_text(json.dumps(new, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -3076,7 +3147,7 @@ def main() -> int:
     ap.add_argument(
         "--manual-only",
         action="store_true",
-        help="re-apply the hand-authored layers (landmarks, crossings, graffiti, furniture) "
+        help="re-apply the hand-authored layers (stands, landmarks, crossings, graffiti, furniture) "
         "to the existing dossiers without the OSM extract, through the DEM sidecar's georeference",
     )
     args = ap.parse_args()

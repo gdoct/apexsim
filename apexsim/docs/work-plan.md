@@ -254,15 +254,19 @@ tracks: S/F, landmarks, stands, trees, barriers, boards, people last.
 [track-improvements.md](../../apexsim-content/docs/track-improvements.md),
 each track's positions from the maps in
 `apexsim-content/docs/circuit-references/audit/<Stem>.md`
-(`render_maps.py` renders the PDF maps). Next, the S/F column: the rule
-gaps it rests on first (1 roofs by name, 3 stands beside the pit lane,
-10 a `MANUAL_CORNERS` table, 12 podium and roof screens), one re-dress
-`--all` against the commit before; then each track's S/F positions from
-its audit page into `MANUAL_STANDS` / `MANUAL_LANDMARKS`, committed per
-track; kit gap 2 (the pit building's upper storey) when the shots show
-the single row. Then Landmark, Stands, Trees, Barriers (rule gaps 6 and 7
-with the AI survey), Boards, People. Rule gap 15 (fallback floodlights
-at day venues) needs the owner's call before it is touched.
+(`render_maps.py` renders the PDF maps). The S/F column is under way:
+its two rules are built (a stand's roof by name, `STAND_COVER`; stands
+beside the pit lane stepped back off it unless over the garage row), and
+`osm_layout.py --manual-only` now rebuilds the `MANUAL_STANDS` stands.
+Next, each track's S/F positions from its audit page into
+`MANUAL_STANDS` / `STAND_COVER` / `MANUAL_LANDMARKS`, committed per
+track; then one re-dress `--all`, export and AI survey against the
+commit before the column (stands are walls); kit gap 2 (the pit
+building's upper storey) when the shots show the single row. Then
+Landmark, Stands, Trees, Barriers (R6 and R7 with the AI survey), Boards
+(R10, a `MANUAL_CORNERS` table), People. R12 (the podium at one end of
+the row) is left until a column's shots ask for it; R15 (fallback
+floodlights at day venues) needs the owner's call before it is touched.
 **Watch out:** hand-placed props are discarded on the next dress; the
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a

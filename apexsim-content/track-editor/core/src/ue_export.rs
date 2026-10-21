@@ -4452,6 +4452,28 @@ fn pit_layout(
     }
 }
 
+/// The lane stations the export lays its garage row between, for a pass
+/// that has to keep clear of it before the export runs (the dress pass);
+/// `None` without a terrain to find the row's room on, or with no room for
+/// a box. `terrain` is the one the export builds:
+/// [`crate::groom::seating_terrain`].
+pub(crate) fn garage_row_span(
+    path: &CenterlinePath,
+    pit: &crate::ats::PitLane,
+    terrain: Option<&TerrainHeightfield>,
+) -> Option<(f32, f32)> {
+    let terrain = terrain?;
+    let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0)?;
+    let relation = LaneRelation::resolve(path, &lane, Some(terrain));
+    let layout = pit_layout(&lane, pit.width_m, pit.box_count, &relation, Some(terrain));
+    (layout.boxes > 0).then(|| {
+        (
+            layout.row_start,
+            layout.row_start + layout.boxes as f32 * PIT_MODULE_M,
+        )
+    })
+}
+
 /// Where the pit exit light and the speed-limit board stand: on the
 /// lane's road side, just off its edge, at the end and the start of the
 /// limit, yawed down the lane (the client turns them to face up it).

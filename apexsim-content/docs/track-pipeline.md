@@ -121,7 +121,10 @@ claims is counted in `unclassified`, so a circuit's gaps show in the file.
 survive a refetch; each entry's comment names its source. `MANUAL_STANDS`
 (`name`, `from_m`/`to_m`, `side` as `left`/`right` driving the lap or
 `outside`/`inside` of the bend, `depth_m`, optional `gap_m`, `covered`; the
-front is laid along the centerline). `MANUAL_CROSSINGS` (`station_m`, or a
+front is laid along the centerline). `STAND_COVER` gives a stand its roof
+by name from the seating map, OSM and manual stands alike: `covered` or
+`open`, written as the stand's `roof`, which the dress pass takes over its
+`covered` and the depth rule. `MANUAL_CROSSINGS` (`station_m`, or a
 map anchor `at` / `from_at` + `to_at` (lon, lat); `kind`
 `footbridge`/`link`/`viaduct`/`gantry`/`timing`/`overpass`, road-carrying
 `deck_arch`/`deck_wide` with `from_m`/`to_m` (ground left out of the span),
@@ -156,10 +159,14 @@ dossier: what is traced goes into the tables and `--manual-only` (or a
 refetch) lays it.
 
 **Without the extract** (`--manual-only`): the hand-authored layers (the
-authored landmarks and crossings, graffiti, decal runs and skid marks,
-furniture) are rebuilt from the tables through the georeference the DEM
+`MANUAL_STANDS` stands and the `STAND_COVER` roofs, the authored landmarks
+and crossings, graffiti, decal runs and skid marks, furniture) are rebuilt
+from the tables through the georeference the DEM
 sidecar records, which is the dossier's own fit; the surveyed layers are
-left byte for byte. A circuit with no DEM sidecar is skipped. With no table
+left byte for byte, and so is a manual stand whose table entry has not
+changed (its front within 0.5 m: the centerline moves by centimetres when
+it is smoothed after the dossier). A circuit with no DEM sidecar is
+skipped. With no table
 changed, `--all --manual-only --dry-run` reports every dossier unchanged.
 
 ## Dressing (`ats-dress`)
@@ -187,7 +194,13 @@ stamp.
 
 - **Stands** are laid as 40 m runs along their real front, each with its own
   `length_m`, so the client's bays follow the outline; depth 13 m or more is
-  the large family, 25 m or more always roofed, under 12 m dropped.
+  the large family, 25 m or more roofed unless its `roof` says `open`,
+  under 12 m dropped. A run over the garage row is left to the pit
+  complex (the terrace the bake builds); a run in the pit lane or its
+  apron anywhere else (behind the entry or exit road) is stepped back out
+  of it. The pit zone takes the garage row from the export's own layout
+  (`ue_export::garage_row_span`): the garages' depth along the row and
+  12 m past its ends, the lane and its apron along the rest.
 - **Footprints** of stands and buildings are probed whole against every leg
   (`clear_footprint`) and stepped back up to 25 m or left out.
 - **A building block on a paved apron** (a unit of a venue row whose

@@ -319,6 +319,11 @@ pub struct Stand {
     pub depth_m: f32,
     #[serde(default)]
     pub covered: bool,
+    /// The roof the circuit's own seating map gives the stand
+    /// (`osm_layout.py`'s `STAND_COVER`): `"covered"` or `"open"`, over
+    /// `covered` and the depth rule. `None` leaves both to decide.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub roof: Option<String>,
     #[serde(default)]
     pub front: Vec<[f32; 2]>,
     #[serde(default)]

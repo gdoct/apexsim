@@ -45,11 +45,6 @@ const ASSUMED_ROOF_DEPTH_M: f32 = 25.0;
 /// Buildings closer than this to the pit lane are pit garages, which the
 /// Unreal bake generates from the lane itself.
 const PIT_BUILDING_RANGE_M: f32 = 30.0;
-/// Seating mapped this close to the pit lane's centerline is the terrace
-/// over the garages, and the bake already builds that whole complex from
-/// the lane; a stand laid there would stand in the working lane or in the
-/// garages behind it, which reach 14 m back from a 12 m lane.
-const PIT_STAND_RANGE_M: f32 = 20.0;
 /// Footprint below which a building is a shed, not scenery.
 const MIN_BUILDING_AREA_M2: f32 = 250.0;
 /// A building's front stands at least this far past the road edge. The
@@ -251,15 +246,26 @@ pub fn dress_scene_with_dem(
         .pit_lane
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
+    // Nothing dressed stands in the pit lane or where its garages go: the
+    // stands step back out of it, everything else laid in it is dropped
+    // below.
+    let zone = scene
+        .pit_lane
+        .as_ref()
+        .zip(layout.pit_lane.as_ref())
+        .and_then(|(pit, road)| {
+            let row = crate::ue_export::garage_row_span(&path, pit, Some(&terrain));
+            PitZone::new(pit, road.side, row)
+        });
 
     let mut laid: Vec<Prop> = Vec::new();
     for stand in &layout.stands {
-        let props = lay_stand(&path, &terrain, lane.as_ref(), stand);
+        let props = lay_stand(&path, &terrain, zone.as_ref(), stand);
         if props.is_empty() {
             let why = if stand.length_m < MIN_STAND_M {
                 "too small to be seating"
             } else {
-                "nothing to build clear of the pit lane"
+                "over the garage row (the bake builds that terrace) or no room clear of the pit lane"
             };
             report
                 .skipped
@@ -382,13 +388,7 @@ pub fn dress_scene_with_dem(
         });
     }
 
-    // Nothing dressed stands in the pit lane or where its garages go.
-    let zone = scene
-        .pit_lane
-        .as_ref()
-        .zip(layout.pit_lane.as_ref())
-        .and_then(|(pit, road)| PitZone::new(pit, road.side));
-    if let Some(zone) = zone {
+    if let Some(zone) = &zone {
         drop_laid(
             &mut laid,
             &mut report.skipped,
@@ -954,6 +954,10 @@ struct PitZone {
     half: f32,
     /// +1 when the garages are on the lane's left.
     garage_side: f32,
+    /// The lane stations the garage row runs between
+    /// ([`crate::ue_export::garage_row_span`]); `None` keeps the garages'
+    /// depth clear the whole length of the lane.
+    row: Option<(f32, f32)>,
 }
 
 /// The zone reaches this far past the lane's road-side edge (the apron
@@ -962,9 +966,12 @@ const PIT_ZONE_APRON_M: f32 = 2.5;
 /// …and this far past its garage-side edge (a garage's depth and a
 /// little).
 const PIT_ZONE_GARAGES_M: f32 = 17.0;
+/// The garages' depth is kept clear this far past either end of their
+/// row too: the pit complex's end blocks and the lane's apron there.
+const PIT_ZONE_ROW_MARGIN_M: f32 = 12.0;
 
 impl PitZone {
-    fn new(pit: &PitLane, side: Side) -> Option<Self> {
+    fn new(pit: &PitLane, side: Side, row: Option<(f32, f32)>) -> Option<Self> {
         let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0)?;
         Some(Self {
             lane,
@@ -975,11 +982,37 @@ impl PitZone {
                 Side::Left => 1.0,
                 Side::Right => -1.0,
             },
+            row,
         })
     }
 
     fn contains(&self, x: f32, y: f32) -> bool {
-        let (mut best, mut lat) = (f32::MAX, 0.0f32);
+        let (toward_garages, by_the_garages, beyond_an_end) = self.locate(x, y);
+        if beyond_an_end {
+            return false;
+        }
+        if toward_garages >= 0.0 && by_the_garages {
+            toward_garages < self.half + PIT_ZONE_GARAGES_M
+        } else {
+            toward_garages.abs() < self.half + PIT_ZONE_APRON_M
+        }
+    }
+
+    /// Whether `(x, y)` stands over the garage row: seating there is the
+    /// terrace over the garages, which the bake builds as part of the pit
+    /// complex from the lane.
+    fn over_the_garages(&self, x: f32, y: f32) -> bool {
+        let (toward_garages, by_the_garages, beyond_an_end) = self.locate(x, y);
+        !beyond_an_end
+            && by_the_garages
+            && (0.0..self.half + PIT_ZONE_GARAGES_M).contains(&toward_garages)
+    }
+
+    /// Where `(x, y)` is from the lane: how far toward the garages (negative
+    /// toward the road), whether it is level with the garage row, and
+    /// whether it is past either end of the lane.
+    fn locate(&self, x: f32, y: f32) -> (f32, bool, bool) {
+        let (mut best, mut lat, mut station) = (f32::MAX, 0.0f32, 0.0f32);
         let mut at_end = false;
         let samples = self.lane.samples();
         for (i, sample) in samples.iter().enumerate() {
@@ -989,19 +1022,16 @@ impl PitZone {
                 best = d2;
                 let (sin, cos) = sample.heading_rad.sin_cos();
                 lat = -sin * dx + cos * dy;
+                station = sample.station_m;
                 at_end = i == 0 || i == samples.len() - 1;
             }
         }
         // Beyond either end of the lane is not beside it.
-        if at_end && best.sqrt() > lat.abs() + 1.0 {
-            return false;
-        }
-        let toward_garages = lat * self.garage_side;
-        if toward_garages >= 0.0 {
-            toward_garages < self.half + PIT_ZONE_GARAGES_M
-        } else {
-            -toward_garages < self.half + PIT_ZONE_APRON_M
-        }
+        let beyond_an_end = at_end && best.sqrt() > lat.abs() + 1.0;
+        let by_the_garages = self.row.is_none_or(|(from, to)| {
+            (from - PIT_ZONE_ROW_MARGIN_M..=to + PIT_ZONE_ROW_MARGIN_M).contains(&station)
+        });
+        (lat * self.garage_side, by_the_garages, beyond_an_end)
     }
 
     /// Whether any part of `prop`'s footprint stands in the zone.
@@ -1061,7 +1091,7 @@ impl PitZone {
 
 /// The bay family a stand is built from: `_large` once it is deep enough
 /// to be a two-tier stand, roofed when the dossier says so (or when it is
-/// too deep to be anything else).
+/// too deep to be anything else, unless its seating map says it is open).
 fn stand_family(stand: &Stand) -> &'static str {
     // The street circuit's tall stand: one family, roofed or not.
     if stand.family.as_deref() == Some("street_deck") {
@@ -1075,7 +1105,11 @@ fn stand_family(stand: &Stand) -> &'static str {
         };
     }
     let large = stand.depth_m >= LARGE_STAND_DEPTH_M;
-    let roof = stand.covered || stand.depth_m >= ASSUMED_ROOF_DEPTH_M;
+    let roof = match stand.roof.as_deref() {
+        Some("covered") => true,
+        Some("open") => false,
+        _ => stand.covered || stand.depth_m >= ASSUMED_ROOF_DEPTH_M,
+    };
     match (large, roof) {
         (true, true) => "bay_10m_large_roof",
         (true, false) => "bay_10m_large",
@@ -1091,7 +1125,7 @@ fn stand_family(stand: &Stand) -> &'static str {
 fn lay_stand(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
-    lane: Option<&CenterlinePath>,
+    zone: Option<&PitZone>,
     stand: &Stand,
 ) -> Vec<Prop> {
     let run_len_of = |pts: &[[f32; 2]]| -> f32 {
@@ -1128,9 +1162,6 @@ fn lay_stand(
             continue;
         }
         let (x, y) = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
-        if lane.is_some_and(|lane| lane_gap(lane, x, y) < PIT_STAND_RANGE_M) {
-            continue;
-        }
         let yaw = (b.1 - a.1).atan2(b.0 - a.0);
         // The front is the real one, but the kit bay is as deep as it is:
         // a front traced a few metres off the asphalt put the back rows of
@@ -1140,24 +1171,70 @@ fn lay_stand(
         else {
             continue;
         };
-        let (sample, lat) = nearest_cross_section(path, x, y);
-        out.push(Prop {
+        let run = |x: f32, y: f32| Prop {
             id: 0,
             kind: PropKind::Grandstand,
             asset: asset.to_string(),
             x,
             y,
-            z: seat_z(terrain, &sample, lat, x, y),
+            z: 0.0,
             yaw_rad: yaw,
             scale: 1.0,
             text: None,
             length_m: Some(round2(len)),
             source: None,
+        };
+        // Seating over the garage row is the pit complex's terrace, which
+        // the bake builds; a run in the lane or its apron elsewhere (a
+        // stand behind the pit entry or exit road) is stepped further back
+        // from the road out of it.
+        let Some((x, y)) = clear_of_pit_zone(path, zone, x, y, yaw, len, bay_depth, &run) else {
+            continue;
+        };
+        let (sample, lat) = nearest_cross_section(path, x, y);
+        out.push(Prop {
+            z: seat_z(terrain, &sample, lat, x, y),
+            ..run(x, y)
         });
         walked = to;
     }
     let _ = walked;
     out
+}
+
+/// Where a stand run at `(x, y)` stands clear of the pit `zone`: its own
+/// spot when it already does, else stepped straight back from the road in
+/// 1 m steps, up to [`BUILDING_MAX_PUSH_M`]. `None` over the garage row,
+/// or when there is no such spot.
+#[allow(clippy::too_many_arguments)]
+fn clear_of_pit_zone(
+    path: &CenterlinePath,
+    zone: Option<&PitZone>,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    length: f32,
+    depth: f32,
+    run: &dyn Fn(f32, f32) -> Prop,
+) -> Option<(f32, f32)> {
+    let Some(zone) = zone else {
+        return Some((x, y));
+    };
+    if zone.over_the_garages(x, y) {
+        return None;
+    }
+    let (_, away) = footprint_road_gap(path, x, y, yaw, length, depth);
+    let (mut x, mut y) = (x, y);
+    let mut pushed = 0.0f32;
+    while zone.blocks(path, &run(x, y)) {
+        pushed += 1.0;
+        if pushed > BUILDING_MAX_PUSH_M {
+            return None;
+        }
+        x += away.0;
+        y += away.1;
+    }
+    Some((x, y))
 }
 
 /// Smallest distance from the road edge — any section of the course —
@@ -3618,6 +3695,7 @@ mod tests {
             length_m,
             depth_m,
             covered,
+            roof: None,
             front,
             centre: [0.0, 0.0],
             yaw_rad: 0.0,
@@ -3718,6 +3796,19 @@ mod tests {
     }
 
     #[test]
+    fn the_seating_maps_roof_beats_the_depth_rule() {
+        let mut s = stand("x", vec![[0.0, 0.0], [40.0, 0.0]], 30.0, false);
+        s.roof = Some("open".to_string());
+        assert_eq!(stand_family(&s), "bay_10m_large", "an open terrace");
+        s.depth_m = 8.0;
+        s.roof = Some("covered".to_string());
+        assert_eq!(stand_family(&s), "bay_10m_roof");
+        s.covered = true;
+        s.roof = Some("open".to_string());
+        assert_eq!(stand_family(&s), "bay_10m", "over the tags too");
+    }
+
+    #[test]
     fn the_real_pit_lane_replaces_the_generated_one_and_is_left_alone() {
         let track = track();
         let mut scene = scene(&track);
@@ -3776,6 +3867,37 @@ mod tests {
             scene.pit_lane.expect("lane").box_count,
             PIT_GRID_BOXES,
             "every car its own garage"
+        );
+    }
+
+    #[test]
+    fn a_stand_behind_the_pit_entry_is_laid_and_one_over_the_garages_is_not() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.pit_lane = Some(PitRoad {
+            side: Side::Right,
+            length_m: 300.0,
+            nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+        });
+        // 13 m beyond the lane's centre: behind the lane where it leaves
+        // the road, and over the garages where they stand, mid-lane.
+        layout.stands.push(stand("Entry", vec![[105.0, -35.0], [145.0, -35.0]], 10.0, false));
+        layout.stands.push(stand("Terrace", vec![[220.0, -35.0], [280.0, -35.0]], 10.0, false));
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        let laid = |name: &str| {
+            scene
+                .props
+                .iter()
+                .filter(|p| p.source.as_deref() == Some(&format!("stand {name}")))
+                .count()
+        };
+        assert!(laid("Entry") > 0, "{:?}", report.skipped);
+        assert_eq!(laid("Terrace"), 0);
+        assert!(
+            report.skipped.iter().any(|s| s.starts_with("stand Terrace: over the garage row")),
+            "{:?}",
+            report.skipped
         );
     }
 

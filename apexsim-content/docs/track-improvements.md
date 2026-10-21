@@ -116,7 +116,7 @@ leaves the audit page then.
 A cell holds the kind of change it needs, `ok` when it matches the
 reference, `-` when the venue has nothing there; where a cell needs more
 than one kind, it names the main one and its audit page the rest. The
-[rule gaps](#rule-gaps) that touch every track (concrete, roofs, corners)
+[rule gaps](#rule-gaps) that touch every track (concrete, corners)
 are not repeated per cell. The order of columns is the order of work.
 
 | Stem | S/F | Landmark | Stands | Trees | Barriers | Boards | People |
@@ -162,12 +162,11 @@ What the audit says across the table:
   stand at Hans Ernst, Albert Park's 800-1400 m early), on the wrong side
   (Sepang's main stand, Spa's Bus Stop, Albert Park's Moss), real stands
   laid as `media_centre` blocks because OSM tags them as buildings
-  (Silverstone, Le Mans), and the general-admission banks absent (rule
-  gap 2).
-- **Barriers**: no circuit but the Nordschleife gets any concrete (rule
-  gap 6); the cells marked `ok` are ok apart from that.
+  (Silverstone, Le Mans), and the general-admission banks absent (R2).
+- **Barriers**: no circuit but the Nordschleife gets any concrete
+  (R6); the cells marked `ok` are ok apart from that.
 - **Boards**: the corner signs and marshal posts follow the dossier's
-  named corners, and ten dossiers have none or bogus ones (rule gap 10).
+  named corners, and ten dossiers have none or bogus ones (R10).
 - **People**: no figure kit exists, so every cell is kit.
 
 ### Kit gaps
@@ -201,88 +200,77 @@ Smaller asks, built only if a column's shots call for them: a date palm
 
 Dress, groom and dossier-tool rules the audit finds wanting, with the
 tracks they show at. Each is a rule change: re-dress `--all` and read the
-counts against the commit before.
+counts against the commit before. A built rule leaves the list; the labels
+stay as they are.
 
-1. **Roofs follow depth alone.** `dress::stand_family` roofs every stand
-   25 m deep or more (`ASSUMED_ROOF_DEPTH_M`), and an OSM stand's `covered`
-   comes only from its tags, which no table overrides. Open hillside and
-   terrace stands come out roofed (RedPullRing, Shanghaied B, Shebang F,
-   Snorisring, Sudoku C/D/E/O/R, Nuerburgerring's hillside areas) and
-   covered ones open (SpaFrankenchamps Gold 1, Sudoku Q, Zandervoort's Pit
-   Grandstand, Interlaggos B/M, Monzarella 1/4/22/24/26, the Armadillos
-   main stand). Wanted: a `covered` or open override by name.
-2. **No family for banks and temporary stands.** A `MANUAL_STANDS` entry
-   cannot lay `spectator_bank_10m`, `banking_seats` or `scaffold_10m`;
-   spectator banks are laid only along car parks and camp sites, and OSM
-   `man_made=embankment` is unread. General-admission banks are missing at
-   Zandervoort, SpaFrankenchamps, Sudoku, RedPullRing, Oskarsleben,
-   Hockeyheimring and Nuerburgerring.
-3. **Stands beside the pit lane are dropped** ("nothing to build clear of
-   the pit lane"): the pit zone keeps its garage depth along the whole
-   lane, not only the garage row. Lost: MandarinaBay's Pit Exit, Turn 2
-   and Bayfront stands, the Lemons stand over the pits, Monzarella 23,
-   ChillyVilleneuve 11.
-4. **A road crossing is a tyre arch.** A crossing of kind `road` without a
-   `CROSSING_KINDS` entry falls to `tyre_bridge` (`dress.rs`); it should be
-   `overpass_concrete`. Seen at BrandsScratch (two), ChillyVilleneuve,
-   Gnocchi, Hungoverring, Nuerburgerring.
-5. **A building across the road is skipped** ("reaches across the road"),
-   and no crossing kind lays `bridge/span_building`: the Barcelunatic
-   rooftop, the ChillyVilleneuve pavilion, the Gnocchi Sirius building.
-6. **Concrete is never laid.** `barriers::decide` takes a mapped wall only
-   within 5 m of the road with 4 m of run-off or less, and the groom
-   builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
-   pit-straight rule never fires. The Nordschleife is the only track with
-   concrete, against 7-96 mapped walls at Monzarella, Nuerburgerring,
-   Oskarsleben, ChillyVilleneuve and Hockeyheimring.
-7. **Barrier styles.** The street style is Tecpro on every cell
-   (MandarinaBay, 4791 modules); park and temperate street circuits
-   (AlbertParkour, ChillyVilleneuve, Gnocchi, Snorisring) want concrete
-   and debris fence close in; `catch_fence_6m` is in the kit and no kind
-   lays it; club circuits get Tecpro where they have tyre walls
-   (BrandsScratch, Oskarsleben, Nuerburgerring), and the Nordschleife
-   4.3 km of tyres from geometry with none mapped.
-8. **Woods away from the road are bare on flat ground.** The groom plants
-   22-90 m out and the forest impostors need a 25 m rise, so mapped woods
-   go unplanted at Shiverstone, Lemons, Sudoku and Hockeyheimring; OSM
-   `scrub` (49 areas at Zandervoort) and `tree_row` (Oskarsleben) are
-   never planted.
-9. **Species and climate.** `groom.rs` counts `poplar` as needleleaved
-   (1148 in the Eifel forest, 149 in the Monza park); a style's flora
-   ignores the climate where no wood is mapped (a temperate belt in open
-   prairie at Armadillos, conifers at Shanghaied, no trees at all at
-   Shebang).
-10. **No manual corner table.** Corner signs and marshal posts come from
-    the dossier's named corners, and a circuit OSM names none of gets no
-    signs and a post every 400 m: ChillyVilleneuve, Gnocchi, Snorisring,
-    Shanghaied, Bahrainless, Barcelunatic, Hungoverring, MandarinaBay,
-    Nuerburgerring, Oskarsleben, and single corners at Armadillos and
-    Zandervoort. The real posts are about three times as many
-    (Nuerburgerring 51 against 13, Bahrainless 40 against 12, Shanghaied
-    35 against 12). Wanted: a `MANUAL_CORNERS` table in `osm_layout.py`.
-11. **A `tower` landmark is always a `control_tower`**; nothing reaches
-    `observation_tower` (Armadillos) or a tower block (Snorisring).
-12. **The podium sits on the middle garage** and roof screens have no
-    height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
-    screens on the pit roof.
-13. **Stand outlines.** The family is picked by depth only, so a
-    six-storey stand gets `bay_10m_large_roof` (Gnocchi); a wrapping OSM
-    outline is laid as one block on its centroid's side (the
-    Hockeyheimring south stand); OSM stands tagged as buildings come out
-    as `media_centre` (Shiverstone, Lemons).
-14. **Big buildings are dropped whole** by the run-off and across-the-road
-    skips instead of stepped back: the BrandsScratch MSV Centre, the
-    SpaFrankenchamps building at Eau Rouge.
-15. **Floodlights.** Where a dossier maps no masts, the dressing lays a
-    fallback ring (13-29 towers a track), and the OSM masts at day venues
-    stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert
-    Park only. Night sessions light the track with them, so this is a
-    decision before it is a rule: which circuits keep towers.
-16. **Water.** `WATER_STEMS` is MandarinaBay alone, so the Albert Park
-    lake is not in its dossier.
-17. **Checks.** Nothing flags a stand laid on the far side of its straight
-    (the Shebang main stand) or a distance-board set missing at a heavy
-    braking zone (Zandervoort's Hans Ernst and T9/T10).
+- **R2. No family for banks and temporary stands.** A `MANUAL_STANDS`
+  entry cannot lay `spectator_bank_10m`, `banking_seats` or
+  `scaffold_10m`; spectator banks are laid only along car parks and camp
+  sites, and OSM `man_made=embankment` is unread. General-admission banks
+  are missing at Zandervoort, SpaFrankenchamps, Sudoku, RedPullRing,
+  Oskarsleben, Hockeyheimring and Nuerburgerring.
+- **R4. A road crossing is a tyre arch.** A crossing of kind `road`
+  without a `CROSSING_KINDS` entry falls to `tyre_bridge` (`dress.rs`); it
+  should be `overpass_concrete`. Seen at BrandsScratch (two),
+  ChillyVilleneuve, Gnocchi, Hungoverring, Nuerburgerring.
+- **R5. A building across the road is skipped** ("reaches across the
+  road"), and no crossing kind lays `bridge/span_building`: the
+  Barcelunatic rooftop, the ChillyVilleneuve pavilion, the Gnocchi Sirius
+  building.
+- **R6. Concrete is never laid.** `barriers::decide` takes a mapped wall
+  only within 5 m of the road with 4 m of run-off or less, and the groom
+  builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
+  pit-straight rule never fires. The Nordschleife is the only track with
+  concrete, against 7-96 mapped walls at Monzarella, Nuerburgerring,
+  Oskarsleben, ChillyVilleneuve and Hockeyheimring.
+- **R7. Barrier styles.** The street style is Tecpro on every cell
+  (MandarinaBay, 4791 modules); park and temperate street circuits
+  (AlbertParkour, ChillyVilleneuve, Gnocchi, Snorisring) want concrete and
+  debris fence close in; `catch_fence_6m` is in the kit and no kind lays
+  it; club circuits get Tecpro where they have tyre walls (BrandsScratch,
+  Oskarsleben, Nuerburgerring), and the Nordschleife 4.3 km of tyres from
+  geometry with none mapped.
+- **R8. Woods away from the road are bare on flat ground.** The groom
+  plants 22-90 m out and the forest impostors need a 25 m rise, so mapped
+  woods go unplanted at Shiverstone, Lemons, Sudoku and Hockeyheimring;
+  OSM `scrub` (49 areas at Zandervoort) and `tree_row` (Oskarsleben) are
+  never planted.
+- **R9. Species and climate.** `groom.rs` counts `poplar` as needleleaved
+  (1148 in the Eifel forest, 149 in the Monza park); a style's flora
+  ignores the climate where no wood is mapped (a temperate belt in open
+  prairie at Armadillos, conifers at Shanghaied, no trees at all at
+  Shebang).
+- **R10. No manual corner table.** Corner signs and marshal posts come
+  from the dossier's named corners, and a circuit OSM names none of gets
+  no signs and a post every 400 m: ChillyVilleneuve, Gnocchi, Snorisring,
+  Shanghaied, Bahrainless, Barcelunatic, Hungoverring, MandarinaBay,
+  Nuerburgerring, Oskarsleben, and single corners at Armadillos and
+  Zandervoort. The real posts are about three times as many
+  (Nuerburgerring 51 against 13, Bahrainless 40 against 12, Shanghaied 35
+  against 12). Wanted: a `MANUAL_CORNERS` table in `osm_layout.py`.
+- **R11. A `tower` landmark is always a `control_tower`**; nothing reaches
+  `observation_tower` (Armadillos) or a tower block (Snorisring).
+- **R12. The podium sits on the middle garage** and roof screens have no
+  height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
+  screens on the pit roof.
+- **R13. Stand outlines.** The family is picked by depth only, so a
+  six-storey stand gets `bay_10m_large_roof` (Gnocchi); a wrapping OSM
+  outline is laid as one block on its centroid's side (the Hockeyheimring
+  south stand); OSM stands tagged as buildings come out as `media_centre`
+  (Shiverstone, Lemons).
+- **R14. Big buildings are dropped whole** by the run-off and
+  across-the-road skips instead of stepped back: the BrandsScratch MSV
+  Centre, the SpaFrankenchamps building at Eau Rouge.
+- **R15. Floodlights.** Where a dossier maps no masts, the dressing lays a
+  fallback ring (13-29 towers a track), and the OSM masts at day venues
+  stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert Park
+  only. Night sessions light the track with them, so this is a decision
+  before it is a rule: which circuits keep towers.
+- **R16. Water.** `WATER_STEMS` is MandarinaBay alone, so the Albert Park
+  lake is not in its dossier.
+- **R17. Checks.** Nothing flags a stand laid on the far side of its
+  straight (the Shebang main stand) or a distance-board set missing at a
+  heavy braking zone (Zandervoort's Hans Ernst and T9/T10).
 
 Found on the way and outside dressing (track geometry, georeference,
 references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).
