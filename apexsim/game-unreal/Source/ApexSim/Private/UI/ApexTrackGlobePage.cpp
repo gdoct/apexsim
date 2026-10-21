@@ -47,7 +47,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GGlobeCommand(
 		TEXT("apexsim.ui.Globe"),
-		TEXT("Drive Garage > Tracks' globe (open the page first): apexsim.ui.Globe select <stem|id> | close | zoom <z> | view <lon> <lat> [zoom] | home | spin 0|1"),
+		TEXT("Drive Garage > Tracks' globe (open the page first): apexsim.ui.Globe select <stem|id> | close | zoom <z> | view <lon> <lat> [zoom] | home | spin 0|1 | info"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			UApexTrackGlobePage* Page = GGlobePage.Get();

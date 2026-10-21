@@ -61,6 +61,9 @@ UApexGlobeWidget::UApexGlobeWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SetIsFocusable(true);
+	// A user widget is SelfHitTestInvisible by default: the globe itself
+	// takes the pointer (drag, wheel, hover, a click on a pin).
+	SetVisibility(ESlateVisibility::Visible);
 	// Zoomed in, the globe is far bigger than its box.
 	SetClipping(EWidgetClipping::ClipToBounds);
 }

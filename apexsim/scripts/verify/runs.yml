@@ -1253,6 +1253,9 @@ runs:
       33: ["apexsim.ui.Globe select Hockeyheimring"]
       45: ["apexsim.ui.Key Gamepad_DPad_Left"]
       46: ["apexsim.ui.Key Gamepad_DPad_Up"]
+      52: ["apexsim.ui.Globe info", "apexsim.ui.Mouse down 560 600", "apexsim.ui.Mouse move 600 600"]
+      53: ["apexsim.ui.Mouse move 700 600", "apexsim.ui.Mouse move 760 600"]
+      54: ["apexsim.ui.Mouse up 760 600", "apexsim.ui.Globe info"]
     shots:
       - at: 18
         label: "the globe, home zoom"
@@ -1265,6 +1268,9 @@ runs:
         checks: "Garage > Tracks globe"
       - at: 50
         label: "pad: D-pad left then up from the chosen pin"
+        checks: "Garage > Tracks globe"
+      - at: 58
+        label: "after a mouse drag to the right (the log's two Globe info lines differ)"
         checks: "Garage > Tracks globe"
 
   - id: m1-menu-pages

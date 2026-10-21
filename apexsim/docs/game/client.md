@@ -836,7 +836,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   hold|play|seek <s>` does the same. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
 - Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`;
-  `apexsim.ui.Globe select <stem|id> | close | zoom <z> | view <lon> <lat> [zoom] | home | spin 0|1`
+  `apexsim.ui.Globe select <stem|id> | close | zoom <z> | view <lon> <lat> [zoom] | home | spin 0|1 | info`
   drives the Tracks page's globe once it is open (run `m2-tracks-globe`).
 - Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),
   `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).

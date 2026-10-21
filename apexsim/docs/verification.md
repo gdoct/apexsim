@@ -458,7 +458,8 @@ Mandarina Bay.
   pins. Seen unattended (`m2-tracks-globe`, `r9a-menus`, the pad walk;
   2026-10-21): the globe at home zoom and over Europe, Hockeyheimring
   chosen with its panel, the D-pad hopping between pins, Track guide
-  opening the guide, every control of the page reached by pad.
+  opening the guide, every control of the page reached by pad, and a
+  mouse drag (`apexsim.ui.Mouse`) turning and throwing the globe.
 - A pad under the GameInput plugin (not enabled in the project): the light
   motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
 
