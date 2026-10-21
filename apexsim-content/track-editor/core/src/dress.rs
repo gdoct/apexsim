@@ -60,6 +60,12 @@ const FOOTPRINT_PROBES: usize = 8;
 const BUILDING_MAX_PUSH_M: f32 = 25.0;
 /// Least room between the road edge and any part of a stand bay.
 const STAND_ROAD_CLEAR_M: f32 = 3.0;
+/// Room a stand keeps past a paved run-off: the server stops cars on
+/// stands, and one on the apron is a wall where a car runs wide.
+const STAND_RUNOFF_CLEAR_M: f32 = 2.0;
+/// Least room between the road edge and a general-admission bank, which
+/// stands behind the barrier line, not at the edge of the verge.
+const BANK_ROAD_CLEAR_M: f32 = 10.0;
 /// A building with a footprint at least this square and this many levels
 /// is a tower.
 const TOWER_LEVELS: u32 = 4;
@@ -261,7 +267,7 @@ pub fn dress_scene_with_dem(
 
     let mut laid: Vec<Prop> = Vec::new();
     for stand in &layout.stands {
-        let props = lay_stand(&path, &terrain, zone.as_ref(), stand);
+        let props = lay_stand(&path, &terrain, zone.as_ref(), &scene.surfaces, stand);
         if props.is_empty() {
             let why = if stand.length_m < MIN_STAND_M {
                 "too small to be seating"
@@ -1142,6 +1148,7 @@ fn lay_stand(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
     zone: Option<&PitZone>,
+    surfaces: &[Surface],
     stand: &Stand,
 ) -> Vec<Prop> {
     let run_len_of = |pts: &[[f32; 2]]| -> f32 {
@@ -1182,9 +1189,17 @@ fn lay_stand(
         // The front is the real one, but the kit bay is as deep as it is:
         // a front traced a few metres off the asphalt put the back rows of
         // a deep bay — or the front of one on the far side of a bend —
-        // over the road. Step the run back until the whole bay is clear.
-        let Some((x, y)) = clear_footprint(path, x, y, yaw, len, bay_depth, STAND_ROAD_CLEAR_M)
-        else {
+        // over the road. Step the run back until the whole bay is clear,
+        // of a paved run-off too (and a bank further, behind the barrier
+        // line): the server stops cars on stands.
+        let (sample, lat) = nearest_cross_section(path, x, y);
+        let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+        let runoff = runoff_reach(surfaces, path.total_length_m(), sample.station_m, side);
+        let mut clear = STAND_ROAD_CLEAR_M.max(if runoff > 0.0 { runoff + STAND_RUNOFF_CLEAR_M } else { 0.0 });
+        if asset == "grass_bank_10m" {
+            clear = clear.max(BANK_ROAD_CLEAR_M);
+        }
+        let Some((x, y)) = clear_footprint(path, x, y, yaw, len, bay_depth, clear) else {
             continue;
         };
         let run = |x: f32, y: f32| Prop {

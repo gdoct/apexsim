@@ -220,7 +220,11 @@ stamp.
 - **Stands** are laid as 40 m runs along their real front, each with its own
   `length_m`, so the client's bays follow the outline; depth 13 m or more is
   the large family, 25 m or more roofed unless its `roof` says `open`,
-  under 12 m dropped. A run over the garage row is left to the pit
+  under 12 m dropped; a `family` names another module. Every run is
+  stepped back until its whole footprint is 3 m clear of the road, 2 m
+  past a paved run-off, and a general-admission bank 10 m (it stands
+  behind the barrier line): the server stops cars on stands. A run over
+  the garage row is left to the pit
   complex (the terrace the bake builds); a run in the pit lane or its
   apron anywhere else (behind the entry or exit road) is stepped back out
   of it. The pit zone takes the garage row from the export's own layout
