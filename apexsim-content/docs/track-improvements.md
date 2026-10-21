@@ -258,10 +258,9 @@ names.
 | 10 | `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
 | 11 | `building/expo_pavilion`, `building/geodesic_dome` | the Expo casino and the Biosphere | ChillyVilleneuve |
 | 12 | `building/fuel_station_canopy` | fuel stations by the lap | Mordschleife |
-| 13 | `tree/eucalypt_l`, `tree/stone_pine_l` | eucalypts; Mediterranean stone pines | AlbertParkour; Barcelunatic |
+| 13 | built: `tree/eucalypt_l`, `tree/stone_pine_l`, `tree/date_palm_l` | eucalypts; Mediterranean stone pines; date palms | AlbertParkour; Barcelunatic; Bahrainless |
 
-Smaller asks, built only if a column's shots call for them: a date palm
-(Bahrainless), an amphitheatre canopy (Armadillos), a raised viewing deck
+Smaller asks, built only if a column's shots call for them: an amphitheatre canopy (Armadillos), a raised viewing deck
 (Interlaggos), stone block towers (Snorisring), a lit light truss
 (MandarinaBay), the Steilstrecke ramp (Mordschleife).
 

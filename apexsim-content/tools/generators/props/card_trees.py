@@ -777,3 +777,246 @@ def billboard_tree(tm, mat, cell, x, y, z, height_m, width_scale, yaw, sink_m=0.
             pts = [p - G * (0.01 * (1 - side)) for p in quad]
             order = (0, 1, 2, 3) if side > 0 else (1, 0, 3, 2)
             tm.face(mat, [tm.bm.verts.new(pts[i]) for i in order], [uvs[i] for i in order], [n] * 4)
+
+
+# ------------------------------------------------------------------ warm-climate species
+# Added for build_trees_med.py (eucalypt_l, stone_pine_l, date_palm_l). New
+# slots only: `tree_bark_pale`, `tree_card_eucalypt`, `tree_card_stone_pine`,
+# `tree_bark_palm`, `tree_card_date_palm`; nothing above this line changes,
+# so the rest of the kit keeps its textures.
+EUCALYPT = ((0.40, 0.46, 0.37), (0.35, 0.42, 0.34), (0.45, 0.50, 0.40), (0.33, 0.40, 0.35))
+STONE_PINE = ((0.13, 0.25, 0.10), (0.16, 0.29, 0.12), (0.11, 0.22, 0.09), (0.19, 0.31, 0.13))
+STONE_PINE_TIP = (0.30, 0.40, 0.17)
+
+
+def eucalypt_tassel(seed, palette, light=1.0):
+    """A hanging spray of gum leaves, twig end at the bottom middle and the
+    leaves streaming toward the top of the card: the card hangs twig-up in
+    the crown, so the top of the card is the bottom of the spray. Narrow
+    leaves, reddish twigs, open (a gum crown lets the sky through); the
+    light falls on the twig end."""
+    rng = np.random.default_rng(seed)
+    cv = Canvas()
+    pal = [np.array(p) for p in palette]
+    twig_rgb = np.array((0.46, 0.30, 0.22)) * light
+
+    def colour(k):
+        g = pal[rng.integers(len(pal))] * rng.uniform(0.85, 1.12)
+        if rng.random() < 0.12:                         # a leaf turned to the sun
+            g = g * np.array((1.25, 1.22, 1.08))
+        if rng.random() < 0.03:                         # an old leaf going red
+            g = g * np.array((1.35, 0.85, 0.7))
+        return np.clip(g * k * light, 0.0, 1.0)
+
+    shoots = []
+    x, y = 0.5 + rng.uniform(-0.02, 0.02), 0.02
+    ang = math.pi / 2 + rng.uniform(-0.12, 0.12)
+    for k in range(4):
+        L = 0.15 - 0.015 * k
+        nx, ny = x + L * math.cos(ang), y + L * math.sin(ang)
+        cv.twig(x, y, nx, ny, 0.012 - 0.002 * k, 0.010 - 0.002 * k, twig_rgb)
+        shoots.append((x, y, nx, ny))
+        for s in ((-1, 1) if k else (1 if rng.random() < 0.5 else -1,)):
+            sa = ang + s * rng.uniform(0.55, 0.95)
+            sl = rng.uniform(0.26, 0.38) * (1.0 - 0.12 * k)
+            sx, sy = nx + sl * math.cos(sa), ny + sl * math.sin(sa)
+            cv.twig(nx, ny, sx, sy, 0.006, 0.003, twig_rgb)
+            shoots.append((nx, ny, sx, sy))
+        x, y = nx, ny
+        ang += rng.uniform(-0.15, 0.15) - 0.4 * (ang - math.pi / 2)
+
+    def leaf_at(px, py, a, k):
+        L = rng.uniform(0.10, 0.17)
+        cv.leaf(px, py, a, L, L * rng.uniform(0.13, 0.17), colour(k), rib=0.85)
+
+    for layer, k0 in ((0, 0.62), (1, 0.9)):            # shaded behind, then in front
+        for (x0, y0, x1, y1) in shoots:
+            sa = math.atan2(y1 - y0, x1 - x0)
+            n = 4 if layer == 0 else 5
+            for i in range(n):
+                t = (i + 0.5) / n
+                px, py = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+                # stream along the spray, splayed a little either side
+                a = math.pi / 2 + 0.7 * (sa - math.pi / 2) + rng.uniform(-0.45, 0.45)
+                leaf_at(px, py, a, k0 * (1.08 - 0.25 * py))
+            for _ in range(2 + layer):                  # a tassel at the tip
+                leaf_at(x1, y1, math.pi / 2 + rng.uniform(-0.5, 0.5), k0 * (1.05 - 0.25 * y1))
+    return cv.finish()
+
+
+def eucalypt_atlas(seed=71):
+    return _atlas([
+        eucalypt_tassel(seed, EUCALYPT, light=1.15),
+        eucalypt_tassel(seed + 1, EUCALYPT[:3], light=1.05),
+        eucalypt_tassel(seed + 2, EUCALYPT[1:], light=0.95),
+        eucalypt_tassel(seed + 3, EUCALYPT, light=0.7),
+    ])
+
+
+def pine_tufts(seed, greens, light, tips=0.3):
+    """A stone-pine shoot from above, trunk end at the bottom: a branchlet
+    forking into four or five shoots, each ending in a dense brush of long
+    paired needles; a dark core under the brushes so the card reads as the
+    solid, dark canopy of an umbrella pine from a distance."""
+    rng = np.random.default_rng(seed)
+    cv = Canvas()
+    gs = [np.array(g) * light for g in greens]
+    tip_rgb = np.array(STONE_PINE_TIP) * light
+    bark = np.array((0.22, 0.15, 0.10)) * light
+    x0, y0 = 0.5 + rng.uniform(-0.02, 0.02), 0.02
+    stem_top = (x0 + rng.uniform(-0.04, 0.04), 0.24)
+    cv.twig(x0, y0, stem_top[0], stem_top[1], 0.022, 0.014, bark)
+    shoots = []
+    n = int(rng.integers(4, 6))
+    for k in range(n):
+        a = math.pi / 2 + (k - (n - 1) / 2) * rng.uniform(0.34, 0.44)
+        L = rng.uniform(0.34, 0.46)
+        bx, by = stem_top[0], stem_top[1] - rng.uniform(0.0, 0.12)
+        ex, ey = bx + L * math.cos(a), min(0.84, by + L * math.sin(a))
+        cv.twig(bx, by, ex, ey, 0.011, 0.007, bark)
+        shoots.append((bx, by, ex, ey, a))
+    for layer in (0, 1):
+        for (bx, by, ex, ey, a) in shoots:
+            m = 95 if layer else 60
+            for _ in range(m):
+                t = rng.uniform(0.2, 1.0) ** 0.6
+                px, py = bx + (ex - bx) * t, by + (ey - by) * t
+                na = a + rng.normal(0.0, 0.75)
+                nl = rng.uniform(0.09, 0.16) * (0.7 + 0.4 * t)
+                g = gs[rng.integers(len(gs))] * rng.uniform(0.85, 1.12)
+                if layer == 0:
+                    g = g * 0.6
+                elif rng.random() < tips * t:
+                    g = g * 0.4 + tip_rgb * 0.6
+                g = g * (0.85 + 0.25 * py)
+                cv.twig(px, py, px + nl * math.cos(na), py + nl * math.sin(na), 0.007, 0.003,
+                        np.clip(g, 0.0, 1.0))
+    core = (tex.blur(cv.a, 4.0) > 0.5) & (cv.a < 0.5)
+    cv.col[core] = gs[2] * 0.5
+    cv.a[core] = 1.0
+    return cv.finish()
+
+
+def stone_pine_atlas(seed=83):
+    return _atlas([
+        pine_tufts(seed, STONE_PINE, 1.15, tips=0.45),
+        pine_tufts(seed + 1, STONE_PINE, 1.02),
+        pine_tufts(seed + 2, STONE_PINE[:3], 0.92, tips=0.15),
+        pine_tufts(seed + 3, STONE_PINE, 0.62, tips=0.05),
+    ])
+
+
+def pale_bark_texture(seed=9):
+    """A gum's smooth bark: pale cream-grey, shed in long vertical ribbons
+    that leave tan, grey and salmon patches. Little relief. Tileable."""
+    size = tex.SIZE
+
+    def streaks(s, scales, weights, run):
+        f = tex.fbm(s, scales=scales, weights=weights)
+        acc = np.zeros_like(f)
+        for k in range(-run, run + 1, 2):              # stretch the blotches up the trunk
+            acc += np.roll(f, k * size // 40, axis=0)
+        acc -= acc.min()
+        return acc / max(acc.max(), 1e-9)
+
+    patch = streaks(seed, (3, 6, 12), (0.5, 0.3, 0.2), 8)
+    patch2 = streaks(seed + 1, (4, 8), (0.6, 0.4), 5)
+    fine = tex.fbm(seed + 2, scales=(32, 64, 128), weights=(0.4, 0.35, 0.25))
+    cream = np.array((0.72, 0.71, 0.66))
+    grey = np.array((0.56, 0.57, 0.54))
+    tan = np.array((0.52, 0.43, 0.33))
+    salmon = np.array((0.70, 0.60, 0.50))
+    m_tan = np.clip((patch - 0.62) * 9.0, 0, 1)[..., None]
+    m_grey = np.clip((patch2 - 0.55) * 6.0, 0, 1)[..., None]
+    m_sal = np.clip((0.3 - patch) * 8.0, 0, 1)[..., None]
+    col = cream * np.ones((size, size, 1))
+    col = col * (1 - m_grey) + grey * m_grey
+    col = col * (1 - m_sal) + salmon * m_sal
+    col = col * (1 - m_tan) + tan * m_tan
+    col = col * (0.9 + 0.18 * fine[..., None])
+    height = np.clip(0.5 + 0.35 * m_tan[..., 0] + 0.15 * fine, 0, 1)   # the old bark stands proud
+    rough = np.clip(0.55 + 0.25 * m_tan[..., 0] + 0.1 * fine, 0, 1)
+    return np.clip(col, 0, 1), rough, height, 1.5
+
+
+DATE_PALM = ((0.27, 0.35, 0.25), (0.31, 0.38, 0.27), (0.24, 0.31, 0.23), (0.34, 0.40, 0.28))
+
+
+def palm_frond(seed, greens, light, old=0.0):
+    """A pinnate palm frond seen from above, stalk end at the bottom: a
+    rachis up the middle, bare at the foot (where a date palm carries its
+    spines), then stiff narrow leaflets either side pointing forward,
+    longest a third of the way up and short at the tip. `old` browns it."""
+    rng = np.random.default_rng(seed)
+    cv = Canvas()
+    gs = [np.array(g) * light for g in greens]
+    straw = np.array((0.62, 0.52, 0.34)) * light
+    rachis = np.array((0.50, 0.46, 0.30)) * light
+    x0 = 0.5 + rng.uniform(-0.01, 0.01)
+    cv.twig(x0, 0.0, x0, 0.99, 0.026, 0.006, rachis)
+    for k in range(9):                                 # spines on the bare petiole
+        y = 0.03 + 0.012 * k
+        s = 1 if k % 2 else -1
+        cv.twig(x0, y, x0 + s * 0.05, y + 0.03, 0.006, 0.002, rachis * 0.9)
+    n = 46
+    for k in range(n):
+        t = 0.13 + 0.85 * k / n
+        prof = math.sin(math.pi * min(1.0, (t - 0.1) / 0.92) ** 0.7)
+        for s in (-1, 1):
+            if rng.random() < 0.06:                        # a missing leaflet
+                continue
+            L = (0.42 * prof + 0.04) * rng.uniform(0.85, 1.08)
+            a = math.pi / 2 - s * rng.uniform(0.75, 1.05)
+            yy = t + rng.uniform(-0.006, 0.006)
+            g = gs[rng.integers(len(gs))] * rng.uniform(0.88, 1.1) * (0.85 + 0.25 * t)
+            if old > 0.0:
+                g = g * (1.0 - old) + straw * old * rng.uniform(0.85, 1.1)
+            x1, y1 = x0 + L * math.cos(a), min(0.995, yy + L * math.sin(a))
+            cv.twig(x0, yy, x1, y1, 0.016, 0.004, np.clip(g, 0.0, 1.0))
+            # a fold line down the leaflet, the lit half beside it
+            cv.twig(x0, yy + 0.002, x0 + (x1 - x0) * 0.85, yy + (y1 - yy) * 0.85 + 0.002, 0.005, 0.002,
+                    np.clip(g * 1.15, 0.0, 1.0))
+    return cv.finish()
+
+
+def date_palm_atlas(seed=97):
+    return _atlas([
+        palm_frond(seed, DATE_PALM, 1.12),
+        palm_frond(seed + 1, DATE_PALM, 1.0, old=0.15),
+        palm_frond(seed + 2, DATE_PALM[:3], 0.92),
+        palm_frond(seed + 3, DATE_PALM, 0.8, old=0.7),   # the old, drooping ones
+    ])
+
+
+def palm_bark_texture(seed=13):
+    """A date palm's trunk: a lattice of cut leaf bases (boots) in rising
+    diagonal rows, fibre in the gaps. Tileable."""
+    X, Y = tex.grid()
+    warp = tex.fbm(seed, scales=(4, 8), weights=(0.6, 0.4))
+    fine = tex.fbm(seed + 1, scales=(32, 64, 128), weights=(0.4, 0.35, 0.25))
+    ku, kv = 3, 4                                      # boots across and up a tile
+    a = (X * ku + Y * kv + 0.15 * warp) % 1.0
+    b = (X * ku - Y * kv + 0.15 * warp) % 1.0
+    edge = np.minimum(np.minimum(a, 1 - a), np.minimum(b, 1 - b))   # 0 on the seams between boots
+    boot = np.clip(edge / 0.07, 0, 1)
+    lip = np.clip(1.0 - np.abs(((Y * kv * 2 + 0.1 * warp) % 1.0) - 0.15) * 8.0, 0, 1) * boot
+    height = np.clip(0.25 + 0.6 * boot - 0.25 * lip + 0.15 * fine, 0, 1)
+    base = np.array((0.47, 0.40, 0.31))
+    fibre = np.array((0.30, 0.24, 0.17))
+    col = fibre * (1 - boot[..., None]) + base * boot[..., None]
+    col = col * (0.82 + 0.3 * fine[..., None]) * (1 - 0.3 * lip[..., None])
+    rough = np.clip(0.8 + 0.15 * (1 - boot), 0, 1)
+    return np.clip(col, 0, 1), rough, height, 2.5
+
+
+def warm_materials():
+    """The warm-climate slots plus the kit's own (`tree_bark` and the rest
+    from materials()), made once per Blender session."""
+    mats = materials()
+    if "bark_pale" not in _MATS:
+        _MATS["bark_pale"] = tex.pbr_material("tree_bark_pale", pale_bark_texture(), tile_m=1.5)
+        _MATS["eucalypt"] = tex.card_material("tree_card_eucalypt", eucalypt_atlas())
+        _MATS["stone_pine"] = tex.card_material("tree_card_stone_pine", stone_pine_atlas())
+        _MATS["bark_palm"] = tex.pbr_material("tree_bark_palm", palm_bark_texture(), tile_m=1.0)
+        _MATS["date_palm"] = tex.card_material("tree_card_date_palm", date_palm_atlas())
+    return mats

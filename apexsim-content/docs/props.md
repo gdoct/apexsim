@@ -24,7 +24,8 @@ buildings the bake turns into `walls.msgpack` (see
   `build_batch_e_kit.py`, `build_batch_f_terrain.py`, `build_bull_statue.py`,
   `build_tyre_bridge.py` (a flat tyre arc on two low legs over a footbridge),
   `build_nordschleife_kit.py`, `build_marina_bay_{a1,a2,a3,b1,c1,d1}.py` on
-  `marina_common.py`, `build_figures.py` (the people kit)),
+  `marina_common.py`, `build_figures.py` (the people kit),
+  `build_trees_med.py` (eucalypt, stone pine, date palm on `card_trees.py`)),
   `gen_crowd.py` (the crowd card textures, plain Python with PIL),
   `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),
   `gen_brands.py`, `gen_graffiti.py`,
@@ -120,7 +121,8 @@ depth x height, metres). By family:
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
   backdrop, the Marina Bay landmarks.
 - **Landscape**: card trees (`broadleaf_s/m/l`, `conifer_m/l`, `poplar`,
-  `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms), far-wood
+  `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms, the warm-climate
+  `eucalypt_l`, `stone_pine_l` and `date_palm_l`), far-wood
   billboards (`forest_impostor[_conifer]`), ground scatter (`grass_clump`,
   `wildflower_clump`, `scrub_clump`, `rock_cluster`), vehicles, misc
   furniture, `power_pylon`, `bull_statue`, `toll_gate_lane`.

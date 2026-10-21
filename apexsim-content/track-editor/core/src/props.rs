@@ -248,6 +248,11 @@ pub const KIT: &[KitAsset] = kit![
     Tree "palm_ornamental" 3.8 x 4.8 x 13.2,
     // Rain tree: clear trunk, wide umbrella crown (leaf cards), centred.
     Tree "raintree_l" 25.6 x 23.2 x 19.2,
+    // Warm-climate large trees (build_trees_med.py): a pale-barked gum, a
+    // Mediterranean umbrella pine and a date palm.
+    Tree "eucalypt_l" 14.5 x 14.6 x 23.1,
+    Tree "stone_pine_l" 13.9 x 14.3 x 16.0,
+    Tree "date_palm_l" 9.5 x 10.0 x 13.0,
     // Near-LOD card trees for the first 60 m (masked `tree_card_*` slots).
     Tree "broadleaf_m_near" 9.6 x 9.0 x 9.7,
     Tree "conifer_m_near" 4.3 x 4.7 x 12.1,
