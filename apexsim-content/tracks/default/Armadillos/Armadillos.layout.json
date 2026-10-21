@@ -678,7 +678,8 @@
      234.89,
      -201.48
     ]
-   ]
+   ],
+   "roof": "covered"
   },
   {
    "name": null,
@@ -1146,38 +1147,6 @@
   },
   {
    "name": null,
-   "station_m": 104.8,
-   "side": "right",
-   "offset_m": 41.7,
-   "length_m": 187.4,
-   "depth_m": 15.9,
-   "yaw_rad": 2.4903,
-   "centre": [
-    54.92,
-    -97.98
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 2984
-  },
-  {
-   "name": "Pit Garages",
-   "station_m": 114.7,
-   "side": "left",
-   "offset_m": 27.8,
-   "length_m": 363.1,
-   "depth_m": 31.1,
-   "yaw_rad": 2.485,
-   "centre": [
-    119.48,
-    -29.73
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 9434
-  },
-  {
-   "name": null,
    "station_m": 152.5,
    "side": "right",
    "offset_m": 123.2,
@@ -1451,6 +1420,50 @@
   }
  ],
  "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 20.0,
+   "side": "left",
+   "centre": [
+    45.65,
+    29.59
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 105.0,
+   "side": "left",
+   "centre": [
+    113.44,
+    -21.74
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 190.0,
+   "side": "left",
+   "centre": [
+    181.23,
+    -73.05
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 275.0,
+   "side": "left",
+   "centre": [
+    249.02,
+    -124.37
+   ]
+  },
   {
    "kind": "tower",
    "name": null,

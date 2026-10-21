@@ -544,6 +544,60 @@
      33.52,
      19.48
     ]
+   ],
+   "roof": "covered"
+  },
+  {
+   "name": "Tribuna V",
+   "source": "seating map",
+   "station_m": 349.1,
+   "side": "left",
+   "offset_m": 20,
+   "length_m": 85.0,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": -2.1426,
+   "centre": [
+    -167.87,
+    -306.66
+   ],
+   "front": [
+    [
+     -145.34,
+     -271.65
+    ],
+    [
+     -150.73,
+     -280.02
+    ],
+    [
+     -156.17,
+     -288.46
+    ],
+    [
+     -161.56,
+     -296.85
+    ],
+    [
+     -168.32,
+     -307.34
+    ],
+    [
+     -173.74,
+     -315.77
+    ],
+    [
+     -179.13,
+     -324.15
+    ],
+    [
+     -184.55,
+     -332.57
+    ],
+    [
+     -191.33,
+     -343.11
+    ]
    ]
   },
   {
@@ -1058,25 +1112,62 @@
      350.32
     ]
    ]
+  },
+  {
+   "name": "Tribuna I",
+   "source": "seating map",
+   "station_m": 4378.7,
+   "side": "left",
+   "offset_m": 12,
+   "length_m": 100.8,
+   "depth_m": 14.0,
+   "covered": true,
+   "yaw_rad": -1.8352,
+   "centre": [
+    152.14,
+    220.29
+   ],
+   "front": [
+    [
+     159.56,
+     270.35
+    ],
+    [
+     161.19,
+     255.31
+    ],
+    [
+     160.61,
+     243.44
+    ],
+    [
+     158.98,
+     231.84
+    ],
+    [
+     155.89,
+     217.38
+    ],
+    [
+     151.8,
+     206.18
+    ],
+    [
+     146.48,
+     195.86
+    ],
+    [
+     140.82,
+     186.48
+    ],
+    [
+     133.94,
+     175.74
+    ]
+   ]
   }
  ],
  "structures": [
-  {
-   "name": "Boxes",
-   "station_m": 172.0,
-   "side": "right",
-   "offset_m": 25.2,
-   "length_m": 300.5,
-   "depth_m": 87.0,
-   "yaw_rad": 0.9991,
-   "centre": [
-    -137.32,
-    -115.64
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 6046
-  },
   {
    "name": "Pit Lane Lounge",
    "station_m": 328.9,
@@ -1108,22 +1199,6 @@
    "levels": 0,
    "osm_building": "yes",
    "area_m2": 437
-  },
-  {
-   "name": "Panorama Village",
-   "station_m": 485.8,
-   "side": "right",
-   "offset_m": 27.2,
-   "length_m": 56.1,
-   "depth_m": 19.7,
-   "yaw_rad": 1.032,
-   "centre": [
-    -295.68,
-    -387.08
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 1069
   },
   {
    "name": null,
@@ -1330,7 +1405,74 @@
    "kind": "footbridge"
   }
  ],
- "landmarks": [],
+ "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Live screen",
+   "source": "authored",
+   "station_m": 287.0,
+   "side": "right",
+   "centre": [
+    -196.49,
+    -214.85
+   ]
+  },
+  {
+   "kind": "tower",
+   "name": "Control tower",
+   "source": "authored",
+   "station_m": 465.0,
+   "side": "right",
+   "centre": [
+    -304.86,
+    -359.29
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Live screen",
+   "source": "authored",
+   "station_m": 475.0,
+   "side": "right",
+   "centre": [
+    -299.32,
+    -374.73
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Live screen",
+   "source": "authored",
+   "station_m": 628.0,
+   "side": "right",
+   "centre": [
+    -363.08,
+    -514.95
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Live screen",
+   "source": "authored",
+   "station_m": 705.0,
+   "side": "right",
+   "centre": [
+    -405.11,
+    -579.91
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Live screen",
+   "source": "authored",
+   "station_m": 4517.0,
+   "side": "right",
+   "centre": [
+    27.38,
+    131.58
+   ]
+  }
+ ],
  "woods": [
   {
    "leaf": "mixed",

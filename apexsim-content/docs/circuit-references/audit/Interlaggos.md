@@ -61,3 +61,19 @@ Lap is anticlockwise: every public stand on the perimeter is on the **right**; p
   B and M need either a per-stem OSM-stand override (name + covered) or to be re-authored as
   MANUAL_STANDS with the OSM ones dropped. B (58.6 m, depth 23.5) and M (depth 21.4) are under
   the 25 m always-roofed depth, so they come out open.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: A (3420-4215 right).
+- `STAND_COVER`: M covered.
+
+Left, or for later columns:
+
+- Geometry: A's front is 10 m off the right edge over its whole 824 m, on the right throughout, 18 m from the nearest pit lane node (the pit entry lane across the road on the left). It does not reach OSM's 4221-19 stand.
+- B is not covered: it is an unnamed OSM stand, and STAND_COVER keys on `name`. It can be roofed by its station (`STAND_COVER` "@<station_m>") once which outline is B is settled.
+- Which unnamed OSM stand is B is doubtful. The audit reads 48-107 as B and 4221-19 as A's top. The 2026 sector map runs A -> B (sectors 6..1) -> Pit Stop Club -> M with no gaps, and OSM's lengths (101 m, 58 m, 162 m) fit 4221-19 = B, 48-107 = Pit Stop Club, 109-270 = M better (A then ends at B, the short covered club sits between B and M as drawn). Both readings leave B and the club open until the override exists.
+- Pit Stop Club: not added. Under the audit's reading it falls in the 3 m between OSM's 48-107 and M (109-270); under the other it is already the 48-107 outline.
+- Screen: the dossier gives B "giant screen" without a position; no map shows one. Not placed.
+- Left for other columns: the unlabelled red stand at Juncao/Cafe (~3250-3400 right), Orange Tree Club and Grand Prix Club (infield, face Laranjinha), D/H/R/G/Porto Bank/T4 fixes.
+- Kit gap unchanged: the pit building with the Paddock Club over the boxes; the Tower Club on top of B.

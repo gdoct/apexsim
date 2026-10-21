@@ -81,3 +81,18 @@ curvature frame above, with the map scale taken from the straight
   geometry issue upstream of dressing. Because of it, MANUAL_STANDS took the
   fast left-right at 3320/3450 for T11/T12, which is what misplaced
   Waite/Webber/Lauda/Schumacher.
+## S/F dossier pass
+
+In the tables:
+
+- Removed: Fangio, Moss, Senna.
+- `MANUAL_STANDS`: Senna (4880-4990 left covered); Fangio (5020-5205 left); Piastri (5225-85 left); Moss (235-330 left).
+
+Left, or for later columns:
+
+- The pit lane is the real S/F fault and is not in these tables: MANUAL_PIT_LANE has it 0-380 right, so lane, garages and podium sit between the line and T1. Both maps draw it leaving at T13/T14 and merging about 200 m before T1. Proposed (checked: every stand above stays 29+ m from its nodes, on the other side of the road): "AlbertParkour": dict(from_m=4760.0, to_m=140.0, side="right", gap_m=8.0), and its comment ("0-380, pit exit rejoins at Turn 1") rewritten with it. The support garages are at the entry end (opposite Senna), the F1 garages opposite Fangio/Piastri; one generated garage row cannot show the split.
+- The screens are at 5100/5240 only to about 50 m (text, not a map). They stand on the ground behind the garages, not on the roof: no rule lifts a screen onto the pit building (rule gap, also Armadillos and Bahrain). A generated pit building taller than about 11 m hides them from the stands.
+- Prost (4780-4870 outside) and Jones (345-565 outside) agree with both maps within 50 m and stay. The podium's TV backdrop is the export's.
+- The footbridge beside Fangio (about 5100) is Landmark-column work.
+- After re-applying: Moss must now be laid (it was skipped on the right), and none overlaps: Senna 4880-4990, Fangio 5020-5205, Piastri 5225-85, Moss 235-330, Jones from 345.
+- The two pit-building screens are left out: on the ground behind the garages they take the football club and fitness centre buildings that stand there out of the dossier.

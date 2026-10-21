@@ -442,7 +442,8 @@
      -3.17,
      374.04
     ]
-   ]
+   ],
+   "roof": "covered"
   },
   {
    "name": "First Turn Grandstand",
@@ -1160,6 +1161,39 @@
    "centre": [
     -36.58,
     0.54
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 95.0,
+   "side": "right",
+   "centre": [
+    50.96,
+    91.18
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 205.0,
+   "side": "right",
+   "centre": [
+    56.1,
+    201.08
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 305.0,
+   "side": "right",
+   "centre": [
+    60.78,
+    300.93
    ]
   },
   {

@@ -76,3 +76,18 @@ T14 R 4870-4950, T15 R 4980-5010.
   dossier would give a post per corner. Better still would be a dossier
   marshal-post list taken from the FIA map.
 - The corner directions and order match the curvature frame above.
+## S/F dossier pass
+
+In the tables:
+
+- `STAND_COVER`: Main Grandstand covered.
+- `MANUAL_LANDMARKS`: screen at 95.0 right; screen at 205.0 right; screen at 305.0 right.
+
+Left, or for later columns:
+
+- Station 0 is early: both maps and the FIA red-zone PDF (control line at M40, about 40 % from T15 to T1) put the line well inside the Main Grandstand (34 % on gpgt, 60 % on the seating chart, about 145-235 here), but the YAML's S/F is at the stand's upstream end (front 26-375). A track-geometry question upstream of dressing; the screens are placed against the stand, not the line, so they hold if station 0 moves.
+- Kit gap (the cell's main need): the PTFE tent-peak roofs on the pit building and the Main Grandstand (building/tent_roof_pit_block, grandstand/bay_10m_tent_roof). Covered means bay_10m_large_roof today.
+- Rule gap: the podium belongs at the entry (upstream) end of the garages (the seating chart draws it off the stand's upstream end, about 0-30 here); the export always seats it on the middle garage.
+- The VIP tent between the First Turn and Main grandstands (gpgt; left, about 440-476, about 30 m) is on the straight, but no landmark kind lays a marquee. As MANUAL_FURNITURE it would be, unchecked against a dress run: dict(kind="attraction", asset="marquee_peak_12m", from_m=440, to_m=476, every_m=14, side="left", offset_m=20),
+- The screens are good to about 50 m and stand on the ground behind the garages, not on the pit-building roof (rule gap, as at AlbertParkour). The T1, University and Batelco screens are Stands-column work.
+- First Turn Grandstand (OSM, 540-725 left) is laid uncovered; no map or dossier line says it is roofed, so it is left alone.

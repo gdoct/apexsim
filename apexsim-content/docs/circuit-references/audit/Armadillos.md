@@ -82,3 +82,17 @@ All are left/right in the driving direction.
 - **Generated box count:** the drawing has 34 garages; the generated
   minimum is 24 boxes (`PIT_GRID_BOXES`). Check the generated count on the
   950 m lane.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: screen at 20.0 left; screen at 105.0 left; screen at 190.0 left; screen at 275.0 left.
+
+Left, or for later columns:
+
+- The Main Grandstand is in the right place: OSM's unnamed stand runs about 0-311 right, 19 m off; oversteer48-grandstand-map-2025 has it from just after T20 (about 5460) to about 350, within 50 m. It is laid uncovered (covered False, depth 15.2), but the real stand is 3 levels, about 20 m tall, under a fabric canopy. Neither table can reach it: STAND_COVER keys by name and the OSM stand has none, and a MANUAL_STANDS "Main Grandstand" would lay on top of it (name promotion drops OSM buildings, not OSM stands). Rule gap: a way to name or roof an unnamed OSM stand (by station and side), then STAND_COVER {"Main Grandstand": "covered"}. No stand family reaches bay_10m_stadium_roof (only the street families are picked by `family`): a "stadium" family is a second rule gap; bay_10m_large_roof is the best the kit gives today.
+- The trackside bleachers flanking it (3 blocks west, 6 east; dossier) are on no map: not placed.
+- Pit lane (950 m, left) and garages match the FIA pit-lane drawing; the generated 24-box minimum against the drawing's 34 garages is an export check, not a dossier one.
+- Screen positions are to about 50 m (text only). The infield screen across T1 (left, about 650) and the one before the T16 bridge are Stands-column work; the digital leaderboard at pit exit has no map position and is not placed.
+- S/F marking: station 0 matches the F1 programme map's chequer; the oversteer48 chequer at the T1 end of the stand is COTA's separate start line, not an error.
+- The Main Grandstand, OSM's unnamed outline at 102.8 m right, is roofed by its station (`STAND_COVER` "@102.8"); the stadium family it really has is a rule gap (R13).

@@ -74,3 +74,20 @@ All sides are in the driving direction (clockwise lap); stations are this track'
 - No catch-fence barrier kind (`catch_fence_6m` exists in the Fence kit, `barriers::decide` never emits it).
 - GA spectator banks are only laid for `fan_dressing` styles (Nordschleife) and only from
   parking/camp areas; no dossier entry type for a GA zone.
+## S/F dossier pass
+
+In the tables:
+
+- Removed: Silver 1, T1 Stand.
+- `MANUAL_STANDS`: Grand Prix 1 (4090-4148 left); Grid 2 (4155-4210 left); Grid 3 (4215-4270 left); Grid 1 (4276-4335 left); Grand Prix 2 (4088-4146 left); Club (4152-4210 left); Podium (4216-4300 left); Pit Exit 2 (310-385 left); Pit Exit 1 (405-490 left); T1 (505-590 left).
+- `STAND_COVER`: Hungaroring covered.
+- `MANUAL_LANDMARKS`: screen at 4180.0 right; screen at 4240.0 right; screen at 4300.0 right; screen at 345.0 right; screen at 450.0 right; screen at 550.0 right.
+
+Left, or for later columns:
+
+- Geometry (edge_run, read-only): every new front is 10 m (30 m second row) off the left edge, on the left all the way, 18-56 m from the pit lane nodes (lane is right, lateral -5..-22 m). No overlap with OSM "Hungaroring" (4350-245).
+- Front/back row order of Grand Prix 1/2: the spectator and ticket maps put GP1 in front and GP2 behind; the wayfinding map draws GRAND PRIX 2 in the front row and GRAND PRIX 1 behind. Two maps against one: GP1 in front.
+- Not placed: the wayfinding map's two giant screens on the pit building facing the Hungaroring stand (~5 and ~155 right). They stand where the bake lays garages; no screen-on-the-pit-building rule or kit piece.
+- Hungaroring Platinum is the T14 end of the OSM "Hungaroring" outline, not a separate stand; left as one.
+- Left for other columns: Apex 1 (outside T14, ~4030-4100) and the rest of the audit's Stands rows (Bronze 1, T12-T14 Stand removals, Chicane 1-4, Fan, Apex 2); the F1 Fanzone behind the Hungaroring stand (~0-150 left, 80-120 m back); the infield giant screens at T4-T5 and T11-T12.
+- Kit gap unchanged: the 3-storey pit building with the Paddock Club over the lane (building/pit_building_tiered).

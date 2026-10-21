@@ -268,6 +268,14 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
         dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
         dict(name="T4", from_m=1368.1, to_m=1607.1, side="outside", depth_m=13, covered=False),
+        # Grandstand A, the circuit's largest stand: one long uncovered bar on the
+        # outside from the Cafe exit along Subida dos Boxes and Arquibancadas to
+        # the start of the straight, over the pit entry (maps/Interlaggos:
+        # gpsp-sector-map-2026.webp "A"; gpgt-grandstand-map-2025.webp, the long
+        # A bar on the last curve; dossier "Setor A": uncovered, shaded by
+        # trees). OSM traces only its top end (the unnamed stand at 4221-19), so
+        # this run stops where that outline starts.
+        dict(name="A", from_m=3420, to_m=4215, side="right", depth_m=20, gap_m=10, covered=False),
     ],
     # Suzuka: OSM tags most of the circuit's stands `grandstand=yes` (picked
     # up generically, see is_stand()) and even names most of them with the
@@ -339,6 +347,16 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # depth 17.7 m, uncovered like its neighbours).
     "Barcelunatic": [
         dict(name="Tribuna F", from_m=719.5, to_m=816.9, side="left", depth_m=17.7, covered=False),
+        # Tribuna V, new on the 2026 spectator map (barcelona-2026-spectator-map,
+        # maps/Barcelunatic/png/barcelona-2026-spectator-map.p1.png): on the
+        # left of the straight between Principal (OSM, ends at 255) and J (OSM,
+        # starts at 398). Placed by its share of the map's gap between the two
+        # (62-162 of 170 px), at J's and Principal's 18-20 m off the road.
+        dict(name="Tribuna V", from_m=305, to_m=390, side="left", depth_m=14, gap_m=20, covered=False),
+        # Tribuna I: the outside of the final corner (T14) onto the straight,
+        # on the 2026 spectator map just downstream of the Garden Club (OSM
+        # "Garden Club", 4300 left); covered (dossier "Buildings").
+        dict(name="Tribuna I", from_m=4335, to_m=4420, side="outside", depth_m=14, gap_m=12, covered=True),
     ],
     # Hungaroring's own ticket map (hungaryticketsgp.com/en/map-of-grandstands,
     # motorsporttickets.com's grandstand guide, grandprixgrandtours.com) names
@@ -355,13 +373,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # "near the final corner") with no distinguishing span, and duplicating
     # a station guess with no anchor felt worse than leaving them out.
     "Hungoverring": [
-        # motorsporttickets.com: "Silver 1 is the closest to the grid" --
-        # the grid forms just past the OSM-traced Super Gold stand.
-        dict(name="Silver 1", from_m=280, to_m=380, side="left", depth_m=10),
-        # Turn 1 ("Piquet" corner, official 40th-anniversary corner names,
-        # formula1.com): a natural, uncovered bank right at the braking
-        # zone/exit, per the T1 Grandstand guides (oversteer48.com).
-        dict(name="T1 Stand", from_m=600, to_m=760, side="outside", depth_m=9),
         # grandprixgrandtours.com / motorsporttickets.com: "Bronze 1 & 2
         # grandstands are positioned overlooking turns 5 and 7", historically
         # three (Bronze 1-3; two were later renamed Chicane 1/2). These are
@@ -373,6 +384,31 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # Senna (T13) / Szisz (T14) finishing sequence, clear of the
         # OSM-traced "Silver 5" structure around station 3355.
         dict(name="T12-T14 Stand", from_m=3600, to_m=3950, side="outside", depth_m=8),
+        # The pit straight's left side, from the 2026 grandstand maps
+        # (maps/Hungoverring: hungaroring-gpticketshop-map-2027.jpg and
+        # hungaroring-spectator-map-2026.jpg; their legends use the post-2025
+        # names). Spans are read against OSM's "Hungaroring" stand (4350-245,
+        # the dark Hungaroring + Platinum block on the ticket map, ~1.25 m per
+        # pixel) and agree between the two maps to about 20 m. None carries the
+        # ticket map's ROOF mark, so all are open.
+        # Front row before the line, from T14's exit: Grand Prix 1, Grid 2,
+        # Grid 3 (the ticket map's unlabelled pale block) and Grid 1, the last
+        # against the Hungaroring stand.
+        dict(name="Grand Prix 1", from_m=4090, to_m=4148, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="Grid 2", from_m=4155, to_m=4210, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="Grid 3", from_m=4215, to_m=4270, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="Grid 1", from_m=4276, to_m=4335, side="left", depth_m=14, gap_m=10, covered=False),
+        # Second row behind them (spectator map "P", "C", "GP2" in the row
+        # behind GR1-GP1; the ticket map's pale blocks and GRAND PRIX 2 one
+        # column back): 6 m behind the front row's back.
+        dict(name="Grand Prix 2", from_m=4088, to_m=4146, side="left", depth_m=16, gap_m=30, covered=False),
+        dict(name="Club", from_m=4152, to_m=4210, side="left", depth_m=16, gap_m=30, covered=False),
+        dict(name="Podium", from_m=4216, to_m=4300, side="left", depth_m=16, gap_m=30, covered=False),
+        # After the line, between the Hungaroring stand and T1: Pit Exit 2,
+        # Pit Exit 1 and T1, on the braking zone, not past the apex (T1 at 638).
+        dict(name="Pit Exit 2", from_m=310, to_m=385, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="Pit Exit 1", from_m=405, to_m=490, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="T1", from_m=505, to_m=590, side="left", depth_m=14, gap_m=10, covered=False),
     ],
     # OSM only traces the Main Grandstand (opposite the pits, station ~143).
     # The circuit numbers the rest and sells them under those numbers
@@ -431,13 +467,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # found on any current or archived seating map or ticketing page
     # checked here -- omitted rather than invented.
     "AlbertParkour": [
-        # Fangio: main straight, grid/pit-stop/chequered-flag views, so it
-        # runs opposite the pit building (pits are the lake side / right;
-        # see MANUAL_PIT_LANE) for most of the straight before Turn 1.
-        dict(name="Fangio", from_m=30, to_m=330, side="left", depth_m=18, covered=False),
-        # Moss: "just past the pit building... the run into turn 1" --
-        # same (pit-straight) side as the pits, right up against Turn 1.
-        dict(name="Moss", from_m=260, to_m=395, side="right", depth_m=14, covered=False),
         # Jones/Brabham: opposite faces of the Turn 1-2 chicane (the first
         # right-left in this dossier's own geometry, station ~348-562).
         dict(name="Jones", from_m=345, to_m=565, side="outside", depth_m=14, covered=False),
@@ -464,7 +493,25 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # start of the main straight" -- adjacent spans on the final
         # corner (station ~4774-4899 here) leading onto the pit straight.
         dict(name="Prost", from_m=4780, to_m=4870, side="outside", depth_m=16, covered=False),
-        dict(name="Senna", from_m=4870, to_m=4950, side="outside", depth_m=18, covered=False),
+        # The pit straight, from the 2026 Fangio grandstand map (oversteer48,
+        # maps/AlbertParkour/oversteer48-fangio-grandstand-map-2026.jpg) read
+        # against the entrance gates map (oversteer48-gates-entrances-map.jpg):
+        # every stand is on the outside (driver's left), opposite the pits on
+        # the lake side. Scale 2.1-2.16 m/px, from the maps' T14 and T1 nodes
+        # (stations about 4815 and 360 here). Senna sits at the exit of T14 and
+        # faces the pit entry and the support garages; covered (premium; the
+        # dossier's S/F and buildings sections).
+        dict(name="Senna", from_m=4880, to_m=4990, side="left", depth_m=18, covered=True),
+        # Fangio: opposite the F1 garages, from mid-straight up to about 80 m
+        # short of the line (the 2026 map, where Piastri took its T1 end).
+        dict(name="Fangio", from_m=5020, to_m=5205, side="left", depth_m=18, covered=False),
+        # Piastri (new for 2026): straddles the start/finish line, opposite the
+        # podium (dossier S/F: "opposite Fangio sections B/C and Piastri
+        # sections C-E"), between Fangio and Moss.
+        dict(name="Piastri", from_m=5225, to_m=85, side="left", depth_m=18, covered=False),
+        # Moss: the outside of the run into Turn 1, between Piastri and Jones
+        # (both maps put it on the left, not the pit side).
+        dict(name="Moss", from_m=235, to_m=330, side="left", depth_m=14, covered=False),
     ],
     # The circuit numbers its stands rather than naming them
     # (https://gpcanada.ca/en/type-de-billet/grandstands/); none of the
@@ -518,6 +565,12 @@ MANUAL_STANDS: dict[str, list[dict]] = {
 # instead, "@<station_m>" as the dossier has it (OSM's outline does not
 # move, so neither does its station).
 STAND_COVER: dict[str, dict[str, str]] = {
+    # The Main Grandstand opposite the pits is OSM's unnamed outline at
+    # 102.8 m right (0-310): a three-level stand under a fabric canopy
+    # (dossier "Main Grandstand").
+    "Armadillos": {
+        "@102.8": "covered",
+    },
     "BrandsScratch": {
         # The aerial (oversteer48-grandstands.jpg) shows the Pit Straight
         # Grandstand under a red roof, the Paddock Hill Grandstand under a grey
@@ -538,6 +591,29 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # six-storey, 400 m building with a roof over the seats"). Its 39 m
         # depth roofs it already; the entry records it from the source.
         "Главная трибуна": "covered",
+    },
+    "Bahrainless": {
+        # The Main Grandstand's white tent-like PTFE roof (dossier S/F "Pit
+        # building", "Modelling pitfalls"; roofed over its whole length on the
+        # oversteer48 seating chart): written as a fact rather than left to the
+        # 25 m-deep rule, which roofs it today only for its 29.4 m depth.
+        "Main Grandstand": "covered",
+    },
+    "Barcelunatic": {
+        # The Main Grandstand is permanent and covered, two tiers with the Sky
+        # View lounge on top (dossier "Buildings"; the 2026 map's Sky View
+        # Racing Lounge, item 4, on it). OSM's outline has no roof tag.
+        "Graderia principal": "covered",
+    },
+    "Hungoverring": {
+        # The ticket map marks Hungaroring and Hungaroring Platinum ROOF; OSM has
+        # no roof tag on the outline (laid roofed today only by the depth rule).
+        "Hungaroring": "covered",
+    },
+    "Interlaggos": {
+        # Dossier "Setor M": covered, numbered seats, facing the garages; OSM's
+        # "M" outline has no roof tag and is 21.4 m deep, under the depth rule.
+        "M": "covered",
     },
 }
 
@@ -747,6 +823,16 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # stand-in for the real tower, which the kit does not model) remains.
     "Bahrainless": [
         dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
+        # The three TV screens on the pit building facing the Main Grandstand:
+        # oversteer48-main-grandstand-seating.jpg puts them at 13 %, 51 % and
+        # 85 % of the stand, gpgt-circuit-map-bahrain.webp's three S/F giant
+        # screens (beside the F1 Paddock Club, either side of the line) at
+        # 27 %, 51 % and 73 %; taken as 20 %, 51 % and 80 % of OSM's stand
+        # front (26-375 left). On the pit side, 42 m off the edge, behind the
+        # garage row (lane centre 9 m off the edge).
+        dict(kind="screen", name="Pit building screen", station_m=95.0, side="right", offset_m=42.0),
+        dict(kind="screen", name="Pit building screen", station_m=205.0, side="right", offset_m=42.0),
+        dict(kind="screen", name="Pit building screen", station_m=305.0, side="right", offset_m=42.0),
     ],
     # The 2014 Winter Olympics cauldron still stands in the Medals Plaza,
     # inside the loop of T3; OSM has it only as a tourism=attraction node
@@ -798,6 +884,50 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # red stroke inside T1 at its entry), set past the pit exit road that
         # runs inside T1 (lane at ~-24 m) and beyond the end of the garage row.
         dict(kind="screen", name="Nordkurve screen", station_m=250.0, side="right", offset_m=40.0),
+    ],
+    "Armadillos": [
+        # The four giant TVs along the pit building, facing the Main Grandstand
+        # across the straight (dossier S/F "Pit building" and the structures
+        # table; not drawn on the oversteer48 or F1 programme maps). Spread
+        # evenly over OSM's "Pit Garages" building (114.7 m left, 363 m long,
+        # so about -65..295). On the ground behind the garage row: 40 m off the
+        # edge clears the pit zone (lane centre about 6 m off the edge).
+        dict(kind="screen", name="Pit building screen", station_m=20.0, side="left", offset_m=40.0),
+        dict(kind="screen", name="Pit building screen", station_m=105.0, side="left", offset_m=40.0),
+        dict(kind="screen", name="Pit building screen", station_m=190.0, side="left", offset_m=40.0),
+        dict(kind="screen", name="Pit building screen", station_m=275.0, side="left", offset_m=40.0),
+    ],
+    "Barcelunatic": [
+        # The 2026 spectator map's "Live Screens" along the straight, all drawn
+        # on the inside (right): one before the line at the pit-entry end, then
+        # opposite the gap between Principal and V, opposite J, K and E. Read
+        # against the OSM stands' own stations piecewise (the map is not to
+        # scale: about 1.1-1.2 m/px). Within the pit lane's length they stand
+        # behind the garage row (42 m off the edge); past the lane's end (615)
+        # close to the road.
+        dict(kind="screen", name="Live screen", station_m=4517.0, side="right", offset_m=42.0),
+        dict(kind="screen", name="Live screen", station_m=287.0, side="right", offset_m=42.0),
+        dict(kind="screen", name="Live screen", station_m=475.0, side="right", offset_m=42.0),
+        dict(kind="screen", name="Live screen", station_m=628.0, side="right", offset_m=20.0),
+        dict(kind="screen", name="Live screen", station_m=705.0, side="right", offset_m=20.0),
+        # The control / scoreboard tower on the pit side near the pit exit,
+        # opposite stand J (dossier S/F, from Grand Prix Grand Tours; not drawn
+        # on the 2026 map). Behind OSM's Panorama Village (458-514, 27-47 m
+        # off), which the pit complex replaces. The control_tower stands in.
+        dict(kind="tower", name="Control tower", station_m=465.0, side="right", offset_m=55.0),
+    ],
+    "Hungoverring": [
+        # Giant screens on the pit/infield side of the straight, from the 2026
+        # wayfinding map (maps/Hungoverring/hungary-2026-wayfinding.pdf p.1,
+        # "Giant Screen" icons): three past the pit building's T14 end, facing
+        # the Grid stands, and three past its T1 end, facing Pit Exit 2, Pit
+        # Exit 1 and T1. Offset keeps them 20 m or more clear of the pit lane.
+        dict(kind="screen", name="Grid screen 2", station_m=4180.0, side="right", offset_m=40.0),
+        dict(kind="screen", name="Grid screen 3", station_m=4240.0, side="right", offset_m=40.0),
+        dict(kind="screen", name="Grid screen 1", station_m=4300.0, side="right", offset_m=40.0),
+        dict(kind="screen", name="Pit Exit 2 screen", station_m=345.0, side="right", offset_m=40.0),
+        dict(kind="screen", name="Pit Exit 1 screen", station_m=450.0, side="right", offset_m=40.0),
+        dict(kind="screen", name="T1 screen", station_m=550.0, side="right", offset_m=40.0),
     ],
 }
 

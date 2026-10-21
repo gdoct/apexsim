@@ -67,3 +67,20 @@ map's straight at about 1.4 m/px, T14 exit (4400) to T1 (790).
   but is not raced. T10 is also very tight (peak about 128 deg in 60 m),
   which may be the pre-2021 hairpin. Both are track-geometry issues
   upstream of dressing.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: Tribuna V (305-390 left); Tribuna I (4335-4420 outside covered).
+- `STAND_COVER`: Graderia principal covered.
+- `MANUAL_LANDMARKS`: screen at 4517.0 right; screen at 287.0 right; screen at 475.0 right; screen at 628.0 right; screen at 705.0 right; tower at 465.0 right.
+
+Left, or for later columns:
+
+- Principal (OSM, front about -34..255 left) agrees with the map within 50 m; only its roof was wrong. J, K, E (OSM) and F (manual) stay.
+- The control tower is from text only (to about 50 m); drop it if a photo shows it elsewhere. The screen at 628 is 29 m from the pit lane's last nodes (the lane converges on the road there), the closest to the pit zone of the set: re-check it in the dress run.
+- Tribuna I is on the final corner rather than the straight proper; it is here because the map draws it facing the start of the straight. H, L and M (covered in the dossier, laid partly uncovered) are Stands-column work.
+- The live screen at the T14 inside (map, about 4400 right, beside the pit entry road) is left out: it falls on the pit entry and the map position is too loose to clear it.
+- The podium (pit-entry half, unconfirmed) stays on the middle garage.
+- The Media Centre (right, about 150-250, behind the pits) is a block behind the generated pit complex, not placed.
+- The RACC chicane in the centerline (4100-4210) is a geometry issue upstream of dressing; Tribuna I's span starts after it.
