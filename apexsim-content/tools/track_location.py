@@ -42,7 +42,7 @@ MANUAL: dict[str, tuple[float, float | None, float | None]] = {
     "Endianapolis": (218.0, 39.795, -86.2347),
     "YasMarinara": (3.0, 24.4672, 54.6031),
     "MandarinaBay": (5.0, 1.2905, 103.8630),
-    "MoscowMule": (190.0, None, None),
+    "MoscowMule": (190.0, 55.99606, 36.26836),
 }
 
 

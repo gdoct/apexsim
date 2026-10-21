@@ -1093,6 +1093,23 @@ fn a_scene_without_a_checksum_omits_source_crc() {
     assert_eq!(ue_export_io::read_scene(&path).unwrap().source_crc, None);
 }
 
+/// The YAML's location reaches the export: the sky reads the latitude, the
+/// menu's globe both.
+#[test]
+fn the_export_carries_the_circuits_location() {
+    let mut track = test_track();
+    track.metadata = Some(track_core::track_data::TrackMetadata {
+        latitude_deg: Some(55.99606),
+        longitude_deg: Some(36.26836),
+        ..Default::default()
+    });
+    let scene = test_scene(&track);
+    let baked = ue_export::bake(&track, &scene).expect("test track must bake");
+    assert_eq!(baked.metadata.latitude_deg, Some(55.99606));
+    assert_eq!(baked.metadata.longitude_deg, Some(36.26836));
+    assert_eq!(bake_test_scene().metadata.longitude_deg, None);
+}
+
 /// Exports from before the split carry the buffers inline, and still load.
 #[test]
 fn a_version_1_export_still_reads() {

@@ -233,7 +233,7 @@ array, so every scalar and object the catalog needs comes before
 | `version` | 2, or 3 when a scene uses a version 3 field (`ue_export_io::scene_version`) |
 | `track_id`, `track_name`, `track_display_name`, `source_track` | From the YAML; the catalog row prefers the display name |
 | `source_crc` | The YAML's CRC-32 with carriage returns dropped: the server's `ContentCrc` |
-| `metadata` | Country, city, category, environment, description, `latitude_deg` and `north_yaw_deg` (true north's yaw in the track frame, from the DEM georeference; the client places the sun with them) |
+| `metadata` | Country, city, category, environment, description, `latitude_deg`, `longitude_deg` and `north_yaw_deg` (true north's yaw in the track frame, from the DEM georeference; the client places the sun with them, and the menu's globe its pin) |
 | `dressing` | Season and spectators |
 | `imported` | v3: which importer wrote the export whole (`"ac"`) |
 | `mesh_blob` | The blob's file name, resolved beside the manifest |

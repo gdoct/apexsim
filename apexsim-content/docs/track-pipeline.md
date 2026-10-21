@@ -342,10 +342,10 @@ curvature, so the land runs on into the haze from a crest instead of
 ending in a band of sky.
 `track_location.py` writes `metadata.altitude_m` / `latitude_deg` /
 `longitude_deg` from the georeference (its `MANUAL` table covers circuits
-without a DEM); `ats-export` writes `latitude_deg` and `north_yaw_deg` into
-the export for the sun. GLO-30 is not square-posted: north of 50° a tile is
-2400 posts wide, not 3600, and assuming square posts reads the ground
-kilometres east of where it is.
+without a DEM); `ats-export` writes `latitude_deg`, `longitude_deg` and
+`north_yaw_deg` into the export, for the sun and the menu's globe. GLO-30
+is not square-posted: north of 50° a tile is 2400 posts wide, not 3600,
+and assuming square posts reads the ground kilometres east of where it is.
 
 ## DRS zones (`drs_zones.py`)
 

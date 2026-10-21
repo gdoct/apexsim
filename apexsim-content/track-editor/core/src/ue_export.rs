@@ -287,6 +287,10 @@ pub struct UeMetadata {
     pub latitude_deg: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub north_yaw_deg: Option<f32>,
+    /// Degrees east, beside `latitude_deg`: where the menu's globe puts its
+    /// pin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub longitude_deg: Option<f32>,
 }
 
 /// How a material key should look. The commandlet generates one material
@@ -1312,6 +1316,7 @@ pub fn bake_all_with_options(
             description: m.description.clone(),
             latitude_deg: m.latitude_deg,
             north_yaw_deg: None,
+            longitude_deg: m.longitude_deg,
         })
         .unwrap_or_default();
     let georef = dem.and_then(|d| d.georef.as_ref());
@@ -1320,6 +1325,9 @@ pub fn bake_all_with_options(
             .latitude_deg
             .or_else(|| georef.map(|g| g.lat0 as f32)),
         north_yaw_deg: georef.and_then(|g| g.north_yaw_deg()),
+        longitude_deg: metadata
+            .longitude_deg
+            .or_else(|| georef.map(|g| g.lon0 as f32)),
         ..metadata
     };
 
