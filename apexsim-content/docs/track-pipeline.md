@@ -141,7 +141,12 @@ landmark table: besides the wheel, screens, stage, towers and sky props,
 kind is dropped silently; `tourism=artwork` becomes a `statue` only where
 declared here). `MANUAL_STRUCTURE_ASSETS` names the kit building an OSM
 outline stands as, laid once on its centre (an `arena_dome` for an ice
-hall). `MANUAL_PIT_LANE` (wins over
+hall). `LANDMARK_KINDS` renames the scan's landmark kinds per circuit
+(Austin's tower is an `observation_tower`), on a full extract and on
+`--manual-only` alike; `DROP_SCANNED_LANDMARKS` leaves a scanned landmark
+out by kind and station (a phone mast taken for a tower). An authored
+landmark whose centre lies on an OSM outline (within 5 m) stands for that
+structure, and its row is dropped. `MANUAL_PIT_LANE` (wins over
 OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
 `MANUAL_WOODS`, `MANUAL_FURNITURE`, `MANUAL_DECAL_RUNS`, `MANUAL_GRAFFITI`.
 

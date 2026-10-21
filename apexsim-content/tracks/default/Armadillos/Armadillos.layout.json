@@ -1465,7 +1465,7 @@
    ]
   },
   {
-   "kind": "tower",
+   "kind": "observation_tower",
    "name": null,
    "station_m": 4654.7,
    "side": "right",

@@ -1318,19 +1318,24 @@
  ],
  "crossings": [
   {
-   "name": null,
-   "station_m": 1236.5,
-   "kind": "road"
+   "name": "Muellenbach link bridge",
+   "kind": "deck_track",
+   "from_m": 1200.2,
+   "to_m": 1242.6,
+   "station_m": 1221.4,
+   "source": "authored"
   },
   {
    "name": "BMW-Brücke",
-   "station_m": 4957.7,
-   "kind": "road"
+   "kind": "link",
+   "brand": "northwind",
+   "station_m": 4953.6,
+   "source": "authored"
   }
  ],
  "landmarks": [
   {
-   "kind": "tower",
+   "kind": "camera_tower",
    "name": null,
    "station_m": 1457.3,
    "side": "right",
@@ -1338,6 +1343,18 @@
     -535.12,
     -647.09
    ]
+  },
+  {
+   "kind": "castle",
+   "name": "Burg Nürburg",
+   "source": "authored",
+   "station_m": 4594.3,
+   "side": "left",
+   "centre": [
+    622.1,
+    1398.14
+   ],
+   "yaw_rad": 2.95
   }
  ],
  "woods": [

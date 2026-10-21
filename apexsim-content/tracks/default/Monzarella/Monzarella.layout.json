@@ -1909,9 +1909,16 @@
  ],
  "crossings": [
   {
-   "name": null,
-   "station_m": 3586.3,
-   "kind": "footbridge"
+   "name": "Sopraelevata north banking",
+   "station_m": 3593.6,
+   "kind": "banked_oval",
+   "source": "authored"
+  },
+  {
+   "name": "Ascari approach footbridge",
+   "station_m": 3780.0,
+   "kind": "footbridge",
+   "source": "authored"
   },
   {
    "name": null,

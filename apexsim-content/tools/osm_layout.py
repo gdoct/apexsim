@@ -788,14 +788,6 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # would come out as a plain truss; this entry takes its place and wears
     # the kit's tyre brand, the real sponsor not being in the kit's signage.
     "Lemons": [dict(name="Tyre bridge", station_m=1043.0, kind="arch", brand="piretti")],
-    # A spectator footbridge crosses the Parabolika partway along its
-    # ~800 m length, joining the infield (accessible from the Motodrom
-    # side) to the outer paddock roads; OSM has no bridge=yes way on this
-    # stretch at all (checked directly against the extract), so this is
-    # authored from the circuit's own general layout rather than traced.
-    # Placed at the corner's midpoint, which is also roughly where the old
-    # forest-straight/Parabolika transition sits.
-    "Hockeyheimring": [dict(name="Parabolika footbridge", station_m=1400.0, kind="footbridge")],
     # The spectator footbridge on the climb out of Niki Lauda Kurve (T1),
     # carrying fans from the paddock/pit side over to the hillside Red Bull
     # Tribune. Not in OSM (nothing bridge-tagged near the track in this
@@ -810,11 +802,51 @@ MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # the tower at the west and east ends of the paddock/grandstand-A
     # complex OSM traces at stations 8-338 -- confirmed by web search
     # (en.wikipedia.org: "wing-like viewing platforms crossing the circuit
-    # at either end"). The kit has no cantilever-wing asset, so these are
-    # laid as tyre-bridge stand-ins; the real shape is not represented.
+    # at either end"); the 2026 gov map (shanghai-gov-2026-grandstand-
+    # locations.png) draws the T1-end one as "SKY BRIDGE".
     "Shanghaied": [
-        dict(name="Press Centre Wing", station_m=15.0, kind="arch", brand="piretti"),
-        dict(name="Sky Restaurant Wing", station_m=335.0, kind="arch", brand="piretti"),
+        dict(name="Press Centre Wing", station_m=15.0, kind="sky_platform"),
+        dict(name="Sky Restaurant Wing", station_m=335.0, kind="sky_platform"),
+    ],
+    # Monza's old banked oval (the Sopraelevata), its north banking crossing
+    # over the GP road on the Serraglio-Ascari approach: the only road-over-
+    # road crossing on the 2024 circuit map and the 2026 wayfinding map. At
+    # the point where OSM's oval way ("anello alta velocità", a raceway
+    # bridge the crossing scan skips) meets the lap, which the dossier also
+    # carries as a corner (3593.4-3593.8).
+    "Monzarella": [
+        dict(name="Sopraelevata north banking", station_m=3593.6, kind="banked_oval"),
+        # The footbridge just after the banking by stand 12 (2024 circuit
+        # map, about 185 m past it, scaled on Serraglio 3299 and Ascari
+        # 4087): an estimate. The banking takes the scanned footbridge at
+        # 3586.3 (one crossing within 25 m), which is the oval's own path.
+        dict(name="Ascari approach footbridge", station_m=3780.0, kind="footbridge"),
+    ],
+    # The temporary footbridge beside Fangio carrying the crowd over the
+    # straight to the Main Stage / Fan Zone in the infield (dossier
+    # "Grandstands": "a pedestrian bridge over the track next to it leads to
+    # the Main Stage/Fan Zone"). No map draws it; set in the gap between
+    # Senna (4880-4990) and Fangio (5020-5205), not across the stand's view.
+    "AlbertParkour": [dict(name="Fangio footbridge", station_m=5005.0, kind="footbridge")],
+    # The Circuit Rooftop, the building spanning the run into La Caixa (2026
+    # spectator map item 7, drawn across the road; dossier T10 row). OSM's
+    # "VIP Rooftop" outline projects to 3361.2 and the building pass skips it
+    # as reaching across the road (R5): the kit's span building stands in.
+    "Barcelunatic": [dict(name="Circuit Rooftop", station_m=3361.2, kind="building")],
+    "Nuerburgerring": [
+        # The BMW M Bridge over the start/finish straight (dossier "BMW M
+        # Bridge"): OSM way 34444288, man_made=bridge, bridge=covered,
+        # "BMW-Brücke", its centroid. A covered spectator bridge, so `link`;
+        # it replaces the scan's `road` at 4957.7.
+        dict(name="BMW-Brücke", kind="link", at=(6.9471772, 50.3352124), brand="northwind"),
+        # The lap's own bridge between the Sprintstrecke junction and the
+        # Müllenbach link: OSM way 1443047846 (highway=raceway, bridge=yes),
+        # over a primary and an unclassified road, with footway and service
+        # bridges alongside. Nothing crosses over the lap: the scan's `road`
+        # at 1236.5 is those side bridges, which this replaces. Anchored on
+        # the way's end nodes, as the Nordschleife's bridges are.
+        dict(name="Muellenbach link bridge", kind="deck_track",
+             from_at=(6.9395699, 50.3305247), to_at=(6.9394003, 50.330159)),
     ],
     # The Nordschleife's own bridges over the public roads it crosses: OSM
     # maps each as a `highway=raceway` way with `bridge=yes` (which the scan
@@ -884,9 +916,38 @@ MANUAL_STRUCTURE_ASSETS: dict[str, dict[str, str]] = {
     },
 }
 
+# OSM-scanned landmarks that are not what the scan takes them for, by kind
+# and station (within DROP_SCANNED_WITHIN_M): the scan keeps them through a
+# `--manual-only` re-apply, so this is the only way to leave one out.
+DROP_SCANNED_LANDMARKS: dict[str, list[tuple[str, float]]] = {
+    # node 1304656417, a `man_made=tower` tagged "cellphone tower", 253 m
+    # off Hawthorn: a phone mast, not race control (no kit piece for one).
+    "BrandsScratch": [("tower", 3653.1)],
+}
+DROP_SCANNED_WITHIN_M = 25.0
+
+
+def drop_scanned_landmarks(stem: str, landmarks: list[dict]) -> list[dict]:
+    drops = DROP_SCANNED_LANDMARKS.get(stem, [])
+    return [
+        l for l in landmarks
+        if l.get("source") == "authored"
+        or not any(l["kind"] == k and abs(l["station_m"] - st) < DROP_SCANNED_WITHIN_M for k, st in drops)
+    ]
+
+
 # Landmark kinds OSM finds that a circuit draws with its own prop.
 LANDMARK_KINDS: dict[str, dict[str, str]] = {
     "MandarinaBay": {"big_wheel": "big_wheel_xl"},
+    # The COTA Observation Tower (dossier "Landmarks": 77 m, platform at 70
+    # m, inside the T16-T18 carousel), OSM's `man_made=tower` at 4654.7
+    # right: a viewing tower, not race control (R11).
+    "Armadillos": {"tower": "observation_tower"},
+    # OSM node 3705411753 at 1457.3 right, 53 m past the edge, tagged only
+    # man_made=tower (no type, name or height). Race control is the TÜV
+    # tower in the pit complex; a scaffold camera tower is the least wrong
+    # stand-in for an untyped trackside tower.
+    "Nuerburgerring": {"tower": "camera_tower"},
 }
 
 # Point features OSM does not carry, but that are part of what the place
@@ -948,6 +1009,24 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # broadside to the line of sight from the straight before it.
         dict(kind="hillside_letters", name="Hillside letters", at=HILLSIDE_MEADOW_AT,
              broadside_to_m=17600.0),
+        # The filling stations in sight of the lap, as roadside kit fuel
+        # stations (fascia brands from the kit). The canopy reaches 31 m back
+        # from its road-facing pivot, so each pivot is moved toward the road
+        # from the mapped point.
+        # ED "Döttinger Höhe" (OSM node 1711333738, amenity=fuel), beside the
+        # straight: the node moved to 20 m off the edge, the shop behind.
+        dict(kind="fuel_station", name="Döttinger Höhe fuel station",
+             at=(6.9810968, 50.3516195), brand="hexon"),
+        # Aral at Breidscheid (OSM way 1023567856, amenity=fuel), 73 m left of
+        # the lap by the B 257: its canopy roof's centroid (an unnamed
+        # building=roof, 21 x 13.8 m) moved 12 m toward the road, so the kit
+        # canopy stands for that roof.
+        dict(kind="fuel_station", name="Breidscheid fuel station",
+             at=(6.9493698, 50.3780578), brand="velocet"),
+        # TotalEnergies in Nürburg (OSM way 114676264, amenity=fuel), 187 m
+        # left of the lap just past T13, in view across the GP side.
+        dict(kind="fuel_station", name="Nürburg fuel station",
+             at=(6.9479767, 50.3364997), brand="velocet"),
     ],
     # The airship over the pits is as much a part of the 24 Hours as the
     # fairground at the Esses (which OSM does have, as a big wheel).
@@ -982,12 +1061,15 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # building=yes outline with no building:levels tag, so the automatic
     # tower heuristic in dress.rs (building_asset) never picks it: its
     # footprint is square but 37.7 m across, over the 30 m the heuristic
-    # requires, and it carries no storey count. Authored here instead, at
-    # the OSM outline's own station/side/offset so the dedup above drops
-    # the OSM building row and only the control-tower kit asset (a
-    # stand-in for the real tower, which the kit does not model) remains.
+    # requires, and it carries no storey count. Authored here instead, on
+    # the OSM outline, so the dedup above drops the OSM building row. It is
+    # the circuit's round glass tower (dossier: "circular glass-clad tower,
+    # 30 m diameter, eight floors"), so the kit's glass tower, on the
+    # outline's centre: the outline's offset_m is its nearest corner's
+    # distance from the centerline, so the centre is 73.9 + 18.9 (half the
+    # 37.7 m square) - 7.0 (the half width there) = 85.8 m beyond the edge.
     "Bahrainless": [
-        dict(kind="tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=73.9),
+        dict(kind="glass_tower", name="Sakhir Tower", station_m=582.3, side="right", offset_m=85.8),
         # The three TV screens on the pit building facing the Main Grandstand:
         # oversteer48-main-grandstand-seating.jpg puts them at 13 %, 51 % and
         # 85 % of the stand, gpgt-circuit-map-bahrain.webp's three S/F giant
@@ -1003,23 +1085,38 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # inside the loop of T3; OSM has it only as a tourism=attraction node
     # ("Олимпийский огонь" / "Olympic flame"), which the automatic
     # landmark scan does not look at (it only picks up man_made=tower /
-    # tower:type=lighting / attraction=big_wheel). The kit has no cauldron
-    # asset, so this is authored as the "tower" stand-in the task card
-    # accepts, at the node's own real position converted through this
-    # dossier's own fit (station/offset computed from the OSM node
-    # 2660040429 at 43.4051613N 39.9547853E).
+    # tower:type=lighting / attraction=big_wheel). Anchored on that node,
+    # 2660040429 (lands at 1999.7 left, 139 m beyond the edge).
     "Gnocchi": [
-        dict(kind="tower", name="Olympic Cauldron", station_m=2001.7, side="left", offset_m=140.0),
+        dict(kind="cauldron", name="Olympic Cauldron", at=(39.9547853, 43.4051613)),
+        # The Olympic ice venues (dossier "Buildings and structures"), each on
+        # the centre of its own OSM outline, turned to the outline's yaw, so it
+        # stands in place of the row of venue blocks the outline was laid as
+        # (R19 drops that row). Not MANUAL_STRUCTURE_ASSETS: that applies only
+        # on a full extract, and no extract of this circuit is cached.
+        # Bolshoy Ice Dome, encircled by T4-T6 (OSM "Ледовый дворец «Большой»",
+        # 201 x 151 m, 3088 right).
+        dict(kind="arena", name="Bolshoy Ice Dome", at=(39.9499219, 43.4046023), yaw_rad=1.7731),
+        # Shayba Arena (OSM 'Ледовая арена "Шайба"', 122 x 122 m, 2256 left).
+        dict(kind="arena", name="Shayba Arena", at=(39.9519037, 43.4023960), yaw_rad=0.1549),
+        # Iceberg Skating Palace (OSM "Дворец зимнего спорта «Айсберг»",
+        # 174 x 147 m, 1262 right). The Adler Arena ("Сириус-Арена") is a
+        # 273 x 162 m box the dome does not fit, and keeps its block row.
+        dict(kind="arena", name="Iceberg Skating Palace", at=(39.9583236, 43.4074024), yaw_rad=2.2106),
     ],
-    # The Casino de Montreal (the former France/Quebec Expo 67 pavilions) is
-    # the building every TV shot of the Casino Straight shows in the
-    # background; its own footprint is not in this bbox's extract (only the
-    # access road, "Avenue du Casino", is), so it is authored from its real
-    # position beside the Casino Straight. The kit has no casino/exhibition-
-    # hall asset, so this reuses the control-tower stand-in, as Austin and
-    # Sakhir do for buildings the kit can't represent.
+    # The Casino de Montreal (the Expo 67 France pavilion, the Quebec
+    # pavilion beside it), the backdrop of the Casino Straight: OSM's unnamed
+    # 164 x 126 m outline at 3718.1 right, with Avenue du Casino beside it
+    # and the "Pont du Pavillon de la France" footbridge on its west side;
+    # Wikipedia's coordinate (45.5053 N, 73.5261 W) lands 30 m from its
+    # centre. Placed 8 m off the outline's centre, away from the 113 x 49 m
+    # annex at 3661 right, so it stands for the casino's own row only.
     "ChillyVilleneuve": [
-        dict(kind="tower", station_m=2350.0, side="left", offset_m=150.0),
+        dict(kind="expo_pavilion", name="Casino de Montreal", at=(-73.5256713, 45.5052310), yaw_rad=0.8783),
+        # The Biosphere (the Expo 67 US pavilion's dome) on Ile Sainte-Helene,
+        # across the channel from the hairpin (dossier "Buildings"): Wikipedia
+        # 45 30'51" N 73 31'53" W, 281 m beyond the edge at 2696 left.
+        dict(kind="geodesic_dome", name="Biosphere", at=(-73.53139, 45.51417)),
         # The three TV screens on the roof of the 2019 paddock building, facing
         # Grandstand 1 (dossier "Paddock building (2019)"). The building is
         # skipped as pit complex and the bake lays single-storey garages, so
@@ -1055,6 +1152,14 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="screen", name="Start/Ziel T10 end screen", station_m=4140, side="left", offset_m=20),
         dict(kind="screen", name="Pit entry screen", station_m=4200, side="right", offset_m=25),
         dict(kind="screen", name="Pit exit screen", station_m=320, side="right", offset_m=25),
+        # The voestalpine Wing, the media centre: a 92 x 20 m steel structure
+        # shaped like a rear wing, above and behind the Start-Ziel grandstand
+        # on the left (dossier "Start/finish"; redbullring-2026-wayfinding.pdf
+        # p1, "Media Center" behind Start/Finish, about 135-150 scaled on the
+        # stand's ends). Two 40 m modules on the stand's back (front 18.3 m
+        # off, 36.7 m deep), showing over its roof.
+        dict(kind="media_wing", name="voestalpine Wing 1", station_m=125.0, side="left", offset_m=57.0),
+        dict(kind="media_wing", name="voestalpine Wing 2", station_m=165.0, side="left", offset_m=57.0),
     ],
     "Hockeyheimring": [
         # The giant screen inside the Nordkurve (gpd-grandstand-map-2019.jpg,
@@ -1092,6 +1197,10 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # on the 2026 map). Behind OSM's Panorama Village (458-514, 27-47 m
         # off), which the pit complex replaces. The control_tower stands in.
         dict(kind="tower", name="Control tower", station_m=465.0, side="right", offset_m=55.0),
+        # The F1 Fanzone stage outside T9 behind Tribuna N (2026 spectator
+        # map p1, "F1 Fanzone Stage" icon; affine fit on 7 stand centres,
+        # residuals 9-58 m): 2937 left about 170 m off, clear of N.
+        dict(kind="stage", name="Fanzone stage", station_m=2940.0, side="left", offset_m=150.0),
     ],
     "Hungoverring": [
         # Giant screens on the pit/infield side of the straight, from the 2026
@@ -1105,6 +1214,12 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="screen", name="Pit Exit 2 screen", station_m=345.0, side="right", offset_m=40.0),
         dict(kind="screen", name="Pit Exit 1 screen", station_m=450.0, side="right", offset_m=40.0),
         dict(kind="screen", name="T1 screen", station_m=550.0, side="right", offset_m=40.0),
+        # The fan zone outside T12 (2026 wayfinding map p1, Blue Zone: "Giant
+        # Wheel" and "Stage" icons past Fan 1-2; affine fit on 5 stands and
+        # the T13/T14 apexes, residuals 6-43 m). The map's icons hug the road:
+        # set back where the zone is.
+        dict(kind="big_wheel", name="Giant Wheel", station_m=3495.0, side="left", offset_m=70.0),
+        dict(kind="stage", name="Fanzone stage", station_m=3530.0, side="left", offset_m=90.0),
     ],
     "Oskarsleben": [
         # The Race-Tower / Presse Zentrum (mao-uebersichtskarte-2021.jpg item
@@ -1122,11 +1237,26 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # Steintribüne, at the road's north edge, facing the straight.
         dict(kind="screen", name="Steintribüne west screen", station_m=1924, side="left", offset_m=10),
         dict(kind="screen", name="Steintribüne east screen", station_m=64, side="left", offset_m=10),
+        # The DEKRA fan tower (Lageplan 2026 item 10: inside the
+        # Dutzendteich-Kehre, left of the back leg, about 1520-1580, 30 m
+        # out). The hairpin's inside is narrow there, so at 1500, 26 m out,
+        # mid-way between the legs; the scaffold camera tower stands in for
+        # the temporary tower.
+        dict(kind="camera_tower", name="DEKRA fan tower", station_m=1500.0, side="left", offset_m=26.0),
     ],
     "SpaFrankenchamps": [
         # The wayfinding map's giant screen at the chicane exit, outside (left),
         # past Gold 6.
         dict(kind="screen", name="Chicane exit screen", station_m=6790, side="left", offset_m=10),
+        # The Ferris wheel of the Combes fan zone (2026-belgian-gp-wayfinding
+        # .pdf p1, the Ferris Wheel icon by the hatched F1 Fanzone at "Green
+        # Area"): outside Les Combes past Silver 7 (OSM "Tribune Les Combes",
+        # 2396 L), the icon about 115 px off the road at about 1.3 m/px.
+        dict(kind="big_wheel", name="Combes fan zone wheel", station_m=2470.0, side="left", offset_m=150.0),
+        # The F1 Fanzone stage (same map, the Stage icon at the Fanzone's
+        # Raidillon end): outside the foot of Eau Rouge, behind the Fanzone
+        # grandstand (OSM "Tribune RX", 786-998 L, about 220 m deep).
+        dict(kind="stage", name="Fanzone stage", station_m=1080.0, side="left", offset_m=110.0),
     ],
     "Sudoku": [
         # Circuit-vision screen on the inside of the main straight opposite
@@ -1139,6 +1269,44 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # end of the garages, and one at the south end by the media centre.
         dict(kind="screen", name="Pit straight north screen", station_m=320, side="right", offset_m=30),
         dict(kind="screen", name="Pit straight south screen", station_m=4260, side="right", offset_m=30),
+        # The Ferris wheel (2026-dutch-gp-wayfinding-positive.pdf p1, the
+        # Ferris Wheel icon by the small Fanzone square): behind the middle of
+        # Ben Pon 29 (4030-4240 L, 10 m off, 20 m deep). South of about 4200,
+        # or it would stand in for the OSM lounge building at 4233 L.
+        dict(kind="big_wheel", name="Fanzone wheel", station_m=4135.0, side="left", offset_m=70.0),
+        # The F1 Fanzone stage (same map, in the hatched Fanzone's west part):
+        # in the dunes outside Arie Luyendijk (3722-3990), about 1.5 m/px.
+        dict(kind="stage", name="Fanzone stage", station_m=3850.0, side="left", offset_m=220.0),
+    ],
+    "Shiverstone": [
+        # The Wing (dossier "Start/finish, pit lane, paddock": 390 m, three
+        # storeys, media centre and race control under the wing roof; OSM way
+        # 227332429, about -57..319 right). The real one stands over the
+        # garages; the bake lays its own garage row on the pit lane, so the
+        # modules stand behind it, fronts 48 m past the edge (3.4 m clear of
+        # the pit zone at the Club end, the worst). The Club end (-57..0) is
+        # left out: the pit entry lane cuts across it.
+        dict(kind="media_wing", name="The Wing 1", station_m=20.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 2", station_m=60.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 3", station_m=100.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 4", station_m=140.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 5", station_m=180.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 6", station_m=220.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 7", station_m=260.0, side="right", offset_m=48.0),
+        dict(kind="media_wing", name="The Wing 8", station_m=300.0, side="right", offset_m=48.0),
+        # The giant wheel (2026-british-gp-spectator-map.pdf, "Giant Wheel"
+        # east of the Luffield loop; 7-corner affine fit, 20-50 m): 2165,
+        # 107 m off, nudged clear of the lighting masts and the Museum.
+        dict(kind="big_wheel", name="Giant wheel", station_m=2163.0, side="left", offset_m=91.0),
+        # The Main Stage (same map, beside Wellington Straight on the F1
+        # Fanzone side): 1687 by the fit, set 30 m off, out of the run-off.
+        dict(kind="stage", name="Main stage", station_m=1682.0, side="left", offset_m=30.0),
+    ],
+    "Nuerburgerring": [
+        # Burg Nürburg on the skyline north of the GP circuit (dossier
+        # "Landmarks"), the Nordschleife entry's anchor (its outline's
+        # centroid) and its yaw carried into this dossier's frame.
+        dict(kind="castle", name="Burg Nürburg", at=NUERBURG_CASTLE, yaw_rad=2.95),
     ],
 }
 
@@ -2960,6 +3128,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
                 continue
             unique.append(l)
         landmarks = unique
+    landmarks = drop_scanned_landmarks(stem, landmarks)
     landmarks += manual_landmarks(stem, track, osm, to_track, landmarks)
     landmarks.sort(key=lambda e: e["station_m"])
 
@@ -3284,21 +3453,33 @@ def dedup_crossings(crossings: list[dict]) -> list[dict]:
     return dedup
 
 
+# How far outside an OSM outline an authored landmark may stand and still
+# be taken for the same structure.
+LANDMARK_SAME_STRUCTURE_M = 5.0
+
+
+def landmark_inside_structure(structure: dict, landmark: dict) -> bool:
+    """True when the landmark's centre lies on the structure's own outline
+    (its oriented length x depth box, `yaw_rad` along the length), give or
+    take LANDMARK_SAME_STRUCTURE_M. A circle of the outline's longest half
+    took a 308 m stand with any screen within 159 m of its middle, either
+    side of the road (R19)."""
+    dx = landmark["centre"][0] - structure["centre"][0]
+    dy = landmark["centre"][1] - structure["centre"][1]
+    yaw = structure.get("yaw_rad", 0.0)
+    along = dx * math.cos(yaw) + dy * math.sin(yaw)
+    across = -dx * math.sin(yaw) + dy * math.cos(yaw)
+    return (abs(along) <= structure["length_m"] / 2 + LANDMARK_SAME_STRUCTURE_M
+            and abs(across) <= structure["depth_m"] / 2 + LANDMARK_SAME_STRUCTURE_M)
+
+
 def drop_structures_under_landmarks(structures: list[dict], landmarks: list[dict]) -> list[dict]:
     """An authored landmark and an OSM building can be the same real
-    structure: keep the landmark, drop the building row."""
-    if not any(l.get("source") == "authored" for l in landmarks):
+    structure: keep the landmark, drop the building row it stands on."""
+    authored = [l for l in landmarks if l.get("source") == "authored"]
+    if not authored:
         return structures
-    kept = []
-    for s in structures:
-        near = any(
-            l.get("source") == "authored" and math.hypot(*(np.array(s["centre"]) - np.array(l["centre"])))
-            < max(s["length_m"], s["depth_m"]) / 2 + 5.0
-            for l in landmarks
-        )
-        if not near:
-            kept.append(s)
-    return kept
+    return [s for s in structures if not any(landmark_inside_structure(s, l) for l in authored)]
 
 
 # ----------------------------------------------------------- georeferencing
@@ -3518,7 +3699,15 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
 
         layout = json.loads(out.read_text(encoding="utf-8"))
         track = Track(stem)
-        scanned = [l for l in layout.get("landmarks", []) if l.get("source") != "authored"]
+        # The scan's landmarks as the dossier has them, renamed by
+        # LANDMARK_KINDS (a mapped kind maps to itself, so this is the same
+        # on a re-run) and without the ones DROP_SCANNED_LANDMARKS leaves out.
+        kind_map = LANDMARK_KINDS.get(stem, {})
+        scanned = drop_scanned_landmarks(
+            stem,
+            [dict(l, kind=kind_map.get(l["kind"], l["kind"]))
+             for l in layout.get("landmarks", []) if l.get("source") != "authored"],
+        )
         landmarks = scanned + manual_landmarks(stem, track, Frame, to_track, scanned)
         landmarks.sort(key=lambda e: e["station_m"])
         kinds = CROSSING_KINDS.get(stem, {})

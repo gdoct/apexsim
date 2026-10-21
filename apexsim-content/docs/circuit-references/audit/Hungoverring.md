@@ -91,3 +91,15 @@ Left, or for later columns:
 - Hungaroring Platinum is the T14 end of the OSM "Hungaroring" outline, not a separate stand; left as one.
 - Left for other columns: Apex 1 (outside T14, ~4030-4100) and the rest of the audit's Stands rows (Bronze 1, T12-T14 Stand removals, Chicane 1-4, Fan, Apex 2); the F1 Fanzone behind the Hungaroring stand (~0-150 left, 80-120 m back); the infield giant screens at T4-T5 and T11-T12.
 - Kit gap unchanged: the 3-storey pit building with the Paddock Club over the lane (building/pit_building_tiered).
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the fan zone outside T12, Giant Wheel (3495 left, 70 m) and stage (3530 left, 90 m), 2026 wayfinding map, affine fit 6-43 m.
+- The road crossing at 971.7 is real: a concrete overpass by R4. The footbridge at 274.3 is real.
+
+Left, or for later columns:
+
+- The stage may meet Apex 2 when the Stands column lays it: then 3460 left, 90 m.
+- The giant swing and dodgems: no kit piece.

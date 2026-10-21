@@ -1296,22 +1296,6 @@
    "area_m2": 260
   },
   {
-   "name": "Дворец зимнего спорта «Айсберг»",
-   "station_m": 1262.4,
-   "side": "right",
-   "offset_m": 44.4,
-   "length_m": 173.9,
-   "depth_m": 147.1,
-   "yaw_rad": 2.2106,
-   "centre": [
-    -907.23,
-    -440.83
-   ],
-   "levels": 5,
-   "osm_building": "yes",
-   "area_m2": 22043
-  },
-  {
    "name": "Сириус-Арена",
    "station_m": 1606.3,
    "side": "right",
@@ -1392,22 +1376,6 @@
    "area_m2": 275
   },
   {
-   "name": "Ледовая арена \"Шайба\"",
-   "station_m": 2255.6,
-   "side": "left",
-   "offset_m": 34.3,
-   "length_m": 121.7,
-   "depth_m": 121.6,
-   "yaw_rad": 0.1549,
-   "centre": [
-    -1420.04,
-    -1003.32
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 11444
-  },
-  {
    "name": null,
    "station_m": 2267.3,
    "side": "left",
@@ -1486,22 +1454,6 @@
    "levels": 2,
    "osm_building": "yes",
    "area_m2": 1546
-  },
-  {
-   "name": "Ледовый дворец «Большой»",
-   "station_m": 3088.2,
-   "side": "right",
-   "offset_m": 62.7,
-   "length_m": 201.3,
-   "depth_m": 150.7,
-   "yaw_rad": 1.7731,
-   "centre": [
-    -1582.54,
-    -759.34
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 23726
   },
   {
    "name": null,
@@ -2318,6 +2270,18 @@
    ]
   },
   {
+   "kind": "arena",
+   "name": "Iceberg Skating Palace",
+   "source": "authored",
+   "station_m": 1262.4,
+   "side": "right",
+   "centre": [
+    -907.23,
+    -440.83
+   ],
+   "yaw_rad": 2.2106
+  },
+  {
    "kind": "floodlight",
    "name": null,
    "station_m": 1756.8,
@@ -2338,14 +2302,14 @@
    ]
   },
   {
-   "kind": "tower",
+   "kind": "cauldron",
    "name": "Olympic Cauldron",
    "source": "authored",
-   "station_m": 2001.7,
+   "station_m": 1999.7,
    "side": "left",
    "centre": [
-    -1187.93,
-    -696.45
+    -1190.44,
+    -693.17
    ]
   },
   {
@@ -2447,6 +2411,18 @@
     -1423.39,
     -803.42
    ]
+  },
+  {
+   "kind": "arena",
+   "name": "Shayba Arena",
+   "source": "authored",
+   "station_m": 2255.6,
+   "side": "left",
+   "centre": [
+    -1420.04,
+    -1003.32
+   ],
+   "yaw_rad": 0.1549
   },
   {
    "kind": "floodlight",
@@ -2597,6 +2573,18 @@
     -1638.73,
     -572.52
    ]
+  },
+  {
+   "kind": "arena",
+   "name": "Bolshoy Ice Dome",
+   "source": "authored",
+   "station_m": 3088.2,
+   "side": "right",
+   "centre": [
+    -1582.54,
+    -759.33
+   ],
+   "yaw_rad": 1.7731
   },
   {
    "kind": "floodlight",

@@ -77,3 +77,9 @@ Left, or for later columns:
 - Screen: the dossier gives B "giant screen" without a position; no map shows one. Not placed.
 - Left for other columns: the unlabelled red stand at Juncao/Cafe (~3250-3400 right), Orange Tree Club and Grand Prix Club (infield, face Laranjinha), D/H/R/G/Porto Bank/T4 fixes.
 - Kit gap unchanged: the pit building with the Paddock Club over the boxes; the Tower Club on top of B.
+
+## Landmark dossier pass
+
+Nothing went in.
+
+- No source places a unique structure: the cell stays `-`.

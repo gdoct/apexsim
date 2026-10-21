@@ -1054,6 +1054,28 @@
  ],
  "landmarks": [
   {
+   "kind": "media_wing",
+   "name": "voestalpine Wing 1",
+   "source": "authored",
+   "station_m": 125.0,
+   "side": "left",
+   "centre": [
+    -107.9,
+    -94.67
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "voestalpine Wing 2",
+   "source": "authored",
+   "station_m": 165.0,
+   "side": "left",
+   "centre": [
+    -146.63,
+    -105.04
+   ]
+  },
+  {
    "kind": "screen",
    "name": "Pit exit screen",
    "source": "authored",

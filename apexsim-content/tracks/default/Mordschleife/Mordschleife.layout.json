@@ -608,22 +608,6 @@
   },
   {
    "name": null,
-   "station_m": 8058.9,
-   "side": "left",
-   "offset_m": 72.6,
-   "length_m": 21.0,
-   "depth_m": 13.8,
-   "yaw_rad": 2.6196,
-   "centre": [
-    3085.94,
-    -3174.52
-   ],
-   "levels": 0,
-   "osm_building": "roof",
-   "area_m2": 289
-  },
-  {
-   "name": null,
    "station_m": 8086.3,
    "side": "left",
    "offset_m": 104.8,
@@ -1116,6 +1100,30 @@
  ],
  "landmarks": [
   {
+   "kind": "fuel_station",
+   "name": "Nürburg fuel station",
+   "source": "authored",
+   "station_m": 382.5,
+   "side": "left",
+   "centre": [
+    -41.96,
+    234.71
+   ],
+   "brand": "velocet"
+  },
+  {
+   "kind": "fuel_station",
+   "name": "Breidscheid fuel station",
+   "source": "authored",
+   "station_m": 8059.2,
+   "side": "left",
+   "centre": [
+    3077.62,
+    -3182.89
+   ],
+   "brand": "velocet"
+  },
+  {
    "kind": "lookout_tower",
    "name": "Kaiser-Wilhelm-Turm",
    "source": "authored",
@@ -1137,6 +1145,18 @@
     -2678.97
    ],
    "yaw_rad": 2.2846
+  },
+  {
+   "kind": "fuel_station",
+   "name": "Döttinger Höhe fuel station",
+   "source": "authored",
+   "station_m": 17960.9,
+   "side": "left",
+   "centre": [
+    -583.92,
+    -2606.45
+   ],
+   "brand": "hexon"
   },
   {
    "kind": "toll_gate",

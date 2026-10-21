@@ -91,3 +91,13 @@ Left, or for later columns:
 - The VIP tent between the First Turn and Main grandstands (gpgt; left, about 440-476, about 30 m) is on the straight, but no landmark kind lays a marquee. As MANUAL_FURNITURE it would be, unchecked against a dress run: dict(kind="attraction", asset="marquee_peak_12m", from_m=440, to_m=476, every_m=14, side="left", offset_m=20),
 - The screens are good to about 50 m and stand on the ground behind the garages, not on the pit-building roof (rule gap, as at AlbertParkour). The T1, University and Batelco screens are Stands-column work.
 - First Turn Grandstand (OSM, 540-725 left) is laid uncovered; no map or dossier line says it is roofed, so it is left alone.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the Sakhir Tower is the round glass tower: `glass_tower`, on the OSM outline's centre (85.8 m off; the old offset was the outline's nearest corner).
+
+Left, or for later columns:
+
+- The tent-fabric roofs are built (`tent_roof_10m`, `garage_roof_membrane_6m`) and belong to the Stands column and the pit rule.

@@ -74,3 +74,14 @@ Left, or for later columns:
 - The 2026 map's chequer is about 70 m after the YAML's station 0 (map scaled on the OSM stands); the OSM outlines were trusted throughout.
 - Torre Sud (5777 L) and Torre Nord (584 L) sit 4 and 8 m off the left road edge; the 2026 map also draws both against the road. Left alone.
 - For other columns: Tribuna Parabolica (22) is permanent and covered (dossier) but laid unroofed; the 2026 stands 11, 17, 20, 31-34 and 10bis (Stands); the podium and the two-storey Palazzina Box are the pit complex and the `garage_6m_upper` kit gap; the pedestrian bridge over the pit straight between 7 and 6A (about 750-850) is a MANUAL_CROSSINGS item.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_CROSSINGS`: the old banked oval's north banking over the GP road (`banked_oval`, 3593.6, where OSM's oval way meets the lap); the footbridge after it by stand 12 (3780, an estimate scaled on the 2024 map). The scanned footbridge at 3586.3 was the oval's own path and gives way to the banking.
+
+Left, or for later columns:
+
+- The banking's curves beside the road: no kit piece, only the span over it.
+- The footbridge's station is an estimate: check it on the trace page.

@@ -67,3 +67,14 @@ Left, or for later columns:
 - Hamilton Straight A stays the OSM outline (-46..49). The map draws it nearer Club (~-120..0), but the map is schematic there (Club's exit bend) and its length agrees with OSM's 95 m; the audit's "extend to 5780" is not supported by OSM and is left out.
 - Hamilton B's span is the least certain (map scale +-50 m); its gap is set by the hotel behind it, not by a source.
 - The Wing (kit gap) and the F1 Paddock Club are the pit complex's. Vale, Stowe A/C and Village A (also plain OSM buildings) are the Stands column's.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the Wing as eight `media_wing` modules (20-300 right, 48 m past the edge) behind the bake's garage row; the giant wheel (2163 left, 91 m) and the Main Stage (1682 left, 30 m), 2026 spectator map with a 7-corner fit (20-50 m).
+
+Left, or for later columns:
+
+- The real Wing stands over the garages; the bake lays its own row, so the modules stand behind it.
+- Its Club end (-57..0) is left out: the pit entry lane crosses it.

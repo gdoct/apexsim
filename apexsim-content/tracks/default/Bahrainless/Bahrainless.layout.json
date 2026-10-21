@@ -1267,14 +1267,14 @@
    ]
   },
   {
-   "kind": "tower",
+   "kind": "glass_tower",
    "name": "Sakhir Tower",
    "source": "authored",
    "station_m": 582.3,
    "side": "right",
    "centre": [
-    105.6,
-    577.17
+    117.49,
+    576.69
    ]
   },
   {

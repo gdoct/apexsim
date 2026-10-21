@@ -1194,14 +1194,7 @@
    "area_m2": 308
   }
  ],
- "crossings": [
-  {
-   "name": "Parabolika footbridge",
-   "station_m": 1400.0,
-   "kind": "footbridge",
-   "source": "authored"
-  }
- ],
+ "crossings": [],
  "landmarks": [
   {
    "kind": "screen",

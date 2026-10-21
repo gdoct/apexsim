@@ -56,3 +56,15 @@ Left, or for later columns:
 - The FIA map's control line sits about 200 m after the T15 exit (about 4850) and the start line 263 m further on (about 5110), so the YAML's station 0 is near the start line, not the control line.
 - The generated pit boxes run 4857-4995 R, at the T15 end of the 303 m OSM garage (4975-137); the TUeV Rheinland Tower (4889 R, race control) is skipped inside the pit complex. Left to the pit complex.
 - T13 (Nordschleife junction): the Nordschleife runs 60-130 m to the left of GP 4360-4630 (shared OSM buildings, see the Mordschleife draft). A stand there would be on the left between the two roads, but no map places it; not added. T12/T12a and the multi-storey pit building (garage_6m_upper kit gap) are for other columns.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: Burg Nürburg (`castle`) on the skyline, the Nordschleife entry's anchor.
+- `MANUAL_CROSSINGS`: the BMW bridge as a covered `link` (OSM bridge=covered); the lap's own bridge at the Müllenbach link as `deck_track` from OSM way 1443047846's end nodes, where the scan's `road` crossing (the side bridges) would have stood a concrete bridge across the track.
+- `LANDMARK_KINDS`: OSM's untyped tower at 1457.3 right is a `camera_tower`, not race control.
+
+Left, or for later columns:
+
+- The TÜV tower, the boulevard LED wall and the DEKRA tower: other columns.

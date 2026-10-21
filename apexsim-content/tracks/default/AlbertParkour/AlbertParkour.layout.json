@@ -1965,7 +1965,14 @@
    "area_m2": 1212
   }
  ],
- "crossings": [],
+ "crossings": [
+  {
+   "name": "Fangio footbridge",
+   "station_m": 5005.0,
+   "kind": "footbridge",
+   "source": "authored"
+  }
+ ],
  "landmarks": [],
  "woods": [],
  "barriers": [

@@ -77,3 +77,14 @@ Left:
 - The paddock building's upper storeys and roof are the pit complex's (kit
   gap 2); the screens stand on the ground behind it.
 - The screens take the road's heading, not one toward Grandstand 1.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: Casino de Montreal as `expo_pavilion` on OSM's unnamed 164 x 126 m outline at 3718.1 right (8 m off its centre, so the 113 x 49 m annex stays); the Biosphere as `geodesic_dome`, 2696 left, 281 m off (Wikipedia coordinate). The control-tower stand-in at 2350 is gone.
+
+Left, or for later columns:
+
+- The Biosphere's point is from its published coordinate: check it on the trace page.
+- The Concorde bridge is a road crossing: a concrete overpass by R4.

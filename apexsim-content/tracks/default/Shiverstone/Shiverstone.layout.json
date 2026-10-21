@@ -1394,22 +1394,6 @@
    "area_m2": 2337
   },
   {
-   "name": "Silverstone Wing",
-   "station_m": 131.4,
-   "side": "right",
-   "offset_m": 23.9,
-   "length_m": 375.8,
-   "depth_m": 32.8,
-   "yaw_rad": 0.9763,
-   "centre": [
-    114.03,
-    81.72
-   ],
-   "levels": 3,
-   "osm_building": "yes",
-   "area_m2": 9917
-  },
-  {
    "name": null,
    "station_m": 170.1,
    "side": "right",
@@ -2229,6 +2213,105 @@
  ],
  "landmarks": [
   {
+   "kind": "media_wing",
+   "name": "The Wing 1",
+   "source": "authored",
+   "station_m": 20.0,
+   "side": "right",
+   "centre": [
+    59.37,
+    -16.27
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 2",
+   "source": "authored",
+   "station_m": 60.0,
+   "side": "right",
+   "centre": [
+    82.82,
+    16.13
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 3",
+   "source": "authored",
+   "station_m": 100.0,
+   "side": "right",
+   "centre": [
+    106.29,
+    48.56
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 4",
+   "source": "authored",
+   "station_m": 140.0,
+   "side": "right",
+   "centre": [
+    131.22,
+    83.02
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 5",
+   "source": "authored",
+   "station_m": 180.0,
+   "side": "right",
+   "centre": [
+    153.17,
+    113.35
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 6",
+   "source": "authored",
+   "station_m": 220.0,
+   "side": "right",
+   "centre": [
+    176.63,
+    145.76
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 7",
+   "source": "authored",
+   "station_m": 260.0,
+   "side": "right",
+   "centre": [
+    200.09,
+    178.16
+   ]
+  },
+  {
+   "kind": "media_wing",
+   "name": "The Wing 8",
+   "source": "authored",
+   "station_m": 300.0,
+   "side": "right",
+   "centre": [
+    223.54,
+    210.61
+   ]
+  },
+  {
+   "kind": "stage",
+   "name": "Main stage",
+   "source": "authored",
+   "station_m": 1682.0,
+   "side": "left",
+   "centre": [
+    449.97,
+    799.56
+   ]
+  },
+  {
    "kind": "floodlight",
    "name": null,
    "station_m": 1727.6,
@@ -2346,6 +2429,17 @@
    "centre": [
     218.79,
     702.36
+   ]
+  },
+  {
+   "kind": "big_wheel",
+   "name": "Giant wheel",
+   "source": "authored",
+   "station_m": 2163.0,
+   "side": "left",
+   "centre": [
+    189.35,
+    733.91
    ]
   },
   {

@@ -1403,6 +1403,12 @@
    "name": null,
    "station_m": 2315.6,
    "kind": "footbridge"
+  },
+  {
+   "name": "Circuit Rooftop",
+   "station_m": 3361.2,
+   "kind": "building",
+   "source": "authored"
   }
  ],
  "landmarks": [
@@ -1459,6 +1465,17 @@
    "centre": [
     -405.11,
     -579.91
+   ]
+  },
+  {
+   "kind": "stage",
+   "name": "Fanzone stage",
+   "source": "authored",
+   "station_m": 2940.0,
+   "side": "left",
+   "centre": [
+    -593.08,
+    62.17
    ]
   },
   {

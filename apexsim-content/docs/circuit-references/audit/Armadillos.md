@@ -96,3 +96,13 @@ Left, or for later columns:
 - Screen positions are to about 50 m (text only). The infield screen across T1 (left, about 650) and the one before the T16 bridge are Stands-column work; the digital leaderboard at pit exit has no map position and is not placed.
 - S/F marking: station 0 matches the F1 programme map's chequer; the oversteer48 chequer at the T1 end of the stand is COTA's separate start line, not an error.
 - The Main Grandstand, OSM's unnamed outline at 102.8 m right, is roofed by its station (`STAND_COVER` "@102.8"); the stadium family it really has is a rule gap (R13).
+
+## Landmark dossier pass
+
+In the tables:
+
+- `LANDMARK_KINDS`: OSM's tower at 4654.7 right is the observation tower (R11), laid as `observation_tower`.
+
+Left, or for later columns:
+
+- The amphitheatre canopy: a smaller kit ask.

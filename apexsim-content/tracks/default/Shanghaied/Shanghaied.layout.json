@@ -1604,15 +1604,13 @@
   {
    "name": "Press Centre Wing",
    "station_m": 15.0,
-   "kind": "arch",
-   "brand": "piretti",
+   "kind": "sky_platform",
    "source": "authored"
   },
   {
    "name": "Sky Restaurant Wing",
    "station_m": 335.0,
-   "kind": "arch",
-   "brand": "piretti",
+   "kind": "sky_platform",
    "source": "authored"
   }
  ],

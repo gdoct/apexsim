@@ -45,3 +45,14 @@ Nothing goes in the tables yet:
 - T13 grandstand: not placed. No map in maps/Mordschleife places it (the 2020 Lageplan draws stands only on the GP, schematically), and the dossier says only "at the junction with the GP circuit". If it overlooks the GP's final chicane (the Nuerburgerring audit's 4400-4600 L), it stands between the two roads, on this lap's left, with its back to this lap. Needs the trace page or an aerial before an entry.
 - Media tower (webcam): position unconfirmed in the dossier; not placed.
 - The T13 pitstop area's two fuel pumps and toilet block need the `building/fuel_station_canopy` kit gap; nothing in today's kit marks the lane as a pit stop area.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: three `fuel_station`s on OSM's filling stations in sight of the lap: ED Döttinger Höhe (node 1711333738), Aral at Breidscheid (way 1023567856, standing for OSM's canopy roof) and TotalEnergies in Nürburg (way 114676264).
+
+Left, or for later columns:
+
+- The T13 pumps: no position, and in the pit zone.
+- The Steilstrecke: a smaller kit ask.

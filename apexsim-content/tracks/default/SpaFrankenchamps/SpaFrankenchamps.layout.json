@@ -1296,6 +1296,28 @@
  "crossings": [],
  "landmarks": [
   {
+   "kind": "stage",
+   "name": "Fanzone stage",
+   "source": "authored",
+   "station_m": 1080.0,
+   "side": "left",
+   "centre": [
+    392.48,
+    38.72
+   ]
+  },
+  {
+   "kind": "big_wheel",
+   "name": "Combes fan zone wheel",
+   "source": "authored",
+   "station_m": 2470.0,
+   "side": "left",
+   "centre": [
+    923.83,
+    -1433.01
+   ]
+  },
+  {
    "kind": "screen",
    "name": "Chicane exit screen",
    "source": "authored",

@@ -74,3 +74,14 @@ Left, or for later columns:
 - The map's screens by the straight itself (two black posts on the left edge between Gold 1 and Gold 9, ~95 and ~240 L, and two labels in the paddock) are left out: a screen on the left edge would stand between the road and the stands, and the paddock ones sit in the pit complex. Trap: a screen at 245 L dropped the OSM pit building row "Stand F1" (drop_structures_under_landmarks takes any authored landmark within half the 312 m building's length of its centre, either side of the road). Harmless for the dress (the building is left to the pit complex) but it changes the dossier.
 - Gold 7 / 7bis / 7ter / 8 round La Source (~340-440 L) are turn 1, left to the Stands column; the Bus Stop loses its seating-map stand.
 - Map stand sizes are icons, not to scale: spans are good to ~30 m.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the Combes fan zone wheel (2470 left, 150 m) and the F1 Fanzone stage (1080 left, 110 m), 2026 wayfinding map.
+
+Left, or for later columns:
+
+- The Eau Rouge Champions Club (OSM "Salons de l'Eau Rouge", dropped as on the run-off) as `hospitality_3f` through `MANUAL_STRUCTURE_ASSETS` on the next full extract.
+- The CC Business Tower (about 950 right): re-read now that R19 takes only the outline a landmark stands on.

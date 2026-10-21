@@ -150,12 +150,18 @@ How the S/F column was done, and how the next ones go:
    "c5-sf-*"` and judged by a person. A cell becomes `ok` when its shots
    pass.
 
-Traps met on the S/F pass:
+Traps met on the S/F and Landmark passes:
 
-- An authored landmark drops every OSM structure within its reach, on
-  either side of the road (R19): read `dossier_check.py`'s "lost
-  structure" lines. Albert Park's pit screens would have taken its
-  clubhouses.
+- An authored landmark stands for the OSM structure whose outline (plus
+  5 m) holds its centre, and that row is dropped: read
+  `dossier_check.py`'s "lost structure" lines. A big building OSM maps
+  (an arena, a casino) is placed by anchoring the landmark on its
+  outline's centre with `at=(lon, lat)` and its yaw.
+- `MANUAL_STRUCTURE_ASSETS` applies only on a full extract, and only
+  MandarinaBay and Shiverstone have one cached: elsewhere it waits for an
+  online refetch, which rebuilds every surveyed layer.
+- `dossier_check.py` runs `track-editor/target/release/ats-dress`: rebuild
+  it after a `dress.rs` change, or new kinds are dropped silently.
 - `--manual-only` rebuilds the `MANUAL_STANDS` stands but keeps one whose
   entry is unchanged byte for byte; an OSM stand cannot be moved, dropped
   or renamed from the tables (R18), only roofed by name or by station.
@@ -333,11 +339,6 @@ stay as they are.
   Oschersleben's "Boxen / VIP-Loungen" (the pit building, tagged as a
   stand) lays three bays on the pit side; an unnamed one can only be
   roofed, by station (`STAND_COVER` "@<station_m>").
-- **R19. An authored landmark drops every OSM structure within its
-  reach** (half the structure's length plus 5 m), on either side of the
-  road (`drop_structures_under_landmarks`): a screen behind the pits takes
-  the buildings there with it (the Albert Park clubhouses, so its screens
-  are left out).
 - **R20. Screens on the pit building's roof or track face** have no rule:
   a `screen` landmark stands on the ground, and one in the garage zone is
   dropped (AlbertParkour, Armadillos, Bahrainless, Hungoverring,

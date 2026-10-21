@@ -79,3 +79,14 @@ Left, or for later columns:
 - The pit-roof giant screen (dossier "Pit building", ~st 150 right on the roof) is not drawn on either map and a landmark cannot sit on the garage roof (the pit zone drops it): left out. A rule or the pit complex's own roof furniture would carry it.
 - The voestalpine Wing media centre over the T1 third of Start Ziel (~150-260 left, elevated) is a kit gap (Landmark column).
 - The F1 Fanzone and its stage (wayfinding: hatched block behind Steiermark, outside T1, ~170-200 m from the road) could not be placed to within 50 m on the schematic map: left out (Stands column). The two live screens inside T1 (wayfinding, ~st 470-500 right) are the Stands column's too.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the voestalpine Wing as two `media_wing` modules on the back of the Start-Ziel stand (125 and 165 left, 57 m), from the 2026 wayfinding map's Media Center.
+
+Left, or for later columns:
+
+- The Wing is 92 m; the two modules are 80 m.
+- The pit-roof giant screen: R20. The fan-zone stage: no position to 50 m.

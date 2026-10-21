@@ -69,3 +69,13 @@ Left, or for later columns:
 - The 2026 map draws one SKY BRIDGE only, at the T1 end of A (~330-350); MANUAL_CROSSINGS also has a "Press Centre Wing" at st 15 (from Wikipedia). Landmark column: check it against the 2026 map.
 - GA Zone L (dossier, gpdestinations "草地 L" by K12, between T16 and A) is not on the 2026 map, which draws the "T16 Club" hospitality building there instead: left out. T16 Club and "Grandstand Club" (T1 end of A) are hospitality buildings, not stands.
 - F1 Fanzone (orange hatching behind A) and Fountain Plaza are crowd areas behind the stand; no kit piece or table entry carries them.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_CROSSINGS`: the Press Centre and Sky Restaurant wings are `sky_platform`s (15, 335), no longer tyre arches.
+
+Left, or for later columns:
+
+- Grandstand A's lotus-leaf roof: Stands column, no kit piece.

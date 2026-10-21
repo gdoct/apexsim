@@ -62,3 +62,9 @@ Left, or for later columns:
 - Replaces the comment's spans: the old 20-560 face ran ~235 m over the Mall Area and stopped 300 m short of the V; the old 4300-4950 face started 160 m early and stopped 90 m short. The comment above the table should name the OSM way as the span's source.
 - The Tower's 4 runs are 10 m-bay chains round a ~20 m radius: a round multi-storey stand with a frond canopy is a kit gap (grandstand/canopy_frond_10m, as in the audit).
 - Stands column: OSM also outlines K2 at 915-1108 left (not 650-850 as the table has it) and G1-G3, E, D, C1-C3 and B (ways 1105232828-35, 1106524868, 1106762515, untagged names only, so extract() skips them).
+
+## Landmark dossier pass
+
+Nothing went in.
+
+- The landmark is the main stand's palm-frond canopy: `palm_canopy_10m` is built and laid from the Stands column (a roof value for it).

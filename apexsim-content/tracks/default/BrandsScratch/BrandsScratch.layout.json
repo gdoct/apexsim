@@ -807,18 +807,7 @@
    "kind": "road"
   }
  ],
- "landmarks": [
-  {
-   "kind": "tower",
-   "name": null,
-   "station_m": 3653.1,
-   "side": "left",
-   "centre": [
-    -400.32,
-    60.59
-   ]
-  }
- ],
+ "landmarks": [],
  "woods": [
   {
    "leaf": "mixed",

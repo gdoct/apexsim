@@ -65,3 +65,17 @@ Left, or for later columns:
 - Podium and race control tower positions are unconfirmed: not placed.
 
 Re-applying the tables also moves the authored tower to where `MANUAL_LANDMARKS` has had it (70 m left, from 300 m right): the table had been edited without a re-apply.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the Olympic cauldron (`cauldron`) on OSM node 2660040429; the Bolshoy Ice Dome, Shayba Arena and Iceberg Skating Palace as `arena`, each on its OSM outline's centre and yaw, in place of the venue-block rows the outlines were laid as.
+
+Left, or for later columns:
+
+- The Adler Arena (273 x 162 m) keeps its block row: the 134 x 104 m dome does not fit it.
+- Fisht stadium: not in the extract, no stadium piece.
+- The Medals Plaza fountain: a `MANUAL_FURNITURE` item.
+- "Сириус" (reaches across the road) is the Olympic Park railway station, not a landmark: R14.
+- The 72 OSM floodlight masts: R15, the owner's call.

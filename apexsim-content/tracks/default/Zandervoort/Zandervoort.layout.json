@@ -1411,6 +1411,28 @@
    ]
   },
   {
+   "kind": "stage",
+   "name": "Fanzone stage",
+   "source": "authored",
+   "station_m": 3850.0,
+   "side": "left",
+   "centre": [
+    -281.47,
+    -570.39
+   ]
+  },
+  {
+   "kind": "big_wheel",
+   "name": "Fanzone wheel",
+   "source": "authored",
+   "station_m": 4135.0,
+   "side": "left",
+   "centre": [
+    -136.0,
+    -140.24
+   ]
+  },
+  {
    "kind": "screen",
    "name": "Pit straight south screen",
    "source": "authored",

@@ -57,3 +57,14 @@ Left:
   Wilson blocks under the Brabham-Stewart overhang; unnamed, it cannot be
   roofed by name.
 - The Media Centre over the pits is the pit complex's (kit gap 2).
+
+## Landmark dossier pass
+
+In the tables:
+
+- `DROP_SCANNED_LANDMARKS`: OSM's only tower (3653.1 left, node 1304656417) is a phone mast, no longer laid as race control.
+- The two road crossings (1709.6, 3303.5) are real (the parking map marks both BRIDGE) and are concrete overpasses by R4.
+
+Left, or for later columns:
+
+- The MSV Centre: R14.

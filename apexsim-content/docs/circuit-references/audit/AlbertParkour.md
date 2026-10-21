@@ -96,3 +96,16 @@ Left, or for later columns:
 - The footbridge beside Fangio (about 5100) is Landmark-column work.
 - After re-applying: Moss must now be laid (it was skipped on the right), and none overlaps: Senna 4880-4990, Fangio 5020-5205, Piastri 5225-85, Moss 235-330, Jones from 345.
 - The two pit-building screens are left out: on the ground behind the garages they take the football club and fitness centre buildings that stand there out of the dossier.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_CROSSINGS`: Fangio footbridge (5005), to the Main Stage / Fan Zone; no map draws it, set between Senna and Fangio.
+
+Left, or for later columns:
+
+- The venue's landmark is Albert Park Lake: R16.
+- The T11 footbridge to Webber is in the dossier text but on no map: not placed.
+- The pit-building screens: not placed (they stand on the clubhouses' outlines' reach before R19 was narrowed; re-read on the trace page now that R19 takes only the outline a landmark stands on).
+- Lakeside Stadium: R14.

@@ -63,3 +63,13 @@ Left, or for later columns:
 - Boxendach roof-deck marquee over the garages is lost to the pit complex (kit/rule gap). The MANUAL "Mercedes-Tribüne" at the Spitzkehre and the "Parabolika footbridge" belong to the Stands and Landmark columns (audit: remove both).
 
 - The new screen's landmark takes the unnamed 352 m building outline at 300.3 m left out of the dossier, which is the Nordtribüne's own roof (and was skipped as reaching across the road).
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_CROSSINGS`: the Parabolika footbridge, authored by judgement, is gone; the 2024 Streckenplan shows only underpasses there.
+
+Left, or for later columns:
+
+- The Jim Clark memorial (845 left) would need a statue piece of its own size.

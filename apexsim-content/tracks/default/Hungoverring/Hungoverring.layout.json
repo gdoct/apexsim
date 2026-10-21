@@ -1745,6 +1745,28 @@
    ]
   },
   {
+   "kind": "big_wheel",
+   "name": "Giant Wheel",
+   "source": "authored",
+   "station_m": 3495.0,
+   "side": "left",
+   "centre": [
+    406.9,
+    -40.91
+   ]
+  },
+  {
+   "kind": "stage",
+   "name": "Fanzone stage",
+   "source": "authored",
+   "station_m": 3530.0,
+   "side": "left",
+   "centre": [
+    351.46,
+    -104.23
+   ]
+  },
+  {
    "kind": "screen",
    "name": "Grid screen 2",
    "source": "authored",

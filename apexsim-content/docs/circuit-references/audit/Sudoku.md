@@ -67,3 +67,9 @@ Left, or for later columns:
 - The two signboard bridges (Signal / start lights at the First Corner end ~st 300, a second at the last-corner end ~5760) and the flag towers beside them on the pit side are crossings / furniture, not these tables (MANUAL_CROSSINGS).
 - Podium at the last-corner end of the pit building beside the Media Center: the export puts it mid-building (rule gap).
 - S (OSM, 5698 L) is the stand before V1 at the straight's start: laid; R and the Q stands are the final chicane/curve (Stands column).
+
+## Landmark dossier pass
+
+Nothing went in.
+
+- Nothing needed: the OSM Ferris wheel is laid. The Leader Tower is a scoring pylon, not race control: no piece.

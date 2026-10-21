@@ -71,3 +71,14 @@ Left, or for later columns:
 - The unnamed OSM "stand" at st 1962 R (166 x 34 m, running south from 21 m off the road, perpendicular to it) and the two 187 x 84 m ones ~200 m out are the Zeppelinfeld's earth banks; unnamed, so STAND_COVER cannot open them (they are roofed by the depth rule). Needs a bank family or a cover-by-position key.
 - DTM Fan-Zone big screen (dossier) sits ~165 m out in the field (st ~2036 R): left out, not "by the straight"; Thomas Sommer and Alpha Tribüne are on the return leg (Stands column).
 - Steintribüne as a stone terrace with a central platform is a kit gap (building/stone_tribune).
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the DEKRA fan tower (`camera_tower`, 1500 left, 26 m) inside the Dutzendteich-Kehre (Lageplan 2026 item 10).
+
+Left, or for later columns:
+
+- The Steintribüne is the venue's landmark: `stone_tribune_10m` is built and laid from the Stands column.
+- The Grundig tower (OSM "Turm 1", 16 storeys) is laid as a `control_tower` by the tower heuristic; `skyline_lowrise` fits it, through `MANUAL_STRUCTURE_ASSETS` on the next full extract (no extract is cached).

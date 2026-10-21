@@ -73,3 +73,9 @@ Left, or for later columns:
 - Not placed: the park map's three superscreens on the pit building's track face (left, ~4780, ~4860, ~0), where the bake lays garages; no screen-on-the-pit-building rule. The podium (by the finish, on the pit building) has no MANUAL_LANDMARKS kind.
 - Dossier rebuild for this stem is `python tools/osm_layout.py MandarinaBay --offline` (no DEM sidecar, so --manual-only skips it); not run.
 - Left for other columns: Raffles, Bayfront, Skyline/Promenade fixes and the Padang/Connaught/Bayfront/Raffles Ave superscreens.
+
+## Landmark dossier pass
+
+Nothing went in.
+
+- Nothing needed: the skyline landmarks, viaduct and decks are laid. The superscreens are Stands and R20.

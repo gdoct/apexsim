@@ -50,3 +50,9 @@ Left, or for later columns:
 - The generated garage row (24 boxes, 3591-38) sits mostly before the line, while the map draws the pit building after it (about 5-183; OSM -34..144). That is the export's pit layout, not a dossier table.
 - Not placed: the DTM fan-zone big screen. The overview map has no screen symbol; the dossier puts it in the fan zone behind the main stand (Zuschauerbereich Mitte), facing the fan zone rather than the track. Fanshop (17) and WC (6) are drawn behind the main stand's west end (about 150-200 R), so a screen there would be a guess.
 - For other columns: the Zuschauerbereich banks (rule gap), the two-storey pit building (garage_6m_upper kit gap), the 4*-Hotel as hospitality_3f.
+
+## Landmark dossier pass
+
+Nothing went in.
+
+- Nothing fits the kit: the hotel (112 m) would shrink to a 30 m block, the DEKRA fan tower has no position.

@@ -1333,22 +1333,6 @@
    "levels": 0,
    "osm_building": "yes",
    "area_m2": 2202
-  },
-  {
-   "name": null,
-   "station_m": 3718.1,
-   "side": "right",
-   "offset_m": 69.8,
-   "length_m": 163.9,
-   "depth_m": 125.6,
-   "yaw_rad": 0.8783,
-   "centre": [
-    -244.37,
-    572.66
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 9355
   }
  ],
  "crossings": [
@@ -1380,14 +1364,14 @@
    ]
   },
   {
-   "kind": "tower",
-   "name": null,
+   "kind": "geodesic_dome",
+   "name": "Biosphere",
    "source": "authored",
-   "station_m": 2350.0,
+   "station_m": 2696.3,
    "side": "left",
    "centre": [
-    -541.71,
-    1248.93
+    -705.73,
+    1552.08
    ]
   },
   {
@@ -1399,6 +1383,18 @@
     -237.21,
     1265.56
    ]
+  },
+  {
+   "kind": "expo_pavilion",
+   "name": "Casino de Montreal",
+   "source": "authored",
+   "station_m": 3725.6,
+   "side": "right",
+   "centre": [
+    -240.78,
+    565.51
+   ],
+   "yaw_rad": 0.8783
   },
   {
    "kind": "screen",

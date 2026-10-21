@@ -1259,6 +1259,17 @@
    ]
   },
   {
+   "kind": "camera_tower",
+   "name": "DEKRA fan tower",
+   "source": "authored",
+   "station_m": 1500.0,
+   "side": "left",
+   "centre": [
+    -334.05,
+    309.32
+   ]
+  },
+  {
    "kind": "screen",
    "name": "Steintribüne west screen",
    "source": "authored",

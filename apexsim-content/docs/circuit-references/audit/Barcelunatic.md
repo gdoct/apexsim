@@ -84,3 +84,15 @@ Left, or for later columns:
 - The podium (pit-entry half, unconfirmed) stays on the middle garage.
 - The Media Centre (right, about 150-250, behind the pits) is a block behind the generated pit complex, not placed.
 - The RACC chicane in the centerline (4100-4210) is a geometry issue upstream of dressing; Tribuna I's span starts after it.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_CROSSINGS`: Circuit Rooftop (3361.2), a `building` crossing (`span_building`, R5) where OSM's "VIP Rooftop" reaches across the road.
+- `MANUAL_LANDMARKS`: F1 Fanzone stage, 2940 left, 150 m off (2026 spectator map, affine fit, 9-58 m).
+
+Left, or for later columns:
+
+- The kit's span building is 8.2 m along the road against a real ~70 m building: a second module if the shots look thin.
+- The heliport: no kit piece.

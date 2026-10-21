@@ -74,3 +74,13 @@ Left, or for later columns:
 - The north screen is drawn at ~st 300 R; at 290 R / 25 m it was skipped ("in the pit lane or where its garages stand"), so it is 30 m further on, past the garage row.
 - Hoofdtribune open follows the dossier's "only covered stand" line; no photo of the 2020 main stand was checked. Doubtful: confirm.
 - Hospitality lounges 15-19 and the Champions Club behind 26-29 (~4150 -> 330, 50-80 m L) and the Paddock Club blocks are structures (MANUAL_STRUCTURES), not these tables; the other live screens round the lap are the Stands column's.
+
+## Landmark dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: the Ferris wheel (4135 left, 70 m, behind Ben Pon 29) and the F1 Fanzone stage (3850 left, 220 m), 2026 wayfinding map.
+
+Left, or for later columns:
+
+- The wheel stays south of about 4200, clear of the OSM lounge building at 4233 left.
