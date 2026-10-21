@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ApexSim Tracks Globe (design reference)</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{--accent:#3ddc84;--pin:#e0a526}
+*{box-sizing:border-box}
+body{margin:0;background:#0b0b0d;color:#f2f2f2;font-family:'Roboto Condensed','Arial Narrow',sans-serif}
+button{font-family:inherit}
+.app{min-height:100vh;display:flex;flex-direction:column}
+.top{height:56px;flex:none;background:#0a0a0b;border-bottom:1px solid #1c1d20;display:flex;align-items:center;gap:14px;padding:0 58px}
+.top b{font-size:36px;letter-spacing:.04em;line-height:1}
+.top .sl{font-size:30px;color:#6b6f77}
+.mono{font-family:'Roboto Mono',monospace}
+.top .ver{font-size:15px;letter-spacing:.12em;color:#9aa0a8}
+.main{flex:1;min-height:calc(100vh - 56px);display:flex;flex-wrap:wrap;align-items:stretch}
+.tracklist{flex:0 0 300px;padding:40px 0 32px 58px;display:flex;flex-direction:column;gap:22px;max-height:calc(100vh - 56px)}
+.crumb{font-size:15px;letter-spacing:.18em;color:var(--pin);display:flex;gap:22px}
+.rows{display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding-right:20px;min-height:0}
+.row{display:block;width:100%;text-align:left;border:1px solid transparent;background:#1a1a1c;color:#f2f2f2;font-size:19px;font-weight:700;height:52px;padding:0 18px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row:hover{background:#232427}
+.row.on{background:#26272b;border-color:var(--accent)}
+.stage{flex:1 1 520px;min-width:0;min-height:380px;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:radial-gradient(ellipse at 50% 50%,#15171d 0%,#0b0b0d 70%)}
+.box{position:relative;width:min(100%,calc((100vh - 56px)*1.3));aspect-ratio:1.3;touch-action:none;cursor:grab;user-select:none}
+.box.drag{cursor:grabbing}
+.box svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.pin{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;padding:0;border:0;background:transparent;cursor:pointer;color:#f2f2f2}
+.pin:hover,.pin:focus-visible{z-index:6}
+.pin:focus-visible{outline:2px solid #fff;outline-offset:-4px;border-radius:50%}
+.pin:hover .lbl,.pin:focus-visible .lbl{opacity:1 !important;pointer-events:auto !important}
+.lbl{position:absolute;top:50%;transform:translateY(-50%);white-space:nowrap;background:rgba(10,10,12,.86);border:1px solid #2c2d31;padding:3px 9px;font-size:15px;font-weight:700;line-height:20px;transition:opacity .15s}
+.hint{position:absolute;left:24px;bottom:20px;font-size:12px;letter-spacing:.14em;color:#9aa0a8;display:flex;flex-wrap:wrap;gap:6px 22px;max-width:calc(100% - 120px)}
+.ctl{position:absolute;right:24px;bottom:20px;display:flex;flex-direction:column;gap:6px}
+.cbtn,.x{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border:1px solid #2c2d31;color:#f2f2f2;cursor:pointer;padding:0}
+.cbtn{background:#1a1a1c}.cbtn:hover{background:#2a2b2f}
+.x{background:transparent}.x:hover{background:#232427}
+.row:focus-visible,.cbtn:focus-visible,.btn:focus-visible,.x:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pr 1.7s ease-out infinite}
+@keyframes pr{0%{transform:scale(.55);opacity:.95}100%{transform:scale(2.3);opacity:0}}
+.panelw{flex:none;overflow:hidden;max-width:100%;background:#141416;transition:width .35s ease;width:0}
+.panelw.open{width:420px;border-left:1px solid #232427}
+.panel{width:420px;max-width:100%;padding:40px 32px 32px;display:flex;flex-direction:column;gap:22px}
+.phead{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:15px;letter-spacing:.18em;color:var(--pin)}
+.map{height:190px;background:#11131a;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.map svg{width:100%;height:100%;padding:14px}
+.map .ph{font-size:12px;letter-spacing:.16em;color:#9aa0a8;border:1px dashed #3a3c42;padding:10px 14px}
+h2{margin:0;font-size:56px;line-height:.98;text-transform:uppercase;letter-spacing:.005em;text-wrap:balance}
+h2 span{color:#6b6f77}
+.meta{margin-top:14px;font-size:14px;letter-spacing:.14em;color:#9aa0a8;text-transform:uppercase;display:flex;flex-wrap:wrap;gap:4px 14px}
+.desc{margin:10px 0 0;font-size:20px;line-height:1.3;color:#9aa0a8;font-family:Roboto,'Helvetica Neue',Arial,sans-serif}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.tile{background:#1a1a1c;border:1px solid #232427;padding:14px 18px}
+.tile .k{font-size:13px;letter-spacing:.18em;color:#9aa0a8}
+.tile .v{font-size:34px;font-weight:700;margin-top:4px}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+.btn{height:56px;display:flex;align-items:center;justify-content:center;gap:10px;font-size:20px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:0 20px;flex:1 1 150px}
+.btn:hover{filter:brightness(1.12)}
+.btn.p{background:var(--accent);color:#07110b;border:0}
+.btn.s{background:transparent;color:#f2f2f2;border:1px solid #4a4c52}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}.panelw{transition:none}}
+@media (max-width:820px){.tracklist{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><b>APEXSIM</b><span class="sl">/</span><span class="ver mono">0.3.9</span></div>
+  <div class="main">
+    <div class="tracklist">
+      <div class="crumb mono"><span>GARAGE</span><span>/</span><span>TRACKS</span></div>
+      <div class="rows" id="rows"></div>
+    </div>
+    <div class="stage">
+      <div class="box" id="box">
+        <svg viewBox="0 0 1300 1000" role="img" aria-label="Interactive globe showing circuit locations">
+          <defs>
+            <radialGradient id="ocean" cx="40%" cy="36%" r="75%"><stop offset="0%" stop-color="#1b2030"/><stop offset="60%" stop-color="#11141c"/><stop offset="100%" stop-color="#0a0b0f"/></radialGradient>
+            <radialGradient id="atm" cx="50%" cy="50%" r="50%"><stop offset="86%" stop-color="#7fa6ff" stop-opacity=".22"/><stop offset="100%" stop-color="#7fa6ff" stop-opacity="0"/></radialGradient>
+          </defs>
+          <circle id="atm" cx="650" cy="500" r="460" fill="url(#atm)"/>
+          <circle id="ocean" cx="650" cy="500" r="430" fill="url(#ocean)"/>
+          <path id="grat" fill="none" stroke="#9db4e8" stroke-opacity=".14" stroke-width="1"/>
+          <path id="land3" fill="none" stroke="#c9ced6" stroke-opacity=".2" stroke-linecap="round"/>
+          <path id="land2" fill="none" stroke="#c9ced6" stroke-opacity=".45" stroke-linecap="round"/>
+          <path id="land1" fill="none" stroke="#dfe3ea" stroke-opacity=".85" stroke-linecap="round"/>
+          <circle id="limb" cx="650" cy="500" r="430" fill="none" stroke="#8fb0ff" stroke-opacity=".35" stroke-width="1.5"/>
+          <g id="pinsvg"></g>
+        </svg>
+        <div id="pinbtns"></div>
+      </div>
+      <div class="hint mono"><span>DRAG: ROTATE</span><span>SCROLL: ZOOM</span><span>CLICK A PIN: DETAILS</span></div>
+      <div class="ctl">
+        <button class="cbtn" id="zin" aria-label="Zoom in"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button class="cbtn" id="zout" aria-label="Zoom out"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <button class="cbtn" id="home" aria-label="Reset view"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></button>
+      </div>
+    </div>
+    <div class="panelw" id="panelw">
+      <div class="panel" id="panel">
+        <div class="phead mono"><span>TRACK</span><button class="x" id="close" aria-label="Close track details"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19"/></svg></button></div>
+        <div class="map" id="map"></div>
+        <div>
+          <h2 id="title"></h2>
+          <div class="meta mono" id="meta"></div>
+          <p class="desc" id="desc"></p>
+        </div>
+        <div class="tiles">
+          <div class="tile"><div class="k mono">LENGTH</div><div class="v" id="len"></div></div>
+          <div class="tile"><div class="k mono">YOUR BEST</div><div class="v">Never driven</div></div>
+        </div>
+        <div class="btns">
+          <button class="btn p" id="hotlap"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="14" r="7.5"/><path d="M12 14V9.5M9.5 2.5h5M18.5 6l1.5-1.5"/></svg><span>Hotlap</span></button>
+          <button class="btn s" id="guide"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg><span>Track guide</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Design reference for the Garage > Tracks globe. Pure projection maths, no libraries:
+   the same formulas port 1:1 to Unreal (see the notes block at the bottom). */
+
+/* Land mask: one string per 2.5 degree latitude band (south to north), '1' = land.
+   Cell i of n sits at lon = -180 + (i + 0.5) * 360 / n. */
+const LAND_ROWS = "111,111111111,0111111111111111,0111111001111111111110,0111111100111111111111111110,0001111111000001111111111111111100,0000001001101000001111111111111111111110,0000000000000010000000011111111111111111111110,0000000000000000100000000000000011110111111111110000,0000000000000000001000000000000000000100000001000000000000,0000000000000000000001000000000000000000000000000000000000000000,000000000000000000000000000000000000000000000000000000000000000000000,000000000000000000000000000000000000000000000000000000000000000000000000000,00000000000000000000000000000000000000000000000000000000000000000000000000000000,0000000000000000000000000000000000000000000000000000000000000000000000000000000000000,000000000000000000000000001100000000000000000000000000000000000000000000000000000000000000,00000000000000000000000000001100000000000000000000000000000000000000000000000000000000000000000,0000000000000000000000000000011000000000000000000000000000000000000000000000000000000000000000001000,00000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000000000000100,000000000000000000000000000000001100000000000000000000000000000000000000000000000000000000000000010000000010,0000000000000000000000000000000001111000000000000000000000000000000000000000000000000000000000000000010000000010,00000000000000000000000000000000000111110000000000000000000000000000000000000000000000000000000000000001110000000000,000000000000000000000000000000000000111111000000000000000000000000111000000000000000000000000000001110000111110000000000,000000000000000000000000000000000000011111110000000000000000000000001111000000000000000000000000000001111111111111000000000,000000000000000000000000000000000000001111111100000000000000000000000111110000000000000000000000000000011111111111111000000000,000000000000000000000000000000000000000111111110000000000000000000000011111100000000000000000000000000000111111111111110000000000,000000000000000000000000000000000000000011111111100000000000000000000001111111100010000000000000000000000000111111111111100000000000,00000000000000000000000000000000000000000111111111110000000000000000000011111111000110000000000000000000000000111111111111100000100000,0000000000000000000000000000000000000000011111111111100000000000000000000111111111000110000000000000000000000000001111111110000000000000,000000000000000000000000000000000000000001111111111111000000000000000000011111111111001100000000000000000000000000001111110110000000000000,00000000000000000000000000000000000000001111111111111110000000000000000000011111111111000000000000000000000000000000000011100100000000000000,000000000000000000000000000000000000000011111111111111110000000000000000000011111111110000000000000000000000000000000000000000000000000000000,0000000000000000000000000000000000000000111111111111111110000000000000000000111111111110000000000000000000000000000001101000001101000010000000,00000000000000000000000000000000000000011111111111111111110000000000000000001111111111100000000000000000000000000000000000000011110000000000000,000000000000000000000000000000000000000011111111111111111000000000000000000011111111111100000000000000000000000001000000100000111100000000000000,000000000000000000000000000000000000000011111111111111000000000000000000000011111111111110000000000000000000000011001110100011000000000000000000,000000000000000000000000000000000000000011111111111100000000000000000000000011111111111111000000000000000000000011001110000000000000000000000000,000000000000000000000000000000000000000001111111111100000000000000000000000011111111111111100000000000000000000110000110000000000000000000000000,00000000000000000000000000000000000000000111111110000000000000000001111111111111111111111110000000000001000000010000000000000000000000000000000,0000000000000000000000000000000000000011011111100000000000000000001111111111111111111111111000000000011000000000100000001000000000000000000000,000000000000000000000000000000000000010001010000000000000000000011111111111111111111111101000000000011000000010110000010000000000000000000000,00000000000000000000000000000000000111000000000000000000000000011111111111111111111111011000000000011000000011110000010000000000000000000000,000000000000000000000000000000011110000000000000000000000000000111111111111111111111011110000000011100000111110000010000000000000000000000,0000000000000000000000000000011101100000010000000000000000000011111111111111111111001111100000001111000111110100000000000000000000000000,00000000000000000000000000001110001000000000000000000000000001111111111111111111101111111000011111100111111000000000000000000000000000,000000000000000000000000010111000000010000000000000000000000111111111111111111101111111000011111111111111111101000000000000000000000,000000000000000000000000111111000001000000000000000000000001111111111111111110111100011111111111111111111110000000000000000000000,000000000000000000000000111111000010000000000000000000000001111111111111110111110111111111111111111111111100000000000000000000,000000000000000000000001111111111100000000000000000000000011111111101110111111111111111111111111111111100000000000000000000,000000000000000000000111111111111100000000000000000000000111111100000000111111111111111111111111111100011000000000000000,00000000000000000001111111111111110000000000000000000000001110000000101111111111111111111111111110010010000000000000,0000000000000000001111111111111110000000000000000000011100000010111111100111111111111111111110010001000000000000,000000000000000001111111111111110000000000000000000111100010111110111011111111111111111111111000000000000000,00000000000000001111111111111111000000000000000000001101011100011101111111111111111111111110010000000000,0000000000000000111111111111111110000000000000000011111111010111011111111111111111111111010000000000,00000000000000111111111111111010100000000000001111111111111111111111111111111111111100000000000,000000000000011111111111111111100000000000001011111111111111111111111111111111110000000000,0000000000001111111111101111100000000000100011111111111111111111111111111111000100000,00001000000111111111100111000000000000000001011111111111111111111111111000010000,000011000111111111000110000000000000000010111111111111111111111111100000000,000111111111111110001000010000000001110111111111111111111111111100110,0001111111111111010100011000100000111111111111111111111111111111,1111111111111110011011100010000111001111111111111111111111,0011111110001001000111000000111000111111111111111101,0000000111001100111100000000000011111111110000,0000001001000011110000000000011110000000,0000010100111110000000000011000000,0000000111110001000000000000,0000011111000000000000,0000000000000000,000000000,000";
+
+const TRACKS = [
+  { id:'albert', name:'Albert Parkour Circuit', main:'Albert Parkour ', tail:'Circuit', country:'Australia', city:'Melbourne', place:'Melbourne, Victoria, Australia', lat:-37.85, lon:144.97, length:'5.28' },
+  { id:'monza', name:'Autodromo Monzarella', main:'Autodromo Monzarella', tail:'', country:'Italy', city:'Monza', place:'Monza, Lombardy, Italy', lat:45.62, lon:9.28, length:'5.79' },
+  { id:'mexico', name:'Autódromo Hermanos Rodri-Que', main:'Autódromo Hermanos Rodri-Que', tail:'', country:'Mexico', city:'Mexico City', place:'Mexico City, Mexico', lat:19.40, lon:-99.09, length:'4.30' },
+  { id:'interlaggos', name:'Autódromo Interlaggos', main:'Autódromo Interlaggos', tail:'', country:'Brazil', city:'São Paulo', place:'São Paulo, Brazil', lat:-23.70, lon:-46.70, length:'4.31' },
+  { id:'bahrain', name:'Bahrainless International Circuit', main:'Bahrainless International ', tail:'Circuit', country:'Bahrain', city:'Sakhir', place:'Sakhir, Bahrain', lat:26.03, lon:50.51, length:'5.41' },
+  { id:'brands', name:'Brands Scratch', main:'Brands Scratch', tail:'', country:'United Kingdom', city:'Kent', place:'Kent, England, United Kingdom', lat:51.36, lon:0.26, length:'3.92' },
+  { id:'villeneuve', name:'Circuit Chilly Villeneuve', main:'Circuit ', tail:'Chilly Villeneuve', country:'Canada', city:'Montréal', place:'Montréal, Québec, Canada', lat:45.50, lon:-73.52, length:'4.36' },
+  { id:'barcelunatic', name:'Circuit de Barcelunatic', main:'Circuit de Barcelunatic', tail:'', country:'Spain', city:'Montmeló', place:'Montmeló, Catalonia, Spain', lat:41.57, lon:2.26, length:'4.66' },
+  { id:'armadillos', name:'Circuit of the Armadillos', main:'Circuit of the Armadillos', tail:'', country:'United States', city:'Austin', place:'Austin, Texas, United States', lat:30.13, lon:-97.64, length:'5.51' },
+  { id:'hockeyheim', name:'Hockeyheimring', main:'Hockeyheim', tail:'ring', country:'Germany', city:'Hockenheim', place:'Hockenheim, Baden-Württemberg, Germany', lat:49.33, lon:8.57, length:'4.56', hasMap:true }
+];
+/* Sample data: lengths, places and classes are placeholders until read from the track YAML. */
+
+const HOCKEY_PATH = "M1430 240 L1442 262 Q1445 285 1475 300 C1540 330 1600 340 1680 318 L1768 286 L1772 296 L1665 362 L1580 352 Q1572 358 1580 385 Q1588 402 1572 414 L1478 482 Q1465 486 1450 470 L1405 418 Q1392 412 1388 430 Q1392 445 1415 478 Q1442 492 1432 505 Q1415 528 1400 526 Q1386 520 1372 490 L1325 385 Q1318 372 1330 358 Z";
+
+const D2R = Math.PI / 180;
+const HOME = { lon:-25, lat:22, zoom:1 };
+const CX = 650, CY = 500, R0 = 430, PIN_H = 0.085;
+const CFG = { autoRotate:true, autoRotateDegPerSec:3.5, selectZoom:2.4, minZoom:0.85, maxZoom:5 };
+
+const $ = (id) => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const v = { lon:HOME.lon, lat:HOME.lat, zoom:1, tLon:null, tLat:null, tZoom:1, vLon:0, vLat:0,
+            drag:false, hover:false, sel:null, last:0, px:0, py:0, pt:0, dirty:true };
+
+/* ---- land dots ---- */
+const land = (() => {
+  const lr = [], sp = [], cp = [];
+  LAND_ROWS.split(',').forEach((row, j) => {
+    const lat = (-90 + (j + 0.5) * 2.5) * D2R, n = row.length;
+    for (let i = 0; i < n; i++) if (row[i] === '1') {
+      lr.push((-180 + (i + 0.5) * 360 / n) * D2R); sp.push(Math.sin(lat)); cp.push(Math.cos(lat));
+    }
+  });
+  return { lr, sp, cp, n: lr.length };
+})();
+
+/* lon/lat (deg) -> [x, y, depth] in the 1300x1000 viewBox; depth > 0 faces the viewer */
+function pj(lon, lat, rad) {
+  const R = R0 * v.zoom * rad;
+  const p = lat * D2R, dl = (lon - v.lon) * D2R, p0 = v.lat * D2R;
+  const cp = Math.cos(p), sp = Math.sin(p);
+  const x = cp * Math.sin(dl);
+  const y = Math.cos(p0) * sp - Math.sin(p0) * cp * Math.cos(dl);
+  const z = Math.sin(p0) * sp + Math.cos(p0) * cp * Math.cos(dl);
+  return [CX + R * x, CY - R * y, z];
+}
+const wrap = (l) => ((l + 540) % 360) - 180;
+
+/* ---- build static DOM ---- */
+const pinSvg = $('pinsvg'), pinBtns = $('pinbtns');
+const pins = TRACKS.map((t) => {
+  const g = document.createElementNS(NS, 'g');
+  g.innerHTML = '<circle r="2.6" fill="#0b0b0d" stroke="#d0d3d9" stroke-width="1"/>' +
+    '<line stroke="#d0d3d9" stroke-width="2" stroke-linecap="round"/>' +
+    '<circle class="pulse" fill="none" stroke-width="2.5"/>' +
+    '<circle stroke="#0b0b0d" stroke-width="2.5"/>';
+  pinSvg.appendChild(g);
+  const b = document.createElement('button');
+  b.className = 'pin';
+  b.setAttribute('aria-label', t.name + ', ' + t.city + ', ' + t.country);
+  b.innerHTML = '<span class="lbl"></span>';
+  b.firstChild.textContent = t.name;
+  b.addEventListener('pointerdown', (e) => e.stopPropagation());
+  b.addEventListener('click', () => select(t.id));
+  pinBtns.appendChild(b);
+  const c = g.children;
+  return { t, g, base:c[0], stick:c[1], ring:c[2], head:c[3], btn:b, lbl:b.firstChild };
+});
+const rowEls = TRACKS.map((t) => {
+  const b = document.createElement('button');
+  b.className = 'row'; b.textContent = t.name;
+  b.addEventListener('click', () => select(t.id));
+  $('rows').appendChild(b);
+  return b;
+});
+
+/* ---- selection ---- */
+function select(id) {
+  const t = TRACKS.find((x) => x.id === id);
+  v.sel = id; v.tLon = t.lon; v.tLat = t.lat; v.tZoom = CFG.selectZoom; v.vLon = v.vLat = 0;
+  $('title').innerHTML = ''; $('title').append(t.main);
+  const tail = document.createElement('span'); tail.textContent = t.tail; $('title').append(tail);
+  $('meta').innerHTML = '';
+  [t.country, '/', t.city, '/', 'Formula'].forEach((s) => { const e = document.createElement('span'); e.textContent = s; $('meta').append(e); });
+  $('desc').textContent = 'Modelled on the circuit at ' + t.place + '.';
+  $('len').textContent = t.length + ' km';
+  $('map').innerHTML = t.hasMap
+    ? '<svg viewBox="1300 220 500 330" role="img" aria-label="Track layout"><path d="' + HOCKEY_PATH + '" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+    : '<span class="ph mono">TRACK LAYOUT FROM SIDECAR</span>';
+  $('panelw').classList.add('open');
+  v.dirty = true;
+}
+function closePanel() { v.sel = null; v.tZoom = 1; $('panelw').classList.remove('open'); v.dirty = true; }
+$('close').onclick = closePanel;
+$('zin').onclick = () => { v.tZoom = Math.min(CFG.maxZoom, v.tZoom * 1.35); };
+$('zout').onclick = () => { v.tZoom = Math.max(CFG.minZoom, v.tZoom / 1.35); };
+$('home').onclick = () => { closePanel(); v.tLon = HOME.lon; v.tLat = HOME.lat; v.tZoom = HOME.zoom; v.vLon = v.vLat = 0; };
+
+/* ---- input: drag to rotate (with inertia), wheel to zoom ---- */
+const box = $('box');
+box.addEventListener('pointerdown', (e) => {
+  v.drag = true; v.tLon = v.tLat = null; v.vLon = v.vLat = 0;
+  v.px = e.clientX; v.py = e.clientY; v.pt = performance.now();
+  box.classList.add('drag');
+  try { box.setPointerCapture(e.pointerId); } catch (_) {}
+});
+box.addEventListener('pointermove', (e) => {
+  if (!v.drag) return;
+  const rpx = R0 * v.zoom * box.getBoundingClientRect().width / 1300;
+  const now = performance.now(), dt = Math.max(0.004, (now - v.pt) / 1000);
+  const dLon = -(e.clientX - v.px) / rpx * 57.2958, dLat = (e.clientY - v.py) / rpx * 57.2958;
+  v.lon = wrap(v.lon + dLon); v.lat = Math.max(-85, Math.min(85, v.lat + dLat));
+  v.vLon = 0.6 * v.vLon + 0.4 * dLon / dt; v.vLat = 0.6 * v.vLat + 0.4 * dLat / dt;
+  v.px = e.clientX; v.py = e.clientY; v.pt = now; v.dirty = true;
+});
+const endDrag = () => {
+  v.drag = false; box.classList.remove('drag');
+  if (performance.now() - v.pt > 90) v.vLon = v.vLat = 0;
+};
+box.addEventListener('pointerup', endDrag);
+box.addEventListener('pointercancel', endDrag);
+box.addEventListener('pointerenter', () => { v.hover = true; });
+box.addEventListener('pointerleave', () => { v.hover = false; });
+box.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  v.tZoom = Math.max(CFG.minZoom, Math.min(CFG.maxZoom, v.tZoom * Math.exp(-e.deltaY * 0.0015)));
+}, { passive:false });
+
+/* ---- animation ---- */
+function step(dt) {
+  let ch = false;
+  if (!v.drag) {
+    if (v.tLon !== null) {                       // fly-to
+      const k = 1 - Math.exp(-dt * 5), dl = wrap(v.tLon - v.lon), dp = v.tLat - v.lat;
+      v.lon = wrap(v.lon + dl * k); v.lat += dp * k;
+      if (Math.abs(dl) < 0.03 && Math.abs(dp) < 0.03) { v.lon = v.tLon; v.lat = v.tLat; v.tLon = v.tLat = null; }
+      ch = true;
+    } else if (Math.abs(v.vLon) > 0.02 || Math.abs(v.vLat) > 0.02) {   // inertia
+      v.lon = wrap(v.lon + v.vLon * dt); v.lat = Math.max(-85, Math.min(85, v.lat + v.vLat * dt));
+      const f = Math.exp(-dt * 3.2); v.vLon *= f; v.vLat *= f; ch = true;
+    } else if (CFG.autoRotate && !v.sel && !v.hover) {                 // idle spin
+      v.lon = wrap(v.lon + CFG.autoRotateDegPerSec * dt); ch = true;
+    }
+  }
+  const dz = v.tZoom - v.zoom;
+  if (Math.abs(dz) > 0.0005) { v.zoom += dz * (1 - Math.exp(-dt * 6)); ch = true; }
+  return ch || v.dirty;
+}
+
+function draw() {
+  v.dirty = false;
+  const R = R0 * v.zoom, p0 = v.lat * D2R, l0 = v.lon * D2R, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+  $('atm').setAttribute('r', (R * 1.07).toFixed(1));
+  $('ocean').setAttribute('r', R.toFixed(1));
+  $('limb').setAttribute('r', R.toFixed(1));
+
+  let a = '', b = '', c = '';
+  for (let i = 0; i < land.n; i++) {
+    const dl = land.lr[i] - l0, cd = Math.cos(dl);
+    const z = sp0 * land.sp[i] + cp0 * land.cp[i] * cd;
+    if (z <= 0.02) continue;
+    const s = 'M' + (CX + R * land.cp[i] * Math.sin(dl)).toFixed(1) + ' ' +
+              (CY - R * (cp0 * land.sp[i] - sp0 * land.cp[i] * cd)).toFixed(1) + 'h.01';
+    if (z > 0.55) a += s; else if (z > 0.22) b += s; else c += s;
+  }
+  const dot = Math.min(16, 6 * Math.pow(v.zoom, 0.7)).toFixed(1);
+  [['land1', a], ['land2', b], ['land3', c]].forEach(([id, d]) => { $(id).setAttribute('d', d); $(id).setAttribute('stroke-width', dot); });
+
+  let grat = '';
+  const seg = (pts) => { let pen = false; pts.forEach((q) => { if (q[2] > 0) { grat += (pen ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); pen = true; } else pen = false; }); };
+  for (let lo = -180; lo < 180; lo += 30) { const pts = []; for (let la = -90; la <= 90; la += 3) pts.push(pj(lo, la, 1)); seg(pts); }
+  for (let la = -60; la <= 60; la += 30) { const pts = []; for (let lo = -180; lo <= 180; lo += 3) pts.push(pj(lo, la, 1)); seg(pts); }
+  $('grat').setAttribute('d', grat);
+
+  // pins: project, then place labels front-most first, skipping any that would overlap
+  const vis = [];
+  pins.forEach((p) => {
+    const base = pj(p.t.lon, p.t.lat, 1);
+    p.base2 = base; p.head2 = pj(p.t.lon, p.t.lat, 1 + PIN_H);
+    p.show = base[2] >= 0.08;
+  });
+  const order = pins.filter((p) => p.show).sort((m, n) => (n.t.id === v.sel) - (m.t.id === v.sel) || n.base2[2] - m.base2[2]);
+  const placed = [], labelOn = {};
+  order.forEach((p) => {
+    const w = p.t.name.length * 8.8 + 26, side = p.head2[0] > 1050 ? -1 : 1;
+    const x0 = side === 1 ? p.head2[0] + 12 : p.head2[0] - 12 - w;
+    const r = [x0, p.head2[1] - 15, x0 + w, p.head2[1] + 15];
+    const hit = placed.some((q) => r[0] < q[2] && r[2] > q[0] && r[1] < q[3] && r[3] > q[1]);
+    if (!hit || p.t.id === v.sel) { placed.push(r); labelOn[p.t.id] = true; }
+  });
+  const sc = Math.max(0.9, Math.min(1.5, Math.pow(v.zoom, 0.4)));
+  const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const pinCol = getComputedStyle(document.documentElement).getPropertyValue('--pin').trim();
+  pins.slice().sort((m, n) => m.base2[2] - n.base2[2]).forEach((p) => {   // back to front
+    p.g.style.display = p.btn.style.display = p.show ? '' : 'none';
+    pinSvg.appendChild(p.g); pinBtns.appendChild(p.btn);
+    if (!p.show) return;
+    const sel = p.t.id === v.sel, h = p.head2, bs = p.base2, col = sel ? accent : pinCol;
+    p.base.setAttribute('cx', bs[0].toFixed(1)); p.base.setAttribute('cy', bs[1].toFixed(1));
+    p.stick.setAttribute('x1', bs[0].toFixed(1)); p.stick.setAttribute('y1', bs[1].toFixed(1));
+    p.stick.setAttribute('x2', h[0].toFixed(1)); p.stick.setAttribute('y2', h[1].toFixed(1));
+    p.ring.setAttribute('cx', h[0].toFixed(1)); p.ring.setAttribute('cy', h[1].toFixed(1));
+    p.ring.setAttribute('r', sel ? 11 * sc : 0); p.ring.setAttribute('stroke', col);
+    p.head.setAttribute('cx', h[0].toFixed(1)); p.head.setAttribute('cy', h[1].toFixed(1));
+    p.head.setAttribute('r', (sel ? 9.5 : 7.5) * sc); p.head.setAttribute('fill', col);
+    const fade = Math.min(1, (bs[2] - 0.08) / 0.25), side = h[0] > 1050 ? -1 : 1, on = !!labelOn[p.t.id];
+    p.btn.style.left = (h[0] / 13).toFixed(3) + '%'; p.btn.style.top = (h[1] / 10).toFixed(3) + '%';
+    p.btn.style.opacity = fade.toFixed(2);
+    p.lbl.style.left = side === 1 ? 'calc(100% - 6px)' : 'auto';
+    p.lbl.style.right = side === 1 ? 'auto' : 'calc(100% - 6px)';
+    p.lbl.style.opacity = on ? 1 : 0; p.lbl.style.pointerEvents = on ? 'auto' : 'none';
+    p.lbl.style.color = sel ? accent : '#f2f2f2'; p.lbl.style.borderColor = sel ? accent : '#2c2d31';
+  });
+  rowEls.forEach((el, i) => el.classList.toggle('on', TRACKS[i].id === v.sel));
+}
+
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05, Math.max(0, (t - (v.last || t)) / 1000)); v.last = t;
+  if (step(dt)) draw();
+}
+requestAnimationFrame(loop);
+
+/* ------------------------------------------------------------------------------------
+   PORTING NOTES (Unreal)
+   - Position on the sphere (unit radius, Y up):  dir = (cos(lat)*sin(lon), sin(lat), cos(lat)*cos(lon))
+     Pin base = dir * R, pin head = dir * R * (1 + PIN_H); the stick is the segment between them.
+   - Orbit camera: rotate the globe (or orbit the camera) by (lon, lat); clamp lat to +-85.
+     Drag: dLon = -dx / pixelRadius * 57.2958, dLat = +dy / pixelRadius * 57.2958.
+   - A pin faces the viewer when dot(dir, dirToCamera) > 0.08; fade in over 0.08..0.33.
+   - Select = ease lon/lat/zoom to the track (k = 1 - exp(-dt*5)), zoom 2.4, show panel.
+   - Labels: place front-most first, skip any whose screen rect overlaps one already placed;
+     hover/focus always shows its label; the selected label is always shown.
+   - Land is a bitmap of 2.5 degree bands (LAND_ROWS), rendered as dots; export it as a texture.
+   ------------------------------------------------------------------------------------ */
+</script>
+</body>
+</html>
