@@ -1196,7 +1196,8 @@ runs:
       23: ["apexsim.ui.Key Escape"]
       25: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
       27: ["apexsim.ui.Texts", "apexsim.ui.Click Tracks"]
-      29: ["apexsim.ui.Texts", "apexsim.ui.Click See track guide"]
+      29: ["apexsim.ui.Texts", "apexsim.ui.Globe select Hockeyheimring"]
+      31: ["apexsim.ui.Click Track guide"]
       40: ["apexsim.ui.Key Escape"]
       42: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
       43: ["apexsim.ui.Texts", "apexsim.ui.Click Back"]
@@ -1217,8 +1218,8 @@ runs:
         label: "Manage car setups"
         checks: "A car's own compounds on the garage's reference card"
       - at: 36
-        label: "See track guide"
-        checks: "See track guide opens the guide"
+        label: "Track guide"
+        checks: "The Tracks page's Track guide opens the guide"
       - at: 50
         label: "Replays"
         checks: "The replays list"
@@ -1237,6 +1238,34 @@ runs:
       - at: 85
         label: "browser filter: Recorded (clicked)"
         checks: "The browser's filter pills by mouse"
+
+  - id: m2-tracks-globe
+    about: "Garage > Tracks: the globe, zoomed, a circuit chosen, the pad on the pins"
+    # No race. The globe's idle spin is held off so each shot is a known
+    # view (apexsim.ui.Globe, docs/game/client.md).
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Garage"]
+      7: ["apexsim.ui.Texts", "apexsim.ui.Click Tracks"]
+      9: ["apexsim.ui.Globe spin 0", "apexsim.ui.Globe view 10 30 1"]
+      21: ["apexsim.ui.Globe view 7 48 3.4"]
+      33: ["apexsim.ui.Globe select Hockeyheimring"]
+      45: ["apexsim.ui.Key Gamepad_DPad_Left"]
+      46: ["apexsim.ui.Key Gamepad_DPad_Up"]
+    shots:
+      - at: 18
+        label: "the globe, home zoom"
+        checks: "Garage > Tracks globe"
+      - at: 30
+        label: "zoomed over Europe"
+        checks: "Garage > Tracks globe"
+      - at: 42
+        label: "Hockeyheimring chosen: fly-to and the panel"
+        checks: "Garage > Tracks globe"
+      - at: 50
+        label: "pad: D-pad left then up from the chosen pin"
+        checks: "Garage > Tracks globe"
 
   - id: m1-menu-pages
     about: "Follow-ups #26: the main menu's pages and the create screen (B6, B9)"

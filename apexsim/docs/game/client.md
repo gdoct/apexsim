@@ -175,11 +175,9 @@ the remembered session) and **Change setup** (the create screen). The right
   over the menu, `UApexRootWidget::OpenSetupEditor`; View car stats turns
   the list's detail panel into the highlighted car's stat sheet and back:
   horsepower, power to weight, engine, redline, tyre window, liveries,
-  compounds, saved setups and the quickest lap on one), Tracks (Watch
-  hotlap, `StartHotlapWatch`; See track guide opens the picked circuit's
-  guide straight away, the track picker only when it has none). The Cars
-  and Tracks pages turn the hero into a list of cars or tracks with a
-  detail panel.
+  compounds, saved setups and the quickest lap on one), Tracks (the
+  globe page, [below](#tracks-globe-uiapextrackglobepagecpp)). The Cars
+  page turns the hero into a list of cars with a detail panel.
 - **Drive**: Create session (Quick = the remembered session; Race weekend
   opens the create screen on its Race weekend mode; Custom = the create
   screen), Hotlap (the create screen on its Hotlap mode), Browse sessions
@@ -207,6 +205,46 @@ car select and replays return false from `WantsLiveBackdrop`, so the
 backdrop world is hidden behind them (the car turntable shares the world).
 In a session the lobby and results screens show the session's circuit
 instead of the demo ([cameras.md](cameras.md#lobby-view-beginlobbyview-apexlobbycamfflyover)).
+
+### Tracks globe (`UI/ApexTrackGlobePage.cpp`)
+
+Garage > Tracks takes the hero's and the rail's room: the circuits as a
+list on the left (Back above it), a globe in the middle and the chosen
+circuit's panel sliding in on the right. The design is
+[proposals/tracks-globe.html](proposals/tracks-globe.html).
+
+- The globe (`UI/ApexGlobeWidget.cpp`) is painted: land as dots from a
+  2.5° mask (`UI/ApexGlobeLand.h`, one row a band, cells equally wide on
+  the ground), a graticule every 30°, the atmosphere's rim and an ocean
+  gradient (transient textures). The maths are `UI/ApexGlobe.h`:
+  orthographic projection, fly-to, drag with a throw, eased zoom (0.85x
+  to 5x), and an idle spin that stops under the pointer, while the keys
+  or pad are on the globe, and while a circuit is chosen.
+- A pin per circuit whose catalog row `bHasGlobePosition` (the export's
+  `metadata.latitude_deg` and `longitude_deg`; a track without them, such
+  as a custom one with no location, is in the list only). Its head stands
+  1.085 radii out, it shows only facing the viewer and inside the box,
+  fading in at the limb. Labels show the catalog's display name, placed
+  front-most first and skipped where they would overlap; the chosen, the
+  hovered and the keys' pin always show theirs. The chosen pin is in the
+  live green with a pulse.
+- Choosing a circuit (its row, its pin, or `apexsim.ui.Globe select`)
+  makes it the pending track, flies the globe to it at zoom 2.4 and opens
+  the panel: the circuit's map (its preview picture), name, country /
+  city / class (`ApexCatalog::DisplayClass`), description, length, your
+  best, and Hotlap (the create screen on its Hotlap mode), Track guide
+  (locked when the circuit has none), Watch hotlap and Leaderboards. The
+  page hands these to the main menu by the rail's action ids
+  (`OnAction`), so they start the flows the rail did.
+- Mouse: drag turns and throws, the wheel zooms, a click on a pin or its
+  label chooses it; + / - / Reset in the corner. Keys and pad on the
+  globe: the arrows or D-pad hop to the nearest pin that way (Left off
+  the last one goes to the list, Right to the panel), Enter or A chooses,
+  the left stick turns, the triggers or + / - (PageUp / PageDown) zoom,
+  Y or Home resets. In the list Up and Down step the rows and Right goes
+  to the globe; Tab and the shoulders cycle list, globe and panel. Back
+  (B, Escape) closes the panel, and with it shut leaves the page (Escape
+  then opens the main menu's Esc menu).
 
 ### Car and track select (`UI/ApexCarSelectWidget.cpp`, `UI/ApexTrackSelectWidget.cpp`)
 
@@ -797,7 +835,9 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   watching (the backdrop, a client replay, a timeshift) `apexsim.watch
   hold|play|seek <s>` does the same. Guide: `apexsim.guide.*`.
 - Display: `apexsim.view.Screens`, `apexsim.splash.MaxSeconds`.
-- Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`.
+- Menus: `apexsim.ui.Texts|Click|Mouse|Key` (above), `apexsim.ui.PadWalk`;
+  `apexsim.ui.Globe select <stem|id> | close | zoom <z> | view <lon> <lat> [zoom] | home | spin 0|1`
+  drives the Tracks page's globe once it is open (run `m2-tracks-globe`).
 - Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),
   `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.

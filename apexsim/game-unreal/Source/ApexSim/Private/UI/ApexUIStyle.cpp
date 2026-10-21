@@ -616,4 +616,35 @@ namespace ApexUI
 			: FSlateChildSize(ESlateSizeRule::Automatic));
 		return Slot;
 	}
+
+	void SplitTitle(const FString& Name, FString& OutHead, FString& OutTail)
+	{
+		static const TCHAR* GenericSuffixes[] = {
+			TEXT("RING"), TEXT("CIRCUIT"), TEXT("RACEWAY"), TEXT("SPEEDWAY"), TEXT("PARK"), TEXT("INTERNATIONAL")
+		};
+
+		const FString Upper = Name.ToUpper();
+		for (const TCHAR* Suffix : GenericSuffixes)
+		{
+			const int32 SuffixLen = FCString::Strlen(Suffix);
+			// The remaining head has to be long enough to still be a name.
+			if (Upper.EndsWith(Suffix) && Upper.Len() > SuffixLen + 2)
+			{
+				OutHead = Upper.LeftChop(SuffixLen);
+				OutTail = Suffix;
+				return;
+			}
+		}
+
+		int32 LastSpace = INDEX_NONE;
+		if (Upper.FindLastChar(TEXT(' '), LastSpace) && LastSpace > 0)
+		{
+			OutHead = Upper.Left(LastSpace + 1);
+			OutTail = Upper.Mid(LastSpace + 1);
+			return;
+		}
+
+		OutHead = Upper;
+		OutTail.Reset();
+	}
 }

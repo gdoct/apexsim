@@ -61,6 +61,8 @@ UApexGlobeWidget::UApexGlobeWidget(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SetIsFocusable(true);
+	// Zoomed in, the globe is far bigger than its box.
+	SetClipping(EWidgetClipping::ClipToBounds);
 }
 
 void UApexGlobeWidget::NativeConstruct()
@@ -283,7 +285,10 @@ void UApexGlobeWidget::Layout(const FVector2D& Size) const
 		State.Base = Centre + FVector2D(Base.X, -Base.Y) * R;
 		State.Head = Centre + FVector2D(Head.X, -Head.Y) * R;
 		State.Depth = Base.Z;
-		State.bShown = Base.Z >= ApexGlobe::PinMinDepth;
+		// Facing the viewer, and inside the box: zoomed in, much of the near
+		// side is out of view.
+		State.bShown = Base.Z >= ApexGlobe::PinMinDepth
+			&& State.Head.X >= 0.0 && State.Head.Y >= 0.0 && State.Head.X <= Size.X && State.Head.Y <= Size.Y;
 		State.bLabel = false;
 		if (!State.bShown)
 		{

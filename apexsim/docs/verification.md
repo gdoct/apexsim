@@ -450,6 +450,15 @@ Mandarina Bay.
   manager by hand.
 - The streamed hotlap watch's keys and transport from a pad.
 - The grid card's pad and keyboard focus.
+- Garage > Tracks' globe ([game/client.md](game/client.md#tracks-globe-uiapextrackglobepagecpp))
+  by hand: a drag and its throw, the wheel's zoom, hovering a pin
+  (label, the spin stopping), clicking a pin and a label, + / - / Reset;
+  on a pad the left stick's turn and the triggers' zoom (rates set by
+  arithmetic, never felt), Y to reset; a wheel's menu buttons on the
+  pins. Seen unattended (`m2-tracks-globe`, `r9a-menus`, the pad walk;
+  2026-10-21): the globe at home zoom and over Europe, Hockeyheimring
+  chosen with its panel, the D-pad hopping between pins, Track guide
+  opening the guide, every control of the page reached by pad.
 - A pad under the GameInput plugin (not enabled in the project): the light
   motor on `RightLarge`, the triggers quiet (`ApexFfb::ToPadChannels`).
 

@@ -1,4 +1,5 @@
 #include "ApexTestCommon.h"
+#include "UI/ApexMainMenuWidget.h"
 #include "ApexSim.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "UI/ApexHudEditorWidget.h"
@@ -110,11 +111,40 @@ namespace ApexPadWalkTest
 		return nullptr;
 	}
 
+	/** The main menu screen in Root's world. */
+	UApexMainMenuWidget* FindMainMenu(const UApexRootWidget& Root)
+	{
+		for (TObjectIterator<UApexMainMenuWidget> It; It; ++It)
+		{
+			if (It->GetWorld() == Root.GetWorld())
+			{
+				return *It;
+			}
+		}
+		return nullptr;
+	}
+
 	TArray<FPadWalkStop> Stops()
 	{
 		TArray<FPadWalkStop> Out;
 		// The main menu is home: Back steps up its own pages and never leaves.
 		Out.Add({ TEXT("Main menu"), EApexScreen::MainMenu, false });
+		// Back steps up to the Garage page, still the main menu.
+		Out.Add({ TEXT("Garage > Tracks"), {}, false,
+			[](UApexRootWidget& Root)
+			{
+				if (UApexMainMenuWidget* Menu = FindMainMenu(Root))
+				{
+					Menu->ShowTracksPage(true);
+				}
+			},
+			[](UApexRootWidget& Root)
+			{
+				if (UApexMainMenuWidget* Menu = FindMainMenu(Root))
+				{
+					Menu->ShowTracksPage(false);
+				}
+			} });
 		Out.Add({ TEXT("Connect"), EApexScreen::ConnectDialog });
 		Out.Add({ TEXT("Session browser"), EApexScreen::SessionBrowser });
 		Out.Add({ TEXT("Create session"), EApexScreen::SessionCreate });

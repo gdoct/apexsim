@@ -33,6 +33,7 @@
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexSettingsWidget.h"
+#include "UI/ApexTrackGlobePage.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
@@ -70,40 +71,7 @@ namespace
 		const FName QuitExit(TEXT("QuitExit"));
 	}
 
-	/**
-	 * Splits a circuit name so the distinctive half can be drawn bright and the
-	 * generic half grey, as in "HOCKENHEIM|RING" and "SILVERSTONE |CIRCUIT".
-	 */
-	void SplitTitle(const FString& Name, FString& OutHead, FString& OutTail)
-	{
-		static const TCHAR* GenericSuffixes[] = {
-			TEXT("RING"), TEXT("CIRCUIT"), TEXT("RACEWAY"), TEXT("SPEEDWAY"), TEXT("PARK"), TEXT("INTERNATIONAL")
-		};
-
-		const FString Upper = Name.ToUpper();
-		for (const TCHAR* Suffix : GenericSuffixes)
-		{
-			const int32 SuffixLen = FCString::Strlen(Suffix);
-			// The remaining head has to be long enough to still be a name.
-			if (Upper.EndsWith(Suffix) && Upper.Len() > SuffixLen + 2)
-			{
-				OutHead = Upper.LeftChop(SuffixLen);
-				OutTail = Suffix;
-				return;
-			}
-		}
-
-		int32 LastSpace = INDEX_NONE;
-		if (Upper.FindLastChar(TEXT(' '), LastSpace) && LastSpace > 0)
-		{
-			OutHead = Upper.Left(LastSpace + 1);
-			OutTail = Upper.Mid(LastSpace + 1);
-			return;
-		}
-
-		OutHead = Upper;
-		OutTail.Reset();
-	}
+	using ApexUI::SplitTitle;
 
 	/** Project version from DefaultGame.ini, read directly to avoid an EngineSettings dependency. */
 	FString GetClientVersion()
@@ -206,7 +174,8 @@ void UApexMainMenuWidget::BuildLayout()
 
 	UHorizontalBox* Columns = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(Columns, BuildHero(), FMargin(), VAlign_Fill, 1.0f);
-	ApexUI::AddH(Columns, ApexUI::MakeSized(*WidgetTree, BuildRail(), ApexUI::Metrics::RailWidth, -1.0f), FMargin(56.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+	RailColumn = ApexUI::MakeSized(*WidgetTree, BuildRail(), ApexUI::Metrics::RailWidth, -1.0f);
+	ApexUI::AddH(Columns, RailColumn, FMargin(56.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	UBorder* Content = ApexUI::MakePanel(
 		*WidgetTree,
@@ -367,11 +336,18 @@ void UApexMainMenuWidget::ShowPage(EPage Page, bool bFocus)
 	CurrentPage = Page;
 	RailButtons.Reset();
 
-	if (HeroHome && HeroList)
+	if (HeroHome && HeroList && TracksPage && RailColumn)
 	{
-		HeroHome->SetVisibility(IsListPage() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+		const bool bTracks = Page == EPage::Tracks;
+		HeroHome->SetVisibility(IsListPage() || bTracks ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 		HeroList->SetVisibility(IsListPage() ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		TracksPage->SetVisibility(bTracks ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+		RailColumn->SetVisibility(bTracks ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
 		SetBackdrop(nullptr);
+		if (bTracks)
+		{
+			TracksPage->Refresh();
+		}
 		if (IsListPage())
 		{
 			BuildList(Page == EPage::Cars);
@@ -412,6 +388,11 @@ void UApexMainMenuWidget::ShowPage(EPage Page, bool bFocus)
 		ActiveColumn = 1;
 		ApplyFocus();
 	}
+}
+
+void UApexMainMenuWidget::ShowTracksPage(bool bShow)
+{
+	ShowPage(bShow ? EPage::Tracks : EPage::Root);
 }
 
 bool UApexMainMenuWidget::GoUp()
@@ -474,11 +455,8 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 		break;
 
 	case EPage::Tracks:
-		Heading(TEXT("Garage / Tracks"));
-		Row(TEXT("Watch hotlap"), Action::WatchHotlap);
-		Row(TEXT("Track leaderboards"), Action::Leaderboard);
-		Row(TEXT("See track guide"), Action::Tracks);
-		break;
+		// No rail: the globe page has its own Back and the circuit's actions.
+		return Column;
 
 	case EPage::Drive:
 		Heading(TEXT("Drive"));
@@ -582,6 +560,12 @@ UWidget* UApexMainMenuWidget::BuildHero()
 	HeroList = ListColumn;
 	ApexUI::AddV(Wrap, ListColumn, FMargin(), HAlign_Fill, 1.0f);
 
+	// The third face: Garage > Tracks' globe, across the rail's room too.
+	TracksPage = WidgetTree->ConstructWidget<UApexTrackGlobePage>();
+	TracksPage->OnAction.AddDynamic(this, &UApexMainMenuWidget::HandleTracksPageAction);
+	TracksPage->SetVisibility(ESlateVisibility::Collapsed);
+	ApexUI::AddV(Wrap, TracksPage, FMargin(), HAlign_Fill, 1.0f);
+
 	// The rejoin banner, above everything else in the hero (RefreshRejoin).
 	FApexButtonSpec RejoinSpec;
 	RejoinSpec.ActionId = Action::Rejoin;
@@ -682,11 +666,11 @@ void UApexMainMenuWidget::BuildList(bool bCars)
 
 	if (ListTitleText)
 	{
-		ListTitleText->SetText(FText::FromString(bCars ? TEXT("GARAGE  /  CARS") : TEXT("GARAGE  /  TRACKS")));
+		ListTitleText->SetText(FText::FromString(TEXT("GARAGE  /  CARS")));
 	}
 
 	const FApexLobbyState& Lobby = Net->GetCachedLobbyState();
-	const FString Pending = bCars ? Flow->GetPendingCarId() : Flow->GetPendingTrackId();
+	const FString Pending = Flow->GetPendingCarId();
 
 	auto AddItem = [&](const FString& Id, const FString& Name, const FString& Badge)
 	{
@@ -707,23 +691,11 @@ void UApexMainMenuWidget::BuildList(bool bCars)
 
 	// Names as the player sees them (the catalog's, else the server's), A to Z.
 	TArray<TPair<FString, FString>> Entries; // name, id
-	if (bCars)
+	for (const FApexCarConfigSummary& Car : Lobby.CarConfigs)
 	{
-		for (const FApexCarConfigSummary& Car : Lobby.CarConfigs)
-		{
-			FApexCarCatalogRow Row;
-			const bool bRow = Flow->GetCarCatalogRow(Car.Id, Row) && !Row.DisplayName.IsEmpty();
-			Entries.Emplace(bRow ? Row.DisplayName : Car.Name, Car.Id);
-		}
-	}
-	else
-	{
-		for (const FApexTrackConfigSummary& Track : Lobby.TrackConfigs)
-		{
-			FApexTrackCatalogRow Row;
-			const bool bRow = Flow->GetTrackCatalogRow(Track.Id, Row) && !Row.DisplayName.IsEmpty();
-			Entries.Emplace(bRow ? Row.DisplayName : Track.Name, Track.Id);
-		}
+		FApexCarCatalogRow Row;
+		const bool bRow = Flow->GetCarCatalogRow(Car.Id, Row) && !Row.DisplayName.IsEmpty();
+		Entries.Emplace(bRow ? Row.DisplayName : Car.Name, Car.Id);
 	}
 	Entries.StableSort([](const TPair<FString, FString>& A, const TPair<FString, FString>& B)
 	{
@@ -794,120 +766,88 @@ void UApexMainMenuWidget::RefreshListDetail(int32 Index)
 		AddV(ListDetail, Row, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
 	};
 
-	if (bListShowsCars)
-	{
-		SetBackdrop(nullptr);
-		FApexCarCatalogRow Car;
-		const bool bRow = Flow->GetCarCatalogRow(DetailShownId, Car);
+	SetBackdrop(nullptr);
+	FApexCarCatalogRow Car;
+	const bool bRow = Flow->GetCarCatalogRow(DetailShownId, Car);
 
-		// There is no car render on disk to show, so the class itself is the picture.
-		AddV(ListDetail, MakeArtPlaceholder(*WidgetTree,
-			bRow ? ApexCatalog::DisplayClass(Car.CarClass).ToUpper() : FString(TEXT("CAR"))));
-		AddTitle(bRow ? Car.DisplayName : FString(TEXT("Car")));
-
-		TArray<FString> Sub;
-		if (bRow)
-		{
-			if (!Car.Brand.IsEmpty())               { Sub.Add(Car.Brand.ToUpper()); }
-			if (!Car.ManufacturerCountry.IsEmpty()) { Sub.Add(Car.ManufacturerCountry.ToUpper()); }
-			if (Car.ModelYear > 0)                  { Sub.Add(FString::FromInt(Car.ModelYear)); }
-		}
-		AddV(ListDetail, MakeText(*WidgetTree, FString::Join(Sub, TEXT("  /  ")), Font::Mono(11.0f, 120), Palette::TextMuted));
-		AddStats({
-			{ TEXT("Class"), bRow ? ApexCatalog::DisplayClass(Car.CarClass) : FString(TEXT("—")) },
-			{ TEXT("Power"), bRow && Car.MaxPowerKw > 0.0f ? FString::Printf(TEXT("%d kW"), FMath::RoundToInt(Car.MaxPowerKw)) : FString(TEXT("—")) },
-			{ TEXT("Mass"),  bRow && Car.MassKg > 0.0f ? FString::Printf(TEXT("%d kg"), FMath::RoundToInt(Car.MassKg)) : FString(TEXT("—")) },
-		});
-		if (bCarStats && bRow)
-		{
-			// The stat sheet: what the car.toml says of its engine, its tyres
-			// and its weight, and what the player has done with it.
-			const float Hp = Car.MaxPowerKw * 1.341f;
-			const FApexEngineSoundSpec& Engine = Car.EngineSound;
-			FString Layout = TEXT("—");
-			if (Engine.Cylinders > 0)
-			{
-				Layout = FString::Printf(TEXT("%d cyl%s%s"), Engine.Cylinders, Engine.bCrossplane ? TEXT(", cross-plane") : TEXT(""),
-					Engine.bTurbo ? TEXT(", turbo") : TEXT(""));
-			}
-			AddStats({
-				{ TEXT("Horsepower"), Hp > 0.0f ? FString::Printf(TEXT("%d hp"), FMath::RoundToInt(Hp)) : FString(TEXT("—")) },
-				{ TEXT("Power / weight"), Car.MaxPowerKw > 0.0f && Car.MassKg > 0.0f
-					? FString::Printf(TEXT("%d hp/t"), FMath::RoundToInt(Hp / Car.MassKg * 1000.0f)) : FString(TEXT("—")) },
-				{ TEXT("Engine"), Layout },
-			});
-			FString Compounds;
-			for (const FApexCompoundSpec& Compound : Car.Compounds)
-			{
-				Compounds += (Compounds.IsEmpty() ? TEXT("") : TEXT(", ")) + Compound.Name;
-			}
-			AddStats({
-				{ TEXT("Redline"), Engine.RedlineRpm > 0.0f ? FString::Printf(TEXT("%d rpm"), FMath::RoundToInt(Engine.RedlineRpm)) : FString(TEXT("—")) },
-				{ TEXT("Tyre window"), FString::Printf(TEXT("%d °C ± %d"), FMath::RoundToInt(Car.TyreOptimalC), FMath::RoundToInt(Car.TyreWindowC)) },
-				{ TEXT("Liveries"), FString::FromInt(1 + Car.Liveries.Num()) },
-			});
-			if (!Compounds.IsEmpty())
-			{
-				AddV(ListDetail, MakeText(*WidgetTree, FString::Printf(TEXT("COMPOUNDS  %s"), *Compounds.ToUpper()), Font::Mono(11.0f, 120), Palette::TextMuted),
-					FMargin(0.0f, 14.0f, 0.0f, 0.0f));
-			}
-			const UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
-			const TArray<FApexSavedSetup> Setups = Settings ? Settings->GetSavedSetups(DetailShownId) : TArray<FApexSavedSetup>();
-			int32 BestSetupMs = 0;
-			FString BestSetup;
-			for (const FApexSavedSetup& Saved : Setups)
-			{
-				if (Saved.BestLapMs > 0 && (BestSetupMs == 0 || Saved.BestLapMs < BestSetupMs))
-				{
-					BestSetupMs = Saved.BestLapMs;
-					BestSetup = Saved.Name;
-				}
-			}
-			AddStats({
-				{ TEXT("Saved setups"), FString::FromInt(Setups.Num()) },
-				{ TEXT("Quickest on"), BestSetupMs > 0
-					? FString::Printf(TEXT("%s, %s"), *BestSetup, *UApexMenuFlowSubsystem::FormatLapTime(BestSetupMs / 1000.0f))
-					: FString(TEXT("No lap yet")) },
-			});
-		}
-		return;
-	}
-
-	FApexTrackCatalogRow Track;
-	const bool bRow = Flow->GetTrackCatalogRow(DetailShownId, Track);
-
-	// The circuit itself, large: this is the picture the page is about, and it
-	// fills the screen behind the page too.
-	UTexture2D* Art = bRow ? UApexTrackContentSubsystem::PreviewOf(Track) : nullptr;
-	SetBackdrop(Art);
-	AddV(ListDetail, MakePreview(*WidgetTree, Art, TEXT("No preview"), -1.0f, 300.0f));
-	AddTitle(bRow ? Track.DisplayName : FString(TEXT("Circuit")));
+	// There is no car render on disk to show, so the class itself is the picture.
+	AddV(ListDetail, MakeArtPlaceholder(*WidgetTree,
+		bRow ? ApexCatalog::DisplayClass(Car.CarClass).ToUpper() : FString(TEXT("CAR"))));
+	AddTitle(bRow ? Car.DisplayName : FString(TEXT("Car")));
 
 	TArray<FString> Sub;
 	if (bRow)
 	{
-		if (!Track.Country.IsEmpty())  { Sub.Add(Track.Country.ToUpper()); }
-		if (!Track.City.IsEmpty())     { Sub.Add(Track.City.ToUpper()); }
-		if (!Track.Category.IsEmpty()) { Sub.Add(ApexCatalog::DisplayClass(Track.Category).ToUpper()); }
+		if (!Car.Brand.IsEmpty())               { Sub.Add(Car.Brand.ToUpper()); }
+		if (!Car.ManufacturerCountry.IsEmpty()) { Sub.Add(Car.ManufacturerCountry.ToUpper()); }
+		if (Car.ModelYear > 0)                  { Sub.Add(FString::FromInt(Car.ModelYear)); }
 	}
 	AddV(ListDetail, MakeText(*WidgetTree, FString::Join(Sub, TEXT("  /  ")), Font::Mono(11.0f, 120), Palette::TextMuted));
-
-	if (bRow && !Track.Description.IsEmpty())
-	{
-		UTextBlock* Description = MakeText(*WidgetTree, Track.Description, Font::Body(13.0f), Palette::TextMuted);
-		Description->SetAutoWrapText(true);
-		AddV(ListDetail, Description, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
-	}
-
-	float Best = 0.0f;
 	AddStats({
-		{ TEXT("Length"),    bRow && Track.LengthM > 0.0f ? FString::Printf(TEXT("%.2f km"), Track.LengthM / 1000.0f) : FString(TEXT("—")) },
-		{ TEXT("Your best"), Flow->GetBestLapSeconds(DetailShownId, Best) ? UApexMenuFlowSubsystem::FormatLapTime(Best) : FString(TEXT("Never driven")) },
+		{ TEXT("Class"), bRow ? ApexCatalog::DisplayClass(Car.CarClass) : FString(TEXT("—")) },
+		{ TEXT("Power"), bRow && Car.MaxPowerKw > 0.0f ? FString::Printf(TEXT("%d kW"), FMath::RoundToInt(Car.MaxPowerKw)) : FString(TEXT("—")) },
+		{ TEXT("Mass"),  bRow && Car.MassKg > 0.0f ? FString::Printf(TEXT("%d kg"), FMath::RoundToInt(Car.MassKg)) : FString(TEXT("—")) },
 	});
+	if (bCarStats && bRow)
+	{
+		// The stat sheet: what the car.toml says of its engine, its tyres
+		// and its weight, and what the player has done with it.
+		const float Hp = Car.MaxPowerKw * 1.341f;
+		const FApexEngineSoundSpec& Engine = Car.EngineSound;
+		FString Layout = TEXT("—");
+		if (Engine.Cylinders > 0)
+		{
+			Layout = FString::Printf(TEXT("%d cyl%s%s"), Engine.Cylinders, Engine.bCrossplane ? TEXT(", cross-plane") : TEXT(""),
+				Engine.bTurbo ? TEXT(", turbo") : TEXT(""));
+		}
+		AddStats({
+			{ TEXT("Horsepower"), Hp > 0.0f ? FString::Printf(TEXT("%d hp"), FMath::RoundToInt(Hp)) : FString(TEXT("—")) },
+			{ TEXT("Power / weight"), Car.MaxPowerKw > 0.0f && Car.MassKg > 0.0f
+				? FString::Printf(TEXT("%d hp/t"), FMath::RoundToInt(Hp / Car.MassKg * 1000.0f)) : FString(TEXT("—")) },
+			{ TEXT("Engine"), Layout },
+		});
+		FString Compounds;
+		for (const FApexCompoundSpec& Compound : Car.Compounds)
+		{
+			Compounds += (Compounds.IsEmpty() ? TEXT("") : TEXT(", ")) + Compound.Name;
+		}
+		AddStats({
+			{ TEXT("Redline"), Engine.RedlineRpm > 0.0f ? FString::Printf(TEXT("%d rpm"), FMath::RoundToInt(Engine.RedlineRpm)) : FString(TEXT("—")) },
+			{ TEXT("Tyre window"), FString::Printf(TEXT("%d °C ± %d"), FMath::RoundToInt(Car.TyreOptimalC), FMath::RoundToInt(Car.TyreWindowC)) },
+			{ TEXT("Liveries"), FString::FromInt(1 + Car.Liveries.Num()) },
+		});
+		if (!Compounds.IsEmpty())
+		{
+			AddV(ListDetail, MakeText(*WidgetTree, FString::Printf(TEXT("COMPOUNDS  %s"), *Compounds.ToUpper()), Font::Mono(11.0f, 120), Palette::TextMuted),
+				FMargin(0.0f, 14.0f, 0.0f, 0.0f));
+		}
+		const UApexSettingsSubsystem* Settings = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+		const TArray<FApexSavedSetup> Setups = Settings ? Settings->GetSavedSetups(DetailShownId) : TArray<FApexSavedSetup>();
+		int32 BestSetupMs = 0;
+		FString BestSetup;
+		for (const FApexSavedSetup& Saved : Setups)
+		{
+			if (Saved.BestLapMs > 0 && (BestSetupMs == 0 || Saved.BestLapMs < BestSetupMs))
+			{
+				BestSetupMs = Saved.BestLapMs;
+				BestSetup = Saved.Name;
+			}
+		}
+		AddStats({
+			{ TEXT("Saved setups"), FString::FromInt(Setups.Num()) },
+			{ TEXT("Quickest on"), BestSetupMs > 0
+				? FString::Printf(TEXT("%s, %s"), *BestSetup, *UApexMenuFlowSubsystem::FormatLapTime(BestSetupMs / 1000.0f))
+				: FString(TEXT("No lap yet")) },
+		});
+	}
 }
 
 void UApexMainMenuWidget::RefreshList()
 {
+	if (CurrentPage == EPage::Tracks && TracksPage)
+	{
+		TracksPage->Refresh();
+	}
 	const UApexNetSubsystem* Net = GetNet();
 	if (!IsListPage() || !Net)
 	{
@@ -1381,12 +1321,26 @@ void UApexMainMenuWidget::RefreshWatchBadge()
 
 void UApexMainMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 {
-	if (!Button)
+	if (Button)
 	{
+		RunAction(Button->GetActionId(), Button);
+	}
+}
+
+void UApexMainMenuWidget::HandleTracksPageAction(FName ActionId)
+{
+	// The globe page's Back, and the rail's actions for its chosen circuit
+	// (it has made it the pending track).
+	if (ActionId == Action::Back)
+	{
+		GoUp();
 		return;
 	}
+	RunAction(ActionId, nullptr);
+}
 
-	const FName Id = Button->GetActionId();
+void UApexMainMenuWidget::RunAction(FName Id, UApexButtonWidget* Button)
+{
 	UApexRootWidget* Root = GetRoot();
 
 	if (Id == Action::Start || Id == Action::Quick)
@@ -1888,6 +1842,12 @@ void UApexMainMenuWidget::ApplyFocus()
 		{
 			return;
 		}
+	}
+
+	if (CurrentPage == EPage::Tracks && TracksPage && !bQuitOpen)
+	{
+		TracksPage->FocusDefault();
+		return;
 	}
 
 	if (ActiveColumn == 0 && bOnRejoin && IsRejoinShown()

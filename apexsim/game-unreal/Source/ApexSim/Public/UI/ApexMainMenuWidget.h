@@ -42,6 +42,9 @@ public:
 	/** Back (pad B etc.) closes the Esc menu or steps up a rail page. Escape itself opens the Esc menu, see NativeOnKeyDown. */
 	virtual bool HandleBack() override;
 
+	/** Garage > Tracks (true) or the root page (false), focused: for the pad walk. */
+	void ShowTracksPage(bool bShow);
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
@@ -72,6 +75,10 @@ private:
 	int32 WatchBadgeState = -1;
 
 	UFUNCTION() void HandleButtonActivated(UApexButtonWidget* Button);
+	/** Carries out a rail action id (Button only for the list's rows). */
+	void RunAction(FName Id, UApexButtonWidget* Button);
+	/** The Tracks page's buttons, by the rail's action ids. */
+	UFUNCTION() void HandleTracksPageAction(FName ActionId);
 	UFUNCTION() void HandleConnectionStateChanged(EApexConnectionState NewState, const FString& Detail);
 	UFUNCTION() void HandleLobbyStateUpdated(const FApexLobbyState& LobbyState);
 	UFUNCTION() void HandlePendingCarChanged(const FString& CarId);
@@ -131,11 +138,12 @@ private:
 	void SetQuitOverlayOpen(bool bOpen);
 	void QuitGame();
 
-	// The Garage > Garage and Garage > Tracks pages show the cars / circuits as a
-	// list in the hero's place: the focused row is committed as the pending car /
-	// track (Enter, click, Right or Tab), and the rail acts on it.
-	bool IsListPage() const { return CurrentPage == EPage::Cars || CurrentPage == EPage::Tracks; }
-	/** Fills the list from the lobby snapshot (cars or circuits). */
+	// The Garage > Cars page shows the cars as a list in the hero's place: the
+	// focused row is committed as the pending car (Enter, click, Right or Tab),
+	// and the rail acts on it. Garage > Tracks is the globe page (TracksPage),
+	// over the hero and the rail both.
+	bool IsListPage() const { return CurrentPage == EPage::Cars; }
+	/** Fills the list from the lobby snapshot (the list shows cars only now; bCars stays for its state). */
 	void BuildList(bool bCars);
 	/** Rebuilds the list when the lobby's count differs from what is shown. */
 	void RefreshList();
@@ -143,6 +151,10 @@ private:
 	void CommitListItem(int32 Index);
 
 	UPROPERTY(Transient) TObjectPtr<UWidget> HeroHome;
+	/** Garage > Tracks: list, globe and panel (UApexTrackGlobePage). */
+	UPROPERTY(Transient) TObjectPtr<class UApexTrackGlobePage> TracksPage;
+	/** The rail's column, hidden on the Tracks page. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> RailColumn;
 	UPROPERTY(Transient) TObjectPtr<UWidget> HeroList;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ListTitleText;
 	UPROPERTY(Transient) TObjectPtr<class UVerticalBox> ListBox;

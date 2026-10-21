@@ -286,6 +286,12 @@ namespace ApexUI
 		EVerticalAlignment VAlign = VAlign_Center,
 		float FillSize = 0.0f);
 
+	/**
+	 * Splits a circuit name so the distinctive half can be drawn bright and the
+	 * generic half grey, as in "HOCKENHEIM|RING" and "SILVERSTONE |CIRCUIT".
+	 */
+	void SplitTitle(const FString& Name, FString& OutHead, FString& OutTail);
+
 	UVerticalBoxSlot* AddV(
 		UVerticalBox* Box,
 		UWidget* Child,

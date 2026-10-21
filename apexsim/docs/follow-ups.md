@@ -201,6 +201,13 @@ order down the standings.
   Bull Ring, Laguna Seca, Zandvoort, Silverstone, Barcelona and Imola, pass
   both `PIT_CUSTOM=1` pit surveys).
 
+- Circuit locations (`metadata.latitude_deg` / `longitude_deg`, from the
+  DEM's georeference by `track_location.py`): Zandervoort's sits about
+  100 km west of Zandvoort (52.33 N, 3.10 E, in the North Sea) and
+  Barcelunatic's about 25 km north-east of Montmeló; the rest are within
+  about 6 km. The sun is placed from them too. Their pins on Garage >
+  Tracks' globe show the error from about 3x zoom.
+
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
 
@@ -270,5 +277,11 @@ the same files.
   high-resolution waitable timer (`CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`)
   or sleep short and spin the last fraction; measure with
   `[debug] tick_jitter_seconds`.
+
+- The main menu's Esc menu (Back to main menu / Exit game,
+  `UApexMainMenuWidget::BuildQuitOverlay`) is built as a 420-wide card in
+  the middle over a dim, and draws as a card filling the whole screen
+  (`out/verify` shots of 2026-10-21, on the root page and on Garage >
+  Tracks).
 
 **Check:** server and client build and tests.
