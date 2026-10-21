@@ -403,6 +403,11 @@ namespace ApexProps
 			|| Name.StartsWith(TEXT("tree_card_")) || Name.StartsWith(TEXT("scatter_"));
 	}
 
+	bool BridgeKeepsSpan(const FString& Asset)
+	{
+		return Asset == TEXT("banked_oval_span");
+	}
+
 	float BridgeSpanScale(float SpanM)
 	{
 		return SpanM > KINDA_SMALL_NUMBER ? SpanM / BridgeAuthoredSpanM : 1.0f;

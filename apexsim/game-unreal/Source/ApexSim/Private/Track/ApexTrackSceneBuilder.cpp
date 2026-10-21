@@ -2387,7 +2387,7 @@ void FApexTrackSceneBuilder::SpawnActors(
 			}
 
 			FVector Scale(Prop.Scale);
-			if (Resolved.Kind == TEXT("bridge"))
+			if (Resolved.Kind == TEXT("bridge") && !ApexProps::BridgeKeepsSpan(Resolved.Asset))
 			{
 				// Authored for a 15 m road; the span (local Y) stretches to this one.
 				const float SpanM = Prop.SpanM.IsSet() ? Prop.SpanM.GetValue() : RoadWidthAt(Scene, Prop.Location);

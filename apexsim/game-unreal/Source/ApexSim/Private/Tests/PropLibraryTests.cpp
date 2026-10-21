@@ -156,6 +156,8 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("15 m road keeps the span"), ApexProps::BridgeSpanScale(15.0f), 1.0f);
 	TestEqual(TEXT("12 m road shortens it"), ApexProps::BridgeSpanScale(12.0f), 0.8f);
 	TestEqual(TEXT("no width leaves it"), ApexProps::BridgeSpanScale(0.0f), 1.0f);
+	TestTrue(TEXT("the banked oval keeps its own span"), ApexProps::BridgeKeepsSpan(TEXT("banked_oval_span")));
+	TestFalse(TEXT("a footbridge follows the road"), ApexProps::BridgeKeepsSpan(TEXT("truss_bridge")));
 	return true;
 }
 

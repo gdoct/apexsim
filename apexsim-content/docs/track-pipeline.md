@@ -126,13 +126,22 @@ by name from the seating map, OSM and manual stands alike: `covered` or
 `open`, written as the stand's `roof`, which the dress pass takes over its
 `covered` and the depth rule. `MANUAL_CROSSINGS` (`station_m`, or a
 map anchor `at` / `from_at` + `to_at` (lon, lat); `kind`
-`footbridge`/`link`/`viaduct`/`gantry`/`timing`/`overpass`, road-carrying
+`footbridge`/`link`/`viaduct`/`gantry`/`timing`, `overpass` or `road`
+(a concrete bridge), `building` (a building spanning the road,
+`span_building`), `sky_platform` (platforms cantilevered over the straight),
+`banked_oval` (the banked oval on piers), road-carrying
 `deck_arch`/`deck_wide` with `from_m`/`to_m` (ground left out of the span),
 the lap's own bridge over a road `deck_track` (parapets, ground kept), else
-a tyre bridge; `brand` from the kit's fictional brands; `CROSSING_KINDS`
-renames the scan's kinds per circuit). `MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset,
-see its landmark table; an unknown kind is dropped silently; `tourism=artwork`
-becomes a `statue` only where declared here). `MANUAL_PIT_LANE` (wins over
+(`arch`) a tyre bridge; `brand` from the kit's fictional brands;
+`CROSSING_KINDS` renames the scan's kinds per circuit).
+`MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset, see its
+landmark table: besides the wheel, screens, stage, towers and sky props,
+`observation_tower`, `glass_tower`, `media_wing`, `arena`,
+`expo_pavilion`, `geodesic_dome`, `fuel_station` and `cauldron`; an unknown
+kind is dropped silently; `tourism=artwork` becomes a `statue` only where
+declared here). `MANUAL_STRUCTURE_ASSETS` names the kit building an OSM
+outline stands as, laid once on its centre (an `arena_dome` for an ice
+hall). `MANUAL_PIT_LANE` (wins over
 OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
 `MANUAL_WOODS`, `MANUAL_FURNITURE`, `MANUAL_DECAL_RUNS`, `MANUAL_GRAFFITI`.
 

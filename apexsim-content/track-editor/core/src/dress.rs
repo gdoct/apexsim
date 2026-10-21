@@ -155,8 +155,9 @@ pub fn dressed_kind(kind: PropKind) -> bool {
 /// by hand — but a landmark laid from the dossier is, or every re-dress
 /// would stack another statue on the same spot and grooming would treat
 /// the surveyed position as a guess it may push.
-const LANDMARK_ASSETS: [(PropKind, &str); 3] = [
+const LANDMARK_ASSETS: [(PropKind, &str); 4] = [
     (PropKind::Misc, "bull_statue"),
+    (PropKind::Misc, "cauldron"),
     (PropKind::Misc, "toll_gate_lane"),
     (PropKind::Sign, "hillside_letters"),
 ];
@@ -1700,8 +1701,17 @@ fn lay_crossing(path: &CenterlinePath, crossing: &Crossing) -> Vec<Prop> {
         // The gantry a lap is timed to (the Nordschleife's on the
         // Döttinger Höhe).
         "timing" => "timing_gantry",
-        // A lane or forest track's concrete bridge over the road.
-        "overpass" => "overpass_concrete",
+        // A lane or forest track's concrete bridge over the road, and any
+        // public road crossing over the lap (R4): OSM's `road` crossings
+        // are bridges, not a sponsor's tyre arch.
+        "overpass" | "road" => "overpass_concrete",
+        // A building that spans the road (R5): OSM maps it as a building
+        // whose footprint reaches across, which the building pass skips.
+        "building" => "span_building",
+        // Viewing platforms cantilevered over the straight from both sides.
+        "sky_platform" => "sky_platform",
+        // The old banked oval on piers, crossing over the road.
+        "banked_oval" => "banked_oval_span",
         _ => "tyre_bridge",
     };
     vec![one(asset, crossing.station_m)]
@@ -1913,6 +1923,20 @@ fn lay_landmark(
         "stage" => (PropKind::Attraction, "fanzone_stage"),
         "camera_tower" => (PropKind::Attraction, "camera_tower"),
         "tower" => (PropKind::Building, "control_tower"),
+        // A tower that is not race control (R11): a viewing tower like
+        // Austin's, or Bahrain's round glass control tower.
+        "observation_tower" => (PropKind::Building, "observation_tower"),
+        "glass_tower" => (PropKind::Building, "round_glass_tower"),
+        // Venue buildings the kit models (kit gaps 3, 10-12): an
+        // elevated wing-roofed media building (road-facing), an ice arena,
+        // the Expo pavilion, the geodesic dome, a roadside fuel station
+        // (road-facing, its fascia branded) and the Olympic cauldron.
+        "media_wing" => (PropKind::Building, "wing_media_centre"),
+        "arena" => (PropKind::Building, "arena_dome"),
+        "expo_pavilion" => (PropKind::Building, "expo_pavilion"),
+        "geodesic_dome" => (PropKind::Building, "geodesic_dome"),
+        "fuel_station" => (PropKind::Building, "fuel_station_canopy"),
+        "cauldron" => (PropKind::Misc, "cauldron"),
         // Burg Nürburg: a castle on its hill, centred on its footprint.
         "castle" => (PropKind::Building, "castle_ruin"),
         // The Hohe Acht's stone lookout tower, centred on its footprint.
@@ -3445,6 +3469,46 @@ mod tests {
         }
     }
 
+    /// The venue landmarks the kit models each lay their own asset, and a
+    /// dressing re-run owns them (the cauldron is `misc`, which the pass
+    /// otherwise leaves alone).
+    #[test]
+    fn venue_landmark_kinds_lay_their_kit_asset() {
+        for (kind, prop_kind, asset) in [
+            ("observation_tower", PropKind::Building, "observation_tower"),
+            ("glass_tower", PropKind::Building, "round_glass_tower"),
+            ("media_wing", PropKind::Building, "wing_media_centre"),
+            ("arena", PropKind::Building, "arena_dome"),
+            ("expo_pavilion", PropKind::Building, "expo_pavilion"),
+            ("geodesic_dome", PropKind::Building, "geodesic_dome"),
+            ("fuel_station", PropKind::Building, "fuel_station_canopy"),
+            ("cauldron", PropKind::Misc, "cauldron"),
+        ] {
+            assert!(props::find(prop_kind, asset).is_some(), "{asset} is in the kit");
+            let track = track();
+            let mut scene = scene(&track);
+            let mut layout = layout();
+            layout.landmarks.push(Landmark {
+                kind: kind.to_string(),
+                name: None,
+                station_m: 300.0,
+                side: Side::Left,
+                centre: [300.0, 500.0],
+                brand: None,
+                yaw_rad: None,
+                altitude_m: None,
+            });
+            let report = dress_scene(&track, &mut scene, &layout).unwrap();
+            assert_eq!(report.landmarks, 1, "{kind}: {:?}", report.skipped);
+            let laid = scene
+                .props
+                .iter()
+                .find(|p| p.kind == prop_kind && p.asset == asset)
+                .unwrap_or_else(|| panic!("{kind} lays {asset}"));
+            assert!(dressed_prop(laid), "{asset} is the dressing's own");
+        }
+    }
+
     /// Monza's Torre Sud: an OSM tower node mapped half a metre off the
     /// centerline put a 13 m tower across the start straight. It is
     /// stepped off the road toward the dossier's side, whole footprint
@@ -4242,6 +4306,12 @@ mod tests {
         for (kind, asset) in [
             ("timing", "timing_gantry"),
             ("overpass", "overpass_concrete"),
+            // R4: a public road over the lap is a concrete bridge.
+            ("road", "overpass_concrete"),
+            ("building", "span_building"),
+            ("sky_platform", "sky_platform"),
+            ("banked_oval", "banked_oval_span"),
+            ("arch", "tyre_bridge"),
         ] {
             let one = lay_crossing(
                 &path,

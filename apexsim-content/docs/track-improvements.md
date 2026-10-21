@@ -277,14 +277,6 @@ stay as they are.
   sites, and OSM `man_made=embankment` is unread. General-admission banks
   are missing at Zandervoort, SpaFrankenchamps, Sudoku, RedPullRing,
   Oskarsleben, Hockeyheimring and Nuerburgerring.
-- **R4. A road crossing is a tyre arch.** A crossing of kind `road`
-  without a `CROSSING_KINDS` entry falls to `tyre_bridge` (`dress.rs`); it
-  should be `overpass_concrete`. Seen at BrandsScratch (two),
-  ChillyVilleneuve, Gnocchi, Hungoverring, Nuerburgerring.
-- **R5. A building across the road is skipped** ("reaches across the
-  road"), and no crossing kind lays `bridge/span_building`: the
-  Barcelunatic rooftop, the ChillyVilleneuve pavilion, the Gnocchi Sirius
-  building.
 - **R6. Concrete is never laid.** `barriers::decide` takes a mapped wall
   only within 5 m of the road with 4 m of run-off or less, and the groom
   builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
@@ -316,8 +308,6 @@ stay as they are.
   Zandervoort. The real posts are about three times as many
   (Nuerburgerring 51 against 13, Bahrainless 40 against 12, Shanghaied 35
   against 12). Wanted: a `MANUAL_CORNERS` table in `osm_layout.py`.
-- **R11. A `tower` landmark is always a `control_tower`**; nothing reaches
-  `observation_tower` (Armadillos) or a tower block (Snorisring).
 - **R12. The podium sits on the middle garage** and roof screens have no
   height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
   screens on the pit roof.

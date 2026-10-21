@@ -802,7 +802,14 @@ pub(crate) fn footprint_is_centred(kind: PropKind, asset: &str) -> bool {
         (kind, asset),
         (
             PropKind::Building,
-            "control_tower" | "castle_ruin" | "stone_lookout_tower"
+            "control_tower"
+                | "castle_ruin"
+                | "stone_lookout_tower"
+                | "observation_tower"
+                | "round_glass_tower"
+                | "arena_dome"
+                | "expo_pavilion"
+                | "geodesic_dome"
         ) | (
             PropKind::Attraction,
             "camera_tower" | "ferris_wheel" | "tent_6m"

@@ -203,6 +203,10 @@ namespace ApexProps
 	/** The road width a bridge is authored for; local Y scales by span / this. */
 	inline constexpr float BridgeAuthoredSpanM = 15.0f;
 	APEXSIM_API float BridgeSpanScale(float SpanM);
+	/** A bridge whose span is its own, not the road's: the banked oval's
+	 *  curve and piers would stretch with a wider road, and its piers clear
+	 *  any road up to 18 m as authored. */
+	APEXSIM_API bool BridgeKeepsSpan(const FString& Asset);
 
 	// ---- Grandstands ---------------------------------------------------------
 
