@@ -5683,3 +5683,936 @@ runs:
         checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
         exec: "apexsim.cam.LookAt 11.6 -489.5 9.2 0.0 -415.8 12.7"
 
+
+  - id: c5-bp-albertparkour
+    about: "C5. Barriers, boards, people: AlbertParkour"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=AlbertParkour
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -566.1 876.6 4.2 -554.4 898.2 0.9"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -617.7 835.6 5.3 -634.8 858.3 1.4"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -487.7 1021.0 6.3 -507.0 1038.0 3.1"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 15.6 -17.2 5.3 13.6 10.2 2.0"
+      - at: 32
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -161.0 152.8 3.1 -372.6 -44.1 3.9"
+
+  - id: c5-bp-armadillos
+    about: "C5. Barriers, boards, people: Armadillos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 534.6 -369.2 31.8 517.1 -355.1 27.0"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 587.0 365.8 9.8 615.6 364.7 6.8"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 518.9 -300.5 28.1 493.9 -292.3 22.6"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 439.9 -331.0 22.3 441.0 -357.1 21.9"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 101.9 -73.1 5.7 106.0 -101.5 2.9"
+
+  - id: c5-bp-bahrainless
+    about: "C5. Barriers, boards, people: Bahrainless"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Bahrainless
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 389.6 675.9 12.8 411.7 685.7 10.1"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 698.7 614.9 18.8 722.5 632.9 15.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 165.0 686.5 6.3 173.3 721.0 3.5"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 28.3 674.4 5.4 10.1 690.9 3.2"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 4.3 125.3 6.3 -13.0 146.6 3.3"
+
+  - id: c5-bp-barcelunatic
+    about: "C5. Barriers, boards, people: Barcelunatic"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Barcelunatic
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -323.4 -501.2 -0.5 -321.1 -522.1 -4.0"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -399.0 -619.0 -1.7 -395.8 -642.3 -5.5"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -142.8 242.8 20.2 -141.3 205.9 15.3"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -411.9 -640.4 -2.0 -407.7 -664.8 -4.7"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -153.2 -236.2 4.6 -146.7 -258.9 1.5"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -487.2 -54.0 20.1 -582.9 65.4 19.9"
+
+  - id: c5-bp-brandsscratch
+    about: "C5. Barriers, boards, people: BrandsScratch"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsScratch
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -222.7 -119.4 7.8 -193.6 -123.3 4.7"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 287.7 -182.1 3.3 307.3 -200.1 1.4"
+      - at: 22
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -192.0 -93.9 7.8 -185.1 -70.9 5.2"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -17.5 -7.4 5.0 -10.6 14.9 2.2"
+      - at: 32
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 170.3 58.4 5.8 189.1 158.9 3.6"
+
+  - id: c5-bp-chillyvilleneuve
+    about: "C5. Barriers, boards, people: ChillyVilleneuve"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=ChillyVilleneuve
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 4.7 -206.2 3.9 36.1 -229.6 1.2"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 32.4 -337.4 6.5 11.2 -355.4 3.4"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 46.4 -279.0 4.7 87.9 -272.5 1.3"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 5.2 -201.2 3.9 -13.0 -216.9 1.7"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 1.0 -236.0 4.2 -15.7 -257.7 1.4"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -127.4 -285.5 9.4 -121.8 -253.1 5.5"
+
+  - id: c5-bp-gnocchi
+    about: "C5. Barriers, boards, people: Gnocchi"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1449.6 -518.1 3.7 -1464.9 -496.7 0.6"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1515.5 -281.0 4.0 -1539.1 -271.7 0.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1526.0 -252.6 3.8 -1553.4 -235.5 0.2"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -204.0 -317.1 4.0 -199.4 -342.3 1.6"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -150.2 -232.8 3.8 -144.9 -260.3 0.8"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -590.4 -498.9 3.8 -542.8 -751.5 1.4"
+
+  - id: c5-bp-hockeyheimring
+    about: "C5. Barriers, boards, people: Hockeyheimring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hockeyheimring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -21.9 406.0 7.3 -22.1 427.4 4.3"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -75.3 152.2 5.0 -101.6 158.0 1.6"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -72.9 147.7 5.0 -99.1 153.6 1.6"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -89.3 178.5 5.3 -112.7 188.5 3.2"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 8.5 -18.5 5.1 -15.1 -12.6 2.0"
+
+  - id: c5-bp-hungoverring
+    about: "C5. Barriers, boards, people: Hungoverring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hungoverring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 151.2 36.2 -1.9 147.9 1.4 -4.2"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -409.1 335.3 -1.4 -431.0 334.3 -5.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -405.2 332.1 -1.2 -427.1 331.1 -5.2"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -443.7 363.9 -2.4 -466.6 361.5 -5.2"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -216.1 176.4 4.5 -243.5 175.3 1.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 377.4 37.2 -1.0 396.3 -7.9 -4.0"
+
+  - id: c5-bp-interlaggos
+    about: "C5. Barriers, boards, people: Interlaggos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Interlaggos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 313.2 328.7 -32.3 313.7 307.0 -34.9"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 103.3 -317.5 6.5 118.9 -345.3 0.8"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 214.8 190.2 -23.7 228.8 159.8 -25.3"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 70.3 -262.9 9.3 63.0 -287.9 6.4"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 33.5 -128.0 7.0 19.6 -147.9 4.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 136.1 690.8 -4.6 0.7 937.7 1.2"
+
+  - id: c5-bp-lemons
+    about: "C5. Barriers, boards, people: Lemons"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Lemons
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -264.6 -1855.8 55.2 -277.4 -1872.8 51.8"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -3141.3 -714.7 55.8 -3158.9 -697.2 52.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -396.6 -1902.4 54.6 -407.6 -1929.8 51.3"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 292.0 -1.5 62.1 310.2 14.9 60.1"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -18.0 0.0 58.9 -2.5 -18.6 56.3"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 862.4 -299.5 87.7 805.7 -359.1 79.1"
+
+  - id: c5-bp-mandarinabay
+    about: "C5. Barriers, boards, people: MandarinaBay"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 297.0 5.3 5.0 316.1 28.4 1.8"
+      - at: 17
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 342.2 164.6 5.0 324.7 149.9 1.4"
+      - at: 22
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 381.8 8.2 5.0 401.2 -7.8 2.6"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -18.0 0.0 5.0 -2.5 -18.0 2.0"
+
+  - id: c5-bp-monzarella
+    about: "C5. Barriers, boards, people: Monzarella"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 44.0 455.7 5.6 33.3 473.0 2.4"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 75.5 824.2 6.1 64.4 845.3 2.5"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 75.0 819.2 6.1 63.9 840.3 2.5"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 80.4 901.9 6.2 96.4 910.9 3.8"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -2.0 -16.8 5.0 -18.4 0.4 2.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 25.4 261.7 5.3 148.4 267.4 3.6"
+
+  - id: c5-bp-mordschleife
+    about: "C5. Barriers, boards, people: Mordschleife"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 3005.6 -3033.4 -275.8 2995.5 -3049.4 -280.2"
+      - at: 17
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 86.6 -7.2 7.3 99.5 -24.2 5.0"
+      - at: 22
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -18.0 -1.0 4.3 -2.9 16.4 1.9"
+      - at: 27
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 76.7 -5.4 7.2 63.5 -180.9 -11.7"
+
+  - id: c5-bp-nuerburgerring
+    about: "C5. Barriers, boards, people: Nuerburgerring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 241.7 229.3 7.6 240.9 207.7 4.2"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -210.4 -194.9 -1.6 -214.3 -224.3 -6.1"
+      - at: 22
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -256.2 -224.8 -3.7 -262.0 -250.8 -7.0"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -90.3 -89.4 2.5 -91.3 -117.7 -1.1"
+      - at: 32
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -47.1 -47.7 4.0 70.8 -194.3 -6.4"
+
+  - id: c5-bp-oskarsleben
+    about: "C5. Barriers, boards, people: Oskarsleben"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Oskarsleben
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -395.0 87.6 1.5 -388.3 48.1 -1.6"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -419.6 70.7 1.8 -433.6 34.9 -1.7"
+      - at: 22
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -321.1 93.8 1.3 -334.7 114.9 -1.2"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 24.3 -7.5 4.9 10.0 16.6 2.0"
+      - at: 32
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 14.7 -4.7 5.0 -51.1 -163.9 1.2"
+
+  - id: c5-bp-redpullring
+    about: "C5. Barriers, boards, people: RedPullRing"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 83.7 21.9 5.3 71.0 4.7 2.1"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -340.9 -92.3 10.9 -353.3 -115.9 8.9"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 160.9 42.7 6.1 151.6 9.0 3.6"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -398.7 -107.9 16.3 -410.7 -127.6 15.3"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 21.0 5.0 5.2 5.9 -17.6 2.2"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -147.9 -40.4 6.0 -171.9 -12.2 3.1"
+
+  - id: c5-bp-shanghaied
+    about: "C5. Barriers, boards, people: Shanghaied"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shanghaied
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 188.2 42.8 5.2 160.7 76.2 2.0"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -685.6 407.0 8.8 -709.9 416.3 5.2"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -584.1 210.3 8.4 -615.4 208.6 4.8"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -456.4 -98.3 7.1 -471.2 -118.3 4.7"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -128.9 -28.1 5.6 -140.0 -49.8 2.7"
+
+  - id: c5-bp-shebang
+    about: "C5. Barriers, boards, people: Shebang"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shebang
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -391.6 -175.1 0.5 -377.5 -157.9 -2.6"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -119.9 483.0 -0.6 -94.1 498.8 -3.4"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -560.5 73.4 -3.8 -596.7 71.5 -7.0"
+      - at: 27
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -125.4 -14.1 6.6 -144.1 -35.1 3.5"
+      - at: 32
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -35.7 -6.6 5.8 -49.3 -54.8 1.0"
+
+  - id: c5-bp-shiverstone
+    about: "C5. Barriers, boards, people: Shiverstone"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 569.9 746.5 15.3 547.0 745.8 12.2"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 594.6 420.8 13.7 598.9 446.0 10.2"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 66.9 -218.6 6.5 73.6 -251.5 3.2"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -50.9 -75.9 5.1 -26.3 -69.9 2.7"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -10.0 -19.1 5.0 -13.1 8.3 2.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 490.3 815.0 15.3 457.9 806.1 11.9"
+
+  - id: c5-bp-snorisring
+    about: "C5. Barriers, boards, people: Snorisring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 51.6 -33.1 5.1 73.7 -28.1 1.9"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 361.8 -208.3 9.1 341.7 -205.8 5.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 131.7 -51.0 5.3 111.7 -52.8 1.4"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 354.6 -201.4 9.0 331.4 -199.4 6.1"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -20.7 11.5 5.0 6.8 17.1 2.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 226.1 -106.9 6.6 237.7 -51.8 3.8"
+
+  - id: c5-bp-spafrankenchamps
+    about: "C5. Barriers, boards, people: SpaFrankenchamps"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 519.7 -348.7 9.7 538.1 -355.5 7.5"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 790.7 -1529.7 57.6 789.3 -1553.6 51.4"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -197.7 315.3 12.1 -219.1 341.3 7.8"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -188.0 299.1 11.8 -214.6 311.0 9.6"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 12.1 -17.4 4.3 -14.8 -10.1 2.2"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 329.8 -57.8 -20.2 400.8 45.7 -12.8"
+
+  - id: c5-bp-sudoku
+    about: "C5. Barriers, boards, people: Sudoku"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sudoku
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -739.0 -80.2 6.5 -753.2 -66.6 3.8"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -420.9 36.4 20.4 -420.5 62.7 16.6"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -756.4 3.0 10.1 -780.6 15.3 7.9"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 393.4 -458.4 -13.1 415.2 -460.1 -15.9"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -12.1 17.4 5.4 16.1 14.8 2.1"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -76.3 80.2 8.0 1.2 146.7 7.0"
+
+  - id: c5-bp-zandervoort
+    about: "C5. Barriers, boards, people: Zandervoort"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandervoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a concrete wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 4.6 13.9 4.9 31.5 21.6 1.7"
+      - at: 17
+        label: "a tyre wall"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 92.5 -201.3 3.1 114.2 -215.5 -0.3"
+      - at: 22
+        label: "Tecpro"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 121.0 -348.6 3.2 146.0 -360.8 0.0"
+      - at: 27
+        label: "a corner sign"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 120.0 307.1 6.5 110.2 328.8 4.5"
+      - at: 32
+        label: "a marshal at a post"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -10.1 -23.3 5.1 -18.7 2.1 2.0"
+      - at: 37
+        label: "a knot of spectators"
+        checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -88.3 -451.0 5.0 -271.5 -568.4 4.5"
+
