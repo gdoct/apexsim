@@ -151,6 +151,13 @@ layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
 says why) and are not dressed. They are outside this work, and removing
 them from the calendar is the owner's option.
 
+**S/F column.** The dossier pass is in for every circuit but the
+Nordschleife (its start/finish needs the trace page first): each audit
+page's "S/F dossier pass" lists what went into the tables and what is left,
+and the scenes are re-dressed. The cells stay open until the screenshot runs
+(`c5-sf-<stem>`, [verification.md](../../apexsim/docs/verification.md)) are
+judged.
+
 What the audit says across the table:
 
 - **S/F** needs a dossier edit almost everywhere: the main stands opposite
@@ -271,6 +278,25 @@ stay as they are.
 - **R17. Checks.** Nothing flags a stand laid on the far side of its
   straight (the Shebang main stand) or a distance-board set missing at a
   heavy braking zone (Zandervoort's Hans Ernst and T9/T10).
+- **R18. An OSM stand cannot be dropped or renamed** from the tables:
+  Oschersleben's "Boxen / VIP-Loungen" (the pit building, tagged as a
+  stand) lays three bays on the pit side; an unnamed one can only be
+  roofed, by station (`STAND_COVER` "@<station_m>").
+- **R19. An authored landmark drops every OSM structure within its
+  reach** (half the structure's length plus 5 m), on either side of the
+  road (`drop_structures_under_landmarks`): a screen behind the pits takes
+  the buildings there with it (the Albert Park clubhouses, so its screens
+  are left out).
+- **R20. Screens on the pit building's roof or track face** have no rule:
+  a `screen` landmark stands on the ground, and one in the garage zone is
+  dropped (AlbertParkour, Armadillos, Bahrainless, Hungoverring,
+  MandarinaBay, Sudoku); with R12 (the podium) it is the pit building's
+  share of kit gap 2.
+- **R21. Pit lanes that stop short.** AlbertParkour's `MANUAL_PIT_LANE`
+  is 0-380 where the real lane runs from about 4760 to 140, and Lemons'
+  lane is 347 m against the real one before the Ford chicane to the
+  Dunlop curve; a lane change moves the server's pit and needs the pit
+  survey.
 
 Found on the way and outside dressing (track geometry, georeference,
 references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).
