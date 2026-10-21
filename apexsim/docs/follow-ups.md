@@ -76,6 +76,11 @@ the same `ApexProps` code.
   are untextured facades (Spa's Stand Endurance, the Norisring's towers
   in the R11 run of 2026-10-17). A baked `pit_wall` changes every GLB of
   the building kind that carries the slot at once.
+- The vehicle kind's shared slots disagree between GLBs: `vehicle_tyre`,
+  `bridge_dark` and `pit_glass` are baked in some and flat in others, and
+  whichever GLB the import meets first sets them for all
+  (`vehicle_paint_camper` was split off `vehicle_paint_a` for this). One
+  definition per slot, re-exported through `build_vehicles.py`.
 - Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
   MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
   panels either, and race control's yellows show on the HUD alone there.
