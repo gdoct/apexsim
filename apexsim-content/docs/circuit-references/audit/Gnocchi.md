@@ -50,3 +50,18 @@ The racefans/F1 maps place corners only; the media-kit map is too low-resolution
 - Mapped walls never yield concrete; street-style park circuit has no concrete style.
 - Crossing 4786.3 (`road`) laid as `tyre_bridge`.
 - No corner-name table for circuits whose OSM names none.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: T1 Grandstand (345-465 outside).
+- `STAND_COVER`: Главная трибуна covered.
+
+Left, or for later columns:
+
+- T1 Grandstand resolves to the left (outside of the right kink); front at 17.1 m left; the pit lane is on the right (32.5 m from the nearest node). Its station is to the dossier's "outside T1", not to a drawn map: within ~50 m of the kink, but the extent is an estimate.
+- Main Grandstand: laid as 10 x bay_10m_large_roof; the six-storey building with a single roof wants bay_10m_stadium_roof or a dedicated piece (rule gap: stand family by depth only).
+- Pit building is multi-storey glass with the Paddock Club on top; the export lays single-storey garages, and the OSM "Паддок-клуб Формулы-1" (104 right, offset 32, 315 x 28 m, 4 levels) stands behind them: check it clears the garage depth (pit lane at -15 m, garages to ~-38 m) on the trace page.
+- Podium and race control tower positions are unconfirmed: not placed.
+
+Re-applying the tables also moves the authored tower to where `MANUAL_LANDMARKS` has had it (70 m left, from 300 m right): the table had been edited without a re-apply.

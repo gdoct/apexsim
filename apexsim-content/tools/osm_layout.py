@@ -240,6 +240,15 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # right-hand hairpin, which the sources' photos agree with.
     "Hockeyheimring": [
         dict(name="Mercedes-Tribüne", from_m=2000, to_m=2250, side="outside", depth_m=20),
+        # Nordtribüne (A-C): wraps the outside of the Nordkurve (T1, 221-403)
+        # from the north end of the Haupttribüne to the corner's exit, three
+        # tiers deep (hori-streckenplan-2024.pdf "NORDTRIBÜNE";
+        # gpd-grandstand-map-2019.jpg NORD A-C continuous with HAUPT E). Set
+        # back like the traced LBBW-Haupttribüne (front 37-45 m off the
+        # centerline) and starting clear of Hotel Motodrom (63.7 left). OSM
+        # maps a 352 m curved unnamed building at 300.3 left, offset 42.5,
+        # over it: the stand's roof, so covered.
+        dict(name="Nordtribüne", from_m=100, to_m=400, side="outside", depth_m=35, gap_m=31, covered=True),
     ],
     # Interlagos letters its stands. OSM already traces the pit-straight
     # ones (an unnamed stand at station ~76 m and another at ~4272 m -
@@ -382,6 +391,12 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # T15: the first (left) half of the T15-16 chicane that turns the
         # lap back in behind the pit building.
         dict(name="T15 Grandstand", from_m=5040, to_m=5160, side="outside", depth_m=12),
+        # T1 grandstand ("Sergey Sirotkin"): temporary, no roof, on the outside
+        # of the flat-out T1 right kink (~420) just past the north-east end of
+        # the Main Grandstand (dossier "Buildings and structures";
+        # racefans-sochi-autodrom.jpg for T1, its label on the south-east, the
+        # left, side). No map draws its extent; the span is centred on the kink.
+        dict(name="T1 Grandstand", from_m=345, to_m=465, side="outside", depth_m=12),
     ],
     # Albert Park is entirely temporary seating -- OSM maps none of it (the
     # only `building=grandstand` ways in the bbox belong to Lakeside
@@ -482,7 +497,9 @@ MANUAL_STANDS: dict[str, list[dict]] = {
 # `MANUAL_STANDS` ones alike, written as the stand's `roof`: "covered"
 # roofs it, "open" keeps the dress pass from roofing it for its depth
 # (25 m or more is otherwise taken to be roofed). Every stand of that name
-# on the circuit takes it.
+# on the circuit takes it; an unnamed OSM stand is named by its station
+# instead, "@<station_m>" as the dossier has it (OSM's outline does not
+# move, so neither does its station).
 STAND_COVER: dict[str, dict[str, str]] = {
     "BrandsScratch": {
         # The aerial (oversteer48-grandstands.jpg) shows the Pit Straight
@@ -497,6 +514,13 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # as its own structure); its 10.3 m depth keeps it open already, so the
         # entry only records the fact.
         "Desiré Wilson Grandstand": "open",
+    },
+    "Gnocchi": {
+        # The Main Grandstand is one six-storey building under a single
+        # cantilevered roof (photo tilke-sochi-09.jpg; dossier "permanent
+        # six-storey, 400 m building with a roof over the seats"). Its 39 m
+        # depth roofs it already; the entry records it from the source.
+        "Главная трибуна": "covered",
     },
 }
 
@@ -751,6 +775,12 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # than on top of it.
     "RedPullRing": [
         dict(kind="statue", name="Red Bull Statue", station_m=3149.7, side="left", offset_m=90.0),
+    ],
+    "Hockeyheimring": [
+        # The giant screen inside the Nordkurve (gpd-grandstand-map-2019.jpg,
+        # red stroke inside T1 at its entry), set past the pit exit road that
+        # runs inside T1 (lane at ~-24 m) and beyond the end of the garage row.
+        dict(kind="screen", name="Nordkurve screen", station_m=250.0, side="right", offset_m=40.0),
     ],
 }
 
@@ -3094,7 +3124,7 @@ def with_stand_cover(stem: str, stands: list[dict]) -> list[dict]:
     cover = STAND_COVER.get(stem, {})
     out = []
     for s in stands:
-        roof = cover.get(s.get("name"))
+        roof = cover.get(s.get("name"), cover.get(f"@{s['station_m']}"))
         if roof not in (None, "covered", "open"):
             raise SystemExit(f"STAND_COVER[{stem!r}][{s.get('name')!r}]: {roof!r} is not covered or open")
         s = {k: v for k, v in s.items() if k != "roof"}

@@ -48,3 +48,18 @@ inset covers parking and camps.
 - Pit complex: the street-circuit roof deck is not offered to a permanent circuit with a roof terrace.
 - Mapped walls never yield concrete; Motodrom fence missing where stands are set back past SPECTATOR_RANGE_M.
 - A huge OSM stand outline (Sudtribune 390 x 185 m) is laid on the wrong side as one block: the stand pass trusts the centroid side of a wrapping ring.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: Nordtribüne (100-400 outside covered).
+- `MANUAL_LANDMARKS`: screen at 250.0 right.
+
+Left, or for later columns:
+
+- The unnamed OSM building at 300.3 left (352 x 95 m bbox, 3372 m2) is the Nordtribüne roof outline. If the dress pass lays it (the explain lists two unnamed buildings as "reaches across the road", likely this one and the Süd roof) it would sit on the new stand. It has no name, so MANUAL_STANDS cannot promote it; check on the trace page.
+- The red U of three strokes just before the line on the pit side (gpd-grandstand-map-2019.jpg) reads as screens or the podium at the pit building; it lies in the garage zone and is not placed.
+- The Haupttribüne is drawn continuous A-H from the Südkurve to the Nordtribüne. OSM gives LBBW-Haupttribüne 4505-90 and an "Südtribüne" whose front runs 4154-4505 at +33..+57 m (left of the road) although the layout records it side "right": the Süd/Haupt-south complex as one ring. It is an OSM stand and cannot be moved here; the side mismatch is a rule gap (wrapping-ring side by centroid) for the Stands column.
+- Boxendach roof-deck marquee over the garages is lost to the pit complex (kit/rule gap). The MANUAL "Mercedes-Tribüne" at the Spitzkehre and the "Parabolika footbridge" belong to the Stands and Landmark columns (audit: remove both).
+
+- The new screen's landmark takes the unnamed 352 m building outline at 300.3 m left out of the dossier, which is the Nordtribüne's own roof (and was skipped as reaching across the road).
