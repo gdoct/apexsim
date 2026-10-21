@@ -236,11 +236,106 @@ def build_control_tower():
     return b.finish(planar_uv=True, uv_scale=UV)
 
 
+def window(b, m, x0, x1, z0, z1, y, out):
+    """A framed window in a wall face at y, `out` the face's outward sign:
+    glass a little in from the face, a timber frame and a stone sill."""
+    f = 0.09
+    yi, yo = y - out * 0.06, y + out * 0.05
+    lo, hi = sorted((yi, yo))
+    yg = y + out * 0.01   # 1 cm proud of the wall face, or the two z-fight
+    b.box(m["glass"], (x0, min(yg, yi), z0), (x1, max(yg, yi), z1))
+    b.box(m["wood"], (x0 - f, lo, z1), (x1 + f, hi, z1 + f))
+    b.box(m["wood"], (x0 - f, lo, z0 - f), (x0, hi, z1))
+    b.box(m["wood"], (x1, lo, z0 - f), (x1 + f, hi, z1))
+    b.box(m["wood"], ((x0 + x1) / 2 - 0.035, lo, z0), ((x0 + x1) / 2 + 0.035, hi, z1))   # mullion
+    s0, s1 = sorted((y - out * 0.02, y + out * 0.16))
+    b.box(m["conc"], (x0 - 0.15, s0, z0 - 0.15), (x1 + 0.15, s1, z0))
+
+
+def build_clubhouse():
+    """25.6 x 18.9 x 11.5, road edge pivot: a two-storey club house, brick
+    below and render above under a pitched roof with eaves, a timber
+    veranda with a balcony along the road, framed windows, a chimney and a
+    flag pole behind."""
+    apex.reset_scene()
+    m = mats()
+    m.update(brick=_mat_from_glb("clubhouse_brick", "clubhouse.glb"),
+             wood=_mat_from_glb("clubhouse_wood", "clubhouse.glb"),
+             roof=_mat_from_glb("clubhouse_roof", "clubhouse.glb"),
+             flag=_mat_from_glb("flag_cloth", "clubhouse.glb"))
+    b = apex.Builder("clubhouse")
+    X, Y1 = 12.0, 14.0
+    G, F1, E, RIDGE = 0.2, 3.8, 7.2, 10.9
+    b.box(m["conc"], (-12.5, -3.3, 0.0), (12.5, 14.5, G))                      # plinth and veranda floor
+    b.box(m["brick"], (-X, 0.0, G), (X, Y1, F1))
+    b.box(m["wall"], (-X, 0.0, F1), (X, Y1, E))
+    b.box(m["conc"], (-X - 0.06, -0.06, F1 - 0.1), (X + 0.06, Y1 + 0.06, F1 + 0.12))  # string course
+    # Gable ends up to the ridge, along X.
+    yc = Y1 / 2
+    b.loft(m["wall"], [[(-X, 0.0, E), (-X, Y1, E), (-X, yc, RIDGE)], [(X, 0.0, E), (X, Y1, E), (X, yc, RIDGE)]],
+           closed=True, cap_ends=True)
+    # Roof slab with eaves and verges, a ridge cap.
+    ov, t = 0.8, 0.22
+    k = (RIDGE - E) / yc
+    ring = lambda x: [(x, -ov, E - ov * k), (x, -ov, E - ov * k + t), (x, yc, RIDGE + t), (x, Y1 + ov, E - ov * k + t),
+                      (x, Y1 + ov, E - ov * k), (x, yc, RIDGE)]
+    b.loft(m["roof"], [ring(-X - 0.6), ring(X + 0.6)], closed=True, cap_ends=True)
+    b.box(m["wood"], (-X - 0.6, -ov - 0.05, E - ov * k - 0.25), (X + 0.6, -ov + 0.02, E - ov * k + t))   # fascia
+    b.box(m["roof"], (-X - 0.6, yc - 0.2, RIDGE + t - 0.05), (X + 0.6, yc + 0.2, RIDGE + t + 0.12))
+    b.box(m["brick"], (6.5, yc + 1.2, RIDGE - 1.5), (7.4, yc + 2.0, RIDGE + 1.0))      # chimney
+    b.box(m["conc"], (6.4, yc + 1.1, RIDGE + 1.0), (7.5, yc + 2.1, RIDGE + 1.12))
+    # Windows: eight bays, a glazed double door in the middle.
+    for i, xc in enumerate([-10.5 + 3.0 * i for i in range(8)]):
+        if i in (3, 4):
+            if i == 3:
+                window(b, m, -1.3, 1.3, G + 0.05, 3.0, 0.0, -1)   # the door
+            continue
+        window(b, m, xc - 0.7, xc + 0.7, 1.1, 3.0, 0.0, -1)
+    for xc in [-10.5 + 3.0 * i for i in range(8)]:
+        window(b, m, xc - 0.7, xc + 0.7, 4.9, 6.5, 0.0, -1)
+        window(b, m, xc - 0.7, xc + 0.7, 4.9, 6.5, Y1, 1)
+        window(b, m, xc - 0.7, xc + 0.7, 1.1, 3.0, Y1, 1)
+    for s in (-1, 1):   # one window per floor in each gable end, along Y
+        for z0, z1 in ((1.1, 3.0), (4.9, 6.5)):
+            for yc0 in (3.5, 10.5):
+                x = s * X
+                b.box(m["glass"], (x - 0.05 if s < 0 else x - 0.01, yc0 - 0.7, z0), (x + 0.01 if s < 0 else x + 0.05, yc0 + 0.7, z1))
+                b.box(m["conc"], (x - 0.16 if s < 0 else x, yc0 - 0.85, z0 - 0.15), (x if s < 0 else x + 0.16, yc0 + 0.85, z0))
+    # Veranda: posts, a balcony deck at the first floor with a rail, and a
+    # lean-to canopy over it.
+    VY = -3.0
+    for i in range(9):
+        x = -12.0 + 3.0 * i
+        b.box(m["wood"], (x - 0.13, VY, G), (x + 0.13, VY + 0.26, E - 0.4))
+    b.box(m["wood"], (-12.2, VY - 0.05, F1 - 0.2), (12.2, 0.0, F1 + 0.1))
+    b.box(m["wood"], (-12.2, VY - 0.05, F1 - 0.45), (12.2, VY + 0.25, F1 - 0.2))       # beam
+    rz = F1 + 1.1
+    b.bar(m["steel"], (-12.0, VY + 0.05, rz), (12.0, VY + 0.05, rz), 0.04, segs=6)
+    b.bar(m["steel"], (-12.0, VY + 0.05, F1 + 0.55), (12.0, VY + 0.05, F1 + 0.55), 0.025, segs=6)
+    for i in range(25):
+        x = -12.0 + i
+        b.bar(m["steel"], (x, VY + 0.05, F1 + 0.1), (x, VY + 0.05, rz), 0.02, segs=4)
+    for s in (-1, 1):
+        b.bar(m["steel"], (s * 12.0, VY + 0.05, rz), (s * 12.0, 0.0, rz), 0.04, segs=6)
+    b.loft(m["roof"], [[(-12.4, VY - 0.4, E - 0.55), (-12.4, VY - 0.4, E - 0.4), (-12.4, 0.0, E - 0.05), (-12.4, 0.0, E - 0.2)],
+                       [(12.4, VY - 0.4, E - 0.55), (12.4, VY - 0.4, E - 0.4), (12.4, 0.0, E - 0.05), (12.4, 0.0, E - 0.2)]],
+           closed=True, cap_ends=True)
+    # The flag pole behind, its flag 0..1 in u and v for T_flag_<cc>.
+    b.cylinder(m["conc"], (0.0, 15.5, 0.0), 0.35, 0.3, segs=10)
+    b.bar(m["steel"], (0.0, 15.5, 0.3), (0.0, 15.5, 9.6), 0.06, segs=8)
+    b.quad_uv(m["flag"], [(0.08, 15.5, 8.3), (1.48, 15.5, 8.3), (1.48, 15.5, 9.25), (0.08, 15.5, 9.25)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    b.quad_uv(m["flag"], [(1.48, 15.5, 8.3), (0.08, 15.5, 8.3), (0.08, 15.5, 9.25), (1.48, 15.5, 9.25)],
+              [(1, 0), (0, 0), (0, 1), (1, 1)])
+    return b.finish(planar_uv=True, uv_scale=UV)
+
+
 BUILDS = {"media_centre": build_media_centre, "hospitality_3f": build_hospitality,
-          "control_tower": build_control_tower}
+          "control_tower": build_control_tower, "clubhouse": build_clubhouse}
 VIEWS = {"media_centre": [((-30, -42, 9), (2, 6, 9)), ((-55, -14, 3), (0, 6, 9))],
          "hospitality_3f": [((-24, -32, 7), (1, 5, 6)), ((-42, -10, 2.5), (0, 5, 6))],
-         "control_tower": [((-22, -40, 10), (0, 0, 14)), ((-50, -25, 3), (0, 0, 15))]}
+         "control_tower": [((-34, -56, 12), (0, 0, 15)), ((-50, -25, 3), (0, 0, 15))],
+         "clubhouse": [((-22, -30, 8), (0, 5, 5)), ((-30, 30, 10), (0, 7, 5))]}
 
 if __name__ == "__main__":
     out = {}
