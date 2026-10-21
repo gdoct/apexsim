@@ -2252,6 +2252,11 @@ mod surroundings {
     const MARSHAL_SPACING_M: f32 = 150.0;
     /// How far past the barrier line the marshals stand.
     const MARSHAL_BEYOND_BARRIER_M: f32 = 4.0;
+    /// The marshal stands this far up the road from the post's hut.
+    const MARSHAL_FIGURE_AHEAD_M: f32 = 2.5;
+    /// Knots of people round a fan-zone stage, a big wheel, a food stall.
+    const STAGE_CROWD_GROUPS: usize = 4;
+    const WHEEL_CROWD_GROUPS: usize = 2;
     /// Race control's marshal sectors (the simulation's
     /// `race_control::MARSHAL_SECTOR_M`, which the content cannot read):
     /// every one gets a light panel, so a yellow shown in it is seen.
@@ -2308,7 +2313,10 @@ mod surroundings {
     /// run, so it has to recognise its own output; and because it shares
     /// kinds with hand-placed props (a `sign` is also a distance board, a
     /// `misc` is also a bollard) ownership is by asset, not by kind.
-    pub const OWNED: [&str; 39] = [
+    pub const OWNED: [&str; 41] = [
+        // The people kit: a marshal at every post, groups at the fan zone.
+        "marshal_figure",
+        "crowd_group",
         "car_a",
         "car_b",
         "car_c",
@@ -2606,6 +2614,7 @@ mod surroundings {
         });
         part("forest", &mut out, &|o| forests(&ctx, dem, o));
         part("marshal posts", &mut out, &|o| marshal_posts(&ctx, o));
+        part("people", &mut out, &|o| people(&ctx, o));
         part("light panels", &mut out, &|o| light_panels(&ctx, o));
         part("corner signs", &mut out, &|o| corner_signs(&ctx, o));
         if night_lighting {
@@ -3125,6 +3134,34 @@ mod surroundings {
         stations
     }
 
+    /// Knots of standing spectators where a crowd gathers: in front of a
+    /// fan-zone stage, round a big wheel, by a food stall. Each faces the
+    /// road; a group that would stand on the run-off is left out.
+    fn people(ctx: &Ctx, out: &mut Vec<Prop>) {
+        let mut spots: Vec<(f32, f32, usize, f32)> = Vec::new();
+        for l in &ctx.layout.landmarks {
+            match l.kind.as_str() {
+                "stage" => spots.push((l.centre[0], l.centre[1], STAGE_CROWD_GROUPS, 9.0)),
+                "big_wheel" => spots.push((l.centre[0], l.centre[1], WHEEL_CROWD_GROUPS, 34.0)),
+                _ => {}
+            }
+        }
+        for poi in ctx.layout.poi.iter().filter(|p| p.kind == "food") {
+            spots.push((poi.centre[0], poi.centre[1], 1, 6.0));
+        }
+        for (cx, cy, groups, reach) in spots {
+            for k in 0..groups {
+                let a = (k as f32 + roll(cx, cy, 51 + k as u32)) / groups as f32 * TAU;
+                let r = reach + roll(cx, cy, 61 + k as u32) * 4.0;
+                let (x, y) = (cx + a.cos() * r, cy + a.sin() * r);
+                let (sample, _) = nearest_cross_section(ctx.path, x, y);
+                if let Some(prop) = ctx.place(PropKind::Misc, "crowd_group", x, y, Some(sample.heading_rad)) {
+                    out.push(prop);
+                }
+            }
+        }
+    }
+
     /// The side a post at `station` stands on: the outside of the bend.
     fn marshal_side(ctx: &Ctx, station: f32) -> Side {
         if curvature_at(ctx.path, station) < 0.0 {
@@ -3164,6 +3201,15 @@ mod surroundings {
                     }
                 }
                 out.push(prop);
+                // Its marshal, a couple of metres up the road from the
+                // post, facing the track.
+                let (sin, cos) = sample.heading_rad.sin_cos();
+                let (fx, fy) = (point.0 - cos * MARSHAL_FIGURE_AHEAD_M, point.1 - sin * MARSHAL_FIGURE_AHEAD_M);
+                if let Some(figure) =
+                    ctx.place_clear(PropKind::Misc, "marshal_figure", fx, fy, Some(sample.heading_rad), TRACKSIDE_CLEAR_M)
+                {
+                    out.push(figure);
+                }
             }
         }
     }

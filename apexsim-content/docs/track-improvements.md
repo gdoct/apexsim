@@ -259,9 +259,9 @@ What the audit says across the table:
   park and club rails), and no cell needs a dossier edit.
 - **Boards**: the corner signs and marshal posts follow the dossier's
   named corners, and ten dossiers have none or bogus ones (R10).
-- **People**: the figure kit (kit gap 1) is built and nothing lays it
-  yet: the bank is a stand family `MANUAL_STANDS` cannot name (R2), and
-  no rule puts groups at gates or marshals at posts.
+- **People**: the figure kit (kit gap 1) is laid now: the banks'
+  crowds from the Stands pass, a marshal at every post, knots of
+  spectators round the fan zones' stages, wheels and food stalls.
 
 ### Kit gaps
 

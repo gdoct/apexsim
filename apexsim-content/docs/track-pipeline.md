@@ -255,7 +255,9 @@ stamp.
   server side is in [apexsim/docs/server/pit-lane.md](../../apexsim/docs/server/pit-lane.md).
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site
   tents (pitched over the area on the R2 sequence, `r2_point`), village houses, chapels and pylons, a marshal post at every named
-  corner and every 150 m, a `corner_sign` from each corner's `display_name`,
+  corner and every 150 m (each with a `misc/marshal_figure` beside it),
+  knots of standing spectators (`misc/crowd_group`) round each fan-zone
+  stage, big wheel and food stall, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes and in every mapped wood from 120 m out
   (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
   dossier maps no lighting masts.
