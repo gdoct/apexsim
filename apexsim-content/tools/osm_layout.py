@@ -2431,13 +2431,42 @@ CORNER_DISPLAY: dict[str, dict[str, str | None]] = {
 }
 
 
+# Corners OSM does not name, from the circuit's own map (R10): each with its
+# real `name`, the `display_name` its board shows (no trademark, see
+# docs/naming.md) and the bend's `from_m`/`to_m`. `replace` makes the list
+# the circuit's corners (the scan's were absent or bogus); otherwise it is
+# added to them, less the scanned ones `drop` names. Corner signs and
+# marshal posts stand at each.
+MANUAL_CORNERS: dict[str, dict] = {
+}
+
+
+def with_manual_corners(stem: str, corners: list[dict], total_m: float) -> list[dict]:
+    spec = MANUAL_CORNERS.get(stem)
+    if not spec:
+        return corners
+    drop = set(spec.get("drop", []))
+    kept = [] if spec.get("replace") else [
+        c for c in corners if c.get("source") != "authored" and c["name"] not in drop
+    ]
+    manual = []
+    for c in spec["corners"]:
+        span = (c["to_m"] - c["from_m"]) % total_m
+        mid = round((c["from_m"] + span / 2) % total_m, 1)
+        manual.append({"name": c["name"], "display_name": c["display_name"], "station_m": mid,
+                       "from_m": c["from_m"], "to_m": c["to_m"], "source": "authored"})
+    return sorted(kept + manual, key=lambda c: c["station_m"])
+
+
 def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
     """Each corner with its `display_name` (see `CORNER_DISPLAY`), placed
-    right after `name` so the dossier reads real name, then shown name."""
+    right after `name` so the dossier reads real name, then shown name. A
+    corner from `MANUAL_CORNERS` keeps the name its entry gives."""
     table = CORNER_DISPLAY.get(stem, {})
     out = []
     for c in corners:
-        shown = table.get(c["name"], c["name"])
+        own = c.get("display_name") if c.get("source") == "authored" else c["name"]
+        shown = table.get(c["name"], own)
         rest = {k: v for k, v in c.items() if k not in ("name", "display_name")}
         out.append({"name": c["name"], "display_name": shown, **rest})
     return out
@@ -4074,7 +4103,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "attribution": ATTRIBUTION,
         "osm_bbox": [list(b) for b in BBOXES[stem]],
         "fit": fit_report,
-        "corners": with_display_names(stem, corners),
+        "corners": with_display_names(stem, with_manual_corners(stem, corners, track.total)),
         "pit_lane": pit,
         "stands": stands,
         "structures": structures,
@@ -4641,6 +4670,9 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
             if w.get("source") != "authored" and not any(same_ring(w["ring"], m["ring"]) for m in manual_w)
         ]
         new["woods"] = with_wood_leaf(stem, scanned_w + manual_w)
+        new["corners"] = with_display_names(
+            stem, with_manual_corners(stem, layout.get("corners", []), track.total)
+        )
         new["structures"] = drop_structures_under_landmarks(
             drop_promoted_structures(stem, layout.get("structures", [])), landmarks
         )

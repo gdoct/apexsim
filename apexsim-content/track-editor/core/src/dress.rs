@@ -2246,8 +2246,10 @@ mod surroundings {
     /// Lamp posts around a car park's edge.
     const LAMP_SPACING_M: f32 = 30.0;
     /// A marshal post stands at every named corner, and on a straight
-    /// this far apart.
-    const MARSHAL_SPACING_M: f32 = 400.0;
+    /// this far apart: a real circuit has a post every 100-200 m (51 at
+    /// the GP Nurburgring, 40 at Sakhir, 35 at Shanghai), three times what
+    /// 400 m laid (R10).
+    const MARSHAL_SPACING_M: f32 = 150.0;
     /// How far past the barrier line the marshals stand.
     const MARSHAL_BEYOND_BARRIER_M: f32 = 4.0;
     /// Race control's marshal sectors (the simulation's

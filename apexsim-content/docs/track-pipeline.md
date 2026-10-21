@@ -157,6 +157,10 @@ landmark whose centre lies on an OSM outline (within 5 m) stands for that
 structure, and its row is dropped. `MANUAL_PIT_LANE` (wins over
 OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
 `MANUAL_WOODS`, `MANUAL_FURNITURE`, `MANUAL_DECAL_RUNS`, `MANUAL_GRAFFITI`.
+`MANUAL_CORNERS` gives a circuit OSM names no corners its corners from its
+own map (`name`, the board's `display_name`, the bend's `from_m`/`to_m`;
+`replace` for a dossier whose scanned corners are bogus, `drop` to take
+single ones out); the corner signs and marshal posts stand at them.
 
 Prefer a manual entry to a code change. A change to `extract()` or the fit
 must leave the other dossiers unchanged (re-run `--all --offline` and diff).
@@ -251,7 +255,7 @@ stamp.
   server side is in [apexsim/docs/server/pit-lane.md](../../apexsim/docs/server/pit-lane.md).
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site
   tents (pitched over the area on the R2 sequence, `r2_point`), village houses, chapels and pylons, a marshal post at every named
-  corner and every 400 m, a `corner_sign` from each corner's `display_name`,
+  corner and every 150 m, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes and in every mapped wood from 120 m out
   (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
   dossier maps no lighting masts.
