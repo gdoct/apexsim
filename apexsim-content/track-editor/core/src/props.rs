@@ -205,6 +205,15 @@ pub const KIT: &[KitAsset] = kit![
     Building "building_gothic_church" 40.8 x 53.4 x 61.3,
     Building "building_deco_theatre" 44.6 x 35.4 x 42.0,
     Building "pit_building_roofdeck" 200.0 x 34.0 x 26.0,
+    // Venue landmarks (build_kit_gaps_landmarks.py). The wing media
+    // centre is a 40 m module tiled in a row over the garages and the fuel
+    // station faces the road from its edge; the rest are centred.
+    Building "wing_media_centre" 40.1 x 29.1 x 28.8,
+    Building "round_glass_tower" 25.0 x 28.0 x 36.5,
+    Building "arena_dome" 134.0 x 104.0 x 30.6,
+    Building "expo_pavilion" 71.3 x 57.3 x 34.9,
+    Building "geodesic_dome" 76.4 x 76.4 x 62.2,
+    Building "fuel_station_canopy" 30.0 x 31.3 x 7.1,
     // Spectators: a stand family is one bay; the stand's length lays more.
     Grandstand "bay_10m" 10.0 x 9.1 x 5.6,
     Grandstand "bay_10m_roof" 10.0 x 10.4 x 10.6,
@@ -314,6 +323,8 @@ pub const KIT: &[KitAsset] = kit![
     // spectators and a marshal facing the road. Centred.
     Misc "crowd_group" 4.2 x 2.2 x 2.0,
     Misc "marshal_figure" 1.0 x 0.4 x 2.0,
+    // A twisting steel cauldron on its plinth, the flame `step_light_orange`.
+    Misc "cauldron" 17.1 x 14.3 x 56.5,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,

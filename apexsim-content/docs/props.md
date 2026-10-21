@@ -27,6 +27,7 @@ buildings the bake turns into `walls.msgpack` (see
   `marina_common.py`, `build_figures.py` (the people kit),
   `build_paddock.py` (`media_centre`, `hospitality_3f`, `control_tower`:
   the stand-ins the dress pass lays for real buildings),
+  `build_kit_gaps_landmarks.py` (the venue landmarks below),
   `build_trees_med.py` (eucalypt, stone pine, date palm on `card_trees.py`)),
   `gen_crowd.py` (the crowd card textures, plain Python with PIL),
   `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),
@@ -121,7 +122,10 @@ depth x height, metres). By family:
 - **Buildings**: paddock (`hospitality_3f`, `media_centre`, `control_tower`,
   `clubhouse`, `podium`), `observation_tower`, Styrian village houses, barn
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
-  backdrop, the Marina Bay landmarks.
+  backdrop, the Marina Bay landmarks, and the venue landmarks
+  `wing_media_centre` (a 40 m module tiled over the garages),
+  `round_glass_tower`, `arena_dome`, `expo_pavilion`, `geodesic_dome`,
+  `fuel_station_canopy` (its fascia a brand slot) and misc `cauldron`.
 - **Landscape**: card trees (`broadleaf_s/m/l`, `conifer_m/l`, `poplar`,
   `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms, the warm-climate
   `eucalypt_l`, `stone_pine_l` and `date_palm_l`), far-wood

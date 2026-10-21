@@ -248,16 +248,16 @@ names.
 |---|---|---|---|
 | 1 | built: `grandstand/grass_bank_10m[_crowd]`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
 | 2 | `pit/` upper storey on the garage row (hospitality floor, roof terrace, roof screens) | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
-| 3 | `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
+| 3 | built: `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
 | 4 | `grandstand/` tent-fabric roof bay and pit roof | white membrane roofs | Bahrainless |
-| 5 | `building/round_glass_tower` | a 30 m round glass control tower | Bahrainless |
+| 5 | built: `building/round_glass_tower` | a 30 m round glass control tower | Bahrainless |
 | 6 | `grandstand/` palm-frond canopy roof bay | leaf-canopy grandstand roofs | Shebang |
 | 7 | `bridge/sky_platform` | cantilevered platforms spanning the straight | Shanghaied |
 | 8 | `bridge/banked_oval_span` | the old banked oval on piers, over the GP road | Monzarella |
 | 9 | `grandstand/stone_tribune` | a long open stone terrace with a central platform | Snorisring |
-| 10 | `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
-| 11 | `building/expo_pavilion`, `building/geodesic_dome` | the Expo casino and the Biosphere | ChillyVilleneuve |
-| 12 | `building/fuel_station_canopy` | fuel stations by the lap | Mordschleife |
+| 10 | built: `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
+| 11 | built: `building/expo_pavilion`, `building/geodesic_dome` | the Expo casino and the Biosphere | ChillyVilleneuve |
+| 12 | built: `building/fuel_station_canopy` | fuel stations by the lap | Mordschleife |
 | 13 | built: `tree/eucalypt_l`, `tree/stone_pine_l`, `tree/date_palm_l` | eucalypts; Mediterranean stone pines; date palms | AlbertParkour; Barcelunatic; Bahrainless |
 
 Smaller asks, built only if a column's shots call for them: an amphitheatre canopy (Armadillos), a raised viewing deck
