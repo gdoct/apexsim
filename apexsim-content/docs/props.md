@@ -25,6 +25,8 @@ buildings the bake turns into `walls.msgpack` (see
   `build_tyre_bridge.py` (a flat tyre arc on two low legs over a footbridge),
   `build_nordschleife_kit.py`, `build_marina_bay_{a1,a2,a3,b1,c1,d1}.py` on
   `marina_common.py`, `build_figures.py` (the people kit),
+  `build_paddock.py` (`media_centre`, `hospitality_3f`, `control_tower`:
+  the stand-ins the dress pass lays for real buildings),
   `build_trees_med.py` (eucalypt, stone pine, date palm on `card_trees.py`)),
   `gen_crowd.py` (the crowd card textures, plain Python with PIL),
   `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),

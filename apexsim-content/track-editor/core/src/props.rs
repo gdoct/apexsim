@@ -164,7 +164,7 @@ pub const KIT: &[KitAsset] = kit![
     Pit "box_kit" 5.5 x 2.6 x 2.4,
     Pit "pit_wall_gantry_6m" 6.0 x 2.0 x 3.2,
     Building "clubhouse" 25.6 x 18.9 x 11.5,
-    Building "hospitality_3f" 30.6 x 12.6 x 12.4,
+    Building "hospitality_3f" 30.6 x 12.6 x 13.6,
     Building "media_centre" 40.6 x 15.6 x 21.0,
     Building "control_tower" 13.2 x 13.2 x 29.0,
     Building "observation_tower" 8.3 x 8.3 x 60.5,
