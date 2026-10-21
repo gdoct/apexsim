@@ -1022,9 +1022,9 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # 29.1 m from the centreline at its west end, 34.6 at its east end: 21 -> 27 m past the edge); the
         # centre block is the middle fifth of the front on the Lageplan (its drawing: 110 of 550 px), and
         # projects toward the road, so it stands 2 m further forward than the wings either side.
-        dict(name="Steintribüne West", from_m=1957, to_m=2101, side="left", depth_m=17, gap_m=22, covered=False, family="stone"),
-        dict(name="Steintribüne Mitte", from_m=2103, to_m=2177, side="left", depth_m=17, gap_m=21, covered=False, family="stone_centre"),
-        dict(name="Steintribüne Ost", from_m=2179, to_m=44, side="left", depth_m=17, gap_m=25, covered=False, family="stone"),
+        dict(name="Steintribüne West", from_m=1957, to_m=2134, side="left", depth_m=17, gap_m=22, covered=False, family="stone"),
+        dict(name="Steintribüne Mitte", from_m=2135, to_m=2145, side="left", depth_m=17, gap_m=21, covered=False, family="stone_centre"),
+        dict(name="Steintribüne Ost", from_m=2146, to_m=44, side="left", depth_m=17, gap_m=25, covered=False, family="stone"),
         # --- The temporary stands (all scaffold, dossier "Modelling pitfalls"): the three of the S/F pass
         # re-entered with family="scaffold" (positions, depths and gaps unchanged).
         dict(name="SPECK-Pumpen-Tribüne", from_m=1850, to_m=1910, side="right", depth_m=10, gap_m=6, covered=False),

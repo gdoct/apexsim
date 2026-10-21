@@ -520,6 +520,9 @@ KIT_SLOTS = {
     "tent_white": (lambda: cladding(seed=52, rgb=(0.92, 0.92, 0.9), panel=(2.0, 1.0)), 1.0, 0.0),
     "letters_white": (lambda: cladding(seed=54, rgb=(0.95, 0.95, 0.93), panel=(3.0, 3.0)), 1.0, 0.0),
     "forest_floor": (lambda: concrete(seed=55, rgb=(0.12, 0.14, 0.07), stains=0.4, form_lines=False), 4.0, 0.0),
+    # A spectator bank's trodden turf: darker than a lawn, so it sits in the
+    # terrain grass rather than glowing on it.
+    "bank_turf": (lambda: concrete(seed=60, rgb=(0.17, 0.26, 0.09), stains=0.35, form_lines=False), 2.0, 0.0),
 }
 _kit_cache = {}
 

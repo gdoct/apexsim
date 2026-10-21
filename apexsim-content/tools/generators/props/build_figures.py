@@ -11,7 +11,7 @@ per asset and previews in props/_preview/.
   module of turfed bank rising away from the road (pivot on the toe at the
   road-facing edge, the bank reaching +Y), tiled by the grandstand layout
   like scaffold_10m; the client picks the `_crowd` twin when the scene has
-  spectators. Turf is `bank_grass`, the slot banking_seats already uses.
+  spectators. Turf is the baked `bank_turf` slot (apex_tex.KIT_SLOTS).
 - misc/crowd_group: three cards of standing people in a loose knot, for
   gates, fan zones and the paddock. Centred.
 - misc/marshal_figure: one marshal in orange overalls holding a furled flag,
@@ -24,6 +24,10 @@ _spec = importlib.util.spec_from_file_location("apex", os.path.join(_HERE, "apex
 apex = importlib.util.module_from_spec(_spec)
 sys.modules["apex"] = apex
 _spec.loader.exec_module(apex)
+_tspec = importlib.util.spec_from_file_location("apex_tex", os.path.join(_HERE, "apex_tex.py"))
+tex = importlib.util.module_from_spec(_tspec)
+sys.modules["apex_tex"] = tex
+_tspec.loader.exec_module(tex)
 _gspec = importlib.util.spec_from_file_location("gen_crowd", os.path.join(_HERE, "gen_crowd.py"))
 gen_crowd = importlib.util.module_from_spec(_gspec)
 _gspec.loader.exec_module(gen_crowd)
@@ -51,16 +55,10 @@ def bank_z(y):
 
 
 def grass_material():
-    """bank_grass as banking_seats has it (baked turf), so the slot means one
-    material across the grandstand kind."""
-    path = os.path.join(apex.PROPS_ROOT, "grandstand", "banking_seats.glb")
-    with apex._ui_override():
-        bpy.ops.import_scene.gltf(filepath=path)
-    src = next(o for o in bpy.data.objects if o.type == 'MESH' and o.name.startswith("banking_seats"))
-    m = next(m for m in src.data.materials if m.name.split(".")[0] == "bank_grass")
-    bpy.data.objects.remove(src)
-    m.name = "bank_grass"
-    return m
+    """The bank's own turf (banking_seats' `bank_grass` came out a pale lime
+    in the game, which glowed on the terrain grass)."""
+    tex.reset_cache()
+    return tex.kit_material("bank_turf")
 
 
 def crowd_material():
@@ -104,7 +102,7 @@ def build_bank(crowd):
     bank(b, grass)
     if crowd:
         crowd_rows(b, crowd_material())
-    return b.finish(planar_uv=True, uv_scale=0.25), "grandstand", name
+    return b.finish(planar_uv=True, uv_scale=1.0), "grandstand", name
 
 
 def cell_card(b, mat, cell, x, y, yaw, scale=1.0):
