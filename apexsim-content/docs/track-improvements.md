@@ -297,16 +297,10 @@ stay as they are.
   it; club circuits get Tecpro where they have tyre walls (BrandsScratch,
   Oskarsleben, Nuerburgerring), and the Nordschleife 4.3 km of tyres from
   geometry with none mapped.
-- **R8. Woods away from the road are bare on flat ground.** The groom
-  plants 22-90 m out and the forest impostors need a 25 m rise, so mapped
-  woods go unplanted at Shiverstone, Lemons, Sudoku and Hockeyheimring;
-  OSM `scrub` (49 areas at Zandervoort) and `tree_row` (Oskarsleben) are
-  never planted.
-- **R9. Species and climate.** `groom.rs` counts `poplar` as needleleaved
-  (1148 in the Eifel forest, 149 in the Monza park); a style's flora
-  ignores the climate where no wood is mapped (a temperate belt in open
-  prairie at Armadillos, conifers at Shanghaied, no trees at all at
-  Shebang).
+- **R8. Tree rows.** OSM `natural=tree_row` ways (Oskarsleben's 15,
+  Shanghaied's 13) are never extracted, so the rows that edge an open
+  bowl or an access road are missing; the extract needs a refetch, and
+  only MandarinaBay and Shiverstone have one cached.
 - **R10. No manual corner table.** Corner signs and marshal posts come
   from the dossier's named corners, and a circuit OSM names none of gets
   no signs and a post every 400 m: ChillyVilleneuve, Gnocchi, Snorisring,

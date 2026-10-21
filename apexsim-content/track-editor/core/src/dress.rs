@@ -2279,6 +2279,10 @@ mod surroundings {
     /// Nothing is planted on the flat valley floor around the circuit:
     /// that is farmland, and the areas layer already describes it.
     const IMPOSTOR_MIN_RISE_M: f32 = 25.0;
+    /// Inside a mapped wood the far forest starts here, flat ground or not
+    /// (R8): past the card-tree belt (which stops at 90-110 m) the woods of
+    /// a flat circuit — Le Mans, Silverstone, Suzuka — were bare.
+    const WOOD_IMPOSTOR_NEAR_M: f32 = 120.0;
 
     /// A village house needs this much room from its neighbours.
     const HOUSE_SPACING_M: f32 = 26.0;
@@ -3023,27 +3027,42 @@ mod surroundings {
 
                 let (sample, lat) = nearest_cross_section(ctx.path, jx, jy);
                 let from_road = lat.abs() - side_half_width(&sample, side_of(lat));
-                if !(IMPOSTOR_NEAR_M..=IMPOSTOR_FAR_M).contains(&from_road) {
-                    continue;
-                }
                 let z = dem.height_at(jx, jy);
-                if z - sample.pos.2 < IMPOSTOR_MIN_RISE_M {
-                    continue;
-                }
-                let reach = step;
-                let dzdx =
-                    (dem.height_at(jx + reach, jy) - dem.height_at(jx - reach, jy)) / (2.0 * reach);
-                let dzdy =
-                    (dem.height_at(jx, jy + reach) - dem.height_at(jx, jy - reach)) / (2.0 * reach);
-                if dzdx.hypot(dzdy) < IMPOSTOR_MIN_SLOPE {
-                    continue;
-                }
-                // Spruce on the steeper, higher ground and mixed below,
-                // which is how a real tree line goes.
-                let asset = if dzdx.hypot(dzdy) > IMPOSTOR_MIN_SLOPE * 2.0 {
-                    "forest_impostor_conifer"
+                // A mapped wood is forest wherever it lies past the belt,
+                // its impostors by its leaf type.
+                let wood = (WOOD_IMPOSTOR_NEAR_M..=IMPOSTOR_FAR_M)
+                    .contains(&from_road)
+                    .then(|| ctx.layout.woods.iter().find(|w| w.contains(jx, jy)))
+                    .flatten();
+                let asset = if let Some(wood) = wood {
+                    match wood.leaf.as_str() {
+                        "needleleaved" => "forest_impostor_conifer",
+                        "broadleaved" => "forest_impostor",
+                        _ if roll(jx, jy, 45) < 0.5 => "forest_impostor_conifer",
+                        _ => "forest_impostor",
+                    }
                 } else {
-                    "forest_impostor"
+                    if !(IMPOSTOR_NEAR_M..=IMPOSTOR_FAR_M).contains(&from_road) {
+                        continue;
+                    }
+                    if z - sample.pos.2 < IMPOSTOR_MIN_RISE_M {
+                        continue;
+                    }
+                    let reach = step;
+                    let dzdx = (dem.height_at(jx + reach, jy) - dem.height_at(jx - reach, jy))
+                        / (2.0 * reach);
+                    let dzdy = (dem.height_at(jx, jy + reach) - dem.height_at(jx, jy - reach))
+                        / (2.0 * reach);
+                    if dzdx.hypot(dzdy) < IMPOSTOR_MIN_SLOPE {
+                        continue;
+                    }
+                    // Spruce on the steeper, higher ground and mixed below,
+                    // which is how a real tree line goes.
+                    if dzdx.hypot(dzdy) > IMPOSTOR_MIN_SLOPE * 2.0 {
+                        "forest_impostor_conifer"
+                    } else {
+                        "forest_impostor"
+                    }
                 };
                 out.push(Prop {
                     id: 0,

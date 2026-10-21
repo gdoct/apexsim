@@ -137,21 +137,52 @@ pub const TREE_ASSET: &str = "tree_generic";
 /// The species the belts are planted from, by the leaf type of the wood
 /// the tree stands in ([`Wood::leaf`]). Without a dossier the pass plants
 /// the mixed set, which is what the generic key used to resolve to.
-const BROADLEAF: [&str; 4] = ["broadleaf_m", "broadleaf_l", "broadleaf_s", "bush_cluster"];
-const NEEDLELEAF: [&str; 3] = ["conifer_m", "conifer_l", "poplar"];
+/// A poplar is a broadleaf tree of rows and river banks: one in six of a
+/// broadleaved wood, none in a mixed one or a spruce stand (R9: the
+/// Nordschleife's mixed woods were a fifth poplar).
+const BROADLEAF: [&str; 6] = [
+    "broadleaf_m",
+    "broadleaf_l",
+    "broadleaf_s",
+    "broadleaf_m",
+    "bush_cluster",
+    "poplar",
+];
+const NEEDLELEAF: [&str; 3] = ["conifer_m", "conifer_l", "conifer_m"];
 const MIXED: [&str; 5] = [
     "broadleaf_m",
     "broadleaf_l",
     "conifer_m",
-    "poplar",
+    "conifer_l",
     "bush_cluster",
 ];
-/// [`Flora::Desert`]: the ornamental (date) palm the Gulf circuits plant
-/// along their roads, the stouter oil palm and scrub.
+/// A dossier `scrub` area (dune scrub, heath): bushes only, in every flora.
+const SCRUB: [&str; 1] = ["bush_cluster"];
+/// [`Flora::Subtropical`]: broadleaf only, no poplar or spruce (Shanghai's
+/// reclaimed land, the Texas prairie's live oaks).
+const SUBTROPICAL: [&str; 4] = ["broadleaf_m", "broadleaf_l", "broadleaf_s", "bush_cluster"];
+/// [`Flora::Mediterranean`]: umbrella pines over broadleaf and scrub.
+const MEDITERRANEAN: [&str; 5] = [
+    "stone_pine_l",
+    "stone_pine_l",
+    "broadleaf_m",
+    "broadleaf_s",
+    "bush_cluster",
+];
+/// [`Flora::Australian`]: a city park of gums among elms and planes.
+const AUSTRALIAN: [&str; 5] = [
+    "eucalypt_l",
+    "eucalypt_l",
+    "broadleaf_l",
+    "broadleaf_m",
+    "bush_cluster",
+];
+/// [`Flora::Desert`]: the date palm the Gulf circuits plant along their
+/// roads, an ornamental palm and scrub.
 const DESERT: [&str; 4] = [
+    "date_palm_l",
+    "date_palm_l",
     "palm_ornamental",
-    "palm_ornamental",
-    "palm_oil",
     "bush_cluster",
 ];
 /// [`Flora::Tropical`]: broadleaf with palms among it, two in five.
@@ -186,6 +217,11 @@ fn is_tree_pass_asset(asset: &str) -> bool {
         || MIXED.contains(&asset)
         || DESERT.contains(&asset)
         || TROPICAL.contains(&asset)
+        || SUBTROPICAL.contains(&asset)
+        || MEDITERRANEAN.contains(&asset)
+        || AUSTRALIAN.contains(&asset)
+        // Planted by the sets before date palms and the species split.
+        || asset == "palm_oil"
         || NEAR_TREES.iter().any(|(_, near)| *near == asset)
         || SCATTER.contains(&asset)
 }
@@ -209,9 +245,14 @@ fn near_variant(asset: &str) -> &str {
 /// in and its own hash.
 fn tree_asset(flora: Flora, leaf: Option<&str>, roll: f32) -> &'static str {
     let set: &[&'static str] = match (flora, leaf) {
+        (_, Some("scrub")) => &SCRUB,
         (Flora::Desert, _) => &DESERT,
+        // A Mediterranean pine wood is umbrella pines, not spruce.
+        (Flora::Mediterranean, _) => &MEDITERRANEAN,
         (_, Some("needleleaved")) => &NEEDLELEAF,
         (Flora::Tropical, _) => &TROPICAL,
+        (Flora::Subtropical, _) => &SUBTROPICAL,
+        (Flora::Australian, _) => &AUSTRALIAN,
         (Flora::Temperate, Some("broadleaved")) => &BROADLEAF,
         (Flora::Temperate, _) => &MIXED,
     };
@@ -1018,6 +1059,18 @@ pub fn groom_props_with_dem(
         &mut report.hoardings_rebuilt,
     ));
 
+    // The belt grows in the mapped woods, and bushes in the mapped scrub
+    // (R8: Zandvoort's 49 dune-scrub areas were bare).
+    let woods: Vec<Wood> = layout.map_or_else(Vec::new, |l| {
+        l.woods
+            .iter()
+            .cloned()
+            .chain(l.areas.iter().filter(|a| a.kind == "scrub").map(|a| Wood {
+                leaf: "scrub".to_string(),
+                ring: a.ring.clone(),
+            }))
+            .collect()
+    });
     let mut trees = lay_tree_belts(
         &path,
         &terrain,
@@ -1025,7 +1078,7 @@ pub fn groom_props_with_dem(
         lane.as_ref(),
         &props,
         tree_density(track),
-        layout.map(|l| l.woods.as_slice()).unwrap_or(&[]),
+        &woods,
         &style.trees,
         style.flora,
     );
@@ -3113,8 +3166,28 @@ mod tests {
         assert!(!planted(Flora::Temperate, None)
             .iter()
             .any(|a| a.starts_with("palm_")));
+        // Poplars only in broadleaved woods; the warm floras keep their own
+        // trees, and a spruce stand stays spruce in all of them.
+        assert!(!planted(Flora::Temperate, Some("mixed")).contains(&"poplar"));
+        assert!(!planted(Flora::Temperate, Some("needleleaved")).contains(&"poplar"));
+        assert!(planted(Flora::Mediterranean, None).contains(&"stone_pine_l"));
+        assert!(planted(Flora::Australian, Some("broadleaved")).contains(&"eucalypt_l"));
+        assert!(!planted(Flora::Subtropical, None).iter().any(|a| NEEDLELEAF.contains(a)));
+        assert!(planted(Flora::Desert, None).contains(&"date_palm_l"));
+        // Scrub is bushes, whatever the climate.
+        for flora in [Flora::Temperate, Flora::Desert, Flora::Mediterranean] {
+            assert!(planted(flora, Some("scrub")).iter().all(|a| *a == "bush_cluster"));
+        }
         // The pass owns what it plants, and the kit has it.
-        for asset in DESERT.iter().chain(&TROPICAL) {
+        for asset in DESERT
+            .iter()
+            .chain(&TROPICAL)
+            .chain(&SUBTROPICAL)
+            .chain(&MEDITERRANEAN)
+            .chain(&AUSTRALIAN)
+            .chain(&BROADLEAF)
+            .chain(&MIXED)
+        {
             assert!(is_tree_pass_asset(asset), "{asset}");
             assert!(props::resolve(PropKind::Tree, asset).is_some(), "{asset}");
         }

@@ -101,6 +101,12 @@ pub enum Flora {
     Desert,
     /// Broadleaf and palms; a wood mapped needle-leaved keeps its conifers.
     Tropical,
+    /// Broadleaf only; a wood mapped needle-leaved keeps its conifers.
+    Subtropical,
+    /// Umbrella pines, broadleaf and scrub.
+    Mediterranean,
+    /// Gums among broadleaf park trees.
+    Australian,
 }
 
 /// What the land beside the road is drawn as. A paved city's grass aprons
@@ -281,6 +287,32 @@ impl CircuitStyle {
         ..Self::DEFAULT
     };
 
+    /// Shanghai's reclaimed land: broadleaf rows and lawns, no spruce.
+    pub const SUBTROPICAL: CircuitStyle = CircuitStyle {
+        flora: Flora::Subtropical,
+        ..Self::DEFAULT
+    };
+
+    /// Austin's open Texas prairie: broadleaf clumps, not a belt (Sakhir's
+    /// spacing).
+    pub const PRAIRIE: CircuitStyle = CircuitStyle {
+        flora: Flora::Subtropical,
+        trees: Self::SAKHIR.trees,
+        ..Self::DEFAULT
+    };
+
+    /// Barcelona's Vallès: umbrella pines on the banks.
+    pub const MEDITERRANEAN: CircuitStyle = CircuitStyle {
+        flora: Flora::Mediterranean,
+        ..Self::DEFAULT
+    };
+
+    /// Albert Park: a city park of gums, elms and planes.
+    pub const AUSTRALIAN: CircuitStyle = CircuitStyle {
+        flora: Flora::Australian,
+        ..Self::DEFAULT
+    };
+
     /// The style of the circuit a scene decorates, by its source track's
     /// stem.
     pub fn for_scene(scene: &AtsScene) -> CircuitStyle {
@@ -298,6 +330,10 @@ impl CircuitStyle {
             "Bahrainless" => Self::SAKHIR,
             "YasMarinara" => Self::DESERT,
             "Shebang" | "Interlaggos" | "HermanosRodriQueso" => Self::TROPICAL,
+            "Shanghaied" => Self::SUBTROPICAL,
+            "Armadillos" => Self::PRAIRIE,
+            "Barcelunatic" => Self::MEDITERRANEAN,
+            "AlbertParkour" => Self::AUSTRALIAN,
             _ => Self::DEFAULT,
         }
     }

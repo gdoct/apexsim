@@ -33,7 +33,8 @@ A `CircuitStyle` carries the groomer's per-circuit choices: which rail
 corner's barrier may stand (`straight_barrier_min_m`,
 `corner_barrier_min_m`), hoardings on or off, the tree belt (`TreeBelt`:
 distance band, trees per 12 m cell, share of empty cells), `Flora`
-(`Temperate`, `Desert`, `Tropical`), `Ground` (`Grass`, `Sand`, `Paved`),
+(`Temperate`, `Desert`, `Tropical`, `Subtropical`, `Mediterranean`,
+`Australian`), `Ground` (`Grass`, `Sand`, `Paved`),
 `RoadSigns` (`BrakingBoards`, `German`), and flags for the floodlight ring,
 the pit lane, city buildings, verge ground cover, the generated pit
 garages and the fan dressing (`fan_dressing`, below).
@@ -46,6 +47,10 @@ garages and the fan dressing (`fan_dressing`, below).
 | `DESERT` | `YasMarinara` | desert flora (palms and scrub whatever the wood is mapped as) |
 | `SAKHIR` | `Bahrainless` | desert flora in sparse clumps (two in three cells empty) on `Ground::Sand` |
 | `TROPICAL` | `Shebang`, `Interlaggos`, `HermanosRodriQueso` | broadleaf and palms (a needle-leaved wood keeps its conifers) |
+| `SUBTROPICAL` | `Shanghaied` | broadleaf only, no poplar or spruce (a needle-leaved wood keeps its conifers) |
+| `PRAIRIE` | `Armadillos` | subtropical broadleaf in Sakhir's sparse clumps: open Texas prairie, not a belt |
+| `MEDITERRANEAN` | `Barcelunatic` | umbrella pines (`stone_pine_l`) over broadleaf and scrub, needle-leaved woods too |
+| `AUSTRALIAN` | `AlbertParkour` | gums (`eucalypt_l`) among broadleaf park trees |
 
 How the fields act:
 

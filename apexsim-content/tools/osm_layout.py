@@ -1447,6 +1447,53 @@ DROP_STRUCTURES: dict[str, list[float]] = {
 }
 DROP_STRUCTURES_WITHIN_M = 1.0
 
+# The leaf type of a circuit's woods, over OSM's (`leaf_type`, which is
+# almost never tagged, so most woods come out `mixed`): "*" for every wood
+# of the circuit, "area:<m2>" for the one whose area is within 2 % of it
+# (the audit pages name woods by area). The tree pass picks its species
+# from the leaf, and the far forest its impostors.
+WOOD_LEAF: dict[str, dict[str, str]] = {
+    # Kent deciduous woodland (Westfield Wood, Dingle Dell, the Druids
+    # infield, the wood inside Pilgrims/Surtees on the aerial).
+    "BrandsScratch": {"*": "broadleaved"},
+    # Parc Jean-Drapeau's park trees (dossier: tree-lined most of the lap).
+    "ChillyVilleneuve": {"*": "broadleaved"},
+    # The Hardtwald: dense pine round the Parabolika and the hairpin
+    # (dossier "Hardtwald").
+    "Hockeyheimring": {"*": "needleleaved"},
+    # The Parco di Monza: oak, hornbeam, plane and chestnut parkland.
+    "Monzarella": {"*": "broadleaved"},
+    # The Eifel plateau's woods are mostly spruce.
+    "Nuerburgerring": {"*": "needleleaved"},
+    # The Volkspark Dutzendteich's broadleaf park woods (Lageplan).
+    "Snorisring": {"*": "broadleaved"},
+    # The Ardennes spruce plantations round Les Combes, Pouhon/Fagnes and
+    # Stavelot (dossier "Ardennes forest"): the three big woods there.
+    "SpaFrankenchamps": {
+        "area:984184": "needleleaved",
+        "area:294334": "needleleaved",
+        "area:157938": "needleleaved",
+    },
+}
+WOOD_LEAVES = ("broadleaved", "needleleaved", "mixed")
+
+
+def with_wood_leaf(stem: str, woods: list[dict]) -> list[dict]:
+    table = WOOD_LEAF.get(stem, {})
+    if not table:
+        return woods
+    by_area = [(float(k.split(":", 1)[1]), v) for k, v in table.items() if k.startswith("area:")]
+    for v in table.values():
+        if v not in WOOD_LEAVES:
+            raise SystemExit(f"WOOD_LEAF[{stem!r}]: {v!r} is not one of {WOOD_LEAVES}")
+    out = []
+    for w in woods:
+        area = ring_area(np.asarray(w["ring"], dtype=float))
+        leaf = next((v for a, v in by_area if abs(area - a) <= 0.02 * a), table.get("*"))
+        out.append(dict(w, leaf=leaf) if leaf else w)
+    return out
+
+
 # Landmarks that span the road and are not in OSM as bridges.
 MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # The Dunlop bridge has arched over the climb out of the start straight
@@ -3842,6 +3889,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         far_run = track.edge_run(spec["from_m"], spec["to_m"], side, far)
         ring = np.vstack([near_run, far_run[::-1]])
         woods.append({"leaf": spec.get("leaf", "mixed"), "ring": round_pts(ring, 1)})
+    woods = with_wood_leaf(stem, woods)
 
     # An authored landmark and an OSM building can be the same real
     # structure (Sakhir's control tower is mapped as building=yes, not as
@@ -4421,6 +4469,7 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
         new["stands"] = stands
         new["landmarks"] = landmarks
         new["crossings"] = crossings
+        new["woods"] = with_wood_leaf(stem, layout.get("woods", []))
         new["structures"] = drop_structures_under_landmarks(
             drop_promoted_structures(stem, layout.get("structures", [])), landmarks
         )

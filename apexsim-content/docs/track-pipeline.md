@@ -252,7 +252,8 @@ stamp.
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site
   tents (pitched over the area on the R2 sequence, `r2_point`), village houses, chapels and pylons, a marshal post at every named
   corner and every 400 m, a `corner_sign` from each corner's `display_name`,
-  forest impostors on far slopes, and `floodlight_tower`s only when the
+  forest impostors on far slopes and in every mapped wood from 120 m out
+  (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
   dossier maps no lighting masts.
 - Anything standing in mapped water that no bridge carries is dropped.
 
@@ -285,7 +286,10 @@ the *front* (`groom::footprint_centre_of`, `Slab`), as every other stage does.
 on the pit straight, through braking zones, round corners' outsides and in
 front of stands, a brand per 36 m (15 m on a street circuit), never on Tecpro
 or tyres. **Trees** go only inside the dossier's woods, species from the
-leaf type and the circuit style's flora.
+leaf type and the circuit style's flora (poplars only in broadleaved woods;
+the desert sets plant date palms), and bushes (`bush_cluster`) inside its
+`scrub` areas. `WOOD_LEAF` in `osm_layout.py` sets a circuit's leaf types
+over OSM's (`*`, or one wood by `area:<m2>`).
 
 `python tools/check_walls.py --openings --all` (`-v` lists runs) probes
 every 2 m of the lap for a ray from the road edge that meets no wall within
