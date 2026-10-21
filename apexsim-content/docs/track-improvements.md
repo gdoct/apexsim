@@ -236,6 +236,11 @@ done; the `c5-st-*` shots were taken and two findings fixed (the
 Steintribüne's centre block, the banks' turf); they wait for a person to
 judge them before the cells close.
 
+**Trees column.** Rules (species by climate, woods past the belt, scrub,
+`WOOD_LEAF`), dossier pass ("Trees dossier pass"), bake and survey
+(identical) done; the `c5-tr-*` shots wait for a person to judge them.
+Open: tree rows (R8), the Albert Park lake (R16).
+
 What the audit says across the table:
 
 - **S/F** needed a dossier edit almost everywhere: the main stands opposite
