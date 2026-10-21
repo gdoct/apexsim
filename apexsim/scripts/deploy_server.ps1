@@ -235,11 +235,10 @@ if (-not $SkipBuild) {
         if ($LASTEXITCODE -ne 0) { Fail 'Server image build failed.' }
     }
     if (-not $SkipContent) {
-        if (-not (Test-Path (Join-Path $repo 'build\showcase'))) { Fail 'build\showcase is missing: run scripts/initialize_content.ps1 first.' }
         Step 'Building the content image'
         # The context is the folder holding both roots (apexsim and
         # apexsim-content): the image takes apexsim-content/cars,
-        # apexsim-content/tracks and apexsim/build/showcase, filtered by
+        # apexsim-content/tracks and apexsim/showcase.yml, filtered by
         # server/Dockerfile.content.dockerignore.
         Push-Location (Split-Path -Parent $repo)
         try {

@@ -249,9 +249,10 @@ the same files.
 
 - Wire: `SessionKind::Demo` is kept for servers without showcases and can
   go once showcases are everywhere. The backdrop still falls back to it
-  when a server has none rendered or all of them stale (a fresh clone
-  before `initialize_content.ps1`, or right after a car.toml or track
-  edit), and `HotlapWatch` shares its create path.
+  when a server has none playable yet (its first start, or right after a
+  car.toml or track edit, while it renders them, or one with no
+  `[showcase] list` in reach, as a dev server), and `HotlapWatch` shares its
+  create path.
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
   (verification, platforms). If a client shows it, pace the loop on a

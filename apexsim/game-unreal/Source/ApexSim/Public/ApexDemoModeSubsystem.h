@@ -40,8 +40,8 @@ enum class EApexBackdropSource : uint8
  *
  *  1. the server's showcase, when connected and the lobby lists one
  *     (`SpectateShowcase`, through UApexSpectatorSubsystem);
- *  2. a local `.apxs` from `Showcase/` beside the executable (the repo's
- *     `build/showcase` in the editor): the pending track's file when one
+ *  2. a local `.apxs` the game rendered (`Saved/ApexSim/Showcases/`, below;
+ *     `-ApexShowcaseDir=` adds folders): the pending track's file when one
  *     matches and its checksums agree with this machine's content, else any;
  *     this needs no server, so the startup splash can end on it offline;
  *  3. a `SessionKind::Demo` session, for a server that predates showcases.
@@ -196,6 +196,8 @@ private:
 
 	/** The circuit for a demo session: the player's own track when it has a level, else another. */
 	bool ChooseTrack(const UApexNetSubsystem& Net);
+	/** `-ApexShowcase=` names a file on disk (not an id). */
+	bool IsForcedShowcaseFile() const;
 	/** The local showcase files with their headers, read once and kept. */
 	void ScanLocalFiles();
 	FContentCrcs GatherContentCrcs(const UApexNetSubsystem& Net) const;

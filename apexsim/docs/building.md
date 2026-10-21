@@ -11,7 +11,7 @@ side by side:
 
 | Root | Holds |
 |---|---|
-| `apexsim/` (code) | `sim/` (the simulation crate), `protocol/` (the wire, the spectator stream, the render), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, showcase, guide, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`showcase/`, `guide/`, `benchmark/`...), `out/`, `artifacts/`, `records/`, `replays/` |
+| `apexsim/` (code) | `sim/` (the simulation crate), `protocol/` (the wire, the spectator stream, the render), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`benchmark/`, `showcase/` and `guide/` from `apexsim-replay` run by hand...), `out/`, `artifacts/`, `records/`, `replays/` |
 | `apexsim-content/` (content) | `cars/`, `tracks/`, `props/`, `textures/`, `wheels/`, `artwork/`; `track-editor/` (track-core, the `ats-*` tools, the Bevy editor); `tools/` (the Python pipeline, the AC importers, `generators/` for the Blender-built cars, props and wheels, `lib/` for the shared PowerShell); `docs/`; the generated `build/tracks/` (exports, previews, `track_catalog.json`) and `.cache/` (OSM, DEM, previews, import caches) |
 | `apexsim-lib/` (formats) | `formats/`, the `apexsim-formats` crate: the track YAML (`TrackFile`), the ground, curbs, walls, road mesh and pit sidecars, `content_crc` and the format levels |
 
@@ -175,8 +175,8 @@ hand-written `server/ffi/apexsim_physics.h`.
 ```bash
 cd server/ffi
 cargo test                     # the trace and rewind tests, the seeded race against the render, the showcase against the tool, the header check
-cargo test --release --test showcase -- --ignored   # the real list's Zandervoort showcase against build/showcase
-cargo test --release --test guide -- --ignored      # Zandervoort's GT3 guide against build/guide
+cargo test --release --test showcase -- --ignored   # the real list's Zandervoort showcase against build/showcase (apexsim-replay showcase --name Zandervoort.gt3.day first)
+cargo test --release --test guide -- --ignored      # Zandervoort's GT3 guide against build/guide (apexsim-replay guide on its YAML first)
 cargo test --test watch                             # a watched hotlap: catch-up, frames, kept level, seeded
 cargo build --release          # target/release/apexsim_physics.lib (Windows x64 MSVC)
 cargo rustc --release --lib --crate-type staticlib -- --print native-static-libs
@@ -389,15 +389,15 @@ is safe on an existing checkout. Stages, in order:
    `/Game/Materials/Track` and the car parents under `/Game/Materials/Car`,
    when one is missing or stage 3 ran (`-force` with `-Force`).
 5. `-run=ApexPropImport -all` when any kit GLB has no mesh.
-6. `build_track_levels.ps1 -Release -SkipMaterials -SkipShowcase` for every
+6. `build_track_levels.ps1 -Release -SkipMaterials` for every
    circuit missing its export, its preview or a server sidecar (ground,
    curbs, walls, road, and pit when its `.ats` lays a pit lane). No circuit is
    rebaked because stage 3 or 5 ran: the game dresses a circuit with what
    `/Game` holds when it builds it.
-7. The showcases of `showcase.yml` (`apexsim-replay render`) that are
-   missing from `build/showcase` or stale by `apexsim-replay info --check`.
-8. The track guides (`apexsim-replay guide --all`) missing from
-   `build/guide` or older than their sources.
+
+Showcases and track guides have no stage: the game makes its own into
+`game-unreal/Saved/ApexSim/` ([game/spectator.md](game/spectator.md),
+[track guide](../../apexsim-content/docs/track-guide.md)).
 
 It also checks every file each `car.toml` names is on disk; cars need no
 stage (the game builds them at runtime). AC-imported tracks are never baked
@@ -437,10 +437,12 @@ Development by default, `-Clean`, `-ExtraUatArgs`), then copies beside
 `ApexSim.exe` what the game reads as files: `Tracks\` (exports and previews
 from `apexsim-content/build/tracks`), `Cars\` and `Wheels\` (from
 `apexsim-content/cars` and `wheels`), `Hud\default` (from `hud/default`,
-with an empty `Hud\custom`), `Showcase\` (`build/showcase/*.apxs`) and `Guide\`
-(`build/guide`). `-SkipTracks`, `-SkipCars`, `-SkipHud`, `-SkipShowcase`,
-`-SkipGuide` leave a part out; `-IncludeCustomTracks` / `-IncludeCustomCars`
-add the player's own content (off by default).
+with an empty `Hud\custom`) and `showcase.yml`. No showcase or track guide
+is copied: the game makes its own on the tracks and cars of
+`..\Server\content`, which only a release has (`-ApexContentDir=` for a
+package outside one). `-SkipTracks`, `-SkipCars`, `-SkipHud` leave a part
+out; `-IncludeCustomTracks` / `-IncludeCustomCars` add the player's own
+content (off by default).
 
 Packaging relies on `bCookAll=True` in `game-unreal/Config/DefaultGame.ini`:
 the catalog tables, materials, prop kit and ground sets are found by path at
@@ -453,31 +455,33 @@ runtime. `/Game/Tracks` and `/Game/Cars` are in `DirectoriesToNeverCook`
 `artifacts/release/ApexSim-<Version>-Win64/` (version from `ProjectVersion`
 in `DefaultGame.ini` unless `-Version`). A release ships the **starter
 set**, `apexsim-content/starter.yml` (one car per class and three circuits):
-only those cars and circuits are baked and copied, and the package's
-showcases and track guides are rendered at assembly against the package's
-own cars (`Server\content\cars\default`), so every car in them is installed.
-A showcase field of a class with one starter car is that car in its
-liveries. `-AllContent` ships every car and circuit with the showcases and
-guides under `build/`.
+only those cars and circuits are baked and copied. `-AllContent` ships every
+car and circuit. No showcase or track guide ships: the game renders the
+showcases of `Game\showcase.yml` and makes a circuit's guide when it is
+opened, both on `Server\content`'s tracks and cars, and the server renders
+`Server\showcase.yml` into `Server\showcase\` at its first start
+([game/spectator.md](game/spectator.md)), so every car in them is
+installed. An entry of a class no shipped car covers fails at once and is
+left out.
 
 1. preflight: the car and track data exist, every track YAML has a
    `track_id`, every file a `car.toml` names is there
 2. server: `cargo build --release`
 3. props: `ApexPropImport`
 4. tracks: `build_track_levels.ps1` (the content's `bake.ps1`: dress,
-   export, previews; then showcases and materials)
+   export, previews; then materials)
 5. client: `build_game_standalone.ps1` (Shipping by default), archived
    straight into the release folder
 6. assemble: `Server\` (`apexsim-server.exe`, `apexsim-replay.exe`, the
    code root's `server.toml`, `server/CMDLINE.md` as `server.md`, the content
-   the server reads, `showcase\`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
-   `Hud`, `Guide`, `Showcase` and `settings.sample.yml`), `launcher.exe`,
+   the server reads, `showcase.yml`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
+   `Hud`, `showcase.yml` and `settings.sample.yml`), `launcher.exe`,
    `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`
 7. `-Zip`: compress it beside the folder
 
 | Switch | Effect |
 |---|---|
-| `-SkipServer`, `-SkipLauncher`, `-SkipProps`, `-SkipTracks`, `-SkipShowcase`, `-SkipClient` | Reuse that stage's existing output |
+| `-SkipServer`, `-SkipLauncher`, `-SkipProps`, `-SkipTracks`, `-SkipClient` | Reuse that stage's existing output |
 | `-ClientArtifactDirectory` | Where `-SkipClient` finds a client build |
 | `-BuildEditor` | Build `ApexSimEditor` before the track stage |
 | `-Configuration`, `-EngineRoot`, `-OutputDirectory`, `-Version` | As named |

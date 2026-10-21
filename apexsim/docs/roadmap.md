@@ -138,42 +138,19 @@ against it: no server process, no recorded stream, one simulation.
   hotlap is simulated in the game too (`hotlap_watch::LocalWatch`,
   `apx_watch_*`), server or not, its level and ghost kept in
   `Saved/ApexSim/Watch` ([sessions](server/sessions.md#watching-a-hotlap)).
-  Next: the build stages and
-  shipped `Showcase\` folders go once a fresh install has been seen to
-  make its own (a first start then plays a demo session or nothing for
-  some seconds), then the server's `HotlapWatch` kind and its stream path
-  retire with `SessionKind::Demo` (the work plan's X1).
-- The menu's backdrop and the hotlap watch run in-process from a seed: no
-  `SessionKind::Demo` session on the server (which retires its remaining
-  uses, see the work plan's X1) and no `.apxs` showcases to render and
-  ship, or showcases kept as a seed and re-simulated.
+  No build stage renders a showcase or a guide and no package ships one:
+  the server renders the showcases of its `[showcase] list` into its folder
+  at startup the same way ([game/spectator.md](game/spectator.md#server-showcases)).
+  Next: the server's `HotlapWatch` kind and its stream path retire with
+  `SessionKind::Demo` (the work plan's X1).
+- Showcases kept as a seed and re-simulated as they play, instead of a
+  rendered `.apxs` in `Saved/`.
 - Replays as seed plus inputs, re-simulated on load, instead of streamed
   state ([proposals/replay-size.md](proposals/replay-size.md)): far
   smaller files.
-- Tools without a server: the track guide, the marketing site's shots, the
+- Tools without a server: the marketing site's shots, the
   benchmark, a car's stat sheet (a lap estimate) and setup what-ifs in the
   garage run in the game process; the scripts stop launching a server.
-- First use, and the reason to start: drop the content build's bakes.
-  `initialize_content.ps1` stages 7 and 8, `build_track_levels.ps1`'s
-  showcase step and `build_release.ps1`'s `Showcase\` and `Guide\` render
-  the showcases of `content/showcase.yml` (`apexsim-replay render`) and the
-  track guides (`apexsim-replay guide --all`: the solo runs, the corner
-  measures, `<Stem>.<Class>.guide.json` and `.guide.apxs`), and they go
-  stale on every track YAML or car.toml edit. With the session tick in the
-  client the game makes a guide the first time a circuit and class is
-  opened, and a showcase from its seed, and caches both under `Saved/`
-  keyed by the content checksums. The `.guide.yml` notes and
-  `showcase.yml` stay as the inputs; the build stages, `ApexGuide.ps1`,
-  `ApexShowcase.ps1`'s render and the shipped folders go.
-- Watch hotlap the same way: one AI car lapping alone is an example run
-  nobody races, so the game simulates it instead of asking the server for a
-  `HotlapWatch` session and watching its stream
-  (`UApexRootWidget::StartHotlapWatch`, `start_streamed_hotlap_watch`).
-  The car, its setup, the weather, the hour and the AI's skill
-  (`HOTLAP_WATCH_SKILL`) are the client's own choice already; the corners
-  (`track_guide::wire_corners`, sent today as `TrackCorners`) come from the
-  same library. It then works offline, and the server's `HotlapWatch` kind
-  and its stream path retire, as `SessionKind::Demo` does (X1).
 - Later, perhaps: offline single-player with no server at all.
 
 The server stays the only authority for any session a human races in
@@ -188,13 +165,10 @@ seeded races; the client needs the track's physics data (the bundle a
 server hands out) and matching content checksums; the game's binary grows
 by the AI and session code.
 
-**Check:** a showcase seed simulated in the game bit-identical to the
-server's render of it; the menu backdrop with no server running; a guide
-made in the game equal to `apexsim-replay guide`'s for the same circuit and
-class (corners, speeds, gears, braking points), and how long the first
-open takes; Watch hotlap with no server running, its lap time the server's
-for the same car, setup and sky; a release built without the showcase and
-guide stages.
+**Check:** for what is left, a replay re-simulated from its seed and
+inputs equal to the recorded stream; a tool (the stat sheet's lap
+estimate, the benchmark) giving the server's figures with no server
+running.
 
 ### 27. Content packs and a content repository
 

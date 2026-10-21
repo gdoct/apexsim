@@ -32,7 +32,6 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| N28 | Guides, showcases and Watch hotlap simulated in the client (steps 1-4 built; the build stages left) | Platform + tooling | P2 | 🟢 | L | 2 |
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 4 |
 | R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 4, 6 |
@@ -44,7 +43,7 @@ takes it up (— : no step, taken opportunistically).
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 7 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 7 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 7 |
-| X1 | `SessionKind::Demo` removal (after N28) | Cleanup | P3 | 🟢 | S | 2 |
+| X1 | `SessionKind::Demo` and `HotlapWatch` removal | Cleanup | P3 | 🟢 | S | 2 |
 | R8 | Race control's edges: safety-car overlap, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 3 |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 5 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
@@ -77,11 +76,9 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **N28 to its end, then X1** on top of it: the library runs a seeded race
-   (step 1, 2026-10-20); next the client calling it for a showcase from its
-   seed and the backdrop with no server, then the guide. Do this before
-   N26: once guides, showcases and Watch hotlap are made in the game, packs
-   no longer carry them.
+2. **X1** on top of N28 (built 2026-10-21: the game and the server make
+   their own showcases, guides and watched hotlaps; no build stage renders
+   any). Before N26, which then carries none of them.
 3. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
    (follow-ups #20); R8's edges where they touch
    the same files.
@@ -306,8 +303,10 @@ Planned block by block, with the agent's prep and follow-up, in
 ### Cleanup
 
 #### X1. Remove `SessionKind::Demo` — P3 · 🟢 · S
-Only once showcases exist everywhere; the backdrop still falls back to it
-with stale or missing showcases, and `HotlapWatch` shares its create path.
+Showcases now exist wherever a list is in reach (the game and the server
+render their own); the backdrop still falls back to it while none is
+playable yet, and `HotlapWatch` shares its create path, which the game's
+own watch (`LocalWatch`) makes unused.
 Wire: remove only by leaving the variant decodable (append-only rule).
 
 ### New features (added 2026-10-16, also in the roadmap)
@@ -420,39 +419,6 @@ from coarser wheel slip has to be heard.
 **Watch out:** the wire stays as it is (frames stay self-contained
 datagrams); version 1 files must still play; `render` stays byte-identical
 for a seed.
-
-#### N28. Guides, showcases and Watch hotlap simulated in the client — P2 · 🟢 · L
-*Source: roadmap #24 (the simulation in the client), 2026-10-18.*
-**What:** The content build renders every showcase (`apexsim-replay
-render`) and every track guide (`apexsim-replay guide --all`) and ships
-them; each goes stale on any track YAML or car.toml edit and has to be
-baked again.
-**Outcome:** The game makes a guide when a circuit and class is first
-opened and a showcase from its seed, cached under `Saved/` by content
-checksum; the build stages and shipped `Showcase\` / `Guide\` folders go.
-Watch hotlap, an AI example lap, is simulated in the game too instead of
-streamed from a server `HotlapWatch` session, so it works offline and that
-session kind retires (as Demo does, X1).
-**Implementation:** The client links only the lone car step today
-(`server/ffi`, `ApexPhysicsLib.h`, for prediction). First grow the library
-to the session tick (AI drivers, contact, walls, road state, race control:
-the server's own code behind the C API), then run `track_guide.rs` and the
-showcase render through it in the game.
-**Built 2026-10-20:** step 1, the session tick in the library
-(`seeded_race`, `apx_race_*`, ABI 4), equal to the render's race tick for
-tick (`server/ffi/tests/seeded_race.rs`). **Built 2026-10-21:** step 2,
-showcases made in the game (`apexsim-protocol`, `apx_showcase_render` ABI 5,
-`FApexShowcaseRenderer` into `Saved/ApexSim/Showcases/`), byte for byte the
-build's file; step 3, track guides made in the game when missing or stale
-(`apx_guide_build`, `Saved/ApexSim/Guides`); step 4, Watch hotlap simulated
-in the game, offline too (`hotlap_watch::LocalWatch`, `apx_watch_*`). Left:
-the build stages and shipped `Showcase\` / `Guide\` folders go (once a fresh
-install has been seen making its own), then X1; roadmap #24.
-**Watch out:** a showcase must stay bit-identical to the server's render of
-the same seed (determinism across the two builds, prediction's trace test
-is the model); a guide's solo runs take time, so make them on a worker
-thread with the guide card waiting; the marketing site and the promo tools
-still render with `apexsim-replay`, so the tool stays.
 
 #### N13. Rewind / restart from a point (offline) — P3 · 🟢 · M
 Offline practice only: rewind N seconds and resume. The sim is deterministic

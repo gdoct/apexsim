@@ -144,7 +144,7 @@ public:
 	/** One line on the source, the epoch, the frames and the drops. */
 	FString DescribeState() const;
 
-	/** `-ApexShowcaseDir=` folders, then `Showcase/` beside the executable (the repo's `build/showcase` in the editor). */
+	/** `-ApexShowcaseDir=` folders, then `Saved/ApexSim/Showcases`, where the game renders its own. */
 	static TArray<FString> ShowcaseDirectories();
 	/** Every `.apxs` under the showcase folders, by full path. */
 	static TArray<FString> FindShowcaseFiles();

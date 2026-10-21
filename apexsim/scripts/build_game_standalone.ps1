@@ -26,10 +26,11 @@
    copied into Hud\default, with an empty Hud\custom (and its README) for
    the player's own components.
 
-   The showcases (docs/game/spectator.md) are the rendered AI races the menu
-   plays behind its screens when no server streams one: every .apxs in
-   build\showcase (run scripts/build_track_levels.ps1 first) is copied into
-   Showcase\ beside ApexSim.exe, where the game looks.
+   No showcase or track guide is copied: the game renders the AI races the
+   menu plays (docs/game/spectator.md) from showcase.yml, copied beside
+   ApexSim.exe, and makes a circuit's guide when it is opened, both on the
+   tracks and cars of ..\Server\content in a release (-ApexContentDir=
+   names them for a package outside one).
 
 .PARAMETER EngineRoot
    Unreal Engine install directory (the folder containing Engine/). Defaults
@@ -64,17 +65,6 @@
    Do not copy the HUD components (hud\default) into Hud\ next to
    the executable. The game then races with no HUD.
 
-.PARAMETER SkipShowcase
-   Do not copy the showcases (build\showcase\*.apxs) into Showcase\ next to
-   the executable. The run still checks that every showcase
-   showcase.yml lists has been rendered, like -SkipTracks does for
-   the exports, so a package is never quietly short of them; the menu then
-   plays only what a server streams.
-
-.PARAMETER SkipGuide
-   Do not copy the track guides (build\guide, apexsim-content/docs/track-guide.md) into
-   Guide\ next to the executable. The track picker then offers no guide.
-
 .PARAMETER ExtraUatArgs
    Extra arguments appended to the BuildCookRun invocation.
 
@@ -96,8 +86,6 @@ param(
    [switch]$IncludeCustomCars,
    [switch]$SkipCars,
    [switch]$SkipHud,
-   [switch]$SkipShowcase,
-   [switch]$SkipGuide,
    [string[]]$ExtraUatArgs
 )
 
@@ -109,8 +97,6 @@ $ContentRoot = [IO.Path]::GetFullPath((Join-Path $RepoRoot '..\apexsim-content')
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $ContentRoot 'tools\lib\ApexCars.ps1')
 . (Join-Path $ContentRoot 'tools\lib\ApexTracks.ps1')
-. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
-. (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexPhysicsLib.ps1')
 
 $Uproject = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
@@ -126,15 +112,6 @@ $engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
    -Requires 'Engine\Build\BatchFiles\RunUAT.bat'
 $uat = Join-Path $engine 'Engine\Build\BatchFiles\RunUAT.bat'
 $output = [IO.Path]::GetFullPath($OutputDirectory)
-
-# A showcase that was never rendered is checked for before the long cook,
-# whether or not it is copied: a package short of one has a menu with
-# nothing behind it on that circuit.
-$missingShowcases = @(Get-ApexMissingShowcases -RepoRoot $RepoRoot)
-if ($missingShowcases.Count -gt 0) {
-   throw ("these showcases have not been rendered under $(Get-ApexShowcaseDir -RepoRoot $RepoRoot) " +
-      "(run scripts/build_track_levels.ps1): $($missingShowcases -join ', ')")
-}
 
 if ($Clean -and (Test-Path $output)) {
    Write-Host "Removing previous archive: $output" -ForegroundColor DarkGray
@@ -259,36 +236,8 @@ if (-not $SkipHud) {
    }
 }
 
-if (-not $SkipShowcase) {
-   # Where the menu's local backdrop looks in a packaged build: Showcase\
-   # next to ApexSim.exe (docs/game/spectator.md). Every rendered showcase, the
-   # pipeline's and any rendered by hand.
-   $showcaseOut = Join-Path $executable.DirectoryName 'Showcase'
-   Write-Host ''
-   Write-Host "==> Copying the showcases to $showcaseOut" -ForegroundColor Cyan
-   $showcaseCount = Copy-ApexShowcases -RepoRoot $RepoRoot -Destination $showcaseOut
-   if ($showcaseCount -eq 0) {
-      Write-Warning 'no showcases in build\showcase; the menu plays only what a server streams (run scripts/build_track_levels.ps1)'
-   }
-   else {
-      Write-Host "    $showcaseCount showcase(s)" -ForegroundColor DarkGray
-   }
-}
-
-if (-not $SkipGuide) {
-   # Where the track picker looks for guides in a packaged build: Guide\
-   # next to ApexSim.exe (apexsim-content/docs/track-guide.md).
-   $guideOut = Join-Path $executable.DirectoryName 'Guide'
-   Write-Host ''
-   Write-Host "==> Copying the track guides to $guideOut" -ForegroundColor Cyan
-   $guideCount = Copy-ApexGuides -RepoRoot $RepoRoot -Destination $guideOut
-   if ($guideCount -eq 0) {
-      Write-Warning 'no track guides in build\guide; the track picker offers none (run scripts/initialize_content.ps1)'
-   }
-   else {
-      Write-Host "    $guideCount guide(s)" -ForegroundColor DarkGray
-   }
-}
+# The list the game renders the menu's AI races from (docs/game/spectator.md).
+Copy-Item -LiteralPath (Join-Path $RepoRoot 'showcase.yml') -Destination $executable.DirectoryName -Force
 
 Write-Host ''
 Write-Host '==> Done' -ForegroundColor Cyan

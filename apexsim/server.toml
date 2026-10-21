@@ -56,15 +56,19 @@ replay_dir = "./replays"
 road_contact = "mesh"
 
 [showcase]
-# Rendered AI races (build/showcase/*.apxs from scripts/build_track_levels.ps1,
-# docs/game/spectator.md) the server streams to clients sitting in the menu, in
-# place of a simulated demo race per client. Every key is optional; these
-# are the defaults. A `dir` that is not there is no showcase, not an error;
-# a file whose track or cars this server does not have, or whose checksums
-# disagree with its content, is dropped with a log line.
-# APEXSIM_SHOWCASE_ENABLED / APEXSIM_SHOWCASE_DIR override the first two.
+# Rendered AI races (.apxs, docs/game/spectator.md) the server streams to
+# clients sitting in the menu, in place of a simulated demo race per client.
+# Every key is optional; these are the defaults. A `dir` that is not there is
+# no showcase, not an error; a file whose track or cars this server does not
+# have, or whose checksums disagree with its content, is dropped with a log
+# line. At startup the server renders each showcase of `list` that `dir` has
+# no playable file of into `dir`, one after another in the background (seconds
+# each); a `list` that is not there renders nothing.
+# APEXSIM_SHOWCASE_ENABLED / APEXSIM_SHOWCASE_DIR / APEXSIM_SHOWCASE_LIST
+# override the first three.
 #enabled = true
 #dir = "./showcase"
+#list = "./showcase.yml"
 # File names without .apxs, in channel order; "*" is every file not named.
 # The first is what a client gets when it asks for none.
 #playlist = ["*"]

@@ -17,7 +17,7 @@ game builds at runtime (no cooked track levels). Formats:
   helpers `track_dirs.py`, `lib/ApexTracks.ps1`. The bake driver is
   `bake.ps1` at the content root (cargo and Python only); the code root's
   `apexsim/scripts/build_track_levels.ps1` runs it and adds the code's
-  stages (showcases, materials).
+  stage (materials).
 - `track-editor/core/src/`: `layout.rs`, `dress.rs`, `groom.rs`,
   `barriers.rs`, `circuit_style.rs`, `pit.rs`, `track_smooth.rs`,
   `track_bank.rs`, `dem.rs`, `terrain.rs`, `strip_layout.rs`, `ue_export.rs`,
@@ -61,10 +61,11 @@ everyday step: `ats-dress` (idempotent, so always), `ats-export` and
 `build_track_catalog.py` (`-Stage dress,export,previews`, the default, plus
 `ground` for the ground PNGs when one is missing; `-Track A,B`, `-Release`,
 `-DryRun`). From the code root, `scripts/build_track_levels.ps1` runs the
-same bake and then the code's stages: missing or stale showcases
-([apexsim/docs/game/spectator.md](../../apexsim/docs/game/spectator.md)) and missing track materials.
+same bake and then the code's stage, the missing track materials (the
+showcases a changed track touches are rendered again by the game and the
+server themselves, [apexsim/docs/game/spectator.md](../../apexsim/docs/game/spectator.md)).
 Switches: `-Track A,B`, `-SkipDress` (hand-edited scene), `-SkipExport`,
-`-SkipPreviews`, `-SkipShowcase`, `-SkipMaterials` (no engine), `-Build`,
+`-SkipPreviews`, `-SkipMaterials` (no engine), `-Build`,
 `-ImportProps`, `-ImportLevels` (editor-only levels under `/Game/Tracks`),
 `-Release`, `-DryRun`. After pulling a changed track, re-run `ats-export`
 (sidecars are gitignored) and restart the server.

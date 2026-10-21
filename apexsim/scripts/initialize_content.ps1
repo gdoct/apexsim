@@ -26,16 +26,10 @@
            the game builds each circuit from its export when it is raced,
            with whatever props and ground textures /Game holds then, so an
            import in stage 3 or 5 needs no rebake.
-        7. Showcases: apexsim-replay render for every showcase in
-           showcase.yml (a rendered AI race the menu plays behind
-           its screens and the server plays to clients, docs/game/spectator.md)
-           that build/showcase lacks, or that `apexsim-replay info --check`
-           calls stale because its track YAML or a car.toml changed since
-           it was rendered. About 6 s each; an imported track is never
-           rendered here.
-        8. Track guides: apexsim-replay guide --all for every shipped
-           circuit with no guide in build\guide or one older than its
-           YAML, notes (<Stem>.guide.yml) or dossier (apexsim-content/docs/track-guide.md).
+    Showcases and track guides need no stage either: the game renders the
+    menu's AI races from showcase.yml and makes a circuit's guide when it is
+    first opened, into game-unreal/Saved/ApexSim (docs/game/spectator.md,
+    apexsim-content/docs/track-guide.md).
 
     Cars need no stage: the game builds each from apexsim-content/cars and
     apexsim-content/wheels when it is drawn (apexsim-content/docs/cars.md). The
@@ -87,7 +81,6 @@ $TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $CarMats     = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $GroundPngs  = Join-Path $ContentRoot 'textures\ground'
 $ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
-$ShowcaseDir = Join-Path $RepoRoot 'build\showcase'
 
 # Must match bake_ground_textures.py and ApexGroundTexImport.
 $GroundSets  = 'asphalt', 'grass', 'gravel', 'sand', 'concrete', 'astroturf', 'kerb'
@@ -97,8 +90,6 @@ $Sidecars    = 'ground', 'curbs', 'walls', 'road'
 . (Join-Path $PSScriptRoot 'lib\ApexEngine.ps1')
 . (Join-Path $ContentRoot 'tools\lib\ApexCars.ps1')
 . (Join-Path $ContentRoot 'tools\lib\ApexTracks.ps1')
-. (Join-Path $PSScriptRoot 'lib\ApexShowcase.ps1')
-. (Join-Path $PSScriptRoot 'lib\ApexGuide.ps1')
 . (Join-Path $PSScriptRoot 'lib\ApexPhysicsLib.ps1')
 
 function Write-Step {
@@ -221,17 +212,6 @@ $missingMaterials = @(
         -not (Test-Path (Join-Path $CarMats "$_.uasset"))
     }))
 
-# The showcases showcase.yml asks for: missing, or stale by the
-# render tool's own check (skipped, with every existing file counted as
-# unchecked, until the tool is built in stage 2).
-$showcasePlan = @(Get-ApexShowcasePlan -RepoRoot $RepoRoot)
-$showcaseWork = @(Select-ApexShowcaseWork -Plan $showcasePlan)
-$showcaseUnchecked = @($showcasePlan | Where-Object { $_.Status -eq 'unchecked' })
-
-# The track guides (apexsim-content/docs/track-guide.md): circuits with none, or with one
-# older than the YAML, notes or dossier it was made from.
-$guideWork = @(Get-ApexGuideWork -RepoRoot $RepoRoot)
-
 $splash = Join-Path $GameContent 'Splash\Splash.bmp'
 
 Write-Detail ("cars:            " + $(if ($carProblems) { Format-List $carProblems } else { 'ok (built by the game)' }))
@@ -252,12 +232,6 @@ if ($importedTracks.Count -gt 0) {
         }
     }
 }
-Write-Detail ("showcases:       " + $(if ($showcaseWork) { Format-List @($showcaseWork | ForEach-Object { "$($_.Name) ($($_.Status))" }) }
-    elseif ($showcaseUnchecked) { "$($showcaseUnchecked.Count) there, not checked (no apexsim-replay.exe yet)" } else { 'ok' }))
-foreach ($row in $showcasePlan | Where-Object { $_.Status -eq 'no-track' }) {
-    Write-Warning "showcase.yml names $($row.Track), which is not under apexsim-content\tracks"
-}
-Write-Detail ("guides:          " + $(if ($guideWork) { Format-List $guideWork } else { 'ok' }))
 Write-Detail ("server:          " + $(if (Test-Path $ServerExe) { 'ok' } else { 'not built' }))
 $PhysicsLib = Get-ApexPhysicsLibPath -RepoRoot $RepoRoot
 Write-Detail ("physics library: " + $(if (Test-Path $PhysicsLib) { 'ok' } else { 'not built (the client builds without prediction)' }))
@@ -282,11 +256,6 @@ $doProps   = $Force -or $missingProps.Count -gt 0
 $allTracks = $Force
 $tracks    = @(if ($allTracks) { $trackStems } else { $missingTracks })
 $doTracks  = $tracks.Count -gt 0
-# -Force re-renders every showcase (the same seed writes the same bytes, so
-# it only changes what the content changed under).
-$showcases = @(if ($Force) { Select-ApexShowcaseWork -Plan $showcasePlan -Force } else { $showcaseWork })
-$doShowcase = $showcases.Count -gt 0
-$doGuides  = $Force -or $guideWork.Count -gt 0
 # A new physics library is only linked by the next client build.
 $needUnreal = $doGround -or $doMats -or $doProps -or $doPhysics
 
@@ -299,8 +268,6 @@ if ($doGround)  { $plan.Add('import the ground textures') }
 if ($doMats)    { $plan.Add('bake the track and car materials') }
 if ($doProps)   { $plan.Add('import the prop kit') }
 if ($doTracks)  { $plan.Add($(if ($allTracks) { 'dress and bake every track, with previews' } else { "dress and bake, with previews: $(Format-List $tracks)" })) }
-if ($doShowcase) { $plan.Add($(if ($Force) { "render every showcase ($($showcases.Count))" } else { "render the showcases: $(Format-List @($showcases | ForEach-Object { $_.Name }))" })) }
-if ($doGuides) { $plan.Add($(if ($Force) { 'build every track guide' } else { "build the track guides: $(Format-List $guideWork)" })) }
 
 if ($plan.Count -eq 0) {
     Write-Step 'Nothing is missing'
@@ -319,7 +286,7 @@ if ($DryRun) {
 # ---------------------------------------------------------------------------
 
 $problems = [Collections.Generic.List[string]]::new()
-if (($doServer -or $doPhysics -or $doTracks -or $doShowcase -or $doGuides) -and -not (Test-Command 'cargo')) {
+if (($doServer -or $doPhysics -or $doTracks) -and -not (Test-Command 'cargo')) {
     $problems.Add('cargo is not on PATH (install Rust)')
 }
 if ($doPngs -or $doTracks) {
@@ -407,26 +374,9 @@ if ($doProps) {
 if ($doTracks) {
     Write-Step 'Baking the tracks'
     # The materials were seen to above; this is Rust and Python only.
-    # The showcases are this script's own stage below, where -Force reaches them.
-    $trackArgs = @{ Release = $true; SkipMaterials = $true; SkipShowcase = $true }
+    $trackArgs = @{ Release = $true; SkipMaterials = $true }
     if (-not $allTracks) { $trackArgs.Track = $tracks }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
-}
-
-if ($doShowcase) {
-    Write-Step "Rendering the showcases into $ShowcaseDir"
-    # The tool is built with the server (stage 2); Start-ApexShowcaseRender
-    # builds it by itself when it is still missing.
-    $rendered = Start-ApexShowcaseRender -RepoRoot $RepoRoot -Rows $showcases
-    Write-Detail "rendered $rendered showcase(s)"
-}
-
-if ($doGuides) {
-    Write-Step "Building the track guides into $(Get-ApexGuideDir -RepoRoot $RepoRoot)"
-    # Every class of every shipped circuit; without -Force the tool skips a
-    # guide newer than everything it was made from.
-    $code = Start-ApexGuideBuild -RepoRoot $RepoRoot -Force:$Force
-    if ($code -ne 0) { Write-Warning "apexsim-replay guide failed for some circuits (exit $code); see the lines above" }
 }
 
 $stopwatch.Stop()

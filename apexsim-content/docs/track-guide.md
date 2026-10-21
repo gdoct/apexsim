@@ -38,12 +38,10 @@ apexsim-replay guide --all --missing-only      # only guides older than their YA
 Output goes to the code root's `build/guide/` (gitignored): `<Stem>.<Class>.guide.json` and
 its recording `<Stem>.<Class>.guide.apxs`, an ordinary
 [spectator stream](../../apexsim/docs/game/spectator.md). `<Class>` is the car.toml `class`.
-`initialize_content.ps1` builds what is missing or stale (stage 8),
-`build_game_standalone.ps1` copies `build/guide` to `Guide\` beside
-`ApexSim.exe` (`-SkipGuide`), `build_release.ps1` builds stale guides and
-ships them in `Game\Guide`. A guide is the same bytes every time it is
-made from the same content (its stream's id is seeded), so the game's own
-(below) and the build's can be compared file for file.
+No build stage runs it and no package ships a guide: the game makes the
+one it opens (below). A guide is the same bytes every time it is made from
+the same content (its stream's id is seeded), so the game's own and the
+tool's can be compared file for file.
 
 ### The recording
 
@@ -156,9 +154,8 @@ corners:
 ## The client
 
 `UApexTrackGuideSubsystem` finds `<Stem>.<Class>.guide.json` in
-`-ApexGuideDir=`, `Saved/ApexSim/Guides`, `Guide/` beside the exe, or the code
-root's `build/guide` (first hit wins; a guide counts only when the track's
-export is installed).
+`-ApexGuideDir=` or `Saved/ApexSim/Guides` (first hit wins; a guide counts
+only when the track's export is installed).
 
 **Guides made in the game.** When the guide of the pending car's class is
 not on disk, or its `source_crc` is not the catalog's (made from another
@@ -208,7 +205,8 @@ Unattended: `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N -ApexGuideCamera=N`
   cancel; its ignored release test against `build/guide`.
 - `ApexSim.Guide.*` (parser, file index, player, keys, text;
   `MadeMatchesBuild`: the game's build makes Zandervoort's GT3 guide as
-  `build/guide` holds it).
+  `build/guide` holds it, after `apexsim-replay guide` on its YAML; skipped
+  without it).
 - `apexsim-replay guide <yaml> --report` to see the detected corners.
 
 ## Traps

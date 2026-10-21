@@ -28,6 +28,7 @@ use tracing::{info, warn};
 use crate::config::{ShowcaseMode, ShowcaseSettings};
 use crate::data::*;
 use crate::network::{ShowcaseSummary, SpectatorJoinedData, SpectatorKind};
+use crate::showcase_list::{find_track_yaml, showcase_name, ShowcaseList};
 use crate::spectator::{
     self, StreamFile, StreamHeader, StreamRoster, RECORD_EVENT, RECORD_FRAME, RECORD_ROAD,
     RECORD_STATE,
@@ -252,6 +253,28 @@ impl ShowcaseState {
             );
         }
         Self::from_entries(entries, settings.mode, settings.stream_divisor)
+    }
+
+    /// A file rendered after startup ([`spawn_renders`]): a channel of its
+    /// own at the end of the playlist.
+    pub fn add(&mut self, entry: ShowcaseEntry) {
+        if self.entries.iter().any(|e| e.id == entry.id) {
+            return;
+        }
+        self.channels.push(Channel {
+            id: entry.id.clone(),
+            playing: self.entries.len(),
+            viewers: BTreeSet::new(),
+            newcomers: BTreeSet::new(),
+            loaded: None,
+            loading: false,
+            epoch: 0,
+            clock: 0.0,
+            cursor: 0,
+            frame_ticks: 0,
+            last_frame_tick: None,
+        });
+        self.entries.push(entry);
     }
 
     pub fn is_available(&self) -> bool {
@@ -498,6 +521,152 @@ fn catch_up_bodies(played: &[TimedRecord]) -> Vec<&[u8]> {
     keep.into_iter().map(|r| r.body.as_slice()).collect()
 }
 
+/// The showcases of `settings.list` this server renders itself: each one the
+/// playlist takes that `loaded` has no file of, on a track under
+/// `tracks_dir` the AC importer did not write (the pipeline never renders
+/// those either). `None` when there is no list.
+pub fn to_render(
+    settings: &ShowcaseSettings,
+    loaded: &[ShowcaseEntry],
+    tracks_dir: &Path,
+) -> Option<(ShowcaseList, Vec<String>)> {
+    if !settings.enabled || settings.list.is_empty() {
+        return None;
+    }
+    let path = Path::new(&settings.list);
+    if !path.is_file() {
+        return None;
+    }
+    let list = match ShowcaseList::load(path) {
+        Ok(list) => list,
+        Err(why) => {
+            warn!("Showcase list {} not read: {}", path.display(), why);
+            return None;
+        }
+    };
+    let every = settings.playlist.iter().any(|name| name == "*");
+    let names = list
+        .showcases
+        .iter()
+        .filter(|entry| {
+            find_track_yaml(tracks_dir, &entry.track).is_some_and(|yaml| {
+                !yaml
+                    .with_file_name(format!("{}.import.json", entry.track))
+                    .is_file()
+            })
+        })
+        .flat_map(|entry| {
+            entry
+                .variants
+                .iter()
+                .map(|v| showcase_name(&entry.track, &entry.class, v))
+        })
+        .filter(|name| every || settings.playlist.contains(name))
+        .filter(|name| !loaded.iter().any(|e| &e.id == name))
+        .collect();
+    Some((list, names))
+}
+
+/// The cars a showcase's field is drawn from: `<cars>/default`, as the
+/// build's render and the game's take it, else the folder itself.
+fn showcase_cars_dir(cars_dir: &Path) -> PathBuf {
+    let default = cars_dir.join("default");
+    if default.is_dir() {
+        default
+    } else {
+        cars_dir.to_path_buf()
+    }
+}
+
+/// Render the showcases [`to_render`] names into `settings.dir`, one after
+/// another on a thread of their own, each joining the channels as it is
+/// written: the same file `apexsim-replay showcase` and the game write, byte
+/// for byte. Gives up once the server state is dropped.
+pub fn spawn_renders(
+    state: &std::sync::Arc<tokio::sync::RwLock<crate::server::ServerState>>,
+    settings: &ShowcaseSettings,
+    tracks_dir: &Path,
+    cars_dir: &Path,
+    loaded: &[ShowcaseEntry],
+) {
+    let Some((list, names)) = to_render(settings, loaded, tracks_dir) else {
+        return;
+    };
+    if names.is_empty() {
+        return;
+    }
+    info!(
+        "Showcase: rendering {} race(s) {} has no file of: {}",
+        names.len(),
+        settings.dir,
+        names.join(", ")
+    );
+    let state = std::sync::Arc::downgrade(state);
+    let dir = PathBuf::from(&settings.dir);
+    let tracks_dir = tracks_dir.to_path_buf();
+    let cars_dir = showcase_cars_dir(cars_dir);
+    let spawned = std::thread::Builder::new()
+        .name("showcase-render".into())
+        .spawn(move || {
+            let gone = || state.strong_count() == 0;
+            for name in names {
+                if gone() {
+                    return;
+                }
+                let started = std::time::Instant::now();
+                let written = render_one(&list, &name, &tracks_dir, &cars_dir, &dir, &gone);
+                let Some(state) = state.upgrade() else {
+                    return;
+                };
+                let written = written.and_then(|path| {
+                    let state = state.blocking_read();
+                    read_entry(&name, &path, &state.car_configs, &state.track_configs)
+                });
+                match written {
+                    Ok(entry) => {
+                        info!(
+                            "Showcase {} rendered in {:.1} s",
+                            name,
+                            started.elapsed().as_secs_f64()
+                        );
+                        state.blocking_write().showcase.add(entry);
+                    }
+                    Err(why) => warn!("Showcase {} not rendered: {}", name, why),
+                }
+            }
+        });
+    if let Err(e) = spawned {
+        warn!("Showcase renders not started: {}", e);
+    }
+}
+
+/// One showcase of `list` into `<dir>/<name>.apxs`, written aside and moved
+/// in so the folder never holds half a file.
+fn render_one(
+    list: &ShowcaseList,
+    name: &str,
+    tracks_dir: &Path,
+    cars_dir: &Path,
+    dir: &Path,
+    cancelled: &dyn Fn() -> bool,
+) -> Result<PathBuf, String> {
+    let rendered = list
+        .render(name, tracks_dir, cars_dir)?
+        .run_unless(cancelled)?;
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let out = dir.join(format!("{name}.apxs"));
+    let part = out.with_extension("apxs.part");
+    rendered
+        .content
+        .write_file(&part)
+        .map_err(|e| format!("{}: {e}", part.display()))?;
+    std::fs::rename(&part, &out).map_err(|e| {
+        let _ = std::fs::remove_file(&part);
+        format!("{}: {e}", out.display())
+    })?;
+    Ok(out)
+}
+
 fn is_lap_timing(body: &[u8]) -> bool {
     // [4, epoch (5 bytes), tick (5 bytes), kind, payload]
     body.get(12) == Some(&spectator::EVENT_LAP_TIMING)
@@ -696,6 +865,7 @@ mod tests {
         let settings = ShowcaseSettings {
             enabled: true,
             dir: dir.to_string_lossy().into_owned(),
+            list: String::new(),
             playlist: vec!["*".into()],
             mode,
             stream_divisor: divisor,
@@ -961,6 +1131,7 @@ mod tests {
         let settings = ShowcaseSettings {
             enabled: true,
             dir: dir.path().to_string_lossy().into_owned(),
+            list: String::new(),
             playlist: vec!["Stale".into(), "Missing".into(), "*".into()],
             mode: ShowcaseMode::Loop,
             stream_divisor: 1,
@@ -981,5 +1152,70 @@ mod tests {
             ..settings
         };
         assert!(!ShowcaseState::load(&off, &cars, &tracks).is_available());
+    }
+
+    /// The server renders what its list asks for and its folder lacks: not
+    /// a file it already plays, not a track it does not have or one the AC
+    /// importer wrote, not one the playlist leaves out.
+    #[test]
+    fn the_list_names_what_the_folder_lacks_on_tracks_here() {
+        let root = tempfile::TempDir::new().unwrap();
+        let tracks = root.path().join("tracks");
+        for (stem, imported) in [("Alpha", false), ("Beta", true)] {
+            let folder = tracks.join("default").join(stem);
+            std::fs::create_dir_all(&folder).unwrap();
+            std::fs::write(folder.join(format!("{stem}.yaml")), "").unwrap();
+            if imported {
+                std::fs::write(folder.join(format!("{stem}.import.json")), "{}").unwrap();
+            }
+        }
+        let list = root.path().join("showcase.yml");
+        std::fs::write(
+            &list,
+            r#"
+variants:
+  day:   { weather: sunny, time: "13:00" }
+  night: { weather: sunny, time: "22:00" }
+showcases:
+  - { track: Alpha, class: GT3, variants: [day, night] }
+  - { track: Beta, class: GT3, variants: [day] }
+  - { track: Gamma, class: F1, variants: [day] }
+"#,
+        )
+        .unwrap();
+        let dir = root.path().join("showcase");
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut state = state_with(&dir, &["Alpha.gt3.day"], ShowcaseMode::Loop, 1);
+        let settings = ShowcaseSettings {
+            dir: dir.to_string_lossy().into_owned(),
+            list: list.to_string_lossy().into_owned(),
+            ..ShowcaseSettings::default()
+        };
+        let (_, names) = to_render(&settings, state.entries(), &tracks).unwrap();
+        assert_eq!(names, ["Alpha.gt3.night"]);
+
+        let only_day = ShowcaseSettings {
+            playlist: vec!["Alpha.gt3.day".into()],
+            ..settings.clone()
+        };
+        assert!(to_render(&only_day, state.entries(), &tracks)
+            .unwrap()
+            .1
+            .is_empty());
+        let none = ShowcaseSettings {
+            list: String::new(),
+            ..settings
+        };
+        assert!(to_render(&none, state.entries(), &tracks).is_none());
+
+        // A file rendered later joins as a channel of its own.
+        let mut entry = state.entries()[0].clone();
+        entry.id = "Alpha.gt3.night".into();
+        state.add(entry.clone());
+        state.add(entry);
+        let ids: Vec<_> = state.summaries().into_iter().map(|s| s.id).collect();
+        assert_eq!(ids, ["Alpha.gt3.day", "Alpha.gt3.night"]);
+        let player = uuid::Uuid::from_u128(5);
+        assert!(state.join(player, Some("Alpha.gt3.night")).is_some());
     }
 }

@@ -50,11 +50,10 @@ enum class EApexGuideCameraKind : uint8
 
 /**
  * The track guide (apexsim-content/docs/track-guide.md): a corner-by-corner walk round a
- * circuit, played from files made offline. No server, no session.
+ * circuit, played from files the game makes. No server, no session.
  *
- * Finds the guides (`-ApexGuideDir=`, `Guide/` beside ApexSim.exe in a
- * package, the repo's `build/guide` in the editor; first folder wins per
- * stem and class), and plays one: reads the `.guide.json`, inflates its
+ * Finds the guides (`-ApexGuideDir=`, then `Saved/ApexSim/Guides/`; first
+ * folder wins per stem and class), and plays one: reads the `.guide.json`, inflates its
  * recording on the thread pool, puts it on the race director's guide view
  * (AApexRaceDirector::BeginGuideView, which ends the menu's backdrop; it
  * comes back by itself when the guide closes) and from then on owns the
@@ -73,7 +72,7 @@ enum class EApexGuideCameraKind : uint8
  * another version of the circuit, is made by the game itself when it has
  * the physics library and the track's YAML (ApexSimContent): the library's
  * apx_guide_build on a low-priority thread into `Saved/ApexSim/Guides/`,
- * searched before the shipped folder, while the guide screen says so
+ * while the guide screen says so
  * (EApexGuideState::Making). It is the file `apexsim-replay guide` writes,
  * byte for byte. `apexsim.guide.Make 0` turns that off.
  *

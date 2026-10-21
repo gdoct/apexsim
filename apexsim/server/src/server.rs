@@ -653,6 +653,17 @@ pub async fn run_server_from(
         crate::game_loop::run_game_loop(loop_state, loop_transport, tick_rate, loop_metrics).await;
     });
 
+    {
+        let loaded = state.read().await.showcase.entries().to_vec();
+        crate::showcase::spawn_renders(
+            &state,
+            &config.showcase,
+            Path::new(&config.content.tracks_dir()),
+            Path::new(&config.content.cars_dir()),
+            &loaded,
+        );
+    }
+
     info!("Server is running (TCP {}, UDP {})", tcp_addr, udp_addr);
 
     Ok(ServerHandle {

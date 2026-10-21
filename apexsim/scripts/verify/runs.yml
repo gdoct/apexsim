@@ -2181,11 +2181,13 @@ runs:
   # culling, CullPerPageDrawCommandsCs) came 5 s after Silverstone's track
   # was built behind the menu. Short runs, so a soak is many cold starts:
   #   run_checks.py "b1-*" --repeat 20 --game-arg=-gpucrashdebugging
-  # Shot times count from the menu's start here (no race view).
+  # Shot times count from the menu's start here (no race view). The showcase
+  # is named by id: the game renders it into Saved/ApexSim/Showcases first
+  # when it has none, so the first run on a machine starts later.
   - id: b1-backdrop-silverstone
     about: "B1. Demo backdrop cold start: Silverstone F1 (the hang of 2026-10-17)"
     args:
-      - "-ApexShowcase={repo}/build/showcase/Shiverstone.f1.day.apxs"
+      - "-ApexShowcase=Shiverstone.f1.day"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
@@ -2194,7 +2196,7 @@ runs:
   - id: b1-backdrop-sakhir
     about: "B1. Demo backdrop cold start: Sakhir F1 at night (floodlights)"
     args:
-      - "-ApexShowcase={repo}/build/showcase/Bahrainless.f1.night.apxs"
+      - "-ApexShowcase=Bahrainless.f1.night"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}
@@ -2203,7 +2205,7 @@ runs:
   - id: b1-backdrop-saopaulo
     about: "B1. Demo backdrop cold start: Sao Paulo F1 in the rain"
     args:
-      - "-ApexShowcase={repo}/build/showcase/Interlaggos.f1.rain.apxs"
+      - "-ApexShowcase=Interlaggos.f1.rain"
     shots:
       - {at: 15, label: "backdrop just built", checks: "GPU soak: no hang"}
       - {at: 30, label: "backdrop", checks: "GPU soak: no hang"}

@@ -20,8 +20,8 @@ cargo run --release -- --config server.toml --log-level debug
 ```
 
 In a release package the server is `Server\apexsim-server.exe`. Run it from
-that folder (double-clicking it does): `content/`, `showcase/`, `records/`
-and the TLS paths in `server.toml` are resolved relative to the working
+that folder (double-clicking it does): `content/`, `showcase/`,
+`showcase.yml`, `records/` and the TLS paths in `server.toml` are resolved relative to the working
 directory.
 
 ## Options
@@ -87,6 +87,7 @@ UDP) and open 9000/tcp and 9001/udp.
 | `APEXSIM_CONTENT_TRACKS_DIR` | `[content] tracks_dir` | `<root>/tracks` |
 | `APEXSIM_SHOWCASE_ENABLED` | `[showcase] enabled` (`true`/`false`) | `true` |
 | `APEXSIM_SHOWCASE_DIR` | `[showcase] dir`: the `.apxs` races streamed to menus | `./showcase` |
+| `APEXSIM_SHOWCASE_LIST` | `[showcase] list`: the showcases rendered into `dir` at startup when it has no file of them | `./showcase.yml` |
 
 The content folders are read as `default/` then `custom/` when they have
 those subfolders. A `cars_dir` or `tracks_dir` that is set wins over the
@@ -306,8 +307,8 @@ apexsim-replay render --track ../apexsim-content/tracks/default/SpaFrankenchamps
     --out build/showcase/SpaFrankenchamps.gt3.day.apxs
 ```
 
-`showcase.yml` (in the code root) lists the showcases the content scripts render; a
-circuit takes about six seconds and the file is a few MB.
+`showcase.yml` (in the code root) lists the showcases the server and the game render
+for themselves; a circuit takes about six seconds and the file is a few MB.
 
 ## convert
 
@@ -342,8 +343,9 @@ client's saved replays (`Saved/Replays/*.apxs`) can be read.
 
 With `--check` (streams only) it also compares the track and every car the
 stream was raced on against the content on disk, by checksum, prints what
-no longer matches under `stale`, and exits with 1 if anything does. That
-is how the content scripts decide which showcases to render again.
+no longer matches under `stale`, and exits with 1 if anything does. The
+server and the game make the same comparison when they choose which to
+render again.
 
 ```
 apexsim-replay info <FILE> [--check] [OPTIONS]

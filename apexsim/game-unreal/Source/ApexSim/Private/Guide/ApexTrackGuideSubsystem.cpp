@@ -165,15 +165,8 @@ TArray<FString> UApexTrackGuideSubsystem::GuideDirectories()
 			Dirs.Add(FPaths::ConvertRelativePathToFull(Part));
 		}
 	}
-	// The ones the game made itself, ahead of the shipped ones: one is made
-	// only when the shipped guide is missing or stale.
+	// The ones the game made itself (none ships).
 	Dirs.AddUnique(CacheDirectory());
-	// Beside ApexSim.exe in a package (ProjectDir is <Release>/Game/ApexSim/),
-	// the repo's build/guide in the editor: the same rule as the tracks.
-	const FString Default = FPlatformProperties::RequiresCookedData()
-		? FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("Guide"))
-		: FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("build"), TEXT("guide"));
-	Dirs.AddUnique(FPaths::ConvertRelativePathToFull(Default));
 	return Dirs;
 }
 

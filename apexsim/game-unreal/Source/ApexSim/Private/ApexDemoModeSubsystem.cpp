@@ -114,7 +114,7 @@ void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FString Why;
 		FApexShowcaseRenderer::FInputs Inputs;
 		if (CVarShowcaseRender.GetValueOnGameThread() == 0 || FParse::Param(FCommandLine::Get(), TEXT("ApexNoShowcaseRender"))
-			|| !ForcedShowcase.IsEmpty())
+			|| IsForcedShowcaseFile())
 		{
 			// Off, or one file named to play.
 		}
@@ -125,6 +125,11 @@ void UApexDemoModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 		else
 		{
+			// One named by id: that one alone, rendered if no file has it.
+			if (!ForcedShowcase.IsEmpty())
+			{
+				ShowcaseNames.RemoveAll([this](const FString& Name) { return !Name.Equals(ForcedShowcase, ESearchCase::IgnoreCase); });
+			}
 			Renderer = MakeUnique<FApexShowcaseRenderer>(Inputs);
 		}
 	}
@@ -342,6 +347,11 @@ bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
 	return true;
 }
 
+bool UApexDemoModeSubsystem::IsForcedShowcaseFile() const
+{
+	return !ForcedShowcase.IsEmpty() && IFileManager::Get().FileExists(*ForcedShowcase);
+}
+
 void UApexDemoModeSubsystem::ScanLocalFiles()
 {
 	if (bFilesScanned)
@@ -351,10 +361,16 @@ void UApexDemoModeSubsystem::ScanLocalFiles()
 	bFilesScanned = true;
 	LocalFiles.Reset();
 	TArray<FString> Files = UApexSpectatorSubsystem::FindShowcaseFiles();
-	if (!ForcedShowcase.IsEmpty() && IFileManager::Get().FileExists(*ForcedShowcase))
+	if (IsForcedShowcaseFile())
 	{
 		Files.Reset();
 		Files.Add(FPaths::ConvertRelativePathToFull(ForcedShowcase));
+	}
+	else if (!ForcedShowcase.IsEmpty())
+	{
+		// An id: the files of that name (the one the game renders included).
+		const FString FileName = ForcedShowcase + TEXT(".apxs");
+		Files.RemoveAll([&FileName](const FString& Path) { return !FPaths::GetCleanFilename(Path).Equals(FileName, ESearchCase::IgnoreCase); });
 	}
 	for (const FString& Path : Files)
 	{

@@ -96,8 +96,9 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
   and `apexsim/docs/assets/` (`apexsim/scripts/site/build_site.py`),
   `apexsim-content/build/tracks`, the track sidecars,
   `apexsim/game-unreal/Content` beyond the menu and catalog tables. A track
-  YAML or car.toml edit changes its content checksum: re-export the track,
-  and showcases and guides built from it go stale.
+  YAML or car.toml edit changes its content checksum: re-export the track;
+  the showcases and guides it touched are made again by the game (and the
+  showcases by the server) on their own.
 - **Track data flows in the refresh order** in
   [apexsim-content/docs/track-pipeline.md](apexsim-content/docs/track-pipeline.md); run
   `ats-*` tools from `apexsim-content/`. The track YAML and the sidecars

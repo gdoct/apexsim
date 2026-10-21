@@ -710,8 +710,8 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
   `-ApexWatchCamera=`, `-ApexWatchTower=`, `-ApexWatchCar=`,
   `-ApexWatchHideHud`; console `apexsim.watch [...]`. See
   [spectator.md](spectator.md).
-- Backdrop: `-ApexNoDemo`, `-ApexNoShowcase`, `-ApexShowcase=<file|id>`,
-  `-ApexShowcaseDir=`.
+- Backdrop: `-ApexNoDemo`, `-ApexNoShowcase`, `-ApexShowcase=<file|id>` (an
+  id the game renders first when it has no file of it), `-ApexShowcaseDir=`.
 - `-ApexReplay=<file>.apxs` and the `-ApexReplay*` family (record, fps, camera
   and shot options) play a clip with no server; see [spectator.md](spectator.md)
   and [marketing-site.md](../marketing-site.md).

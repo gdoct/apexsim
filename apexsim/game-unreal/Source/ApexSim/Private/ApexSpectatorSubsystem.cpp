@@ -89,13 +89,7 @@ TArray<FString> UApexSpectatorSubsystem::ShowcaseDirectories()
 			Dirs.Add(FPaths::ConvertRelativePathToFull(Part));
 		}
 	}
-	// Beside ApexSim.exe in a package (ProjectDir is <Release>/Game/ApexSim/),
-	// the repo's build/showcase in the editor: the same rule as the tracks.
-	const FString Default = FPlatformProperties::RequiresCookedData()
-		? FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("Showcase"))
-		: FPaths::Combine(FPaths::ProjectDir(), TEXT(".."), TEXT("build"), TEXT("showcase"));
-	Dirs.AddUnique(FPaths::ConvertRelativePathToFull(Default));
-	// The ones the game rendered itself (FApexShowcaseRenderer).
+	// The ones the game rendered itself (FApexShowcaseRenderer): none ships.
 	Dirs.AddUnique(FApexShowcaseRenderer::CacheDirectory());
 	return Dirs;
 }

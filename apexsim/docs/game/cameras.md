@@ -182,8 +182,8 @@ the director's demo view, filmed by the TV director. Sources, first that can
 deliver (`EApexBackdropSource`):
 
 1. the server's showcase channel when the lobby lists one;
-2. a local `.apxs` from `Showcase/` beside the exe (`build/showcase` in the
-   editor) whose checksums match this machine's content, the pending track's
+2. a local `.apxs` the game rendered itself (`Saved/ApexSim/Showcases/`)
+   whose checksums match this machine's content, the pending track's
    first; needs no server;
 3. a `SessionKind::Demo` session, for a server without showcases;
 4. a replay the player chose (`PlayReplay`), which holds on its end.

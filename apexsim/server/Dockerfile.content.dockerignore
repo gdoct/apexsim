@@ -1,5 +1,5 @@
 # Only what the server loads: car.toml, track YAML and the five sidecars,
-# showcase streams. Paths are from the context: the folder holding apexsim/
+# the showcase list. Paths are from the context: the folder holding apexsim/
 # and apexsim-content/.
 *
 !apexsim-content/cars/**/car.toml
@@ -9,4 +9,4 @@
 !apexsim-content/tracks/**/*.walls.msgpack
 !apexsim-content/tracks/**/*.pit.msgpack
 !apexsim-content/tracks/**/*.road.msgpack
-!apexsim/build/showcase/*.apxs
+!apexsim/showcase.yml

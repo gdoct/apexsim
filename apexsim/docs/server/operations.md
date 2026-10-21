@@ -96,8 +96,9 @@ Every section and its keys (defaults from `config.rs`):
   distance, a line a car, cut to 2000 characters).
 - `[physics]` - `road_contact = "mesh"` (default) or `"centerline"`
   ([apexsim-content/docs/road-mesh.md](../../../apexsim-content/docs/road-mesh.md)).
-- `[showcase]` - `enabled`, `dir` (`./showcase`), `playlist`, `mode`
-  (`loop` | `rotate`), `stream_divisor` ([../game/spectator.md](../game/spectator.md)).
+- `[showcase]` - `enabled`, `dir` (`./showcase`), `list` (`./showcase.yml`,
+  rendered into `dir` at startup), `playlist`, `mode` (`loop` | `rotate`),
+  `stream_divisor` ([../game/spectator.md](../game/spectator.md)).
 - `[admin]` - below.
 - `[[balance]]` - balance of performance, one table a car (`balance.rs`):
   `car` (its car.toml `name`, case ignored, or its id), `ballast_kg` (0,
@@ -317,8 +318,9 @@ apexsim/server/Dockerfile -t apexsim-server .`). Content is not baked in:
 `Dockerfile.content` (`docker build -f
 apexsim/server/Dockerfile.content -t apexsim-content .`) packs
 `apexsim-content/cars`, `apexsim-content/tracks` (with the generated sidecars)
-and `apexsim/build/showcase`, and on start replaces the `/content` volume
-with them. `docker-compose.yml` runs the content job, then the server.
+and `apexsim/showcase.yml`, and on start replaces the `/content` volume
+with them; the server renders the showcases into `/data/showcase`, which
+survives it. `docker-compose.yml` runs the content job, then the server.
 `docker-entrypoint.sh` seeds `/data/server.toml` from the image on first start
 so the dashboard's edits survive a new container. `server.docker.toml` has
 TLS off and auth `dev`: fine on a LAN, not on the internet.

@@ -189,16 +189,17 @@ apexsim-replay guide ...    # the track guide, see track-guide.md
   [marketing site](../marketing-site.md) for the pipeline that drives them.
 
 **Showcase files** are named `<Stem>.<class>.<variant>.apxs` (variant a sky:
-`day`, `dusk`, `rain`, `night`) and rendered into `build/showcase/`
-(gitignored) from `showcase.yml` by `apexsim-replay showcase` (an
-entry's `ai_level` is the render's AI level; `info --check` does not see it
-change, so re-render with `-Force`). `build_track_levels.ps1` and
-`initialize_content.ps1` have a showcase stage (`-SkipShowcase`) that renders
-what is missing or stale by `info --check`. Packages copy them to
-`Game/Showcase/`; the release also to `Server/showcase/` with
-`apexsim-replay.exe` beside the server. Imported tracks are never rendered by
-the pipeline. Rendering takes seconds per circuit in a release build
-(16 s for Zandervoort's 16 GT3s over two laps).
+`day`, `dusk`, `rain`, `night`), each an entry of `showcase.yml` (an entry's
+`ai_level` is the render's AI level). No build stage renders them and no
+package ships one: the game renders its own (below) and the server its own
+(Server showcases), both from the list and their content, with the code
+`apexsim-replay showcase` runs, so every one of them writes the same bytes.
+A package ships the list as `Game/showcase.yml` and `Server/showcase.yml`,
+with `apexsim-replay.exe` beside the server for rendering one by hand
+(`build/showcase/`, gitignored, is where the commands above write).
+Imported tracks are never rendered from the list. Rendering takes seconds
+per circuit in a release build (16 s for Zandervoort's 16 GT3s over two
+laps).
 
 **Showcases made in the game.** The physics library renders a showcase too
 (`apx_showcase_render`, ABI 5: the list, the tracks and cars, a name, an
@@ -208,21 +209,25 @@ so its file is the build's byte for byte
 (`server/ffi/tests/showcase.rs`, and its ignored
 `the_shipped_showcase_renders_again_through_the_api` in release against
 `build/showcase/`; `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` in the
-game's own build). `UApexDemoModeSubsystem` works out which entries have no
+game's own build; both skip without that file, so render it with
+`apexsim-replay showcase --name Zandervoort.gt3.day` first). `UApexDemoModeSubsystem` works out which entries have no
 fresh local file (`ShowcasesToRender`: none of that name, or none whose
 track and car checksums match the catalog, on a track this machine draws
 and has the YAML of; the pending track's first) and renders them one at a
 time on a below-normal thread (`FApexShowcaseRenderer`) into
-`Saved/ApexSim/Showcases/`, which the backdrop scans with the shipped
-folder; a finished file joins the local files at once. It never starts one
+`Saved/ApexSim/Showcases/`, which the backdrop scans; a finished file joins
+the local files at once. On a fresh install the first one is ready some
+seconds after the menu opens (the splash does not wait for it; the page
+backgrounds show until then). It never starts one
 while the player is in or joining a session, a failed one is not retried
 that run, and leaving the game cancels one under way. The inputs
 (`FApexShowcaseRenderer::FindInputs`): `-ApexShowcaseList=` and
 `-ApexContentDir=`, else in the editor the code root's `showcase.yml` and
 the content root, in a package `Game/showcase.yml` and
 `Server/content`'s tracks and `cars/default`. `apexsim.showcase.Render 0`
-or `-ApexNoShowcaseRender` turns it off; `-ApexShowcase=` (one named file)
-does too.
+or `-ApexNoShowcaseRender` turns it off; `-ApexShowcase=<file>` (one file
+to play) does too, while `-ApexShowcase=<id>` keeps that one entry alone,
+rendered if no file has it.
 
 ## Server showcases
 
@@ -230,14 +235,25 @@ does too.
 [showcase]
 enabled = true
 dir = "./showcase"        # absent or missing: no showcases
+list = "./showcase.yml"   # rendered into dir at startup; absent: nothing rendered
 playlist = ["*"]          # file names without .apxs, channel order; "*" every file not named
 mode = "loop"             # or "rotate": a channel moves on to the next file at its end
 stream_divisor = 1        # send every Nth frame
 ```
 
-`APEXSIM_SHOWCASE_ENABLED` / `APEXSIM_SHOWCASE_DIR` override. At startup the
-server reads each file's preamble and drops (with a log line) one whose track
-or cars it lacks or whose checksums disagree with its content.
+`APEXSIM_SHOWCASE_ENABLED` / `APEXSIM_SHOWCASE_DIR` / `APEXSIM_SHOWCASE_LIST`
+override. At startup the server reads each file's preamble and drops (with a
+log line) one whose track or cars it lacks or whose checksums disagree with
+its content. Then it renders every entry of `list` that the playlist takes
+and that has no file left (`showcase::to_render`: on a track it has, not one
+the AC importer wrote) into `dir`, one after another on a thread of its own
+(`spawn_renders`, the field from `<cars>/default`), each written aside and
+moved in, then listed as a channel at the end; the lobby's next
+`ShowcaseAvailable` tells clients. So a release's first start renders its
+showcases, and a car or track edit renders the ones it touched again. The
+development `server/server.toml` names no list in reach, so a dev server
+renders nothing; the Docker config renders into `/data/showcase`, which the
+content job's sync leaves alone.
 
 A **channel** is one file on one clock shared by all its viewers. The game
 loop advances every watched channel once per tick (`ShowcaseState::advance`)
@@ -314,14 +330,13 @@ sky; `Path` gives the TV director its trackside cameras.
    track if this machine has its export, else another, not the same one twice
    running. A connection under way gets `ServerGraceSeconds` (3 s), so with a
    server the showcase wins the startup race.
-2. A local file from `Showcase/` beside `ApexSim.exe` (the repo's
-   `build/showcase` in the editor; `-ApexShowcaseDir=` adds folders), the
-   pending track's when one matches (`ChooseFile`). Files are scanned at
+2. A local file from `Saved/ApexSim/Showcases/`, where the game renders
+   them (`-ApexShowcaseDir=` adds folders), the pending track's when one
+   matches (`ChooseFile`). Files are scanned at
    startup by preamble (`FApexStreamFile::ReadPreamble`) so the splash hold's
    `IsDemoExpected` can count on one offline. A file whose track or car
    checksums do not match this machine's catalog rows is skipped (0 is
-   unknown and passes). `Saved/ApexSim/Showcases/`, where the game renders
-   the ones with no fresh file itself (below), is scanned too.
+   unknown and passes).
 3. A `SessionKind::Demo` session, for a server that predates showcases.
 4. The static page backgrounds.
 
@@ -460,7 +475,8 @@ switch reference: the header of `ApexReplaySubsystem.h` and
   (`a_seeded_render_is_byte_identical`, `check_stream`, windows, seed
   picking, convert, cut, poses), `showcase::tests` (one clock for two viewers,
   the loop's epoch, late joiners, divisor, rotate,
-  `a_file_that_does_not_match_the_content_is_left_out`),
+  `a_file_that_does_not_match_the_content_is_left_out`,
+  `the_list_names_what_the_folder_lacks_on_tracks_here`),
   `network.rs` `test_showcase_wire_format`, `tests/all/showcase_test.rs` (two
   in-process clients on one channel, the implied leave, the HTTP side),
   `tests/all/live_spectator_test.rs` (a mid-race spectator gets the roster).

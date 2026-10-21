@@ -138,6 +138,11 @@ pub struct ShowcaseSettings {
     /// Folder of `.apxs` files, relative to the working directory. A folder
     /// that is not there is no showcase, not an error.
     pub dir: String,
+    /// The list (`showcase.yml`) a showcase is rendered from at startup,
+    /// into `dir`, when `dir` has no file of it this server can play (none,
+    /// or one raced on other content). Empty, or a file that is not there:
+    /// nothing is rendered.
+    pub list: String,
     /// File names without `.apxs`, in channel order; `"*"` is every file
     /// not named. The first is what a client gets when it asks for none.
     pub playlist: Vec<String>,
@@ -151,6 +156,7 @@ impl Default for ShowcaseSettings {
         Self {
             enabled: true,
             dir: "./showcase".to_string(),
+            list: "./showcase.yml".to_string(),
             playlist: vec!["*".to_string()],
             mode: ShowcaseMode::Loop,
             stream_divisor: 1,
@@ -496,6 +502,7 @@ impl ServerConfig {
         );
         env_parse("APEXSIM_SHOWCASE_ENABLED", &mut self.showcase.enabled);
         env_string("APEXSIM_SHOWCASE_DIR", &mut self.showcase.dir);
+        env_string("APEXSIM_SHOWCASE_LIST", &mut self.showcase.list);
         env_string("APEXSIM_REPLAY_DIR", &mut self.records.replay_dir);
         env_parse(
             "APEXSIM_DEBUG_STAND_IN_DRIVER",
