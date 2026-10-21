@@ -4935,3 +4935,751 @@ runs:
         checks: "C5 Stands: the audit page's Stands dossier pass, against the maps"
         exec: "apexsim.cam.LookAt 619.0 -187.0 9.5 629.9 -161.3 3.3"
 
+
+  - id: c5-tr-albertparkour
+    about: "C5. Trees: AlbertParkour"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=AlbertParkour
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a gum"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -314.5 454.9 11.0 -301.4 500.1 15.7"
+      - at: 17
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -307.1 448.2 10.7 -293.4 490.5 3.5"
+      - at: 22
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 138.5 1220.9 10.7 1069.5 2022.3 39.9"
+      - at: 27
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -151.8 1321.3 12.3 -670.4 3559.3 41.3"
+      - at: 32
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -344.2 481.7 11.6 -414.8 431.7 11.3"
+
+  - id: c5-tr-armadillos
+    about: "C5. Trees: Armadillos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 492.3 -137.8 20.5 573.1 -164.4 15.1"
+
+  - id: c5-tr-bahrainless
+    about: "C5. Trees: Bahrainless"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Bahrainless
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "a date palm"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 0.2 35.4 10.5 -73.3 59.0 10.2"
+      - at: 17
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 16.1 385.1 9.4 88.2 397.7 3.4"
+
+  - id: c5-tr-barcelunatic
+    about: "C5. Trees: Barcelunatic"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Barcelunatic
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "an umbrella pine"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -724.9 -743.1 11.6 -764.0 -802.5 12.8"
+      - at: 17
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -753.7 -735.5 12.5 -807.4 -784.6 5.5"
+      - at: 22
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -709.9 -744.0 11.0 -1102.7 -3290.8 45.5"
+      - at: 27
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -695.0 -742.6 10.5 -720.9 -3334.2 59.5"
+
+  - id: c5-tr-brandsscratch
+    about: "C5. Trees: BrandsScratch"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsScratch
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 291.9 -132.3 2.3 366.3 -159.4 2.2"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 318.4 -881.8 27.1 -350.9 -3399.6 75.2"
+      - at: 22
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 292.4 -122.3 1.1 368.4 -144.6 9.3"
+
+  - id: c5-tr-chillyvilleneuve
+    about: "C5. Trees: ChillyVilleneuve"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=ChillyVilleneuve
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 0.8 -240.8 9.3 -27.3 -275.6 3.7"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 63.6 -316.4 10.4 145.8 -443.9 12.8"
+      - at: 22
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -236.5 -197.5 13.1 -278.7 -213.6 13.0"
+
+  - id: c5-tr-gnocchi
+    about: "C5. Trees: Gnocchi"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -1783.2 -702.1 9.4 -1752.2 -687.2 2.2"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 44.0 95.0 10.8 2022.6 -439.5 40.2"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 44.0 95.0 10.8 1528.7 -231.0 54.3"
+      - at: 27
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -383.2 -441.2 8.6 -390.0 -480.9 11.6"
+
+  - id: c5-tr-hockeyheimring
+    about: "C5. Trees: Hockeyheimring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hockeyheimring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -50.1 370.9 11.8 -86.5 425.3 4.8"
+      - at: 17
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 56.0 -117.8 10.4 -102.5 -172.7 17.6"
+      - at: 22
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 77.5 511.6 12.4 152.3 461.0 14.9"
+
+  - id: c5-tr-hungoverring
+    about: "C5. Trees: Hungoverring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hungoverring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -53.7 235.3 -7.8 -56.6 266.7 -15.5"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 591.5 279.8 6.7 2468.4 -710.0 42.3"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 225.5 -113.7 8.7 323.0 -316.9 31.4"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -28.7 314.2 -13.1 -65.4 314.2 -11.9"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -23.7 266.1 -10.3 43.5 282.1 -1.5"
+
+  - id: c5-tr-interlaggos
+    about: "C5. Trees: Interlaggos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Interlaggos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 467.3 -137.4 -9.6 392.4 -100.6 -15.7"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 338.6 -308.4 -5.2 1037.5 -2802.6 25.9"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 458.0 -171.1 -8.8 342.2 -121.6 -6.8"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 470.7 -122.8 -10.0 382.3 -81.1 -8.4"
+
+  - id: c5-tr-lemons
+    about: "C5. Trees: Lemons"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Lemons
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 1325.9 -891.4 80.5 1361.3 -897.6 72.5"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -3786.6 -2818.8 74.6 -3703.0 -5409.6 83.4"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -3627.1 -2805.6 74.5 -3432.2 -5378.6 83.7"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 428.2 -1610.3 66.0 392.0 -1556.3 66.5"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 409.4 -1616.9 65.9 378.1 -1586.2 68.7"
+
+  - id: c5-tr-monzarella
+    about: "C5. Trees: Monzarella"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 46.6 485.6 10.6 100.5 498.4 3.8"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 64.0 -443.7 11.2 -892.6 -1280.9 37.7"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 1121.2 1683.8 12.6 838.4 3108.6 52.5"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 47.5 495.5 10.6 136.4 506.9 13.8"
+
+  - id: c5-tr-mordschleife
+    about: "C5. Trees: Mordschleife"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 91.5 -8.0 12.4 111.2 6.8 4.5"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 151.3 -5508.5 -23.1 610.6 -8066.0 2.0"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 142.2 -5512.5 -24.1 209.6 -7437.1 12.2"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 151.6 93.7 3.7 85.9 93.8 0.1"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 96.4 -8.9 12.5 111.1 -29.9 14.9"
+
+  - id: c5-tr-nuerburgerring
+    about: "C5. Trees: Nuerburgerring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -589.2 -756.4 -22.4 -516.6 -717.5 -24.2"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -760.5 -1092.9 -43.0 96.5 -3526.7 -9.0"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -777.2 -1103.1 -43.1 -1185.5 -2716.4 -16.5"
+      - at: 27
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -380.9 -759.1 -18.3 -353.3 -852.7 -15.8"
+
+  - id: c5-tr-oskarsleben
+    about: "C5. Trees: Oskarsleben"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Oskarsleben
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -617.5 30.7 5.2 -642.1 -22.9 -0.7"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -637.3 31.3 5.5 -782.3 -188.8 9.8"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -639.3 308.5 7.4 -1610.9 749.5 33.1"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -675.2 172.3 7.6 -756.2 193.1 9.4"
+
+  - id: c5-tr-redpullring
+    about: "C5. Trees: RedPullRing"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -553.2 54.8 28.1 -631.6 18.8 24.6"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 298.5 128.4 16.6 1554.6 -573.8 44.0"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 54.8 14.1 10.2 101.5 -222.9 12.9"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -532.9 26.4 28.2 -614.0 -8.6 32.0"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -538.7 34.5 28.2 -623.9 -2.8 35.6"
+
+  - id: c5-tr-shanghaied
+    about: "C5. Trees: Shanghaied"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shanghaied
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -567.9 191.3 13.3 -647.8 143.7 4.6"
+      - at: 17
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -638.8 275.3 13.5 -728.0 257.2 11.4"
+
+  - id: c5-tr-shebang
+    about: "C5. Trees: Shebang"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shebang
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -460.3 -188.3 5.2 -454.3 -136.0 -1.5"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 50.6 -446.8 12.7 932.5 -2710.7 45.4"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 56.5 -438.9 12.7 886.4 -1347.9 38.5"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -484.9 -193.0 5.0 -479.7 -138.5 6.2"
+
+  - id: c5-tr-shiverstone
+    about: "C5. Trees: Shiverstone"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -4.2 -11.0 10.0 -71.9 58.6 4.1"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -19.9 -200.0 11.2 -1972.1 -1405.2 14.6"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -19.9 -200.0 11.2 -2019.1 -1414.4 12.0"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 855.8 993.7 20.6 939.5 991.9 21.2"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 853.6 1003.5 20.5 947.2 1007.3 24.0"
+
+  - id: c5-tr-snorisring
+    about: "C5. Trees: Snorisring"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 191.8 -86.4 11.3 206.5 -22.3 4.2"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 382.7 -277.1 13.7 1762.8 -1469.8 42.0"
+      - at: 22
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 225.9 -139.6 11.6 199.2 -215.7 12.3"
+
+  - id: c5-tr-spafrankenchamps
+    about: "C5. Trees: SpaFrankenchamps"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -150.0 240.9 15.0 -199.5 228.6 6.1"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -239.6 -1603.7 -33.9 -1272.0 -3616.3 -0.9"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -224.8 -1604.2 -33.2 -724.9 -3425.0 -90.2"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 651.3 -1635.4 56.7 620.2 -1624.3 48.1"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 356.4 -71.6 -13.7 423.8 -10.1 -0.2"
+
+  - id: c5-tr-sudoku
+    about: "C5. Trees: Sudoku"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sudoku
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 216.6 -484.2 -6.6 229.0 -400.4 -9.7"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -681.7 -214.7 13.0 -815.6 -593.5 7.9"
+      - at: 22
+        label: "the far forest (conifer)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt -676.9 -214.3 13.2 -786.0 -603.6 9.5"
+      - at: 27
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 220.7 -487.0 -6.7 229.1 -410.1 -2.1"
+      - at: 32
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 248.1 -286.5 -0.9 217.8 -332.6 2.4"
+
+  - id: c5-tr-zandervoort
+    about: "C5. Trees: Zandervoort"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandervoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "scrub bushes"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 80.9 -69.3 11.1 87.6 -34.3 3.5"
+      - at: 17
+        label: "the far forest (broadleaf)"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 845.0 -67.4 11.0 3284.5 -608.0 39.8"
+      - at: 22
+        label: "a broadleaf tree"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 16.6 -489.5 9.2 4.8 -403.8 10.4"
+      - at: 27
+        label: "a conifer"
+        checks: "C5 Trees: the audit page's Trees dossier pass, against the maps"
+        exec: "apexsim.cam.LookAt 11.6 -489.5 9.2 0.0 -415.8 12.7"
+
