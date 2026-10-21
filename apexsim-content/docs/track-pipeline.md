@@ -157,7 +157,9 @@ landmark whose centre lies on an OSM outline (within 5 m) stands for that
 structure, and its row is dropped. `MANUAL_PIT_LANE` (wins over
 OSM outright), `PIT_LANE_REACH_M` (how far from the track a mapped pit lane may run before it is clipped, 70 m by default; Silverstone's cuts 102 m across the inside of Club), `MANUAL_STRUCTURES`, `MANUAL_STRUCTURE_ASSETS`,
 `MANUAL_WOODS`, `MANUAL_FURNITURE`, `MANUAL_DECAL_RUNS`, `MANUAL_GRAFFITI`.
-`MANUAL_CORNERS` gives a circuit OSM names no corners its corners from its
+`MANUAL_WATER` gives a dossier water bodies (rings as lon/lat, from the OSM
+relation its comment names) it has no extract to take from: Albert Park's
+lake. `MANUAL_CORNERS` gives a circuit OSM names no corners its corners from its
 own map (`name`, the board's `display_name`, the bend's `from_m`/`to_m`;
 `replace` for a dossier whose scanned corners are bogus, `drop` to take
 single ones out); the corner signs and marshal posts stand at them.

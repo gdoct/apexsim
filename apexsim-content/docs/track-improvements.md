@@ -316,8 +316,10 @@ stay as they are.
   stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert Park
   only. Night sessions light the track with them, so this is a decision
   before it is a rule: which circuits keep towers.
-- **R16. Water.** `WATER_STEMS` is MandarinaBay alone, so the Albert Park
-  lake is not in its dossier.
+- **R16. Water.** `WATER_STEMS` (the extract's water bodies from OSM
+  relations) is MandarinaBay alone; Albert Park's lake comes from
+  `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the
+  Norisring's Dutzendteich) are only the small water `areas`.
 - **R17. Checks.** Nothing flags a stand laid on the far side of its
   straight (the Shebang main stand) or a distance-board set missing at a
   heavy braking zone (Zandervoort's Hans Ernst and T9/T10).

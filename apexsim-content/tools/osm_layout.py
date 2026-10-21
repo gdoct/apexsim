@@ -3633,6 +3633,61 @@ def _first_match(t: dict, table: dict):
 # (outer rings, with the inner ones as holes). Others keep the few small
 # water `areas` they always had, so their dossiers do not move.
 WATER_STEMS = frozenset({"MandarinaBay"})
+
+# Water bodies a dossier has no extract to take from (R16): each `rings`
+# (outer first, then islands) as (lon, lat), from the OSM relation the
+# comment names, simplified to 3 m. They join the dossier's `water` on a
+# full extract and on `--manual-only` alike.
+MANUAL_WATER: dict[str, list[dict]] = {
+    # Albert Park Lake, OSM relation 346429 (natural=water, multipolygon):
+    # the lap runs round it; without it the tree belts stood in the lake.
+    "AlbertParkour": [
+        dict(name="Albert Park Lake", rings=[
+            [(144.967237, -37.839543), (144.96724, -37.839239), (144.96739, -37.839048),
+             (144.967665, -37.838881), (144.968112, -37.838749), (144.968978, -37.838657),
+             (144.969725, -37.838703), (144.970278, -37.838856), (144.970974, -37.839448),
+             (144.971207, -37.839904), (144.971234, -37.840587), (144.971107, -37.841421),
+             (144.970686, -37.842931), (144.97029, -37.844712), (144.97032, -37.845206),
+             (144.970443, -37.845692), (144.97059, -37.84603), (144.971045, -37.846681),
+             (144.971582, -37.847181), (144.973761, -37.848689), (144.97407, -37.848827),
+             (144.974474, -37.848939), (144.975762, -37.849115), (144.976116, -37.849256),
+             (144.976464, -37.84946), (144.976691, -37.849735), (144.977573, -37.851651),
+             (144.978139, -37.852352), (144.978174, -37.85257), (144.978126, -37.852693),
+             (144.977895, -37.852855), (144.977277, -37.85313), (144.977233, -37.8531),
+             (144.976878, -37.853127), (144.976516, -37.852951), (144.975739, -37.852396),
+             (144.974077, -37.850605), (144.972521, -37.849149), (144.970916, -37.847804),
+             (144.968119, -37.845706), (144.967665, -37.845478), (144.96767, -37.845433),
+             (144.967494, -37.845324), (144.967241, -37.845227), (144.967113, -37.845254),
+             (144.964557, -37.844191), (144.963322, -37.843563), (144.963185, -37.843249),
+             (144.963292, -37.842948), (144.963671, -37.842518), (144.964221, -37.842192),
+             (144.964742, -37.842069), (144.966643, -37.8421), (144.967072, -37.842041),
+             (144.967049, -37.841971), (144.967116, -37.84196), (144.967127, -37.842028),
+             (144.967511, -37.841932), (144.967533, -37.84171), (144.967406, -37.840747),
+             (144.967449, -37.840718), (144.967285, -37.83954), (144.967237, -37.839543)],
+            [(144.969141, -37.841612), (144.968913, -37.841633), (144.968761, -37.841792),
+             (144.968714, -37.842599), (144.968804, -37.842785), (144.96879, -37.842922),
+             (144.968868, -37.843013), (144.96909, -37.843108), (144.969271, -37.843068),
+             (144.969367, -37.842967), (144.96945, -37.842728), (144.969545, -37.841772),
+             (144.969423, -37.841653), (144.969141, -37.841612)],
+            [(144.964161, -37.843461), (144.964157, -37.84328), (144.964094, -37.843153),
+             (144.964012, -37.843062), (144.963853, -37.842999), (144.96369, -37.842993),
+             (144.963556, -37.84306), (144.963451, -37.843314), (144.96368, -37.843539),
+             (144.963925, -37.843632), (144.964114, -37.843595), (144.964161, -37.843461)],
+            [(144.964636, -37.843915), (144.964697, -37.843916), (144.964718, -37.843834),
+             (144.964699, -37.84362), (144.964636, -37.843527), (144.964502, -37.843555),
+             (144.964432, -37.843733), (144.964535, -37.843902), (144.964636, -37.843915)],
+        ]),
+    ],
+}
+
+
+def manual_water(stem: str, frame, to_track) -> list[dict]:
+    out = []
+    for body in MANUAL_WATER.get(stem, []):
+        rings = [round_pts(to_track(np.array([enu(lo, la, frame.lon0, frame.lat0) for lo, la in r])), 1)
+                 for r in body["rings"]]
+        out.append({"name": body["name"], "rings": rings, "source": "authored"})
+    return out
 WATER_RANGE_M = 700.0
 
 
@@ -3845,6 +3900,8 @@ def extract_surroundings(stem: str, track: Track, osm: Osm, xy) -> dict:
     }
     if stem in WATER_STEMS:
         out["water"] = extract_water(track, osm)
+    if stem in MANUAL_WATER:
+        out["water"] = out.get("water", []) + manual_water(stem, osm, _TO_TRACK)
     return out
 
 
@@ -4886,6 +4943,10 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
             if w.get("source") != "authored" and not any(same_ring(w["ring"], m["ring"]) for m in manual_w)
         ]
         new["woods"] = with_wood_leaf(stem, scanned_w + manual_w)
+        if stem in MANUAL_WATER:
+            new["water"] = [w for w in layout.get("water", []) if w.get("source") != "authored"] + manual_water(
+                stem, Frame, to_track
+            )
         new["corners"] = with_display_names(
             stem, with_manual_corners(stem, layout.get("corners", []), track.total)
         )
