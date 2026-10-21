@@ -229,6 +229,13 @@ before the cells close. Open: the Albert Park lake (R16), the Steintribüne,
 Sepang's frond canopy and Bahrain's tent roofs (Stands column), the
 banking's curves at Monza (no kit piece).
 
+**Stands column.** Rules (stand families, `STAND_FAMILY`,
+`DROP_STRUCTURES`, stands clear of the run-off), dossier pass (each audit
+page's "Stands dossier pass"), bake and survey (identical but for noise)
+done; the `c5-st-*` shots were taken and two findings fixed (the
+Steintribüne's centre block, the banks' turf); they wait for a person to
+judge them before the cells close.
+
 What the audit says across the table:
 
 - **S/F** needed a dossier edit almost everywhere: the main stands opposite
