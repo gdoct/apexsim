@@ -61,3 +61,16 @@ The map is the current layout; the route between corners is the same in game.
 - **Scrub areas are never planted**: OSM `scrub` areas (49 here) get no `bush_cluster` / `scrub_clump`; dunes read as lawn.
 - **Distance boards** missing at Hans Ernst and T9/T10 (see Boards).
 - Oddity: the YAML corner "CM.com Circuit Zandvoort" at st 712 (display None, a way named after the venue), and T9/T13 have no named corner, so marshal posts/corner signs at those come only from the 400 m rule.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: Tarzan-In Grandstands (265-335 left).
+- `STAND_COVER`: Pit Grandstand covered; Hoofdtribune open.
+- `MANUAL_LANDMARKS`: screen at 320 right; screen at 4260 right.
+
+Left, or for later columns:
+
+- The north screen is drawn at ~st 300 R; at 290 R / 25 m it was skipped ("in the pit lane or where its garages stand"), so it is 30 m further on, past the garage row.
+- Hoofdtribune open follows the dossier's "only covered stand" line; no photo of the 2020 main stand was checked. Doubtful: confirm.
+- Hospitality lounges 15-19 and the Champions Club behind 26-29 (~4150 -> 330, 50-80 m L) and the Paddock Club blocks are structures (MANUAL_STRUCTURES), not these tables; the other live screens round the lap are the Stands column's.

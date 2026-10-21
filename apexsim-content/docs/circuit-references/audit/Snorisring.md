@@ -55,3 +55,19 @@ Lageplan scale along the S/F straight: map x 250 (hairpin exit) -> 1350 (Grundig
 - **Always-roofed at 25 m depth** (`ASSUMED_ROOF_DEPTH_M`) roofs open terraces: the Steintribuene and the Zeppelinfeld banks. Needs an explicit "open" in the dossier (tri-state `covered`) or a terrace family (`banking_seats`).
 - **No temperate street style**: `CircuitStyle::for_stem` sends Snorisring to DEFAULT; STREET is tropical, treeless and paved. A `TEMPORARY_STREET`-like style: barriers at 3/5 m, concrete with fence, temperate trees, temporary pit garages.
 - **No manual corners** in osm_layout.py for circuits on public roads (no corner signs, no named marshal posts).
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: SPECK-Pumpen-Tribüne (1850-1910 right); Boxengassen-Tribüne (1990-2055 right); Milwaukee-Tribüne (95-185 right).
+- `STAND_COVER`: Steintribüne open; Boxengassen-Tribüne open.
+- `MANUAL_LANDMARKS`: screen at 1924 left; screen at 64 left.
+
+Left, or for later columns:
+
+- The screen symbols are read as giant screens (the legend does not name the camera-board icon); the same symbol stands at the Dutzendteich- Kehre (~1825 L) and the Grundig-Kehre (~420 R), left to Stands.
+- Start and finish are two lines (FINISH under the tribune centre ~2175, START ~60 by Pre-start 2): not a dossier table; the export lays one.
+- DTM-Pits (temporary garages, lounge on top) are the export's pit complex; the default style lays permanent garages (rule gap).
+- The unnamed OSM "stand" at st 1962 R (166 x 34 m, running south from 21 m off the road, perpendicular to it) and the two 187 x 84 m ones ~200 m out are the Zeppelinfeld's earth banks; unnamed, so STAND_COVER cannot open them (they are roofed by the depth rule). Needs a bank family or a cover-by-position key.
+- DTM Fan-Zone big screen (dossier) sits ~165 m out in the field (st ~2036 R): left out, not "by the straight"; Thomas Sommer and Alpha Tribüne are on the return leg (Stands column).
+- Steintribüne as a stone terrace with a central platform is a kit gap (building/stone_tribune).

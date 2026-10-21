@@ -53,3 +53,17 @@ for the underpass), not this column's concern.
 - Roof-mounted landmarks (screens on the pit building) have no height override.
 - Mapped woods beyond the 90 m groom belt get no trees unless a DEM slope rises 25 m (`forests`): Suzuka's flat-ish woods stay bare.
 - No bank family for GA areas (West Area).
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: A2 (505-620 left).
+- `MANUAL_LANDMARKS`: screen at 450 right.
+
+Left, or for later columns:
+
+- Side effect of the screen: it drops the unnamed OSM building at 492 L (264 x 8 m, 5.6 m off the road) from the dossier's structures, since drop_structures_under_landmarks matches within half its length on either side. The dress already skipped that building ("in the pit complex"), so nothing changes on screen; leave the screen out if the dossier must stay byte-identical there.
+- The three Giant Screens stand on the pit building's roof (suzuka-grandstand-pit-building.pdf, ~st 35, 125, 215 R): not placed; a ground screen there lands in the pit complex. Rule gap: roof-mounted landmark height.
+- The two signboard bridges (Signal / start lights at the First Corner end ~st 300, a second at the last-corner end ~5760) and the flag towers beside them on the pit side are crossings / furniture, not these tables (MANUAL_CROSSINGS).
+- Podium at the last-corner end of the pit building beside the Media Center: the export puts it mid-building (rule gap).
+- S (OSM, 5698 L) is the stand before V1 at the straight's start: laid; R and the Q stands are the final chicane/curve (Stands column).

@@ -36,3 +36,15 @@ From 24h-lageplan-nordschleife-2020.jpg. The green areas are "Zuschauerzonen mit
 - `poplar` sits in the NEEDLELEAF and MIXED species sets in groom.rs: 1148 poplars in the Eifel forest.
 - Geometry-driven tyre walls on a narrow-verge style (4.5 m corner minimum): 1073 modules with none mapped. A Vangrail-style circuit may want tyres only where mapped.
 - Spectator banks exist only as fan_dressing beside mapped car parks and camps. Zones the Lageplan shows without a mapped area get none.
+## S/F dossier pass
+
+In the tables:
+
+
+Left, or for later columns:
+
+- Station 0 is at T13, not on the Doettinger Hoehe: the layout's T13 corner runs 20638-74 with station 0 inside it, the Hohenrain-Schikane is at 20471 and the Sabine-Schmitz-Kurve at 165. The Doettinger Hoehe gantry (17973) and the toll lanes (19219 R) are 1.5-2.8 km before the line and are not S/F. The kept T13 pit lane runs 20638-75 on the right, 8 m from the centerline. Nothing else stands within 150 m of the line apart from the GP circuit's workshops (20640-20670 L, 38-120 m off).
+- The GP circuit beside T13, from the five OSM buildings both dossiers share (the two "Werkstaetten" and three unnamed blocks; a rigid fit with zero residual): the GP's Coca-Cola corner and the start of its pit straight (GP 4550-4630) run 60-130 m to the LEFT of the Nordschleife from 20600 to 160, and the NGK-Schikane (GP 4350-4440) 70-90 m to the left at 280-400. So anything between the two roads at T13 is on this lap's left, not beside the T13 pit lane on the right as the audit guessed.
+- T13 grandstand: not placed. No map in maps/Mordschleife places it (the 2020 Lageplan draws stands only on the GP, schematically), and the dossier says only "at the junction with the GP circuit". If it overlooks the GP's final chicane (the Nuerburgerring audit's 4400-4600 L), it stands between the two roads, on this lap's left, with its back to this lap. Needs the trace page or an aerial before an entry.
+- Media tower (webcam): position unconfirmed in the dossier; not placed.
+- The T13 pitstop area's two fuel pumps and toilet block need the `building/fuel_station_canopy` kit gap; nothing in today's kit marks the lane as a pit stop area.

@@ -648,6 +648,71 @@
    ]
   },
   {
+   "name": "A2",
+   "source": "seating map",
+   "station_m": 563.6,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 114.8,
+   "depth_m": 15.0,
+   "covered": false,
+   "yaw_rad": -0.8751,
+   "centre": [
+    380.58,
+    -418.78
+   ],
+   "front": [
+    [
+     343.21,
+     -373.78
+    ],
+    [
+     351.17,
+     -383.4
+    ],
+    [
+     357.57,
+     -391.12
+    ],
+    [
+     363.94,
+     -398.83
+    ],
+    [
+     370.33,
+     -406.56
+    ],
+    [
+     376.69,
+     -414.24
+    ],
+    [
+     384.65,
+     -423.82
+    ],
+    [
+     391.05,
+     -431.5
+    ],
+    [
+     397.44,
+     -439.13
+    ],
+    [
+     403.85,
+     -446.75
+    ],
+    [
+     410.27,
+     -454.32
+    ],
+    [
+     416.76,
+     -461.86
+    ]
+   ]
+  },
+  {
    "name": "B2",
    "station_m": 819.0,
    "side": "left",
@@ -1610,22 +1675,6 @@
   },
   {
    "name": null,
-   "station_m": 491.8,
-   "side": "left",
-   "offset_m": 5.6,
-   "length_m": 263.9,
-   "depth_m": 8.2,
-   "yaw_rad": 2.2646,
-   "centre": [
-    330.42,
-    -367.09
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 1788
-  },
-  {
-   "name": null,
    "station_m": 1201.1,
    "side": "left",
    "offset_m": 88.3,
@@ -1995,6 +2044,17 @@
  ],
  "crossings": [],
  "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Main straight screen",
+   "source": "authored",
+   "station_m": 450,
+   "side": "right",
+   "centre": [
+    267.22,
+    -365.95
+   ]
+  },
   {
    "kind": "big_wheel",
    "name": "サーキットホイール",

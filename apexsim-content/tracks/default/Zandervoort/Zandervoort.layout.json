@@ -564,7 +564,8 @@
      -21.81,
      -8.18
     ]
-   ]
+   ],
+   "roof": "open"
   },
   {
    "name": "Pit Grandstand",
@@ -648,6 +649,56 @@
     [
      68.24,
      220.4
+    ]
+   ],
+   "roof": "covered"
+  },
+  {
+   "name": "Tarzan-In Grandstands",
+   "source": "seating map",
+   "station_m": 302.4,
+   "side": "left",
+   "offset_m": 10.0,
+   "length_m": 69.6,
+   "depth_m": 14.0,
+   "covered": false,
+   "yaw_rad": 1.2017,
+   "centre": [
+    93.58,
+    285.63
+   ],
+   "front": [
+    [
+     80.92,
+     253.07
+    ],
+    [
+     84.54,
+     262.38
+    ],
+    [
+     88.14,
+     271.67
+    ],
+    [
+     91.75,
+     281.0
+    ],
+    [
+     95.43,
+     290.43
+    ],
+    [
+     99.14,
+     299.75
+    ],
+    [
+     102.71,
+     308.82
+    ],
+    [
+     106.02,
+     317.95
     ]
    ]
   },
@@ -1347,7 +1398,30 @@
   }
  ],
  "crossings": [],
- "landmarks": [],
+ "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Pit straight north screen",
+   "source": "authored",
+   "station_m": 320,
+   "side": "right",
+   "centre": [
+    150.67,
+    284.53
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit straight south screen",
+   "source": "authored",
+   "station_m": 4260,
+   "side": "right",
+   "centre": [
+    11.47,
+    -63.44
+   ]
+  }
+ ],
  "woods": [
   {
    "leaf": "mixed",

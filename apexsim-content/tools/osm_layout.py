@@ -187,17 +187,33 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # https://grandprixguides.com/circuit/netherlands): the Arena and
     # Hairpin stands are on the infield side, Eastside faces Arena-In
     # across the track, Ben Pon looks at the exit of the banked final
-    # corner from the start of the straight.  Nothing is laid round
-    # Tarzan (turn 1): its run-off and gravel reach 35 m from the road on
-    # the outside, and a stand laid at the usual gap sat in the trap.
+    # corner from the start of the straight.  Nothing is laid in Tarzan
+    # (turn 1) itself: its run-off and gravel reach 35 m from the road on
+    # the outside, and a stand laid at the usual gap sat in the trap; the
+    # Tarzan-In stand below ends at the turn-in.
     # Spa's own grandstand map (https://www.spa-francorchamps.be/) puts
-    # seats at Les Combes, Bruxelles, Pouhon and the Bus Stop that OSM has
-    # no outline for; each sits on the outside of its bend.
+    # seats at Les Combes, Bruxelles and Pouhon that OSM has no outline
+    # for; each sits on the outside of its bend. The Bus Stop's are the
+    # Gold 6 and Gold 11 stands below, on the left after the chicane.
     "SpaFrankenchamps": [
         dict(name="Tribune Les Combes", from_m=2320, to_m=2470, side="outside", depth_m=14),
         dict(name="Tribune Bruxelles", from_m=2990, to_m=3140, side="outside", depth_m=14),
         dict(name="Tribune Pouhon", from_m=3890, to_m=4060, side="outside", depth_m=14),
-        dict(name="Tribune Bus Stop", from_m=6650, to_m=6820, side="outside", depth_m=16),
+        # The pit straight's left (outside) stands that OSM has no outline for,
+        # from the 2026 Belgian GP wayfinding map (2026-belgian-gp-wayfinding.pdf;
+        # north points left on it), scaled from OSM's Tribune F1 (= Gold 1,
+        # front st 13-103 L) which the map draws just after the chequered flag.
+        # The pit lane and building are on the right; every Gold stand is
+        # covered (dossier "Grandstands").
+        # Gold 9bis and Gold 9: after Gold 1, toward La Source.
+        dict(name="Gold 9bis", from_m=100, to_m=160, side="left", depth_m=14, covered=True),
+        dict(name="Gold 9", from_m=165, to_m=235, side="left", depth_m=14, covered=True),
+        # Gold 6 and Gold 11: between the chicane exit and the line, PMR
+        # Chicane (wheelchair platform) between them; Gold 6 overlooks the
+        # chicane and the pit entry (dossier). They replace "Tribune Bus Stop",
+        # which the earlier table put on the right, on the pit-entry side.
+        dict(name="Gold 6", from_m=6810, to_m=6865, side="left", depth_m=14, covered=True),
+        dict(name="Gold 11", from_m=6885, to_m=6945, side="left", depth_m=14, covered=True),
     ],
     # The Automobile Club de l'Ouest numbers its tribunes; those along the
     # pit straight are in OSM, the ones out on the public-road section are
@@ -215,6 +231,13 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
         dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
+        # 26 Tarzan-In Grandstands: left (west) of the straight's north end,
+        # right beside the road before the braking zone, not in Tarzan's
+        # outside run-off (2026-dutch-gp-wayfinding-positive.pdf; dossier
+        # "facing T1 braking zone"). Span scaled on the map from the chequered
+        # flag (st 0) to the Tarzan turn-in (~348): it starts just after the
+        # Pit Grandstand 27 ends.
+        dict(name="Tarzan-In Grandstands", from_m=265, to_m=335, side="left", depth_m=14),
     ],
     # COTA's own grandstand map (circuitoftheamericas.com/ticket/grandstands-
     # and-reserved-seating-f1/) and third-party guides (oversteer48.com/cota-
@@ -289,6 +312,13 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # before the west straight (4055.9), astride that unnamed building.
     "Sudoku": [
         dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
+        # A2: the stand at the end of the main straight into the First Curve,
+        # past A1 (OSM, front st 364-485 L), on the left like it
+        # (suzuka-official-seat-map.png; dossier "A1/A2: left side, end of the
+        # main straight to T1 entry"). OSM has no outline for it. The seat map
+        # is "for illustration purposes", so the span is scaled from A1's
+        # drawn length (good to ~30 m).
+        dict(name="A2", from_m=505, to_m=620, side="left", depth_m=15, covered=False),
     ],
     # Sepang's own OSM building=grandstand way for the Main Grandstand is
     # dropped by front_edge_is_broken() (see its docstring): it traces the
@@ -598,6 +628,28 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Hamilton Straight B", from_m=100, to_m=190, side="left", depth_m=12, gap_m=14, covered=False),
         dict(name="Abbey A", from_m=200, to_m=272, side="left", depth_m=14, gap_m=24, covered=False),
     ],
+    "Snorisring": [
+        # The Norisring's grandstands besides the Steintribüne are temporary
+        # scaffold stands put up for the race weekend; none is in OSM. Placed
+        # from the official 2026 Lageplan (norisring-lageplan-2026.pdf, V2-ORGA-
+        # 260519), scaled along the straight from the Steintribüne's OSM front
+        # (st 1957 at its west end, 44 at its east end; ~0.66 m per map px at
+        # 2000 px width), which also puts Pre-start 1 at the pit entry (1929)
+        # and Pre-start 2 at the pit exit (70). All three are right of the
+        # straight (south, the Zeppelinfeld side), opposite the Steintribüne.
+        # SPECK-Pumpen-Tribüne: the small stand just after the T8 kink, before
+        # Pre-start 1 and the pit entry.
+        dict(name="SPECK-Pumpen-Tribüne", from_m=1850, to_m=1910, side="right", depth_m=10, gap_m=6, covered=False),
+        # Boxengassen-Tribüne: four open scaffold blocks behind the wall over
+        # the first grid boxes (photo boxengassentribuene-draufsicht-2022.jpg,
+        # ~18 rows, grass bank of the Zeppelinfeld's west wall beside it), east
+        # of that bank (OSM's west-wall outline ends at st ~1986). gap_m 14
+        # puts its front 22 m right, behind the pit lane (nodes at -14 to -15 m).
+        dict(name="Boxengassen-Tribüne", from_m=1990, to_m=2055, side="right", depth_m=18, gap_m=14, covered=False),
+        # Milwaukee-Tribüne: after START, between the Parc Ferme lane (pit exit)
+        # and Hans-Kalb-Straße.
+        dict(name="Milwaukee-Tribüne", from_m=95, to_m=185, side="right", depth_m=12, gap_m=6, covered=False),
+    ],
 }
 
 # A stand's roof by name, from the circuit's own seating map, for the OSM
@@ -690,6 +742,26 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # "Buildings": "some roofs modelled on a lotus leaf"); roofed today
         # only because OSM's box is 140 m deep (the whole complex behind it).
         "A看台": "covered",
+    },
+    "Snorisring": {
+        # The Steintribüne is the 1930s open stone terrace of the Zeppelinfeld
+        # (dossier "Buildings": no roof, colonnades gone since 1967); its 35.7 m
+        # OSM depth would otherwise roof it.
+        "Steintribüne": "open",
+        # Open scaffold bleachers (boxengassentribuene-draufsicht-2022.jpg).
+        "Boxengassen-Tribüne": "open",
+    },
+    "SpaFrankenchamps": {
+        # Gold 1, OSM's "Tribune F1": covered (dossier "Grandstands": Gold 1
+        # covered; OSM carries no roof tag).
+        "Tribune F1": "covered",
+    },
+    "Zandervoort": {
+        # 27 Pit Grandstand is the circuit's only covered stand (dossier
+        # "Buildings"); the Main Grandstand 28 (OSM Hoofdtribune, 28.4 m deep)
+        # is therefore open, which the 25 m depth rule would otherwise roof.
+        "Pit Grandstand": "covered",
+        "Hoofdtribune": "open",
     },
 }
 
@@ -1027,6 +1099,29 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # garage row (boxes 3591-38 L), whose depth reaches about 36 m from the
         # centerline here.
         dict(kind="tower", name="Race-Tower", station_m=3625.0, side="left", offset_m=38.0),
+    ],
+    "Snorisring": [
+        # Giant screens: the Lageplan draws a screen board at each end of the
+        # Steintribüne, at the road's north edge, facing the straight.
+        dict(kind="screen", name="Steintribüne west screen", station_m=1924, side="left", offset_m=10),
+        dict(kind="screen", name="Steintribüne east screen", station_m=64, side="left", offset_m=10),
+    ],
+    "SpaFrankenchamps": [
+        # The wayfinding map's giant screen at the chicane exit, outside (left),
+        # past Gold 6.
+        dict(kind="screen", name="Chicane exit screen", station_m=6790, side="left", offset_m=10),
+    ],
+    "Sudoku": [
+        # Circuit-vision screen on the inside of the main straight opposite
+        # A1/A2, beyond the pit lane (seat map, yellow bar).
+        dict(kind="screen", name="Main straight screen", station_m=450, side="right", offset_m=30),
+    ],
+    "Zandervoort": [
+        # Live screens inside the pit straight (wayfinding map): one at the
+        # north end of the paddock-club row opposite Tarzan-In 26, past the
+        # end of the garages, and one at the south end by the media centre.
+        dict(kind="screen", name="Pit straight north screen", station_m=320, side="right", offset_m=30),
+        dict(kind="screen", name="Pit straight south screen", station_m=4260, side="right", offset_m=30),
     ],
 }
 

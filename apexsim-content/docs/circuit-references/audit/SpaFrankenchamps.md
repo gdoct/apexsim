@@ -60,3 +60,17 @@ Sides are in driving direction.
 - GA banks (Bronze 1-6, Pouhon hill) need a bank family / spectator-area entry (same gap as Zandervoort).
 - "Stands on the run-off" drops Salons de l'Eau Rouge at the foot of Eau Rouge (st 1047 R, 26 m out): check `runoff_reach` there; the building is real and stands where the dossier puts it.
 - Gold stands (covered in reality) come out unroofed because OSM carries no covered tag: needs a dossier `covered` override per OSM stand (MANUAL table keyed on a name).
+## S/F dossier pass
+
+In the tables:
+
+- Removed: Tribune Bus Stop.
+- `MANUAL_STANDS`: Gold 9bis (100-160 left covered); Gold 9 (165-235 left covered); Gold 6 (6810-6865 left covered); Gold 11 (6885-6945 left covered).
+- `STAND_COVER`: Tribune F1 covered.
+- `MANUAL_LANDMARKS`: screen at 6790 left.
+
+Left, or for later columns:
+
+- The map's screens by the straight itself (two black posts on the left edge between Gold 1 and Gold 9, ~95 and ~240 L, and two labels in the paddock) are left out: a screen on the left edge would stand between the road and the stands, and the paddock ones sit in the pit complex. Trap: a screen at 245 L dropped the OSM pit building row "Stand F1" (drop_structures_under_landmarks takes any authored landmark within half the 312 m building's length of its centre, either side of the road). Harmless for the dress (the building is left to the pit complex) but it changes the dossier.
+- Gold 7 / 7bis / 7ter / 8 round La Source (~340-440 L) are turn 1, left to the Stands column; the Bus Stop loses its seating-map stand.
+- Map stand sizes are icons, not to scale: spans are good to ~30 m.
