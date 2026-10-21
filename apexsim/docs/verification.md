@@ -310,20 +310,6 @@ in the `flags` component and the radar's RIGHT marker at the start.
   until it is served; PEN +5S in the standings and the results.
   `v-r13-phase` runs with penalties on, but the stand-in earned none.
 
-### R14. Start/finish dressing, every circuit (C5)
-
-`c5-sf-<stem>` (`run_checks.py "c5-sf-*"`): four shots of each circuit's
-start/finish straight, from above the line, across at the stands from the
-pit wall, across at the pit side from the stands, and back up the straight.
-Each is judged against its audit page's "S/F dossier pass"
-(`apexsim-content/docs/circuit-references/audit/<Stem>.md`) and the maps
-it names: the stands on the side and over the span the maps give them,
-roofed or open as listed, the screens standing clear of the garages and
-facing the stands, nothing in the pit lane. A circuit's S/F cell in
-[track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)
-closes when its shots pass. The Nordschleife has no run: its start/finish
-needs the trace page first.
-
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

@@ -121,46 +121,47 @@ are not repeated per cell. The order of columns is the order of work.
 
 | Stem | S/F | Landmark | Stands | Trees | Barriers | Boards | People |
 |---|---|---|---|---|---|---|---|
-| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | dossier | dossier | dossier | dossier | rule | dossier | kit |
-| [Armadillos](circuit-references/audit/Armadillos.md) | dossier | rule | dossier | rule | ok | ok | kit |
+| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | ok | dossier | dossier | dossier | rule | dossier | kit |
+| [Armadillos](circuit-references/audit/Armadillos.md) | ok | rule | dossier | rule | ok | ok | kit |
 | [Bahrainless](circuit-references/audit/Bahrainless.md) | kit | kit | ok | ok | ok | dossier | kit |
-| [Barcelunatic](circuit-references/audit/Barcelunatic.md) | dossier | dossier | dossier | dossier | ok | dossier | kit |
-| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | dossier | dossier | dossier | dossier | rule | ok | kit |
-| [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
+| [Barcelunatic](circuit-references/audit/Barcelunatic.md) | ok | dossier | dossier | dossier | ok | dossier | kit |
+| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | dossier | dossier | dossier | rule | ok | kit |
+| [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | ok | kit | dossier | dossier | rule | dossier | kit |
 | [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | dossier | dossier | rule | dossier | kit |
-| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | dossier | dossier | dossier | dossier | rule | ok | kit |
-| [Hungoverring](circuit-references/audit/Hungoverring.md) | dossier | dossier | dossier | ok | dossier | rule | kit |
-| [Interlaggos](circuit-references/audit/Interlaggos.md) | dossier | - | dossier | ok | ok | ok | kit |
-| [Lemons](circuit-references/audit/Lemons.md) | dossier | ok | dossier | rule | ok | rule | kit |
+| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | dossier | dossier | dossier | rule | ok | kit |
+| [Hungoverring](circuit-references/audit/Hungoverring.md) | ok | dossier | dossier | ok | dossier | rule | kit |
+| [Interlaggos](circuit-references/audit/Interlaggos.md) | ok | - | dossier | ok | ok | ok | kit |
+| [Lemons](circuit-references/audit/Lemons.md) | ok | ok | dossier | rule | ok | rule | kit |
 | [MandarinaBay](circuit-references/audit/MandarinaBay.md) | rule | ok | dossier | ok | rule | rule | kit |
-| [Monzarella](circuit-references/audit/Monzarella.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
+| [Monzarella](circuit-references/audit/Monzarella.md) | ok | kit | dossier | dossier | rule | dossier | kit |
 | [Mordschleife](circuit-references/audit/Mordschleife.md) | dossier | ok | dossier | rule | rule | dossier | kit |
-| [Nuerburgerring](circuit-references/audit/Nuerburgerring.md) | dossier | dossier | dossier | dossier | rule | dossier | kit |
-| [Oskarsleben](circuit-references/audit/Oskarsleben.md) | dossier | - | rule | rule | rule | dossier | kit |
-| [RedPullRing](circuit-references/audit/RedPullRing.md) | dossier | kit | dossier | ok | ok | dossier | kit |
-| [Shanghaied](circuit-references/audit/Shanghaied.md) | dossier | kit | dossier | dossier | ok | dossier | kit |
-| [Shebang](circuit-references/audit/Shebang.md) | dossier | kit | dossier | dossier | ok | ok | kit |
-| [Shiverstone](circuit-references/audit/Shiverstone.md) | dossier | kit | dossier | rule | ok | dossier | kit |
-| [Snorisring](circuit-references/audit/Snorisring.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
-| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | dossier | dossier | dossier | dossier | ok | ok | kit |
-| [Sudoku](circuit-references/audit/Sudoku.md) | dossier | ok | rule | rule | ok | ok | kit |
-| [Zandervoort](circuit-references/audit/Zandervoort.md) | dossier | dossier | dossier | rule | dossier | rule | kit |
+| [Nuerburgerring](circuit-references/audit/Nuerburgerring.md) | ok | dossier | dossier | dossier | rule | dossier | kit |
+| [Oskarsleben](circuit-references/audit/Oskarsleben.md) | ok | - | rule | rule | rule | dossier | kit |
+| [RedPullRing](circuit-references/audit/RedPullRing.md) | ok | kit | dossier | ok | ok | dossier | kit |
+| [Shanghaied](circuit-references/audit/Shanghaied.md) | ok | kit | dossier | dossier | ok | dossier | kit |
+| [Shebang](circuit-references/audit/Shebang.md) | ok | kit | dossier | dossier | ok | ok | kit |
+| [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | kit | dossier | rule | ok | dossier | kit |
+| [Snorisring](circuit-references/audit/Snorisring.md) | ok | kit | dossier | dossier | rule | dossier | kit |
+| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | dossier | dossier | dossier | ok | ok | kit |
+| [Sudoku](circuit-references/audit/Sudoku.md) | ok | ok | rule | rule | ok | ok | kit |
+| [Zandervoort](circuit-references/audit/Zandervoort.md) | ok | dossier | dossier | rule | dossier | rule | kit |
 
 Endianapolis, HermanosRodriQueso, MoscowMule and YasMarinara have no
 layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
 says why) and are not dressed. They are outside this work, and removing
 them from the calendar is the owner's option.
 
-**S/F column.** The dossier pass is in for every circuit but the
-Nordschleife (its start/finish needs the trace page first): each audit
-page's "S/F dossier pass" lists what went into the tables and what is left,
-and the scenes are re-dressed. The cells stay open until the screenshot runs
-(`c5-sf-<stem>`, [verification.md](../../apexsim/docs/verification.md)) are
-judged.
+**S/F column.** Done for every circuit but four: the dossier pass (each
+audit page's "S/F dossier pass" lists what went in and what is left) and the
+`c5-sf-*` shots, judged 2026-10-21. Open: Bahrainless (the tent-fabric
+roofs, kit gap 4), Gnocchi (the six-storey stand's family, R13),
+MandarinaBay (the screens on the pit building's face, R20) and the
+Nordschleife, whose start/finish needs the trace page. The multi-storey pit
+buildings (kit gap 2, with R12 and R20) stay with their kit row.
 
 What the audit says across the table:
 
-- **S/F** needs a dossier edit almost everywhere: the main stands opposite
+- **S/F** needed a dossier edit almost everywhere: the main stands opposite
   the pits misplaced, missing or open where the real ones are covered,
   and no screens. Ten pit buildings are multi-storey where the bake lays
   one row of garages (kit gap 2).

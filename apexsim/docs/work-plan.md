@@ -254,18 +254,22 @@ tracks: S/F, landmarks, stands, trees, barriers, boards, people last.
 [track-improvements.md](../../apexsim-content/docs/track-improvements.md),
 each track's positions from the maps in
 `apexsim-content/docs/circuit-references/audit/<Stem>.md`
-(`render_maps.py` renders the PDF maps). The S/F column's rules and
-dossier pass are in (a stand's roof by name or station, `STAND_COVER`;
-stands beside the pit lane stepped back off it unless over the garage
-row; each circuit's stands, roofs and screens from its maps, listed on its
-audit page) and every scene is re-dressed. Next: the `c5-sf-*` screenshot
-runs judged (verification.md R14), which close the S/F cells; the
-Nordschleife's start/finish from the trace page; R20/R12 and kit gap 2
-(the pit building's upper storey, roof screens and podium) when the shots
-show the single row; R21 (Albert Park's and Le Mans' short pit lanes) with
-the pit survey. Then Landmark, Stands, Trees, Barriers (R6 and R7 with the
-AI survey), Boards (R10, a `MANUAL_CORNERS` table), People. R15 (fallback
-floodlights at day venues) needs the owner's call before it is touched.
+(`render_maps.py` renders the PDF maps). The S/F column is done but for
+four circuits (track-improvements.md, "S/F column"): its rules (a stand's
+roof by name or station, `STAND_COVER`; stands beside the pit lane
+stepped back off it unless over the garage row), each circuit's stands,
+roofs and screens from its maps (listed on its audit page), and the
+`c5-sf-*` runs in `scripts/verify/runs.yml`, which shoot any circuit's
+straight again after a later edit. Next, the Landmark column: its rules
+first (R4 a road crossing as an overpass, R5 a building across the road,
+R11 a tower landmark beyond `control_tower`), then each circuit's
+landmarks from its audit page, then the kit gaps they need. Later: the
+Nordschleife's start/finish from the trace page; kit gap 2 with R12/R20
+(the pit building's upper storey, roof screens, podium); R21 (the short
+pit lanes) with the pit survey; then Stands, Trees, Barriers (R6 and R7
+with the AI survey), Boards (R10, a `MANUAL_CORNERS` table), People. R15
+(fallback floodlights at day venues) needs the owner's call before it is
+touched.
 **Watch out:** hand-placed props are discarded on the next dress; the
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a
