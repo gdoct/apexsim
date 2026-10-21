@@ -107,3 +107,13 @@ Left, or for later columns:
 
 - A's partial roof.
 - The RACC chicane in the centerline (follow-ups).
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `MEDITERRANEAN` style (umbrella pines over broadleaf and scrub). `MANUAL_WOODS`: pine belts outside T3/T4, behind the T6-T8 Pelouse banks, outside T9 and inside the stadium loop.
+
+Left:
+
+- "Behind the stadium" is car parks and roads in the layout: no belt there.

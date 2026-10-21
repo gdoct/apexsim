@@ -117,3 +117,9 @@ In the tables:
 Left, or for later columns:
 
 - The main-straight bleachers are on no map.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `PRAIRIE` style: broadleaf clumps in Sakhir's spacing over open prairie, no conifers or poplars.

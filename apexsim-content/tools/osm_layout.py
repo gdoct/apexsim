@@ -1478,6 +1478,27 @@ WOOD_LEAF: dict[str, dict[str, str]] = {
 WOOD_LEAVES = ("broadleaved", "needleleaved", "mixed")
 
 
+def manual_woods(stem: str, track: "Track") -> list[dict]:
+    """The `MANUAL_WOODS` belts as dossier woods, marked authored so a
+    `--manual-only` re-apply rebuilds them."""
+    out = []
+    for spec in MANUAL_WOODS.get(stem, []):
+        side = spec["side"]
+        if side in ("outside", "inside"):
+            side = track.turn_side(spec["from_m"], spec["to_m"], side)
+        near = float(spec.get("near_m", 15.0))
+        far = near + float(spec.get("depth_m", 95.0))
+        near_run = track.edge_run(spec["from_m"], spec["to_m"], side, near)
+        far_run = track.edge_run(spec["from_m"], spec["to_m"], side, far)
+        ring = np.vstack([near_run, far_run[::-1]])
+        out.append({"leaf": spec.get("leaf", "mixed"), "ring": round_pts(ring, 1), "source": "authored"})
+    return out
+
+
+def same_ring(a: list, b: list) -> bool:
+    return len(a) == len(b) and all(math.dist(p, q) <= 1.0 for p, q in zip(a, b))
+
+
 def with_wood_leaf(stem: str, woods: list[dict]) -> list[dict]:
     table = WOOD_LEAF.get(stem, {})
     if not table:
@@ -2117,6 +2138,159 @@ MANUAL_WOODS: dict[str, list[dict]] = {
              near_m=15, depth_m=95),
         dict(from_m=4700, to_m=8950, side="right", leaf="needleleaved",
              near_m=15, depth_m=95),
+    ],
+    "ChillyVilleneuve": [
+        # T3-T7 (690-1380), outside (left, the island's west side): Parc Jean-Drapeau park
+        # trees (dossier "Trees / parkland: lining most of the lap"; audit Trees cell). The
+        # inside (right) is already OSM woods round the Plage lake, Grandstands 32/33 are right.
+        dict(from_m=690, to_m=1380, side="left", near_m=20, depth_m=60, leaf="broadleaved"),
+        # T7 to the Pont de la Concorde (1400-1880), outside: the same park belt; ends 40 m
+        # before the bridge crossing at 1920 and short of Grandstand 31 (2026 L).
+        dict(from_m=1400, to_m=1880, side="left", near_m=20, depth_m=60, leaf="broadleaved"),
+        # T9 to the hairpin back straight, left: after the GA Turn 9 bank (2130-2200 L),
+        # before the Pavillon de la Tunisie (2457 L) and Grandstand 21 (2540+ L).
+        dict(from_m=2215, to_m=2385, side="left", near_m=20, depth_m=60, leaf="broadleaved"),
+        # The same straight, right (infield): a narrow belt in front of the infield car park
+        # that starts ~54 m out (layout parking area).
+        dict(from_m=2100, to_m=2370, side="right", near_m=20, depth_m=30, leaf="broadleaved"),
+    ],
+    "Hockeyheimring": [
+        # Outside T2 (Bernie-Ecclestone 770-905 R) and T3-T4: the Hardtwald where the Jim Clark
+        # Memorial stands "in the woods" (dossier "Jim Clark Memorial"; hori-streckenplan-2024).
+        dict(from_m=640, to_m=1046, side="left", near_m=20, depth_m=95, leaf="needleleaved"),
+        # Parabolika 1046-2040, outside (north): the Hardtwald, "dense pine and mixed woods"
+        # round the Parabolika and the hairpin (dossier "Forest (Hardtwald)"); audit Trees cell.
+        dict(from_m=1046, to_m=2040, side="left", near_m=20, depth_m=95, leaf="needleleaved"),
+        # Round the outside of the Spitzkehre (T6, 2040-2125), stopping before the 408 m OSM
+        # roof that runs beside the return leg from ~2200 L.
+        dict(from_m=2040, to_m=2185, side="outside", near_m=20, depth_m=95, leaf="needleleaved"),
+        # Before T2, inside (right): Hardtwald behind the Medical Center (559 R); the inside of
+        # T2 itself folds back onto the lap and is left out.
+        dict(from_m=620, to_m=740, side="right", near_m=20, depth_m=95, leaf="needleleaved"),
+        # Parabolika inside (right) from the pond (980 R) until the return leg closes in.
+        dict(from_m=1000, to_m=1290, side="right", near_m=20, depth_m=95, leaf="needleleaved"),
+        # Parabolika inside, the strip between it and the T6-T7 return leg (45-100 m apart):
+        # a shallow belt, the groom keeps a belt's distance from the other leg on its own.
+        dict(from_m=1290, to_m=1800, side="right", near_m=20, depth_m=25, leaf="needleleaved"),
+        # T7-T10 return, east/outside of the Motodrom (left): T7 to T8.
+        dict(from_m=2620, to_m=2745, side="left", near_m=20, depth_m=95, leaf="needleleaved"),
+        # T8 is a left-hander: the inside is shallow before the lap folds back.
+        dict(from_m=2745, to_m=2880, side="left", near_m=20, depth_m=35, leaf="needleleaved"),
+        # T9-T10 and the run to the Mobil 1 Kurve, outside the Motodrom; ends before the shed at
+        # 3363 L.
+        dict(from_m=2880, to_m=3330, side="left", near_m=20, depth_m=95, leaf="needleleaved"),
+    ],
+    "Gnocchi": [
+        # T17-T18 run-in to the main straight, outside (left): the row of columnar cypresses
+        # behind the catch fence in tilke-sochi-09.jpg (taken from T18's exit kerb looking down
+        # the straight, the main grandstand left, the pit building right). Only where the
+        # service road behind the fence (22-46 m out before 5560) has moved back to ~46 m;
+        # ends before the building at 5705 L.
+        dict(from_m=5565, to_m=5695, side="left", near_m=20, depth_m=15, leaf="needleleaved"),
+        # T1 to T2 straight towards the park, both sides: the same cypress rows behind the
+        # fences (photo; audit Trees cell); between the T1 (362-479 L) and T2 (1127-1245 L)
+        # grandstands.
+        dict(from_m=490, to_m=1110, side="left", near_m=20, depth_m=15, leaf="needleleaved"),
+        dict(from_m=630, to_m=1150, side="right", near_m=20, depth_m=15, leaf="needleleaved"),
+        # Olympic Park roads: planted rows along the park roads (audit Trees cell), a shallow
+        # 20-35 m strip so the groom lays a row, not a wood. T3 exit to T4, outside (right),
+        # after the T3 Grandstand (1388-1714 R).
+        dict(from_m=1725, to_m=1975, side="right", near_m=20, depth_m=15, leaf="broadleaved"),
+        # T4 to T5, left, between the T4 (1988-2122 L) and T5 (2417-2574 L) grandstands.
+        dict(from_m=2135, to_m=2410, side="left", near_m=20, depth_m=15, leaf="broadleaved"),
+        # T6-T7, right, between the two Ice Dome GA banks (2601-2777 and 2962-3182 R).
+        dict(from_m=2790, to_m=2950, side="right", near_m=20, depth_m=15, leaf="broadleaved"),
+        # The run north past the Olympic Village to T13, right, before the T13 grandstand.
+        dict(from_m=4400, to_m=4690, side="right", near_m=20, depth_m=15, leaf="broadleaved"),
+    ],
+    "Shebang": [
+        # Top run T3-T4 (1150-1560), outside (north): planted palms between the track and the
+        # SIC Motorsport Park / car park O road on gpd-grandstand-map-2026 (dossier "Palm trees":
+        # 5000+ planted palms); clear of K2 (900-1127 L).
+        dict(from_m=1150, to_m=1560, side="left", near_m=25, depth_m=75, leaf="broadleaved"),
+        # T5-T6 descent, outside (east), behind the G1/G2 hillstands (10-21 m out): the darker
+        # green G belts on the gpd map. The groom keeps 40 m from the hillstands, so trees
+        # stand on the slope behind them, ~60-100 m out.
+        dict(from_m=1600, to_m=1950, side="left", near_m=25, depth_m=75, leaf="broadleaved"),
+        # Behind G3 and on toward the east end, before the F grandstand (2410 L): Bay 14 side.
+        dict(from_m=2000, to_m=2350, side="left", near_m=25, depth_m=75, leaf="broadleaved"),
+        # South, T12-T13: between the building at 3480-3530 L and the B hillstand (3720 L),
+        # behind C1 (the C1/Bay 4 green on the gpd map).
+        dict(from_m=3540, to_m=3710, side="left", near_m=25, depth_m=75, leaf="broadleaved"),
+        # T14 west hairpin, outside (west): the belt between the hairpin and the Bay 3 lake
+        # (lake ~200 m out, layout water).
+        dict(from_m=4080, to_m=4320, side="left", near_m=25, depth_m=75, leaf="broadleaved"),
+    ],
+    "Snorisring": [
+        # South and east of the Grundig-Kehre, between the hairpin and the P5/Hans-Kalb-Strasse
+        # car parks: the dense broadleaf block on norisring-lageplan-2026 (right edge); audit "Woods".
+        dict(from_m=260, to_m=500, side="right", near_m=25, depth_m=95, leaf="broadleaved"),
+        # Return leg, between the track and the railway, Alpha-Tribuene (560-660) to THOMAS SOMMER
+        # (860-940): the Volkspark belt along the top of the Lageplan.
+        dict(from_m=680, to_m=830, side="right", near_m=20, depth_m=45, leaf="broadleaved"),
+        # Return leg past the S-Kurve to the DEKRA tower: the same railway belt (Lageplan),
+        # joining OSM's 38,823 m2 wood there; stops before the buildings at 1480-1550 R.
+        dict(from_m=980, to_m=1440, side="right", near_m=20, depth_m=45, leaf="broadleaved"),
+        # Outside the Dutzendteich-Kehre, the trees on the lake's north-east shore toward
+        # Herzogstrasse (Lageplan top left); between the OSM residential block at 1640-1660
+        # and the water at 1710+.
+        dict(from_m=1665, to_m=1705, side="right", near_m=25, depth_m=35, leaf="broadleaved"),
+    ],
+    "Shanghaied": [
+        # T4-T6 north-west loop, outside (left), between Grass Stand C (1145-1548 L, to ~41 m)
+        # and the perimeter access road (~100-115 m out): ornamental broadleaf rows along the
+        # access road (audit Trees cell; road from the layout's `roads`).
+        dict(from_m=1250, to_m=1900, side="left", near_m=50, depth_m=45, leaf="broadleaved"),
+        # Back straight from T13's end (after the stand E blocks, 3250-3470 L) to the building
+        # at 3842 L: rows on the bank of the water channel 115-180 m out (OSM waterway=canal
+        # ways 156972445 ... 156972415, fetched 2026-10-22).
+        dict(from_m=3500, to_m=3800, side="left", near_m=55, depth_m=40, leaf="broadleaved"),
+    ],
+    "Barcelunatic": [
+        # T3 (1050-1310) and on to T4, outside (left, the west bank): Aleppo/stone pine belt on
+        # the bank (audit Trees cell: "pine belts on the banks round T3-T9"); after Tribuna A
+        # (1006-1052 L), inside the perimeter road (85-100 m out).
+        dict(from_m=1070, to_m=1640, side="left", near_m=22, depth_m=55, leaf="needleleaved"),
+        # T4 (1660-1890), outside (the north-west bank, toward camping/gate 6); depth kept off
+        # the car park and the stand 86 m out at 1800-1840.
+        dict(from_m=1640, to_m=1950, side="left", near_m=22, depth_m=60, leaf="needleleaved"),
+        # T5-T8, behind the Pelouse T6/T7/T8 banks (14-31 m out, 2227-2707 L): the pines on the
+        # hill between T6 and T8 (audit People/Trees: "the hill between T6 and T8"). Trees stand
+        # past the groom's 40 m stand clearance, ~65-80 m; joins OSM's mixed wood there.
+        dict(from_m=2230, to_m=2710, side="left", near_m=50, depth_m=30, leaf="needleleaved"),
+        # T9 (2840-2970) exit, outside (west bank): after Tribuna N (2834-2965 L), before the
+        # Pelouse La Caixa bank (3227 L).
+        dict(from_m=2975, to_m=3170, side="left", near_m=22, depth_m=90, leaf="needleleaved"),
+        # Inside the stadium loop T10-T12 (right), after the T10 stand (3448-3503 R): the pine
+        # knoll in the middle of the stadium section.
+        dict(from_m=3560, to_m=3700, side="right", near_m=22, depth_m=60, leaf="needleleaved"),
+    ],
+    "AlbertParkour": [
+        # T2 exit, outside (left): park trees between the Jones stand (339-561 L) and the
+        # buildings at 800 L (audit Trees cell: park belts of elms/gums).
+        dict(from_m=650, to_m=790, side="left", near_m=20, depth_m=60, leaf="broadleaved"),
+        # T2-T3 run, inside (right): a shallow belt before the lake shore (lake from ~55-85 m
+        # out here, OSM relation 346429); after the Brabham stand (349-571 R).
+        dict(from_m=590, to_m=760, side="right", near_m=20, depth_m=30, leaf="broadleaved"),
+        # T5-T6, outside (left): after the Stewart stand (1598-1722 L), short of the car park
+        # 54 m out at 1750-1850.
+        dict(from_m=1750, to_m=2000, side="left", near_m=20, depth_m=32, leaf="broadleaved"),
+        # T7-T8, outside, behind the Button (2056-2154) and Clark (2175-2325) stands (10-24 m):
+        # the golf course's tree belt along Lakeside Drive (OSM leisure=golf_course 15865886,
+        # 2018-3698 L). Trees stand past the 40 m stand clearance.
+        dict(from_m=2000, to_m=2340, side="left", near_m=30, depth_m=80, leaf="broadleaved"),
+        # Lakeside Drive, the old chicane to T9 (2340-3330), outside: the same golf-course belt;
+        # the lake is on the right 12-25 m out the whole way, so nothing goes on that side.
+        dict(from_m=2340, to_m=3330, side="left", near_m=20, depth_m=95, leaf="broadleaved"),
+        # T10, outside, after the Waite stand (3341-3447 L), before the buildings at 3550 L.
+        dict(from_m=3455, to_m=3540, side="left", near_m=20, depth_m=95, leaf="broadleaved"),
+        # T10-T11 run, outside: a row along the fence; a park road runs 40-70 m out
+        # (layout `roads`), so 20-35 m only; stops before the Vettel stand (4022 L).
+        dict(from_m=3660, to_m=4015, side="left", near_m=20, depth_m=15, leaf="broadleaved"),
+        # T12, inside (right): after the Webber stand (4190-4293 R), the lake is 100 m+ off.
+        dict(from_m=4315, to_m=4520, side="right", near_m=20, depth_m=55, leaf="broadleaved"),
+        # T12-T13, inside, before the pitch at 4700 R.
+        dict(from_m=4520, to_m=4660, side="right", near_m=20, depth_m=40, leaf="broadleaved"),
     ],
 }
 
@@ -3879,17 +4053,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             continue
         woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
 
-    for spec in MANUAL_WOODS.get(stem, []):
-        side = spec["side"]
-        if side in ("outside", "inside"):
-            side = track.turn_side(spec["from_m"], spec["to_m"], side)
-        near = float(spec.get("near_m", 15.0))
-        far = near + float(spec.get("depth_m", 95.0))
-        near_run = track.edge_run(spec["from_m"], spec["to_m"], side, near)
-        far_run = track.edge_run(spec["from_m"], spec["to_m"], side, far)
-        ring = np.vstack([near_run, far_run[::-1]])
-        woods.append({"leaf": spec.get("leaf", "mixed"), "ring": round_pts(ring, 1)})
-    woods = with_wood_leaf(stem, woods)
+    woods = with_wood_leaf(stem, woods + manual_woods(stem, track))
 
     # An authored landmark and an OSM building can be the same real
     # structure (Sakhir's control tower is mapped as building=yes, not as
@@ -4469,7 +4633,14 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
         new["stands"] = stands
         new["landmarks"] = landmarks
         new["crossings"] = crossings
-        new["woods"] = with_wood_leaf(stem, layout.get("woods", []))
+        # The scanned woods kept, the manual belts rebuilt (an older
+        # dossier's belts carry no `source`: matched by their ring).
+        manual_w = manual_woods(stem, track)
+        scanned_w = [
+            w for w in layout.get("woods", [])
+            if w.get("source") != "authored" and not any(same_ring(w["ring"], m["ring"]) for m in manual_w)
+        ]
+        new["woods"] = with_wood_leaf(stem, scanned_w + manual_w)
         new["structures"] = drop_structures_under_landmarks(
             drop_promoted_structures(stem, layout.get("structures", [])), landmarks
         )

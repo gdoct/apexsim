@@ -78,3 +78,9 @@ In the tables:
 Left, or for later columns:
 
 - The GP-loop banks, Paddock Hill bank and the Director's Terrace.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` broadleaved (Kent deciduous woodland).

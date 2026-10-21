@@ -67,3 +67,13 @@ Left, or for later columns:
 
 - The zones are scaled from a schematic map (+-100 m).
 - The media tower: no position.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- Mixed woods plant no poplars any more (R9).
+
+Left:
+
+- Spruce stands could be marked needle-leaved per wood.

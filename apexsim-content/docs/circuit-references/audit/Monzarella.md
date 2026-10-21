@@ -95,3 +95,9 @@ In the tables:
 Left, or for later columns:
 
 - The roofs of 8 and 17; which OSM Uscita Ascari stand is 19; 27-30, 2-3 and 35 stay on their OSM outlines.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` broadleaved (the Parco di Monza).

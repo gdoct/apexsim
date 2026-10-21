@@ -95,3 +95,13 @@ In the tables:
 
 - The hairpin group moved about 600 m to 2540-3085 with its sides corrected (both oversteer48 maps); 12 and 11 behind the pit-exit road; 10 and 32 added, 22 gone (on neither map); four general-admission viewpoints as banks.
 - `DROP_STRUCTURES`: the unnamed outline under Grandstand 24 (the stand itself).
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` broadleaved; `MANUAL_WOODS`: park belts outside T3-T7, T7 to the Concorde bridge and both sides of the T9-T10 straight.
+
+Left:
+
+- The west shoreline is not in the layout, so the belts stop at 80 m out.

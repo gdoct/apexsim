@@ -93,3 +93,13 @@ Left, or for later columns:
 
 - Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
 - The Steintribüne's middle section is closed in 2026, but the block stands.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` broadleaved; `MANUAL_WOODS`: round the Grundig-Kehre, the railway belt along the return leg, a piece by the lake.
+
+Left:
+
+- The wood south-west of the Zeppelinfeld overlaps the lake and stands: left out.

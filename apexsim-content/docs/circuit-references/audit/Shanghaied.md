@@ -89,3 +89,13 @@ In the tables:
 Left, or for later columns:
 
 - E stays unnamed; the lotus roof has no kit piece.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `SUBTROPICAL` style (broadleaf only); `MANUAL_WOODS`: T4-T6 outside along the access road and the back-straight canal bank, which replace the generic belt of about 6500 trees with the real rows.
+
+Left:
+
+- OSM's 37 tree rows (R8).

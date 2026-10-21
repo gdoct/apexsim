@@ -67,3 +67,7 @@ Left, or for later columns:
 
 - Zuschauerbereich Mitte is hard standing: not laid.
 - The raised berms and OSM's 15 embankment ways.
+
+## Trees dossier pass
+
+- The 15 tree rows (R8: no cached extract).

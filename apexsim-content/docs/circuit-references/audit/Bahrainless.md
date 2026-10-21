@@ -111,3 +111,9 @@ In the tables:
 Left, or for later columns:
 
 - The other stands' shade roofs are unsourced; the map is not to scale, so the banks are anchored on the OSM stands beside them.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- The desert set plants date palms (`date_palm_l`).

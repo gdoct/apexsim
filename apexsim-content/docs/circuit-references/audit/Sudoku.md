@@ -84,3 +84,9 @@ Left, or for later columns:
 
 - The OSM "G" pair on 110R is H by name only.
 - An unnamed OSM building behind L.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- Mapped woods past the belt fill with forest impostors from 120 m out, flat ground or not (R8).

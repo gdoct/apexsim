@@ -78,3 +78,9 @@ In the tables:
 Left, or for later columns:
 
 - T12 itself (OSM has only T12a); the roofs of Tribüne 4 and Mercedes T4a; T13 faces the Nordschleife.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` needleleaved (the Eifel's spruce).

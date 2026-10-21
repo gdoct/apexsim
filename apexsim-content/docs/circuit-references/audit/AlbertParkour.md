@@ -121,3 +121,13 @@ Left, or for later columns:
 - Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
 - The AmEx stand is on no map.
 - The general-admission areas are flat lawns: no banks.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `AUSTRALIAN` style (gums among broadleaf). `MANUAL_WOODS`: the golf-course belt along Lakeside Drive and park belts between the stands (nine); they replace the generic belt, which also stood where the lake is.
+
+Left:
+
+- The lake itself (R16): OSM's relation 346429 is not read as water.

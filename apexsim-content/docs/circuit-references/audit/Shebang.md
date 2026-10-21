@@ -78,3 +78,13 @@ In the tables:
 Left, or for later columns:
 
 - F's roof; the Tower is a chain of straight bays, not a round stand.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `MANUAL_WOODS`: belts north of the top run, behind the G1-G3 and C1 hillstands and outside T14 (the tropical set: broadleaf with palms).
+
+Left:
+
+- Oil-palm country wants a palm-only set.

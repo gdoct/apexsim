@@ -83,3 +83,13 @@ In the tables:
 Left, or for later columns:
 
 - The Osttribüne's roof; an unnamed roof outline.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF` `*` needleleaved (the Hardtwald); `MANUAL_WOODS`: outside T2-T4, both sides of the Parabolika, round the Spitzkehre and outside the T7-T10 return. Mapped woods past the belt fill with forest impostors from 120 m out, flat ground or not (R8).
+
+Left:
+
+- `metadata.longitude_deg` (follow-ups).

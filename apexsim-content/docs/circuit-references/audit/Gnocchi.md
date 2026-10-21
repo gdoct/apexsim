@@ -90,3 +90,13 @@ Left, or for later columns:
 
 - Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
 - T5, T10, T13 and T15 are on no map.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `MANUAL_WOODS`: needle-leaved rows at T17-T18 and on the T1-T2 straight (the cypresses), broadleaved rows on the park roads between the stands.
+
+Left:
+
+- No columnar cypress in the kit; the coastal-plain impostors.

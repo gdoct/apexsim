@@ -94,3 +94,9 @@ In the tables:
 Left, or for later columns:
 
 - GA1 round Bocht 9 (the map puts it in the layout's lake); the live screens.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- The 49 dune-scrub areas grow bushes (R8).

@@ -95,3 +95,9 @@ In the tables:
 Left, or for later columns:
 
 - The bronze strip at Fagnes; Tribune RX's roof; Gold 10 / Silver 2 (not on the 2026 map); 17/27 rests on a 77 m map residual: check it on the trace page.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- `WOOD_LEAF`: the three big Ardennes woods needle-leaved.

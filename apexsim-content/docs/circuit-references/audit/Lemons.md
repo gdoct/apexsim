@@ -99,3 +99,9 @@ Left, or for later columns:
 
 - Karting T28-T32 and the 2025 mound: no map places them.
 - Mulsanne, Indianapolis and Arnage are kept but unverified.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- Mapped woods past the belt fill with forest impostors from 120 m out, flat ground or not (R8). The two manual pine belts are marked authored, so a re-apply rebuilds them.

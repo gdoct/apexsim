@@ -114,3 +114,7 @@ In the tables:
 Left, or for later columns:
 
 - Apex 1's first run may meet Grand Prix 2 near 4088 on the T14 bend: then 4045-4075.
+
+## Trees dossier pass
+
+- Nothing needed: the poplar rule (R9) is the only change it sees.

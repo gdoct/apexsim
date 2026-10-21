@@ -88,3 +88,9 @@ In the tables:
 Left, or for later columns:
 
 - No roofs on the map; whether each stand is temporary is unsourced.
+
+## Trees dossier pass
+
+In the tables and rules:
+
+- Mapped woods past the belt fill with forest impostors from 120 m out, flat ground or not (R8).
