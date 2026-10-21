@@ -2376,7 +2376,9 @@ fn lay_all_barriers(
                     runoff_m: offset[i],
                     spectators_m: spectator_gap(&slabs, pos.0, pos.1),
                     mapped: nearest_mapped(&mapped, pos.0, pos.1),
-                    beside_pit_lane: false,
+                    beside_pit_lane: lane.is_some_and(|lane| {
+                        lane_edge_gap(lane, pos.0, pos.1) < barriers::PIT_LANE_WALL_M
+                    }),
                     outside_of_bend,
                 })
             })
@@ -3698,7 +3700,12 @@ mod tests {
         let rails: Vec<&Prop> = scene
             .props
             .iter()
-            .filter(|p| p.kind == PropKind::Barrier && p.asset.starts_with("armco_4m"))
+            // Down the pit straight the rail is the concrete between the
+            // road and the lane.
+            .filter(|p| {
+                p.kind == PropKind::Barrier
+                    && (p.asset.starts_with("armco_4m") || p.asset == "concrete_4m_rail")
+            })
             .collect();
         let total = path.total_length_m();
         let mut on_pit_straight = 0;

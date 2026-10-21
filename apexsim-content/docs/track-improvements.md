@@ -248,8 +248,10 @@ What the audit says across the table:
   (Sepang's main stand, Spa's Bus Stop, Albert Park's Moss), real stands
   laid as `media_centre` blocks because OSM tags them as buildings
   (Silverstone, Le Mans), and the general-admission banks absent (R2).
-- **Barriers**: no circuit but the Nordschleife gets any concrete
-  (R6); the cells marked `ok` are ok apart from that.
+- **Barriers**: the audit found concrete laid nowhere but the
+  Nordschleife and one style for every circuit; both are rules now
+  (concrete beside the pit lane and against mapped walls, the street,
+  park and club rails), and no cell needs a dossier edit.
 - **Boards**: the corner signs and marshal posts follow the dossier's
   named corners, and ten dossiers have none or bogus ones (R10).
 - **People**: the figure kit (kit gap 1) is built and nothing lays it
@@ -291,19 +293,6 @@ tracks they show at. Each is a rule change: re-dress `--all` and read the
 counts against the commit before. A built rule leaves the list; the labels
 stay as they are.
 
-- **R6. Concrete is never laid.** `barriers::decide` takes a mapped wall
-  only within 5 m of the road with 4 m of run-off or less, and the groom
-  builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
-  pit-straight rule never fires. The Nordschleife is the only track with
-  concrete, against 7-96 mapped walls at Monzarella, Nuerburgerring,
-  Oskarsleben, ChillyVilleneuve and Hockeyheimring.
-- **R7. Barrier styles.** The street style is Tecpro on every cell
-  (MandarinaBay, 4791 modules); park and temperate street circuits
-  (AlbertParkour, ChillyVilleneuve, Gnocchi, Snorisring) want concrete and
-  debris fence close in; `catch_fence_6m` is in the kit and no kind lays
-  it; club circuits get Tecpro where they have tyre walls (BrandsScratch,
-  Oskarsleben, Nuerburgerring), and the Nordschleife 4.3 km of tyres from
-  geometry with none mapped.
 - **R8. Tree rows.** OSM `natural=tree_row` ways (Oskarsleben's 15,
   Shanghaied's 13) are never extracted, so the rows that edge an open
   bowl or an access road are missing; the extract needs a refetch, and

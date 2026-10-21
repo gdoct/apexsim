@@ -23,9 +23,17 @@ pub enum Rail {
     /// `vangrail_4m_triple` on the fast stretches, `vangrail_4m_fence`
     /// where people stand behind it, `vangrail_end` closing a run.
     Vangrail,
-    /// A city circuit's barriers: Tecpro blocks the whole way round, close
-    /// to the road, with an advertising board behind every one. Marina Bay.
+    /// A city circuit's barriers: concrete walls close to the road, Tecpro
+    /// where the decision wants absorbing blocks, an advertising board
+    /// behind them. Marina Bay.
     Street,
+    /// A park or temperate street circuit (Albert Park, Montreal, Sochi,
+    /// the Norisring): concrete with a debris fence where a rail would go,
+    /// Tecpro and tyres at the corners.
+    Park,
+    /// A club circuit: tyre walls where a modern one fits Tecpro (Brands
+    /// Hatch, Oschersleben, the GP Nurburgring).
+    Club,
 }
 
 /// Every asset the vangrail style can lay, for the barrier pass's
@@ -49,12 +57,15 @@ impl Rail {
     pub fn barrier(self, kind: crate::barriers::BarrierKind) -> crate::barriers::BarrierKind {
         use crate::barriers::BarrierKind;
         match (self, kind) {
-            (Rail::Vangrail, BarrierKind::Tecpro) => BarrierKind::Armco,
-            // Tecpro the whole way round, as on the real circuit; a mapped
-            // wall stays a wall.
-            (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence | BarrierKind::Tyres) => {
-                BarrierKind::Tecpro
-            }
+            // OSM maps no tyre walls on the Nordschleife, and its corners
+            // are guard rail: the geometry rule's tyres were 4.3 km (R7).
+            (Rail::Vangrail, BarrierKind::Tecpro | BarrierKind::Tyres) => BarrierKind::Armco,
+            // Concrete walls, Tecpro at the corners, as on the real
+            // circuits (R7: the street style was Tecpro the whole way).
+            (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence) => BarrierKind::Concrete,
+            (Rail::Street, BarrierKind::Tyres) => BarrierKind::Tecpro,
+            (Rail::Park, BarrierKind::Armco | BarrierKind::ArmcoFence) => BarrierKind::Concrete,
+            (Rail::Club, BarrierKind::Tecpro) => BarrierKind::Tyres,
             (_, kind) => kind,
         }
     }
@@ -63,7 +74,7 @@ impl Rail {
     /// tightest radius is `radius_m`. Non-rail keys pass through.
     pub fn asset(self, kit_asset: &'static str, radius_m: f32) -> &'static str {
         match (self, kit_asset) {
-            (Rail::Armco | Rail::Street, _) => kit_asset,
+            (Rail::Armco | Rail::Street | Rail::Park | Rail::Club, _) => kit_asset,
             (Rail::Vangrail, "armco_4m") if radius_m >= VANGRAIL_TRIPLE_RADIUS_M => {
                 "vangrail_4m_triple"
             }
@@ -307,9 +318,23 @@ impl CircuitStyle {
         ..Self::DEFAULT
     };
 
-    /// Albert Park: a city park of gums, elms and planes.
+    /// Albert Park: a city park of gums, elms and planes, walled with
+    /// concrete.
     pub const AUSTRALIAN: CircuitStyle = CircuitStyle {
         flora: Flora::Australian,
+        rail: Rail::Park,
+        ..Self::DEFAULT
+    };
+
+    /// A park or temperate street circuit: concrete for rails.
+    pub const PARK: CircuitStyle = CircuitStyle {
+        rail: Rail::Park,
+        ..Self::DEFAULT
+    };
+
+    /// A club circuit: tyre walls for Tecpro.
+    pub const CLUB: CircuitStyle = CircuitStyle {
+        rail: Rail::Club,
         ..Self::DEFAULT
     };
 
@@ -334,6 +359,8 @@ impl CircuitStyle {
             "Armadillos" => Self::PRAIRIE,
             "Barcelunatic" => Self::MEDITERRANEAN,
             "AlbertParkour" => Self::AUSTRALIAN,
+            "ChillyVilleneuve" | "Gnocchi" | "Snorisring" => Self::PARK,
+            "BrandsScratch" | "Oskarsleben" | "Nuerburgerring" => Self::CLUB,
             _ => Self::DEFAULT,
         }
     }
@@ -353,12 +380,22 @@ mod tests {
     }
 
     #[test]
-    fn the_street_style_is_tecpro_and_paving() {
+    fn the_street_style_is_concrete_tecpro_and_paving() {
         use crate::barriers::BarrierKind;
         let r = Rail::Street;
-        assert_eq!(r.barrier(BarrierKind::Armco), BarrierKind::Tecpro);
+        assert_eq!(r.barrier(BarrierKind::Armco), BarrierKind::Concrete);
+        assert_eq!(r.barrier(BarrierKind::ArmcoFence), BarrierKind::Concrete);
         assert_eq!(r.barrier(BarrierKind::Tyres), BarrierKind::Tecpro);
+        assert_eq!(r.barrier(BarrierKind::Tecpro), BarrierKind::Tecpro);
         assert_eq!(r.barrier(BarrierKind::Concrete), BarrierKind::Concrete);
+        // Park circuits wall the straights, club circuits stack tyres, and
+        // the Nordschleife is guard rail.
+        assert_eq!(Rail::Park.barrier(BarrierKind::ArmcoFence), BarrierKind::Concrete);
+        assert_eq!(Rail::Park.barrier(BarrierKind::Tecpro), BarrierKind::Tecpro);
+        assert_eq!(Rail::Club.barrier(BarrierKind::Tecpro), BarrierKind::Tyres);
+        assert_eq!(Rail::Vangrail.barrier(BarrierKind::Tyres), BarrierKind::Armco);
+        assert_eq!(CircuitStyle::for_stem("Gnocchi").rail, Rail::Park);
+        assert_eq!(CircuitStyle::for_stem("BrandsScratch").rail, Rail::Club);
         assert_eq!(CircuitStyle::STREET.ground, Ground::Paved);
         assert_eq!(CircuitStyle::for_stem("MandarinaBay"), CircuitStyle::STREET);
         const { assert!(!CircuitStyle::STREET.floodlights) };

@@ -29,7 +29,7 @@ Nordschleife and Mandarina Bay. Display names are in
 ## Circuit styles
 
 A `CircuitStyle` carries the groomer's per-circuit choices: which rail
-(`Rail::Armco`, `Vangrail`, `Street`), the closest a straight's and a
+(`Rail::Armco`, `Vangrail`, `Street`, `Park`, `Club`), the closest a straight's and a
 corner's barrier may stand (`straight_barrier_min_m`,
 `corner_barrier_min_m`), hoardings on or off, the tree belt (`TreeBelt`:
 distance band, trees per 12 m cell, share of empty cells), `Flora`
@@ -50,14 +50,18 @@ garages and the fan dressing (`fan_dressing`, below).
 | `SUBTROPICAL` | `Shanghaied` | broadleaf only, no poplar or spruce (a needle-leaved wood keeps its conifers) |
 | `PRAIRIE` | `Armadillos` | subtropical broadleaf in Sakhir's sparse clumps: open Texas prairie, not a belt |
 | `MEDITERRANEAN` | `Barcelunatic` | umbrella pines (`stone_pine_l`) over broadleaf and scrub, needle-leaved woods too |
-| `AUSTRALIAN` | `AlbertParkour` | gums (`eucalypt_l`) among broadleaf park trees |
+| `AUSTRALIAN` | `AlbertParkour` | gums (`eucalypt_l`) among broadleaf park trees, the park rail |
+| `PARK` | `ChillyVilleneuve`, `Gnocchi`, `Snorisring` | concrete walls where a rail would go |
+| `CLUB` | `BrandsScratch`, `Oskarsleben`, `Nuerburgerring` | tyre walls where a modern circuit fits Tecpro |
 
 How the fields act:
 
 - **Rail.** `Rail::barrier` maps the barrier decision (see
   [track-pipeline.md](track-pipeline.md)): the vangrail style turns Tecpro
-  into rail; the street style turns armco, armco-with-fence and tyres into
-  Tecpro and keeps a mapped wall a wall. `Rail::asset` swaps kit keys for the
+  and tyres into rail; the street style turns armco and armco-with-fence
+  into concrete and tyres into Tecpro; the park style (Albert Park,
+  Montreal, Sochi, the Norisring) turns armco into concrete; the club style
+  (Brands Hatch, Oschersleben, the GP Nurburgring) turns Tecpro into tyres. `Rail::asset` swaps kit keys for the
   vangrail family: `vangrail_4m` in corners, `vangrail_4m_triple` where the
   tightest radius is at least `VANGRAIL_TRIPLE_RADIUS_M` (400 m),
   `vangrail_4m_fence` where people stand behind it, `vangrail_end` closing a

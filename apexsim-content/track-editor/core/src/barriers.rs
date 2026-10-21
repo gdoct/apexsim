@@ -173,9 +173,15 @@ pub const MAPPED_MATCH_M: f32 = 12.0;
 /// concrete is actually for: a street circuit with no run-off at all.
 pub const MAPPED_WALL_MATCH_M: f32 = 5.0;
 
-/// Run-off under this, beside a mapped wall, means the wall is hard
-/// against the road: a street circuit, and concrete.
-pub const WALL_AGAINST_ROAD_M: f32 = 4.0;
+/// Run-off under this, beside a mapped wall, means the wall stands close
+/// against the road: a street or park circuit's concrete. (4 m laid
+/// concrete nowhere but the Nordschleife against 7-96 mapped walls at
+/// Monza, the GP Nurburgring, Oschersleben, Montreal and Hockenheim, R6.)
+pub const WALL_AGAINST_ROAD_M: f32 = 8.0;
+
+/// A barrier this close to the pit lane's edge separates the two roads,
+/// which is concrete's job down a pit straight.
+pub const PIT_LANE_WALL_M: f32 = 12.0;
 
 /// Run-off at or beyond this is enough to take the speed out of a car
 /// before it reaches the barrier, so a rail will do.

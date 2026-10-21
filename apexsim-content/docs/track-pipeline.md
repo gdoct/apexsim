@@ -267,7 +267,9 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-groom -- --all [--dr
 barriers first, then geometry (outside of the bend, how tight, how much
 run-off). Mostly armco; Tecpro on the outside of fast bends; tyres;
 `armco_4m_fence` where people stand behind; `concrete_4m_rail` where a mapped
-wall stands hard against the road; `armco_end` / `tecpro_corner` /
+wall stands within 5 m of the line with up to 8 m of run-off, and wherever
+the barrier is within 12 m of the pit lane's edge (the wall between the two
+roads); `armco_end` / `tecpro_corner` /
 `tires_corner` / `concrete_end` closing each run. A corner's barrier stands at
 least 14 m past the road edge, a straight's 7 m
 (`CircuitStyle::corner_barrier_min_m` / `straight_barrier_min_m`), further
