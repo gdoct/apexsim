@@ -530,7 +530,8 @@
      63.8,
      49.68
     ]
-   ]
+   ],
+   "roof": "open"
   },
   {
    "name": "Paddock Hill Grandstand",
@@ -555,7 +556,8 @@
      143.32,
      76.13
     ]
-   ]
+   ],
+   "roof": "covered"
   },
   {
    "name": "Hailwoods Hill Grandstand",
@@ -580,7 +582,8 @@
      332.94,
      -104.29
     ]
-   ]
+   ],
+   "roof": "covered"
   },
   {
    "name": "Pit Straight Grandstand",
@@ -605,7 +608,8 @@
      -26.03,
      24.1
     ]
-   ]
+   ],
+   "roof": "covered"
   }
  ],
  "structures": [

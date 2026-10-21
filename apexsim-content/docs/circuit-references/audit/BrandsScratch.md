@@ -42,3 +42,18 @@ Brabham Straight 3709-217. Pit lane right (inside), 560 m.
 - Crossing kind `road` defaults to `tyre_bridge` (dress.rs crossing asset match `_ => "tyre_bridge"`); a road over the track is an `overpass_concrete`. Per-stem fix is CROSSING_KINDS; the default itself is the better fix (also hits Montreal 1920.5, Sochi 4786.3).
 - `barriers::decide` lays no tyre walls on a club circuit whose slow corners have them (Tecpro chosen by run-off).
 - Run-off skip drops the MSV Centre whole instead of stepping it back.
+## S/F dossier pass
+
+In the tables (`STAND_COVER`): the Pit Straight, Paddock Hill and Hailwoods
+Hill stands roofed, as the aerial shows them (OSM tags none covered); Desiré
+Wilson open. Every pit-straight stand is OSM's, on the side the maps show, so
+nothing is added or moved. No map marks a big screen.
+
+Left:
+
+- The OSM Pit Straight stand is 24 m against 40-45 m on the aerial; it is a
+  stand, so no table entry lengthens it.
+- The unnamed OSM stand at 39.5 m left is most likely the covered Desiré
+  Wilson blocks under the Brabham-Stewart overhang; unnamed, it cannot be
+  roofed by name.
+- The Media Centre over the pits is the pit complex's (kit gap 2).

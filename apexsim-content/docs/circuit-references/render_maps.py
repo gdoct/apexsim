@@ -44,7 +44,7 @@ def main() -> None:
     ap.add_argument("stems", nargs="*", help="stems to render (default: all)")
     ap.add_argument("--pages", type=int, default=12, help="pages per PDF at most")
     args = ap.parse_args()
-    dirs = [MAPS / s for s in args.stems] if args.stems else sorted(MAPS.iterdir())
+    dirs = [MAPS / s for s in args.stems] if args.stems else sorted(d for d in MAPS.iterdir() if d.is_dir())
     for d in dirs:
         if not d.is_dir():
             sys.exit(f"no maps for {d.name}: run fetch_maps.ps1 first")

@@ -470,7 +470,22 @@ MANUAL_STANDS: dict[str, list[dict]] = {
 # roofs it, "open" keeps the dress pass from roofing it for its depth
 # (25 m or more is otherwise taken to be roofed). Every stand of that name
 # on the circuit takes it.
-STAND_COVER: dict[str, dict[str, str]] = {}
+STAND_COVER: dict[str, dict[str, str]] = {
+    "BrandsScratch": {
+        # The aerial (oversteer48-grandstands.jpg) shows the Pit Straight
+        # Grandstand under a red roof, the Paddock Hill Grandstand under a grey
+        # one and the Hailwoods Hill stand as a small roofed block; OSM tags
+        # none of them covered.
+        "Pit Straight Grandstand": "covered",
+        "Paddock Hill Grandstand": "covered",
+        "Hailwoods Hill Grandstand": "covered",
+        # Desiré Wilson is an open stand on the same aerial (the overhang over
+        # its two east blocks is the Brabham-Stewart building behind it, laid
+        # as its own structure); its 10.3 m depth keeps it open already, so the
+        # entry only records the fact.
+        "Desiré Wilson Grandstand": "open",
+    },
+}
 
 # Landmarks that span the road and are not in OSM as bridges.
 MANUAL_CROSSINGS: dict[str, list[dict]] = {
