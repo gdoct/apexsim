@@ -69,11 +69,19 @@ the same `ApexProps` code.
   extract (the map API tiles in `apexsim-content/.cache/osm/nordschleife_tiles/` are
   newer than the cut) would change the woods and barriers, and so the
   walls: a refit is a groom and an AI survey of its own.
-- The kit's venue blocks (`media_centre`, the street circuits'
-  `skyline_*`) read as untextured white boxes from the road: plain
-  `pit_wall` / facade colours with no texture (Spa's Stand Endurance, the
-  Norisring's towers in the R11 run of 2026-10-17). Facade textures are
-  art.
+- The kit's venue blocks read flat from the road: the paddock blocks
+  (`media_centre`, `hospitality_3f`, `control_tower`, `clubhouse`) have
+  slab bands, fins and frames since `build_paddock.py`, but their
+  `pit_wall` is still a plain colour, and the street circuits' `skyline_*`
+  are untextured facades (Spa's Stand Endurance, the Norisring's towers
+  in the R11 run of 2026-10-17). A baked `pit_wall` changes every GLB of
+  the building kind that carries the slot at once.
+- `bridge/banked_oval_span` is authored over a 15 m road like every
+  bridge, and the client scales its local Y by `span_m / 15`
+  (`BridgeSpanScale`): on a road wider or narrower than that, the oval's
+  52 m curve and its pier spacing stretch with it. It wants an exemption
+  (scale the piers' clear span only) before Monzarella's dossier places
+  it.
 - Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
   MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
   panels either, and race control's yellows show on the HUD alone there.

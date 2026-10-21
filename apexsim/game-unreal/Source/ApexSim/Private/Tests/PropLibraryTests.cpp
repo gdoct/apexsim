@@ -137,6 +137,10 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 		FString(TEXT("scaffold_10m_crowd")));
 	TestEqual(TEXT("bank crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("grass_bank_10m")),
 		FString(TEXT("grass_bank_10m_crowd")));
+	TestEqual(TEXT("tent stand crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("tent_roof_10m")),
+		FString(TEXT("tent_roof_10m_crowd")));
+	TestTrue(TEXT("a stone terrace stands empty"),
+		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("stone_tribune_10m")).IsEmpty());
 	TestTrue(TEXT("caps have no crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("end_cap")).IsEmpty());
 	TestTrue(TEXT("crowd is not doubled"),
 		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("bay_10m_crowd")).IsEmpty());

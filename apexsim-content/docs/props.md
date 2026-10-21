@@ -28,6 +28,8 @@ buildings the bake turns into `walls.msgpack` (see
   `build_paddock.py` (`media_centre`, `hospitality_3f`, `control_tower`, `clubhouse`:
   the stand-ins the dress pass lays for real buildings),
   `build_kit_gaps_landmarks.py` (the venue landmarks below),
+  `build_kit_gaps_stands.py` (venue stands, sky bridges, pit storeys) and
+  `build_stand_crowds.py` (their `_crowd` twins from `bay_10m_crowd`),
   `build_trees_med.py` (eucalypt, stone pine, date palm on `card_trees.py`)),
   `gen_crowd.py` (the crowd card textures, plain Python with PIL),
   `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),
@@ -100,15 +102,22 @@ depth x height, metres). By family:
 - **Overhead**: bridges the road runs **under** (`start_gantry`,
   `truss_bridge`, `tyre_bridge`, `timing_gantry`, `span_building`,
   `viaduct_deck`, `sign_gantry`, `linkbridge_covered`, `banner_gantry`,
-  `overpass_concrete`) and **on** (`bridge_arch_steel`, `bridge_deck_wide`,
+  `overpass_concrete`, `sky_platform`, `banked_oval_span`) and **on**
+  (`bridge_arch_steel`, `bridge_deck_wide`,
   the parapets-only `track_bridge_10m`); lights
   (`floodlight_tower`, `lamp_post`, `lamp_arm_twin`, `lamp_globe_pole`,
   `lamp_balloon_tether[_orange]`, `pit_light_truss_6m`).
 - **Pit complex**: `garage_6m[_closed]`, `garage_end`, `pit_wall_6m`,
   `pit_wall_plain_6m`, `pit_wall_gantry_6m`, `box_kit`; building
-  `pit_building_roofdeck` for street circuits.
+  `pit_building_roofdeck` for street circuits; storeys that stack on
+  `garage_6m`'s roof (`garage_upper_6m`, a hospitality floor and terrace;
+  `garage_roof_membrane_6m`, a membrane roof), which the exporter does not
+  lay yet.
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`,
-  `grass_bank_10m` (a turfed general-admission bank), the street stand
+  `grass_bank_10m` (a turfed general-admission bank), the venue modules
+  `tent_roof_10m` and `palm_canopy_10m` (bay_10m's seating under a membrane
+  or a frond canopy, with `_crowd` twins) and `stone_tribune_10m` /
+  `stone_tribune_centre_10m` (an open stone terrace), the street stand
   family; attractions (`video_screen`, `ferris_wheel`,
   `camera_tower`, `fanzone_stage`, `food_stall_6m`, `ticket_gate`, tents,
   `portaloo_row`); the Nordschleife's misc `spectator_bank_10m` (turf from
@@ -323,9 +332,11 @@ one `Grandstand_<n>` actor with an HISM per asset):
   bay i is bay 0 turned about that point by `(i - (n-1)/2) x theta`, so
   neighbours share a side edge, and the caps take the outer bays' turn.
   The large family is straight only.
-- `scaffold_10m`, `banking_seats`, `grass_bank_10m` and
+- `scaffold_10m`, `banking_seats`, `grass_bank_10m`, the venue modules
+  (`tent_roof_10m`, `palm_canopy_10m`, `stone_tribune[_centre]_10m`) and
   `street_stand_deck_10m` are not bay families: the module is tiled at
-  10 m, no caps (all but the deck have a `_crowd` twin).
+  10 m, no caps. The first five have a `_crowd` twin (`CrowdVariant`); the
+  terrace and the deck stand empty.
 - The street stand (`street_stand_tier_10m[_roof]`) is straight only, with
   `street_stand_tier_end` caps at `+-(L/2 + 2)`.
 

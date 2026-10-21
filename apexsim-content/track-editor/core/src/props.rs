@@ -131,6 +131,10 @@ pub const KIT: &[KitAsset] = kit![
     Bridge "start_gantry" 2.0 x 20.0 x 7.2,
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
     Bridge "tyre_bridge" 4.0 x 23.7 x 9.5,
+    // Platforms cantilevered from both sides over the straight, and a
+    // banked oval deck on piers crossing the road (build_kit_gaps_stands.py).
+    Bridge "sky_platform" 26.0 x 32.4 x 15.4,
+    Bridge "banked_oval_span" 16.4 x 52.5 x 13.4,
     Bridge "timing_gantry" 2.0 x 20.0 x 10.5,
     Bridge "span_building" 8.2 x 20.7 x 22.0,
     // Marina Bay crossings: the road runs ON `bridge_arch_steel` and
@@ -163,6 +167,11 @@ pub const KIT: &[KitAsset] = kit![
     Pit "pit_wall_plain_6m" 6.0 x 0.4 x 2.9,
     Pit "box_kit" 5.5 x 2.6 x 2.4,
     Pit "pit_wall_gantry_6m" 6.0 x 2.0 x 3.2,
+    // Storeys stacked on garage_6m's roof (its parapet tops at 9.9 m), tiled
+    // at 6 m like the garages: a hospitality floor with a roof terrace, and
+    // a white membrane roof on masts. Heights are from the ground.
+    Pit "garage_upper_6m" 6.0 x 12.0 x 16.4,
+    Pit "garage_roof_membrane_6m" 6.0 x 12.6 x 16.8,
     Building "clubhouse" 25.6 x 18.9 x 12.0,
     Building "hospitality_3f" 30.6 x 12.6 x 13.6,
     Building "media_centre" 40.6 x 15.6 x 21.0,
@@ -225,6 +234,14 @@ pub const KIT: &[KitAsset] = kit![
     // A turfed general-admission bank, toe at the road edge, tiled at 10 m
     // like the scaffold; its `_crowd` twin stands people on it.
     Grandstand "grass_bank_10m" 10.0 x 11.4 x 2.8,
+    // Venue stand modules (build_kit_gaps_stands.py), tiled at 10 m with no
+    // caps: bay_10m's seating under a white membrane or a palm-frond
+    // canopy (both with `_crowd` twins), and an open stone terrace with its
+    // centre block.
+    Grandstand "tent_roof_10m" 10.0 x 12.1 x 17.7,
+    Grandstand "palm_canopy_10m" 10.0 x 10.8 x 10.9,
+    Grandstand "stone_tribune_10m" 10.0 x 16.7 x 6.9,
+    Grandstand "stone_tribune_centre_10m" 10.0 x 16.9 x 14.3,
     Grandstand "street_stand_tier_10m" 10.0 x 26.0 x 17.0,
     Grandstand "street_stand_tier_end" 4.0 x 26.0 x 17.0,
     Grandstand "street_stand_tier_10m_roof" 10.0 x 26.0 x 22.0,
