@@ -405,6 +405,10 @@ barriers, walls, the centerline, the ground or the car physics, run in `server/s
 cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
 ```
 
+`python scripts/survey_compare.py before.txt after.txt` (from `apexsim/`)
+lines two captured outputs up track by track, with the totals, and stars a
+track that moved.
+
 Every circuit under `apexsim-content/tracks/{default,custom}`, a mixed field of 10
 AI in each of an LMP2, an F1 and a GT3 (`yotota-lmp2`, `fugazzi-sf26`,
 `posh-gt3rs`), 180 s from the lights. Per race it prints cars out of shape

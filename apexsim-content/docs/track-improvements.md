@@ -111,6 +111,63 @@ leaves the audit page then.
   showcases and guides of a changed track go stale. Work is batched per
   column and committed per track.
 
+## Working a column
+
+How the S/F column was done, and how the next ones go:
+
+1. **Rules first.** The column's rule gaps (below) in `dress.rs`,
+   `groom.rs` or `osm_layout.py`, with a unit test each. Nothing is
+   re-dressed yet.
+2. **Dossier edits per circuit**, from its audit page's positions and the
+   maps (`circuit-references/render_maps.py` for the PDFs; needs
+   `pip install pymupdf`). The entries go into `osm_layout.py`'s tables
+   (`MANUAL_STANDS`, `STAND_COVER`, `MANUAL_LANDMARKS`, ...), each with a
+   comment naming its map. `python tools/dossier_check.py <Stem>` then
+   re-applies the tables (`--manual-only`; Marina Bay, with no DEM
+   sidecar, from the cached extract with `--offline`), flags a
+   `STAND_COVER` key that matches no stand, prints what the dress pass
+   lays differently and lists structures the dossier lost. The circuit's
+   audit page gets a "<Column> dossier pass" section: what went in, what
+   is left. The drafting parallelises (one agent per few circuits, writing
+   proposals, not files); applying does not, since every circuit's tables
+   are in one file.
+3. **One bake and one survey for the column.** Before the bake, the AI
+   survey on the content as it is (`cargo test --release --test all
+   ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored
+   --nocapture` in `apexsim/server/sim`, a scratch `CARGO_TARGET_DIR`
+   when a server runs). Then `& .\bake.ps1 -Release -Stage
+   dress,export,previews` from `apexsim-content/` in PowerShell (not
+   through `powershell -File`, which passes the stage list as one string),
+   `ats-dress --all` once more to see that nothing changes, the
+   track-editor tests, and the survey again;
+   `python scripts/survey_compare.py before.txt after.txt` (in
+   `apexsim/`) compares them track by track. Stands, buildings and
+   barriers are walls on the server, so any column can move it.
+4. **Shots.** A run per circuit in `apexsim/scripts/verify/runs.yml`
+   (`c5-sf-<stem>`: four poses of the straight, made with
+   `scripts/verify/spots.py`'s `Lap` and `look_at`; a column that is not
+   at the straight needs poses of its own), run with `run_checks.py
+   "c5-sf-*"` and judged by a person. A cell becomes `ok` when its shots
+   pass.
+
+Traps met on the S/F pass:
+
+- An authored landmark drops every OSM structure within its reach, on
+  either side of the road (R19): read `dossier_check.py`'s "lost
+  structure" lines. Albert Park's pit screens would have taken its
+  clubhouses.
+- `--manual-only` rebuilds the `MANUAL_STANDS` stands but keeps one whose
+  entry is unchanged byte for byte; an OSM stand cannot be moved, dropped
+  or renamed from the tables (R18), only roofed by name or by station.
+- `osm_layout.py` writes CRLF on Windows and git stores LF, so a
+  re-written dossier shows as whole-file churn in the working tree only.
+- Python on the Windows console prints cp1252: set `PYTHONIOENCODING=utf-8`
+  before piping track names into a YAML or JSON file.
+
+Open decisions for the owner: R15 (fallback floodlight towers at day
+venues; night sessions light the track with them), and whether the four
+circuits without a dossier are removed from the calendar.
+
 ## Status
 
 A cell holds the kind of change it needs, `ok` when it matches the

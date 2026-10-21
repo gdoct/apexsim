@@ -166,7 +166,10 @@ sidecar records, which is the dossier's own fit; the surveyed layers are
 left byte for byte, and so is a manual stand whose table entry has not
 changed (its front within 0.5 m: the centerline moves by centimetres when
 it is smoothed after the dossier). A circuit with no DEM sidecar is
-skipped. With no table
+skipped. `python tools/dossier_check.py <Stem>` re-applies one circuit's
+tables this way and shows what the dress pass lays differently, a
+`STAND_COVER` key that names no stand, and any structure the dossier lost
+(an authored landmark drops the OSM structures within its reach). With no table
 changed, `--all --manual-only --dry-run` reports every dossier unchanged.
 
 ## Dressing (`ats-dress`)
