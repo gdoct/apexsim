@@ -77,6 +77,23 @@ the same `ApexProps` code.
 - Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
   MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
   panels either, and race control's yellows show on the HUD alone there.
+  Removing them from the calendar is the owner's option
+  ([track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)).
+- Found by the dressing audit, outside dressing:
+  - AlbertParkour's centerline is the pre-2021 layout (the Lakeside
+    chicane at 2520-2670 m), and Barcelunatic's takes the RACC chicane
+    (4100-4210 m) and the tight pre-2021 T10; both are geometry, and the
+    stands placed from 2026 maps are counted against them.
+  - Bahrainless' line sits at the upstream end of the main grandstand;
+    the FIA map puts the control line about 40% of the way from T15 to T1.
+  - Nuerburgerring's start lights stand at the finish line; the start
+    line is 263 m further on.
+  - Hockeyheimring's `metadata.longitude_deg` (8.48963) is about 5 km
+    west of the venue (8.566): the sun and weather are placed there.
+  - Gnocchi's dossier fit covers 35% of the centerline (OSM now maps only
+    the short layout), under the 90% gate.
+  - `maps/RedPullRing/redbullring-lageplan-2021.jpg` is a saved HTML
+    error page, not the map: its `sources.json` URL needs replacing.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 

@@ -201,6 +201,25 @@ path in which a code release and a content release are separate events.
 **Check:** each phase's check in the proposal; at the end, the
 client-has / server-has table in it, every row.
 
+### 29. Circuit dressing to the references
+
+Every circuit brought up to its real venue's look from the dossiers in
+[circuit-references/](../../apexsim-content/docs/circuit-references/README.md),
+column by column over all tracks: start/finish, landmarks, stands and
+screens, trees, barriers, boards, then people. Method, status table and
+kit gaps in
+[track-improvements.md](../../apexsim-content/docs/track-improvements.md).
+
+- Per column: the kit assets the audit found missing, then the dossier
+  and rule edits per track.
+- People last: a static-figure kit family (spectators on banks and at
+  gates, marshals at posts) and its client instancing.
+
+**Check:** per column, the before/after screenshot runs in
+`scripts/verify/runs.yml` judged by a person; the AI survey against the
+commit before for the barrier column; `--all --manual-only --dry-run`
+reporting every other dossier unchanged after each dossier edit.
+
 ## P3: nice to have
 
 ### 28. Smaller recorded sessions

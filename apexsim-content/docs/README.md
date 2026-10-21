@@ -26,4 +26,5 @@ neither.
 - [track-guide.md](track-guide.md): the corner-by-corner track guide.
 - [cars.md](cars.md): car folders and car.toml, generated models, runtime loading, wheels, liveries, damage parts.
 - [props.md](props.md): the trackside prop kit and its loader.
+- [track-improvements.md](track-improvements.md): bringing every circuit's dressing up to its references: the method, the per-track status table, the kit gaps.
 - [ac-import.md](ac-import.md): importing Assetto Corsa tracks and cars.

@@ -1,0 +1,288 @@
+# Circuit dressing to the references
+
+How every circuit in `tracks/default/` is brought up to its real venue's
+look, and where each one stands. The plan and its check are roadmap
+package 29 ([apexsim/docs/roadmap.md](../../apexsim/docs/roadmap.md)); this
+doc holds the method and the status table.
+
+The references are the dossiers in
+[circuit-references/](circuit-references/README.md): one per stem, the
+real venue down to building level, with the maps listed in
+`<Stem>.sources.json` and fetched into `docs/circuit-references/maps/<Stem>/`.
+They name real circuits, corners and brands; what reaches the screen
+follows [naming.md](naming.md) (`display_name`, `CORNER_DISPLAY`, a prop's
+`text`).
+
+## What is improved
+
+Each category below is a column of the status table.
+
+| Column | What it covers | Today's kit |
+|---|---|---|
+| **S/F** | The start/finish straight as the venue's focal point: pit building and its roof, main stands facing the garages, gantry, screens, flags, the podium, crowd areas | `pit` complex (export), `grandstand` bays and `_crowd` twins, `bridge/start_gantry`, `attraction/video_screen`, `sign/flag_pole` |
+| **Landmark** | The venue's unique structures (the tower at Austin, the bull at Spielberg, the tyre bridge at Le Mans, the Ferris wheel) | `dress::LANDMARK_ASSETS`, `bridge/tyre_bridge`, `attraction/ferris_wheel`, `building/observation_tower`, the Marina Bay landmarks |
+| **Stands** | Grandstands and spectator areas: size, shape, roof, place by corner and side; big screens with them | stand bays and the street family, `scaffold_10m`, `banking_seats`, `spectator_bank_10m`, `video_screen` |
+| **Trees** | Species, density and placement of the woods and belts | card trees, near-LOD trees, `forest_impostor[_conifer]`, dossier woods with leaf type |
+| **Barriers** | Barrier and fence kind and line per cell: armco, concrete, Tecpro, tyres, catch fence | `barriers::decide` per 4 m cell, groomed runs |
+| **Boards** | Hoardings, brands, flags and banners, corner signs, marshal posts, trackside equipment, car parks, camps | boards, `sign/flags/*.png`, `gen_brands.py`, `dress::surroundings` |
+| **People** | Static figures: spectators on banks and gates, marshals at posts | none today except the `_crowd` stand variants (crowd cards); a new kit family |
+
+The order of work is by column, every track at once: S/F first (the largest
+visible win, and where showcases and site shots look), then Landmark,
+Stands, Trees, Barriers, Boards, People last. People is a new kit family
+plus client instancing, scoped to static figures; it is the final step and
+nothing before it waits on it.
+
+## Three kinds of change
+
+Dressing is generated: `ats-dress` and `ats-groom` lay everything from the
+dossier and the kit, and a re-run discards what was placed by hand
+([track-pipeline.md](track-pipeline.md#dressing-ats-dress)). Every
+improvement is therefore one of three edits, and the status table says
+which:
+
+1. **Dossier** (`<Stem>.layout.json` via `tools/osm_layout.py`): a stand in
+   `MANUAL_STANDS`, a landmark in `MANUAL_LANDMARKS`, a crossing in
+   `MANUAL_CROSSINGS`, a wood with its leaf type, a barrier kind, a
+   surroundings layer. Positions come from the trace page
+   (`tools/trace_layout.py <Stem> --open`, click to trace). A change to one
+   circuit's tables must leave the others unchanged: run
+   `python tools/osm_layout.py --all --manual-only --dry-run` and read
+   "unchanged" for every other stem.
+2. **Dress rule** (`track-editor/core/src/dress.rs`, `barriers.rs`,
+   `groom.rs`): a landmark kind mapped to an asset, a barrier decision, a
+   surroundings sub-layer, a stand family threshold. A rule change touches
+   every track: re-dress `--all` and read the placed counts against the
+   commit before.
+3. **Kit asset** (`props/<kind>/<asset>.glb` from a generator under
+   `tools/generators/props/`, a `props::KIT` row with its footprint, the
+   matching entry in the client's `kKinds`, then `ApexPropImport`):
+   a structure no kit piece can stand in for. Asset keys and `text` carry no
+   trademark ([naming.md](naming.md)).
+
+## The audit
+
+Column by column, a track's cell is filled from three sources read against
+each other:
+
+- the dossier's "Buildings and structures", "Start/finish, pit lane,
+  paddock" and "Modelling pitfalls" sections, and the index's "what to
+  check" column;
+- the fetched maps, read as images (the wayfinding, grandstand and circuit
+  maps; `circuit-references/render_maps.py` turns the PDFs into pages) to fix
+  each structure's corner, side and extent where the text only names it.
+  What a map adds goes into the dossier's `MANUAL_*` tables, and the dossier
+  page gets the position with its map as source;
+- `ats-dress --explain <yaml>`: what each dossier entry became, what was
+  skipped and why, and what no pass owns.
+
+A cell then reads **ok**, **dossier**, **rule** or **kit** (the kind of
+change it needs, the smallest that does it), or **-** where the real venue
+has nothing in that column. A cell with a kit need is also a row in the
+[kit gaps](#kit-gaps) list, so assets are built once for every track that
+needs them.
+
+Each track's reasons are in `circuit-references/audit/<Stem>.md`: the
+cells with their sources, then the positions from the maps (each structure
+the maps place and the dossier lacks or misplaces, by station, side and
+extent, with the map it came from), its kit gaps and rule gaps. That page
+is the worklist for the track's dossier edits: a position moves into the
+`MANUAL_*` tables and the dossier text when its column is worked, and
+leaves the audit page then.
+
+## Checks
+
+- **Dossier and placement:** the trace page for a position; `ats-dress
+  --explain` for what was laid and skipped; `--all --manual-only --dry-run`
+  for the other dossiers.
+- **On screen:** the same spots before and after, from the unattended
+  screenshot loop (`-ApexAutoRace`, `-ApexScreenshotAfter`,
+  `-ApexCameraLookAt=X,Y,Z,TX,TY,TZ`,
+  [apexsim/docs/game/cameras.md](../../apexsim/docs/game/cameras.md)); a run
+  per track in `scripts/verify/runs.yml` with its S/F and landmark cameras,
+  so a column's pass over all tracks is one runner invocation. A person
+  judges the shots before the cell is closed.
+- **Barriers are a sim change:** barriers and buildings bake into
+  `walls.msgpack` and the server stops cars on them. A barrier-column change
+  is judged with the AI survey (`survey_ai_races_on_every_circuit`) against
+  the commit before, on both backends, like any wall change.
+- **Blast radius:** a dress run rewrites every `.ats` it touches, and a
+  changed scene needs `ats-export` and the catalogue (`bake.ps1`); the
+  showcases and guides of a changed track go stale. Work is batched per
+  column and committed per track.
+
+## Status
+
+A cell holds the kind of change it needs, `ok` when it matches the
+reference, `-` when the venue has nothing there; where a cell needs more
+than one kind, it names the main one and its audit page the rest. The
+[rule gaps](#rule-gaps) that touch every track (concrete, roofs, corners)
+are not repeated per cell. The order of columns is the order of work.
+
+| Stem | S/F | Landmark | Stands | Trees | Barriers | Boards | People |
+|---|---|---|---|---|---|---|---|
+| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | dossier | dossier | dossier | dossier | rule | dossier | kit |
+| [Armadillos](circuit-references/audit/Armadillos.md) | dossier | rule | dossier | rule | ok | ok | kit |
+| [Bahrainless](circuit-references/audit/Bahrainless.md) | kit | kit | ok | ok | ok | dossier | kit |
+| [Barcelunatic](circuit-references/audit/Barcelunatic.md) | dossier | dossier | dossier | dossier | ok | dossier | kit |
+| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | dossier | dossier | dossier | dossier | rule | ok | kit |
+| [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
+| [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | dossier | dossier | rule | dossier | kit |
+| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | dossier | dossier | dossier | dossier | rule | ok | kit |
+| [Hungoverring](circuit-references/audit/Hungoverring.md) | dossier | dossier | dossier | ok | dossier | rule | kit |
+| [Interlaggos](circuit-references/audit/Interlaggos.md) | dossier | - | dossier | ok | ok | ok | kit |
+| [Lemons](circuit-references/audit/Lemons.md) | dossier | ok | dossier | rule | ok | rule | kit |
+| [MandarinaBay](circuit-references/audit/MandarinaBay.md) | rule | ok | dossier | ok | rule | rule | kit |
+| [Monzarella](circuit-references/audit/Monzarella.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
+| [Mordschleife](circuit-references/audit/Mordschleife.md) | dossier | ok | dossier | rule | rule | dossier | kit |
+| [Nuerburgerring](circuit-references/audit/Nuerburgerring.md) | dossier | dossier | dossier | dossier | rule | dossier | kit |
+| [Oskarsleben](circuit-references/audit/Oskarsleben.md) | dossier | - | rule | rule | rule | dossier | kit |
+| [RedPullRing](circuit-references/audit/RedPullRing.md) | dossier | kit | dossier | ok | ok | dossier | kit |
+| [Shanghaied](circuit-references/audit/Shanghaied.md) | dossier | kit | dossier | dossier | ok | dossier | kit |
+| [Shebang](circuit-references/audit/Shebang.md) | dossier | kit | dossier | dossier | ok | ok | kit |
+| [Shiverstone](circuit-references/audit/Shiverstone.md) | dossier | kit | dossier | rule | ok | dossier | kit |
+| [Snorisring](circuit-references/audit/Snorisring.md) | dossier | kit | dossier | dossier | rule | dossier | kit |
+| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | dossier | dossier | dossier | dossier | ok | ok | kit |
+| [Sudoku](circuit-references/audit/Sudoku.md) | dossier | ok | rule | rule | ok | ok | kit |
+| [Zandervoort](circuit-references/audit/Zandervoort.md) | dossier | dossier | dossier | rule | dossier | rule | kit |
+
+Endianapolis, HermanosRodriQueso, MoscowMule and YasMarinara have no
+layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
+says why) and are not dressed. They are outside this work, and removing
+them from the calendar is the owner's option.
+
+What the audit says across the table:
+
+- **S/F** needs a dossier edit almost everywhere: the main stands opposite
+  the pits misplaced, missing or open where the real ones are covered,
+  and no screens. Ten pit buildings are multi-storey where the bake lays
+  one row of garages (kit gap 2).
+- **Stands** is a dossier edit at 22 tracks: stands misplaced by hundreds
+  of metres (Montreal's hairpin stands at T8-T9, Zandvoort's Hairpin
+  stand at Hans Ernst, Albert Park's 800-1400 m early), on the wrong side
+  (Sepang's main stand, Spa's Bus Stop, Albert Park's Moss), real stands
+  laid as `media_centre` blocks because OSM tags them as buildings
+  (Silverstone, Le Mans), and the general-admission banks absent (rule
+  gap 2).
+- **Barriers**: no circuit but the Nordschleife gets any concrete (rule
+  gap 6); the cells marked `ok` are ok apart from that.
+- **Boards**: the corner signs and marshal posts follow the dossier's
+  named corners, and ten dossiers have none or bogus ones (rule gap 10).
+- **People**: no figure kit exists, so every cell is kit.
+
+### Kit gaps
+
+Assets the audit finds no kit piece for, one row each, with the tracks
+that need it. Built once, in the column's pass, before the per-track
+dossier edits that place them. Asset keys are working names.
+
+| # | Asset (kind/key) | Stands in for | Tracks |
+|---|---|---|---|
+| 1 | `misc/crowd_bank_10m`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
+| 2 | `pit/` upper storey on the garage row (hospitality floor, roof terrace, roof screens) | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
+| 3 | `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
+| 4 | `grandstand/` tent-fabric roof bay and pit roof | white membrane roofs | Bahrainless |
+| 5 | `building/round_glass_tower` | a 30 m round glass control tower | Bahrainless |
+| 6 | `grandstand/` palm-frond canopy roof bay | leaf-canopy grandstand roofs | Shebang |
+| 7 | `bridge/sky_platform` | cantilevered platforms spanning the straight | Shanghaied |
+| 8 | `bridge/banked_oval_span` | the old banked oval on piers, over the GP road | Monzarella |
+| 9 | `grandstand/stone_tribune` | a long open stone terrace with a central platform | Snorisring |
+| 10 | `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
+| 11 | `building/expo_pavilion`, `building/geodesic_dome` | the Expo casino and the Biosphere | ChillyVilleneuve |
+| 12 | `building/fuel_station_canopy` | fuel stations by the lap | Mordschleife |
+| 13 | `tree/eucalypt_l`, `tree/stone_pine_l` | eucalypts; Mediterranean stone pines | AlbertParkour; Barcelunatic |
+
+Smaller asks, built only if a column's shots call for them: a date palm
+(Bahrainless), an amphitheatre canopy (Armadillos), a raised viewing deck
+(Interlaggos), stone block towers (Snorisring), a lit light truss
+(MandarinaBay), the Steilstrecke ramp (Mordschleife).
+
+### Rule gaps
+
+Dress, groom and dossier-tool rules the audit finds wanting, with the
+tracks they show at. Each is a rule change: re-dress `--all` and read the
+counts against the commit before.
+
+1. **Roofs follow depth alone.** `dress::stand_family` roofs every stand
+   25 m deep or more (`ASSUMED_ROOF_DEPTH_M`), and an OSM stand's `covered`
+   comes only from its tags, which no table overrides. Open hillside and
+   terrace stands come out roofed (RedPullRing, Shanghaied B, Shebang F,
+   Snorisring, Sudoku C/D/E/O/R, Nuerburgerring's hillside areas) and
+   covered ones open (SpaFrankenchamps Gold 1, Sudoku Q, Zandervoort's Pit
+   Grandstand, Interlaggos B/M, Monzarella 1/4/22/24/26, the Armadillos
+   main stand). Wanted: a `covered` or open override by name.
+2. **No family for banks and temporary stands.** A `MANUAL_STANDS` entry
+   cannot lay `spectator_bank_10m`, `banking_seats` or `scaffold_10m`;
+   spectator banks are laid only along car parks and camp sites, and OSM
+   `man_made=embankment` is unread. General-admission banks are missing at
+   Zandervoort, SpaFrankenchamps, Sudoku, RedPullRing, Oskarsleben,
+   Hockeyheimring and Nuerburgerring.
+3. **Stands beside the pit lane are dropped** ("nothing to build clear of
+   the pit lane"): the pit zone keeps its garage depth along the whole
+   lane, not only the garage row. Lost: MandarinaBay's Pit Exit, Turn 2
+   and Bayfront stands, the Lemons stand over the pits, Monzarella 23,
+   ChillyVilleneuve 11.
+4. **A road crossing is a tyre arch.** A crossing of kind `road` without a
+   `CROSSING_KINDS` entry falls to `tyre_bridge` (`dress.rs`); it should be
+   `overpass_concrete`. Seen at BrandsScratch (two), ChillyVilleneuve,
+   Gnocchi, Hungoverring, Nuerburgerring.
+5. **A building across the road is skipped** ("reaches across the road"),
+   and no crossing kind lays `bridge/span_building`: the Barcelunatic
+   rooftop, the ChillyVilleneuve pavilion, the Gnocchi Sirius building.
+6. **Concrete is never laid.** `barriers::decide` takes a mapped wall only
+   within 5 m of the road with 4 m of run-off or less, and the groom
+   builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
+   pit-straight rule never fires. The Nordschleife is the only track with
+   concrete, against 7-96 mapped walls at Monzarella, Nuerburgerring,
+   Oskarsleben, ChillyVilleneuve and Hockeyheimring.
+7. **Barrier styles.** The street style is Tecpro on every cell
+   (MandarinaBay, 4791 modules); park and temperate street circuits
+   (AlbertParkour, ChillyVilleneuve, Gnocchi, Snorisring) want concrete
+   and debris fence close in; `catch_fence_6m` is in the kit and no kind
+   lays it; club circuits get Tecpro where they have tyre walls
+   (BrandsScratch, Oskarsleben, Nuerburgerring), and the Nordschleife
+   4.3 km of tyres from geometry with none mapped.
+8. **Woods away from the road are bare on flat ground.** The groom plants
+   22-90 m out and the forest impostors need a 25 m rise, so mapped woods
+   go unplanted at Shiverstone, Lemons, Sudoku and Hockeyheimring; OSM
+   `scrub` (49 areas at Zandervoort) and `tree_row` (Oskarsleben) are
+   never planted.
+9. **Species and climate.** `groom.rs` counts `poplar` as needleleaved
+   (1148 in the Eifel forest, 149 in the Monza park); a style's flora
+   ignores the climate where no wood is mapped (a temperate belt in open
+   prairie at Armadillos, conifers at Shanghaied, no trees at all at
+   Shebang).
+10. **No manual corner table.** Corner signs and marshal posts come from
+    the dossier's named corners, and a circuit OSM names none of gets no
+    signs and a post every 400 m: ChillyVilleneuve, Gnocchi, Snorisring,
+    Shanghaied, Bahrainless, Barcelunatic, Hungoverring, MandarinaBay,
+    Nuerburgerring, Oskarsleben, and single corners at Armadillos and
+    Zandervoort. The real posts are about three times as many
+    (Nuerburgerring 51 against 13, Bahrainless 40 against 12, Shanghaied
+    35 against 12). Wanted: a `MANUAL_CORNERS` table in `osm_layout.py`.
+11. **A `tower` landmark is always a `control_tower`**; nothing reaches
+    `observation_tower` (Armadillos) or a tower block (Snorisring).
+12. **The podium sits on the middle garage** and roof screens have no
+    height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
+    screens on the pit roof.
+13. **Stand outlines.** The family is picked by depth only, so a
+    six-storey stand gets `bay_10m_large_roof` (Gnocchi); a wrapping OSM
+    outline is laid as one block on its centroid's side (the
+    Hockeyheimring south stand); OSM stands tagged as buildings come out
+    as `media_centre` (Shiverstone, Lemons).
+14. **Big buildings are dropped whole** by the run-off and across-the-road
+    skips instead of stepped back: the BrandsScratch MSV Centre, the
+    SpaFrankenchamps building at Eau Rouge.
+15. **Floodlights.** Where a dossier maps no masts, the dressing lays a
+    fallback ring (13-29 towers a track), and the OSM masts at day venues
+    stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert
+    Park only. Night sessions light the track with them, so this is a
+    decision before it is a rule: which circuits keep towers.
+16. **Water.** `WATER_STEMS` is MandarinaBay alone, so the Albert Park
+    lake is not in its dossier.
+17. **Checks.** Nothing flags a stand laid on the far side of its straight
+    (the Shebang main stand) or a distance-board set missing at a heavy
+    braking zone (Zandervoort's Hans Ernst and T9/T10).
+
+Found on the way and outside dressing (track geometry, georeference,
+references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).

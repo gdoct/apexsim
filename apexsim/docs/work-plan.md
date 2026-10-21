@@ -37,6 +37,7 @@ takes it up (— : no step, taken opportunistically).
 | R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 3, 5 |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 3, 5 |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
+| C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 4 |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 5 |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 5 |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 5 |
@@ -81,7 +82,9 @@ takes it up (— : no step, taken opportunistically).
 3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install), R3 phase 1 (a key per install), N7 (an offline season).
    N26 phase 2 waits on the repository and the signing key.
-4. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
+4. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
+   C5 alongside, its S/F column first, the rest column by column as the
+   kit gaps are built.
 5. **Online and depth.** N5 (multi-class) with A3 (its speed differences
    stress side by side), N11 (liveries), then the rest of R3, and N7
    online on top of identity.
@@ -240,6 +243,30 @@ Investigate LOD selection, shadow and material quality at that distance.
 - Bare-earth check for Shanghai/Monza (needs bare-earth data).
 - Silent `-ApexWatch` exit (not reproduced): watch for it; `-abslog` and the
   Windows event log if it returns.
+
+#### C5. Circuit dressing to the references — P2 · 🟡 · L
+*Source: roadmap 29; absorbs C2's dressing rows where a column reaches them.*
+**What:** Every circuit brought up to its real venue's look from the
+dossiers in `apexsim-content/docs/circuit-references/`, by column over all
+tracks: S/F, landmarks, stands, trees, barriers, boards, people last.
+**Implementation:** The audit is done: the status table, 13 kit gaps and
+17 rule gaps are in
+[track-improvements.md](../../apexsim-content/docs/track-improvements.md),
+each track's positions from the maps in
+`apexsim-content/docs/circuit-references/audit/<Stem>.md`
+(`render_maps.py` renders the PDF maps). Next, the S/F column: the rule
+gaps it rests on first (1 roofs by name, 3 stands beside the pit lane,
+10 a `MANUAL_CORNERS` table, 12 podium and roof screens), one re-dress
+`--all` against the commit before; then each track's S/F positions from
+its audit page into `MANUAL_STANDS` / `MANUAL_LANDMARKS`, committed per
+track; kit gap 2 (the pit building's upper storey) when the shots show
+the single row. Then Landmark, Stands, Trees, Barriers (rule gaps 6 and 7
+with the AI survey), Boards, People. Rule gap 15 (fallback floodlights
+at day venues) needs the owner's call before it is touched.
+**Watch out:** hand-placed props are discarded on the next dress; the
+barrier column changes `walls.msgpack` and needs the AI survey; a dress or
+rule change touches every track's `.ats`, export and catalogue; people is a
+new kit family plus client instancing and waits on nothing.
 
 #### C4. AC import fidelity — P3 · 🟢 · M
 Altitude, north and geotags for imported tracks (Med impact: sea-level air,

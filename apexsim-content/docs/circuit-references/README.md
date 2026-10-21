@@ -4,7 +4,8 @@ Reference material for the real circuits the tracks in `tracks/default/` are mod
 circuit, named by stem, describing the real venue down to building level. It covers which layout is
 current and how earlier ones differ, every corner, the pit lane, pit building and paddock, and every
 grandstand, bridge, tunnel, tower and building, placed by corner and side of the track. Each dossier
-ends with its sources and lists the maps worth looking at.
+ends with its sources and lists the maps worth looking at. `audit/<Stem>.md` is the dressing audit:
+what the game lays today against the dossier and the maps, by column.
 
 These are for checking and fixing layouts and dossiers (`<Stem>.layout.json`, `MANUAL_*` in
 `tools/osm_layout.py`), not runtime data. The real names here are source data. Screens still follow
@@ -23,7 +24,8 @@ powershell -ExecutionPolicy Bypass -File docs/circuit-references/fetch_maps.ps1 
 
 The script saves each file to `maps/<Stem>/` and skips files already present. Some hosts refuse
 scripted downloads (formula1.com images, a few circuit sites). The script reports those, and the
-URL opens in a browser. Entries marked `"verified": false` are Wikimedia Commons paths worked
+URL opens in a browser. `python docs/circuit-references/render_maps.py [<Stem>]` (PyMuPDF) renders
+every PDF to `maps/<Stem>/png/<name>.p<N>.png`, so the image-only ones can be read by eye. Entries marked `"verified": false` are Wikimedia Commons paths worked
 out from the file name. `maps/Zandervoort/2026-dutch-gp-wayfinding.pdf` is the official 2026 Dutch GP
 wayfinding map, the model for the level of detail wanted everywhere.
 
@@ -32,8 +34,10 @@ wayfinding map, the model for the level of detail wanted everywhere.
 - They were researched from circuit, promoter, FIA and series pages, ticket-site grandstand guides,
   Wikipedia and racingcircuits.info.
 - Map drawings were read for their text only. Positions come from text and page descriptions, not
-  from looking at the maps, except at Zandvoort, where the map was read visually. Image-only PDFs
-  (Bahrain FIA, Oschersleben, Indianapolis, Le Mans) still need reading by eye.
+  from looking at the maps, except at Zandvoort, where the map was read visually. The dressing
+  audit then read the maps as images, PDFs included, and its per-circuit positions are in
+  [audit/](audit/) ([track-improvements.md](../track-improvements.md)); they move into the dossier
+  text and the `MANUAL_*` tables as each column is worked.
 - No OpenStreetMap ids or surveyed coordinates are given. OSM and Commons could not be reached, so
   coordinates are the Wikipedia circuit centre plus an OSM map link.
 - Anything a dossier could not confirm says "unconfirmed". The "Gaps" in the table are the open
