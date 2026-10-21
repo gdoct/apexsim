@@ -222,6 +222,13 @@ MandarinaBay (the screens on the pit building's face, R20) and the
 Nordschleife, whose start/finish needs the trace page. The multi-storey pit
 buildings (kit gap 2, with R12 and R20) stay with their kit row.
 
+**Landmark column.** Rules, dossier pass (each audit page's "Landmark
+dossier pass"), bake and survey (identical) done; the `c5-lm-*` shots
+(`out/verify/c5-lm-<stem>/sheet_1.jpg`) wait for a person to judge them
+before the cells close. Open: the Albert Park lake (R16), the Steintribüne,
+Sepang's frond canopy and Bahrain's tent roofs (Stands column), the
+banking's curves at Monza (no kit piece).
+
 What the audit says across the table:
 
 - **S/F** needed a dossier edit almost everywhere: the main stands opposite
@@ -277,12 +284,6 @@ tracks they show at. Each is a rule change: re-dress `--all` and read the
 counts against the commit before. A built rule leaves the list; the labels
 stay as they are.
 
-- **R2. No family for banks and temporary stands.** A `MANUAL_STANDS`
-  entry cannot lay `spectator_bank_10m`, `banking_seats` or
-  `scaffold_10m`; spectator banks are laid only along car parks and camp
-  sites, and OSM `man_made=embankment` is unread. General-admission banks
-  are missing at Zandervoort, SpaFrankenchamps, Sudoku, RedPullRing,
-  Oskarsleben, Hockeyheimring and Nuerburgerring.
 - **R6. Concrete is never laid.** `barriers::decide` takes a mapped wall
   only within 5 m of the road with 4 m of run-off or less, and the groom
   builds every cell with `beside_pit_lane: false` (`groom.rs`), so the
@@ -317,11 +318,9 @@ stay as they are.
 - **R12. The podium sits on the middle garage** and roof screens have no
   height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
   screens on the pit roof.
-- **R13. Stand outlines.** The family is picked by depth only, so a
-  six-storey stand gets `bay_10m_large_roof` (Gnocchi); a wrapping OSM
-  outline is laid as one block on its centroid's side (the Hockeyheimring
-  south stand); OSM stands tagged as buildings come out as `media_centre`
-  (Shiverstone, Lemons).
+- **R13. Stand outlines.** A wrapping OSM outline is laid as one block
+  on its centroid's side (the Hockeyheimring south stand); OSM stands
+  tagged as buildings come out as `media_centre` (Shiverstone, Lemons).
 - **R14. Big buildings are dropped whole** by the run-off and
   across-the-road skips instead of stepped back: the BrandsScratch MSV
   Centre, the SpaFrankenchamps building at Eau Rouge.
@@ -335,10 +334,6 @@ stay as they are.
 - **R17. Checks.** Nothing flags a stand laid on the far side of its
   straight (the Shebang main stand) or a distance-board set missing at a
   heavy braking zone (Zandervoort's Hans Ernst and T9/T10).
-- **R18. An OSM stand cannot be dropped or renamed** from the tables:
-  Oschersleben's "Boxen / VIP-Loungen" (the pit building, tagged as a
-  stand) lays three bays on the pit side; an unnamed one can only be
-  roofed, by station (`STAND_COVER` "@<station_m>").
 - **R20. Screens on the pit building's roof or track face** have no rule:
   a `screen` landmark stands on the ground, and one in the garage zone is
   dropped (AlbertParkour, Armadillos, Bahrainless, Hungoverring,

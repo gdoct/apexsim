@@ -3676,7 +3676,7 @@ runs:
       - at: 12
         label: "the Fangio footbridge"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 213.8 -208.0 9.6 202.1 -196.7 4.2"
+        exec: "apexsim.cam.LookAt 252.5 -245.3 5.7 202.1 -196.7 4.2"
 
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
@@ -3739,7 +3739,7 @@ runs:
       - at: 12
         label: "the rooftop over the road"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -122.2 139.4 22.4 -107.2 146.9 21.9"
+        exec: "apexsim.cam.LookAt -169.8 115.6 18.1 -107.2 146.9 21.9"
       - at: 17
         label: "the fan zone stage"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
@@ -3764,11 +3764,11 @@ runs:
       - at: 12
         label: "a road bridge (R4) (1)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 238.9 -388.4 21.0 255.1 -397.0 14.5"
+        exec: "apexsim.cam.LookAt 193.3 -364.2 16.5 255.1 -397.0 14.5"
       - at: 17
         label: "a road bridge (R4) (2)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -129.7 -376.1 24.0 -145.6 -369.6 16.5"
+        exec: "apexsim.cam.LookAt -80.8 -396.1 18.5 -145.6 -369.6 16.5"
 
   - id: c5-lm-chillyvilleneuve
     about: "C5. Landmarks: ChillyVilleneuve"
@@ -3797,7 +3797,7 @@ runs:
       - at: 22
         label: "the Concorde road bridge (R4)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -545.7 830.3 11.8 -540.7 849.6 5.7"
+        exec: "apexsim.cam.LookAt -558.3 781.8 7.7 -540.7 849.6 5.7"
 
   - id: c5-lm-gnocchi
     about: "C5. Landmarks: Gnocchi"
@@ -3859,7 +3859,7 @@ runs:
       - at: 22
         label: "the road bridge (R4)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -196.2 325.4 -2.4 -183.8 315.1 -8.3"
+        exec: "apexsim.cam.LookAt -237.6 359.8 -6.3 -183.8 315.1 -8.3"
 
   - id: c5-lm-monzarella
     about: "C5. Landmarks: Monzarella"
@@ -3880,11 +3880,11 @@ runs:
       - at: 12
         label: "the banked oval over the road"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 671.4 969.4 12.9 656.6 956.3 9.4"
+        exec: "apexsim.cam.LookAt 709.0 1002.7 9.0 656.6 956.3 9.4"
       - at: 17
         label: "the footbridge after it"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 528.7 844.1 13.0 516.5 833.3 7.5"
+        exec: "apexsim.cam.LookAt 568.9 879.7 9.0 516.5 833.3 7.5"
 
   - id: c5-lm-mordschleife
     about: "C5. Landmarks: Mordschleife"
@@ -3938,11 +3938,11 @@ runs:
       - at: 17
         label: "the covered bridge"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 148.0 139.0 12.3 136.4 127.9 6.7"
+        exec: "apexsim.cam.LookAt 187.0 176.3 8.3 136.4 127.9 6.7"
       - at: 22
         label: "the lap's own bridge"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -417.0 -366.3 -2.9 -421.2 -384.0 -11.6"
+        exec: "apexsim.cam.LookAt -405.0 -315.9 -7.2 -421.2 -384.0 -11.6"
       - at: 27
         label: "the trackside tower"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
@@ -3988,11 +3988,11 @@ runs:
       - at: 12
         label: "a sky platform over the straight (1)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt 3.0 0.6 10.0 -14.6 -3.1 7.3"
+        exec: "apexsim.cam.LookAt 53.9 11.3 6.1 -14.6 -3.1 7.3"
       - at: 17
         label: "a sky platform over the straight (2)"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
-        exec: "apexsim.cam.LookAt -309.7 -67.3 11.5 -327.3 -71.1 8.7"
+        exec: "apexsim.cam.LookAt -258.9 -56.3 7.5 -327.3 -71.1 8.7"
 
   - id: c5-lm-shiverstone
     about: "C5. Landmarks: Shiverstone"
