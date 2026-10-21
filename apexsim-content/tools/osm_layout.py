@@ -163,12 +163,9 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # The pit straight: the stands face the pit building across the road.
         dict(name="Super Pit Grandstand", from_m=4730, to_m=4900, side="right", depth_m=26, gap_m=6, family="street", covered=True),
         dict(name="Pit Grandstand", from_m=20, to_m=200, side="right", depth_m=26, gap_m=6, family="street", covered=True),
-        dict(name="Republic Grandstand", from_m=215, to_m=330, side="right", depth_m=26, gap_m=6, family="street"),
-        dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=14, gap_m=6, family="street_deck"),
         # Turns 1-3.
         dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=26, gap_m=6, family="street"),
         dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=26, gap_m=6, family="street"),
-        dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=14, gap_m=6, family="street_deck"),
         # The back of the lap, round the Flyer and along the bottom straight.
         dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=14, gap_m=6, family="street_deck"),
         dict(name="Bayfront Grandstand", from_m=4545, to_m=4640, side="left", depth_m=14, gap_m=6, family="street_deck"),
@@ -181,6 +178,21 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Padang B Grandstand", from_m=2435, to_m=2520, side="right", depth_m=14, gap_m=6, family="street_deck"),
         dict(name="Connaught Grandstand", from_m=3440, to_m=3550, side="right", depth_m=14, gap_m=6, family="street_deck"),
         dict(name="Empress Grandstand", from_m=2705, to_m=2775, side="right", depth_m=14, gap_m=6, family="street_deck"),
+        # The 2026 Circuit Park Map (maps/MandarinaBay/sgp-circuit-park-map-2026.pdf
+        # p.1) has nothing on the right of the pit straight past the Pit
+        # Grandstand but a superscreen and a viewing platform: Republic stands
+        # by T5, inside the bend from the T4 run (park map REPUBLIC GRANDSTAND
+        # beside the T5 marker; oversteer48-grandstand-map-2025.jpg). Moved off
+        # the straight here so it is not lost; its exact span is the Stands
+        # column's to confirm.
+        dict(name="Republic Grandstand", from_m=850, to_m=960, side="right", depth_m=26, gap_m=6, family="street"),
+        # Pit Exit and Chicane @ Turn 2 stand behind the pit-exit lane, not on
+        # it (park map: PIT EXIT GRANDSTAND west of the exit line, CHICANE @
+        # TURN 2 inside T2-T3 beyond it). The exit lane runs 8-15 m left of the
+        # centerline here; an 18 m gap puts each front ~10 m past the lane's
+        # centre.
+        dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=14, gap_m=18, family="street_deck"),
+        dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=14, gap_m=18, family="street_deck"),
     ],
     # Only the Hoofdtribune is in OSM.  The rest are from the circuit's
     # own tribune map (https://dutchgp.com/en/tribunes/,
@@ -898,6 +910,11 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="lotus_museum", name="Lotus museum", at=(103.85923, 1.28611)),
         dict(kind="double_helix", name="Double helix bridge", at=(103.86049, 1.28746),
              yaw_toward=(103.86045, 1.28871)),
+        # Superscreens on the right after the Pit Grandstand (park map
+        # "superscreen" key): one past the stand's T1 end by the viewing
+        # platform, one on the T1 approach by the Turn 1 Platform.
+        dict(kind="screen", name="Pit straight superscreen", station_m=240.0, side="right", offset_m=15.0),
+        dict(kind="screen", name="Turn 1 superscreen", station_m=320.0, side="right", offset_m=25.0),
     ],
     # Burg Nürburg, the castle ruin on its basalt cone in Nürburg, inside
     # the loop between the GP circuit and the Hatzenbach: the landmark every

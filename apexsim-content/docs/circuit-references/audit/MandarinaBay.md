@@ -58,3 +58,18 @@ lap 4921. Anticlockwise; pit lane left, 4582 -> 519.
 - STREET barrier style: concrete + debris fence (lit posts) on straights, Tecpro only at corner
   run-off ends, instead of Tecpro on every cell.
 - No manual corner table (as at Hungoverring): 0 corner signs, 8 marshal posts.
+## S/F dossier pass
+
+In the tables:
+
+- Removed: Republic Grandstand, Pit Exit Grandstand, Chicane Turn 2 Grandstand.
+- `MANUAL_STANDS`: Republic Grandstand (850-960 right); Pit Exit Grandstand (300-395 left); Chicane Turn 2 Grandstand (470-540 left).
+- `MANUAL_LANDMARKS`: screen at 240.0 right; screen at 320.0 right.
+
+Left, or for later columns:
+
+- Geometry: Republic's front 6 m off the right edge, right side throughout, 135 m from the pit lane (turn_side calls 850-960 "outside" = left, so side is given as right explicitly). Pit Exit at gap 18 is 9.7 m from the nearest pit lane node (1.4 m at today's gap 6); Chicane Turn 2 at gap 18 is 14.6 m (3.1 m at gap 6). The screens are 37 and 44 m from the lane. The map is "not drawn to scale": stations good to ~40 m.
+- The current dress rule already steps Pit Exit and Chicane Turn 2 back off the lane (both lay 3 bays now); the explicit gap makes it independent of the rule. If the rule is preferred, drop those two from REMOVE/add.
+- Not placed: the park map's three superscreens on the pit building's track face (left, ~4780, ~4860, ~0), where the bake lays garages; no screen-on-the-pit-building rule. The podium (by the finish, on the pit building) has no MANUAL_LANDMARKS kind.
+- Dossier rebuild for this stem is `python tools/osm_layout.py MandarinaBay --offline` (no DEM sidecar, so --manual-only skips it); not run.
+- Left for other columns: Raffles, Bayfront, Skyline/Promenade fixes and the Padang/Connaught/Bayfront/Raffles Ave superscreens.
