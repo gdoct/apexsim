@@ -50,3 +50,15 @@ Maps read: `gpd-grandstand-map-2026.jpg` (the general map, best), `says-grandsta
 
 - The stand roof-by-depth rule, as at RedPullRing (F at 32 m deep gets a roof without evidence).
 - None specific otherwise. The S/F loss is a dossier side error, not a rule fault. A guard that flags a stand whose front lands closer than its depth to *another* stand's back, or on the far side of a leg, would have caught it.
+## S/F dossier pass
+
+In the tables:
+
+- Removed: Main Grandstand.
+- `MANUAL_STANDS`: Main Grandstand (5285-325 left covered); Main Grandstand (4460-5040 left covered); Tower Grandstand (5070-5250 inside covered).
+
+Left, or for later columns:
+
+- Replaces the comment's spans: the old 20-560 face ran ~235 m over the Mall Area and stopped 300 m short of the V; the old 4300-4950 face started 160 m early and stopped 90 m short. The comment above the table should name the OSM way as the span's source.
+- The Tower's 4 runs are 10 m-bay chains round a ~20 m radius: a round multi-storey stand with a frond canopy is a kit gap (grandstand/canopy_frond_10m, as in the audit).
+- Stands column: OSM also outlines K2 at 915-1108 left (not 650-850 as the table has it) and G1-G3, E, D, C1-C3 and B (ways 1105232828-35, 1106524868, 1106762515, untagged names only, so extract() skips them).

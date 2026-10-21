@@ -294,8 +294,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # so it is on the circuit's left of both, opposite the pits on the pit
     # straight and north of the back straight.
     "Shebang": [
-        dict(name="Main Grandstand", from_m=20, to_m=560, side="left", depth_m=20, covered=True),
-        dict(name="Main Grandstand", from_m=4300, to_m=4950, side="left", depth_m=20, covered=True),
         # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
         # opposite the K1 Grandstand OSM already gives us
         # (sepangcircuit.com spectator guide: "K2 Hillstand... open-air
@@ -310,6 +308,25 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # long, high-speed real-world character). Approximate; flagged in
         # the hand-back.
         dict(name="Turn 4 Grandstand", from_m=1550, to_m=1720, side="outside", depth_m=14, covered=False),
+        # The Main Grandstand's two faces, spanned from OSM's own outline of it
+        # (way 144247993, building=grandstand, dropped by front_edge_is_broken()
+        # as one double-fronted polygon), read station by station against this
+        # centerline: the pit-straight face runs from the V point at T15
+        # (~5285) to ~325, 31-41 m left of the centreline (the palm-frond
+        # canopy's sawtooth), with the Mall Area and the Welcome Centre beyond
+        # its west end (gpd-grandstand-map-2026.jpg: "MAIN GRANDSTAND" from the
+        # Mall Area to the red dot at the V); the back-straight face from ~4460
+        # to ~5040, 31-44 m left. Front at 31 m from the centreline = 24 m past
+        # the 7.3 m road edge. Covered (dossier "Start/finish").
+        dict(name="Main Grandstand", from_m=5285, to_m=325, side="left", depth_m=20, gap_m=24, covered=True),
+        dict(name="Main Grandstand", from_m=4460, to_m=5040, side="left", depth_m=20, gap_m=24, covered=True),
+        # The Tower (Hibiscus) grandstand: the round stand at the V point,
+        # inside the T15 left hairpin (gpd-grandstand-map-2026.jpg red dot;
+        # OSM: the same outline's circular end, ~5055-5285, 6-26 m from the
+        # centreline, and node 10127497356 "Grandstand Tower" at 5238, 37 m
+        # left). Covered (dossier "Buildings": palm-frond canopy over the Main
+        # and Tower grandstands).
+        dict(name="Tower Grandstand", from_m=5070, to_m=5250, side="inside", depth_m=13, gap_m=6, covered=True),
     ],
     # OSM has this one only as a plain `building=yes` named "Tribuna F", so
     # extract() files it under structures (a building) rather than stands;
