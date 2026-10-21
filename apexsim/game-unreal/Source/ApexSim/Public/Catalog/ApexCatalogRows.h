@@ -697,6 +697,16 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
 	float NorthYawDeg = 0.0f;
+
+	/**
+	 * The circuit's pin on Garage > Tracks' globe: `metadata.latitude_deg`
+	 * and `longitude_deg` of its export, only when it has both.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	bool bHasGlobePosition = false;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	float LongitudeDeg = 0.0f;
 };
 
 namespace ApexCatalog

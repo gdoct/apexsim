@@ -426,6 +426,10 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 			{
 				Header.NorthYawDeg = static_cast<float>(Value);
 			}
+			else if (Id == TEXT("longitude_deg"))
+			{
+				Header.LongitudeDeg = static_cast<float>(Value);
+			}
 			continue;
 		}
 		if (Depth != 1)

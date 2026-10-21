@@ -172,6 +172,11 @@ void UApexTrackContentSubsystem::Rescan()
 					Row.LatitudeDeg = Files.Header.LatitudeDeg.Get(Row.LatitudeDeg);
 					Row.NorthYawDeg = Files.Header.NorthYawDeg.Get(Row.NorthYawDeg);
 				}
+				if (Files.Header.LatitudeDeg.IsSet() && Files.Header.LongitudeDeg.IsSet())
+				{
+					Row.bHasGlobePosition = true;
+					Row.LongitudeDeg = Files.Header.LongitudeDeg.GetValue();
+				}
 				if (!Files.PreviewPath.IsEmpty())
 				{
 					Row.RuntimePreview = FImageUtils::ImportFileAsTexture2D(Files.PreviewPath);
