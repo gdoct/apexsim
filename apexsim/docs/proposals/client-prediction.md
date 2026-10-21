@@ -22,13 +22,13 @@ knows first, needs prediction.
 
 - `ClientMessage::PlayerInput` carries `server_tick_ack`, the controls and
   the client's number for the input (`seq`, phase 2).
-- `DriverFeedback` (`sim/src/feedback.rs`) is per driver and per telemetry
+- `DriverFeedback` (`server/sim/src/feedback.rs`) is per driver and per telemetry
   tick, carries `server_tick`, torque samples and the column slope, and for
   a client that numbers its inputs the own car's snapshot and slices of its
   full state (phase 2, below).
 - Telemetry is serialized once per session and fanned out
   (`game_loop/broadcast.rs`), so it cannot carry anything per recipient.
-- The simulation is its own crate (`apexsim-sim`, `sim/`), which the
+- The simulation is its own crate (`apexsim-sim`, `server/sim/`), which the
   server crate (an rlib plus two binaries) links and re-exports. The car
   step is also a static library behind a C API, `server/ffi` (phase 1,
   below), on the simulation crate alone, which the client links (phase 3).
@@ -50,7 +50,7 @@ is presentation only; any disagreement resolves to the server.
 A simplified client car model would drift forever and every physics feature
 ([vehicle-physics.md](../server/vehicle-physics.md)) would land twice.
 Instead, compile the server's physics into the client: the sim is
-deterministic (fixed dt, no wall clock, no RNG, `sim/tests/all/determinism_test.rs`),
+deterministic (fixed dt, no wall clock, no RNG, `server/sim/tests/all/determinism_test.rs`),
 so the crate can be a static library behind a small C FFI, linked as a
 prebuilt third-party lib.
 

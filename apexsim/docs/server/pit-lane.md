@@ -23,15 +23,15 @@ Tyres, compounds, fuel, damage and brakes themselves are in
 - `apexsim-content/track-editor/core/src/ue_export.rs` - `pit_layout` (limit stretch and
   garage run), `PitSidecar` / `bake_pit_sidecar`, the pit complex, paint and
   signs, `bake_walls` (garage collision boxes).
-- `sim/src/pit.rs` - `PitLane` (the loaded sidecar), `PitState` (per
+- `server/sim/src/pit.rs` - `PitLane` (the loaded sidecar), `PitState` (per
   car, on `CarState::pit`), `PitPlan` (a driver's orders), `deal_box`,
   `exit_closed`, `takes_over`, `drive_input`, `run_up_input`,
   `plan_service` / `plan_service_for`, `plan_stop`,
   `tyres_for_the_track`, `recovery_pose`.
-- `sim/src/game_session.rs` - `update_pits` (with `anchor_on_lap`),
+- `server/sim/src/game_session.rs` - `update_pits` (with `anchor_on_lap`),
   `set_pit_plan`, `start_service`, `finish_service`, `plan_ai_stops`,
   `pit_autopilot_inputs`, `lane_traffic`.
-- `sim/src/physics.rs` - the limiter in `update_car_3d`,
+- `server/sim/src/physics.rs` - the limiter in `update_car_3d`,
   `RoadContact::PitLane`, `on_pit_lane_strip`.
 - Client: `FApexCarTelemetry` pit fields, `UApexNetSubsystem::FindPitService`,
   `hud/default/pit_stop`, `ApexHudData::PitStopProgress`,
@@ -273,7 +273,7 @@ Called inside `update_air` before the physics, and in the countdown.
 ## Checking it
 
 ```bash
-cd server
+cd server/server
 cargo test --test all pit_stop_test::   # limiter, service, a driver's pit plan and pad set, a human in and out, aids put back,
                                         # every car its own box, the red light holds a car, the AI's stop, the lane without the road mesh
 cargo test --manifest-path ../sim/Cargo.toml --lib -- pit::   # the unit tests live in the simulation crate

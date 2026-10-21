@@ -225,7 +225,7 @@ if (-not $SkipBuild) {
     if (-not $SkipServer) {
         Step 'Building the server image'
         # The context is the folder holding the roots: the server builds
-        # against apexsim/sim and apexsim-lib/formats (Dockerfile.dockerignore
+        # against apexsim/server/sim and apexsim-lib/formats (Dockerfile.dockerignore
         # filters it).
         Push-Location (Split-Path -Parent $repo)
         try {

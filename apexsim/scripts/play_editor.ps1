@@ -11,7 +11,7 @@
 
     If game-unreal/settings.yml points at this machine and nothing is
     listening on that port, a local server is started in its own minimized
-    window, from server/target/release after an incremental
+    window, from server/server/target/release after an incremental
     `cargo build --release`, so it always matches the source.
 
     A server that is already running is used as it is. It may be an older
@@ -190,7 +190,7 @@ if (-not $NoServer -and $isLocal) {
     $listener = Get-Listener $serverPort
 
     if ($listener -and -not $RestartServer) {
-        $newest = Get-NewestWrite @((Join-Path $ServerDir 'src'), (Join-Path $RepoRoot 'sim\src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
+        $newest = Get-NewestWrite @((Join-Path $ServerDir 'src'), (Join-Path $RepoRoot 'server\sim\src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
         if ($newest -and $listener.StartTime -lt $newest) {
             $message = "The server on port $serverPort was started $($listener.StartTime), before the latest server or content change."
             if ($Interactive) {

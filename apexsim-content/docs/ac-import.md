@@ -471,8 +471,8 @@ python -m unittest discover -s tools/ac_car_import/tests
 ```
 
 Simulation and server (opt-in, `#[ignore]`d, because imports are the
-player's own data), the first block in `../apexsim/sim`, the pit surveys in
-`../apexsim/server`:
+player's own data), the first block in `../apexsim/server/sim`, the pit surveys in
+`../apexsim/server/server`:
 
 ```bash
 cargo test --release --test all imported_track_test:: -- --ignored        # every import loads with its sidecars

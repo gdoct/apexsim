@@ -2,26 +2,26 @@
 
 How to start, configure, secure, watch and deploy `apexsim-server`. The
 command line and every `APEXSIM_*` environment variable are listed in
-[server/CMDLINE.md](../../server/CMDLINE.md) (shipped in a release as
+[server/server/CMDLINE.md](../../server/server/CMDLINE.md) (shipped in a release as
 `Server\server.md`); this page covers the rest.
 
 ## Code
 
-- `server/src/main.rs` (CLI, tracing, shutdown), `config.rs`
+- `server/server/src/main.rs` (CLI, tracing, shutdown), `config.rs`
   (`ServerConfig`, defaults, `validate`, `apply_env_overrides`), `server.rs`
   (`run_server_from`), `health.rs` and `metrics.rs` (health port).
-- `server/src/admin/` - the web dashboard (`mod.rs` auth and TLS, `api.rs`
+- `server/server/src/admin/` - the web dashboard (`mod.rs` auth and TLS, `api.rs`
   views, `hosted.rs` sessions the server runs, `schedule.rs`, `content.rs`
   switched-off content and uploads, `bans.rs`, `logbuf.rs`, `sampler.rs`,
   the page in `web/`).
-- `sim/src/debug_hooks.rs` - `[debug]` stand-in driver and timed events.
+- `server/sim/src/debug_hooks.rs` - `[debug]` stand-in driver and timed events.
 - `server/Dockerfile`, `Dockerfile.content`, `docker-compose.yml`,
   `docker-entrypoint.sh`, `server.docker.toml`; `scripts/deploy_server.ps1`.
 
 ## Starting it
 
 ```bash
-cd server && cargo run --release                     # ./server.toml
+cd server/server && cargo run --release                     # ./server.toml
 apexsim-server --config /etc/apexsim/server.toml --log-level debug
 ```
 
@@ -37,8 +37,8 @@ Three config files exist, for three places:
 
 | File | Used by | Notes |
 |---|---|---|
-| `server/server.toml` | `cargo run` in `server/` | Development: 420 Hz, binds 0.0.0.0, TLS off, auth `dev`, content root `../../apexsim-content` |
-| `server.toml` (code root) | Copied into the release package's `Server\` | `server/server.toml` with release-relative paths (content root `./content`); keep the two in step |
+| `server/server/server.toml` | `cargo run` in `server/server/` | Development: 420 Hz, binds 0.0.0.0, TLS off, auth `dev`, content root `../../../apexsim-content` |
+| `server.toml` (code root) | Copied into the release package's `Server\` | `server/server/server.toml` with release-relative paths (content root `./content`); keep the two in step |
 | `server/server.docker.toml` | The Docker image | Paths under `/content` and `/data`; dashboard on 0.0.0.0 |
 
 All three run at 420 Hz.
@@ -70,7 +70,7 @@ Every section and its keys (defaults from `config.rs`):
   (1000; only validated against the timeout, the server sends nothing on it),
   `telemetry_divisor` (7: telemetry every 7th tick, 60 Hz at 420 Hz).
 - `[content]` - `root` (`APEXSIM_CONTENT`; empty is the sibling checkout
-  `../../apexsim-content`, as seen from `server/`), whose `cars/` and `tracks/`
+  `../../../apexsim-content`, as seen from `server/server/`), whose `cars/` and `tracks/`
   the server reads; `cars_dir`, `tracks_dir` (`APEXSIM_CONTENT_CARS_DIR` /
   `_TRACKS_DIR`) name either folder elsewhere and win over the root. Each is
   read as `default/` then `custom/`; `skip_imported_tracks` (false; the debug test servers set it).
@@ -202,7 +202,7 @@ falls under 90% ([../architecture.md](../architecture.md#tick-timing-on-windows)
 
 A web page for operators on `[admin] http_bind` / `https_bind` (default
 `127.0.0.1:9003` / `:9004`), compiled into the binary from
-`server/src/admin/web/`; nothing is served from disk.
+`server/server/src/admin/web/`; nothing is served from disk.
 
 - **Access**: everything under `/api` needs `[admin] token` (empty: a random
   one each start, printed once in the log). The login page trades it for an
@@ -302,7 +302,7 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   reported in the next `Heartbeat` (`ping_ms`); a client that does not
   report one shows none.
 
-Tests: `server/tests/all/admin_test.rs` (`a_session_is_run_from_the_dashboard_alone`
+Tests: `server/server/tests/all/admin_test.rs` (`a_session_is_run_from_the_dashboard_alone`
 is the end-to-end check). `cargo test --test all
 admin_test::serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19004
 (token `demo`) over a live AI race.
@@ -313,10 +313,10 @@ admin_test::serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19
 user `apexsim`, working directory and volume `/data`, ports 9000-9004, a
 `HEALTHCHECK` on `/health`. Both images are built from the folder that holds
 the roots, each filtered by its own `<Dockerfile>.dockerignore`: the server
-builds against `apexsim/sim` and `apexsim-lib/formats` (`docker build -f
-apexsim/server/Dockerfile -t apexsim-server .`). Content is not baked in:
+builds against `apexsim/server/sim` and `apexsim-lib/formats` (`docker build -f
+apexsim/server/server/Dockerfile -t apexsim-server .`). Content is not baked in:
 `Dockerfile.content` (`docker build -f
-apexsim/server/Dockerfile.content -t apexsim-content .`) packs
+apexsim/server/server/Dockerfile.content -t apexsim-content .`) packs
 `apexsim-content/cars`, `apexsim-content/tracks` (with the generated sidecars)
 and `apexsim/showcase.yml`, and on start replaces the `/content` volume
 with them; the server renders the showcases into `/data/showcase`, which
@@ -359,7 +359,7 @@ fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
 several),
 `damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time
-of green. Tests: `sim/tests/all/debug_hooks_test.rs`.
+of green. Tests: `server/sim/tests/all/debug_hooks_test.rs`.
 `tick_jitter_seconds = N` (`APEXSIM_DEBUG_TICK_JITTER_SECONDS`) logs one
 line per N seconds of how evenly the game loop ticked (`tick_jitter.rs`):
 the tick-to-tick interval's median, 99th percentile and longest, and its

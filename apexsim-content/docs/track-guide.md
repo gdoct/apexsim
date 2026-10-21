@@ -10,12 +10,12 @@ gotchas. The player steps between corners, changes camera, pauses or leaves.
 
 ## Code
 
-- `apexsim/protocol/src/track_guide.rs` (the `apexsim-protocol` crate, which the
+- `apexsim/server/protocol/src/track_guide.rs` (the `apexsim-protocol` crate, which the
   server re-exports and the physics library links): corner detection, the solo runs, measuring,
   gotchas, cameras, the guide file (`TrackGuide`), and `wire_corners` (the
   same corners sent as `TrackCorners` to a watched hotlap, see
   [sessions](../../apexsim/docs/server/sessions.md)).
-- `apexsim/server/src/bin/apexsim_replay.rs`: the `guide` subcommand;
+- `apexsim/server/server/src/bin/apexsim_replay.rs`: the `guide` subcommand;
   `apexsim/server/ffi` (`apx_guide_build`): the same guide made in the game.
 - `tracks/default/<Stem>/<Stem>.guide.yml`: hand-written notes,
   checked in.
@@ -199,7 +199,7 @@ Unattended: `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N -ApexGuideCamera=N`
 
 ## Checking it
 
-- `cargo test track_guide` in `../apexsim/protocol` (`track_guide::tests`: stops, names, notes, the
+- `cargo test track_guide` in `../apexsim/server/protocol` (`track_guide::tests`: stops, names, notes, the
   turn count at Zandvoort).
 - `server/ffi/tests/guide.rs`: the API's guide is the tool's, both files;
   cancel; its ignored release test against `build/guide`.

@@ -89,7 +89,7 @@ asserts the values. Silent unit or sign errors here cost days later.
 ### 3. Record a dataset from today's AI
 
 A new `#[ignore]`d harness beside the survey,
-`record_driving_dataset` in `sim/tests/all/ai_race_start_test.rs` (or its own test
+`record_driving_dataset` in `server/sim/tests/all/ai_race_start_test.rs` (or its own test
 file), runs survey-style races and logs `(obs, RuleCore's action)` for every
 car on the road under `RuleCore`. The session holds the samples in a buffer
 the test drains (`GameSession::take_driving_samples()`, filled only when the
@@ -134,7 +134,7 @@ leave the road in two corners.
 
 ### 5. Run it in Rust, deterministically
 
-A hand-written forward pass (`server/src/learned_driver.rs`, about 60
+A hand-written forward pass (`server/server/src/learned_driver.rs`, about 60
 lines): matrix-vector products in a fixed loop order, `f32`, ReLU as
 `max(0.0)`, a final clamp. No crate.
 

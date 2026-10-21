@@ -11,17 +11,17 @@ side by side:
 
 | Root | Holds |
 |---|---|
-| `apexsim/` (code) | `sim/` (the simulation crate), `protocol/` (the wire, the spectator stream, the render), `server/` (and `server/ffi`), `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`benchmark/`, `showcase/` and `guide/` from `apexsim-replay` run by hand...), `out/`, `artifacts/`, `records/`, `replays/` |
+| `apexsim/` (code) | `server/`, the Rust crates: `server/sim/` (the simulation), `server/protocol/` (the wire, the spectator stream, the render), `server/server/` (the server) and `server/ffi/` (the physics library the client links); `game-unreal/`, `hud/`, `launcher/`, `deploy/`, `site/`, `scripts/` (build, release, site, promo and verification scripts), `docs/`, `showcase.yml`, `server.toml`; its artefacts in `build/` (`benchmark/`, `showcase/` and `guide/` from `apexsim-replay` run by hand...), `out/`, `artifacts/`, `records/`, `replays/` |
 | `apexsim-content/` (content) | `cars/`, `tracks/`, `props/`, `textures/`, `wheels/`, `artwork/`; `track-editor/` (track-core, the `ats-*` tools, the Bevy editor); `tools/` (the Python pipeline, the AC importers, `generators/` for the Blender-built cars, props and wheels, `lib/` for the shared PowerShell); `docs/`; the generated `build/tracks/` (exports, previews, `track_catalog.json`) and `.cache/` (OSM, DEM, previews, import caches) |
 | `apexsim-lib/` (formats) | `formats/`, the `apexsim-formats` crate: the track YAML (`TrackFile`), the ground, curbs, walls, road mesh and pit sidecars, `content_crc` and the format levels |
 
 `apexsim-lib` depends on nothing, the content depends on `apexsim-lib`, and
 the code depends on both. The code reaches the content as the sibling
 `../apexsim-content` from the code root (`../../apexsim-content` from
-`sim/`, `server/` or `game-unreal/`); the simulation, the server and
+`game-unreal/`, `../../../apexsim-content` from a crate in `server/`); the simulation, the server and
 track-core depend on `apexsim-lib/formats` by path. Nothing under `apexsim-content/` or
 `apexsim-lib/` reads, builds or links the code; the one exception is a test,
-the AC car importer's reading `sim/src/brakes.rs`.
+the AC car importer's reading `server/sim/src/brakes.rs`.
 
 Where each kind of tool runs from:
 
@@ -36,9 +36,9 @@ Where each kind of tool runs from:
   the content's whole bake (ground PNGs, dress, export, previews) with cargo
   and Python only; `scripts/build_track_levels.ps1` runs it and adds the
   code's stages.
-- **Cargo** for the simulation runs in `apexsim/sim`, for the wire and the
-  stream in `apexsim/protocol`, for the server in
-  `apexsim/server` (and `apexsim/server/ffi`), for the formats in
+- **Cargo** for the simulation runs in `apexsim/server/sim`, for the wire and the
+  stream in `apexsim/server/protocol`, for the server in
+  `apexsim/server/server` (and `apexsim/server/ffi`), for the formats in
   `apexsim-lib/formats`.
 
 Paths in this doc are relative to the code root; a path that starts with
@@ -52,7 +52,7 @@ Paths in this doc are relative to the code root; a path that starts with
   and Visual Studio's C++ toolchain, for the client and the commandlets.
 - PowerShell for the build scripts (Windows; 5.1 works).
 
-## Simulation (Rust, `sim/`)
+## Simulation (Rust, `server/sim/`)
 
 `apexsim-sim` is the deterministic simulation: the car, the track and its
 sidecars, the race and the session tick, with no network, TLS, clock or
@@ -61,10 +61,10 @@ The server re-exports its modules under the same paths
 (`apexsim_server::physics`), and the client's physics library
 (`server/ffi`) links it alone. A test that needs only the simulation lives
 here, `determinism_test` among them; one that starts a server, speaks the
-wire or reads the server's config lives in `server/`.
+wire or reads the server's config lives in `server/server/`.
 
 ```bash
-cd sim
+cd server/sim
 cargo fmt --check && cargo clippy --all-targets -- -D warnings
 CARGO_PROFILE_TEST_OPT_LEVEL=2 cargo test --no-fail-fast   # unit and integration tests, as CI runs them
 cargo test --lib physics::                # one module's unit tests
@@ -75,10 +75,10 @@ The integration tests are one binary, `tests/all` (`main.rs` declares each
 file as a module), so a change links one test executable, not one per file.
 A new file is added there with a `mod` line; `--test all <file>::<name>`
 picks a file or a test. The tests read the content as
-`../../apexsim-content` from `sim/`, as the server's do from `server/`. The crate has its own `Cargo.lock`, started
+`../../../apexsim-content` from `server/sim/`, as the server's do from `server/server/`. The crate has its own `Cargo.lock`, started
 from the server's: keep the shared dependencies on the server's versions.
 
-## Protocol (Rust, `protocol/`)
+## Protocol (Rust, `server/protocol/`)
 
 `apexsim-protocol` is what the server and its viewers exchange, apart from
 the sockets: the wire messages (`network`, `session_wire`) and their
@@ -91,7 +91,7 @@ server re-exports every module under the same path
 same showcase bytes as the server.
 
 ```bash
-cd protocol
+cd server/protocol
 cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test
 cargo test spectator_wire_format -- --nocapture   # golden bytes for the client
 ```
@@ -99,10 +99,10 @@ cargo test spectator_wire_format -- --nocapture   # golden bytes for the client
 The crate has its own `Cargo.lock`, started from the server's: keep the
 shared dependencies on the server's versions.
 
-## Server (Rust, `server/`)
+## Server (Rust, `server/server/`)
 
 ```bash
-cd server
+cd server/server
 cargo build                    # debug
 cargo build --release          # release: target/release/apexsim-server(.exe), apexsim-replay(.exe)
 cargo run -- --config path.toml --log-level debug   # default ./server.toml
@@ -131,7 +131,7 @@ RUST_LOG=debug cargo test <name>                   # with logging
   something can be watched (`-ApexWatchSession`, a stream check, a screenshot
   run). Point the game at a scratch server with `-ApexSettingsDir=`
   ([game/client.md](game/client.md)) instead of the player's `settings.yml`.
-- `sim/tests/all/determinism_test.rs` asserts bit-identical runs on both road
+- `server/sim/tests/all/determinism_test.rs` asserts bit-identical runs on both road
   backends; see [architecture.md](architecture.md#determinism) for the rules
   it enforces.
 - `tests/all/physics_property_tests.rs` holds the `proptest` invariants
@@ -222,14 +222,14 @@ request; a newer push to the same branch or pull request cancels the run
 before it. Every job checks out the whole repository (the code jobs read the
 content), and none is filtered by path.
 
-- `sim` (Ubuntu, in `sim/`): `cargo fmt --check`, `cargo clippy
+- `sim` (Ubuntu, in `server/sim/`): `cargo fmt --check`, `cargo clippy
   --all-targets -- -D warnings`, then `cargo test --no-fail-fast` at
   opt-level 2, as the server's.
 - `server` (Ubuntu): `cargo fmt --check`, `cargo clippy --all-targets -- -D
   warnings` (which compiles every target, so there is no build step), then
   `cargo test --no-fail-fast` with the test profile at opt-level 2: the
   tests race whole sessions, and optimised they take a couple of minutes
-  instead of twelve. Then fmt, clippy and test for `protocol/` and for
+  instead of twelve. Then fmt, clippy and test for `server/protocol/` and for
   `server/ffi`. CI has no
   baked sidecars (they are gitignored): a test that drives a circuit names
   the sidecars it needs (`TrackConfig::has_sidecars(&[Sidecar::Pit], ..)`,
@@ -287,7 +287,7 @@ writes it through `TrackFile`, so a changed `skip_serializing_if` changes
 every rewritten track's content checksum, and a changed sidecar struct fails
 the goldens. A format change lands in the crate with the simulation's and
 track-core's use of it in one commit. The simulation's
-`sim/tests/all/track_file_compat_test.rs` holds every real track to a rewrite
+`server/sim/tests/all/track_file_compat_test.rs` holds every real track to a rewrite
 loading to the same physical track.
 
 ## Track editor and pipeline (Rust, `apexsim-content/track-editor/`)
@@ -381,7 +381,7 @@ is safe on an existing checkout. Stages, in order:
    editor build run too, which links it.
 1. `Build.bat ApexSimEditor Win64 Development` (incremental; the commandlets
    live in it).
-2. `cargo build --release` in `server/`, if there is no server exe.
+2. `cargo build --release` in `server/server/`, if there is no server exe.
 3. `apexsim-content/bake.ps1 -Stage ground` (the ground PNGs), then
    `-run=ApexGroundTexImport` ->
    `/Game/Ground`.
@@ -473,7 +473,7 @@ left out.
 5. client: `build_game_standalone.ps1` (Shipping by default), archived
    straight into the release folder
 6. assemble: `Server\` (`apexsim-server.exe`, `apexsim-replay.exe`, the
-   code root's `server.toml`, `server/CMDLINE.md` as `server.md`, the content
+   code root's `server.toml`, `server/server/CMDLINE.md` as `server.md`, the content
    the server reads, `showcase.yml`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
    `Hud`, `showcase.yml` and `settings.sample.yml`), `launcher.exe`,
    `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`
@@ -502,7 +502,7 @@ scratch `CARGO_TARGET_DIR` and agent session leaves another one behind.
 | Run | Removes | Costs |
 |---|---|---|
 | default | scratch targets (`<drive>:\apexsim-cargo-target*`, `target-scratch*`) and `%TEMP%\claude\*apexsim*` sessions older than `-KeepDays` (2); cargo `incremental/` caches; stale `%TEMP%` (`proc-macro-srv*`, `apex-target`); Unreal `Saved` crashes, old logs, screenshots older than 7 days; `__pycache__`; empty unregistered `.claude/worktrees` folders | the next build recreates the incremental cache |
-| `-Deep` | `server/target`, `apexsim-content/track-editor/target`, `game-unreal/Intermediate/Build`, `out/promo`, `out/site`, `out/verify` | a full rebuild of each |
+| `-Deep` | `server/server/target`, `apexsim-content/track-editor/target`, `game-unreal/Intermediate/Build`, `out/promo`, `out/site`, `out/verify` | a full rebuild of each |
 | `-IncludePip` | the pip download cache | re-downloads |
 | `-RemoveMergedWorktrees` | worktrees that are clean and whose commits are all in `main` (`git worktree remove`, never `--force`) | none |
 | `-Install` | nothing: registers a weekly Task Scheduler job for the default run | none |

@@ -15,7 +15,7 @@ Each spot prints its station and an `apexsim.cam.LookAt` command for
 looking at the centerline there. Every figure is in the server frame
 (docs/game/cameras.md, Screenshot camera), which is the YAML's frame.
 
-The puddle cells follow `RoadState::with_road` (sim/src/road_state.rs):
+The puddle cells follow `RoadState::with_road` (server/sim/src/road_state.rs):
 10 m cells, a cell's elevation against the mean of its neighbours 100 m
 either side, fully low 1.5 m under it. The YAML is resampled linearly,
 which is close to, not exactly, the server's centerline.

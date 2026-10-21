@@ -35,7 +35,7 @@ CONTENT = (REPO / ".." / "apexsim-content").resolve()
 CARS_DIR = CONTENT / "cars" / "default"
 TRACKS_DIR = CONTENT / "tracks" / "default"
 HUD_DIR = REPO / "hud" / "default"
-CAR_SETUP_RS = REPO / "sim" / "src" / "car_setup.rs"
+CAR_SETUP_RS = REPO / "server" / "sim" / "src" / "car_setup.rs"
 
 # Side of the square the track outlines are drawn in (the page's viewBox is
 # "-6 -6 212 212"), and the room left round an outline inside it.

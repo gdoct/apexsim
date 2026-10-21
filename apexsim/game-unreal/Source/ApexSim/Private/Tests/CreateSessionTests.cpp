@@ -308,7 +308,7 @@ bool FApexCreateSessionForecastTest::RunTest(const FString& Parameters)
 {
 	using namespace ApexCreateSession;
 
-	// The Rust's `the_forecast_reference` (sim/src/conditions.rs): the
+	// The Rust's `the_forecast_reference` (server/sim/src/conditions.rs): the
 	// same picks and seed give the same changes to the bit, or one side
 	// shows a sky the other will not run.
 	constexpr uint64 Seed = 0x0123456789ABCDEFull;

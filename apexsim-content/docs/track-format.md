@@ -15,9 +15,9 @@ there too.
   `SpawnPoint`, `RacelinePoint`, `DrsZone`, `TrackMetadata`. Its tests
   (`apexsim-lib/formats/tests/round_trip.rs`) hold a parse and rewrite to
   the same bytes.
-- `apexsim/sim/src/track_loader.rs`: the loader (`TrackLoader`, which
+- `apexsim/server/sim/src/track_loader.rs`: the loader (`TrackLoader`, which
   re-exports `TrackFile` as `TrackFileFormat`) and the Catmull-Rom sampler
-  (`SplineInterpolator`); `apexsim/sim/src/data.rs`: `SurfaceType`,
+  (`SplineInterpolator`); `apexsim/server/sim/src/data.rs`: `SurfaceType`,
   `TrackConfig` (and the crate's `TrackMetadata`, `RacelinePoint`,
   `DrsZone`, re-exported).
 - `track-editor/core/src/track_data.rs` (re-exports the crate's model),
@@ -27,7 +27,7 @@ there too.
   export's reader/writer; `core/src/bin/ats-export.rs` is the CLI.
 - Client reader: `apexsim/game-unreal/Source/ApexSim/{Public,Private}/Track/ApexTrackSceneReader.*`
   (`FApexTrackSceneReader`, `kSupportedVersion = 3`), data in `ApexTrackSceneData.h`.
-- `apexsim/server/src/bin/convert_track.rs`: CSV centerline to YAML (below).
+- `apexsim/server/server/src/bin/convert_track.rs`: CSV centerline to YAML (below).
 
 ## Files of one circuit
 
@@ -111,7 +111,7 @@ Server and pipeline read and write the YAML through the one `TrackFile` in
 `apexsim-lib/formats`, so a key added there is kept by every Rust rewrite;
 its `skip_serializing_if`s are what a rewrite omits
 (`the_location_survives_a_rewrite_as_written`, `core/tests/compat.rs`, and
-the simulation's `apexsim/sim/tests/all/track_file_compat_test.rs`, which loads every real
+the simulation's `apexsim/server/sim/tests/all/track_file_compat_test.rs`, which loads every real
 track's rewrite to the same physical track).
 Tools that rewrite it: `ats-smooth` (node and raceline positions, length),
 `ats-bank` (banking), `tools/drs_zones.py`, `dem_elevation.py` (node and
@@ -129,12 +129,12 @@ YAML. It keeps the `track_id` of an existing output file unless `--track-id`
 is given:
 
 ```bash
-cd ../apexsim/server
+cd ../apexsim/server/server
 cargo run --release --bin convert_track -- -t track.csv [-r raceline.csv] -o out.yaml \
     -n "Real name" --display-name "Shown name" [--country --city --category --year-built --description]
 ```
 
-`apexsim/server/tests/convert_all_tracks.sh` is the old batch driver for the whole
+`apexsim/server/server/tests/convert_all_tracks.sh` is the old batch driver for the whole
 database. A converted YAML is only the start of a circuit: see "Adding a new
 circuit" in [track-pipeline.md](track-pipeline.md).
 
@@ -294,7 +294,7 @@ sections and merged per (section, material).
   `.Manifest`, `.Version3`, `ApexSim.Track.Dds.Parse`, and on the Rust side
   `a_version_3_manifest_carries_the_imported_extensions`.
 - The server loader's unit tests: `cargo test track_loader` in
-  `../apexsim/sim` (the simulation crate the server links).
+  `../apexsim/server/sim` (the simulation crate the server links).
 
 ## Traps
 

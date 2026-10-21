@@ -7,17 +7,17 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 
 ## Code
 
-- The `apexsim-protocol` crate (`protocol/`), which the server and the
+- The `apexsim-protocol` crate (`server/protocol/`), which the server and the
   physics library both link and the server re-exports under the same paths:
-- `protocol/src/network.rs` - `ClientMessage`, `ServerMessage`, their payload
+- `server/protocol/src/network.rs` - `ClientMessage`, `ServerMessage`, their payload
   structs, `MessagePriority`, `PROTOCOL_VERSION`, and the `*_wire_format`
   tests that print golden bytes.
-- `server/src/transport.rs` - TCP (+TLS) and UDP IO, framing, auth, the UDP
+- `server/server/src/transport.rs` - TCP (+TLS) and UDP IO, framing, auth, the UDP
   handshake, rate limits, bounded queues, `TransportMetrics`.
-- `server/src/game_loop/dispatch.rs` (handlers), `broadcast.rs` (fan-out,
+- `server/server/src/game_loop/dispatch.rs` (handlers), `broadcast.rs` (fan-out,
   UDP or TCP fallback), `tick.rs` (telemetry and feedback serialization),
   `lifecycle.rs` (disconnects, held seats, stale connections).
-- `protocol/src/spectator.rs` - the spectator stream records
+- `server/protocol/src/spectator.rs` - the spectator stream records
   ([../game/spectator.md](../game/spectator.md)).
 - Client, `game-unreal/Source/ApexSimNet/`: `ApexProtocolCodec` and
   `MsgPack/` (the codec), `ApexProtocolTypes.h` (the structs),
@@ -38,7 +38,7 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 - **UDP**: one message per datagram, no framing. The client reads datagrams
   up to 64 KiB (`ApexUdpConnection::MaxDatagramBytes`); a full grid's
   telemetry frame is one datagram.
-- **Sealed inbound UDP** (`server/src/udp_seal.rs`,
+- **Sealed inbound UDP** (`server/server/src/udp_seal.rs`,
   `ApexProtocol::SealUdpDatagram`): every datagram the client sends, the
   handshake included, is `[0xC1][u64 big-endian seq][16-byte tag][message]`,
   the tag being HMAC-SHA1 over `seq ‖ message` under the UTF-8 bytes of
@@ -167,7 +167,7 @@ the game makes those itself ([sessions.md](sessions.md#session-kinds)).
 
 Client prediction ([../proposals/client-prediction.md](../proposals/client-prediction.md))
 rewinds the driver's own car to the server's and replays the inputs the
-server had not applied yet. The wire for it (`sim/src/own_car.rs`):
+server had not applied yet. The wire for it (`server/sim/src/own_car.rs`):
 
 - **`PlayerInput.seq`** (`Option<u32>`, after `handbrake`, left off when
   `None`): the client's number for the input, one higher with each it sends
@@ -214,7 +214,7 @@ server had not applied yet. The wire for it (`sim/src/own_car.rs`):
   (`FApexServerMessage::ConditionsBytes`), which is what the library bakes.
   Golden: `session_joined_physics_wire_format` into
   `ApexGolden::S_SessionJoinedPhysics`.
-- **The track's physics bundle** (`sim/src/track_bundle.rs`): the files
+- **The track's physics bundle** (`server/sim/src/track_bundle.rs`): the files
   the car step reads, the track YAML and the sidecars beside it (ground,
   curbs, walls, pit lane, and the road mesh when the session drives on it),
   as the server read them when it loaded the track (`track_content`, once,
@@ -291,8 +291,8 @@ them and decode from them.
 Workflow for a wire change:
 
 1. Change the server struct; extend the matching test in `network.rs`.
-2. `cd protocol && cargo test <test> -- --nocapture` (`udp_seal_wire_format`:
-   `cd server`) prints the new bytes as
+2. `cd server/protocol && cargo test <test> -- --nocapture` (`udp_seal_wire_format`:
+   `cd server/server`) prints the new bytes as
    hex under the client constant's name; paste them into the client header as
    a **new** constant (keep the old blob: it is what an older peer sends, and
    the decoder must still take it).
@@ -352,7 +352,7 @@ connection. Constants at the top of `transport.rs`.
 
 ## Checking it
 
-- `server/tests/all/protocol_test.rs`: version rejection, the UDP binding info,
+- `server/server/tests/all/protocol_test.rs`: version rejection, the UDP binding info,
   the handshake, input and telemetry loopback, feedback over UDP, the own
   car (`test_input_sequence_comes_back_with_the_own_car_snapshot`: an
   unnumbered input drives with no snapshot; a numbered one comes back with

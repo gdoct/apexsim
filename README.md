@@ -61,7 +61,7 @@ You need Rust, Python 3 (numpy, Pillow, PyYAML) and Unreal Engine 5.8 on
 Windows. In short:
 
 ```powershell
-cd apexsim/server; cargo run               # in its own terminal: the server (TCP 9000, UDP 9001, HTTP 9002)
+cd apexsim/server/server; cargo run               # in its own terminal: the server (TCP 9000, UDP 9001, HTTP 9002)
 cd apexsim                                 # the code scripts run from the code root
 ./scripts/initialize_content.ps1           # build the generated content a fresh clone lacks
 ./scripts/play_editor.ps1 -Build           # build the client and play it from the editor build
@@ -123,9 +123,9 @@ server, the client and the content pipeline (in
 Coordinate significant changes in an issue first. Before a pull request:
 
 ```bash
-cd apexsim/sim && cargo test             # the simulation
-cd apexsim/server
-cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings (in sim/ too)
+cd apexsim/server/sim && cargo test             # the simulation
+cd apexsim/server/server
+cargo fmt && cargo clippy --all-targets   # CI enforces fmt --check and -D warnings (in server/sim/ too)
 cargo test
 
 cd apexsim-lib/formats && cargo test      # a change to a file format
@@ -133,7 +133,7 @@ cd apexsim-content && cargo test --manifest-path track-editor/Cargo.toml -p trac
 python apexsim-content/tools/check_direction.py   # the content does not reach into the code
 ```
 
-Wire-format changes are made on both sides at once (`apexsim/protocol/src/network.rs`
+Wire-format changes are made on both sides at once (`apexsim/server/protocol/src/network.rs`
 and `apexsim/game-unreal/Source/ApexSimNet`) and pinned by golden bytes on both sides;
 see [apexsim/docs/server/protocol.md](apexsim/docs/server/protocol.md). Keep the doc for the
 area you change up to date.

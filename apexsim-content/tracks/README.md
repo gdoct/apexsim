@@ -40,7 +40,7 @@ root); a session picks one by name, so there is nothing to configure.
 ### Convert More Tracks
 
 ```bash
-cd ../apexsim/server
+cd ../apexsim/server/server
 ./tests/convert_all_tracks.sh /path/to/racetrack-database ../../apexsim-content/tracks/default
 ```
 

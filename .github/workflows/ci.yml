@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apexsim/sim
+        working-directory: apexsim/server/sim
     steps:
       - uses: actions/checkout@v5
 
@@ -64,7 +64,7 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: apexsim/sim
+          workspaces: apexsim/server/sim
 
       - name: Check formatting
         run: cargo fmt --check
@@ -84,7 +84,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: apexsim/server
+        working-directory: apexsim/server/server
     steps:
       - uses: actions/checkout@v5
 
@@ -97,10 +97,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            apexsim/server
+            apexsim/server/server
             apexsim/server/ffi
-            apexsim/protocol
-            apexsim/sim
+            apexsim/server/protocol
+            apexsim/server/sim
 
       - name: Check formatting
         run: cargo fmt --check
@@ -122,7 +122,7 @@ jobs:
       # The wire, the spectator stream and the render, which the server and
       # the physics library both link.
       - name: Protocol (fmt, clippy, test)
-        working-directory: apexsim/protocol
+        working-directory: apexsim/server/protocol
         run: |
           cargo fmt --check
           cargo clippy --all-targets -- -D warnings

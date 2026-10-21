@@ -94,7 +94,7 @@ typedef struct ApxCarPose {
 #define APX_NO_INDEX 0xFFFFFFFFu
 
 /* What the car step carries from one tick to the next: the server's
- * DriverFeedback.own_car (sim/src/own_car.rs OwnCarSnapshot) without its
+ * DriverFeedback.own_car (server/sim/src/own_car.rs OwnCarSnapshot) without its
  * tick and input number. Server frame and units; per-wheel FL FR RL RR. */
 typedef struct ApxCarSnapshot {
     float pos[3];
@@ -126,7 +126,7 @@ typedef struct ApxCarSnapshot {
 #define APX_FEEDBACK_SAMPLES 32
 
 /* What the driver should feel over the steps since the last
- * apx_car_feedback_take: the server's DriverFeedback (sim/src/feedback.rs)
+ * apx_car_feedback_take: the server's DriverFeedback (server/sim/src/feedback.rs)
  * without its tick and own-car fields, from the same collector, in the
  * wire's units. Per-wheel FL FR RL RR; the server's steering sign (positive
  * left). */
@@ -181,7 +181,7 @@ ApxStatus apx_track_load(const char *yaml_path, uint8_t road_contact,
                          ApxTrack **out);
 void apx_track_free(ApxTrack *track);
 
-/* Load a track from its physics bundle (sim/src/track_bundle.rs: the YAML
+/* Load a track from its physics bundle (server/sim/src/track_bundle.rs: the YAML
  * and the sidecars, as the server sends it in TrackBundleChunks), loaded as
  * apx_track_load loads them from disk, the conditions baked in. Refused
  * (APX_ERR_TRACK, nothing loaded) unless the bundle's checksum is

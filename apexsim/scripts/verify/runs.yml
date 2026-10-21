@@ -19,7 +19,7 @@
 # which comes -ApexCountdown seconds (and about one more) after that. So a
 # shot at T sees green + T - countdown - 1.
 #
-# The stand-in is an AI and stops for what an AI stops for (sim/src/pit.rs
+# The stand-in is an AI and stops for what an AI stops for (server/sim/src/pit.rs
 # plan_stop): any leak or puncture, a flat spot of 0.6, wear of 70%, 25% in a
 # damage zone. A stop fits new tyres and repairs: keep under those, or grab
 # within the lap of the event.

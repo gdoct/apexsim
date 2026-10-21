@@ -1,5 +1,5 @@
 """The server's pit sidecar (`<Stem>.pit.msgpack`, `PitSidecar` in
-`track-editor/core/src/ue_export.rs`, loaded as `sim/src/pit.rs`
+`track-editor/core/src/ue_export.rs`, loaded as `server/sim/src/pit.rs`
 `PitLane`) from what AC draws for its pits: `ai/pit_lane.ai` (the line a
 car takes from the track, through the lane, and back) and the `AC_PIT_n`
 dummies (where each team's car stops).

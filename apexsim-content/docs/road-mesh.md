@@ -20,14 +20,14 @@ centerline under either backend.
   mesh and the road mesh; `clipped_quad` keeps the pit lane off the road.
 - `track-editor/core/src/ue_export_io.rs`: `write_road_sidecar`.
 - `track-editor/core/src/bin/ats-export.rs`: `--flat-curbs`.
-- `apexsim/sim/src/road_mesh.rs`: `RoadMesh` (load, grid, `contact_at`).
-- `apexsim/sim/src/track_loader.rs`: `load_road_mesh`, called by
+- `apexsim/server/sim/src/road_mesh.rs`: `RoadMesh` (load, grid, `contact_at`).
+- `apexsim/server/sim/src/track_loader.rs`: `load_road_mesh`, called by
   `TrackLoader::load_from_file_with` / `load_sidecars` with the server's
   `RoadContactMode`.
-- `apexsim/sim/src/physics.rs`: `query_track_surface` (the dispatch),
+- `apexsim/server/sim/src/physics.rs`: `query_track_surface` (the dispatch),
   `slope_and_banking`, `RoadContact::from_surface`, `seat_height`,
   `track_context_of` (grip).
-- `apexsim/server/src/config.rs`: `RoadContactMode`, `[physics] road_contact`.
+- `apexsim/server/server/src/config.rs`: `RoadContactMode`, `[physics] road_contact`.
 - `tools/ac_import/sidecars.py` (`road_mesh_payload`): the Assetto Corsa
   importer writes the same file from AC's physics meshes (see
   [ac-import.md](ac-import.md)).
@@ -180,7 +180,7 @@ recognises it from the pit sidecar instead (see
 ## Checking it
 
 ```bash
-cd ../apexsim/sim
+cd ../apexsim/server/sim
 cargo test --test all road_mesh_test::              # the mesh against the centerline on Monza; grid seating
 cargo test --test all determinism_test::            # includes ..._on_the_road_mesh (Monza)
 cargo test --lib physics::                          # surface tests run under both backends (mesh_from_centerline)

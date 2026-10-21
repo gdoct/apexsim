@@ -84,7 +84,7 @@
     to attach to a GitHub release.
 
 .PARAMETER SkipServer
-    Reuse the apexsim-server.exe already in server/target/release.
+    Reuse the apexsim-server.exe already in server/server/target/release.
 
 .PARAMETER SkipLauncher
     Reuse launcher\out\launcher.exe instead of building the launcher (launcher\build.bat,
@@ -164,8 +164,8 @@ $CarMaterialsDir = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $WheelsDir    = Join-Path $ContentRoot 'wheels'
 $PropsSrcDir  = Join-Path $ContentRoot 'props'
 $PropsDir     = Join-Path $RepoRoot 'game-unreal\Content\Props'
-$ServerExe    = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
-$ReplayExe    = Join-Path $RepoRoot 'server\target\release\apexsim-replay.exe'
+$ServerExe    = Join-Path $RepoRoot 'server\server\target\release\apexsim-server.exe'
+$ReplayExe    = Join-Path $RepoRoot 'server\server\target\release\apexsim-replay.exe'
 $LauncherDir  = Join-Path $RepoRoot 'launcher'
 $LauncherExe  = Join-Path $LauncherDir 'out\launcher.exe'
 if (-not $ClientArtifactDirectory) {
@@ -311,8 +311,8 @@ function Invoke-Preflight {
     if (-not (Test-Path $Uproject)) {
         $problems.Add("no Unreal project at $Uproject")
     }
-    if (-not (Test-Path (Join-Path $RepoRoot 'server\Cargo.toml'))) {
-        $problems.Add("no Rust server at $(Join-Path $RepoRoot 'server')")
+    if (-not (Test-Path (Join-Path $RepoRoot 'server\server\Cargo.toml'))) {
+        $problems.Add("no Rust server at $(Join-Path $RepoRoot 'server\server')")
     }
 
     $cars = @(Get-CarFiles)
@@ -554,7 +554,7 @@ else {
     Write-Step 'Building the server (cargo build --release)'
     Invoke-Tool -Exe 'cargo' -What 'cargo build' `
         -Arguments @('build', '--release', '--manifest-path',
-                     (Join-Path $RepoRoot 'server\Cargo.toml'))
+                     (Join-Path $RepoRoot 'server\server\Cargo.toml'))
 }
 if (-not (Test-Path $ServerExe)) {
     throw "the server build did not produce $ServerExe"
@@ -688,7 +688,7 @@ Copy-Item -LiteralPath $ServerExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath $ReplayExe -Destination $ServerDir -Force
 Copy-Item -LiteralPath (Join-Path $RepoRoot 'server.toml') -Destination $ServerDir -Force
 # How to start the server by hand: its options and environment overrides.
-Copy-Item -LiteralPath (Join-Path $RepoRoot 'server\CMDLINE.md') -Destination (Join-Path $ServerDir 'server.md') -Force
+Copy-Item -LiteralPath (Join-Path $RepoRoot 'server\server\CMDLINE.md') -Destination (Join-Path $ServerDir 'server.md') -Force
 Copy-ServerContent -Destination (Join-Path $ServerDir 'content')
 # The list both sides render the menu's AI races from (showcases,
 # docs/game/spectator.md): the game into Saved\ApexSim\Showcases on

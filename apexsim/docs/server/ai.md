@@ -11,19 +11,19 @@ same ([architecture.md](../architecture.md), determinism).
 
 ## Code
 
-- `sim/src/ai_driver.rs` - `AiDriverProfile` (skill and the attributes
+- `server/sim/src/ai_driver.rs` - `AiDriverProfile` (skill and the attributes
   derived from it), `AiDriverController` (the per-tick driver),
   `field_skills` / `generate_ai_profiles`, `profile_pace`.
-- `sim/src/racecraft.rs` - `decide`, `Racecraft` (kept on
+- `server/sim/src/racecraft.rs` - `decide`, `Racecraft` (kept on
   `CarState::racecraft`), `Tactic`, `next_corner`, the stuck recovery.
-- `sim/src/racing_line.rs` - `build` / `build_laden`: the per-car speed
+- `server/sim/src/racing_line.rs` - `build` / `build_laden`: the per-car speed
   profile the AI drives; `build_driven` is the player's aid planned again
   at a lap's end ([game/client.md](../game/client.md)).
-- `sim/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
+- `server/sim/src/game_session.rs` - `spawn_ai_drivers`, `class_field`,
   `plan_ai_speeds` / `ai_speed_profile`, `ai_input_for`,
   `update_racecraft`, `plan_ai_stops`, `fuel_save`, `refuels`,
   `ai_ers`.
-- `sim/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
+- `server/sim/src/pit.rs` - `plan_stop`, `tyres_for_the_track`, `fuel_save_for`,
   `run_up_input`,
   `drive_input` ([pit-lane.md](pit-lane.md)).
 
@@ -391,7 +391,7 @@ or a struck lap: [sessions.md](sessions.md)); the track guide's solo runs
 ## Checking it
 
 ```bash
-cd sim
+cd server/sim
 cargo test --lib -- ai_driver:: racecraft::     # the unit tests
 cargo test --test all racecraft_test::          # a quicker driver passes a slower one; a car in a barrier reverses out
 cargo test --test all ai_race_start_test::      # composed off the grid; Le Mans first lap (the yaw seam)
@@ -399,7 +399,7 @@ cargo test --test all determinism_test::        # also fuel_test an_ai_short_of_
 ```
 
 **The AI survey** is the acceptance test for anything that moves the AI,
-barriers, walls, the centerline, the ground or the car physics, run in `sim/`:
+barriers, walls, the centerline, the ground or the car physics, run in `server/sim/`:
 
 ```bash
 cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture
@@ -445,10 +445,10 @@ Other harnesses (all `#[ignore]`d):
   holds at 20-65 m/s against `grip_coefficient` and against what its plan
   reads (`plan`); `PROBE_LINEAR`, `PROBE_NO_CAMBER`, `PROBE_EVEN_ROLL` take
   the load sensitivity, camber or the bars out to find what costs it.
-- Pit surveys, in `server/`: `cargo test --release --test all
+- Pit surveys, in `server/server/`: `cargo test --release --test all
   pit_stop_test::pit_lane_survey -- --ignored --nocapture` and `ai_pit_survey` ([pit-lane.md](pit-lane.md);
   `PIT_TRACKS`, `PIT_TRACE`).
-- `sim/tests/all/pad_driver_probe.rs` (run in `sim/`): the AI's line with a pad's hand error on
+- `server/sim/tests/all/pad_driver_probe.rs` (run in `server/sim/`): the AI's line with a pad's hand error on
   top, through the steering aid or raw, to reproduce a player's tyre
   temperatures (`PAD_AID`, `PAD_NOISE`, `PAD_HOLD_S`, `PAD_SKILL`,
   `PAD_CAR`, `PAD_TRACK`, `PAD_LAPS`, `PAD_FULL`):

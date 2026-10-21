@@ -97,18 +97,18 @@ class ReplayTool:
         if explicit:
             self.path = Path(explicit)
         else:
-            self.path = REPO / "server" / "target" / "release" / f"apexsim-replay{EXE}"
+            self.path = REPO / "server" / "server" / "target" / "release" / f"apexsim-replay{EXE}"
             # Incremental, so a second or two when nothing changed; a stale
             # binary would plan with yesterday's physics.
             if build or not self.path.exists():
                 log("building apexsim-replay (cargo build --release) ...")
                 subprocess.run(
                     ["cargo", "build", "--release", "--bin", "apexsim-replay"],
-                    cwd=REPO / "server",
+                    cwd=REPO / "server" / "server",
                     check=True,
                 )
         if not self.path.exists():
-            fail(f"{self.path} not found; build it with `cargo build --release --bin apexsim-replay` in server/")
+            fail(f"{self.path} not found; build it with `cargo build --release --bin apexsim-replay` in server/server/")
 
     def run(self, *argv: str) -> dict:
         command = [str(self.path), *argv]

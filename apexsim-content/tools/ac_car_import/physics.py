@@ -30,7 +30,7 @@ AC_PHYSICS_HZ = 333.0
 #: applies the load sensitivity itself; the speed sensitivity it cannot).
 REFERENCE_SPEED_MPS = 40.0
 
-#: The server's ride-height aero (sim/src/aero.rs): the speed its map is
+#: The server's ride-height aero (server/sim/src/aero.rs): the speed its map is
 #: referenced at, and its heave model. Kept equal to the Rust constants so
 #: the posture worked out here is the one the server finds.
 AERO_REFERENCE_SPEED_MPS = 50.0
@@ -317,7 +317,7 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
 # --- brakes ---------------------------------------------------------------
 
 #: The classes the server races on carbon brakes (`BrakeMaterial::for_class`,
-#: sim/src/brakes.rs; a test keeps the two equal).
+#: server/sim/src/brakes.rs; a test keeps the two equal).
 CARBON_CLASSES = ("F1", "Hypercar", "LMP2", "LMP1", "LMP")
 #: The server's pad friction against disc temperature (`BrakeMaterial::
 #: friction`; a test keeps them equal): a pad curve in brakes.ini is read as

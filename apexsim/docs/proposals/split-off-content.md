@@ -126,10 +126,10 @@ do not, so the rule places them:
 | track guides | the notes (`<Stem>.guide.yml`) stay with the track; the render (`apexsim-replay guide`) is `apexsim` | same reason. N28 moves both into the game, which removes the bake stage. |
 | the default HUD | `apexsim/hud` | its JSON names data points the client defines ([../game/hud-modding.md](../game/hud-modding.md)); in the content it would depend on the code. A player's `hud/custom` sits beside it. |
 | UE imports (`ApexPropImport`, `ApexCarImport`, `ApexGroundTexImport`, `ApexMaterialBake`, `ApexTrackImport`, `ApexTrackCatalogSync`) | `apexsim` | the client reading content, from the content root. `DT_CarCatalog`, `DT_TrackCatalog` and `UI/TrackPreviews` are generated from it. |
-| the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-lib/formats`, a crate the server and `track-core` both depend on by path | each is modelled once there (the serialized types, their versions, the sidecar paths, the checksum, the format levels); the server keeps its queries (`GroundQuery`, `CurbQuery`, `RoadMesh`, `Walls`, `PitLane`) and `track-core` its bake on those types. The crate's tests hold the YAML rewrite and the sidecars' bytes to inline goldens; the simulation's `sim/tests/all/track_file_compat_test.rs` loads every real track's rewrite to the same track. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
+| the duplicated formats (track YAML, the road, ground, curbs, walls and pit sidecars, `content_crc`) | `apexsim-lib/formats`, a crate the server and `track-core` both depend on by path | each is modelled once there (the serialized types, their versions, the sidecar paths, the checksum, the format levels); the server keeps its queries (`GroundQuery`, `CurbQuery`, `RoadMesh`, `Walls`, `PitLane`) and `track-core` its bake on those types. The crate's tests hold the YAML rewrite and the sidecars' bytes to inline goldens; the simulation's `server/sim/tests/all/track_file_compat_test.rs` loads every real track's rewrite to the same track. The C++ readers (`ApexCarToml.h`, `ApexContentCrc.h`, the scene reader) stay code, checked against the crate's golden files. |
 | the AI survey (`survey_ai_races_on_every_circuit`) | `apexsim`, run against a content working copy | the acceptance check for wall, centerline and ground edits needs the sim. It is a check run from the code side, not a build dependency of the content. |
 | the AC importers | `apexsim-content/tools` | pure Python over the content formats; the release copies them in as `Tools/importer`. |
-| the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `sim/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
+| the site (`site/`, `scripts/site`, `docs/index.html`) | `apexsim` | it reads both sides (`facts.py` reads `server/sim/src/car_setup.rs`; the shots need the server and the game). `artwork/` and `props/_preview` stay content. GitHub Pages deploys `apexsim/docs` through `.github/workflows/pages.yml`. |
 
 **The starter set.** `apexsim-content/starter.yml` lists the cars and
 tracks a release ships (decided 2026-10-18: one car per class and Spa,
@@ -156,7 +156,7 @@ after each:
    `server/` half of a pack, so phase 1 only has to zip it.
 
 One test-only edge is left and stays allowed in the direction check:
-`tools/ac_car_import/tests` reads `apexsim/sim/src/brakes.rs` for its
+`tools/ac_car_import/tests` reads `apexsim/server/sim/src/brakes.rs` for its
 brake constants (and skips without it). They are car physics constants, not
 a file format the two sides write and read, so they are not in the formats
 crate; the edge goes when `car.toml` gets its own module there.
@@ -437,7 +437,7 @@ against the content working copy.
 
 ## What changes in the code
 
-- `sim/src/content_crc.rs` stays. New `content_pack.rs`: read
+- `server/sim/src/content_crc.rs` stays. New `content_pack.rs`: read
   `pack.json` and `installed.json`, the `requires` check, the five install
   steps, `content {list,update,install,remove,verify}` on the command
   line, the dashboard's Updates section (`admin/content.rs`).

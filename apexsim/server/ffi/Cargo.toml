@@ -12,9 +12,9 @@ name = "apexsim_physics"
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
-apexsim-sim = { path = "../../sim" }
+apexsim-sim = { path = "../sim" }
 # The spectator stream and the render, for showcases.
-apexsim-protocol = { path = "../../protocol" }
+apexsim-protocol = { path = "../protocol" }
 rmp-serde = "1"
 
 [dev-dependencies]

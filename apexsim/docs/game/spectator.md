@@ -12,16 +12,16 @@ telemetry, not the stream.
 
 ## Code
 
-- `protocol/src/spectator.rs`: records, the car row, the file (blocks, index),
+- `server/protocol/src/spectator.rs`: records, the car row, the file (blocks, index),
   `BroadcastEncoder` (session state to records), `patch_epoch`, `RaceScore`;
-  `protocol/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
-  the records the format promises) and `server/src/stream_recorder.rs` (the
+  `server/protocol/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
+  the records the format promises) and `server/server/src/stream_recorder.rs` (the
   server's replay files).
-- `server/src/replay_tools.rs` and `server/src/bin/apexsim_replay.rs`: the
+- `server/server/src/replay_tools.rs` and `server/server/src/bin/apexsim_replay.rs`: the
   `apexsim-replay` tool (`simulate`, `info`, `find`, `pose`, `cut`, `render`,
-  `convert`, `guide`); `server/src/replay.rs`: the `.bin` replay format of the offline tools.
-- `server/src/showcase.rs` (`ShowcaseState`, channels),
-  `server/src/game_loop/showcase.rs` (messages), `server/src/health.rs`
+  `convert`, `guide`); `server/server/src/replay.rs`: the `.bin` replay format of the offline tools.
+- `server/server/src/showcase.rs` (`ShowcaseState`, channels),
+  `server/server/src/game_loop/showcase.rs` (messages), `server/server/src/health.rs`
   (`/showcase`).
 - Client codec, pure: `ApexSimNet` `ApexSpectatorStream.h`
   (`FApexStreamFile`, `FApexSpectatorPlayer`), `ApexSpectatorWriter.h`
@@ -251,7 +251,7 @@ the AC importer wrote) into `dir`, one after another on a thread of its own
 moved in, then listed as a channel at the end; the lobby's next
 `ShowcaseAvailable` tells clients. So a release's first start renders its
 showcases, and a car or track edit renders the ones it touched again. The
-development `server/server.toml` names no list in reach, so a dev server
+development `server/server/server.toml` names no list in reach, so a dev server
 renders nothing; the Docker config renders into `/data/showcase`, which the
 content job's sync leaves alone.
 

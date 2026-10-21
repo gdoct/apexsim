@@ -154,7 +154,7 @@ static Env Locate()
             // The repo launches through play_editor.ps1 (builds, then runs the editor
             // build with -game); there is no packaged ApexSim.exe to start.
             e.playScript = d / L"scripts" / L"play_editor.ps1";
-            e.serverExe = d / L"server" / L"target" / L"release" / L"apexsim-server.exe";
+            e.serverExe = d / L"server" / L"server" / L"target" / L"release" / L"apexsim-server.exe";
             // server.toml here is the release one (content\ beside the exe), so the
             // server is pointed at the content root through APEXSIM_CONTENT.
             e.serverDir = d;

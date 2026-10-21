@@ -14,7 +14,7 @@
            server's car step the client links for the prediction of the
            local car (scripts/build_physics_lib.ps1)
         1. ApexSimEditor target (incremental; the commandlets live in it)
-        2. The release server, if server/target/release has none
+        2. The release server, if server/server/target/release has none
         3. Ground textures: bake the PNGs, then ApexGroundTexImport
         4. Materials: ApexMaterialBake when /Game/Materials/Track or
            /Game/Materials/Car lacks a parent, or stage 3 ran (the track base
@@ -80,7 +80,7 @@ $ExportDir   = Join-Path $ContentRoot 'build\tracks'
 $TrackMats   = Join-Path $RepoRoot 'game-unreal\Content\Materials\Track'
 $CarMats     = Join-Path $RepoRoot 'game-unreal\Content\Materials\Car'
 $GroundPngs  = Join-Path $ContentRoot 'textures\ground'
-$ServerExe   = Join-Path $RepoRoot 'server\target\release\apexsim-server.exe'
+$ServerExe   = Join-Path $RepoRoot 'server\server\target\release\apexsim-server.exe'
 
 # Must match bake_ground_textures.py and ApexGroundTexImport.
 $GroundSets  = 'asphalt', 'grass', 'gravel', 'sand', 'concrete', 'astroturf', 'kerb'
@@ -335,7 +335,7 @@ if ($needUnreal -and -not $SkipBuild) {
 
 if ($doServer) {
     Write-Step 'Building the release server'
-    Push-Location (Join-Path $RepoRoot 'server')
+    Push-Location (Join-Path $RepoRoot 'server\server')
     try {
         & cargo build --release
         if ($LASTEXITCODE -ne 0) { throw "cargo build --release failed with exit code $LASTEXITCODE" }

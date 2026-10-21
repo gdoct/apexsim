@@ -1,9 +1,9 @@
 # CLAUDE.md
 
 ApexSim is a sim-racing platform in three roots that become three repositories.
-`apexsim/` is the code: the deterministic simulation (`apexsim/sim/`, the
+`apexsim/` is the code: the deterministic simulation (`apexsim/server/sim/`, the
 `apexsim-sim` crate: the car, the track, the race, the session tick), an
-authoritative Rust server on it (`apexsim/server/`, 420 Hz, TCP+TLS lobby,
+authoritative Rust server on it (`apexsim/server/server/`, 420 Hz, TCP+TLS lobby,
 UDP telemetry and input), an Unreal Engine 5.8
 client (`apexsim/game-unreal/`) that renders what the server says and has no
 physics of its own, the HUD, the site and the build scripts (`apexsim/scripts/`).
@@ -19,7 +19,7 @@ code depends on `apexsim-lib` and the content, never the other way round.
 The code reaches the content as the sibling `../apexsim-content`, both build
 against `../apexsim-lib` by path, and nothing under `apexsim-content/` or
 `apexsim-lib/` reads, builds or links `apexsim/`. One test-only edge is left:
-the AC car importer's test reading `apexsim/sim/src/brakes.rs`.
+the AC car importer's test reading `apexsim/server/sim/src/brakes.rs`.
 
 ## Where to read first
 
@@ -52,9 +52,9 @@ checks and the traps.
 
 ```bash
 cd apexsim-lib/formats && cargo test                    # the shared formats: YAML rewrite, sidecar goldens
-cd apexsim/sim && cargo test                            # the simulation's unit tests
-cd apexsim/server && cargo build && cargo test          # integration tests start the server in-process
-cd apexsim/server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
+cd apexsim/server/sim && cargo test                            # the simulation's unit tests
+cd apexsim/server/server && cargo build && cargo test          # integration tests start the server in-process
+cd apexsim/server/server && cargo fmt && cargo clippy --all-targets   # CI: fmt --check, clippy -D warnings
 cargo test --manifest-path apexsim-content/track-editor/Cargo.toml   # pipeline + Bevy editor (whole-calendar bakes are #[ignore]d)
 ```
 
@@ -67,10 +67,10 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
 ## Rules for every change
 
 - **Deterministic sim.** No RNG, wall clock or env reads in the sim path
-  (`apexsim/sim`, re-exported by the server under the same module paths), and
+  (`apexsim/server/sim`, re-exported by the server under the same module paths), and
   no `HashMap` iteration order reaching a result: participants are a
   `BTreeMap`, chance is `wind::hash01` of tick, car, lap or corner.
-  `apexsim/sim/tests/all/determinism_test.rs` must stay bit-identical; showcases, guides,
+  `apexsim/server/sim/tests/all/determinism_test.rs` must stay bit-identical; showcases, guides,
   replays and site shots all rely on seeded runs replaying exactly.
 - **The wire is append-only.** Named fields get `#[serde(default)]` and are
   left off the wire at their default; positional fields (`TelemetryCompact`,

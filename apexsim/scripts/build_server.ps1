@@ -3,6 +3,6 @@ echo "Building the server executable..."
 # ensure we are in the project root
 $currentPath = Get-Location
 $RepoRoot     = Split-Path -Parent $PSScriptRoot
-cd $RepoRoot/server
+cd $RepoRoot/server/server
 cargo build --release
 cd $currentPath

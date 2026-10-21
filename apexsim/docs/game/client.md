@@ -641,7 +641,7 @@ a recovery's jump; the CSV round trip and the delta).
 
 Settings > Assists > Racing line: OFF / BRAKING ONLY / FULL (default off;
 the host can forbid it, see [sessions.md](../server/sessions.md)). The server
-builds the line per car (`sim/src/racing_line.rs`: the track's raceline or
+builds the line per car (`server/sim/src/racing_line.rs`: the track's raceline or
 centerline with a quasi-steady-state speed profile) and sends it as
 `RacingLine` after `SessionJoined`, planned for the stock car with a dry
 tank. At each lap's end it plans the line again for the car as it is

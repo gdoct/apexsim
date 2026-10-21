@@ -126,7 +126,7 @@ GLB.
 
 **3. Tune it** (checkout). Class grip is set so each car's ideal Silverstone
 lap lands a few seconds off a real pole; `cargo test --release --test
-grip_probe_test -- --ignored --nocapture` in `server/` prints every car's.
+grip_probe_test -- --ignored --nocapture` in `server/server/` prints every car's.
 If yours is far from its class, adjust its grip, lift coefficients or power,
 not the class. `apexsim-content/tools/generators/cars/preview_cars.py` (Blender, `CARS =
 ["custom/<folder>"]`) renders it with the wheels where `[wheels]` puts them.
@@ -194,7 +194,7 @@ root, `apexsim-content/`; the scripts and the server from the code root,
 1. **A centerline.** From a CSV trace (`x_m,y_m,w_tr_right_m,w_tr_left_m`):
 
    ```powershell
-   cd server
+   cd server/server
    cargo run --release --bin convert_track -- -t track.csv [-r raceline.csv] -o out.yaml -n "Real name" --display-name "Shown name"
    ```
 
@@ -230,7 +230,7 @@ root, `apexsim-content/`; the scripts and the server from the code root,
    in the barriers; the AI survey (`$env:SURVEY_TRACKS = "<Stem>"`, then
    `cargo test --release --test all
    ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored
-   --nocapture` in `sim/`)
+   --nocapture` in `server/sim/`)
    drives a field round it and reports contact and off-road time.
 
 ### Installing and updating a track

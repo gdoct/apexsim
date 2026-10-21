@@ -3,7 +3,7 @@
 // GENERATED - do not edit by hand.
 //
 // Byte-for-byte output of the UDP-facing protocol messages, produced from the
-// serde definitions in `protocol/src/network.rs` copied verbatim into a
+// serde definitions in `server/protocol/src/network.rs` copied verbatim into a
 // standalone crate.
 //
 // The important shape here is S_TelemetryCompact. TCP messages use
@@ -147,7 +147,7 @@ namespace ApexUdpGolden
 	};
 
 	// The bytes pinned by `test_driver_feedback_wire_format` in
-	// protocol/src/network.rs, from the server crate itself; change both
+	// server/protocol/src/network.rs, from the server crate itself; change both
 	// together. Positional like telemetry:
 	//   [ "DriverFeedback", [ 1234, [0.25, -0.5], [1.5, -2, 0, 0.5],
 	//     [0, 0.25, -1, 3], [0, 1, 2, 0], [0.5, -0.25, 0, 2], true, false, 4.5, -1.5,

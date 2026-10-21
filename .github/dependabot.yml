@@ -6,7 +6,7 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/apexsim/server"
+    directory: "/apexsim/server/server"
     schedule:
       interval: "weekly"
     labels:
@@ -14,7 +14,7 @@ updates:
       - "rust"
 
   - package-ecosystem: "cargo"
-    directory: "/apexsim/sim"
+    directory: "/apexsim/server/sim"
     schedule:
       interval: "weekly"
     labels:
@@ -22,7 +22,7 @@ updates:
       - "rust"
 
   - package-ecosystem: "cargo"
-    directory: "/apexsim/protocol"
+    directory: "/apexsim/server/protocol"
     schedule:
       interval: "weekly"
     labels:

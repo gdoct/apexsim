@@ -396,7 +396,7 @@ class GeometryImportTest(unittest.TestCase):
 
 class AeroPostureTest(unittest.TestCase):
     def test_the_heave_model_is_the_servers(self):
-        # sim/src/aero.rs the_bump_rubbers_hold_the_car_off_the_road:
+        # server/sim/src/aero.rs the_bump_rubbers_hold_the_car_off_the_road:
         # 2 cm of free travel on a 4 cm car is 2 cm, and an unloaded axle
         # rises at most 5 cm.
         k = 80000.0
@@ -904,7 +904,7 @@ def fake_car(**files: str) -> data.CarData:
 
 # The code checkout beside the content one (`../apexsim`): a content->code
 # reference, read only when it is there.
-SERVER_BRAKES = SCRIPTS.parent.parent / "apexsim" / "sim" / "src" / "brakes.rs"
+SERVER_BRAKES = SCRIPTS.parent.parent / "apexsim" / "server" / "sim" / "src" / "brakes.rs"
 
 
 class BrakeMaterialTest(unittest.TestCase):

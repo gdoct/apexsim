@@ -5,7 +5,7 @@
 //! server reads the file with too, so a file the editor saves is a file the
 //! server reads by construction. That the server builds the same physical
 //! track from an editor-saved file as from the original is the server's own
-//! test (`apexsim/sim/tests/all/track_file_compat_test.rs`).
+//! test (`apexsim/server/sim/tests/all/track_file_compat_test.rs`).
 
 use std::path::{Path, PathBuf};
 

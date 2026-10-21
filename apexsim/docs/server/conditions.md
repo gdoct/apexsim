@@ -12,29 +12,29 @@ positions, so a session replays the same (`a_changing_sky_is_deterministic`).
 
 ## Code
 
-- `sim/src/data.rs` - `SessionConditions` (the host's pick: `clamp`,
+- `server/sim/src/data.rs` - `SessionConditions` (the host's pick: `clamp`,
   `resolve`, `apply_to_track`, `air_density_ratio`, `headlights_needed`),
   `Weather` (the per-weather grip, water and cloud figures), the sun
   (`sun_elevation_deg`, `solar_gain_c`, `through_cloud`,
   `DEFAULT_LATITUDE_DEG`), `TrackSurface` (what is baked: grip, `wet`,
   `water`, `baked_water`, air and track temperature, `air_density_ratio`,
   `wind_mps`, `wind_now_mps`).
-- `sim/src/conditions.rs` - `LiveConditions` (the sky now) and `forecast`.
-- `sim/src/road_state.rs` - `RoadState`: rubber, marbles, a dried line,
+- `server/sim/src/conditions.rs` - `LiveConditions` (the sky now) and `forecast`.
+- `server/sim/src/road_state.rs` - `RoadState`: rubber, marbles, a dried line,
   water depth; `write_rows` / `write_geometry` pack it for the wire, and
   `read_rows` / `read_snow_rows` / `read_lane_snow` read the bytes back into
   another copy of the road (the physics library's `apx_track_road_rows`, for
   a predicting client).
-- `server/src/game_loop/dispatch.rs` - `road_state_message`,
+- `server/server/src/game_loop/dispatch.rs` - `road_state_message`,
   `road_state_full` (the join burst); `game_loop/tick.rs` the round-robin
   send, `broadcast.rs` `broadcast_road`.
-- `sim/src/wind.rs` - `gusting` and `hash01` (the hash the AI and
+- `server/sim/src/wind.rs` - `gusting` and `hash01` (the hash the AI and
   racecraft use too).
-- `sim/src/headlights.rs` - whose lights are on.
-- `sim/src/game_session.rs` - `with_road`, `live_sky`, `update_sky`
+- `server/sim/src/headlights.rs` - whose lights are on.
+- `server/sim/src/game_session.rs` - `with_road`, `live_sky`, `update_sky`
   (top of every tick, acts once a second), `update_wind` and `update_road`
   (in `update_air`).
-- `sim/src/physics.rs` - `calculate_aerodynamic_forces` (airspeed against
+- `server/sim/src/physics.rs` - `calculate_aerodynamic_forces` (airspeed against
   `wind_now_mps`, density), `engine_density_factor`, the per-wheel road
   sample in `update_car_3d`.
 - `apexsim-content/tools/track_location.py` - a circuit's altitude and position.
@@ -670,7 +670,7 @@ See [protocol.md](protocol.md) for the append-only rules.
 ## Checking it
 
 ```bash
-cd sim
+cd server/sim
 cargo test --lib -- conditions:: road_state:: wind::
 cargo test --test all air_test::                    # density, turbo, wind, the AI in a gale
 SURVEY_WIND_KPH=25 cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture

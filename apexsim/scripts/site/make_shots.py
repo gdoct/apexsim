@@ -27,14 +27,14 @@ Two kinds of shot, because they want opposite things:
           grab and `r.SetRes` for the size (settings.yml's window mode
           would otherwise decide it). A list of times grabs at each; `pick`
           chooses. Needs a server: one is started from
-          server/target/release when nothing is listening where
+          server/server/target/release when nothing is listening where
           game-unreal/settings.yml points, and stopped afterwards.
 
 The masters are site/shots/<id>.webp, checked in so that CI can verify the
 page without an engine; site/media.yml cuts the page's pictures from them.
 
 Needs the editor closed, the ApexSimEditor target built
-(`./scripts/play_editor.ps1 -Build`), `cargo build --release` in server/
+(`./scripts/play_editor.ps1 -Build`), `cargo build --release` in server/server/
 and the content initialised (`./scripts/initialize_content.ps1`).
 """
 
@@ -64,7 +64,7 @@ CANDIDATES = WORK / "candidates"
 UPROJECT = REPO / "game-unreal" / "ApexSim.uproject"
 SETTINGS = REPO / "game-unreal" / "settings.yml"
 GRABS = REPO / "game-unreal" / "Saved" / "Screenshots" / "WindowsEditor"
-SERVER_DIR = REPO / "server"
+SERVER_DIR = REPO / "server" / "server"
 SERVER_EXE = SERVER_DIR / "target" / "release" / "apexsim-server.exe"
 REPLAY_EXE = SERVER_DIR / "target" / "release" / "apexsim-replay.exe"
 
@@ -242,7 +242,7 @@ class Server:
         if host not in ("127.0.0.1", "localhost"):
             raise SystemExit(f"settings.yml points at {host}:{port} and nothing answers there")
         if not SERVER_EXE.is_file():
-            raise SystemExit(f"{SERVER_EXE} not found: cargo build --release in server/")
+            raise SystemExit(f"{SERVER_EXE} not found: cargo build --release in server/server/")
         log(f"starting {SERVER_EXE.name} for the ui shots")
         # The shipped cars only: an AI field must not bring a player's own
         # imports (real teams' colours) onto the page.
@@ -252,7 +252,7 @@ class Server:
         deadline = time.monotonic() + 60.0
         while not listening(host, port):
             if self.process.poll() is not None:
-                raise SystemExit("the server exited at once: run it by hand in server/ to see why")
+                raise SystemExit("the server exited at once: run it by hand in server/server/ to see why")
             if time.monotonic() > deadline:
                 self.process.kill()
                 raise SystemExit(f"the server did not open {host}:{port} within a minute")
@@ -379,7 +379,7 @@ def main(argv=None) -> int:
     chosen_action = [s for s in chosen if s["kind"] == "action"]
     if chosen_action:
         if not REPLAY_EXE.is_file():
-            raise SystemExit(f"{REPLAY_EXE} not found: cargo build --release in server/")
+            raise SystemExit(f"{REPLAY_EXE} not found: cargo build --release in server/server/")
         tool = make_clips.ReplayTool(str(REPLAY_EXE), False, args.dry_run)
         planner = make_clips.Planner({"defaults": defaults, "races": config.get("races") or {}},
                                      tool, WORK, args.resimulate)
@@ -405,9 +405,9 @@ def main(argv=None) -> int:
                 if not take_ui(shot, game, defaults, False):
                     failed.append(shot["id"])
 
-    newest = max(p.stat().st_mtime for d in (SERVER_DIR / "src", REPO / "sim" / "src") for p in d.rglob("*.rs"))
+    newest = max(p.stat().st_mtime for d in (SERVER_DIR / "src", REPO / "server" / "sim" / "src") for p in d.rglob("*.rs"))
     if not args.dry_run and REPLAY_EXE.is_file() and newest > REPLAY_EXE.stat().st_mtime:
-        log("note: server/target/release is older than server/src or sim/src: the races were run by the older simulation")
+        log("note: server/server/target/release is older than server/server/src or server/sim/src: the races were run by the older simulation")
     if failed:
         log(f"failed: {', '.join(failed)}")
         return 1

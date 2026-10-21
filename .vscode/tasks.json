@@ -7,7 +7,7 @@
             "command": "cargo",
             "args": ["build", "--release"],
             "options": {
-                "cwd": "${workspaceFolder}/apexsim/server"
+                "cwd": "${workspaceFolder}/apexsim/server/server"
             },
             "group": "build",
             "problemMatcher": "$rustc"
@@ -18,7 +18,7 @@
             "command": "cargo",
             "args": ["watch", "-x", "run --release -- -c ./server.toml"],
             "options": {
-                "cwd": "${workspaceFolder}/apexsim/server"
+                "cwd": "${workspaceFolder}/apexsim/server/server"
             },
             "isBackground": true,
             "problemMatcher": {
@@ -43,7 +43,7 @@
             "command": "cargo",
             "args": ["run", "--", "-c", "./server.toml", "-l", "debug"],
             "options": {
-                "cwd": "${workspaceFolder}/apexsim/server"
+                "cwd": "${workspaceFolder}/apexsim/server/server"
             },
             "isBackground": true,
             "problemMatcher": {
@@ -77,7 +77,7 @@
             "dependsOn": ["Server: Stop"],
             "dependsOrder": "sequence",
             "type": "shell",
-            "command": "sleep 2 && cd ${workspaceFolder}/apexsim/server && cargo run --release -- -c ./server.toml",
+            "command": "sleep 2 && cd ${workspaceFolder}/apexsim/server/server && cargo run --release -- -c ./server.toml",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {
@@ -98,7 +98,7 @@
         {
             "label": "Server: Start",
             "type": "shell",
-            "command": "sleep 2 && cd ${workspaceFolder}/apexsim/server && cargo run --release -- -c ./server.toml",
+            "command": "sleep 2 && cd ${workspaceFolder}/apexsim/server/server && cargo run --release -- -c ./server.toml",
             "isBackground": true,
             "problemMatcher": {
                 "pattern": {

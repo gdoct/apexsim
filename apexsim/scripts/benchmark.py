@@ -15,7 +15,7 @@ in, the TV director on its seed, and writes the mean fps, the 1% low and
 the frame-time percentiles with the GPU's name to
 game-unreal/Saved/Benchmarks/, which this prints.
 
-Needs `cargo build --release` in server/ (for apexsim-replay), the
+Needs `cargo build --release` in server/server/ (for apexsim-replay), the
 ApexSimEditor target built, the content initialised and the editor closed.
 """
 
@@ -33,7 +33,7 @@ CONTENT = (REPO / ".." / "apexsim-content").resolve()
 sys.path.insert(0, str(REPO / "scripts" / "site"))
 from make_shots import UPROJECT, engine_editor  # noqa: E402
 
-REPLAY_TOOL = REPO / "server" / "target" / "release" / "apexsim-replay.exe"
+REPLAY_TOOL = REPO / "server" / "server" / "target" / "release" / "apexsim-replay.exe"
 OUT = REPO / "build" / "benchmark"
 RESULTS = REPO / "game-unreal" / "Saved" / "Benchmarks"
 SEED = 7
@@ -44,7 +44,7 @@ def render_clip(track: str, clip: Path) -> None:
     if not yaml.is_file():
         raise SystemExit(f"no track {yaml}")
     if not REPLAY_TOOL.is_file():
-        raise SystemExit(f"{REPLAY_TOOL} not found: cargo build --release in server/")
+        raise SystemExit(f"{REPLAY_TOOL} not found: cargo build --release in server/server/")
     clip.parent.mkdir(parents=True, exist_ok=True)
     command = [str(REPLAY_TOOL), "render", "--track", str(yaml), "--class", "GT3", "--cars", "12",
                "--laps", "2", "--weather", "sunny", "--time", "13:00", "--seed", str(SEED),

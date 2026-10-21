@@ -60,7 +60,7 @@ All tracks include:
 
 The server loads every circuit here on start; a session picks one by name,
 so there is nothing to configure. To try one, run the server
-(`cd ../apexsim/server && cargo run --release`, from the content root) and
+(`cd ../apexsim/server/server && cargo run --release`, from the content root) and
 pick the circuit in the game.
 
 ## Featured Tracks
@@ -152,7 +152,7 @@ Tracks converted from the [TUM FTMR racetrack-database](https://github.com/TUMFT
 To reconvert tracks from the source database:
 
 ```bash
-cd ../apexsim/server
+cd ../apexsim/server/server
 ./tests/convert_all_tracks.sh /path/to/racetrack-database ../../apexsim-content/tracks/default
 ```
 

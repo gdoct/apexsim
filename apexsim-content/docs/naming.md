@@ -18,7 +18,7 @@ marketing page and promo caption made from it.
   (`FApexTrackCatalogRow::Description`).
 - The server sends `display_name` as the track's name: `TrackConfig::name` is
   `TrackFileFormat::display_name`, falling back to `name` when it is missing
-  or blank (`apexsim/sim/src/track_loader.rs`). The lobby, sessions, replays and
+  or blank (`apexsim/server/sim/src/track_loader.rs`). The lobby, sessions, replays and
   spectator streams all carry it.
 - `ats-export` writes it into the export manifest as `track_display_name`,
   which the runtime catalog row prefers over `track_name`

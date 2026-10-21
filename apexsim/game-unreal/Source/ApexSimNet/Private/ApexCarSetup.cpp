@@ -1,6 +1,6 @@
 #include "ApexProtocolTypes.h"
 
-// Mirrors `KNOBS` and the per-click constants in sim/src/car_setup.rs.
+// Mirrors `KNOBS` and the per-click constants in server/sim/src/car_setup.rs.
 // The order is the wire order; the ranges and click sizes are the server's
 // and are shown to the player, so change both sides together.
 

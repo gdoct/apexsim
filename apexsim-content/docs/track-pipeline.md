@@ -25,7 +25,7 @@ game builds at runtime (no cooked track levels). Formats:
 - The sidecars' formats: `apexsim-lib/formats/src/` (`ground.rs`,
   `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`: the structs, their
   versions and paths), which track-core writes and the server reads.
-- Server readers: `apexsim/sim/src/track_loader.rs`, `track_content.rs`,
+- Server readers: `apexsim/server/sim/src/track_loader.rs`, `track_content.rs`,
   `ground.rs`, `curbs.rs`, `walls.rs`, `road_mesh.rs`, `pit.rs`.
 - Client: `apexsim/game-unreal/Source/ApexSim/{Public,Private}/Track/`; editor-only
   commandlets in `ApexTrackEditor/` (`ApexMaterialBake`,
@@ -586,7 +586,7 @@ Commit the YAML, `.ats`, dossier, DEM sidecar and script table changes.
   before shipping a bake change. Ask before running them.
 - Anything that moves barriers, walls, the centerline or the ground goes
   through the AI survey against a baseline ([apexsim/docs/server/ai.md](../../apexsim/docs/server/ai.md)),
-  in `../apexsim/sim`: `cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture`
+  in `../apexsim/server/sim`: `cargo test --release --test all ai_race_start_test::survey_ai_races_on_every_circuit -- --ignored --nocapture`
   (`SURVEY_TRACKS=A,B`, `SURVEY_DBG=1`).
 - Client: `ApexSim.Track.*` (reader, builder, ground) and `ApexSim.Props.*`.
 

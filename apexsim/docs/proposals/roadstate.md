@@ -7,7 +7,7 @@ A proposal. Phase 1 is built (2026-10-10) and described as it is in
 ## Where we stand
 
 The server already simulates the road ([../server/conditions.md](../server/conditions.md),
-`sim/src/road_state.rs`): the lap in 10 m cells (`CELL_M`), each cut
+`server/sim/src/road_state.rs`): the lap in 10 m cells (`CELL_M`), each cut
 across the road into 32 bins of 1 m (`BIN_M`, `HALF_SPAN_M`), and per bin
 `rubber`, `marbles` and `dry` (0..1), per cell the water `depth` and the
 raceline's lateral. Every wheel pass lays into it, the rain and the sun

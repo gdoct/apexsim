@@ -130,7 +130,7 @@ namespace ApexProtocol
 	 */
 	APEXSIMNET_API TArray<uint8> EncodePlayerInput(uint32 ServerTickAck, const FApexPlayerInput& Input, uint32 InputSeq = 0);
 	/**
-	 * Seals one outbound datagram (`server/src/udp_seal.rs`): a 0xC1 marker,
+	 * Seals one outbound datagram (`server/server/src/udp_seal.rs`): a 0xC1 marker,
 	 * the big-endian sequence number, 16 bytes of HMAC-SHA1 over the sequence
 	 * number and the payload under the UTF-8 bytes of `AuthSuccess.udp_key`,
 	 * then the payload. The server accepts a connection's datagrams only in

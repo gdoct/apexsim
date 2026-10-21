@@ -22,7 +22,7 @@ see [marketing-site.md](marketing-site.md).
 - [follow-ups.md](follow-ups.md): what is left on built features: bugs, edge cases, cleanup.
 - [verification.md](verification.md): built features nobody has seen in the game, heard or felt on hardware yet, grouped by the run that checks them.
 
-## Server (`server/`)
+## Server (`server/server/`)
 
 - [server/operations.md](server/operations.md): running a server: config, ports, TLS, env overrides, admin dashboard, health and metrics, Docker.
 - [server/protocol.md](server/protocol.md): TCP/UDP transport, handshake, messages, positional telemetry, bounded queues, golden bytes.
@@ -58,4 +58,4 @@ see [marketing-site.md](marketing-site.md).
 
 - [marketing-site.md](marketing-site.md): the generated site, in-engine shots and the promo video.
 - [proposals/](proposals/): designs that are not built ([client-side prediction](proposals/client-prediction.md), [Nanite and shadows](proposals/nanite-shadows.md), [road state and snow](proposals/roadstate.md), [smaller recorded sessions](proposals/replay-size.md), [split-off content](proposals/split-off-content.md), [a learned AI driver](proposals/learned-ai-driver.md)).
-- [../MODDING.md](../MODDING.md): the player-facing modding guide; [../server/CMDLINE.md](../server/CMDLINE.md): server command line.
+- [../MODDING.md](../MODDING.md): the player-facing modding guide; [../server/server/CMDLINE.md](../server/server/CMDLINE.md): server command line.

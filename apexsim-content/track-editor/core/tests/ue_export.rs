@@ -738,7 +738,7 @@ fn stands_and_bridges_carry_their_layout_hints() {
 }
 
 /// Authored spawn points win over the fallback grid, resolved exactly the
-/// way `sim/src/track_loader.rs` resolves them.
+/// way `server/sim/src/track_loader.rs` resolves them.
 #[test]
 fn authored_spawn_points_replace_the_fallback_grid() {
     let mut track = test_track();

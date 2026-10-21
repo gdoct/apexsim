@@ -19,10 +19,10 @@ Client paths under `game-unreal/Source/`.
 - `ApexSimInput/`: the DirectInput device module (`ApexDirectInputTypes.h`,
   `ApexWheelProfiles.h`, `Windows/ApexDirectInputDevice.cpp`,
   `ApexSimInputModule.cpp`).
-- `sim/src/feedback.rs` (`FeedbackTick`, `FeedbackAccumulator`,
-  `DriverFeedback`), `sim/src/physics.rs` (`steering_column_torque`,
+- `server/sim/src/feedback.rs` (`FeedbackTick`, `FeedbackAccumulator`,
+  `DriverFeedback`), `server/sim/src/physics.rs` (`steering_column_torque`,
   `steering_column_stiffness`, `impact_steer_kick`),
-  `server/src/game_loop/broadcast.rs` (sends it).
+  `server/server/src/game_loop/broadcast.rs` (sends it).
 
 ## Actions and bindings
 
@@ -417,7 +417,7 @@ hardware.
 - Server: `lone_car_trace` (`server/ffi`) checks the library's feedback
   against the session's collector every tick, bit for bit.
 - Server: `column_stiffness_predicts_the_torque_after_the_rim_moves`
-  (`physics.rs`); in `sim/`, `cargo test --release --test all
+  (`physics.rs`); in `server/sim/`, `cargo test --release --test all
   grip_probe_test::steering_feel_probe -- --ignored --nocapture`
   (`PROBE_CAR=<folder>`) prints
   torque against lateral g and front slip while a car winds on lock, the harness

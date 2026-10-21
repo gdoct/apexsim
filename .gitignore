@@ -218,10 +218,10 @@ apexsim/hud/custom/*
 !apexsim/hud/custom/README.md
 
 # Recorded session replays (large binary, generated at runtime)
-apexsim/server/replays/
+apexsim/server/server/replays/
 
 # Lap records and their ghost traces (written at runtime)
-apexsim/server/records/
+apexsim/server/server/records/
 
 # Scratch/working directory, not part of the project
 _claude_tmp/
@@ -250,7 +250,7 @@ artifacts/
 apexsim/game-unreal/Content/
 
 Claude outputs/*
-apexsim/server/target*/
+apexsim/server/server/target*/
 artifacts/
 artifacts/*
 # Baked tiling ground textures (python tools/bake_ground_textures.py, from apexsim-content).

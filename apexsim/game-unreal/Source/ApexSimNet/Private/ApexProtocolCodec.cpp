@@ -2938,7 +2938,7 @@ namespace
 		}
 
 		// `safety_car`, appended after the phase: `[x, y, z, yaw_rad,
-		// speed_mps]` (sim/src/safety_car.rs), or nil.
+		// speed_mps]` (server/sim/src/safety_car.rs), or nil.
 		Out.SafetyCar = FApexSafetyCarPose();
 		if (FieldCount > Read)
 		{
@@ -2978,7 +2978,7 @@ namespace
 	}
 
 	/**
-	 * Fields every `DriverFeedback` (sim/src/feedback.rs) has. Later fields
+	 * Fields every `DriverFeedback` (server/sim/src/feedback.rs) has. Later fields
 	 * are appended and read only when present: `steer_kick` is the tenth.
 	 */
 	constexpr int32 DriverFeedbackFieldCount = 9;
@@ -3057,7 +3057,7 @@ namespace
 		return true;
 	}
 
-	/** Fields every `OwnCarSnapshot` (sim/src/own_car.rs) has, in order. */
+	/** Fields every `OwnCarSnapshot` (server/sim/src/own_car.rs) has, in order. */
 	constexpr int32 OwnCarSnapshotFieldCount = 26;
 
 	bool ParseOwnCarSnapshot(FMsgPackReader& Reader, FApexOwnCarSnapshot& Out)
@@ -4040,7 +4040,7 @@ namespace ApexProtocol
 
 	TArray<uint8> SealUdpDatagram(const FString& UdpKey, uint64 Seq, TArrayView<const uint8> Payload)
 	{
-		// Mirror of `server/src/udp_seal.rs`: 0xC1, the big-endian sequence
+		// Mirror of `server/server/src/udp_seal.rs`: 0xC1, the big-endian sequence
 		// number, 16 bytes of HMAC-SHA1(key, seq || payload), the payload.
 		const FTCHARToUTF8 KeyBytes(*UdpKey);
 

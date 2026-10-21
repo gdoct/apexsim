@@ -12,11 +12,11 @@ belong to these rules are described briefly beside them.
 
 ## Code
 
-- `sim/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
+- `server/sim/src/data.rs`: `SessionKind`, `SessionState`, `GameMode`,
   `RaceSession`, `DamageLevel`, `AllowedAssists`, `DriverAids`,
   `QualifyingFormat`, `clamp_race_seconds`, `clamp_qualifying_seconds`,
   `clamp_qualifying_lap_allowance`
-- `sim/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
+- `server/sim/src/game_session.rs`: per-mode ticks (`tick_*`), `set_game_mode`,
   `start_countdown_mode`, `line_up_on_grid`, `assign_finish_positions`,
   `update_race_clock`, `apply_grid_order`, `note_qualifying_lap`,
   `update_chequered_flag`, `hotlap_relocate`, the shoot-out
@@ -26,26 +26,26 @@ belong to these rules are described briefly beside them.
   (`advance_weekend`, `settle_weekend`, `weekend_state`,
   `begin_phase_damage`), the watched hotlap
   (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
-- `sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
+- `server/sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
   `WeekendProgress`
-- `server/src/server.rs`: `ServerState::create_session` (resolves the
+- `server/server/src/server.rs`: `ServerState::create_session` (resolves the
   conditions, clamps the rules, seeds the AI)
-- `server/src/game_loop/dispatch.rs`: message handlers; a watch-only kind
+- `server/server/src/game_loop/dispatch.rs`: message handlers; a watch-only kind
   refused
-- `server/src/game_loop/tick.rs`: ticking, removal of empty sessions (and
+- `server/server/src/game_loop/tick.rs`: ticking, removal of empty sessions (and
   of sessions whose drivers are all away past the grace), lap timing out,
   qualifying and record submission
-- `server/src/game_loop/lifecycle.rs`: disconnects, held seats
+- `server/server/src/game_loop/lifecycle.rs`: disconnects, held seats
   (`hold_seat_for_rejoin`, `give_up_seat`); `GameSession::hold_seat` /
   `resume_seat` / `away_input`
-- `sim/src/recovery.rs` and `GameSession::recover_car` /
+- `server/sim/src/recovery.rs` and `GameSession::recover_car` /
   `update_recoveries`: back to track and back to pits
-- `sim/src/race_control.rs` (`RaceControl`, `FlagCar`) and
+- `server/sim/src/race_control.rs` (`RaceControl`, `FlagCar`) and
   `GameSession::update_flags` / `yellow_flags`: the race's flags
-- `sim/src/race_start.rs` (`RaceStart`, `Formation`) and
+- `server/sim/src/race_start.rs` (`RaceStart`, `Formation`) and
   `GameSession::begin_formation` / `tick_formation` / `hold_cars_on_grid`:
   the formation lap, the rolling start, false starts
-- `sim/src/laps.rs`, `records.rs`, `grid_order.rs`,
+- `server/sim/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
   `ApexCreateSessionModel.h`), `UApexMenuFlowSubsystem`, `UApexNetSubsystem`,
@@ -1377,7 +1377,7 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 ## Checking it
 
 ```bash
-cd sim                                        # the unit tests of the simulation crate
+cd server/sim                                        # the unit tests of the simulation crate
 cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
 cargo test --lib weekend                      # knockout sizes, format clamp, round closing
 cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue, a pass under yellow

@@ -16,7 +16,7 @@
       - unregistered, empty .claude/worktrees folders; worktrees whose commits are
         all in main are reported (and removed only with -RemoveMergedWorktrees)
 
-    -Deep adds what costs a rebuild: server/target and
+    -Deep adds what costs a rebuild: server/server/target and
     ../apexsim-content/track-editor/target, Unreal
     Intermediate/Build, and out/promo, out/site, out/verify.
     -IncludePip adds the pip download cache (not ApexSim's, but large).
@@ -145,7 +145,7 @@ foreach ($root in @($sysDrive, $repoDrive) | Select-Object -Unique) {
         ForEach-Object { Add-Item 'Scratch cargo targets' $_.FullName 'Tree' $KeepDays 'cargo' }
 }
 foreach ($p in 'target-scratch', 'target-scratch2', '.scratch-target') {
-    foreach ($base in $RepoRoot, (Join-Path $RepoRoot 'server'), $ContentRoot, (Join-Path $ContentRoot 'track-editor')) {
+    foreach ($base in $RepoRoot, (Join-Path $RepoRoot 'server\server'), $ContentRoot, (Join-Path $ContentRoot 'track-editor')) {
         Add-Item 'Scratch cargo targets' (Join-Path $base $p) 'Tree' $KeepDays 'cargo'
     }
 }
@@ -154,7 +154,7 @@ if (Test-Path $tempClaude) {
         ForEach-Object { Add-Item 'Claude session scratchpads' $_.FullName 'Children' $KeepDays }
     Add-Item 'Claude session scratchpads' (Join-Path $tempClaude 'bash-edit-diff') 'Children' $KeepDays
 }
-foreach ($target in (Join-Path $RepoRoot 'server\target'), (Join-Path $ContentRoot 'track-editor\target')) {
+foreach ($target in (Join-Path $RepoRoot 'server\server\target'), (Join-Path $ContentRoot 'track-editor\target')) {
     if (-not $Deep -and (Test-Path $target)) {   # -Deep removes the whole target instead
         Get-ChildItem -LiteralPath $target -Directory -Force | ForEach-Object {
             Add-Item 'Cargo incremental caches' (Join-Path $_.FullName 'incremental') 'Tree' 0 'cargo'
@@ -180,7 +180,7 @@ foreach ($pyRoot in $RepoRoot, (Join-Path $ContentRoot 'tools')) {
 # --- deep set ----------------------------------------------------------------
 if ($Deep) {
     # server/ffi/target is deliberately absent: the client links the lib built there
-    Add-Item 'Deep: cargo targets' (Join-Path $RepoRoot 'server\target') 'Tree' 0 'cargo'
+    Add-Item 'Deep: cargo targets' (Join-Path $RepoRoot 'server\server\target') 'Tree' 0 'cargo'
     Add-Item 'Deep: cargo targets' (Join-Path $ContentRoot 'track-editor\target') 'Tree' 0 'cargo'
     Add-Item 'Deep: Unreal intermediates' (Join-Path $RepoRoot 'game-unreal\Intermediate\Build') 'Tree' 0 'unreal'
     foreach ($o in 'promo', 'site', 'verify') { Add-Item 'Deep: regenerable out/' (Join-Path $RepoRoot "out\$o") 'Tree' 0 }

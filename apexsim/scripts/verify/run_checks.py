@@ -24,7 +24,7 @@ out/verify/<run>/:
   shots.md          the shot list (number, time, label, the item it checks)
   client.log, server.log
 
-The server is started from server/target/release with a server.toml of the
+The server is started from server/server/target/release with a server.toml of the
 run's own (ports from 9400, records and replays inside the run's folder,
 the dashboard on 9403 with the token `verify`), so a server the user has
 running on 9000 is never touched and its records never written. The game
@@ -51,7 +51,7 @@ gathered into out/sit/<date>/<block>/, with marks.md listing the MARK and
 force lines. `--sit-sheet` writes out/sit/<date>/sheet.md, every block's
 checks with their answer words.
 
-Needs the ApexSimEditor target built and `cargo build --release` in server/
+Needs the ApexSimEditor target built and `cargo build --release` in server/server/
 (both are checked against the source and warned about), the content
 initialised, and the editor closed.
 """
@@ -79,7 +79,7 @@ SITTINGS_YML = Path(__file__).resolve().parent / "sittings.yml"
 OUT = REPO / "out" / "verify"
 SIT_OUT = REPO / "out" / "sit"
 SAVED = REPO / "game-unreal" / "Saved"
-SERVER_DIR = REPO / "server"
+SERVER_DIR = REPO / "server" / "server"
 SERVER_EXE = SERVER_DIR / "target" / "release" / "apexsim-server.exe"
 CLIENT_LOGS = REPO / "game-unreal" / "Saved" / "Logs"
 EDITOR_BINARIES = REPO / "game-unreal" / "Binaries" / "Win64"
@@ -102,9 +102,9 @@ def newest(folder: Path, pattern: str) -> float:
 
 def warn_stale() -> None:
     if not SERVER_EXE.is_file():
-        raise SystemExit(f"{SERVER_EXE} not found: cargo build --release in server/")
-    if max(newest(SERVER_DIR / "src", "*.rs"), newest(REPO / "sim" / "src", "*.rs")) > SERVER_EXE.stat().st_mtime:
-        log("warning: server/target/release is older than server/src or sim/src")
+        raise SystemExit(f"{SERVER_EXE} not found: cargo build --release in server/server/")
+    if max(newest(SERVER_DIR / "src", "*.rs"), newest(REPO / "server" / "sim" / "src", "*.rs")) > SERVER_EXE.stat().st_mtime:
+        log("warning: server/server/target/release is older than server/server/src or server/sim/src")
     # Each module's source against its own DLL: a change to one module
     # rebuilds that DLL alone.
     for module in (REPO / "game-unreal" / "Source").iterdir():

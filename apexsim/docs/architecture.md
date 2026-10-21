@@ -4,7 +4,7 @@ ApexSim is a sim-racing platform in three programs that share one data tree,
 kept in two roots: the code (`apexsim/`, which these docs speak from) and the
 content with its tools (`apexsim-content/`, beside it). The code depends on
 the content, never the other way round.
-The **server** (Rust, `server/`) owns the simulation: physics, AI, race rules
+The **server** (Rust, `server/server/`) owns the simulation: physics, AI, race rules
 and timing run there at 420 Hz and nowhere else. The **Unreal client**
 (UE 5.8, `game-unreal/`) draws what the server says and sends the driver's
 input; cars are telemetry puppets with no client physics. The **track
@@ -15,16 +15,16 @@ the topic docs under `docs/` go deeper.
 
 ## Code
 
-- `sim/` - the deterministic simulation crate (`apexsim-sim`): the car,
+- `server/sim/` - the deterministic simulation crate (`apexsim-sim`): the car,
   the track and its sidecars, the race and the session tick
   ([below](#simulation-and-runtime-modules)). The server and the physics
   library link it.
-- `protocol/` - `apexsim-protocol`, on the simulation crate alone: the wire
+- `server/protocol/` - `apexsim-protocol`, on the simulation crate alone: the wire
   messages, the spectator stream and its file, the records, and the render
   of a seeded race into a stream. The server and the physics library link it.
-- `server/` - the authoritative server crate (`apexsim-server`, plus the
+- `server/server/` - the authoritative server crate (`apexsim-server`, plus the
   offline tool `apexsim-replay`): the runtime around the simulation. Module
-  map in [server/README.md](../server/README.md).
+  map in [server/server/README.md](../server/server/README.md).
 - `server/ffi/` - `apexsim-physics`, a separate crate on the simulation and
   protocol crates alone: the car step (`car_step::step_lone_car`) as a static library
   behind a C API (`apexsim_physics.h`), for the client's prediction of its
@@ -65,7 +65,7 @@ server in [server/operations.md](server/operations.md).
 
 ## The server tick
 
-`game_loop::run_game_loop` (`server/src/game_loop/mod.rs`) runs on a tokio
+`game_loop::run_game_loop` (`server/server/src/game_loop/mod.rs`) runs on a tokio
 `interval` at `[server] tick_rate_hz` (default 420, valid 30-1000;
 `game_session::DEFAULT_TICK_RATE_HZ`). Each tick:
 
@@ -95,7 +95,7 @@ query belongs on that path, not on a full scan.
 
 A seeded session replays bit for bit: `apexsim-replay render`, showcases,
 replays and the AI survey all depend on it, and
-`sim/tests/all/determinism_test.rs` asserts it on the centerline and the road
+`server/sim/tests/all/determinism_test.rs` asserts it on the centerline and the road
 mesh backends. Inside the sim path:
 
 - No iteration over a `HashMap` where order can reach the result. Session
@@ -111,7 +111,7 @@ The game loop's own bookkeeping (rate checks, rate limiting, heartbeats) uses
 
 ### Simulation and runtime modules
 
-The server's code is of three kinds, in three crates. **Simulation** (`sim/`,
+The server's code is of three kinds, in three crates. **Simulation** (`server/sim/`,
 the crate `apexsim-sim`): the car (`physics`, `car_step`, `aero`, `brakes`,
 `tyre_thermal`, `engine_heat`, `damage`, `hybrid`, `geometry`, `feedback`,
 `car_setup`, `own_car`), the track and its sidecars (`ground`, `curbs`,
@@ -121,11 +121,11 @@ the crate `apexsim-sim`): the car (`physics`, `car_step`, `aero`, `brakes`,
 `racing_line`, `pit`, `race_control`, `race_start`, `safety_car`, `weekend`,
 `grid_order`, `headlights`, `conditions`, `balance`, `debug_hooks`) and the
 plain data the session hands out (`ghost`, `classification`). **Protocol**
-(`protocol/`, the crate `apexsim-protocol`): what goes to a viewer, apart
+(`server/protocol/`, the crate `apexsim-protocol`): what goes to a viewer, apart
 from the sockets - the messages (`network`, `session_wire`), the stream
 (`spectator`, `session_stream`, `render`, `showcase_list`), the track
 guide (`track_guide`, `poses`), a watched hotlap simulated where it is
-watched (`hotlap_watch`), the files `records` and `setup_sheet`. **Runtime** (`server/`, the crate `apexsim-server`):
+watched (`hotlap_watch`), the files `records` and `setup_sheet`. **Runtime** (`server/server/`, the crate `apexsim-server`):
 everything else - the sockets (`transport`, `udp_seal`), the loop
 (`game_loop/`, `server`, `lobby`, `chat`, `main`, `config`), operations
 (`health`, `metrics`, `tick_jitter`, `timer_resolution`, `webhook`,
@@ -136,7 +136,7 @@ everything else - the sockets (`transport`, `udp_seal`), the loop
 uuid, thiserror, the `tracing` facade and `apexsim-formats`: no tokio,
 TLS, HTTP, clap or RNG. The server depends on it and re-exports each of its
 modules under the same name (`pub use apexsim_sim::physics;` in
-`server/src/lib.rs`), and the protocol crate's the same way, so `crate::physics` in the server and
+`server/server/src/lib.rs`), and the protocol crate's the same way, so `crate::physics` in the server and
 `apexsim_server::physics` in its tests, benches, examples and tools resolve
 as before. The protocol crate adds only rmp and the same serde stack. The
 physics library (`server/ffi`) depends on `apexsim-sim` and
@@ -153,10 +153,10 @@ is, the sim defines it and `network` re-exports it (`RecordBytes`,
 `config` re-exports `RoadContactMode` the same way. A simulation test that
 reads its result through the wire (`SkyNow`, `lap_flags_of`,
 `RACE_FLAG_YELLOW_SHIFT`, `SessionWire`) lives with the server
-(`server/tests/all/sim_wire_test.rs`). A test that needs only the simulation
+(`server/server/tests/all/sim_wire_test.rs`). A test that needs only the simulation
 (the determinism test, the physics, AI and race-rule files) lives in
-`sim/tests/all` and runs with `cargo test` in `sim/`; the ones that start a
-server, speak the wire or read its config run in `server/`.
+`server/sim/tests/all` and runs with `cargo test` in `server/sim/`; the ones that start a
+server, speak the wire or read its config run in `server/server/`.
 
 ## Tick timing on Windows
 
@@ -252,7 +252,7 @@ game loop does that on a blocking task (`game_loop/track_loads.rs`) and holds
 the creating connection's messages in order meanwhile, so running sessions
 never stall. Each sidecar is optional: a missing one is logged and the track
 drives without it (the centerline stands in). Tested by
-`server/tests/all/track_content_test.rs`.
+`server/server/tests/all/track_content_test.rs`.
 
 ## Content checksums
 

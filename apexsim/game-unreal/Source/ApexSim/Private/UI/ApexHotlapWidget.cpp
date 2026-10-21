@@ -112,7 +112,7 @@ namespace
 
 	/**
 	 * Drag scale per click of the knobs that open the car to the air, as
-	 * `CarSetup::apply` multiplies them (sim/src/car_setup.rs
+	 * `CarSetup::apply` multiplies them (server/sim/src/car_setup.rs
 	 * `*_DRAG_PER_CLICK`): change both sides together. And the deploy map's
 	 * bend of Balanced mode's spend curve per click (`ERS_DEPLOY_MAP_PER_CLICK`).
 	 */
