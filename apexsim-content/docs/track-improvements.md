@@ -241,6 +241,13 @@ judge them before the cells close.
 (identical) done; the `c5-tr-*` shots wait for a person to judge them.
 Open: tree rows (R8), the Albert Park lake (R16).
 
+**Barriers, Boards and People columns.** Rules (concrete by the pit lane
+and against mapped walls, street/park/club rails; `MANUAL_CORNERS` and a
+post every 150 m; marshals at the posts and groups at the fan zones), the
+Boards dossier pass, bake and survey (identical but for the
+Nordschleife's guard rail) done; the `c5-bp-*` shots wait for a person to
+judge them.
+
 What the audit says across the table:
 
 - **S/F** needed a dossier edit almost everywhere: the main stands opposite
