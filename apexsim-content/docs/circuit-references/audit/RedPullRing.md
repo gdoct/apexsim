@@ -90,3 +90,13 @@ Left, or for later columns:
 
 - The Wing is 92 m; the two modules are 80 m.
 - The pit-roof giant screen: R20. The fan-zone stage: no position to 50 m.
+
+## Stands dossier pass
+
+In the tables:
+
+- Tribüne Schönberg and Tribüne T8 (in the infield) added; the T3-T4 general-admission hillside as one bank on the outside; Tribüne Nord covered; Red Bull, T3, Mitte, Ost and T10 open.
+
+Left, or for later columns:
+
+- Whether the hillside Red Bull stand is `banking_seats`; the Speed Club stand.

@@ -84,3 +84,13 @@ In the tables:
 Left, or for later columns:
 
 - The wheel stays south of about 4200, clear of the OSM lounge building at 4233 left.
+
+## Stands dossier pass
+
+In the tables:
+
+- "Hairpin" (at Hans Ernst) and the lumped "Arena" and "Eastside" gone; the two Hairpin 34 blocks inside T9-T10, Eastside 33, Arena-In 32, Arena 31, Arena-Out 30 and Eastside 4 (35) added, the small Bronze blocks as `scaffold`; the GA2 bank and GA1 in six pieces from Tarzan's exit to Masters.
+
+Left, or for later columns:
+
+- GA1 round Bocht 9 (the map puts it in the layout's lake); the live screens.

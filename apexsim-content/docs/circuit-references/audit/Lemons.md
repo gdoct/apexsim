@@ -88,3 +88,14 @@ Nothing went in.
 
 - Nothing needed: the tyre arch, the airship and the wheel are laid.
 - The dossier puts the funfair near Maison Blanche, the tables inside the Esses; the ACO plan shows none: the wheel stays.
+
+## Stands dossier pass
+
+In the tables:
+
+- Tribunes 9, 8, 7, 6, 5, 4, T3 and T1, which OSM maps as buildings, laid as stands under their OSM names; "Tribune Tertre Rouge" (a duplicate of T1, in the gravel) and "Tribune Virage Porsche" (no source) gone.
+
+Left, or for later columns:
+
+- Karting T28-T32 and the 2025 mound: no map places them.
+- Mulsanne, Indianapolis and Arnage are kept but unverified.

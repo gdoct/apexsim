@@ -106,3 +106,14 @@ In the tables:
 Left, or for later columns:
 
 - The amphitheatre canopy: a smaller kit ask.
+
+## Stands dossier pass
+
+In the tables:
+
+- The Turn 2, 6 and 13 stands added; seven general-admission banks from the entrance map; Turn 9 set back so its bank fits in front.
+- Roofs: Turn 19's three unnamed outlines covered, Turn 1 and both Turn 15 stands open. The Main Grandstand is `stadium`.
+
+Left, or for later columns:
+
+- The main-straight bleachers are on no map.

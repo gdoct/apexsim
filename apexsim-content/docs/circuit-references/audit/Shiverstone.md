@@ -78,3 +78,13 @@ Left, or for later columns:
 
 - The real Wing stands over the garages; the bake lays its own row, so the modules stand behind it.
 - Its Club end (-57..0) is left out: the pit entry lane crosses it.
+
+## Stands dossier pass
+
+In the tables:
+
+- Village A, Stowe A, Stowe C and Vale, which OSM maps as buildings, laid as stands under their OSM names; Luffield Corner, Woodcote C, Stirling A/B, Copse D, Hanger and Lakeside added; six banks from the 2026 map's general-admission strips; Silverstone Six gone (hospitality only on the map).
+
+Left, or for later columns:
+
+- No roofs on the map; whether each stand is temporary is unsourced.

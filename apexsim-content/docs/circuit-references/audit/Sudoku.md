@@ -73,3 +73,14 @@ Left, or for later columns:
 Nothing went in.
 
 - Nothing needed: the OSM Ferris wheel is laid. The Leader Tower is a scoring pylon, not race control: no piece.
+
+## Stands dossier pass
+
+In the tables:
+
+- Roofs: C, D1-D4, E, O and R open, Q1 and Q2 covered; D1-D4 `banking_seats`; L moved behind the fence where the old "M" span was, M to the Spoon exit; N added; banks for J and the Degner viewing area.
+
+Left, or for later columns:
+
+- The OSM "G" pair on 110R is H by name only.
+- An unnamed OSM building behind L.

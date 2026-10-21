@@ -109,3 +109,15 @@ Left, or for later columns:
 - The T11 footbridge to Webber is in the dossier text but on no map: not placed.
 - The pit-building screens: not placed (they stand on the clubhouses' outlines' reach before R19 was narrowed; re-read on the trace page now that R19 takes only the outline a landmark stands on).
 - Lakeside Stadium: R14.
+
+## Stands dossier pass
+
+In the tables:
+
+- Waite, Webber, Lauda and Schumacher moved to their real corners (T9-T10, T11, T12, T13-T14; they stood 800-1400 m early); Ricciardo, Button and Vettel added (2026 grandstand map and the gates map).
+
+Left, or for later columns:
+
+- Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
+- The AmEx stand is on no map.
+- The general-admission areas are flat lawns: no banks.

@@ -68,3 +68,13 @@ Left, or for later columns:
 Nothing went in.
 
 - The landmark is the main stand's palm-frond canopy: `palm_canopy_10m` is built and laid from the Stands column (a roof value for it).
+
+## Stands dossier pass
+
+In the tables:
+
+- The main stand (both faces) and the Tower are `palm`; K2 moved off K1 to its OSM span; the guessed Turn 4 stand gone; hillstands G1-G3, E, D, C3, C2, C1 and B as banks.
+
+Left, or for later columns:
+
+- F's roof; the Tower is a chain of straight bays, not a round stand.

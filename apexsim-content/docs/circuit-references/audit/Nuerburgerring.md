@@ -68,3 +68,13 @@ In the tables:
 Left, or for later columns:
 
 - The TÜV tower, the boulevard LED wall and the DEKRA tower: other columns.
+
+## Stands dossier pass
+
+In the tables:
+
+- T3 moved onto OSM's "BMW Tribüne" outline (R22); T7 and T12a (right) added; T5b and T8, whole spectator hillsides, as banks.
+
+Left, or for later columns:
+
+- T12 itself (OSM has only T12a); the roofs of Tribüne 4 and Mercedes T4a; T13 faces the Nordschleife.

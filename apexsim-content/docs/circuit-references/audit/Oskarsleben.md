@@ -56,3 +56,14 @@ Left, or for later columns:
 Nothing went in.
 
 - Nothing fits the kit: the hotel (112 m) would shrink to a 30 m block, the DEKRA fan tower has no position.
+
+## Stands dossier pass
+
+In the tables:
+
+- `STAND_FAMILY` `-`: "Boxen / VIP-Loungen" and "Verwaltung", the pit and admission buildings OSM tags as stands (R18), are left out; the Zuschauerbereich West, Nord, Nord-Ost and Ost banks from the overview map.
+
+Left, or for later columns:
+
+- Zuschauerbereich Mitte is hard standing: not laid.
+- The raised berms and OSM's 15 embankment ways.

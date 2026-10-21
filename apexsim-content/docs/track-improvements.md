@@ -344,6 +344,11 @@ stay as they are.
   lane is 347 m against the real one before the Ford chicane to the
   Dunlop curve; a lane change moves the server's pit and needs the pit
   survey.
+- **R22. Bleachers are not stands.** `extract()` takes a stand from its
+  grandstand tags; an outline tagged only `leisure=bleachers` (the
+  Nordschleife's T13 stand, way 34435441) or carrying just a name (the
+  GP circuit's "BMW Tribüne" and "T7") is left out, so the Stands pass
+  enters them by hand. Other circuits may have more.
 
 Found on the way and outside dressing (track geometry, georeference,
 references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).

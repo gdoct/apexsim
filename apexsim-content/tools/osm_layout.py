@@ -166,18 +166,8 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # Turns 1-3.
         dict(name="Turn 1 Grandstand", from_m=405, to_m=470, side="right", depth_m=26, gap_m=6, family="street"),
         dict(name="Turn 2 Grandstand", from_m=480, to_m=545, side="right", depth_m=26, gap_m=6, family="street"),
-        # The back of the lap, round the Flyer and along the bottom straight.
-        dict(name="Promenade Grandstand", from_m=4470, to_m=4540, side="left", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Bayfront Grandstand", from_m=4545, to_m=4640, side="left", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Skyline Grandstand", from_m=4560, to_m=4680, side="right", depth_m=14, gap_m=6, family="street_deck"),
         dict(name="Marina Bay Grandstand", from_m=4685, to_m=4725, side="right", depth_m=14, gap_m=6, family="street_deck"),
-        # Raffles Avenue and the Padang.
-        dict(name="Raffles Grandstand", from_m=3980, to_m=4100, side="left", depth_m=14, gap_m=6, family="street_deck"),
         dict(name="Stamford Grandstand", from_m=1855, to_m=1960, side="right", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Padang A Grandstand", from_m=2340, to_m=2430, side="right", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Padang B Grandstand", from_m=2435, to_m=2520, side="right", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Connaught Grandstand", from_m=3440, to_m=3550, side="right", depth_m=14, gap_m=6, family="street_deck"),
-        dict(name="Empress Grandstand", from_m=2705, to_m=2775, side="right", depth_m=14, gap_m=6, family="street_deck"),
         # The 2026 Circuit Park Map (maps/MandarinaBay/sgp-circuit-park-map-2026.pdf
         # p.1) has nothing on the right of the pit straight past the Pit
         # Grandstand but a superscreen and a viewing platform: Republic stands
@@ -193,6 +183,32 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # centre.
         dict(name="Pit Exit Grandstand", from_m=300, to_m=395, side="left", depth_m=14, gap_m=18, family="street_deck"),
         dict(name="Chicane Turn 2 Grandstand", from_m=470, to_m=540, side="left", depth_m=14, gap_m=18, family="street_deck"),
+        # Raffles: outside (left) of T5, south of the turn (park map RAFFLES GRANDSTAND below T5;
+        # oversteer48 "Raffles" below 5; fit 997 L). Not on Raffles Avenue, where the old entry was.
+        dict(name="Raffles Grandstand", from_m=965, to_m=1025, side="left", depth_m=14, gap_m=20, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, RAFFLES
+        # Padang A and B: on the Padang side of St Andrew's Road, i.e. the inside (left) of the
+        # T9-T10 run (park map blocks on the Padang lawn, fit 2282-2371 L and 2479-2569 L, 27-38 m
+        # off on a map not to scale; oversteer48 both inside the 9-10 leg). Were on the right.
+        dict(name="Padang A Grandstand", from_m=2285, to_m=2370, side="left", depth_m=14, gap_m=10, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, PADANG A
+        dict(name="Padang B Grandstand", from_m=2480, to_m=2565, side="left", depth_m=14, gap_m=10, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, PADANG B
+        # Empress: west (right) of Fullerton Road alongside T11-T12 (park map EMPRESS block, fit
+        # 2814-2876 R; the centerline's T11 at ~2800 and T12 at ~2860 by heading). Was 100 m early.
+        dict(name="Empress Grandstand", from_m=2790, to_m=2870, side="right", depth_m=14, gap_m=6, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, EMPRESS
+        # Connaught: north-west (left) of the run up to T14 (park map CONNAUGHT block beside
+        # Esplanade Drive, fit 3470-3544 L; oversteer48 west of the 13-14 leg). Was on the right.
+        # The layout has a parallel carriageway 6-12 m to the left at 3450-3540: gap 16 clears it.
+        dict(name="Connaught Grandstand", from_m=3465, to_m=3550, side="left", depth_m=14, gap_m=16, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, CONNAUGHT
+        # Bayfront: at T17, on its outside (right), west of the turn under the ECP (park map
+        # BAYFRONT at T17, fit 4401 R; oversteer48 outside 17). Was 4545-4640 left, on the pit lane.
+        dict(name="Bayfront Grandstand", from_m=4370, to_m=4430, side="right", depth_m=14, gap_m=6, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, BAYFRONT
+        # Promenade: right of the T17-T18 run (the block on the bay side of the road, park map and
+        # oversteer48 both; fit 4552-4639).
+        dict(name="Promenade Grandstand", from_m=4540, to_m=4620, side="right", depth_m=14, gap_m=6, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, PROMENADE; oversteer48 below 17-18
+        # Skyline: left of the same run, on the Flyer side, just before the pit entry (park map;
+        # oversteer48 above 17-18; dossier "Skyline: drivers' left between T17 and T18"). The
+        # game's pit lane leaves on the left at ~4575, earlier than the map draws it, so the
+        # stand stands behind the lane like Pit Exit (gap 18).
+        dict(name="Skyline Grandstand", from_m=4600, to_m=4670, side="left", depth_m=14, gap_m=18, family="street_deck"),  # sgp-circuit-park-map-2026.jpg, SKYLINE
     ],
     # Only the Hoofdtribune is in OSM.  The rest are from the circuit's
     # own tribune map (https://dutchgp.com/en/tribunes/,
@@ -208,9 +224,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # for; each sits on the outside of its bend. The Bus Stop's are the
     # Gold 6 and Gold 11 stands below, on the left after the chicane.
     "SpaFrankenchamps": [
-        dict(name="Tribune Les Combes", from_m=2320, to_m=2470, side="outside", depth_m=14),
-        dict(name="Tribune Bruxelles", from_m=2990, to_m=3140, side="outside", depth_m=14),
-        dict(name="Tribune Pouhon", from_m=3890, to_m=4060, side="outside", depth_m=14),
         # The pit straight's left (outside) stands that OSM has no outline for,
         # from the 2026 Belgian GP wayfinding map (2026-belgian-gp-wayfinding.pdf;
         # north points left on it), scaled from OSM's Tribune F1 (= Gold 1,
@@ -226,22 +239,78 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # which the earlier table put on the right, on the pit-entry side.
         dict(name="Gold 6", from_m=6810, to_m=6865, side="left", depth_m=14, covered=True),
         dict(name="Gold 11", from_m=6885, to_m=6945, side="left", depth_m=14, covered=True),
+        # Gold 7 and Gold 7ter: outside (left) of La Source's exit, after OSM's three small apex
+        # stands (Gold 8 / 7bis, 402-407 L) and before Silver 1 (OSM, from ~594 L). Behind the
+        # gravel (to 17 m), wall 21-26 m, fence 26-35 m.
+        dict(name="Gold 7", from_m=445, to_m=495, side="left", depth_m=12, gap_m=30, covered=True),  # 2026 wayfinding map, G7
+        dict(name="Gold 7ter", from_m=500, to_m=550, side="left", depth_m=12, gap_m=30, covered=True),  # 2026 wayfinding map, G7ter
+        # Gold 5: right of the top of Raidillon, opposite Gold 4 (OSM Tribune Raidillon, 1247 L).
+        dict(name="Gold 5", from_m=1200, to_m=1290, side="right", depth_m=14, gap_m=27, covered=True),  # 2026 wayfinding map, G5
+        # Gold 3: left of the start of Kemmel, after Gold 4 (guard rail 9-24 m, fence 23-27 m).
+        dict(name="Gold 3", from_m=1380, to_m=1470, side="left", depth_m=14, gap_m=27, covered=True),  # 2026 wayfinding map, G3; dossier "Gold 3 covered"
+        # Bronze 1: the general-admission bank along the left of Kemmel to Les Combes' stand.
+        dict(name="Bronze 1", from_m=1480, to_m=2220, side="left", depth_m=11.4, gap_m=30, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 1
+        # Silver 7 (Les Combes): on the left at the end of Kemmel, *before* the turn-in, not in
+        # the run-off past the apex (map S7 ~80 m before LES COMBES; wall 10 m, fence 18-22 m).
+        dict(name="Tribune Les Combes", from_m=2230, to_m=2370, side="left", depth_m=14, gap_m=24, covered=False),  # 2026 wayfinding map, S7
+        # C1-C4: four pink blocks on the outside (left) of the run from Malmedy down to Bruxelles,
+        # past Malmedy's gravel (fence 6-14 m, minor road from 31 m).
+        dict(name="C1", from_m=2720, to_m=2770, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, C1
+        dict(name="C2", from_m=2775, to_m=2825, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, C2
+        dict(name="C3", from_m=2830, to_m=2880, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, C3
+        dict(name="C4", from_m=2885, to_m=2935, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, C4
+        # Silver 4 (Bruxelles): outside of the hairpin, behind its gravel (shingle to 34-44 m,
+        # wall 26-37 m); was at 10 m, in the trap.
+        dict(name="Tribune Bruxelles", from_m=3010, to_m=3130, side="left", depth_m=14, gap_m=38, covered=False),  # 2026 wayfinding map, S4
+        # Speed Corner: the long pink stand left of the run from Bruxelles toward Pouhon, the
+        # middle of that run on the map; wooden bleachers (dossier), so scaffold.
+        dict(name="Speed Corner", from_m=3360, to_m=3520, side="left", depth_m=8, gap_m=18, covered=False),  # 2026 wayfinding map, SPEED CORNER
+        # Bronze 3: the bank on the right of the same run, opposite Speed Corner, to Pouhon.
+        dict(name="Bronze 3", from_m=3330, to_m=3760, side="right", depth_m=11.4, gap_m=26, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 3
+        # Silver 3 (Pouhon): outside (right) of the first half of the double left, behind the
+        # gravel (shingle to 38 m, fence 44-49 m); was at 10 m, in the trap.
+        dict(name="Tribune Pouhon", from_m=3800, to_m=3920, side="right", depth_m=14, gap_m=48, covered=False),  # 2026 wayfinding map, S3
+        # Bronze 4: the Pouhon hill, outside the second half of the double left (fence 45-59 m).
+        dict(name="Bronze 4", from_m=3940, to_m=4060, side="right", depth_m=11.4, gap_m=60, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 4
+        # Verstappen, Fan Area, Silver 5, Silver 6: right of the run from Pouhon down to Fagnes,
+        # in that order (wall 25 m, fence 31 m, closing to 16-21 m toward Fagnes).
+        dict(name="Verstappen Grandstand", from_m=4150, to_m=4280, side="right", depth_m=16, gap_m=34, covered=False),  # 2026 wayfinding map, VERSTAPPEN
+        dict(name="Fan Area", from_m=4290, to_m=4360, side="right", depth_m=12, gap_m=30, covered=False),  # 2026 wayfinding map, FAN AREA
+        dict(name="Silver 5", from_m=4370, to_m=4430, side="right", depth_m=12, gap_m=24, covered=False),  # 2026 wayfinding map, S5
+        dict(name="Silver 6", from_m=4440, to_m=4500, side="right", depth_m=12, gap_m=24, covered=False),  # 2026 wayfinding map, S6
+        # Bronze 5 and 17/27: the bank on the outside (left) from Fagnes' exit round Campus to
+        # Paul Frere, the 17/27 stand at Paul Frere's apex in it (the map puts 17/27 here, not at
+        # Blanchimont as the dossier text has it). Behind the gravel (to 30 m) and walls (to 34 m).
+        dict(name="Bronze 5", from_m=4700, to_m=5080, side="left", depth_m=11.4, gap_m=34, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 5
+        dict(name="17/27", from_m=5090, to_m=5170, side="left", depth_m=14, gap_m=36, covered=False),  # 2026 wayfinding map, 17/27
+        dict(name="Bronze 5", from_m=5180, to_m=5300, side="left", depth_m=11.4, gap_m=36, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 5
+        # Bronze 6: the bank on the left of the run into Blanchimont (fence 6-29 m, wood from 24 m).
+        dict(name="Bronze 6", from_m=5850, to_m=6200, side="left", depth_m=11.4, gap_m=32, covered=False, family="bank"),  # 2026 wayfinding map, Bronze 6
     ],
     # The Automobile Club de l'Ouest numbers its tribunes; those along the
     # pit straight are in OSM, the ones out on the public-road section are
     # not (https://www.lemans.org/ spectator map).
     "Lemons": [
-        dict(name="Tribune Tertre Rouge", from_m=1840, to_m=1990, side="outside", depth_m=14),
         dict(name="Tribune Mulsanne", from_m=7500, to_m=7660, side="outside", depth_m=14),
         dict(name="Tribune Indianapolis", from_m=8950, to_m=9090, side="outside", depth_m=14),
         dict(name="Tribune Arnage", from_m=10060, to_m=10200, side="outside", depth_m=14),
-        dict(name="Tribune Virage Porsche", from_m=11500, to_m=11700, side="outside", depth_m=14),
+        # The Dunlop chicane's two public stands (dossier "Dunlop grandstands: two free public
+        # stands + giant screen"), OSM buildings on the outside (left) of the chicane and after it.
+        dict(name="Tribune 9 - Goodyear", from_m=890, to_m=930, side="left", depth_m=11, gap_m=39, covered=False),  # OSM way "Tribune 9 - Goodyear" (building), box 899-921 L, 58 x 11 m at an angle to the chicane
+        dict(name="Tribune 8 - Panorama", from_m=974, to_m=1018, side="left", depth_m=15, gap_m=37, covered=False),  # OSM way "Tribune 8 - Panorama" (building), box 974-1018 L
+        # Tribunes 7-4: one straight row on the outside of the run into La Chapelle (OSM
+        # buildings, all at yaw 2.518, 35 x 15 m each), laid end to end.
+        dict(name="Tribune 7 - Rondeau", from_m=1105, to_m=1143, side="left", depth_m=15, gap_m=33, covered=False),  # OSM way "Tribune 7 - Rondeau" (building), box 1101-1146 L
+        dict(name="Tribune 6 - Bell", from_m=1146, to_m=1178, side="left", depth_m=15, gap_m=31, covered=False),  # OSM way "Tribune 6 - Bell" (building), box 1146-1181 L
+        dict(name="Tribune 5 - Ickx", from_m=1181, to_m=1205, side="left", depth_m=15, gap_m=30, covered=False),  # OSM way "Tribune 5 - Ickx" (building), box 1181-1209 L
+        dict(name="Tribune 4 - Pescarolo", from_m=1208, to_m=1235, side="left", depth_m=15, gap_m=32, covered=False),  # OSM way "Tribune 4 - Pescarolo" (building), box 1207-1235 L
+        # T3 at La Chapelle's exit, behind its gravel (sand to 33 m, wall 34-39 m).
+        dict(name="Tribune T3 - Chapelle", from_m=1249, to_m=1283, side="left", depth_m=13, gap_m=58, covered=False),  # OSM way "Tribune T3 - Chapelle" (building), box 1249-1283 L
+        # T1 at the Esses' exit toward Tertre Rouge: the ACO's Tertre Rouge tribune.
+        dict(name="Tribune T1 - Tertre Rouge", from_m=1580, to_m=1612, side="left", depth_m=12, gap_m=26, covered=False),  # OSM way "Tribune T1 - Tertre Rouge" (building), box 1585-1607 L
     ],
     "Zandervoort": [
         dict(name="Pit Grandstand", from_m=70, to_m=230, side="left", depth_m=18),
-        dict(name="Hairpin", from_m=3150, to_m=3330, side="right", depth_m=14),
-        dict(name="Eastside", from_m=3330, to_m=3800, side="left", depth_m=16),
-        dict(name="Arena", from_m=3300, to_m=3760, side="right", depth_m=16),
         dict(name="Ben Pon", from_m=4030, to_m=4240, side="left", depth_m=20),
         # 26 Tarzan-In Grandstands: left (west) of the straight's north end,
         # right beside the road before the braking zone, not in Tarzan's
@@ -250,6 +319,42 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # flag (st 0) to the Tarzan turn-in (~348): it starts just after the
         # Pit Grandstand 27 ends.
         dict(name="Tarzan-In Grandstands", from_m=265, to_m=335, side="left", depth_m=14),
+        # 34 Hairpin Grandstands (two blocks): inside the T9-T10 loop, between the eastbound T9->T10
+        # run and the back straight, one facing each (wayfinding map "34" x2, fit 2500 L and 2694 L,
+        # 28-30 m off the centreline; gpgt map HAIRPIN 1-2). Bronze 1000-1014, temporary.
+        dict(name="Hairpin Grandstands", from_m=2465, to_m=2535, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, 34
+        dict(name="Hairpin Grandstands", from_m=2660, to_m=2725, side="left", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, 34
+        # 33 Eastside Grandstands 1-3: south (left) of the back straight, three blocks from west of
+        # the infield lake to south of Hans Ernst Bocht 1 (wayfinding fit 2966, 3075, 3173 L at
+        # 30-35 m; gpgt EASTSIDE 1, 2A/2B, 3). Gold/Silver/Bronze 1100-1131.
+        dict(name="Eastside Grandstands", from_m=2935, to_m=3000, side="left", depth_m=14, gap_m=20, covered=False),  # 2026 wayfinding map, 33
+        dict(name="Eastside Grandstands", from_m=3045, to_m=3105, side="left", depth_m=14, gap_m=20, covered=False),  # 2026 wayfinding map, 33
+        # the third block sits behind Hans Ernst's left run-off (shingle and fence to 32-38 m)
+        dict(name="Eastside Grandstands", from_m=3130, to_m=3190, side="left", depth_m=14, gap_m=32, covered=False),  # 2026 wayfinding map, 33
+        # 32 Arena-In: north (right) of the back straight approaching Hans Ernst (fit 3083 R, 25 m).
+        dict(name="Arena-In Grandstand", from_m=3055, to_m=3110, side="right", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, 32
+        # 31 Arena Grandstands: north of Bocht 1 and west of Bocht 2 (fit 3221-3287 R), then the
+        # long block west of the run south (fit 3367 R). This is where the old "Hairpin" entry sat.
+        dict(name="Arena Grandstands", from_m=3195, to_m=3300, side="right", depth_m=14, gap_m=18, covered=False),  # 2026 wayfinding map, 31
+        dict(name="Arena Grandstands", from_m=3330, to_m=3410, side="right", depth_m=14, gap_m=18, covered=False),  # 2026 wayfinding map, 31
+        # 30 Arena-Out: west (right) of the T12-T13 run, south of the last 31 block (fit 3470 R).
+        dict(name="Arena-Out Grandstand", from_m=3435, to_m=3505, side="right", depth_m=12, gap_m=15, covered=False),  # 2026 wayfinding map, 30
+        # 35 Eastside Grandstand 4: east (left) of the same run, opposite 31/30 (fit 3411 L, 22 m).
+        dict(name="Eastside Grandstand 4", from_m=3385, to_m=3440, side="left", depth_m=12, gap_m=10, covered=False),  # 2026 wayfinding map, 35
+        # GA2: the general-admission bank inside T13-T14 (wayfinding purple "GA2", fit 3661-3747 R;
+        # gpgt hatch inside the last corner). The layout's dune wood starts 22 m in: the bank
+        # sits at its edge.
+        dict(name="GA2", from_m=3640, to_m=3740, side="right", depth_m=11.4, gap_m=12, covered=False, family="bank"),  # 2026 wayfinding map, GA2
+        # GA1: the dune bank on the outside from Tarzan's exit to Masters (wayfinding purple GA1:
+        # east of the run down to Gerlach, north of Hunserug/Slotemaker/Bocht 6, east of
+        # Scheivlak, round Masters; dossier "GA1 dune banks outside T3 through T4-T8"). Split where
+        # the fence steps out round a run-off, each piece just behind the fence line.
+        dict(name="GA1", from_m=520, to_m=690, side="left", depth_m=11.4, gap_m=10, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (fence 5-8 m)
+        dict(name="GA1", from_m=1080, to_m=1640, side="left", depth_m=11.4, gap_m=10, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (fence 3-12 m; starts clear of the Gerlach run 40 m north)
+        dict(name="GA1", from_m=1680, to_m=1920, side="left", depth_m=11.4, gap_m=36, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (Scheivlak gravel, fence 16-35 m)
+        dict(name="GA1", from_m=1960, to_m=2080, side="left", depth_m=11.4, gap_m=10, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (fence 2-3 m)
+        dict(name="GA1", from_m=2100, to_m=2180, side="left", depth_m=11.4, gap_m=46, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (Masters run-off, guard rail 40-55 m)
+        dict(name="GA1", from_m=2190, to_m=2270, side="left", depth_m=11.4, gap_m=22, covered=False, family="bank"),  # 2026 wayfinding map, GA1 (fence 17-24 m)
     ],
     # COTA's own grandstand map (circuitoftheamericas.com/ticket/grandstands-
     # and-reserved-seating-f1/) and third-party guides (oversteer48.com/cota-
@@ -262,7 +367,34 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # (37 rows) open bleachers with no roof.
     "Armadillos": [
         dict(name="Turn 4 Grandstand", from_m=1050, to_m=1400, side="right", depth_m=18, covered=True),
-        dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, covered=False),
+        # Turn 2 Grandstand: the small stand on the east side of the fast right-hander T2 (903), both
+        # oversteer48 maps; audit "about 870-960 right".
+        dict(name="Turn 2 Grandstand", from_m=870, to_m=950, side="right", depth_m=12, gap_m=8, covered=False),
+        # Turn 6 Grandstand: on the outside (north) of T6 at the start of the run to T7, both oversteer48
+        # maps (the dossier's "Turn 6 viewing, grandstand or GA unconfirmed": the maps draw a grandstand).
+        dict(name="Turn 6 Grandstand", from_m=1545, to_m=1625, side="left", depth_m=12, gap_m=10, covered=False),
+        # Turn 13 Grandstand: on the south side of the T13-T14 chute, at T13's end (both oversteer48 maps).
+        dict(name="Turn 13 Grandstand", from_m=3995, to_m=4060, side="left", depth_m=12, gap_m=10, covered=False),
+        # Turn 9 bleachers moved back from gap 10 to 17 to stand behind the GA strip the entrance map draws
+        # between them and the road (span and depth as before).
+        dict(name="Turn 9 Grandstand", from_m=2017, to_m=2154, side="right", depth_m=22, gap_m=17, covered=False),
+        # --- General-admission viewing areas (the entrance map's blue), as turfed banks (R2).
+        # T1: the hillside between the Main Grandstand's T1 end (OSM, to ~311) and the Turn 1 stand (OSM 645 R).
+        dict(name="Turn 1 GA", from_m=330, to_m=600, side="right", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        # T2-T3: the hill east of the climb to T3, from behind the Turn 2 stand to short of Turn 4 (1050).
+        dict(name="Turn 3 GA", from_m=955, to_m=1040, side="right", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        # T6-T9: the infield hill south of the T6-T7-T8-T9 run (inside of the right-hander T6).
+        dict(name="Turn 7 GA", from_m=1560, to_m=1960, side="right", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        # T9-T10: the strip on the crest between the road and the Turn 9 bleachers.
+        dict(name="Turn 9 GA", from_m=2000, to_m=2165, side="right", depth_m=11.4, gap_m=4, covered=False, family="bank"),
+        # T11: the hill on the outside of the run up to the T11 hairpin (Turn 11 entrance beside it).
+        dict(name="Turn 11 GA", from_m=2380, to_m=2580, side="right", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        # Back straight: the area on the infield side of the back straight, about a third of the way from
+        # T12, short of the short-course junction (3416).
+        dict(name="Back Straight GA", from_m=3180, to_m=3360, side="left", depth_m=11.4, gap_m=15, covered=False, family="bank"),
+        # T16: GA on the inside of the carousel just after the T16 bridge (4485), at the tower's base
+        # (entrance map; dossier T16 "GA viewing is on the inside of T16 just after the bridge").
+        dict(name="Turn 16 GA", from_m=4495, to_m=4560, side="right", depth_m=11.4, gap_m=6, covered=False, family="bank"),
     ],
     # OSM's grandstand outlines cover the Motodrom bowl and the pit
     # straight but not the Mercedes-Tribüne, a 1,300-tonne permanent steel
@@ -274,7 +406,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # fit's coverage gap sits exactly there); on the outside of the
     # right-hand hairpin, which the sources' photos agree with.
     "Hockeyheimring": [
-        dict(name="Mercedes-Tribüne", from_m=2000, to_m=2250, side="outside", depth_m=20),
         # Nordtribüne (A-C): wraps the outside of the Nordkurve (T1, 221-403)
         # from the north end of the Haupttribüne to the corner's exit, three
         # tiers deep (hori-streckenplan-2024.pdf "NORDTRIBÜNE";
@@ -284,6 +415,22 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # maps a 352 m curved unnamed building at 300.3 left, offset 42.5,
         # over it: the stand's roof, so covered.
         dict(name="Nordtribüne", from_m=100, to_m=400, side="outside", depth_m=35, gap_m=31, covered=True),
+        # The Südtribüne (A-D): round the outside of the Südkurve from the run-in
+        # off the Sachs loop (plan "SÜDTRIBÜNE" A-D; 2019 map SÜD D-A). Laid from
+        # OSM's own "Südtribüne" ring, whose road-facing edge runs 4151 (53 m off
+        # the centreline) round the curve (4245-4307, 32-47 m off): the ring wraps
+        # the curve and the straight, so the stand pass laid it as one block on the
+        # right by its centroid (R13), in the infield and over the pit entry
+        # (lane from 4181 right). Front ~40 m off = gap ~33 past the road edge;
+        # 20 m deep up to OSM's "Südtribüne C+D" (front 60-70 m off, 4251-4296),
+        # the Oberrang behind it. Roofed: OSM's 389 m "roof" outline (4292.5 L,
+        # 41 m off) is this stand's roof.
+        dict(name="Südtribüne", from_m=4150, to_m=4305, side="left", depth_m=20, gap_m=33, covered=True),
+        # Haupttribüne E-H: the same OSM ring's straight part, 4307-4505 at 32-33 m
+        # off, from the Südkurve's exit up to OSM's LBBW-Haupttribüne (front from
+        # 4505), which is Haupt A-D (plan "HAUPTTRIBÜNE" H-E then D-A, continuous;
+        # 2019 map HAUPT E-H below the A-D block). Under the same roof outline.
+        dict(name="Haupttribüne E-H", from_m=4310, to_m=4503, side="left", depth_m=20, gap_m=25, covered=True),
     ],
     # Interlagos letters its stands. OSM already traces the pit-straight
     # ones (an unnamed stand at station ~76 m and another at ~4272 m -
@@ -299,10 +446,7 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # (Juncao) do not match these sources or OSM's own traced "M"; this
     # table follows the verified sources instead.
     "Interlaggos": [
-        dict(name="D", from_m=290.9, to_m=500.0, side="outside", depth_m=14, covered=True),
         dict(name="R", from_m=592.5, to_m=782.2, side="outside", depth_m=14, covered=True),
-        dict(name="G", from_m=1150.0, to_m=1368.1, side="outside", depth_m=10, covered=False),
-        dict(name="T4", from_m=1368.1, to_m=1607.1, side="outside", depth_m=13, covered=False),
         # Grandstand A, the circuit's largest stand: one long uncovered bar on the
         # outside from the Cafe exit along Subida dos Boxes and Arquibancadas to
         # the start of the straight, over the pit entry (maps/Interlaggos:
@@ -311,6 +455,32 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # trees). OSM traces only its top end (the unnamed stand at 4221-19), so
         # this run stops where that outline starts.
         dict(name="A", from_m=3420, to_m=4215, side="right", depth_m=20, gap_m=10, covered=False),
+        # D: outside the S do Senna only (sector map D on the outer bend of T1-T2),
+        # shortened so H fits after it; covered (dossier "Setor D").
+        dict(name="D", from_m=290, to_m=410, side="right", depth_m=14, covered=True),
+        # H: between the S and Curva do Sol, facing T2 and the pit exit (sector map
+        # H between D and R; dossier "Setor H": covered). Ends before R (594).
+        dict(name="H", from_m=420, to_m=575, side="right", depth_m=14, covered=True),
+        # G (formerly Q): the long bar along the Reta Oposta from just past R toward
+        # its end (sector map G, ~3x R's drawn length; dossier "Setor G": uncovered,
+        # Paris 2024 modular stands added in 2025). Moved from 1150-1368, its
+        # braking-zone end only.
+        dict(name="G", from_m=800, to_m=1290, side="right", depth_m=10, covered=False),
+        # Arquibancada Porto Bank: the short L-shaped stand at the end of the Reta
+        # Oposta, outside the Descida do Lago entry, set back from G's line (sector
+        # map; dossier: covered 2025/2026). Replaces the "T4" stand, not on the 2026
+        # map.
+        dict(name="Porto Bank", from_m=1300, to_m=1420, side="right", depth_m=12, gap_m=14, covered=True),
+        # The unlabelled red stand outside Junção / Café, just before A begins
+        # (sector map, red block, not in its legend). Roof unknown: open.
+        dict(name="Juncao", from_m=3255, to_m=3405, side="right", depth_m=12, gap_m=10, covered=False),
+        # Orange Tree Club: the infield stand and lounge between the pit straight and
+        # Laranjinha, facing it (sector map ORANGE TREE CLUB beside the infield leg;
+        # gpgt-2025 ORANGE TREE CLUB inside the straight; dossier: covered,
+        # "Infield, facing Laranjinha (T8)"). On this centerline the gap between the
+        # straight's infield (4180-4260) and Laranjinha (2100-2170) lies on
+        # Laranjinha's left, 35 m from it (stands_tools_C geometry check).
+        dict(name="Orange Tree Club", from_m=2115, to_m=2175, side="left", depth_m=12, gap_m=12, covered=True),
     ],
     # Suzuka: OSM tags most of the circuit's stands `grandstand=yes` (picked
     # up generically, see is_stand()) and even names most of them with the
@@ -323,7 +493,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # corner order: after the hairpin (`station_m` 2957.7 in `corners`) and
     # before the west straight (4055.9), astride that unnamed building.
     "Sudoku": [
-        dict(name="M", from_m=3600, to_m=3760, side="right", depth_m=16, covered=False),
         # A2: the stand at the end of the main straight into the First Curve,
         # past A1 (OSM, front st 364-485 L), on the left like it
         # (suzuka-official-seat-map.png; dossier "A1/A2: left side, end of the
@@ -331,6 +500,22 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # is "for illustration purposes", so the span is scaled from A1's
         # drawn length (good to ~30 m).
         dict(name="A2", from_m=505, to_m=620, side="left", depth_m=15, covered=False),
+        # L (West Area): the seat bars on the outside (right) of the run into Spoon, from T12 to
+        # T13 (fit 3617-3747 R). This is where the old "M" entry sat. Behind the fence (35-39 m
+        # at 3600-3650) and short of the unnamed OSM building at 3674 R (near face ~46 m).
+        dict(name="L", from_m=3590, to_m=3760, side="right", depth_m=12, gap_m=30, covered=False),  # suzuka-official-seat-map.png, L
+        # M: the reserved stand on the outside (right) of Spoon's exit at T14, after L and before
+        # N (fit 3928-3965 R); open ground there, no fence mapped.
+        dict(name="M", from_m=3880, to_m=4000, side="right", depth_m=16, gap_m=35, covered=False),  # suzuka-official-seat-map.png, M; japan.gp "M - around the Spoon Curve"
+        # N (West Area): the small seat bar on the right at the start of the back straight (fit
+        # 4075 R; fence 11-19 m at 4100).
+        dict(name="N", from_m=4040, to_m=4110, side="right", depth_m=10, gap_m=22, covered=False),  # suzuka-official-seat-map.png, N
+        # J (West Area): general admission, no seats drawn: the lawn the J arrow points at, right
+        # of the run from the hairpin toward T12 (fit 3088-3223 R). Behind the fence (6-17 m).
+        dict(name="J", from_m=3220, to_m=3420, side="right", depth_m=11.4, gap_m=18, covered=False, family="bank"),  # suzuka-official-seat-map.png, J
+        # Degner viewing area (デグナー観戦エリア): the small spectator spot on the outside (left)
+        # of Degner 2 (T9) (fit 2460 L), behind its gravel (sand to 33 m, fence 35-55 m).
+        dict(name="Degner viewing area", from_m=2410, to_m=2470, side="left", depth_m=11.4, gap_m=50, covered=False, family="bank"),  # suzuka-official-seat-map.png, デグナー観戦エリア
     ],
     # Sepang's own OSM building=grandstand way for the Main Grandstand is
     # dropped by front_edge_is_broken() (see its docstring): it traces the
@@ -344,20 +529,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # so it is on the circuit's left of both, opposite the pits on the pit
     # straight and north of the back straight.
     "Shebang": [
-        # K2 Hillstand: an open grass mound at the Turn 1/2 hairpin,
-        # opposite the K1 Grandstand OSM already gives us
-        # (sepangcircuit.com spectator guide: "K2 Hillstand... open-air
-        # grassy viewing area", the cheap uncovered option beside K1).
-        dict(name="K2 Hillstand", from_m=650, to_m=850, side="inside", depth_m=15, covered=False),
-        # Turn 4 grandstand. Sepang's own corner numbering is not in OSM
-        # (no named raceway sections at all here) and no published station
-        # exists to check it against, so this is placed from the YAML
-        # centerline's own curvature: the fourth significant apex after
-        # the line (632 m T1/T2, ~792 m, a shallow ~1030-1110 m kink, then
-        # this one at ~1607 m -- a single sustained corner, matching T4's
-        # long, high-speed real-world character). Approximate; flagged in
-        # the hand-back.
-        dict(name="Turn 4 Grandstand", from_m=1550, to_m=1720, side="outside", depth_m=14, covered=False),
         # The Main Grandstand's two faces, spanned from OSM's own outline of it
         # (way 144247993, building=grandstand, dropped by front_edge_is_broken()
         # as one double-fronted polygon), read station by station against this
@@ -377,6 +548,29 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # left). Covered (dossier "Buildings": palm-frond canopy over the Main
         # and Tower grandstands).
         dict(name="Tower Grandstand", from_m=5070, to_m=5250, side="inside", depth_m=13, gap_m=6, covered=True),
+        # K2 Hillstand: north of K1 along the climb, not beside it (gpd map K2 at x 625-670, y 315-440;
+        # OSM outlines it at 915-1108 left, S/F pass). An open grass slope (sepangcircuit.com spectator
+        # guide; says map "K2 General Admission"), set back ~45 m from the road on the map.
+        dict(name="K2 Hillstand", from_m=915, to_m=1105, side="left", depth_m=11.4, gap_m=30, family="bank"),
+        # G1-G3 (GA, olive): G1 on the outside of T4 and down the south run; G2 and G3 inside the T5/T6
+        # left-hand sweep (gpd map).
+        dict(name="G1 Hillstand", from_m=1580, to_m=1760, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        dict(name="G2 Hillstand", from_m=1850, to_m=1960, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        dict(name="G3 Hillstand", from_m=1965, to_m=2075, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        # E (GA): outside the east tip, south of F (gpd map x 1220-1270).
+        dict(name="E Hillstand", from_m=2590, to_m=2660, side="left", depth_m=11.4, gap_m=15, family="bank"),
+        # D and C3 (GA): south of the westward run, inside the T9 hairpin (gpd map D x 1110-1200, C3 x
+        # 1045-1090, both below the run, which heads west: the left).
+        dict(name="D Hillstand", from_m=2765, to_m=2905, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        dict(name="C3 Hillstand", from_m=3010, to_m=3080, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        # C2 Hillstand (red, "C2 General Admission", partly covered): east of the T10-T11 descent, its
+        # whole length (gpd map y 620-810).
+        dict(name="C2 Hillstand", from_m=3200, to_m=3490, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        # C1 (GA): at the bottom of the lap, outside T11 (gpd map x 890-930).
+        dict(name="C1 Hillstand", from_m=3500, to_m=3570, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        # B Hillstand (red): the long bank south-west, outside T12-T14, up to the T14 turn-in (gpd map
+        # x 600-840).
+        dict(name="B Hillstand", from_m=3700, to_m=4150, side="left", depth_m=11.4, gap_m=10, family="bank"),
     ],
     # OSM has this one only as a plain `building=yes` named "Tribuna F", so
     # extract() files it under structures (a building) rather than stands;
@@ -399,6 +593,23 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # on the 2026 spectator map just downstream of the Garden Club (OSM
         # "Garden Club", 4300 left); covered (dossier "Buildings").
         dict(name="Tribuna I", from_m=4335, to_m=4420, side="outside", depth_m=14, gap_m=12, covered=True),
+        # The Pelouse general-admission hill, "the hill between T6 and T8 is the most
+        # popular" (dossier "GA (Pelouse)"), the map's Pelouse Jove / Green Zone
+        # infield. OSM's "Pelouse" grass area runs 2035-2869 on the left, its
+        # road-side edge 21-45 m from the centerline; turfed banks along that edge,
+        # front ~21-30 m off the centreline (gap ~14-20 past the ~7 m road edge).
+        dict(name="Pelouse T6", from_m=2225, to_m=2345, side="left", depth_m=11.4, gap_m=14, family="bank", covered=False),
+        dict(name="Pelouse T7", from_m=2390, to_m=2500, side="left", depth_m=11.4, gap_m=16, family="bank", covered=False),
+        # Outside of T8, the same Pelouse area (edge 29 m off at 2605-2662); ends
+        # well before N (OSM, front ~2835-2965 L).
+        dict(name="Pelouse T8", from_m=2605, to_m=2700, side="left", depth_m=11.4, gap_m=20, family="bank", covered=False),
+        # The back straight into La Caixa: OSM "Pelouse" 3205-3327 L, edge 21-28 m
+        # off; ends before the Circuit Rooftop span (crossing at 3361).
+        dict(name="Pelouse La Caixa", from_m=3225, to_m=3325, side="left", depth_m=11.4, gap_m=15, family="bank", covered=False),
+        # Pelouse Privilege: inside T1 (map "Pelouse Privilege" below the Kids Zone,
+        # beside T1; OSM "Pelouse privilege" 730-942 R, edge 17-28 m off). Starts
+        # 110+ m past the pit lane's last node (616) and the live screen at 628.
+        dict(name="Pelouse Privilege", from_m=735, to_m=800, side="right", depth_m=11.4, gap_m=11, family="bank", covered=False),
     ],
     # Hungaroring's own ticket map (hungaryticketsgp.com/en/map-of-grandstands,
     # motorsporttickets.com's grandstand guide, grandprixgrandtours.com) names
@@ -415,17 +626,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # "near the final corner") with no distinguishing span, and duplicating
     # a station guess with no anchor felt worse than leaving them out.
     "Hungoverring": [
-        # grandprixgrandtours.com / motorsporttickets.com: "Bronze 1 & 2
-        # grandstands are positioned overlooking turns 5 and 7", historically
-        # three (Bronze 1-3; two were later renamed Chicane 1/2). These are
-        # the hillside natural terraces through the infield esses.
-        dict(name="Bronze 1", from_m=1500, to_m=1700, side="outside", depth_m=9),
-        dict(name="Bronze 2", from_m=1994, to_m=2190, side="outside", depth_m=9),
-        dict(name="Bronze 3", from_m=2210, to_m=2400, side="outside", depth_m=9),
-        # The general-admission terraces through the Schumacher (T12) /
-        # Senna (T13) / Szisz (T14) finishing sequence, clear of the
-        # OSM-traced "Silver 5" structure around station 3355.
-        dict(name="T12-T14 Stand", from_m=3600, to_m=3950, side="outside", depth_m=8),
         # The pit straight's left side, from the 2026 grandstand maps
         # (maps/Hungoverring: hungaroring-gpticketshop-map-2027.jpg and
         # hungaroring-spectator-map-2026.jpg; their legends use the post-2025
@@ -451,6 +651,46 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Pit Exit 2", from_m=310, to_m=385, side="left", depth_m=14, gap_m=10, covered=False),
         dict(name="Pit Exit 1", from_m=405, to_m=490, side="left", depth_m=14, gap_m=10, covered=False),
         dict(name="T1", from_m=505, to_m=590, side="left", depth_m=14, gap_m=10, covered=False),
+        # The green zone's Chicane stands on the T5 -> T6 run, all on the left
+        # (ticket map CHICANE 2, CHICANE 1 with a pale block behind it, CHICANE 4
+        # at the bend; spectator map C2, C1, C3 behind C1, C4 by T6/T7). Spans read
+        # on the ticket map from T5's apex (~2060) to the T6 bend (~2370), 1.48 m/px.
+        dict(name="Chicane 2", from_m=2170, to_m=2250, side="left", depth_m=14, gap_m=10, covered=False),
+        dict(name="Chicane 1", from_m=2265, to_m=2355, side="left", depth_m=14, gap_m=10, covered=False),
+        # Chicane 3: the row behind Chicane 1 (spectator map C3 above C1; the ticket
+        # map's pale block one column back), 6 m behind C1's back.
+        dict(name="Chicane 3", from_m=2265, to_m=2355, side="left", depth_m=14, gap_m=30, covered=False),
+        # Chicane 4: outside the T6 bend onto T7 (ticket map, the small angled block
+        # below the bend; spectator map C4 beside 06/07).
+        dict(name="Chicane 4", from_m=2380, to_m=2430, side="left", depth_m=12, gap_m=10, covered=False),
+        # Fan 1 / Fan 2: the blue zone's two stands on the T11 -> T12 run, left
+        # (ticket map FAN, ~3275-3400 by its distance before T12; spectator map F1,
+        # F2 side by side, staggered). OSM traces them as two 50 m buildings end to
+        # end, 38 m off the centreline: "Silver 5" (3352, its pre-2025 name) and an
+        # unnamed one (3300.1). Fan 1 is entered under the OSM name so that
+        # drop_promoted_structures takes the building out (it is laid as 2
+        # clubhouses today); front ~38 m off = gap ~34 past the ~4.2 m half-width.
+        dict(name="Silver 5", from_m=3327, to_m=3378, side="left", depth_m=10, gap_m=34, covered=False),
+        dict(name="Fan 2", from_m=3275, to_m=3325, side="left", depth_m=10, gap_m=34, covered=False),
+        # Apex 2: outside (left of) T12, past its braking zone, facing T12-T14
+        # (ticket map APEX 2 south-west of the T12 corner; spectator map A2 beside
+        # 12). Set 40 m back as both maps draw it; the fan zone's Giant Wheel
+        # (3495 L, 70 m) and stage (3530 L, 90 m) stand behind and before it.
+        dict(name="Apex 2", from_m=3530, to_m=3580, side="left", depth_m=10, gap_m=36, covered=False),
+        # Apex 1: outside T14 (ticket map APEX 1 below the T14 loop; spectator map
+        # A1 beside 14). OSM's unnamed building at 4079.9 L (44.7 m off, 49.8 x
+        # 10.5 m) is its outline; span taken from it, ending before Grand Prix 2's
+        # run (4088, 30 m back).
+        dict(name="Apex 1", from_m=4045, to_m=4086, side="left", depth_m=10, gap_m=38, covered=False),
+        # General-admission banks (family bank): the spectator map's green zone
+        # outside T8-T11 and blue zone outside T11-T14, the hillside terraces of
+        # the valley (dossier "GA hills behind T14 and T9-T11"); the ticket map's
+        # grey GENERAL ADMISSION AREA south of the T11-T12 run. Along the road on
+        # the zones' road-side edge, clear of the stands above.
+        dict(name="GA T9-T10", from_m=2780, to_m=2900, side="left", depth_m=11.4, gap_m=10, family="bank", covered=False),
+        dict(name="GA T10-T11", from_m=2960, to_m=3060, side="left", depth_m=11.4, gap_m=10, family="bank", covered=False),
+        dict(name="GA T11", from_m=3140, to_m=3255, side="left", depth_m=11.4, gap_m=10, family="bank", covered=False),
+        dict(name="GA T12", from_m=3400, to_m=3490, side="left", depth_m=11.4, gap_m=10, family="bank", covered=False),
     ],
     # OSM only traces the Main Grandstand (opposite the pits, station ~143).
     # The circuit numbers the rest and sells them under those numbers
@@ -486,12 +726,18 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # T15: the first (left) half of the T15-16 chicane that turns the
         # lap back in behind the pit building.
         dict(name="T15 Grandstand", from_m=5040, to_m=5160, side="outside", depth_m=12),
-        # T1 grandstand ("Sergey Sirotkin"): temporary, no roof, on the outside
-        # of the flat-out T1 right kink (~420) just past the north-east end of
-        # the Main Grandstand (dossier "Buildings and structures";
-        # racefans-sochi-autodrom.jpg for T1, its label on the south-east, the
-        # left, side). No map draws its extent; the span is centred on the kink.
-        dict(name="T1 Grandstand", from_m=345, to_m=465, side="outside", depth_m=12),
+        # T1 grandstand ("Sergey Sirotkin"): temporary, no roof, outside the T1 kink (dossier "Buildings
+        # and structures": "Temporary, no roof"; racefans-sochi-autodrom.jpg for T1). Re-laid from
+        # 345-465 to start 10 m past the Main Grandstand's OSM front, which ends at 355 on the same
+        # (left) side: the old span put the first 10 m of it inside the Main Grandstand.
+        dict(name="T1 Grandstand", from_m=365, to_m=475, side="outside", depth_m=12),
+        # General admission round the Bolshoy Ice Dome, "about 20 m from the track", views of T3/T4-T9
+        # (dossier "General admission"; dossier T5-9: "three turns around the Bolshoy Ice Dome"). The dome
+        # (MANUAL_LANDMARKS arena, centre 157-213 m right of 2600-3200) is inside the right-handers T5-T7,
+        # so the GA ground is the lawn between the road and the dome, on the right: two banks, one on the
+        # T5-T6 run and one on the T7-T8 run.
+        dict(name="Ice Dome GA T6", from_m=2600, to_m=2780, side="right", depth_m=11.4, gap_m=5, family="bank"),
+        dict(name="Ice Dome GA T7", from_m=2960, to_m=3180, side="right", depth_m=11.4, gap_m=5, family="bank"),
     ],
     # Albert Park is entirely temporary seating -- OSM maps none of it (the
     # only `building=grandstand` ways in the bbox belong to Lakeside
@@ -517,20 +763,9 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Hill", from_m=1050, to_m=1160, side="outside", depth_m=14, covered=False),
         # Stewart: Turn 5 exit.
         dict(name="Stewart", from_m=1600, to_m=1720, side="outside", depth_m=12, covered=False),
-        # Waite: the Turn 6-7 double corner (right into left-left here).
-        dict(name="Waite", from_m=1860, to_m=2030, side="outside", depth_m=14, covered=False),
         # Clark: "beyond Turn 8", the long right sweeper after the Turn
         # 6-7 complex in this dossier's geometry.
         dict(name="Clark", from_m=2180, to_m=2320, side="outside", depth_m=14, covered=False),
-        # Webber: Turn 11, inside. In the old (this YAML's) 16-turn
-        # numbering this is the corner after the since-removed Turn 9-10
-        # chicane (station ~2530-2690 here) and the back straight.
-        dict(name="Webber", from_m=3300, to_m=3420, side="inside", depth_m=12, covered=False),
-        # Lauda: Turn 12, outside, right after Webber's corner.
-        dict(name="Lauda", from_m=3440, to_m=3560, side="outside", depth_m=14, covered=False),
-        # Schumacher: "final section of the lap", outside of the following
-        # double-right in this dossier's geometry.
-        dict(name="Schumacher", from_m=3740, to_m=3860, side="outside", depth_m=16, covered=False),
         # Prost and Senna: "next to each other, exit of the last turn and
         # start of the main straight" -- adjacent spans on the final
         # corner (station ~4774-4899 here) leading onto the pit straight.
@@ -554,6 +789,32 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # Moss: the outside of the run into Turn 1, between Piastri and Jones
         # (both maps put it on the left, not the pit side).
         dict(name="Moss", from_m=235, to_m=330, side="left", depth_m=14, covered=False),
+        # Ricciardo: inside (right) of the T3 -> T4 run, between the two corners,
+        # facing Hill across the road (both maps; dossier "Ricciardo grandstand:
+        # infield between T3 and T4, part covered"). ~40 px on the 2026 map, ~85 m.
+        dict(name="Ricciardo", from_m=1135, to_m=1215, side="right", depth_m=12, covered=False),
+        # Button: outside (left) of the T8 apex, before Clark (both maps: the stand
+        # above the 8 marker; dossier "Button grandstand at T8 (outfield)"). ~45 px.
+        dict(name="Button", from_m=2060, to_m=2150, side="left", depth_m=12, covered=False),
+        # Waite: left (Queens Road side) of the T9-T10 flick, its east end at T10
+        # (both maps; dossier T9 "Waite grandstand (Gate 8, Queens Road side)").
+        # Replaces 1860-2030, which was T6-T7 on the 16-turn count.
+        dict(name="Waite", from_m=3330, to_m=3450, side="left", depth_m=14, covered=False),
+        # Vettel: outside (left) of the approach to T11, ending at the braking zone
+        # (both maps; dossier T11 "Vettel grandstand across (outside, Gate 9)").
+        dict(name="Vettel", from_m=4020, to_m=4120, side="left", depth_m=14, covered=False),
+        # Webber: inside (right) of T11, on the T11 -> T12 run just past the apex
+        # (both maps: west of the 11-12 leg, its top level with 11; dossier "inside
+        # of T11, reached by a footbridge"). Replaces 3300-3420 (T9 on the old count).
+        dict(name="Webber", from_m=4190, to_m=4290, side="right", depth_m=12, covered=False),
+        # Lauda: outside (left) of T12 (both maps: south-east of the 12 marker;
+        # dossier "T12, driver's left (outfield), view back to the city").
+        # Replaces 3440-3560 (T10 on the old count).
+        dict(name="Lauda", from_m=4380, to_m=4480, side="left", depth_m=14, covered=False),
+        # Schumacher: left of the short T13 -> T14 leg, opposite the pit entry, ending
+        # before Prost (both maps; dossier "between T13 and T14"). Replaces
+        # 3740-3860 (a kink on Aughtie Drive).
+        dict(name="Schumacher", from_m=4692, to_m=4765, side="left", depth_m=14, covered=False),
     ],
     # The circuit numbers its stands rather than naming them
     # (https://gpcanada.ca/en/type-de-billet/grandstands/); none of the
@@ -569,17 +830,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # "Circuit Gilles Villeneuve pit lane" way), so GS1/2 face it from the
     # right.
     "ChillyVilleneuve": [
-        dict(name="Grandstand 12", from_m=200, to_m=280, side="left", depth_m=12),
-        dict(name="Grandstand 11", from_m=280, to_m=380, side="left", depth_m=12),
-        dict(name="Grandstand 33", from_m=1230, to_m=1340, side="inside", depth_m=12),
-        dict(name="Grandstand 31", from_m=1900, to_m=1970, side="outside", depth_m=12),
-        dict(name="Grandstand 21", from_m=1970, to_m=2010, side="outside", depth_m=12),
-        dict(name="Grandstand 22", from_m=2010, to_m=2040, side="outside", depth_m=10),
-        dict(name="Grandstand 15", from_m=2040, to_m=2080, side="outside", depth_m=12),
-        dict(name="Grandstand 34", from_m=2080, to_m=2120, side="outside", depth_m=12),
-        dict(name="Grandstand 24", from_m=2120, to_m=2160, side="outside", depth_m=12),
-        dict(name="Grandstand 47", from_m=2170, to_m=2230, side="left", depth_m=12),
-        dict(name="Grandstand 46", from_m=2230, to_m=2290, side="right", depth_m=12),
         # Grandstand 1: on the infield (right) side of the main straight
         # opposite the pits, from the line back toward T14, stepped with its
         # tall end at the line (oversteer48-grandstand-map-2023.jpg and
@@ -595,6 +845,44 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # grandstand is between the grid and T1"). Replaces the unsourced
         # "Grandstand 2" (30-170), which no map shows.
         dict(name="Platine", from_m=95, to_m=165, side="right", depth_m=14, gap_m=25, covered=True),
+        # Senna (T2): 12 on the outside at the apex, 11 along the exit leg, both behind the pit-exit road
+        # that runs round the outside of T1-T2 (both maps); 10 (2026 map only) further along the exit leg
+        # toward T3. The exit lane is 27-46 m left over 296-305 and hugs the edge (lat 1-7) from 318 to
+        # where it joins at 397, so 12 and 11 stand well back.
+        dict(name="Grandstand 12", from_m=310, to_m=352, side="left", depth_m=12, gap_m=30),
+        dict(name="Grandstand 11", from_m=355, to_m=450, side="left", depth_m=12, gap_m=25),
+        dict(name="Grandstand 10", from_m=470, to_m=540, side="left", depth_m=12, gap_m=15),
+        # 32: south of T6 on the approach, outside the left-hander (both maps, x 580-620 against T6 x 614).
+        dict(name="Grandstand 32", from_m=1190, to_m=1245, side="right", depth_m=10),
+        # Family (33): the long narrow stand beside the short T6-T7 link, east of it on the maps, i.e. on
+        # the right and the inside of T7. The old entry resolved "inside" over 1230-1340 to the left.
+        dict(name="Grandstand 33", from_m=1255, to_m=1345, side="right", depth_m=10),
+        # 31: outside T8, between T8 and T9 (both maps, north-east of the T8-T9 link). The old entry was
+        # 1900-1970, before T8, and resolved to the right.
+        dict(name="Grandstand 31", from_m=1995, to_m=2060, side="left", depth_m=12),
+        # The hairpin group, ~600 m later than the old entries (which sat at T8-T9).
+        # 21: north of the approach leg, from ~100 px before the apex to the turn-in, stepped.
+        dict(name="Grandstand 21", from_m=2540, to_m=2665, side="left", depth_m=12),
+        # 15: beyond the apex, on the outside past the run-off (both maps, 30-70 px east of the apex,
+        # ~40 px long). 2685-2705 at 40 m out lays a 66 m front round the hairpin.
+        dict(name="Grandstand 15", from_m=2685, to_m=2705, side="left", depth_m=12, gap_m=40),
+        # 24 "Lance Stroll": the long stand south of the return leg, from the apex to past T11.
+        dict(name="Grandstand 24", from_m=2715, to_m=2855, side="left", depth_m=12),
+        # 34: small, between the two hairpin legs just after T11 (right of the return leg, 39-57 m from the
+        # approach leg's centreline there).
+        dict(name="Grandstand 34", from_m=2832, to_m=2878, side="right", depth_m=8, gap_m=6),
+        # 46 south and 47 north of T12 at the start of the Casino Straight.
+        dict(name="Grandstand 46", from_m=2965, to_m=3070, side="left", depth_m=12),
+        dict(name="Grandstand 47", from_m=3025, to_m=3085, side="right", depth_m=12),
+        # General-admission viewpoints (blue on oversteer48-ga-viewpoints-2026.jpg): grass banks.
+        # Beside Grandstand 1 on the T14 side (infield, right; x 562-603 against GS1's 427-548).
+        dict(name="GA Grandstand 1", from_m=4035, to_m=4105, side="right", depth_m=11.4, gap_m=4, family="bank"),
+        # After T9 on the back straight, north side (left), 40-85 px past T9.
+        dict(name="GA Turn 9", from_m=2130, to_m=2200, side="left", depth_m=11.4, gap_m=4, family="bank"),
+        # Between 24 and 46, south of the return leg (left).
+        dict(name="GA Turn 12 south", from_m=2880, to_m=2950, side="left", depth_m=11.4, gap_m=4, family="bank"),
+        # Past 47 on the Casino Straight, north side (right).
+        dict(name="GA Turn 12 north", from_m=3095, to_m=3160, side="right", depth_m=11.4, gap_m=4, family="bank"),
     ],
     "Monzarella": [
         # Stand 25 on the pit straight, in the row of stands facing the pits
@@ -604,18 +892,55 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # between the two OSM outlines, short of Torre Sud (5777 L). Roof not
         # stated on either map.
         dict(name="Tribuna 25", from_m=5715, to_m=5765, side="left", depth_m=10, gap_m=14, covered=False),
+        # 23A/B Parabolica interna: inside T11 next to the pit entry (seating map; dossier "23A/B ... inside
+        # of T11 near pit entry"). OSM's two outlines (5534-5593 at 14 m, 5598-5636 at 20 m) lie on the
+        # pit-entry lane (5530-5640, 0.4-11 m right of the centreline) and are skipped twice ("nothing to
+        # build clear of the pit lane"); dropped below by station and laid here behind the lane.
+        dict(name="Tribuna Parabolica interna", from_m=5540, to_m=5640, side="right", depth_m=10, gap_m=20),
+        # 31: the disabled-access stand on the outside of the pit straight between 7 and 8 (wayfinding
+        # map, green "31" at x 500-555 against 7's OSM 677-727 and 8's 923-1119).
+        dict(name="Tribuna 31", from_m=790, to_m=900, side="left", depth_m=8, gap_m=10),
+        # 33 (2026): inside, on the run up to the Roggia, just before 9/10 (wayfinding map, y 415-455).
+        dict(name="Tribuna 33", from_m=2000, to_m=2100, side="right", depth_m=12),
+        # 34 (2026): outside the 1ª Curva di Lesmo on its approach (wayfinding map, x 138-150).
+        dict(name="Tribuna 34", from_m=2480, to_m=2550, side="left", depth_m=12),
+        # 10bis: inside, between Lesmo 1 and Lesmo 2, up to Lesmo 2 (wayfinding map x 265-300).
+        dict(name="Tribuna 10 bis", from_m=2760, to_m=2850, side="right", depth_m=12),
+        # 11: inside of the Serraglio run (wayfinding map (375-405, 385-410), 173-208 px from Lesmo 2).
+        dict(name="Tribuna 11", from_m=3275, to_m=3355, side="right", depth_m=12),
+        # 17: outside (left) of the back straight right after the Ascari exit (wayfinding map x 680-740).
+        dict(name="Tribuna 17", from_m=4225, to_m=4340, side="left", depth_m=12),
+        # 20: outside (left) of the back straight, mid-way (wayfinding map x 825-870; the 2024 map draws
+        # 18-19 on the inside). "19, 20 Uscita Ascari ... Small covered stands" (dossier stand table).
+        dict(name="Tribuna 20", from_m=4500, to_m=4590, side="left", depth_m=10, covered=True),
+        # General admission (blue "GA" bars on the wayfinding map): grass banks.
+        # Inside of the Curva Biassono, from the 1ª Variante exit round to the 2ª Variante approach
+        # (one long bar, x 470 -> y 470 at x 245); laid as two banks either side of the apex.
+        dict(name="GA Biassono", from_m=1150, to_m=1500, side="right", depth_m=11.4, gap_m=6, family="bank"),
+        dict(name="GA Biassono Nord", from_m=1560, to_m=1950, side="right", depth_m=11.4, gap_m=6, family="bank"),
+        # Inside, along the top run between Lesmo 1 and 10bis (x 185-255).
+        dict(name="GA Lesmo", from_m=2600, to_m=2740, side="right", depth_m=11.4, gap_m=6, family="bank"),
+        # Inside of the Serraglio run, before and after 11 (x 315-390 and 420-470).
+        dict(name="GA Serraglio", from_m=2950, to_m=3260, side="right", depth_m=11.4, gap_m=6, family="bank"),
+        dict(name="GA Serraglio Sud", from_m=3405, to_m=3540, side="right", depth_m=11.4, gap_m=6, family="bank"),
+        # Outside of the back straight between 20 and 21 (x 955-1010), past the footbridge at 4721.
+        dict(name="GA Rettifilo Centro", from_m=4760, to_m=4850, side="left", depth_m=11.4, gap_m=4, family="bank"),
     ],
     "Nuerburgerring": [
-        # The main grandstand T3 (rebuilt 2009, 5,000 seats, covered), opposite
-        # the pit building on the outside of the straight and entered from the
-        # ring boulevard behind it (dossier "Buildings and structures", from
-        # de.wikipedia and nuerburgring.de; OSM has no outline). No fetched map
-        # places it: the FIA 2020 map (p.2) draws no structures. The span is the
-        # pit building's (OSM garage 4975-137 R), from just after the
-        # BMW-Bruecke (4958) toward the Lindner hotel's end of the straight;
-        # depth and gap keep its back row clear of the Ring Werk and Ring
-        # Boulevard outlines (their road faces about 34 m from the centerline).
-        dict(name="T3", from_m=5000, to_m=120, side="left", depth_m=18, gap_m=8, covered=True),
+        # T3, the BMW M Power main grandstand opposite the pits: OSM way 32895415 "BMW Tribüne" runs
+        # 4893 -> 211 on the left, front 22-27 m from the centreline (15 m past the edge), back 44-46 m.
+        # Replaces the S/F pass's estimate (5000-120, gap 8, "the extent is the doubtful part"). Depth 18,
+        # not OSM's ~21, keeps its back row clear of the Ring Werk and Ring Boulevard outlines (road faces
+        # 41.9 / 45.2 m from the centreline). Covered (dossier; rebuilt 2009).
+        dict(name="T3", from_m=4893, to_m=211, side="left", depth_m=18, gap_m=15, covered=True),
+        # T7: OSM way 34435195, between T6 (OSM 1836-2030) and T8 on the outside of the Müllenbach
+        # section, 2057-2190 left, front 33-35 m from the centreline (28 m past the edge), back 45-57 m.
+        dict(name="T7", from_m=2058, to_m=2188, side="left", depth_m=15, gap_m=28, covered=False),
+        # T12a: OSM way 34435115 "Tribüne T12a" (bleachers) at the Advan-Bogen on the back straight, on the
+        # RIGHT (the inside of the right kink; the audit's "probably left" was unconfirmed), 4053-4173, front
+        # 61-70 m from the centreline (55-64 m past the edge), back 86-96 m. Depth 24 keeps the open
+        # bleachers under the 25 m roofing rule.
+        dict(name="T12a", from_m=4053, to_m=4173, side="right", depth_m=24, gap_m=57, covered=False),
     ],
     "Shiverstone": [
         # Club Corner and Club A: OSM has both only as plain buildings named
@@ -639,28 +964,184 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # stand close to the fence; Abbey A sits at Abbey's own front line.
         dict(name="Hamilton Straight B", from_m=100, to_m=190, side="left", depth_m=12, gap_m=14, covered=False),
         dict(name="Abbey A", from_m=200, to_m=272, side="left", depth_m=14, gap_m=24, covered=False),
+        # --- Real stands OSM tags as plain buildings (laid as media_centre today), promoted under their
+        # OSM names so the building rows drop (R13). Spans and gaps from the footprints.
+        # Village A: way "Village A" (816-879 left, front 39-43 m past the edge, 12.6 m deep; started at 830, where a constant-gap front clears OSM Farm Curve's outline); the map
+        # draws Village A just before Village B (OSM stand, 876-) on the outside of Farm Curve-Village.
+        dict(name="Village A", from_m=830, to_m=874, side="left", depth_m=12.6, gap_m=40, covered=False),
+        # Stowe A and Stowe C: the map's Landostand (GA Plus, items 41/66), the curved stand round the outside
+        # of Stowe. OSM has it as two plain buildings: "Stowe A" (4962-5022, front 50-69 m past the edge,
+        # 17.7 deep) and "Stowe C" (5079-5117, 71-80 m, 15.8 deep). Laid at the footprints, not closed up
+        # into the map's one continuous curve (the map is schematic there; the footprints are surveyed).
+        dict(name="Stowe A", from_m=4962, to_m=5022, side="left", depth_m=17.7, gap_m=55, covered=False),
+        dict(name="Stowe C", from_m=5079, to_m=5117, side="left", depth_m=15.8, gap_m=72, covered=False),
+        # Vale: way "Vale" (150 m, 17.2 deep), skewed to the road: 57 m past the edge at its Club end,
+        # 100+ m at its Stowe end. The map draws it parallel to the run into Vale, behind the GA strip.
+        # Laid along 5345-5475 at 62 m (a constant-gap front cannot follow the skew; past 5475 the
+        # left side is the inside of Vale's left hook and the front would fold).
+        dict(name="Vale", from_m=5345, to_m=5475, side="left", depth_m=17.2, gap_m=62, covered=False),
+        # --- Stands the map has and the dossier lacks.
+        # Luffield Corner (item 43/36): the small stand on the outside of the Luffield hook, before OSM's
+        # Luffield stand (2253-2392). Clear of the gates at 2190-2258 (left; they are the stand's own).
+        dict(name="Luffield Corner", from_m=2185, to_m=2245, side="left", depth_m=12, gap_m=22, covered=False),
+        # Woodcote C: between Woodcote B (OSM 2524-2588) and National Pit Straight (OSM 2639-2732), on the
+        # outside of Woodcote's exit; front set between theirs (47-62 m).
+        dict(name="Woodcote C", from_m=2595, to_m=2632, side="left", depth_m=10, gap_m=45, covered=False),
+        # Stirling A and B: outside the National Pits Straight, A nearer Woodcote, B nearer Copse, behind
+        # the GA strip (below). Scaled from the Copse road tunnel (gates 3018-3027) and the National Pit
+        # Straight stand (2685) at ~1.16 m per map px.
+        dict(name="Stirling A", from_m=2845, to_m=2905, side="left", depth_m=12, gap_m=20, covered=False),
+        dict(name="Stirling B", from_m=2915, to_m=2985, side="left", depth_m=12, gap_m=20, covered=False),
+        # Copse D: the fourth of the Copse Grandstands, after C (OSM 3140-3191, front 80-90 m past the
+        # edge) toward Maggotts, at the same set-back.
+        dict(name="Copse D", from_m=3200, to_m=3262, side="left", depth_m=11, gap_m=80, covered=False),
+        # Hanger: on the inside of the Hangar Straight just after Chapel (map item by 62 Boxpark),
+        # clear of the Workshop (4350-4418 right).
+        dict(name="Hanger", from_m=4225, to_m=4305, side="right", depth_m=12, gap_m=15, covered=False),
+        # Lakeside: on the inside of the run from Stowe to Vale, before the pit entry (5280), in front of
+        # the 4617 m2 OSM building at 5268 right (front 67 m from the centreline).
+        dict(name="Lakeside", from_m=5165, to_m=5255, side="right", depth_m=12, gap_m=15, covered=False),
+        # --- General-admission viewing (the map's blue strips) as turfed banks (R2), in front of the stands.
+        # Becketts-Chapel-Hangar Straight: from Becketts stand's start round Chapel along the outside of the
+        # Hangar Straight to short of Stowe; split at the road bridge (4500), where the map breaks the strip.
+        dict(name="Becketts GA", from_m=3870, to_m=4480, side="left", depth_m=11.4, gap_m=4, covered=False, family="bank"),
+        dict(name="Hangar Straight GA", from_m=4520, to_m=4860, side="left", depth_m=11.4, gap_m=4, covered=False, family="bank"),
+        # Stowe-Vale: outside the run into Vale, in front of Vale.
+        dict(name="Vale GA", from_m=5200, to_m=5470, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        # National Pits Straight: in front of Stirling A/B.
+        dict(name="National Pits Straight GA", from_m=2830, to_m=3005, side="left", depth_m=11.4, gap_m=4, covered=False, family="bank"),
+        # Brooklands-Luffield (by item 65): the strip on the left from Brooklands' entry to the Luffield
+        # hook, between the road and the giant wheel (landmark 2163 left, 91 m).
+        dict(name="Brooklands GA", from_m=1965, to_m=2180, side="left", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        # Farm Curve: the strip between the road and OSM's Farm Curve stand (632-831, front 31+ m out).
+        dict(name="Farm Curve GA", from_m=665, to_m=820, side="left", depth_m=11.4, gap_m=4, covered=False, family="bank"),
     ],
     "Snorisring": [
-        # The Norisring's grandstands besides the Steintribüne are temporary
-        # scaffold stands put up for the race weekend; none is in OSM. Placed
-        # from the official 2026 Lageplan (norisring-lageplan-2026.pdf, V2-ORGA-
-        # 260519), scaled along the straight from the Steintribüne's OSM front
-        # (st 1957 at its west end, 44 at its east end; ~0.66 m per map px at
-        # 2000 px width), which also puts Pre-start 1 at the pit entry (1929)
-        # and Pre-start 2 at the pit exit (70). All three are right of the
-        # straight (south, the Zeppelinfeld side), opposite the Steintribüne.
-        # SPECK-Pumpen-Tribüne: the small stand just after the T8 kink, before
-        # Pre-start 1 and the pit entry.
+        # --- The Steintribüne as the stone-terrace kit (kit gap 9): two open terraces either side of the
+        # central speakers' block, one entry per part. Span from OSM's outline front (1957 -> 44, 366 m, front
+        # 29.1 m from the centreline at its west end, 34.6 at its east end: 21 -> 27 m past the edge); the
+        # centre block is the middle fifth of the front on the Lageplan (its drawing: 110 of 550 px), and
+        # projects toward the road, so it stands 2 m further forward than the wings either side.
+        dict(name="Steintribüne West", from_m=1957, to_m=2101, side="left", depth_m=17, gap_m=22, covered=False, family="stone"),
+        dict(name="Steintribüne Mitte", from_m=2103, to_m=2177, side="left", depth_m=17, gap_m=21, covered=False, family="stone_centre"),
+        dict(name="Steintribüne Ost", from_m=2179, to_m=44, side="left", depth_m=17, gap_m=25, covered=False, family="stone"),
+        # --- The temporary stands (all scaffold, dossier "Modelling pitfalls"): the three of the S/F pass
+        # re-entered with family="scaffold" (positions, depths and gaps unchanged).
         dict(name="SPECK-Pumpen-Tribüne", from_m=1850, to_m=1910, side="right", depth_m=10, gap_m=6, covered=False),
-        # Boxengassen-Tribüne: four open scaffold blocks behind the wall over
-        # the first grid boxes (photo boxengassentribuene-draufsicht-2022.jpg,
-        # ~18 rows, grass bank of the Zeppelinfeld's west wall beside it), east
-        # of that bank (OSM's west-wall outline ends at st ~1986). gap_m 14
-        # puts its front 22 m right, behind the pit lane (nodes at -14 to -15 m).
         dict(name="Boxengassen-Tribüne", from_m=1990, to_m=2055, side="right", depth_m=18, gap_m=14, covered=False),
-        # Milwaukee-Tribüne: after START, between the Parc Ferme lane (pit exit)
-        # and Hans-Kalb-Straße.
         dict(name="Milwaukee-Tribüne", from_m=95, to_m=185, side="right", depth_m=12, gap_m=6, covered=False),
+        # Alpha-Tribüne: the long temporary stand on the north side of the return leg just after the
+        # Grundig-Kehre, in front of the Grundig towers (Lageplan "Alpha-Tribüne"), clear of Turm 1 (OSM,
+        # 519-547 right).
+        dict(name="Alpha-Tribüne", from_m=560, to_m=660, side="right", depth_m=16, gap_m=6, covered=False),
+        # THOMAS SOMMER-Tribüne: north of the return leg in the elbow before the S-Kurve, angled to face
+        # it, west of the entrance and Hans-Kalb-Straße's railway bridge (Lageplan).
+        dict(name="THOMAS SOMMER-Tribüne", from_m=860, to_m=930, side="right", depth_m=12, gap_m=6, covered=False),
+    ],
+    "Shanghaied": [
+        # Grass Stand C (GA): the green bar north of the T3-T6 run, from about a third along it to just
+        # past the T6 hairpin, set back from the road (gov map x 1205-1550, 55-105 px off the run).
+        # Heading toward the hairpin the bar is on the left (outside of the circuit).
+        dict(name="Grass Stand C", from_m=1150, to_m=1540, side="left", depth_m=11.4, gap_m=30, family="bank"),
+        # Grass Stand F (GA): south of the back straight, before Grandstand H (gov map x 785-1115,
+        # ~20 px off the road; dossier "GA Zone F: back straight, past Grandstand H", driven before it).
+        dict(name="Grass Stand F", from_m=4040, to_m=4415, side="left", depth_m=11.4, gap_m=10, family="bank"),
+        # Grass Stand J (GA): the curved bank on the outside of the T14 hairpin, between H and K
+        # (gov map x 300-420 against the apex at x 465; dossier T14).
+        dict(name="Grass Stand J", from_m=4765, to_m=4805, side="outside", depth_m=11.4, gap_m=50, family="bank"),
+    ],
+    "Bahrainless": [
+        # General admission before T4 (gpgt hatching beyond University 3, along the T3-T4 straight on the
+        # outside, to the T4 turn-in). The University stands (OSM 938-1080 left) stand 50-60 m off; the
+        # hatching is drawn a little nearer the road than them. Behind the two OSM buildings at
+        # 1319-1411 left (44-80 m off) the bank stays in front: 20 m gap, 11.4 m deep, back at ~37 m.
+        dict(name="GA Turn 4", from_m=1180, to_m=1470, side="left", depth_m=11.4, gap_m=20, family="bank"),
+        # General admission after T13 (gpgt hatching on the north-east side of the T13-T14 straight,
+        # before Victory 1, at about the Victory stands' distance from the road). Anchored on Victory 1's
+        # OSM front (4692, 41.6 m left): the hatching ends ~65 px (vertical) short of it.
+        dict(name="GA Turn 13", from_m=4400, to_m=4620, side="left", depth_m=11.4, gap_m=30, family="bank"),
+    ],
+    "BrandsScratch": [
+        # South Bank: "grass bank outside Cooper Straight, opposite the rear of the
+        # pits; views of Graham Hill Bend, Surtees, Clearways" (dossier "Spectator
+        # areas"). OSM's "Southbank" car park lies 720-1308 on the LEFT of Cooper
+        # Straight, its road edge 22 m from the centerline: the bank is the slope
+        # between the road and the car park, from Graham Hill's exit to Surtees.
+        # (The GP Paddock and the pits are on the right, 60-84 m off.)
+        dict(name="South Bank", from_m=910, to_m=1150, side="left", depth_m=11.4, gap_m=5, family="bank", covered=False),
+        # Clearways raised viewing area (built winter 2019/20), "outside of
+        # Clearways" (dossier corner table and "Spectator areas"): on the left of
+        # the run into Clearways, between the road bridge (3303.5) and the corner,
+        # in front of OSM's grass (3333-3437 L, 35 m off) and the car park behind
+        # it (3371-3424 L, 41 m off). gap 18 keeps it behind the gravel (OSM
+        # shingle from 3399 L) and the MSV Centre's reach (3516 L).
+        dict(name="Clearways Viewing Area", from_m=3335, to_m=3415, side="left", depth_m=11.4, gap_m=18, family="bank", covered=False),
+    ],
+    "RedPullRing": [
+        # Tribüne Schönberg: on the outside of the downhill run from T3 to T4, behind the general-admission
+        # hillside, nearer T4 than T3 (spectator map "Grandstand Schönberg", A-B; wayfinding "Schönberg",
+        # both at about 0.55-0.75 of the way T3 (1388) -> T4 (2206)). Set back behind the bank below.
+        dict(name="Tribüne Schönberg", from_m=1880, to_m=2000, side="left", depth_m=14, gap_m=30, covered=False),
+        # Tribüne T8: the infield stand (4 sectors A-D, opened 2022) just after the T8 kink (~3200), on the
+        # infield side of the run to T9 (spectator map "Grandstand T8", wayfinding "T8": both draw it inside
+        # the loop between T5 and the T8 straight, which settles the dossier's "side unconfirmed").
+        dict(name="Tribüne T8", from_m=3275, to_m=3400, side="left", depth_m=15, gap_m=15, covered=False),
+        # The "Green tickets" general-admission hillside (Stehplatzbereich, media kit venue plan; the
+        # spectator map's green "grass area"; the wayfinding's blue GA strip on its first half): the whole
+        # outside of the T3-T4 run, from past Tribüne 13 (OSM, ~1360-1450) to short of T4, in front of
+        # Schönberg.
+        dict(name="Schönberg GA", from_m=1460, to_m=2120, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+    ],
+    "Mordschleife": [
+        # The T13 grandstand: OSM's "Tribüne 13 (T13)" outline lies 20679 -> 37 on the RIGHT of this lap,
+        # front 21.6-27 m from the centreline (17-22 m past the 4.5 m half-width), back 35-41 m: it faces
+        # the Nordschleife start area beside the kept T13 lane (20638-75 R, 8 m out), not the GP circuit (the
+        # S/F pass's guess of "left, between the two roads" was the GP side). Roofed with photovoltaic panels
+        # (OSM note). Not laid today because OSM tags it leisure=bleachers without building=grandstand.
+        dict(name="T13", from_m=20680, to_m=36, side="right", depth_m=14, gap_m=18, covered=True),
+        # --- Spectator banks (R2) for the Lageplan's green spectator/camping zones that have no mapped camp
+        # (and so no fan-dressing banks) today. Each stays clear of the fan-dressing spectator_bank_10m runs
+        # the dress pass already lays (555-608 L, 1731-1968 R, 5234-5245 L, 7935-7974 R, 13726-14030 L, ...).
+        # Hatzenbach: the zone between the lap and the access road on the inside (east) of the Hatzenbach
+        # esses, from past Hatzenbogen to short of Hocheichen (the Lageplan draws it right of the track; the
+        # audit's "left" was wrong). Split at the Hatzenbach corner (1039).
+        dict(name="Hatzenbach Zuschauerzone 1", from_m=650, to_m=1000, side="right", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        dict(name="Hatzenbach Zuschauerzone 2", from_m=1080, to_m=1400, side="right", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        # Adenauer Forst: the zone on the outside (north) of the lap between the track and the access road,
+        # from before the Adenauer Forst chicane to short of Metzgesfeld; split round the fan-dressing banks
+        # at 5234-5245 L.
+        dict(name="Adenauer Forst Zuschauerzone 1", from_m=5050, to_m=5220, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        dict(name="Adenauer Forst Zuschauerzone 2", from_m=5260, to_m=5550, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        # Wehrseifen: the zone on the west of the descent from Kallenhard through Wehrseifen to the
+        # Breidscheid bridge (Lageplan: between the lap and the access road), right of the lap (the audit's
+        # "left, Adenau side" was the town side; the zone is on the other).
+        dict(name="Wehrseifen Zuschauerzone", from_m=7250, to_m=7650, side="right", depth_m=11.4, gap_m=8, covered=False, family="bank"),
+        # Karussell: the wedge inside the Karussell between its climb out and the Steilstrecke, laid on
+        # the left of the exit leg where the wedge is wide enough (the legs are ~28 m apart nearer the tip).
+        dict(name="Karussell Zuschauerzone", from_m=12230, to_m=12450, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        # Hohe Acht - Wippermann - Eschbach: the long strip on the outside (east) of the descent, between the
+        # lap and the access road, ending where the fan-dressing banks begin (13726 L).
+        dict(name="Hohe Acht Zuschauerzone", from_m=12820, to_m=13300, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+        dict(name="Wippermann Zuschauerzone", from_m=13320, to_m=13700, side="left", depth_m=11.4, gap_m=6, covered=False, family="bank"),
+    ],
+    "Oskarsleben": [
+        # Zuschauerbereich West: outside (left) of the far-west run, between the West-Tribüne
+        # (OSM, ~1900-1960 L) and the Nord-Tribüne (OSM, ~2080-2135 L), round the Schikane
+        # (gravel to 29 m, guard rail 25-32 m).
+        dict(name="Zuschauerbereich West", from_m=1965, to_m=2072, side="left", depth_m=11.4, gap_m=34, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich West
+        # Zuschauerbereich Nord: the long bank outside (left) the top of the lap from the
+        # top-left corner to the Brücke (2685). Behind the corner's gravel first, then the fence
+        # at 23-27 m along the straight part. Stops short of the footbridge.
+        dict(name="Zuschauerbereich Nord", from_m=2145, to_m=2240, side="left", depth_m=11.4, gap_m=34, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich Nord
+        dict(name="Zuschauerbereich Nord", from_m=2250, to_m=2665, side="left", depth_m=11.4, gap_m=26, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich Nord
+        # Zuschauerbereich Nord-Ost: outside (left) of the north-east bends after the bridge;
+        # behind the gravel (to 47 m) and guard rail (to 54 m) at 2750-2850, then the fence at 22 m.
+        dict(name="Zuschauerbereich Nord-Ost", from_m=2705, to_m=2860, side="left", depth_m=11.4, gap_m=58, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich Nord-Ost
+        dict(name="Zuschauerbereich Nord-Ost", from_m=2890, to_m=3085, side="left", depth_m=11.4, gap_m=26, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich Nord-Ost
+        # Zuschauerbereich Ost: outside the east bend (motorhome area 18 behind it), behind its
+        # gravel and guard rail (to 58 m); stops before the pit entry, which leaves the lap on
+        # the left at ~3200.
+        dict(name="Zuschauerbereich Ost", from_m=3095, to_m=3170, side="left", depth_m=11.4, gap_m=62, covered=False, family="bank"),  # mao-uebersichtskarte-2021.jpg, Zuschauerbereich Ost
     ],
 }
 
@@ -678,6 +1159,17 @@ STAND_COVER: dict[str, dict[str, str]] = {
     # (dossier "Main Grandstand").
     "Armadillos": {
         "@102.8": "covered",
+        # Turn 19 Grandstand: covered (dossier "Grandstands" and T19 notes); OSM has it as three unnamed
+        # outlines on the outside of T18-T19, none tagged covered.
+        "@4940.2": "covered",
+        "@5020.1": "covered",
+        "@5111.6": "covered",
+        # Open stands the 25 m depth rule would roof: Turn 1 (OSM 645.1 R, 26.2 m: open seats on the hilltop;
+        # the dossier names only Turn 4, Turn 19 and Main as covered), Turn 15's corner and long stands
+        # (4289.7 R, 27.5 m; "Turn 15 Grandstands", 30.7 m).
+        "@645.1": "open",
+        "@4289.7": "open",
+        "Turn 15 Grandstands": "open",
     },
     "BrandsScratch": {
         # The aerial (oversteer48-grandstands.jpg) shows the Pit Straight
@@ -712,6 +1204,21 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # View lounge on top (dossier "Buildings"; the 2026 map's Sky View
         # Racing Lounge, item 4, on it). OSM's outline has no roof tag.
         "Graderia principal": "covered",
+        # Dossier "Buildings": H "Covered. Sees New Holland and pit entry" -- OSM
+        # 4214 L, 9.8 m deep, laid as an open bay_10m.
+        "Tribuna H": "covered",
+        # Dossier: M "Outside T5, elevated. Covered." -- OSM 24.5 m deep, just under
+        # the 25 m rule, laid open.
+        "Tribuna M": "covered",
+        # Dossier: L "The only infield grandstand. Covered." -- roofed today only by
+        # its 37.8 m OSM depth; written as the fact.
+        "Tribuna L": "covered",
+        # G (up to 10,000 seats, La Caixa exit to Europcar) and N (outside Campsa)
+        # are not covered in the dossier and carry no roof mark on the 2026 map;
+        # OSM's outlines (65.7 and 40.1 m deep, the banks behind included) would be
+        # roofed by the 25 m depth rule.
+        "Tribuna G": "open",
+        "Tribuna N": "open",
     },
     "Hungoverring": {
         # The ticket map marks Hungaroring and Hungaroring Platinum ROOF; OSM has
@@ -722,6 +1229,16 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # Dossier "Setor M": covered, numbered seats, facing the garages; OSM's
         # "M" outline has no roof tag and is 21.4 m deep, under the depth rule.
         "M": "covered",
+        # The two unnamed OSM stands on the straight are, by the sector map's order
+        # A -> B -> Pit Stop Club -> M with no gaps and OSM's lengths, B (4235-33,
+        # 101 m) and the Pit Stop Club (54-113, 59 m); the audit's reading has
+        # 54-113 as B. Under either reading 54-113 is a covered stand (B: "Covered,
+        # numbered seats"; Pit Stop Club: "Covered stand and lounge", dossier).
+        "@77.3": "covered",
+        # 4235-33: B under the sector-map reading (covered). Under the audit's
+        # reading it is A's top end (uncovered); the map draws A ending where B
+        # starts, which the manual A (3420-4215) already does, so B it is.
+        "@4271.5": "covered",
     },
     "Lemons": {
         # Dossier "Ford chicane grandstand": outside of the Ford chicane, "large,
@@ -738,6 +1255,8 @@ STAND_COVER: dict[str, dict[str, str]] = {
         "Tribuna Laterale Sinistra": "covered",
         "Tribuna Laterale Destra": "covered",
         "Tribuna Vedano": "covered",
+        # 22 Parabolica: "Permanent, covered" (dossier stand table and T11 row); laid unroofed today.
+        "Tribuna Parabolica": "covered",
     },
     "RedPullRing": {
         # The 2026 spectator map (redbullring-2026-spectator-map.png) marks only
@@ -748,18 +1267,33 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # OSM, which the depth rule would roof.
         "Start/Ziel Tribüne": "covered",
         "Steiermark Tribüne": "open",
+        # The spectator map marks only Start Ziel (already in) and North "(COVERED)"; the dossier agrees for
+        # Nord (Oversteer48). OSM tags no roof on it; at 40.1 m deep the depth rule happens to roof it.
+        "Tribüne Nord": "covered",
+        # Every other stand is open on the spectator map but at least 25 m deep in OSM (the hillside behind
+        # included), so the depth rule roofs it: Red Bull (both runs, 45.6 m), T3 (OSM "Tribüne 13", 51.7 m),
+        # Mitte (43.5 m), Ost (= the map's T9, 27.5 m) and T10 (26.7 m).
+        "Red Bull Tribüne": "open",
+        "Tribüne 13": "open",
+        "Tribüne Mitte": "open",
+        "Tribüne Ost": "open",
+        "Tribüne T10": "open",
     },
     "Shanghaied": {
         # Grandstand A's upper tiers are under the lotus-leaf roofs (dossier
         # "Buildings": "some roofs modelled on a lotus leaf"); roofed today
         # only because OSM's box is 140 m deep (the whole complex behind it).
         "A看台": "covered",
+        # B1-B3: "Uncovered; built 2025 replacing GA" (dossier stand table). At 33-46 m OSM depth the
+        # 25 m depth rule roofs them today.
+        "B1看台": "open",
+        "B2看台": "open",
+        "B3看台": "open",
+        # H and K: covered (dossier stand table). Roofed today only by the depth rule (41 and 36 m).
+        "H看台": "covered",
+        "K看台": "covered",
     },
     "Snorisring": {
-        # The Steintribüne is the 1930s open stone terrace of the Zeppelinfeld
-        # (dossier "Buildings": no roof, colonnades gone since 1967); its 35.7 m
-        # OSM depth would otherwise roof it.
-        "Steintribüne": "open",
         # Open scaffold bleachers (boxengassentribuene-draufsicht-2022.jpg).
         "Boxengassen-Tribüne": "open",
     },
@@ -767,6 +1301,16 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # Gold 1, OSM's "Tribune F1": covered (dossier "Grandstands": Gold 1
         # covered; OSM carries no roof tag).
         "Tribune F1": "covered",
+        # Gold 4 = OSM "Tribune Raidillon" (1247 L): the 2022 covered 4,600-seat stand (dossier).
+        "Tribune Raidillon": "covered",
+        # Gold 2 = OSM "Tribune Endurance" (761 L), covered (dossier "Gold 2"); its 30.9 m depth
+        # roofs it today only by the depth rule.
+        "Tribune Endurance": "covered",
+        # Gold 8 / Gold 7bis: OSM's three unnamed stands at La Source's apex (402-407 L), covered
+        # (dossier "Gold 8 ... covered", "Gold 7 ... covered").
+        "@402.4": "covered",
+        "@403.1": "covered",
+        "@406.9": "covered",
     },
     "Zandervoort": {
         # 27 Pit Grandstand is the circuit's only covered stand (dossier
@@ -774,6 +1318,26 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # is therefore open, which the 25 m depth rule would otherwise roof.
         "Pit Grandstand": "covered",
         "Hoofdtribune": "open",
+    },
+    "Hockeyheimring": {
+        # Innentribüne A-C: open on both maps (the cheapest categories 5-7 on the
+        # 2019 map); OSM's 84.6 m depth (the bank behind included) would roof it by
+        # the 25 m rule.
+        "Innentribüne": "open",
+    },
+    "Sudoku": {
+        # Dossier "Grandstands": C uncovered (OSM 30.2 m deep, roofed by the depth rule today).
+        "C": "open",
+        # D: wooden bleachers on the S-curves hillside (OSM "D１～D4", 73.4 m deep).
+        "D１～D4": "open",
+        # E (Dunlop, OSM 75 m deep: the hillside behind it) and O (back straight, 27 m), R (final
+        # curve, 30.5 m): no roof on the seat map or in the dossier; the depth rule roofs them.
+        "E": "open",
+        "O": "open",
+        "R": "open",
+        # Q1/Q2 at the chicane: "Elevated and covered" (dossier); OSM has no roof tag.
+        "Q1": "covered",
+        "Q2": "covered",
     },
 }
 
@@ -783,14 +1347,104 @@ STAND_COVER: dict[str, dict[str, str]] = {
 # hospitality block OSM tags as a stand).
 STAND_FAMILIES = ("street", "street_deck", "bank", "scaffold", "banking_seats", "tent", "palm",
                   "stone", "stone_centre", "stadium")
-STAND_FAMILY: dict[str, dict[str, str]] = {}
+STAND_FAMILY: dict[str, dict[str, str]] = {
+    "Gnocchi": {
+        # The Main Grandstand is one permanent six-storey, 400 m building under a single cantilevered
+        # roof (dossier "Main Grandstand"; photo tilke-sochi-09.jpg): the stadium stand, not the
+        # two-tier bay the depth rule picks for its 39 m (audit S/F rule gap, R13).
+        "Главная трибуна": "stadium",
+    },
+    "Shanghaied": {
+        # Grandstand A: ~29,000-30,000 seats in lower and upper tiers along the whole straight, the upper
+        # tiers under the lotus-leaf roofs (dossier "Grandstand A"): a tall single-roof stand, not the
+        # two-tier bay the depth rule takes from its 140 m OSM box. Stands in for the lotus roof until a
+        # kit piece exists.
+        "A看台": "stadium",
+    },
+    "Monzarella": {
+        # Drop OSM's two Parabolica-interna outlines (they stand on the pit-entry lane); the
+        # MANUAL_STANDS entry of the same name replaces them. Keyed by station, not name, so the
+        # replacement (front centre ~5590) is not dropped with them.
+        "@5569.6": "-",
+        "@5620.2": "-",
+    },
+    "Bahrainless": {
+        # The Main Grandstand's white tent-like PTFE roof (dossier S/F "Pit building", "Modelling
+        # pitfalls": "Buildings use white tent-like fabric roofs"; kit gap 4 built as tent_roof_10m).
+        # STAND_COVER's "covered" stays as the fact.
+        "Main Grandstand": "tent",
+    },
+    "Shebang": {
+        # The palm-frond canopy over the Main and Tower grandstands (dossier "Buildings"; kit gap 6 built
+        # as palm_canopy_10m). By name: both MANUAL_STANDS faces of the Main Grandstand and the Tower.
+        "Main Grandstand": "palm",
+        "Tower Grandstand": "palm",
+    },
+    "Hockeyheimring": {
+        # OSM "Südtribüne": the wrapping ring laid as one 390 m x 185 m block on the
+        # wrong (right) side. Dropped; the two MANUAL_STANDS runs above replace it.
+        # By station, not by name, so the manual "Südtribüne" stays.
+        "@4282.2": "-",
+    },
+    "Shiverstone": {
+        # OSM stand at 3597 right (38 m, 22 deep): no stand on the 2026 map there (the inside of Maggotts holds
+        # hospitality 50/54, Ignition Club and Racing Green); a hospitality block OSM tags as a stand (R18).
+        "Silverstone Six": "-",
+    },
+    "Armadillos": {
+        # The Main Grandstand (OSM unnamed, 102.8 R, roofed by station on the S/F pass) is one ~20 m,
+        # three-level building under a single tensile canopy (dossier "Main Grandstand"): the stadium
+        # family, which the S/F pass left as a rule gap (R13) and STAND_FAMILY now reaches.
+        "@102.8": "stadium",
+    },
+    "Snorisring": {
+        # OSM's Steintribüne outline (2159.8 L, 366.5 m, 35.7 m deep, laid as roofed large bays) gives way to
+        # the three stone entries above.
+        "Steintribüne": "-",
+        # The Zeppelinfeld's earth banks (Wälle), open grassed terraces round the field, which OSM tags as
+        # unnamed stands and the depth rule roofs (S/F pass: "Needs a bank family or a cover-by-position
+        # key"): the east wall (0.3 R, 187 x 84 m, ~190 m out), the west wall (2012.0 R, 187 x 84 m) and its
+        # north arm beside the Boxengassen-Tribüne (1961.7 R, 166 x 34 m, from 21 m off the road).
+        "@0.3": "bank",
+        "@2012.0": "bank",
+        "@1961.7": "bank",
+    },
+    "Nuerburgerring": {
+        # T5b (186.5 m deep) and T8 (109.6 m deep) are OSM outlines of whole spectator hillsides above the
+        # Müllenbach section (audit "Stands" and "People": "T5b and T8 are really banks"), laid today as
+        # huge roofed large bays by the 25 m depth rule: turfed general-admission banks (R2).
+        "T5b": "bank",
+        "T8": "bank",
+    },
+    "Oskarsleben": {
+        # R18: OSM tags the pit building (map item 3, "Boxen / VIP-Loungen") as a stand; 3 x
+        # bay_10m_large are laid on the pit side past the garage row today. Not seating.
+        "Boxen / VIP-Loungen": "-",
+        # The administration building (map item 2, "Verwaltung"), also tagged as a stand; the
+        # dress already skips it over the garage row, dropped so the dossier says what it is.
+        "Verwaltung": "-",
+    },
+    "Sudoku": {
+        # D's wooden benches on the slope (dossier "Wooden bleachers, S-shaped"): seats on a bank
+        # rather than the depth rule's two-tier bay for a 73 m-deep outline.
+        "D１～D4": "banking_seats",
+    },
+}
 
 # OSM buildings to leave out by station (an unnamed outline a stand from
 # the tables stands on, often the stand's own outline mapped as a
 # building): `drop_promoted_structures` drops the one within
 # DROP_STRUCTURES_WITHIN_M of each station. A named one goes by naming a
 # MANUAL_STANDS entry after it.
-DROP_STRUCTURES: dict[str, list[float]] = {}
+DROP_STRUCTURES: dict[str, list[float]] = {
+    # The unnamed 138 x 22 m outline under Grandstand 24 at the hairpin
+    # (2710-2813 left): the stand itself, mapped as a building.
+    "ChillyVilleneuve": [2742.0],
+    # The unnamed outlines where Fan 2 (50 x 6 m at 3300) and Apex 1 (50 x
+    # 10 m at 4080) stand, both left of the T12-T14 run: the stands
+    # themselves, mapped as buildings.
+    "Hungoverring": [3300.1, 4079.9],
+}
 DROP_STRUCTURES_WITHIN_M = 1.0
 
 # Landmarks that span the road and are not in OSM as bridges.

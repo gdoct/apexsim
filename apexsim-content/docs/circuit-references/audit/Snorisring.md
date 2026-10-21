@@ -82,3 +82,14 @@ Left, or for later columns:
 
 - The Steintribüne is the venue's landmark: `stone_tribune_10m` is built and laid from the Stands column.
 - The Grundig tower (OSM "Turm 1", 16 storeys) is laid as a `control_tower` by the tower heuristic; `skyline_lowrise` fits it, through `MANUAL_STRUCTURE_ASSETS` on the next full extract (no extract is cached).
+
+## Stands dossier pass
+
+In the tables:
+
+- The Steintribüne as its three parts: `stone` West and East, the `stone_centre` block between (OSM's single outline left out); Alpha and THOMAS SOMMER added; the three Zeppelinfeld earth walls as banks.
+
+Left, or for later columns:
+
+- Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
+- The Steintribüne's middle section is closed in 2026, but the block stands.

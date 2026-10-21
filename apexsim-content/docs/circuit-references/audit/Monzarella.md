@@ -85,3 +85,13 @@ Left, or for later columns:
 
 - The banking's curves beside the road: no kit piece, only the span over it.
 - The footbridge's station is an estimate: check it on the trace page.
+
+## Stands dossier pass
+
+In the tables:
+
+- 23A/B Parabolica interna left out (`@5569.6`, `@5620.2`) and laid again 20 m out, behind the pit-entry lane; stands 31, 33, 34, 10bis, 11, 17 and 20 (covered) added; six general-admission banks (Biassono, Lesmo, Serraglio, the back straight); Tribuna Parabolica (22) roofed.
+
+Left, or for later columns:
+
+- The roofs of 8 and 17; which OSM Uscita Ascari stand is 19; 27-30, 2-3 and 35 stay on their OSM outlines.

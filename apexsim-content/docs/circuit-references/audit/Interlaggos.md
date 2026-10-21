@@ -83,3 +83,14 @@ Left, or for later columns:
 Nothing went in.
 
 - No source places a unique structure: the cell stays `-`.
+
+## Stands dossier pass
+
+In the tables:
+
+- D shortened to 290-410, H added (420-575), G over the whole Reta Oposta (800-1290), T4 replaced by the Porto bank (1300-1420), the Junção stand (3255-3405) and the Orange Tree Club added; `@77.3` and `@4271.5` covered.
+
+Left, or for later columns:
+
+- If 4235-33 is A's top end rather than B, `@4271.5` comes out (A is open).
+- The Tower Club, Heineken Village.

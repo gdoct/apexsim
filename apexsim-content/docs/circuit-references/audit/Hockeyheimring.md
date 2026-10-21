@@ -73,3 +73,13 @@ In the tables:
 Left, or for later columns:
 
 - The Jim Clark memorial (845 left) would need a statue piece of its own size.
+
+## Stands dossier pass
+
+In the tables:
+
+- OSM's wrapping Südtribüne outline is left out (`@4282.2`) and laid again from its road-facing edge as two covered runs, Südtribüne 4150-4305 and Haupttribüne E-H 4310-4503 (R13 for this track); the Spitzkehre Mercedes-Tribüne is gone (the 2024 plan has none; the 2019 map's is the Osttribüne); the Innentribüne open.
+
+Left, or for later columns:
+
+- The Osttribüne's roof; an unnamed roof outline.

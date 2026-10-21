@@ -101,3 +101,13 @@ In the tables:
 Left, or for later columns:
 
 - The tent-fabric roofs are built (`tent_roof_10m`, `garage_roof_membrane_6m`) and belong to the Stands column and the pit rule.
+
+## Stands dossier pass
+
+In the tables:
+
+- The main grandstand is `tent` (the membrane roofs). Two general-admission banks on the left, before T4 and after T13.
+
+Left, or for later columns:
+
+- The other stands' shade roofs are unsourced; the map is not to scale, so the banks are anchored on the OSM stands beside them.

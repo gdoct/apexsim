@@ -68,3 +68,13 @@ In the tables:
 Left, or for later columns:
 
 - The MSV Centre: R14.
+
+## Stands dossier pass
+
+In the tables:
+
+- Two banks: South Bank (910-1150 left, by the Southbank car park) and the Clearways viewing area (3335-3415 left). The OSM stands are right.
+
+Left, or for later columns:
+
+- The GP-loop banks, Paddock Hill bank and the Director's Terrace.

@@ -56,3 +56,14 @@ Left, or for later columns:
 
 - The T13 pumps: no position, and in the pit zone.
 - The Steilstrecke: a smaller kit ask.
+
+## Stands dossier pass
+
+In the tables:
+
+- The T13 grandstand from OSM way 34435441 (tagged bleachers only, R22), covered, behind the T13 lane; eight banks for the 24h map's spectator zones without a camp (Hatzenbach, Adenauer Forst, Wehrseifen, the Karussell wedge, Hohe Acht-Wippermann).
+
+Left, or for later columns:
+
+- The zones are scaled from a schematic map (+-100 m).
+- The media tower: no position.

@@ -85,3 +85,13 @@ Left, or for later columns:
 
 - The Eau Rouge Champions Club (OSM "Salons de l'Eau Rouge", dropped as on the run-off) as `hospitality_3f` through `MANUAL_STRUCTURE_ASSETS` on the next full extract.
 - The CC Business Tower (about 950 right): re-read now that R19 takes only the outline a landmark stands on.
+
+## Stands dossier pass
+
+In the tables:
+
+- Les Combes moved before the turn-in, Bruxelles and Pouhon out of their gravel traps; Gold 7/7ter, Gold 5, Gold 3, C1-C4, Speed Corner, Verstappen, Fan Area, Silver 5 and 6 and 17/27 added; banks for Bronze 1, 3, 4, 5 and 6; Gold 4, Gold 2 and the three La Source apex stands covered.
+
+Left, or for later columns:
+
+- The bronze strip at Fagnes; Tribune RX's roof; Gold 10 / Silver 2 (not on the 2026 map); 17/27 rests on a 77 m map residual: check it on the trace page.

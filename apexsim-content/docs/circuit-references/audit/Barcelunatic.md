@@ -96,3 +96,14 @@ Left, or for later columns:
 
 - The kit's span building is 8.2 m along the road against a real ~70 m building: a second module if the shots look thin.
 - The heliport: no kit piece.
+
+## Stands dossier pass
+
+In the tables:
+
+- Roofs: H, L and M covered, G and N open (the depth rule roofed them). Five banks on OSM's "Pelouse" general-admission areas (T6, T7, T8, La Caixa, Pelouse Privilege inside T1).
+
+Left, or for later columns:
+
+- A's partial roof.
+- The RACC chicane in the centerline (follow-ups).

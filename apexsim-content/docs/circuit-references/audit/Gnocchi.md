@@ -79,3 +79,14 @@ Left, or for later columns:
 - The Medals Plaza fountain: a `MANUAL_FURNITURE` item.
 - "Сириус" (reaches across the road) is the Olympic Park railway station, not a landmark: R14.
 - The 72 OSM floodlight masts: R15, the owner's call.
+
+## Stands dossier pass
+
+In the tables:
+
+- The main stand is `stadium` (six storeys, one roof); T1 moved to 365-475 off the main stand's end; two banks for the general admission round the Bolshoy Ice Dome (2600-2780, 2960-3180 right).
+
+Left, or for later columns:
+
+- Temporary stands deeper than 6 m keep the regular bays: the kit's `scaffold_10m` (5 m deep, 4 m tall) is a low bleacher.
+- T5, T10, T13 and T15 are on no map.

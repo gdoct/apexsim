@@ -88,3 +88,10 @@ Left, or for later columns:
 
 - The Biosphere's point is from its published coordinate: check it on the trace page.
 - The Concorde bridge is a road crossing: a concrete overpass by R4.
+
+## Stands dossier pass
+
+In the tables:
+
+- The hairpin group moved about 600 m to 2540-3085 with its sides corrected (both oversteer48 maps); 12 and 11 behind the pit-exit road; 10 and 32 added, 22 gone (on neither map); four general-admission viewpoints as banks.
+- `DROP_STRUCTURES`: the unnamed outline under Grandstand 24 (the stand itself).

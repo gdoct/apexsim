@@ -79,3 +79,13 @@ Left, or for later columns:
 Nothing went in.
 
 - Nothing needed: the skyline landmarks, viaduct and decks are laid. The superscreens are Stands and R20.
+
+## Stands dossier pass
+
+In the tables:
+
+- Raffles to T5's outside, Bayfront to T17's outside; Promenade and Skyline sides swapped (Skyline behind the pit lane); Padang A/B and Connaught to the left; Empress to T11-T12. Rebuilt with `--offline`.
+
+Left, or for later columns:
+
+- The superscreens: R20.

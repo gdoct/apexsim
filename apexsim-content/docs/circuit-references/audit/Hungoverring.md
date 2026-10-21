@@ -103,3 +103,14 @@ Left, or for later columns:
 
 - The stage may meet Apex 2 when the Stands column lays it: then 3460 left, 90 m.
 - The giant swing and dodgems: no kit piece.
+
+## Stands dossier pass
+
+In the tables:
+
+- Bronze 1-3 and the T12-T14 stand inside the T13 hairpin gone; Chicane 1-4 on the T5-T6 run; Fan 1 under its OSM name "Silver 5", Fan 2, Apex 1, Apex 2; four banks over T9-T12.
+- `DROP_STRUCTURES`: the unnamed outlines where Fan 2 and Apex 1 stand (the stands themselves).
+
+Left, or for later columns:
+
+- Apex 1's first run may meet Grand Prix 2 near 4088 on the T14 bend: then 4045-4075.

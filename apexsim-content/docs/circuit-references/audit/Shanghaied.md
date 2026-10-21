@@ -79,3 +79,13 @@ In the tables:
 Left, or for later columns:
 
 - Grandstand A's lotus-leaf roof: Stands column, no kit piece.
+
+## Stands dossier pass
+
+In the tables:
+
+- Grass stands C, F and J as banks; B1-B3 open, H and K covered; Grandstand A `stadium`.
+
+Left, or for later columns:
+
+- E stays unnamed; the lotus roof has no kit piece.
