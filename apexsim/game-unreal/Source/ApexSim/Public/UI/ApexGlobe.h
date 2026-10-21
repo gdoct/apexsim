@@ -8,8 +8,7 @@
  * widgets so it can be tested: an orthographic view of a unit sphere turned
  * to (Lon, Lat) and scaled by Zoom, how that view moves (fly-to, drag
  * inertia, idle spin, eased zoom), where a circuit's pin stands, and which
- * labels fit. Ported from the design reference,
- * docs/proposals/tracks-globe.html, constant for constant.
+ * labels fit.
  *
  * Screen coordinates here are in globe radii about the globe's centre, Y up;
  * the widget scales them by its radius in pixels and flips Y.

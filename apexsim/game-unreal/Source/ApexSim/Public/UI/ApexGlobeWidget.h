@@ -25,7 +25,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexGlobeSelectionChanged, const FS
 /**
  * Garage > Tracks' globe: dotted land, a graticule and the atmosphere's rim,
  * one pin per circuit (docs/game/client.md). Painted, like the minimap, from
- * the maths in ApexGlobe.h; the design is docs/proposals/tracks-globe.html.
+ * the maths in ApexGlobe.h.
  *
  * Mouse: drag turns it (and throws it), the wheel zooms, a click on a pin
  * chooses it. Keys and pad, while it has focus: the D-pad or arrows jump to

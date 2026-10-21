@@ -5,8 +5,7 @@
  * for land. Cell i of a row of n sits at longitude -180 + (i + 0.5) * 360 / n,
  * so the cells are about equally wide on the ground and the dots spread
  * evenly at every latitude (rows are shorter toward the poles; the mask is
- * not a rectangular texture for that reason). Copied from the design
- * reference, docs/proposals/tracks-globe.html (LAND_ROWS).
+ * not a rectangular texture for that reason).
  */
 namespace ApexGlobeLand
 {

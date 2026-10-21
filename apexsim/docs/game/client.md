@@ -210,8 +210,7 @@ instead of the demo ([cameras.md](cameras.md#lobby-view-beginlobbyview-apexlobby
 
 Garage > Tracks takes the hero's and the rail's room: the circuits as a
 list on the left (Back above it), a globe in the middle and the chosen
-circuit's panel sliding in on the right. The design is
-[proposals/tracks-globe.html](proposals/tracks-globe.html).
+circuit's panel sliding in on the right.
 
 - The globe (`UI/ApexGlobeWidget.cpp`) is painted: land as dots from a
   2.5° mask (`UI/ApexGlobeLand.h`, one row a band, cells equally wide on
