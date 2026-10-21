@@ -448,8 +448,6 @@ MANUAL_STANDS: dict[str, list[dict]] = {
     # "Circuit Gilles Villeneuve pit lane" way), so GS1/2 face it from the
     # right.
     "ChillyVilleneuve": [
-        dict(name="Grandstand 1", from_m=4300, to_m=30, side="right", depth_m=14),
-        dict(name="Grandstand 2", from_m=30, to_m=170, side="right", depth_m=12),
         dict(name="Grandstand 12", from_m=200, to_m=280, side="left", depth_m=12),
         dict(name="Grandstand 11", from_m=280, to_m=380, side="left", depth_m=12),
         dict(name="Grandstand 33", from_m=1230, to_m=1340, side="inside", depth_m=12),
@@ -461,6 +459,21 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         dict(name="Grandstand 24", from_m=2120, to_m=2160, side="outside", depth_m=12),
         dict(name="Grandstand 47", from_m=2170, to_m=2230, side="left", depth_m=12),
         dict(name="Grandstand 46", from_m=2230, to_m=2290, side="right", depth_m=12),
+        # Grandstand 1: on the infield (right) side of the main straight
+        # opposite the pits, from the line back toward T14, stepped with its
+        # tall end at the line (oversteer48-grandstand-map-2023.jpg and
+        # oversteer48-ga-viewpoints-2026.jpg, ~1.75 m/px: ~120 px, about 200 m).
+        # The start line and podium are in front of its right-hand end (dossier
+        # "Start/finish"). Two runs under the one name: the tall block from the
+        # line back ~95 m, then the lower steps.
+        dict(name="Grandstand 1", from_m=4250, to_m=4343, side="right", depth_m=16, gap_m=10),
+        dict(name="Grandstand 1", from_m=4140, to_m=4250, side="right", depth_m=10, gap_m=10),
+        # Platine: the one covered stand, between the grid and T1 on the
+        # infield side, set back from the straight (both oversteer48 maps:
+        # ~40 px long, ~75 px past the line; dossier "the Platine covered
+        # grandstand is between the grid and T1"). Replaces the unsourced
+        # "Grandstand 2" (30-170), which no map shows.
+        dict(name="Platine", from_m=95, to_m=165, side="right", depth_m=14, gap_m=25, covered=True),
     ],
 }
 
@@ -715,6 +728,17 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # Sakhir do for buildings the kit can't represent.
     "ChillyVilleneuve": [
         dict(kind="tower", station_m=2350.0, side="left", offset_m=150.0),
+        # The three TV screens on the roof of the 2019 paddock building, facing
+        # Grandstand 1 (dossier "Paddock building (2019)"). The building is
+        # skipped as pit complex and the bake lays single-storey garages, so
+        # the screens stand behind the garage zone (pit lane at 11 m left,
+        # garages to ~33 m; at 50 m the screen's footprint clears it), where
+        # the 11 m screen shows over the garage roofs. They take the
+        # dossier's "Paddocks" outline with them, which the bake's pit
+        # complex replaces anyway.
+        dict(kind="screen", name="Paddock building screen 1", station_m=4220.0, side="left", offset_m=50.0),
+        dict(kind="screen", name="Paddock building screen 2", station_m=4270.0, side="left", offset_m=50.0),
+        dict(kind="screen", name="Paddock building screen 3", station_m=4320.0, side="left", offset_m=50.0),
     ],
     # The rusted-steel bull statue in the fan zone beside the Mitte/Centre
     # Grandstand -- "The massive steel Red Bull statue is in the Yellow

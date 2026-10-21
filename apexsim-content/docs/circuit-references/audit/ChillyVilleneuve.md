@@ -60,3 +60,20 @@ The FIA PDFs `fia-2026-circuit-map.pdf` was not rendered (2024 version read inst
 - Crossing kind `road` -> `tyre_bridge` default (Pont de la Concorde).
 - No MANUAL corner-name table: circuits whose OSM has no named corners get no corner signs and thin marshal posts.
 - Pit complex drops the real pit building and generates single-storey garages only.
+## S/F dossier pass
+
+In the tables: Grandstand 1 re-laid from both oversteer48 maps as two runs
+on the right, 4140-4343 (the tall block from the line back about 95 m, then
+the lower steps), where the old entry ran across the line to 30 m; the
+unsourced "Grandstand 2" replaced by the covered Platine stand (95-165
+right, 25 m back); three screens for the paddock building's roof screens,
+behind the garage zone at 4220, 4270 and 4320 left, 50 m out (their
+landmarks drop the dossier's "Paddocks" outline, which the pit complex
+replaces anyway).
+
+Left:
+
+- Grandstand 17, "next to Grandstand 1", is on neither map.
+- The paddock building's upper storeys and roof are the pit complex's (kit
+  gap 2); the screens stand on the ground behind it.
+- The screens take the road's heading, not one toward Grandstand 1.
