@@ -124,7 +124,7 @@ HUD component listing the session's recent lines
 Joining a session: `SelectCar`, then `CreateSession` or `JoinSession`, answered
 by `SessionJoined`, a `SessionRoster` (car index to player, reliable, resent
 whenever membership changes), `RacingLine`, `TrackSectors`, `CarSetupSheet`,
-the whole lap's `RoadState` and, in a hotlap watch, `TrackCorners`. A
+the whole lap's `RoadState`. A
 session then sends a `RoadState` slice every 2 s
 ([conditions.md](conditions.md#the-road-on-screen)). Session rules travel inside
 `CreateSession` and are echoed in `SessionJoined`
@@ -132,10 +132,9 @@ session then sends a `RoadState` slice every 2 s
 `WeekendState` after `SessionJoined` and whenever it changes
 ([sessions.md](sessions.md#race-weekend)), and a qualifying shoot-out's
 members `ShootoutState` the same way
-([sessions.md](sessions.md#starting-order-and-qualifying)). A hotlap watched as a stream
-(`CreateSession.watch.stream`) is answered as `SpectateSession` is instead:
-`SpectatorJoined`, `TrackCorners` and the stream's records, no `SessionJoined`
-([sessions.md](sessions.md#watching-a-hotlap)).
+([sessions.md](sessions.md#starting-order-and-qualifying)). A `CreateSession`
+of a watch-only kind (`Demo`, `HotlapWatch`) is answered with `Error 400`:
+the game makes those itself ([sessions.md](sessions.md#session-kinds)).
 
 ## Encodings
 

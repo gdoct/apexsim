@@ -24,30 +24,6 @@ namespace
 		TEXT("1 plays an AI race behind the menu; 0 leaves the menu on its plain background."),
 		ECVF_Default);
 
-	TAutoConsoleVariable<int32> CVarDemoAiCount(
-		TEXT("apexsim.demo.AiCount"),
-		10,
-		TEXT("Cars in a demo session (the circuit's grid may hold fewer); a showcase has its own field."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<int32> CVarDemoAiSkill(
-		TEXT("apexsim.demo.AiSkill"),
-		-1,
-		TEXT("The demo session's AI level, 70-110 (the field spread over 4 points round it); -1 the mixed field, novice to ace."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<int32> CVarDemoLaps(
-		TEXT("apexsim.demo.Laps"),
-		3,
-		TEXT("Laps in each demo session before the next one starts."),
-		ECVF_Default);
-
-	TAutoConsoleVariable<int32> CVarDemoRandomSky(
-		TEXT("apexsim.demo.RandomSky"),
-		1,
-		TEXT("1 gives each demo session a random weather and time of day; 0 races under the default sunny 13:00. A showcase keeps the sky it was rendered in."),
-		ECVF_Default);
-
 	TAutoConsoleVariable<float> CVarDemoMaxMinutes(
 		TEXT("apexsim.demo.MaxMinutes"),
 		12.0f,
@@ -218,8 +194,9 @@ bool UApexDemoModeSubsystem::IsDemoExpected() const
 	case EApexConnectionState::Authenticating:
 		return true;
 	case EApexConnectionState::Authenticated:
-		// A failed request backs off for seconds; a startup should not wait it out.
-		return !bWarnedNoTracks && (Failures == 0 || Net->IsInDemoSession() || Net->IsDemoSessionRequested());
+		// The server's showcase, unless one has already failed: a request
+		// backs off for seconds, and a startup should not wait it out.
+		return !bNoShowcase && Net->IsShowcaseAvailable() && (Failures == 0 || Net->IsInDemoSession());
 	default:
 		// Disconnected (nobody asked to connect), Failed, or Reconnecting after
 		// the server could not be reached: a local file, if any, was tried above.
@@ -235,116 +212,6 @@ bool UApexDemoModeSubsystem::IsDemoDisabled()
 		// A replay plays offline, with no backdrop under it.
 		|| FCString::Strifind(FCommandLine::Get(), TEXT("-ApexReplay=")) != nullptr;
 	return bCommandLineOff || CVarDemoEnabled.GetValueOnGameThread() == 0;
-}
-
-FApexSessionConditions UApexDemoModeSubsystem::RollConditions(FRandomStream& Random)
-{
-	FApexSessionConditions Conditions;
-
-	struct FWeatherWeight
-	{
-		EApexWeather Weather;
-		int32 Weight;
-	};
-	static constexpr FWeatherWeight Weathers[] = {
-		{ EApexWeather::Sunny, 38 },
-		{ EApexWeather::Cloudy, 30 },
-		{ EApexWeather::Overcast, 22 },
-		{ EApexWeather::LightRain, 6 },
-		{ EApexWeather::HeavyRain, 4 },
-	};
-	int32 Roll = Random.RandRange(0, 99);
-	for (const FWeatherWeight& Entry : Weathers)
-	{
-		Conditions.Weather = Entry.Weather;
-		if (Roll < Entry.Weight)
-		{
-			break;
-		}
-		Roll -= Entry.Weight;
-	}
-
-	// [first, last] quarter hour, counted from midnight.
-	auto QuarterIn = [&Random](int32 FirstQuarter, int32 LastQuarter)
-	{
-		return Random.RandRange(FirstQuarter, LastQuarter) * 15;
-	};
-	const int32 ClockRoll = Random.RandRange(0, 99);
-	if (ClockRoll < 70)
-	{
-		Conditions.TimeOfDayMinutes = QuarterIn(8 * 4, 18 * 4 - 1);
-	}
-	else if (ClockRoll < 90)
-	{
-		// Low sun: dawn (8 quarters) or dusk (12), each quarter as likely.
-		const int32 Quarter = Random.RandRange(0, 19);
-		Conditions.TimeOfDayMinutes = Quarter < 8 ? (6 * 4 + Quarter) * 15 : (18 * 4 + Quarter - 8) * 15;
-	}
-	else
-	{
-		// 21:00 through 05:45, across midnight.
-		Conditions.TimeOfDayMinutes = QuarterIn(21 * 4, 30 * 4 - 1);
-	}
-	return Conditions.Clamped();
-}
-
-bool UApexDemoModeSubsystem::ChooseTrack(const UApexNetSubsystem& Net)
-{
-	const UApexMenuFlowSubsystem* Flow = GetFlow();
-	const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
-	if (!Flow)
-	{
-		return false;
-	}
-
-	struct FCandidate
-	{
-		const FApexTrackConfigSummary* Track;
-		FString Stem;
-	};
-	TArray<FCandidate> Candidates;
-	for (const FApexTrackConfigSummary& Track : Net.GetCachedLobbyState().TrackConfigs)
-	{
-		FApexTrackCatalogRow Row;
-		if (!Flow->GetTrackCatalogRow(Track.Id, Row) || Row.YamlBaseName.IsEmpty())
-		{
-			continue;
-		}
-		// A track with neither a cooked level nor a runtime export would be
-		// cars racing through the void.
-		if (Content && Content->HasTrack(Row.YamlBaseName))
-		{
-			Candidates.Add({ &Track, Row.YamlBaseName });
-		}
-	}
-	if (Candidates.Num() == 0)
-	{
-		if (!bWarnedNoTracks)
-		{
-			bWarnedNoTracks = true;
-			UE_LOG(LogApexSim, Warning, TEXT("Demo mode: no lobby track has a catalog row and a cooked level or runtime export; the menu stays on its plain background"));
-		}
-		return false;
-	}
-
-	const FCandidate* Chosen = Candidates.FindByPredicate([Flow](const FCandidate& C) {
-		return Flow->HasPendingTrack() && C.Track->Id.Equals(Flow->GetPendingTrackId(), ESearchCase::IgnoreCase);
-	});
-	if (!Chosen)
-	{
-		// No track of the player's to show: go round the others.
-		int32 Pick = FMath::RandRange(0, Candidates.Num() - 1);
-		if (Candidates.Num() > 1 && Candidates[Pick].Track->Id == LastTrackId)
-		{
-			Pick = (Pick + 1) % Candidates.Num();
-		}
-		Chosen = &Candidates[Pick];
-	}
-
-	TrackId = Chosen->Track->Id;
-	TrackStem = Chosen->Stem;
-	Centerline = Chosen->Track->Centerline;
-	return true;
 }
 
 bool UApexDemoModeSubsystem::IsForcedShowcaseFile() const
@@ -738,31 +605,6 @@ bool UApexDemoModeSubsystem::StartLocalFile(UApexNetSubsystem& Net)
 	return true;
 }
 
-bool UApexDemoModeSubsystem::StartDemoSession(UApexNetSubsystem& Net)
-{
-	if (!Net.IsAuthenticated() || Net.GetCachedLobbyState().TrackConfigs.Num() == 0 || !ChooseTrack(Net))
-	{
-		return false;
-	}
-	UApexMenuFlowSubsystem* Flow = GetFlow();
-	// The field races in the class of the car the player picked.
-	if (Flow && Flow->HasPendingCar())
-	{
-		Net.SelectCar(Flow->GetPendingCarId());
-	}
-	FApexSessionConditions Conditions;
-	if (CVarDemoRandomSky.GetValueOnGameThread() != 0)
-	{
-		FRandomStream Random(static_cast<int32>(FPlatformTime::Cycles()));
-		Conditions = RollConditions(Random);
-	}
-	UE_LOG(LogApexSim, Log, TEXT("Demo mode: starting an AI race on %s, %s"), *TrackStem, *Conditions.Describe());
-	Net.CreateDemoSession(TrackId, CVarDemoAiCount.GetValueOnGameThread(), CVarDemoLaps.GetValueOnGameThread(), Conditions,
-		CVarDemoAiSkill.GetValueOnGameThread());
-	Source = EApexBackdropSource::DemoSession;
-	return true;
-}
-
 bool UApexDemoModeSubsystem::StartBackdrop(UApexNetSubsystem& Net)
 {
 	if (StartShowcase(Net))
@@ -781,7 +623,7 @@ bool UApexDemoModeSubsystem::StartBackdrop(UApexNetSubsystem& Net)
 	{
 		return false;
 	}
-	return StartLocalFile(Net) || StartDemoSession(Net);
+	return StartLocalFile(Net);
 }
 
 bool UApexDemoModeSubsystem::PlayReplay(const FString& Path, FString& OutError)
@@ -922,8 +764,7 @@ bool UApexDemoModeSubsystem::WatchHotlap(const FString& InTrackId, const FString
 	Source = EApexBackdropSource::Live;
 	Cooldown = 0.0f;
 	Failures = 0;
-	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching a hotlap at %s as a stream (%s)"), *Stem,
-		Spectator->GetSource() == EApexSpectatorSource::Local ? TEXT("simulated here") : TEXT("from the server"));
+	UE_LOG(LogApexSim, Log, TEXT("Demo mode: watching a hotlap at %s, simulated here"), *Stem);
 	return true;
 }
 
@@ -960,7 +801,6 @@ void UApexDemoModeSubsystem::Teardown(UApexNetSubsystem& Net)
 	{
 		Spectator->Stop();
 	}
-	Net.LeaveDemoSession();
 	Source = EApexBackdropSource::None;
 }
 
@@ -985,7 +825,7 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 	}
 
 	const bool bStreaming = Spectator && Spectator->GetSource() != EApexSpectatorSource::None;
-	const bool bRunning = bStreaming || Net->IsInDemoSession() || Net->IsDemoSessionRequested();
+	const bool bRunning = bStreaming || Net->IsInDemoSession();
 	if (!IsDemoAllowed(*Net))
 	{
 		if (bRunning && !Net->IsSessionRequestPending())
@@ -1077,7 +917,7 @@ bool UApexDemoModeSubsystem::Tick(float DeltaSeconds)
 		const UApexTrackContentSubsystem* Content = GetGameInstance()->GetSubsystem<UApexTrackContentSubsystem>();
 		const bool bHasLevel = Flow->GetTrackCatalogRow(Flow->GetPendingTrackId(), Row) && !Row.YamlBaseName.IsEmpty() && Content
 			&& Content->HasTrack(Row.YamlBaseName);
-		bool bHasRace = Source == EApexBackdropSource::DemoSession;
+		bool bHasRace = false;
 		if (Source == EApexBackdropSource::Showcase)
 		{
 			bHasRace = Net->GetShowcases().ContainsByPredicate([Flow](const FApexShowcaseSummary& C) {

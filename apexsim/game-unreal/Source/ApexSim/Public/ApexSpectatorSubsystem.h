@@ -99,19 +99,16 @@ public:
 	bool WatchLive(const FString& SessionId);
 	/**
 	 * Watch a hotlap of `CarId` as a stream; `Setup` is what the car runs.
-	 * Simulated here when the game can (CanSimulateHotlap: the physics
-	 * library's apx_watch_*, the session a server would make of the same
-	 * create, its ladder level and ghost kept in `Saved/ApexSim/Watch`),
-	 * else driven by the server for this viewer
-	 * (UApexNetSubsystem::SpectateHotlapWatch). False, with why, when
-	 * neither can.
+	 * Simulated here (CanSimulateHotlap: the physics library's apx_watch_*,
+	 * its ladder level and ghost kept in `Saved/ApexSim/Watch`); no server
+	 * is asked. False, with why, when the game cannot.
 	 */
 	bool WatchHotlap(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
 		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError);
 
 	/**
-	 * A watched hotlap can be simulated here: the physics library, the
-	 * content (ApexSimContent) and `apexsim.watch.Local` 1.
+	 * A watched hotlap can be simulated here: the physics library and the
+	 * content (ApexSimContent).
 	 */
 	static bool CanSimulateHotlap(FString* OutWhy = nullptr);
 	/** Where a watch simulated here keeps its ladder levels and ghosts. */

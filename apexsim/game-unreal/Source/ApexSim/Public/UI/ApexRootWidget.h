@@ -537,14 +537,12 @@ private:
 	bool bHotlapConditionsKnown = false;
 	/** Seconds on the clock at which the lap starts over for a changed choice; negative when none is waiting. */
 	double HotlapRestartAt = -1.0;
-	/** When the session was last asked for, to give up on an answer that never comes. */
+	/** When the watch was last started, to give up on a stream that never comes. */
 	double HotlapRequestedAt = -1.0;
-	/** The session was asked for and has not been joined. */
+	/** The watch was started and its stream has no header yet. */
 	bool bHotlapJoinPending = false;
 	/** The saved setup the car runs (UApexSettingsSubsystem::GetSavedSetups); invalid for stock. */
 	FGuid HotlapSetupId;
-	/** The hotlap comes as a stream (the server has it), with a transport and a ghost. */
-	bool bHotlapStreamRoute = false;
 	/** The watched lap again: the ghost driven round with cutting cameras. */
 	void ReplayHotlapLap();
 

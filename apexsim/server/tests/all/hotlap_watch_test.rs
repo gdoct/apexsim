@@ -2,8 +2,9 @@
 //! and at the speed its car can manage, for the creator to watch (Main menu
 //! > Garage > Tracks > Watch hotlap).
 //!
-//! The first test drives a `GameSession` directly (no network, no real-time
-//! waits), like `fuel_test`; the second goes over the wire.
+//! The game simulates it itself (`hotlap_watch::LocalWatch`); these tests
+//! drive a `GameSession` directly (no network, no real-time waits), like
+//! `fuel_test`, and one checks a server refuses to make one.
 
 use crate::common;
 
@@ -344,96 +345,37 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
     }
 }
 
+/// The game makes its own demo races (showcases) and watched hotlaps
+/// (`hotlap_watch::LocalWatch`); a server refuses to create either, though
+/// both kinds still decode.
 #[tokio::test]
-async fn test_a_watched_hotlap_is_private_and_sent_to_its_creator() {
+async fn a_server_refuses_to_make_a_watch_only_session() {
     let server = common::start_test_server().await;
     let (mut host, lobby) = Client::connect("Watcher", server.tcp_addr).await;
+    let track = lobby.track_configs.first().expect("a track").id;
     let car = lobby.car_configs.first().expect("a car").id;
-    let track = lobby
-        .track_configs
-        .iter()
-        .find(|t| t.name.contains("Monzarella"))
-        .or(lobby.track_configs.first())
-        .expect("a track")
-        .id;
     host.send(&ClientMessage::SelectCar {
         car_config_id: car,
         livery: 0,
     })
     .await;
-    host.send(&create_hotlap_watch(track)).await;
-
-    let (mut joined, mut sectors, mut corners) = (None, None, None);
-    while joined.is_none() || sectors.is_none() || corners.is_none() {
-        match host.recv_until(Some).await {
-            ServerMessage::SessionJoined(data) => joined = Some(data),
-            ServerMessage::TrackSectors(data) => sectors = Some(data),
-            ServerMessage::TrackCorners(data) => corners = Some(data),
-            ServerMessage::Error { message, .. } => panic!("creation failed: {message}"),
-            _ => {}
+    for kind in [SessionKind::HotlapWatch, SessionKind::Demo] {
+        let mut message = create_hotlap_watch(track);
+        if let ClientMessage::CreateSession { session_kind, .. } = &mut message {
+            *session_kind = kind;
         }
+        host.send(&message).await;
+        let code = host
+            .recv_until(|msg| match msg {
+                ServerMessage::Error { code, .. } => Some(code),
+                ServerMessage::SessionJoined(_) | ServerMessage::SpectatorJoined(_) => {
+                    panic!("a {kind:?} session was made")
+                }
+                _ => None,
+            })
+            .await;
+        assert_eq!(code, 400, "{kind:?}");
     }
-    let (joined, sectors, corners) = (joined.unwrap(), sectors.unwrap(), corners.unwrap());
-    assert_eq!(joined.session_kind, SessionKind::HotlapWatch);
-    assert_eq!(joined.your_grid_position, 0, "the host watches");
-    assert_eq!(joined.conditions.weather, Weather::Overcast);
-    assert_eq!(joined.conditions.time_of_day_minutes, 17 * 60);
-    assert!(sectors.track_length_m > 0.0);
-    assert_eq!(corners.session_id, joined.session_id);
-    assert!(!corners.corners.is_empty());
-
-    {
-        let state = server.state.read().await;
-        let game = &state.sessions[&joined.session_id];
-        assert_eq!(game.session.participants.len(), 1, "one AI car, no human");
-        assert_eq!(game.session.game_mode, GameMode::Hotlap);
-        assert_eq!(game.session.state, SessionState::Racing);
-        let driver = game.session.participants.values().next().unwrap();
-        assert_eq!(driver.car_config_id, car, "the host's own car");
-    }
-
-    // Unlisted, and nobody else can take a seat.
-    let (mut other, _) = Client::connect("Other", server.tcp_addr).await;
-    let listed = other
-        .recv_until(|msg| match msg {
-            ServerMessage::LobbyState(data) => Some(data.available_sessions),
-            _ => None,
-        })
-        .await;
-    assert!(listed.is_empty(), "a watched hotlap is not listed");
-    other
-        .send(&ClientMessage::JoinSession {
-            session_id: joined.session_id,
-        })
-        .await;
-    other
-        .recv_until(|msg| match msg {
-            ServerMessage::Error { .. } => Some(()),
-            ServerMessage::SessionJoined(_) => panic!("joined a watched hotlap"),
-            _ => None,
-        })
-        .await;
-
-    // Asking for another one (another car, another sky) replaces it, with
-    // nothing said to the client but the new join.
-    host.send(&create_hotlap_watch(track)).await;
-    let second = host
-        .recv_until(|msg| match msg {
-            ServerMessage::SessionJoined(data) => Some(data),
-            ServerMessage::SessionLeft => panic!("the replacement was announced as a leave"),
-            _ => None,
-        })
-        .await;
-    assert_ne!(second.session_id, joined.session_id);
-    let state = server.state.read().await;
-    assert!(!state.sessions.contains_key(&joined.session_id));
-    assert!(state.sessions.contains_key(&second.session_id));
-    drop(state);
-
-    // Leaving takes it away.
-    host.send(&ClientMessage::LeaveSession).await;
-    host.recv_until(|msg| matches!(msg, ServerMessage::SessionLeft).then_some(()))
-        .await;
     assert!(server.state.read().await.sessions.is_empty());
 }
 
@@ -648,242 +590,4 @@ fn a_setup_is_a_ladder_of_its_own() {
     assert_ne!(tuned.3, 0);
     assert_eq!((tuned.0, tuned.1, tuned.2), (stock.0, stock.1, stock.2));
     assert_eq!(gs.car_setup(&driver), soft.clamp(), "the car runs it");
-}
-
-fn create_streamed_hotlap_watch(track: TrackConfigId) -> ClientMessage {
-    let ClientMessage::CreateSession {
-        track_config_id,
-        max_players,
-        ai_count,
-        lap_limit,
-        session_kind,
-        allowed_assists,
-        conditions,
-        damage,
-        ai_skill,
-        race_seconds,
-        grid_order,
-        qualifying_seconds,
-        weekend,
-        ..
-    } = create_hotlap_watch(track)
-    else {
-        unreachable!()
-    };
-    ClientMessage::CreateSession {
-        track_config_id,
-        max_players,
-        ai_count,
-        lap_limit,
-        session_kind,
-        allowed_assists,
-        conditions,
-        damage,
-        ai_skill,
-        race_seconds,
-        grid_order,
-        qualifying_seconds,
-        weekend,
-        watch: Some(apexsim_server::network::HotlapWatchOptions {
-            stream: true,
-            setup: Some(apexsim_server::car_setup::CarSetup {
-                rear_wing: 1,
-                ..Default::default()
-            }),
-        }),
-        qualifying_cutoff_pct: None,
-        mandatory_stops: 0,
-        compound_change: false,
-        qualifying_format: QualifyingFormat::Open,
-        qualifying_lap_allowance: 0,
-        race_rules: Default::default(),
-    }
-}
-
-#[tokio::test]
-async fn test_a_hotlap_watched_as_a_stream_goes_with_its_viewer() {
-    let server = common::start_test_server().await;
-    let (mut host, lobby) = Client::connect("StreamWatcher", server.tcp_addr).await;
-    let car = lobby.car_configs.first().expect("a car").id;
-    let track = lobby
-        .track_configs
-        .iter()
-        .find(|t| t.name.contains("Monzarella"))
-        .or(lobby.track_configs.first())
-        .expect("a track")
-        .id;
-    host.send(&ClientMessage::SelectCar {
-        car_config_id: car,
-        livery: 0,
-    })
-    .await;
-    host.send(&create_streamed_hotlap_watch(track)).await;
-
-    let (mut joined, mut corners, mut header) = (None, None, false);
-    while joined.is_none() || corners.is_none() || !header {
-        match host.recv_until(Some).await {
-            ServerMessage::SpectatorJoined(data) => joined = Some(data),
-            ServerMessage::TrackCorners(data) => corners = Some(data),
-            ServerMessage::SpectatorRecord(bytes) => {
-                header |= bytes.0.windows(2).any(|w| w[1] == 1 && w[0] & 0xF0 == 0x90);
-            }
-            ServerMessage::SessionJoined(_) => panic!("a streamed watch is not joined"),
-            ServerMessage::Error { message, .. } => panic!("creation failed: {message}"),
-            _ => {}
-        }
-    }
-    let joined = joined.unwrap();
-    assert_eq!(corners.unwrap().session_id, joined.stream_id);
-    let session_id = joined.stream_id;
-    {
-        let state = server.state.read().await;
-        let game = &state.sessions[&session_id];
-        assert_eq!(game.session.session_kind, SessionKind::HotlapWatch);
-        let driver = *game.session.participants.keys().next().unwrap();
-        assert_eq!(
-            game.car_setup(&driver).rear_wing,
-            1,
-            "the car runs the setup"
-        );
-        let host_id = game.session.host_player_id;
-        assert_eq!(state.live.watching(&host_id), Some(session_id));
-    }
-
-    // Another watch replaces it.
-    host.send(&create_streamed_hotlap_watch(track)).await;
-    let second = host
-        .recv_until(|msg| match msg {
-            ServerMessage::SpectatorJoined(data) => Some(data),
-            _ => None,
-        })
-        .await;
-    assert_ne!(second.stream_id, session_id);
-    {
-        let state = server.state.read().await;
-        assert!(!state.sessions.contains_key(&session_id));
-        assert!(state.sessions.contains_key(&second.stream_id));
-    }
-
-    // Stopping watching ends it.
-    host.send(&ClientMessage::LeaveSpectate).await;
-    let deadline = Instant::now() + Duration::from_secs(5);
-    while !server.state.read().await.sessions.is_empty() {
-        assert!(Instant::now() < deadline, "the watch outlived its viewer");
-        tokio::time::sleep(Duration::from_millis(20)).await;
-    }
-}
-
-/// The client's own watch (`hotlap_watch::LocalWatch`, what the physics
-/// library runs for Watch hotlap) is the session the server makes from the
-/// same `CreateSession`: the sky resolved alike (a sky seed fixes what a
-/// server would draw from its random session id), the setup run, the
-/// corners, one car of the asked-for model on the run-up. Then it laps.
-#[tokio::test]
-async fn a_local_watch_is_the_servers_watch_of_the_same_create() {
-    use apexsim_server::hotlap_watch::{LocalWatch, WatchOptions};
-    use apexsim_server::track_loader::RoadContactMode;
-
-    let server = common::start_test_server().await;
-    let (mut host, lobby) = Client::connect("LocalWatcher", server.tcp_addr).await;
-    let car = lobby.car_configs.first().expect("a car").id;
-    let Some(track) = lobby
-        .track_configs
-        .iter()
-        .find(|t| t.name.contains("Monzarella"))
-    else {
-        eprintln!("skipped: no Monzarella in the test server's lobby");
-        return;
-    };
-    let mut message = create_streamed_hotlap_watch(track.id);
-    if let ClientMessage::CreateSession { conditions, .. } = &mut message {
-        conditions.sky_seed = Some(42);
-        conditions.weather = Weather::Cloudy;
-    }
-    host.send(&ClientMessage::SelectCar {
-        car_config_id: car,
-        livery: 0,
-    })
-    .await;
-    host.send(&message).await;
-    let joined = host
-        .recv_until(|msg| match msg {
-            ServerMessage::SpectatorJoined(data) => Some(data),
-            ServerMessage::Error { message, .. } => panic!("creation failed: {message}"),
-            _ => None,
-        })
-        .await;
-
-    let mut local = LocalWatch::start(
-        &WatchOptions {
-            create_session: rmp_serde::to_vec_named(&message).unwrap(),
-            track_path: MONZA.into(),
-            cars_dir: "../../apexsim-content/cars".into(),
-            car: car.to_string(),
-            road_contact: RoadContactMode::Mesh,
-            tick_rate: HZ as u16,
-            seed: 7,
-        },
-        None,
-    )
-    .expect("the local watch starts");
-    {
-        let state = server.state.read().await;
-        let theirs = &state.sessions[&joined.stream_id];
-        let ours = &local.race;
-        assert_eq!(
-            ours.session.conditions, theirs.session.conditions,
-            "the sky"
-        );
-        assert_eq!(ours.session.session_kind, SessionKind::HotlapWatch);
-        assert_eq!(ours.session.game_mode, theirs.session.game_mode);
-        assert_eq!(ours.session.lap_limit, theirs.session.lap_limit);
-        assert_eq!(ours.track_config.id, theirs.track_config.id);
-        assert_eq!(ours.session.participants.len(), 1);
-        let our_driver = *ours.session.participants.keys().next().unwrap();
-        let their_driver = *theirs.session.participants.keys().next().unwrap();
-        assert_eq!(
-            ours.session.participants[&our_driver].car_config_id,
-            theirs.session.participants[&their_driver].car_config_id
-        );
-        assert_eq!(
-            ours.car_setup(&our_driver),
-            theirs.car_setup(&their_driver),
-            "the setup"
-        );
-        assert_eq!(ours.car_setup(&our_driver).rear_wing, 1);
-        let corners = |gs: &GameSession| match gs.track_corners_message(gs.session.id) {
-            Some(ServerMessage::TrackCorners(data)) => data.corners.len(),
-            _ => 0,
-        };
-        assert!(corners(ours) > 0);
-        assert_eq!(corners(ours), corners(theirs), "the corners");
-    }
-
-    // Its stream begins with the catch-up (a header first), then laps.
-    local.tick(1);
-    let first = local.take();
-    let len = u32::from_be_bytes(first[..4].try_into().unwrap()) as usize;
-    assert!(first.len() > 4 + len, "more than one record");
-    assert_eq!(first[4] & 0xF0, 0x90, "a positional record");
-    assert_eq!(first[5], 1, "the header first");
-    let lap = |watch: &LocalWatch| {
-        watch
-            .race
-            .session
-            .participants
-            .values()
-            .next()
-            .unwrap()
-            .current_lap
-    };
-    for _ in 0..240 {
-        local.tick(HZ as u32);
-        if lap(&local) >= 2 {
-            break;
-        }
-    }
-    let lap = lap(&local);
-    assert!(lap >= 2, "a lap closed in four minutes (lap {lap})");
-    assert!(local.take().len() > 100_000, "the laps were streamed");
-    host.send(&ClientMessage::LeaveSpectate).await;
 }

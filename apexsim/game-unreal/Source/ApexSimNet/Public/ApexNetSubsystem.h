@@ -311,32 +311,13 @@ public:
 		const FApexRaceRules& RaceRules = FApexRaceRules());
 
 	/**
-	 * Ask for an AI-only race to watch behind the menu (SessionKind::Demo).
-	 * Answered with OnDemoSessionChanged, never with the session delegates.
-	 * The sky is the caller's; the joined demo echoes it in GetSessionConditions.
-	 * AiSkill: the field's level (ApexAiSkill; Mixed for novice to ace).
+	 * A backdrop is on this connection's race view: a spectator stream fed
+	 * through BeginBackdropFeed (a showcase, a local file, a watched hotlap).
+	 * `IsInSession` is false throughout.
 	 */
-	void CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
-		const FApexSessionConditions& Conditions = FApexSessionConditions(),
-		int32 AiSkill = ApexAiSkill::Mixed);
+	bool IsInDemoSession() const { return bBackdropFeed; }
 
-	/** Leave the demo session, or withdraw a request for one. Nothing if there is neither. */
-	void LeaveDemoSession();
-
-	/**
-	 * A backdrop is on this connection's race view: the server's demo
-	 * session, or a spectator stream fed through BeginBackdropFeed (a
-	 * showcase, or a local file). `IsInSession` is false throughout.
-	 */
-	bool IsInDemoSession() const { return bInDemoSession || bBackdropFeed; }
-
-	/** The server's demo session itself is joined (not a stream). */
-	bool IsInServerDemoSession() const { return bInDemoSession; }
-
-	/** A demo session has been asked for and not yet answered. */
-	bool IsDemoSessionRequested() const { return bDemoRequested; }
-
-	/** State of the demo session from its telemetry; Lobby before the first frame. */
+	/** State of the backdrop's race from its frames; Lobby before the first. */
 	EApexSessionState GetDemoSessionState() const { return DemoSessionState; }
 
 	/**
@@ -448,30 +429,6 @@ public:
 	void JoinAsSpectator(const FString& SessionId);
 
 	/**
-	 * Watch a hotlap: a session of one AI car lapping `TrackConfigId` alone,
-	 * in the car last given to SelectCar, under `Conditions`
-	 * (SessionKind::HotlapWatch). Answered like JoinAsSpectator, with
-	 * SessionJoined at grid position 0, then the roster, sectors, corners
-	 * (GetTrackCorners) and the car's telemetry and timing. Asking again,
-	 * for another car or another sky, replaces the one being watched.
-	 * `TrackName` and `TrackStem` (the YAML's base name) stand in for the
-	 * session's entry in the lobby, which does not list it.
-	 */
-	void CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup = nullptr);
-
-	/**
-	 * Watch a hotlap as a stream (a server with LobbyState.LiveStream): the
-	 * same create as CreateHotlapWatch, with `watch.stream`, answered like
-	 * SpectateSession (OnSpectatorJoined, then the stream's records through
-	 * OnSpectatorRecords) and the corners. No session is joined; the server
-	 * ends the hotlap when it is left (LeaveSpectate), and asking again
-	 * replaces it. `Setup`, when given, is what the car runs.
-	 */
-	void SpectateHotlapWatch(const FString& TrackConfigId, const FString& TrackName, const FString& TrackStem,
-		const FApexSessionConditions& Conditions, const FApexCarSetup* Setup = nullptr);
-
-	/**
 	 * A watched hotlap the game simulates itself (the physics library's
 	 * apx_watch_*, fed to the backdrop by UApexSpectatorSubsystem): nothing
 	 * is sent, and no server is needed. It counts as a streamed watch, with
@@ -485,13 +442,8 @@ public:
 	void EndLocalHotlapWatch();
 	bool IsLocalHotlapWatch() const { return bHotlapWatchLocal; }
 
-	/**
-	 * A watched hotlap (SessionKind::HotlapWatch) is on: joined, from its join
-	 * until it is left, or watched as a stream, from the ask until LeaveSpectate.
-	 */
-	bool IsHotlapWatch() const { return bHotlapWatch || bHotlapWatchStream || bHotlapWatchLocal; }
-	/** The watched hotlap comes as a stream (SpectateHotlapWatch, or simulated here). */
-	bool IsHotlapWatchStream() const { return bHotlapWatchStream || bHotlapWatchLocal; }
+	/** A watched hotlap is on (simulated here, BeginLocalHotlapWatch until EndLocalHotlapWatch). */
+	bool IsHotlapWatch() const { return bHotlapWatchLocal; }
 
 	/** The session joined was joined as a spectator: there is no local car in it. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -731,9 +683,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetCurrentSessionId() const { return CurrentSessionId; }
 
-	/** In a session the player takes part in: a demo session does not count. */
+	/** In a session the player takes part in (a backdrop is not one). */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
-	bool IsInSession() const { return !CurrentSessionId.IsEmpty() && !bInDemoSession; }
+	bool IsInSession() const { return !CurrentSessionId.IsEmpty(); }
 
 	/**
 	 * The server holds a seat for us in a session we lost the connection to
@@ -966,12 +918,6 @@ private:
 	UPROPERTY()
 	FApexTrackCorners CachedCorners;
 
-	/** A CreateHotlapWatch is waiting for its SessionJoined. */
-	bool bHotlapWatchRequested = false;
-	/** The session joined is a watched hotlap. */
-	bool bHotlapWatch = false;
-	/** The watched hotlap is a stream (SpectateHotlapWatch), until LeaveSpectate. */
-	bool bHotlapWatchStream = false;
 	/** The watched hotlap is simulated here (BeginLocalHotlapWatch). */
 	bool bHotlapWatchLocal = false;
 	/** What the lobby would list for it, had it been listed (FindSessionById). */
@@ -1071,20 +1017,8 @@ private:
 	int32 CurrentGridPosition = 0;
 	FApexCarSetup LastSentSetup;
 
-	// --- Demo session -----------------------------------------------------------
+	// --- Session bookkeeping -----------------------------------------------------
 
-	/** Clear the demo bookkeeping, telling listeners if a demo was joined or asked for. */
-	void ResetDemoSession();
-
-	bool bInDemoSession = false;
-	bool bDemoRequested = false;
-	/**
-	 * LeaveSession messages sent on the demo's behalf that the server has not
-	 * answered yet. The server answers every LeaveSession with SessionLeft, in
-	 * order, so the next that many SessionLefts belong to the demo — including
-	 * one for a demo request that failed and left nothing to leave.
-	 */
-	int32 DemoLeavesInFlight = 0;
 	/** Whether every car in a telemetry frame is in the current roster (a stale frame of another session is not). */
 	bool FrameFitsRoster(const FApexTelemetryFrame& Frame) const;
 	/** Empties the UDP telemetry queue on a join: what is queued predates the session. */

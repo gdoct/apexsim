@@ -291,10 +291,10 @@ A newcomer is excluded from the tick it joins in; it gets
 `SessionStream::catch_up` instead: header, roster, path and sector lines, every
 timing and pit event so far (`History`), the road as last laid and the latest
 slow state. So a mid-race joiner sees the earlier laps and counts the earlier
-stops, which the racer telemetry (`JoinAsSpectator`) never carried. A
-watched hotlap is put on its stream at its create (`watch.stream`,
-[sessions](../server/sessions.md#watching-a-hotlap)), with its ghost in the
-catch-up.
+stops, which the racer telemetry (`JoinAsSpectator`) never carried. The
+game's own watched hotlap (`hotlap_watch::LocalWatch`,
+[sessions](../server/sessions.md#watching-a-hotlap)) hands out the same
+records, its ghost in the catch-up.
 
 ## The client player and the menu backdrop
 
@@ -337,14 +337,12 @@ sky; `Path` gives the TV director its trackside cameras.
    `IsDemoExpected` can count on one offline. A file whose track or car
    checksums do not match this machine's catalog rows is skipped (0 is
    unknown and passes).
-3. A `SessionKind::Demo` session, for a server that predates showcases.
-4. The static page backgrounds.
+3. The static page backgrounds.
 
-A stream's sky is the file's (the AI raced in it); the random sky roll applies
-only to a demo session. `-ApexShowcase=<file|id>`, `-ApexNoShowcase`,
+A stream's sky is the file's (the AI raced in it). `-ApexShowcase=<file|id>`, `-ApexNoShowcase`,
 `apexsim.spectate.Info` (source, epoch, rates, frames applied / dropped),
 `apexsim.spectate.Next`, `apexsim.demo.Restart`, `apexsim.demo.MaxMinutes`.
-Cameras and the demo session are in [cameras](cameras.md).
+The cameras are in [cameras](cameras.md).
 
 ## Watching a race
 

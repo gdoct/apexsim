@@ -38,8 +38,7 @@ same ([architecture.md](../architecture.md), determinism).
   points round it, shifted to stay inside 70-110; without one the mixed
   field, novice to ace. The same level is `--ai-level` on `apexsim-replay
   render` and `simulate` (`SimulateOptions::ai_level`, a showcase's
-  `ai_level`), `apexsim.demo.AiSkill` for the client's demo race and
-  `SURVEY_AI_LEVEL` for the survey; every one defaults to the mixed
+  `ai_level`) and `SURVEY_AI_LEVEL` for the survey; every one defaults to the mixed
   field, so showcases and guides replay as before. Names come from a fixed list; ids are random v4 in
   a live session.
 - **Cars.** The AI races in the host car's `class` (car.toml):
@@ -382,8 +381,7 @@ Fuel, tyres, brakes and damage themselves: [vehicle-physics.md](vehicle-physics.
 
 ## Other drivers built on it
 
-All call `ai_input_for` or the controller: the demo session and showcase
-renders ([../game/spectator.md](../game/spectator.md)); the cool-down driver
+All call `ai_input_for` or the controller: the showcase renders ([../game/spectator.md](../game/spectator.md)); the cool-down driver
 that takes a finished human's car (`COOLDOWN_SKILL` 75); the `[debug]
 stand_in_driver` hook ([operations.md](operations.md)); the hotlap watch's
 lone car (skill 110, `exact_line`, easing down a skill ladder after a crash

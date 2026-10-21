@@ -141,8 +141,8 @@ against it: no server process, no recorded stream, one simulation.
   No build stage renders a showcase or a guide and no package ships one:
   the server renders the showcases of its `[showcase] list` into its folder
   at startup the same way ([game/spectator.md](game/spectator.md#server-showcases)).
-  Next: the server's `HotlapWatch` kind and its stream path retire with
-  `SessionKind::Demo` (the work plan's X1).
+  A server refuses `Demo` and `HotlapWatch` creates: the game no longer asks
+  it for a backdrop race or a watched hotlap.
 - Showcases kept as a seed and re-simulated as they play, instead of a
   rendered `.apxs` in `Saved/`.
 - Replays as seed plus inputs, re-simulated on load, instead of streamed

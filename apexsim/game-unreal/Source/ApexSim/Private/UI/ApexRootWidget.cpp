@@ -2205,13 +2205,7 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 	}
 	BackStack.Reset();
 	const UApexNetSubsystem* JoinedNet = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
-	const bool bJoinedHotlap = JoinedNet && JoinedNet->IsHotlapWatch();
-	if (!bJoinedHotlap)
-	{
-		// (A watched hotlap is under way already, and the shell stays out of
-		// sight from the moment it is asked for.)
-		ActivateScreen(EApexScreen::SessionLobby);
-	}
+	ActivateScreen(EApexScreen::SessionLobby);
 
 	if (JoinedNet && JoinedNet->IsSessionSpectator())
 	{
@@ -2219,11 +2213,6 @@ void UApexRootWidget::HandleSessionJoined(const FString& SessionId, int32 GridPo
 		// the session's next telemetry when it is under way, in the lobby
 		// until then.
 		bWatchJoinPending = false;
-		if (bJoinedHotlap)
-		{
-			bHotlapJoinPending = false;
-			bHotlapWatchWanted = true;
-		}
 		if (WatchKind == EWatchKind::Backdrop)
 		{
 			StopWatching();
@@ -2896,14 +2885,13 @@ void UApexRootWidget::PushWatchState()
 	FString Source;
 	if (WatchKind == EWatchKind::Live)
 	{
-		const UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>();
-		Source = Net && Net->IsHotlapWatch() ? TEXT("hotlap") : TEXT("live");
+		Source = TEXT("live");
 	}
 	else if (WatchKind == EWatchKind::Backdrop)
 	{
 		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
 		const EApexBackdropSource From = Demo ? Demo->GetSource() : EApexBackdropSource::None;
-		Source = bHotlapWatchWanted && bHotlapStreamRoute ? TEXT("hotlap")
+		Source = bHotlapWatchWanted ? TEXT("hotlap")
 			: From == EApexBackdropSource::Replay ? TEXT("replay")
 			: From == EApexBackdropSource::Live        ? TEXT("live")
 			: From == EApexBackdropSource::Showcase    ? TEXT("showcase")
@@ -3073,20 +3061,13 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 				ApexUiAudio::Play(this, EApexUiSound::Adjust);
 			}
 			return;
-		// Streamed, the transport is a transport (below).
+		// The transport is a transport (below).
 		case EAction::PlayPause:
 		case EAction::SeekBack:
 		case EAction::SeekForward:
 		case EAction::Slower:
 		case EAction::Faster:
-			if (bHotlapStreamRoute)
-			{
-				break;
-			}
-			ChangeHotlapWatch(Command.Action == EAction::SeekBack || Command.Action == EAction::SeekForward
-				? EHotlapChoice::AirTemp : EHotlapChoice::Wind,
-				Command.Action == EAction::SeekBack || Command.Action == EAction::Slower ? -1 : 1);
-			return;
+			break;
 		case EAction::PreviousCar:    ChangeHotlapWatch(EHotlapChoice::Car, -1); return;
 		case EAction::NextCar:        ChangeHotlapWatch(EHotlapChoice::Car, 1); return;
 		case EAction::Weather:
@@ -3446,10 +3427,10 @@ bool UApexRootWidget::StartHotlapWatch()
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
 	UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
 	// Simulated here, a watch needs no server.
-	const bool bLocal = UApexSpectatorSubsystem::CanSimulateHotlap();
-	if (!Net || !Flow || (!Net->IsAuthenticated() && !bLocal))
+	FString Why;
+	if (!Net || !Flow || !UApexSpectatorSubsystem::CanSimulateHotlap(&Why))
 	{
-		ShowToast(TEXT("Not connected to a server yet"), true);
+		ShowToast(FString::Printf(TEXT("Cannot watch a hotlap here: %s"), *Why), true);
 		return false;
 	}
 	if (IsWatching() || bRaceViewActive || bHotlapWatchWanted)
@@ -3468,8 +3449,6 @@ bool UApexRootWidget::StartHotlapWatch()
 	HotlapTrackId = PickOption(Tracks, Flow->GetPendingTrackId())->Id;
 	HotlapCarId = PickOption(Cars, Flow->GetPendingCarId())->Id;
 	HotlapSetupId.Invalidate();
-	// Simulated here, or streamed by a server that streams a live session.
-	bHotlapStreamRoute = bLocal || Net->IsLiveStreamAvailable();
 	if (!bHotlapConditionsKnown)
 	{
 		// The first watch is under the sky of the last session set up; after
@@ -3525,26 +3504,19 @@ void UApexRootWidget::SendHotlapWatchRequest()
 	{
 		Net->SelectCar(HotlapCarId);
 	}
-	if (bHotlapStreamRoute)
+	UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+	FString Error;
+	if (!Demo || !Demo->WatchHotlap(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup, HotlapCarId, Error))
 	{
-		UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
-		FString Error;
-		if (!Demo || !Demo->WatchHotlap(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup, HotlapCarId, Error))
-		{
-			ShowToast(FString::Printf(TEXT("Cannot watch the hotlap: %s"), *Error), true);
-			StopWatching();
-			EndHotlapWatch();
-			return;
-		}
-		if (!IsWatching())
-		{
-			WatchBackdrop();
-			bWatchingLiveStream = true;
-		}
+		ShowToast(FString::Printf(TEXT("Cannot watch the hotlap: %s"), *Error), true);
+		StopWatching();
+		EndHotlapWatch();
+		return;
 	}
-	else
+	if (!IsWatching())
 	{
-		Net->CreateHotlapWatch(HotlapTrackId, Row.DisplayName, Row.YamlBaseName, HotlapConditions, Setup);
+		WatchBackdrop();
+		bWatchingLiveStream = true;
 	}
 	bHotlapJoinPending = true;
 	HotlapRequestedAt = FPlatformTime::Seconds();
@@ -3670,14 +3642,8 @@ void UApexRootWidget::ChangeHotlapWatch(EHotlapChoice Choice, int32 Direction)
 void UApexRootWidget::RestartHotlapWatch()
 {
 	HotlapRestartAt = -1.0;
-	// The old lap ends the way a race does (the server replaces its session
-	// without a word, so nothing else will say so); the shell stays out of
-	// sight until the new one is up (ApplyWatchLayers). A stream is replaced
-	// on the backdrop feed, which the watch view rides out.
-	if (!bHotlapStreamRoute)
-	{
-		SetRaceViewActive(false);
-	}
+	// The stream is replaced on the backdrop feed, which the watch view
+	// rides out; the shell stays out of sight (ApplyWatchLayers).
 	ApplyWatchLayers();
 	SendHotlapWatchRequest();
 }
@@ -3710,7 +3676,6 @@ void UApexRootWidget::EndHotlapWatch()
 {
 	bHotlapWatchWanted = false;
 	bHotlapJoinPending = false;
-	bHotlapStreamRoute = false;
 	HotlapRestartAt = -1.0;
 	// The watch chose its own car; the player's pick is the garage's again.
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
@@ -3738,39 +3703,29 @@ void UApexRootWidget::UpdateHotlapWatch()
 		RestartHotlapWatch();
 		return;
 	}
-	if (bHotlapStreamRoute)
+	const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
+	const UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+	if (!Demo || !Demo->IsWatchingLive())
 	{
-		const UApexDemoModeSubsystem* Demo = GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>();
-		const UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
-		if (!Demo || !Demo->IsWatchingLive())
-		{
-			// The stream was refused or ended: the demo has gone back to its
-			// own backdrop, which is not what was asked for.
-			UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the stream ended (%s)"), Spectator ? *Spectator->GetFailure() : TEXT("?"));
-			ShowToast(TEXT("The server did not start the hotlap"), true);
-			StopWatching();
-			EndHotlapWatch();
-			return;
-		}
-		if (bHotlapJoinPending && Spectator && Spectator->HasHeader())
-		{
-			bHotlapJoinPending = false;
-		}
+		// The simulation stopped: the demo has gone back to its own
+		// backdrop, which is not what was asked for.
+		UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the stream ended (%s)"), Spectator ? *Spectator->GetFailure() : TEXT("?"));
+		ShowToast(TEXT("The hotlap stopped"), true);
+		StopWatching();
+		EndHotlapWatch();
+		return;
 	}
-	// An answer that never comes: back to the menu rather than a blank screen.
+	if (bHotlapJoinPending && Spectator && Spectator->HasHeader())
+	{
+		bHotlapJoinPending = false;
+	}
+	// A first frame that never comes: back to the menu rather than a blank screen.
 	constexpr double GiveUpAfterSeconds = 15.0;
 	if (bHotlapJoinPending && HotlapRequestedAt >= 0.0 && Now - HotlapRequestedAt > GiveUpAfterSeconds)
 	{
-		UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: the server did not start it within %.0f s"), GiveUpAfterSeconds);
-		ShowToast(TEXT("The server did not start the hotlap"), true);
-		if (bHotlapStreamRoute)
-		{
-			StopWatching();
-		}
-		else if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
-		{
-			Net->LeaveSession();
-		}
+		UE_LOG(LogApexSim, Warning, TEXT("Hotlap watch: no lap within %.0f s"), GiveUpAfterSeconds);
+		ShowToast(TEXT("The hotlap did not start"), true);
+		StopWatching();
 		SetRaceViewActive(false);
 		EndHotlapWatch();
 		BackStack.Reset();

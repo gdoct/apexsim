@@ -20,10 +20,8 @@ enum class EApexBackdropSource : uint8
 	None,
 	/** The server's showcase channel: a rendered race it plays to everyone in the menu. */
 	Showcase,
-	/** A rendered race from `Showcase/` on this machine, needing no server. */
+	/** A rendered race on this machine (`Saved/ApexSim/Showcases/`), needing no server. */
 	LocalFile,
-	/** A `SessionKind::Demo` session simulated for this client (an older server). */
-	DemoSession,
 	/** A replay the player chose (UApexReplayRecorder): it stays until they leave it. */
 	Replay,
 	/** A live session the player chose to watch as a stream (SpectateSession): it stays until they leave it. */
@@ -43,8 +41,7 @@ enum class EApexBackdropSource : uint8
  *  2. a local `.apxs` the game rendered (`Saved/ApexSim/Showcases/`, below;
  *     `-ApexShowcaseDir=` adds folders): the pending track's file when one
  *     matches and its checksums agree with this machine's content, else any;
- *     this needs no server, so the startup splash can end on it offline;
- *  3. a `SessionKind::Demo` session, for a server that predates showcases.
+ *     this needs no server, so the startup splash can end on it offline.
  *
  * Every showcase of showcase.yml with no fresh file here (none, or its
  * track or a car changed since) is rendered by the game itself, one at a
@@ -60,11 +57,10 @@ enum class EApexBackdropSource : uint8
  * does that), and nothing here asks for another until the player is out of
  * their session again.
  *
- * A showcase's or a file's sky is the file's, because the AI raced in it;
- * only a demo session rolls one (`RollConditions`, `apexsim.demo.RandomSky`).
- * `apexsim.demo.Enabled 0` or `-ApexNoDemo` turns it all off; `-ApexNoShowcase`
- * keeps to demo sessions; `-ApexShowcase=<file|id>` names what to play;
- * `-ApexAutoRace` runs never start one.
+ * A showcase's or a file's sky is the file's, because the AI raced in it.
+ * `apexsim.demo.Enabled 0`, `-ApexNoDemo` or `-ApexNoShowcase` turns it all
+ * off; `-ApexShowcase=<file|id>` names what to play; `-ApexAutoRace` runs
+ * never start one.
  */
 UCLASS()
 class APEXSIM_API UApexDemoModeSubsystem : public UGameInstanceSubsystem
@@ -95,15 +91,6 @@ public:
 	 * longer before the next one, and the next-race key moves on sooner.
 	 */
 	void SetWatched(bool bInWatched) { bWatched = bInWatched; }
-
-	/**
-	 * A sky for one demo session, in quarter hours like the create screen.
-	 * Weighted so the menu is mostly over dry daylight: weather sunny 38,
-	 * cloudy 30, overcast 22, light rain 6, heavy rain 4 (out of 100: rain
-	 * one race in ten); the clock 08:00-17:45 70%, dawn (06:00-07:45) or dusk
-	 * (18:00-20:45) 20%, night 10%.
-	 */
-	static FApexSessionConditions RollConditions(FRandomStream& Random);
 
 	/** The track the backdrop is on (or being started on), by id. */
 	const FString& GetDemoTrackId() const { return TrackId; }
@@ -192,10 +179,6 @@ private:
 	bool StartBackdrop(UApexNetSubsystem& Net);
 	bool StartShowcase(UApexNetSubsystem& Net);
 	bool StartLocalFile(UApexNetSubsystem& Net);
-	bool StartDemoSession(UApexNetSubsystem& Net);
-
-	/** The circuit for a demo session: the player's own track when it has a level, else another. */
-	bool ChooseTrack(const UApexNetSubsystem& Net);
 	/** `-ApexShowcase=` names a file on disk (not an id). */
 	bool IsForcedShowcaseFile() const;
 	/** The local showcase files with their headers, read once and kept. */
@@ -263,7 +246,6 @@ private:
 	bool bWatched = false;
 	/** Consecutive requests that came to nothing, for the back-off. */
 	int32 Failures = 0;
-	bool bWarnedNoTracks = false;
 
 	/** The game's own showcase renders; null when off or impossible here. */
 	TUniquePtr<FApexShowcaseRenderer> Renderer;

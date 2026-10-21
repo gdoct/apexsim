@@ -102,7 +102,7 @@ pub async fn handle(
 
     match (method, segments.as_slice()) {
         (&Method::GET, ["overview"]) => overview(ctx).await,
-        (&Method::GET, ["sessions"]) => sessions(ctx, param(&q, "demo") == Some("1")).await,
+        (&Method::GET, ["sessions"]) => sessions(ctx).await,
         (&Method::GET, ["sessions", id]) => match id.parse::<Uuid>() {
             Ok(id) => session_detail(ctx, id).await,
             Err(_) => error(StatusCode::BAD_REQUEST, "bad session id"),
@@ -187,15 +187,10 @@ async fn overview(ctx: &AdminContext) -> Resp {
     };
     let (sessions, humans_in_sessions, tick_rate, cfg) = {
         let st = ctx.state.read().await;
-        let sessions = st
-            .sessions
-            .values()
-            .filter(|s| !s.session.session_kind.is_watch_only())
-            .count();
+        let sessions = st.sessions.len();
         let humans = st
             .sessions
             .values()
-            .filter(|s| !s.session.session_kind.is_watch_only())
             .map(|s| {
                 s.session
                     .participants
@@ -301,12 +296,11 @@ fn session_elapsed_s(gs: &GameSession) -> f64 {
     }
 }
 
-async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
+async fn sessions(ctx: &AdminContext) -> Resp {
     let st = ctx.state.read().await;
     let mut list: Vec<(f64, Value)> = st
         .sessions
         .values()
-        .filter(|s| with_demo || !s.session.session_kind.is_watch_only())
         .map(|gs| {
             let humans = gs
                 .session
@@ -329,7 +323,6 @@ async fn sessions(ctx: &AdminContext, with_demo: bool) -> Resp {
                     "qualifying_seconds": gs.session.qualifying_seconds,
                     "weekend": gs.session.weekend,
                     "elapsed_s": elapsed,
-                    "demo": gs.session.session_kind.is_watch_only(),
                     "hosted": gs.hosted,
                     "restartable": ctx.hosted.spec(gs.session.id).is_some(),
                     "awaits_advance": gs.awaits_weekend_advance(),
@@ -587,11 +580,7 @@ async fn players(ctx: &AdminContext) -> Resp {
             "muted": st.chat.is_muted(&c.player_id),
         }));
     }
-    for gs in st
-        .sessions
-        .values()
-        .filter(|gs| !gs.session.session_kind.is_watch_only())
-    {
+    for gs in st.sessions.values() {
         for (pid, profile) in &gs.ai_profiles {
             let car = gs
                 .session

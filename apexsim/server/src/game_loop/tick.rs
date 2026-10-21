@@ -137,19 +137,12 @@ pub(crate) async fn tick_sessions(
         // Keep session alive if it's in Demo Lap mode with AI drivers
         let is_demo_lap_with_ai = game_session.session.game_mode == GameMode::DemoLap
             && !game_session.session.ai_player_ids.is_empty();
-        // A demo session never has a human participant: it lives as long as
-        // its spectator does, and the lobby removes it when they leave.
-        // (A watched hotlap is the same: one AI car, one spectator.)
-        let is_demo_session = game_session.session.session_kind.is_watch_only();
-        // A demo's field is menu scenery and nobody reads its splits; a
-        // watched hotlap exists to show them.
-        let sends_timing = game_session.session.session_kind != SessionKind::Demo;
 
         // A hosted session is the server's: it runs (or waits in its lobby)
         // with nobody in it, until the dashboard ends it.
         let is_hosted = game_session.hosted;
 
-        if real_player_count == 0 && !is_demo_lap_with_ai && !is_demo_session && !is_hosted {
+        if real_player_count == 0 && !is_demo_lap_with_ai && !is_hosted {
             debug!(
                 "Session {} has no real players, marking for removal",
                 session_id
@@ -160,7 +153,7 @@ pub(crate) async fn tick_sessions(
 
         // Every human here has lost their connection: their seats are held
         // for the grace period, then the session ends.
-        let orphaned = !is_demo_session && !is_hosted && !game_session.has_connected_driver();
+        let orphaned = !is_hosted && !game_session.has_connected_driver();
         if finished_session_expired(
             &mut game_session.orphaned_since_loop_tick,
             orphaned,
@@ -259,12 +252,11 @@ pub(crate) async fn tick_sessions(
         // A weekend's phase begins between ticks (`AdvanceWeekend`), already
         // racing by the time the tick sees it: each phase is its own replay.
         let phase_started = game_session.take_phase_started();
-        let replay_starting = !is_demo_session
-            && ((prev_state != SessionState::Racing && new_state == SessionState::Racing)
-                || (phase_started && new_state == SessionState::Racing));
-        let replay_stopping = !is_demo_session
-            && prev_state == SessionState::Racing
-            && new_state == SessionState::Finished;
+        let replay_starting = (prev_state != SessionState::Racing
+            && new_state == SessionState::Racing)
+            || (phase_started && new_state == SessionState::Racing);
+        let replay_stopping =
+            prev_state == SessionState::Racing && new_state == SessionState::Finished;
         let stream_wanted =
             state.live.has_viewers(session_id) && !state.streams.contains_key(session_id);
         if player_names.is_none()
@@ -338,13 +330,10 @@ pub(crate) async fn tick_sessions(
             })
             .cloned()
             .collect();
-        // Timing lines crossed this tick. Reliable, and never for a demo:
-        // its AI field is menu scenery and nobody is watching the splits.
+        // Timing lines crossed this tick. Reliable.
         let lap_events = game_session.take_lap_events();
         // A weekend day under its own sky: every human's line at once.
-        let line_refresh: Vec<PlayerId> = if is_demo_session {
-            Vec::new()
-        } else if game_session.take_day_lines_due() {
+        let line_refresh: Vec<PlayerId> = if game_session.take_day_lines_due() {
             player_recipients.clone()
         } else {
             lap_events
@@ -411,70 +400,68 @@ pub(crate) async fn tick_sessions(
         if !lap_events.is_empty() {
             let track_id = game_session.track_config.id;
             let events = lap_events;
-            if sends_timing {
-                for out in events {
-                    let Some(car_index) = game_session.car_index_of(&out.player_id) else {
-                        continue;
-                    };
-                    let is_ai = game_session.session.ai_player_ids.contains(&out.player_id);
-                    // A lap the server drove for an away driver is not theirs.
-                    let recordable = !is_ai && !game_session.is_away(&out.player_id);
-                    let mut flags = 0u8;
-                    if out.event.personal_best_lap {
-                        flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_LAP;
-                    }
-                    if out.session_best_lap {
-                        flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_LAP;
-                    }
-                    if out.event.personal_best_sector {
-                        flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_SECTOR;
-                    }
-                    if out.session_best_sector {
-                        flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_SECTOR;
-                    }
-                    let lap_time_ms = out.event.lap_time_ms.unwrap_or(0);
-                    let qualifying = match out.event.lap_time_ms {
-                        Some(ms) if out.event.valid => {
-                            game_session.note_qualifying_lap(out.player_id, ms)
-                        }
-                        _ => None,
-                    };
-                    let record = match (out.event.lap_time_ms, recordable) {
-                        (Some(lap_time_ms), true) if out.event.valid => game_session
-                            .session
-                            .participants
-                            .get(&out.player_id)
-                            .map(|state| RecordSubmission {
-                                player_id: out.player_id,
-                                player_name: player_names
-                                    .get(&out.player_id)
-                                    .cloned()
-                                    .unwrap_or_default(),
-                                track_id,
-                                car_config_id: state.car_config_id,
-                                lap_time_ms,
-                                splits_ms: out.event.splits_ms,
-                                ghost: out.ghost,
-                            }),
-                        _ => None,
-                    };
-                    lap_timing_out.push(LapTimingOut {
-                        session_id: *session_id,
-                        player_recipients: player_recipients.clone(),
-                        msg: ServerMessage::LapTiming(crate::network::LapTimingData {
-                            car_index,
-                            lap: out.event.lap,
-                            sector: out.event.sector,
-                            sector_time_ms: out.event.sector_time_ms,
-                            lap_time_ms,
-                            is_lap_end: out.event.lap_time_ms.is_some(),
-                            valid: out.event.valid,
-                            flags,
-                        }),
-                        record,
-                        qualifying,
-                    });
+            for out in events {
+                let Some(car_index) = game_session.car_index_of(&out.player_id) else {
+                    continue;
+                };
+                let is_ai = game_session.session.ai_player_ids.contains(&out.player_id);
+                // A lap the server drove for an away driver is not theirs.
+                let recordable = !is_ai && !game_session.is_away(&out.player_id);
+                let mut flags = 0u8;
+                if out.event.personal_best_lap {
+                    flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_LAP;
                 }
+                if out.session_best_lap {
+                    flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_LAP;
+                }
+                if out.event.personal_best_sector {
+                    flags |= crate::network::LapTimingData::FLAG_PERSONAL_BEST_SECTOR;
+                }
+                if out.session_best_sector {
+                    flags |= crate::network::LapTimingData::FLAG_SESSION_BEST_SECTOR;
+                }
+                let lap_time_ms = out.event.lap_time_ms.unwrap_or(0);
+                let qualifying = match out.event.lap_time_ms {
+                    Some(ms) if out.event.valid => {
+                        game_session.note_qualifying_lap(out.player_id, ms)
+                    }
+                    _ => None,
+                };
+                let record = match (out.event.lap_time_ms, recordable) {
+                    (Some(lap_time_ms), true) if out.event.valid => game_session
+                        .session
+                        .participants
+                        .get(&out.player_id)
+                        .map(|state| RecordSubmission {
+                            player_id: out.player_id,
+                            player_name: player_names
+                                .get(&out.player_id)
+                                .cloned()
+                                .unwrap_or_default(),
+                            track_id,
+                            car_config_id: state.car_config_id,
+                            lap_time_ms,
+                            splits_ms: out.event.splits_ms,
+                            ghost: out.ghost,
+                        }),
+                    _ => None,
+                };
+                lap_timing_out.push(LapTimingOut {
+                    session_id: *session_id,
+                    player_recipients: player_recipients.clone(),
+                    msg: ServerMessage::LapTiming(crate::network::LapTimingData {
+                        car_index,
+                        lap: out.event.lap,
+                        sector: out.event.sector,
+                        sector_time_ms: out.event.sector_time_ms,
+                        lap_time_ms,
+                        is_lap_end: out.event.lap_time_ms.is_some(),
+                        valid: out.event.valid,
+                        flags,
+                    }),
+                    record,
+                    qualifying,
+                });
             }
         }
 
@@ -499,9 +486,6 @@ pub(crate) async fn tick_sessions(
         // Pit stops the crews started this tick: what each one does, for
         // the pit-stop panel. Reliable, like the timing.
         for (player_id, service) in pit_starts {
-            if is_demo_session {
-                continue;
-            }
             let Some(car_index) = game_session.car_index_of(&player_id) else {
                 continue;
             };
@@ -519,9 +503,6 @@ pub(crate) async fn tick_sessions(
         // Each driver's own box, once it is dealt: what a driver who drives
         // the lane aims for, and the camera's place at the stop.
         for (player_id, pit_box) in game_session.take_pit_box_news() {
-            if is_demo_session {
-                continue;
-            }
             lap_timing_out.push(LapTimingOut {
                 session_id: *session_id,
                 player_recipients: vec![player_id],
@@ -665,7 +646,6 @@ pub(crate) async fn tick_sessions(
 
         // A race that finished this tick leaves its classification.
         if results_dir.is_some()
-            && !is_demo_session
             && game_session.session.game_mode == GameMode::Race
             && prev_state != SessionState::Finished
             && new_state == SessionState::Finished
@@ -852,17 +832,6 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
 
     // Cleanup finished sessions (older than timeout)
     let timeout_seconds = state_write.config.server.session_timeout_seconds as u64;
-    // A watched hotlap's driver, as eased down so far, and its fastest lap
-    // are kept for the next watch of the same track and car.
-    let watches: Vec<SessionId> = state_write
-        .sessions
-        .iter()
-        .filter(|(_, s)| s.is_hotlap_watch())
-        .map(|(id, _)| *id)
-        .collect();
-    for id in watches {
-        state_write.keep_hotlap_watch(&id);
-    }
     state_write.sessions.retain(|id, session| {
         // A weekend waiting for its host between phases stays while anyone
         // is there to advance it; the reconnect grace ends it when all are

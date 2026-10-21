@@ -32,20 +32,19 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 3 |
-| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 4 |
-| R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 4, 6 |
-| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 4, 6 |
-| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 5 |
-| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 6 |
-| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 6 |
-| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 6 |
-| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 7 |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 7 |
-| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 7 |
-| X1 | `SessionKind::Demo` and `HotlapWatch` removal | Cleanup | P3 | 🟢 | S | 2 |
-| R8 | Race control's edges: safety-car overlap, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 3 |
-| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 5 |
+| A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 2 |
+| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
+| R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 3, 5 |
+| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 3, 5 |
+| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
+| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 5 |
+| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 5 |
+| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 5 |
+| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 6 |
+| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 6 |
+| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 6 |
+| R8 | Race control's edges: safety-car overlap, formation warmth, two-by-two rolling start (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 2 |
+| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 4 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S | — |
@@ -76,22 +75,19 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **X1** on top of N28 (built 2026-10-21: the game and the server make
-   their own showcases, guides and watched hotlaps; no build stage renders
-   any). Before N26, which then carries none of them.
-3. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
+2. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
    (follow-ups #20); R8's edges where they touch
    the same files.
-4. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
+3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install), R3 phase 1 (a key per install), N7 (an offline season).
    N26 phase 2 waits on the repository and the signing key.
-5. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
-6. **Online and depth.** N5 (multi-class) with A3 (its speed differences
+4. **Visual quality pass.** G4 and N10, checked together on the RTX machine.
+5. **Online and depth.** N5 (multi-class) with A3 (its speed differences
    stress side by side), N11 (liveries), then the rest of R3, and N7
    online on top of identity.
-7. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
+6. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups wait on T2), P3 on an integrated-GPU machine.
-8. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+7. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -301,13 +297,6 @@ Planned block by block, with the agent's prep and follow-up, in
 - **Launcher AC import with the network off** — last.
 
 ### Cleanup
-
-#### X1. Remove `SessionKind::Demo` — P3 · 🟢 · S
-Showcases now exist wherever a list is in reach (the game and the server
-render their own); the backdrop still falls back to it while none is
-playable yet, and `HotlapWatch` shares its create path, which the game's
-own watch (`LocalWatch`) makes unused.
-Wire: remove only by leaving the variant decodable (append-only rule).
 
 ### New features (added 2026-10-16, also in the roadmap)
 

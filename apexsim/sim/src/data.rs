@@ -2285,23 +2285,20 @@ pub enum SessionKind {
     Multiplayer = 0,
     Practice = 1,
     // 2 was Sandbox, which had no behaviour; never reuse it.
-    /// An AI-only race the creator watches: the backdrop behind a client's
-    /// menu. Unlisted, unjoinable, spectated by its creator, counted straight
-    /// into a race, and never recorded as a replay. It ends when its last
-    /// spectator leaves.
+    /// An AI-only race nobody drives: what a showcase (the menu's backdrop)
+    /// is rendered from. A server refuses to create one; it stays on the
+    /// wire so older streams and clients decode.
     Demo = 3,
     /// One AI car lapping the track alone, on the line and at the speed its
-    /// car can manage, for the creator to watch (the menu's "Watch hotlap").
-    /// Built on demand for the car, the weather and the hour the creator
-    /// picked, so changing any of them is a new session.
-    /// Unlisted, unjoinable, spectated by its creator and never recorded as
-    /// a replay, like a demo; unlike a demo its timing lines are sent.
+    /// car can manage (the menu's "Watch hotlap"), simulated by the game
+    /// itself (`hotlap_watch::LocalWatch`) for the car, setup and sky the
+    /// player picked. A server refuses to create one.
     HotlapWatch = 4,
 }
 
 impl SessionKind {
-    /// A session its creator only watches: no human takes a seat, it is
-    /// unlisted, and it lives as long as its spectator does.
+    /// A session nobody drives, which the game simulates for itself and a
+    /// server refuses to create.
     pub fn is_watch_only(self) -> bool {
         matches!(self, SessionKind::Demo | SessionKind::HotlapWatch)
     }

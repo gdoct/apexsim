@@ -99,7 +99,7 @@ pub(crate) async fn handle_message(
             grid_order,
             qualifying_seconds,
             weekend,
-            watch,
+            watch: _,
             qualifying_cutoff_pct,
             mandatory_stops,
             compound_change,
@@ -123,7 +123,6 @@ pub(crate) async fn handle_message(
                 grid_order,
                 qualifying_seconds,
                 weekend,
-                watch.unwrap_or_default(),
                 qualifying_cutoff_pct,
                 crate::data::PitRule::clamped(mandatory_stops, compound_change),
                 (qualifying_format, qualifying_lap_allowance),
@@ -386,7 +385,6 @@ async fn handle_create_session(
     grid_order: Vec<String>,
     qualifying_seconds: Option<u32>,
     weekend: Option<crate::weekend::WeekendFormat>,
-    watch: crate::network::HotlapWatchOptions,
     qualifying_cutoff_pct: Option<u16>,
     pit_rule: crate::data::PitRule,
     (qualifying_format, qualifying_lap_allowance): (crate::data::QualifyingFormat, u8),
@@ -396,65 +394,28 @@ async fn handle_create_session(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
+    // The menu's backdrop and Watch hotlap are simulated by the game itself
+    // (showcases, `hotlap_watch::LocalWatch`); the kinds stay decodable.
+    if session_kind.is_watch_only() {
+        ctx.send_error(
+            connection_id,
+            400,
+            "This server does not run demo or watched-hotlap sessions; the game makes its own",
+        )
+        .await;
+        return;
+    }
     let mut state_write = ctx.state.write().await;
 
     // Driving in a new session gives up a seat held in another.
-    if !session_kind.is_watch_only() {
-        if let Some(seat) = held_seat(&state_write, &conn_info).await {
-            lifecycle::give_up_seat(&mut state_write, conn_info.player_id, seat).await;
-        }
+    if let Some(seat) = held_seat(&state_write, &conn_info).await {
+        lifecycle::give_up_seat(&mut state_write, conn_info.player_id, seat).await;
     }
 
-    // A demo is watched, not driven, so it needs no car of the host's: it
-    // falls back to the default AI car (smallest id, for determinism). A
-    // watched hotlap is the same, with one AI car in the host's own car.
-    let is_demo = session_kind.is_watch_only();
-    let is_hotlap_watch = session_kind == SessionKind::HotlapWatch;
-    let selected_car = state_write.lobby.get_player_car(conn_info.player_id).await;
-    let fallback_car = || state_write.car_configs.keys().min().copied();
-    let car_id = if is_demo {
-        selected_car.or_else(fallback_car)
-    } else {
-        selected_car
-    };
-    // Nobody but the AI takes a seat in a demo; a watched hotlap is one car
-    // at the top of the scale.
-    let (max_players, ai_count, ai_skill) = if is_hotlap_watch {
-        (1, 1, Some(crate::game_session::HOTLAP_WATCH_SKILL))
-    } else if is_demo {
-        (ai_count.max(1), ai_count, ai_skill)
-    } else {
-        (max_players, ai_count, ai_skill)
-    };
-    if is_hotlap_watch {
-        // One session per player: a hotlap being watched makes way for the
-        // next (another car, another sky), without a word to the client,
-        // which is asking for the replacement. (One watched as a stream went
-        // with the implied `LeaveSpectate`: `showcase::leave`.)
-        if let Some(old) = state_write
-            .lobby
-            .get_spectating_session(conn_info.player_id)
-            .await
-        {
-            if state_write
-                .sessions
-                .get(&old)
-                .is_some_and(|s| s.session.session_kind == SessionKind::HotlapWatch)
-            {
-                state_write
-                    .lobby
-                    .leave_session(conn_info.player_id, connection_id)
-                    .await;
-                state_write.keep_hotlap_watch(&old);
-                state_write.sessions.remove(&old);
-                state_write.lobby.unregister_session(old).await;
-            }
-        }
-    }
-
-    // The dashboard's switched-off content is refused (a demo picks its own).
+    let car_id = state_write.lobby.get_player_car(conn_info.player_id).await;
+    // The dashboard's switched-off content is refused.
     let switched_off = state_write.disabled_content.contains(&track_config_id)
-        || (!is_demo && car_id.is_some_and(|id| state_write.disabled_content.contains(&id)));
+        || car_id.is_some_and(|id| state_write.disabled_content.contains(&id));
     if switched_off {
         drop(state_write);
         ctx.send_error(
@@ -530,18 +491,6 @@ async fn handle_create_session(
         game_session.set_race_rules(race_rules);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
     }
-    if is_hotlap_watch {
-        if let Some(setup) = watch.setup {
-            if let Some(game_session) = state_write.sessions.get_mut(&session_id) {
-                game_session.set_hotlap_watch_setup(setup);
-            }
-        }
-        // What an earlier watch of this circuit and car left: the driver as
-        // far down the ladder as it went (for this weather and setup), and
-        // the fastest lap anyone watched, as the ghost.
-        state_write.resume_hotlap_watch(&session_id);
-    }
-
     // Register session in lobby
     let track_name = state_write
         .track_configs
@@ -587,35 +536,13 @@ async fn handle_create_session(
         current_player_count: 0, // join_session will increment this
         spectator_count: 0,
         state: SessionState::Lobby,
-        // Unlisted: a demo is one client's menu backdrop.
-        visibility: if is_demo {
-            SessionVisibility::Private
-        } else {
-            SessionVisibility::Public
-        },
+        visibility: SessionVisibility::Public,
         password_hash: None,
         created_at: std::time::Instant::now(),
         persistent: false,
     };
 
     state_write.lobby.register_session(session_info).await;
-
-    if is_hotlap_watch && watch.stream {
-        start_streamed_hotlap_watch(ctx, state_write, &conn_info, connection_id, session_id).await;
-        return;
-    }
-    if is_demo {
-        start_demo_session(
-            ctx,
-            state_write,
-            &conn_info,
-            connection_id,
-            session_id,
-            session_kind,
-        )
-        .await;
-        return;
-    }
 
     // Join host to their own session (lobby and game session)
     let joined = state_write
@@ -737,165 +664,6 @@ async fn handle_create_session(
         ctx.send_error(connection_id, 500, "Failed to add player to game session")
             .await;
     }
-}
-
-/// Seconds of grid before a demo race goes green: long enough for the
-/// client's broadcast camera to open on the grid.
-const DEMO_COUNTDOWN_SECONDS: u16 = 8;
-
-/// Second half of creating a `HotlapWatch` watched as a stream: the creator
-/// goes on the session's spectator stream, as `SpectateSession` puts a
-/// viewer (`SpectatorJoined`, then the catch-up and the records as it
-/// ticks), with the corners for the HUD ahead of it. Not a participant and
-/// not a spectator of the session: nothing holds a seat, and the session
-/// goes when they stop watching (`showcase::leave`).
-async fn start_streamed_hotlap_watch(
-    ctx: &GameLoopCtx,
-    mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
-    conn_info: &ConnectionInfo,
-    connection_id: ConnectionId,
-    session_id: SessionId,
-) {
-    let corners = state_write
-        .sessions
-        .get(&session_id)
-        .and_then(|s| s.track_corners_message(session_id));
-    state_write.showcase.leave(&conn_info.player_id);
-    state_write.live.join(conn_info.player_id, session_id);
-    drop(state_write);
-    debug!(
-        "Hotlap watch {} streamed to player {}",
-        session_id, conn_info.player_name
-    );
-    let _ = ctx
-        .send(
-            connection_id,
-            ServerMessage::SpectatorJoined(crate::network::SpectatorJoinedData {
-                stream_id: session_id,
-                kind: crate::network::SpectatorKind::Live,
-                showcase_id: String::new(),
-            }),
-        )
-        .await;
-    if let Some(msg) = corners {
-        let _ = ctx.send(connection_id, msg).await;
-    }
-}
-
-/// Second half of creating a `SessionKind::Demo` or `HotlapWatch`: the host
-/// watches as a spectator (so no car of theirs is on the grid). A demo's AI
-/// field is counted straight into a race, since nobody will ever press
-/// start; a watched hotlap is already under way (`start_hotlap_watch`).
-async fn start_demo_session(
-    ctx: &GameLoopCtx,
-    mut state_write: tokio::sync::RwLockWriteGuard<'_, crate::server::ServerState>,
-    conn_info: &ConnectionInfo,
-    connection_id: ConnectionId,
-    session_id: SessionId,
-    session_kind: SessionKind,
-) {
-    let (conditions, ai_skill, race_seconds, qualifying_seconds) = state_write
-        .sessions
-        .get(&session_id)
-        .map(|s| {
-            (
-                s.session.conditions,
-                s.session.ai_skill,
-                s.session.race_seconds,
-                s.session.qualifying_seconds,
-            )
-        })
-        .unwrap_or_default();
-    let joined = state_write
-        .lobby
-        .join_as_spectator(conn_info.player_id, session_id)
-        .await;
-    let started = joined
-        && match state_write.sessions.get_mut(&session_id) {
-            Some(game_session) => {
-                if session_kind == SessionKind::Demo {
-                    game_session.start_countdown_mode(DEMO_COUNTDOWN_SECONDS, GameMode::Race);
-                }
-                true
-            }
-            None => false,
-        };
-    // What a watcher of a hotlap needs ahead of the first frame: where the
-    // sector lines are (the roster follows with the next tick) and the
-    // corners.
-    let watch_messages: Vec<ServerMessage> = if session_kind == SessionKind::HotlapWatch {
-        state_write
-            .sessions
-            .get(&session_id)
-            .map(|s| {
-                let mut out = vec![ServerMessage::TrackSectors(TrackSectorsData {
-                    session_id,
-                    track_length_m: s.track_length_m(),
-                    boundaries_m: s.sector_boundaries_m(),
-                })];
-                out.extend(s.track_corners_message(session_id));
-                out
-            })
-            .unwrap_or_default()
-    } else {
-        Vec::new()
-    };
-    // The road as it is, for the demo backdrop and the watched hotlap alike.
-    let mut watch_messages = watch_messages;
-    if let Some(s) = state_write.sessions.get(&session_id) {
-        watch_messages.extend(road_state_full(s, session_id));
-    }
-    if !started {
-        warn!(
-            "Demo session {} for player {} could not be started",
-            session_id, conn_info.player_id
-        );
-        state_write
-            .lobby
-            .leave_session(conn_info.player_id, connection_id)
-            .await;
-        state_write.sessions.remove(&session_id);
-        state_write.lobby.unregister_session(session_id).await;
-        drop(state_write);
-        ctx.send_error(connection_id, 500, "Failed to start demo session")
-            .await;
-        return;
-    }
-    drop(state_write);
-
-    debug!(
-        "Demo session {} started for player {}",
-        session_id, conn_info.player_name
-    );
-    let _ = ctx
-        .send(
-            connection_id,
-            ServerMessage::SessionJoined(SessionJoinedData {
-                session_id,
-                your_grid_position: 0, // 0 indicates spectator
-                session_kind,
-                allowed_assists: AllowedAssists::ALL,
-                conditions,
-                damage: DamageLevel::Full,
-                ai_skill,
-                race_seconds,
-                qualifying_seconds,
-                weekend: None,
-                qualifying_cutoff_pct: None,
-                mandatory_stops: 0,
-                compound_change: false,
-                qualifying_format: QualifyingFormat::Open,
-                qualifying_lap_allowance: 0,
-                race_rules: Default::default(),
-                physics: None,
-            }),
-        )
-        .await;
-    for msg in watch_messages {
-        let _ = ctx.send(connection_id, msg).await;
-    }
-    ctx.set_player_session(connection_id, Some(session_id))
-        .await;
 }
 
 pub(crate) async fn handle_join_session(

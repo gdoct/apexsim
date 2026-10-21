@@ -8,7 +8,6 @@ mod admin_test;
 mod auth_test;
 mod common;
 mod demo_lap_tests;
-mod demo_session_test;
 mod grid_order_test;
 mod hotlap_test;
 mod hotlap_watch_test;

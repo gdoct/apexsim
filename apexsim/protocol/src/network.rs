@@ -42,10 +42,9 @@ pub const PROTOCOL_VERSION: u8 = 2;
 /// `watch`).
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
 pub struct HotlapWatchOptions {
-    /// Put the creator on the session's spectator stream
-    /// (`SpectatorJoined`, then the records, as `SpectateSession` does)
-    /// instead of the racer telemetry of `JoinAsSpectator`; the session
-    /// ends when they stop watching it.
+    /// Asked a server to stream the watch to its creator; read by nothing
+    /// since the game simulates its own watch (kept so older clients'
+    /// messages decode).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub stream: bool,
     /// The setup the AI car runs (clamped as `SetCarSetup` is); stock when
@@ -143,8 +142,9 @@ pub enum ClientMessage {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         weekend: Option<crate::weekend::WeekendFormat>,
         /// A watched hotlap's own choices (`SessionKind::HotlapWatch`
-        /// only): the creator watches it as a stream, and the AI car runs
-        /// a setup. Left off the wire when absent.
+        /// only, read by the game's `hotlap_watch::LocalWatch`; a server
+        /// refuses the kind): the setup the AI car runs. Left off the wire
+        /// when absent.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         watch: Option<HotlapWatchOptions>,
         /// The qualifying cut-off, percent of pole (107 for the 107% rule,

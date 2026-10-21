@@ -185,20 +185,13 @@ deliver (`EApexBackdropSource`):
 2. a local `.apxs` the game rendered itself (`Saved/ApexSim/Showcases/`)
    whose checksums match this machine's content, the pending track's
    first; needs no server;
-3. a `SessionKind::Demo` session, for a server without showcases;
-4. a replay the player chose (`PlayReplay`), which holds on its end.
+3. a replay, a live session or a watched hotlap the player chose
+   (`PlayReplay`, `WatchLive`, `WatchHotlap`), which holds until they leave it.
 
-The first two are described in [spectator.md](spectator.md).
-
-**Demo sessions.** Unlisted, unjoinable, spectated by their creator, counted
-straight into a race, no replay written, removed when the spectator leaves.
-`SessionJoined` carries `SessionKind`; `UApexNetSubsystem` keeps a demo out of
-every session delegate (`OnDemoSessionChanged` instead; `IsInSession()` is
-false, `IsInDemoSession()` true) and leaves it by itself before any create or
-join. Each demo session rolls its own sky (`RollConditions`: mostly dry
-daylight, with rain, dusk and night in the mix) and sends it as the create's
-`conditions`, so the server bakes the grip for the AI; `apexsim.demo.RandomSky 0`
-keeps sunny 13:00. A showcase or file keeps the sky it was rendered in.
+The first two are described in [spectator.md](spectator.md). Each plays on
+the backdrop feed (`BeginBackdropFeed`: `OnDemoSessionChanged`,
+`IsInDemoSession()` true, `IsInSession()` false), and keeps the sky it was
+rendered in.
 
 **On screen.** The demo view builds the track (the pending track when it has
 an export). The root widget fades page backgrounds by the director's
@@ -208,11 +201,9 @@ demo world, because the turntable shares it. The backdrop moves on after a
 finished race, a track change, `apexsim.spectate.Next` or
 `apexsim.demo.MaxMinutes` (12).
 
-- Off: `-ApexNoDemo` or `apexsim.demo.Enabled 0`; `-ApexAutoRace` never starts
-  one; `-ApexNoShowcase` keeps to demo sessions; `-ApexShowcase=<file|id>`.
-- `apexsim.demo.AiCount` (10), `apexsim.demo.Laps` (3), `apexsim.demo.Restart`;
-  `apexsim.demo.AiSkill` (-1, the mixed field) sends a demo session's AI
-  level as the create's `ai_skill`, 70-110.
+- Off: `-ApexNoDemo`, `-ApexNoShowcase` or `apexsim.demo.Enabled 0`;
+  `-ApexAutoRace` never starts one; `-ApexShowcase=<file|id>`;
+  `apexsim.demo.Restart`.
 - The startup splash waits on `IsDemoExpected` / `AApexRaceDirector::IsDemoReady`
   ([client.md](client.md#startup-splash-hold-apexsimboot-uapexstartupsplashsubsystem)).
 

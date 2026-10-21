@@ -175,17 +175,11 @@ bool UApexSpectatorSubsystem::WatchLive(const FString& SessionId)
 
 bool UApexSpectatorSubsystem::CanSimulateHotlap(FString* OutWhy)
 {
-	static TAutoConsoleVariable<int32> CVarLocalWatch(
-		TEXT("apexsim.watch.Local"),
-		1,
-		TEXT("1 simulates Watch hotlap in the game (the physics library) when it can; 0 asks the server for it."),
-		ECVF_Default);
 	FString Why, TracksDir, CarsDir;
-	const bool bCan = CVarLocalWatch.GetValueOnGameThread() != 0 && ApexPhysics::IsAvailable(&Why)
-		&& ApexSimContent::Find(TracksDir, CarsDir, Why);
+	const bool bCan = ApexPhysics::IsAvailable(&Why) && ApexSimContent::Find(TracksDir, CarsDir, Why);
 	if (OutWhy)
 	{
-		*OutWhy = CVarLocalWatch.GetValueOnGameThread() == 0 ? FString(TEXT("apexsim.watch.Local is 0")) : Why;
+		*OutWhy = Why;
 	}
 	return bCan;
 }
@@ -211,7 +205,7 @@ bool UApexSpectatorSubsystem::StartLocalHotlap(const FString& TrackConfigId, con
 	}
 	// Any car, the player's own among them: the cars folder holds both.
 	const FString CarsRoot = FPaths::GetCleanFilename(CarsDir) == TEXT("default") ? FPaths::GetPath(CarsDir) : CarsDir;
-	// The create a server would get (SpectateHotlapWatch's).
+	// The create a server once took for a watch: the setup rides in it.
 	ApexProtocol::FHotlapWatchOptions Options;
 	Options.bStream = true;
 	if (Setup)
@@ -280,28 +274,11 @@ bool UApexSpectatorSubsystem::WatchHotlap(const FString& TrackConfigId, const FS
 	const FApexSessionConditions& Conditions, const FApexCarSetup* Setup, const FString& CarId, FString& OutError)
 {
 	Stop();
-	FString Why;
-	if (CanSimulateHotlap(&Why))
+	if (!CanSimulateHotlap(&OutError))
 	{
-		if (StartLocalHotlap(TrackConfigId, TrackName, TrackStem, Conditions, Setup, CarId, OutError))
-		{
-			return true;
-		}
-		UE_LOG(LogApexSim, Warning, TEXT("Spectator: the hotlap cannot be simulated here (%s); asking the server"), *OutError);
-	}
-	UApexNetSubsystem* Net = GetNet();
-	if (!Net || !Net->IsAuthenticated())
-	{
-		OutError = OutError.IsEmpty() ? FString::Printf(TEXT("not connected to a server (%s)"), *Why) : OutError;
 		return false;
 	}
-	Source = EApexSpectatorSource::Net;
-	bLiveSource = true;
-	SourceName = FString::Printf(TEXT("hotlap at %s"), *TrackStem);
-	bLoading = true;
-	Net->SpectateHotlapWatch(TrackConfigId, TrackName, TrackStem, Conditions, Setup);
-	OutError.Reset();
-	return true;
+	return StartLocalHotlap(TrackConfigId, TrackName, TrackStem, Conditions, Setup, CarId, OutError);
 }
 
 void UApexSpectatorSubsystem::Stop()

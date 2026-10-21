@@ -291,11 +291,6 @@ impl LobbyManager {
             // is the session's to say (`GameSession::refuses_drivers`, asked
             // by the join handler first): a race weekend between phases
             // does, though the listing says `Finished`.
-
-            if session.session_kind.is_watch_only() {
-                warn!("Session {} is a demo and takes no players", session_id);
-                return false;
-            }
         } else {
             warn!("Session {} does not exist", session_id);
             return false;

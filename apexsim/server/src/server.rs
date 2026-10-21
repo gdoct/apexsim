@@ -2,16 +2,9 @@
 //! `run_server` entry point used by both the binary and integration tests.
 
 use crate::{
-    car_loader::CarLoader,
-    config::ServerConfig,
-    data::*,
-    game_session::{GameSession, HOTLAP_WATCH_SKILL},
-    health::HealthState,
-    lobby::LobbyManager,
-    metrics::ServerMetrics,
-    track_content::TrackContent,
-    track_loader::TrackLoader,
-    transport::TransportLayer,
+    car_loader::CarLoader, config::ServerConfig, data::*, game_session::GameSession,
+    health::HealthState, lobby::LobbyManager, metrics::ServerMetrics, track_content::TrackContent,
+    track_loader::TrackLoader, transport::TransportLayer,
 };
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -59,78 +52,10 @@ pub struct ServerState {
 }
 
 impl ServerState {
-    /// What a watched hotlap's session leaves for the next watch of it, kept
-    /// before the session goes, in the record store (on disk beside the lap
-    /// records, so a server restart keeps it): the ladder level it was left
-    /// at for its key (`GameSession::hotlap_watch_key`: track, car, weather,
-    /// setup and sky) and its ghost when the fastest yet for its track and
-    /// car.
-    pub fn keep_hotlap_watch(&mut self, session_id: &SessionId) {
-        let Some(session) = self.sessions.get(session_id) else {
-            return;
-        };
-        if !session.is_hotlap_watch() {
-            return;
-        }
-        let Some(key) = session.hotlap_watch_key() else {
-            return;
-        };
-        self.records.keep_watch_level(
-            crate::records::watch_level_key(&key),
-            session.hotlap_watch_level(),
-        );
-        if let Some((_, ghost)) = session.hotlap_watch_ghost() {
-            self.records.keep_watch_ghost(key.0, key.1, ghost);
-        }
-    }
-
-    /// Take a player off whatever showcase or live stream they watch. A
-    /// hotlap the server drives for them alone, watched as a stream, goes
-    /// with them (what it learnt is kept for the next watch).
+    /// Take a player off whatever showcase or live stream they watch.
     pub async fn stop_watching(&mut self, player_id: &PlayerId) {
         self.showcase.leave(player_id);
-        let watched = self.live.watching(player_id);
         self.live.leave(player_id);
-        let Some(session_id) = watched else {
-            return;
-        };
-        let theirs = self.sessions.get(&session_id).is_some_and(|s| {
-            s.session.session_kind == SessionKind::HotlapWatch
-                && s.session.host_player_id == *player_id
-        });
-        if theirs {
-            self.keep_hotlap_watch(&session_id);
-            self.sessions.remove(&session_id);
-            self.streams.remove(&session_id);
-            self.lobby.unregister_session(session_id).await;
-            debug!("Hotlap watch {} ended with its viewer", session_id);
-        }
-    }
-
-    /// Start a watched hotlap's session where earlier watches left off:
-    /// its driver down the ladder as far as one of the same key went, and
-    /// the fastest watched lap of its track and car as the ghost.
-    pub fn resume_hotlap_watch(&mut self, session_id: &SessionId) {
-        let Some(key) = self
-            .sessions
-            .get(session_id)
-            .filter(|s| s.is_hotlap_watch())
-            .and_then(|s| s.hotlap_watch_key())
-        else {
-            return;
-        };
-        let level = self
-            .records
-            .watch_level(&crate::records::watch_level_key(&key));
-        let ghost = self.records.watch_ghost(key.0, key.1);
-        if let Some(session) = self.sessions.get_mut(session_id) {
-            if let Some(level) = level {
-                session.set_hotlap_watch_level(level);
-            }
-            if let Some(ghost) = ghost {
-                session.set_hotlap_watch_ghost(ghost);
-            }
-        }
     }
 
     pub fn new(config: ServerConfig) -> Self {
@@ -468,13 +393,7 @@ impl ServerState {
         // Create AI profiles if AI count is specified
         // No preferred cars: the session deals the field from the host car's
         // class (`class_field`), and the roster tells clients who drives what.
-        let ai_profiles = if session_kind == SessionKind::HotlapWatch {
-            // The one car laps in the host's own car, on the line itself.
-            let mut driver = crate::ai_driver::AiDriverProfile::new("Hotlap", HOTLAP_WATCH_SKILL)
-                .with_car(host_car_id);
-            driver.exact_line = true;
-            vec![driver]
-        } else if ai_count > 0 {
+        let ai_profiles = if ai_count > 0 {
             generate_ai_profiles(ai_count, session.ai_skill)
         } else {
             Vec::new()
@@ -495,7 +414,7 @@ impl ServerState {
             self.config.debug.stand_in_driver,
             &self.config.debug.events,
         );
-        if hooks.is_active() && !session_kind.is_watch_only() {
+        if hooks.is_active() {
             warn!("Debug hooks on for session {}: {:?}", session_id, hooks);
             game_session.set_debug_hooks(hooks);
         }
@@ -505,17 +424,6 @@ impl ServerState {
         if ai_count > 0 {
             game_session.spawn_ai_drivers();
             debug!("Spawned {} AI drivers for session {}", ai_count, session_id);
-        }
-
-        // A watched hotlap starts at once, with the corners for its HUD.
-        if session_kind == SessionKind::HotlapWatch {
-            let path = self.track_content.path_of(track_config_id);
-            let corners =
-                crate::track_guide::wire_corners(&game_session.track_config, path.as_deref());
-            game_session.set_track_corners(corners);
-            game_session.start_hotlap_watch();
-            // The setup comes from the create, then what earlier watches
-            // left (`resume_hotlap_watch`).
         }
 
         self.sessions.insert(session_id, game_session);

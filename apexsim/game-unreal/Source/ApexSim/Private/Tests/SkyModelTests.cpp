@@ -1,5 +1,4 @@
 #include "ApexTestCommon.h"
-#include "ApexDemoModeSubsystem.h"
 #include "Race/ApexSkyModel.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -355,50 +354,6 @@ bool FApexSkyLiveTest::RunTest(const FString& Parameters)
 	After.ClockS = 20;
 	TestFalse(TEXT("midnight is not a day's jump"), LiveSkyMoved(Midnight, After));
 	TestTrue(TEXT("losing the sky relights"), LiveSkyMoved(Base, FApexSkyNow()));
-	return true;
-}
-
-// -----------------------------------------------------------------------------
-// The demo's sky: every weather and all three parts of the day come up, on
-// quarter hours, mostly dry daylight.
-// -----------------------------------------------------------------------------
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(
-	FApexSkyDemoRollTest,
-	"ApexSim.Sky.DemoRoll",
-	ApexTestFlags)
-
-bool FApexSkyDemoRollTest::RunTest(const FString& Parameters)
-{
-	FRandomStream Random(1234);
-	constexpr int32 Rolls = 4000;
-	int32 WeatherSeen[FApexSessionConditions::WeatherCount] = {};
-	int32 Day = 0, LowSun = 0, Night = 0, Dry = 0;
-	bool bQuarterHours = true;
-	for (int32 Index = 0; Index < Rolls; ++Index)
-	{
-		const FApexSessionConditions C = UApexDemoModeSubsystem::RollConditions(Random);
-		++WeatherSeen[static_cast<int32>(C.Weather)];
-		Dry += C.IsWet() ? 0 : 1;
-		bQuarterHours &= C.TimeOfDayMinutes % 15 == 0 && C.TimeOfDayMinutes >= 0 && C.TimeOfDayMinutes < FApexSessionConditions::MinutesPerDay;
-		const int32 Hour = C.TimeOfDayMinutes / 60;
-		if (Hour >= 8 && Hour < 18) { ++Day; }
-		else if ((Hour >= 6 && Hour < 8) || (Hour >= 18 && Hour < 21)) { ++LowSun; }
-		else { ++Night; }
-	}
-
-	// Snow is for a host to pick: the backdrop's draw never rolls it.
-	for (int32 Index = 0; Index < FApexSessionConditions::WeatherCount; ++Index)
-	{
-		const bool bSnow = Index == static_cast<int32>(EApexWeather::Snow);
-		TestTrue(FString::Printf(TEXT("weather %d %s"), Index, bSnow ? TEXT("never comes up") : TEXT("comes up")),
-			bSnow ? WeatherSeen[Index] == 0 : WeatherSeen[Index] > 0);
-	}
-	TestTrue(TEXT("on quarter hours within the day"), bQuarterHours);
-	TestTrue(TEXT("rain one race in ten"), Dry > Rolls * 87 / 100 && Dry < Rolls * 93 / 100);
-	TestTrue(TEXT("mostly daylight"), Day > Rolls * 65 / 100 && Day < Rolls * 75 / 100);
-	TestTrue(TEXT("some low sun"), LowSun > Rolls * 15 / 100 && LowSun < Rolls * 25 / 100);
-	TestTrue(TEXT("night one race in ten"), Night > Rolls * 7 / 100 && Night < Rolls * 13 / 100);
 	return true;
 }
 

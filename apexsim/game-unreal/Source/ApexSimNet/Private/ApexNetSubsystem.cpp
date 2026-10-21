@@ -284,7 +284,6 @@ void UApexNetSubsystem::Disconnect()
 	PlayerId.Reset();
 	CurrentSessionId.Reset();
 	bSessionSpectator = false;
-	ResetDemoSession();
 	ResetSpectate();
 	SetConnectionState(EApexConnectionState::Disconnected, TEXT("Disconnected"));
 }
@@ -320,13 +319,10 @@ void UApexNetSubsystem::ListShowcases()
 
 void UApexNetSubsystem::SpectateShowcase(const FString& Id)
 {
-	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
+	if (!IsAuthenticated() || !CurrentSessionId.IsEmpty())
 	{
 		return;
 	}
-	// One backdrop at a time: the server's demo session goes first.
-	LeaveDemoSession();
-	bHotlapWatchStream = false;
 	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateShowcase %s"), Id.IsEmpty() ? TEXT("(first)") : *Id);
 	bSpectateRequested = true;
 	bSpectating = false;
@@ -335,12 +331,10 @@ void UApexNetSubsystem::SpectateShowcase(const FString& Id)
 
 void UApexNetSubsystem::SpectateSession(const FString& SessionId)
 {
-	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
+	if (!IsAuthenticated() || !CurrentSessionId.IsEmpty())
 	{
 		return;
 	}
-	LeaveDemoSession();
-	bHotlapWatchStream = false;
 	UE_LOG(LogApexSimNet, Log, TEXT("-> SpectateSession %s"), *SessionId);
 	bSpectateRequested = true;
 	bSpectating = false;
@@ -365,7 +359,6 @@ void UApexNetSubsystem::ResetSpectate()
 {
 	bSpectating = false;
 	bSpectateRequested = false;
-	bHotlapWatchStream = false;
 	if (UdpConnection)
 	{
 		UdpConnection->DiscardQueuedSpectatorRecords();
@@ -540,9 +533,7 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
 		static_cast<int32>(Damage), AiSkill);
-	// The server holds one session per player: the menu's demo goes first,
-	// and the server takes a showcase viewer off their channel by itself.
-	LeaveDemoSession();
+	// The server takes a showcase viewer off their channel by itself.
 	ResetSpectate();
 	bSessionRequestPending = true;
 	bSpectatorJoinRequested = false;
@@ -573,7 +564,6 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinSession %s"), *SessionId);
-	LeaveDemoSession();
 	ResetSpectate();
 	bSessionRequestPending = true;
 	bSpectatorJoinRequested = false;
@@ -624,7 +614,6 @@ void UApexNetSubsystem::ClearRejoinOffer()
 void UApexNetSubsystem::JoinAsSpectator(const FString& SessionId)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> JoinAsSpectator %s"), *SessionId);
-	LeaveDemoSession();
 	ResetSpectate();
 	bSessionRequestPending = true;
 	bSpectatorJoinRequested = true;
@@ -647,46 +636,12 @@ namespace
 		Summary.MaxPlayers = 1;
 		return Summary;
 	}
-
-	ApexProtocol::FHotlapWatchOptions HotlapOptions(bool bStream, const FApexCarSetup* Setup)
-	{
-		ApexProtocol::FHotlapWatchOptions Options;
-		Options.bStream = bStream;
-		Options.bHasSetup = Setup != nullptr;
-		if (Setup)
-		{
-			Options.Setup = *Setup;
-		}
-		return Options;
-	}
-}
-
-void UApexNetSubsystem::SpectateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
-	const FString& TrackStem, const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
-{
-	if (!IsAuthenticated() || (!CurrentSessionId.IsEmpty() && !bInDemoSession))
-	{
-		return;
-	}
-	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (hotlap watch, as a stream) track=%s conditions=%s%s"),
-		*TrackConfigId, *Conditions.Describe(), Setup ? TEXT(" with a setup") : TEXT(""));
-	LeaveDemoSession();
-	bSpectateRequested = true;
-	bSpectating = false;
-	bHotlapWatchStream = true;
-	CachedCorners = FApexTrackCorners();
-	HotlapWatchSummary = HotlapSummary(TrackConfigId, TrackName, TrackStem, Conditions);
-	const ApexProtocol::FHotlapWatchOptions Options = HotlapOptions(true, Setup);
-	SendPayload(ApexProtocol::EncodeCreateSession(TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch,
-		FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Mixed, 0, TArray<FString>(), 0,
-		FApexWeekendFormat(), &Options));
 }
 
 void UApexNetSubsystem::BeginLocalHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
 	const FString& TrackStem, const FApexSessionConditions& Conditions, TArrayView<const uint8> Corners)
 {
-	// A server's watch or demo gives way, as for any other backdrop.
-	LeaveDemoSession();
+	// A server's showcase gives way, as for any other backdrop.
 	if (bSpectating || bSpectateRequested)
 	{
 		LeaveSpectate();
@@ -728,92 +683,6 @@ void UApexNetSubsystem::EndLocalHotlapWatch()
 	}
 	bHotlapWatchLocal = false;
 	CachedCorners = FApexTrackCorners();
-}
-
-void UApexNetSubsystem::CreateHotlapWatch(const FString& TrackConfigId, const FString& TrackName,
-	const FString& TrackStem, const FApexSessionConditions& Conditions, const FApexCarSetup* Setup)
-{
-	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (hotlap watch) track=%s conditions=%s"),
-		*TrackConfigId, *Conditions.Describe());
-	// One session per player: a hotlap already being watched is replaced by
-	// the server, a demo goes first.
-	LeaveDemoSession();
-	ResetSpectate();
-	bSessionRequestPending = true;
-	bSpectatorJoinRequested = true;
-	bHotlapWatchRequested = true;
-	SessionRequestSentSeconds = FPlatformTime::Seconds();
-
-	HotlapWatchSummary = HotlapSummary(TrackConfigId, TrackName, TrackStem, Conditions);
-
-	if (Setup)
-	{
-		const ApexProtocol::FHotlapWatchOptions Options = HotlapOptions(false, Setup);
-		SendPayload(ApexProtocol::EncodeCreateSession(TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch,
-			FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Mixed, 0, TArray<FString>(), 0,
-			FApexWeekendFormat(), &Options));
-		return;
-	}
-	SendPayload(ApexProtocol::EncodeCreateSession(
-		TrackConfigId, 1, 1, 3, EApexSessionKind::HotlapWatch, FApexAllowedAssists(), Conditions));
-}
-
-void UApexNetSubsystem::CreateDemoSession(const FString& TrackConfigId, int32 AiCount, int32 LapLimit,
-	const FApexSessionConditions& Conditions, int32 AiSkill)
-{
-	if (bInDemoSession || bDemoRequested || !CurrentSessionId.IsEmpty() || !IsAuthenticated())
-	{
-		return;
-	}
-	UE_LOG(LogApexSimNet, Log, TEXT("-> CreateSession (demo) track=%s ai=%d laps=%d ai_skill=%d"), *TrackConfigId, AiCount, LapLimit,
-		ApexAiSkill::Clamp(AiSkill));
-	bDemoRequested = true;
-	DemoSessionState = EApexSessionState::Lobby;
-	const uint8 Field = static_cast<uint8>(FMath::Clamp(AiCount, 1, 255));
-	// Nobody drives in a demo, so the allowed set is moot; everything is
-	// allowed.
-	SendPayload(ApexProtocol::EncodeCreateSession(
-		TrackConfigId, Field, Field, static_cast<uint8>(FMath::Clamp(LapLimit, 1, 255)), EApexSessionKind::Demo,
-		FApexAllowedAssists(), Conditions, EApexDamageLevel::Full, ApexAiSkill::Clamp(AiSkill)));
-}
-
-void UApexNetSubsystem::LeaveDemoSession()
-{
-	if (!bInDemoSession && !bDemoRequested)
-	{
-		return;
-	}
-	UE_LOG(LogApexSimNet, Log, TEXT("-> LeaveSession (demo)"));
-	++DemoLeavesInFlight;
-	SendPayload(ApexProtocol::EncodeLeaveSession());
-	// From here the demo is over as far as the client is concerned: whatever
-	// the server still sends for it (its join, if the request was in flight)
-	// is dropped.
-	ResetDemoSession();
-}
-
-void UApexNetSubsystem::ResetDemoSession()
-{
-	const bool bWasDemo = bInDemoSession || bDemoRequested;
-	if (bInDemoSession)
-	{
-		CurrentSessionId.Reset();
-		bSessionSpectator = false;
-		CachedRoster = FApexSessionRoster();
-	}
-	bInDemoSession = false;
-	bDemoRequested = false;
-	DemoSessionState = EApexSessionState::Lobby;
-	if (!Connection)
-	{
-		// No socket, no answers left to wait for.
-		DemoLeavesInFlight = 0;
-		bSessionRequestPending = false;
-	}
-	if (bWasDemo)
-	{
-		OnDemoSessionChanged.Broadcast(false);
-	}
 }
 
 void UApexNetSubsystem::LeaveSession()
@@ -1111,7 +980,6 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		PlayerId.Reset();
 		CurrentSessionId.Reset();
 		bSessionSpectator = false;
-		ResetDemoSession();
 		ResetSpectate();
 		// The server offers a held seat again once we are back.
 		ClearRejoinOffer();
@@ -1229,18 +1097,6 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		{
 			LatestTelemetry = Frame;
 
-			if (bInDemoSession)
-			{
-				// The demo's state is its own: the player's session is still Lobby.
-				DemoSessionState = Frame.SessionState;
-				OnTelemetry.Broadcast(LatestTelemetry);
-				continue;
-			}
-			if (DemoLeavesInFlight > 0)
-			{
-				// The tail of a demo being left.
-				continue;
-			}
 			if (!FrameFitsRoster(Frame))
 			{
 				// A frame of another session, whose car indices point past
@@ -1385,33 +1241,11 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionJoined:
-		if (Message.SessionKind == EApexSessionKind::Demo)
-		{
-			if (!bDemoRequested)
-			{
-				// Withdrawn while in flight; the LeaveSession sent then takes
-				// the server back out of it.
-				UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo, already withdrawn) SessionId=%s"), *Message.SessionId);
-				break;
-			}
-			bDemoRequested = false;
-			bInDemoSession = true;
-			DemoSessionState = EApexSessionState::Lobby;
-			CurrentSessionId = Message.SessionId;
-			CurrentConditions = Message.Conditions;
-			CachedRoster = FApexSessionRoster();
-			ClearRacingLine();
-			ClearLapTiming();
-			DiscardTelemetryOfPreviousSession();
-			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined (demo) SessionId=%s"), *CurrentSessionId);
-			OnDemoSessionChanged.Broadcast(true);
-			break;
-		}
 		{
 			// Moved by the server (a dashboard restart seats everyone in the new
 			// session): a join for another session than ours that nobody here
 			// asked for. A spectator is seated at grid position 0.
-			const bool bServerMove = !bSessionRequestPending && !bSpectatorJoinRequested && !bHotlapWatchRequested
+			const bool bServerMove = !bSessionRequestPending && !bSpectatorJoinRequested
 				&& !CurrentSessionId.IsEmpty() && CurrentSessionId != Message.SessionId;
 			bSessionRequestPending = false;
 			// A menu backdrop still playing ends here, before this session's
@@ -1423,15 +1257,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			// Seated as a spectator: no car of our own, every car is someone else's.
 			bSessionSpectator = bServerMove ? Message.GridPosition == 0 : bSpectatorJoinRequested;
 			bSpectatorJoinRequested = false;
-			bHotlapWatch = Message.SessionKind == EApexSessionKind::HotlapWatch;
-			bHotlapWatchRequested = false;
-			if (bHotlapWatch)
-			{
-				HotlapWatchSummary.Id = Message.SessionId;
-				HotlapWatchSummary.Conditions = Message.Conditions;
-			}
 			CachedCorners = FApexTrackCorners();
-			if (bHotlapWatch || bServerMove)
+			if (bServerMove)
 			{
 				// A hotlap being watched is replaced without a SessionLeft in
 				// between (another car, another sky), and so is a session the
@@ -1494,24 +1321,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::SessionLeft:
-		if (DemoLeavesInFlight > 0)
-		{
-			// The answer to a LeaveSession sent for the demo, which was reset
-			// when it went out.
-			--DemoLeavesInFlight;
-			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft (demo)"));
-			break;
-		}
-		if (bInDemoSession)
-		{
-			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionLeft (demo, ended by the server)"));
-			ResetDemoSession();
-			break;
-		}
 		CurrentSessionId.Reset();
 		bSessionSpectator = false;
-		bHotlapWatch = false;
-		bHotlapWatchRequested = false;
 		CurrentAllowedAssists = FApexAllowedAssists();
 		CurrentConditions = FApexSessionConditions();
 		CurrentDamage = EApexDamageLevel::Full;
@@ -1554,10 +1365,6 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::GameModeChanged:
-		if (bInDemoSession || DemoLeavesInFlight > 0)
-		{
-			break;
-		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- GameModeChanged mode=%d"), static_cast<int32>(Message.GameMode));
 		OnGameModeChanged.Broadcast(Message.GameMode);
 		break;
@@ -1567,20 +1374,11 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::Error:
-		if (bSpectateRequested && !bSessionRequestPending && !bDemoRequested)
+		if (bSpectateRequested && !bSessionRequestPending)
 		{
 			UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d for the showcase: %s"), Message.ErrorCode, *Message.Reason);
 			bSpectateRequested = false;
 			OnSpectatorJoined.Broadcast(FString(), FString());
-			break;
-		}
-		if (bDemoRequested && !bSessionRequestPending)
-		{
-			// Errors carry no request id; one that lands while only a demo is
-			// being asked for is the demo's, and a backdrop that could not
-			// start is not news for the player.
-			UE_LOG(LogApexSimNet, Warning, TEXT("<- Error %d for the demo session: %s"), Message.ErrorCode, *Message.Reason);
-			ResetDemoSession();
 			break;
 		}
 		bSessionRequestPending = false;
@@ -1785,10 +1583,6 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		{
 			UdpConnection->DiscardQueuedSpectatorRecords();
 		}
-		if (bHotlapWatchStream)
-		{
-			HotlapWatchSummary.Id = Message.StreamId;
-		}
 		UE_LOG(LogApexSimNet, Log, TEXT("<- SpectatorJoined showcase %s stream %s"), *Message.ShowcaseId, *Message.StreamId);
 		OnSpectatorJoined.Broadcast(Message.StreamId, Message.ShowcaseId);
 		break;
@@ -1801,11 +1595,6 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		break;
 
 	case EApexServerMessageType::CarSetupSheet:
-		// The demo's car is not the one the garage tunes.
-		if (bInDemoSession)
-		{
-			break;
-		}
 		CachedSetupSheet = Message.CarSetupSheet;
 		UE_LOG(LogApexSimNet, Log, TEXT("<- CarSetupSheet %d knob(s), %d gear(s), %.2f L/lap"),
 			CachedSetupSheet.Knobs.Num(), CachedSetupSheet.GearRatios.Num(), CachedSetupSheet.LapFuelL);

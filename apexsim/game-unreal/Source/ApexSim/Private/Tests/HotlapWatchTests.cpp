@@ -10,8 +10,8 @@
 
 // -----------------------------------------------------------------------------
 // A watched hotlap (SessionKind::HotlapWatch): one AI car laps a circuit alone,
-// the creator spectates. The server tests cover the lap; these cover what the
-// client does with the session and with the corners that come with it.
+// simulated by the game (hotlap_watch::LocalWatch). The Rust tests cover the
+// lap; these cover what the client does with the watch and its corners.
 // -----------------------------------------------------------------------------
 
 namespace
@@ -49,62 +49,33 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHotlapWatchSessionTest, "ApexSim.Hotlap.Se
 
 bool FApexHotlapWatchSessionTest::RunTest(const FString& Parameters)
 {
-	// No connection here: the requests and the lobby refresh the join asks for are dropped.
-	AddExpectedError(TEXT("Dropped an outbound message"), EAutomationExpectedErrorFlags::Contains, 0);
-
 	UApexNetSubsystem* Net = NewObject<UApexNetSubsystem>(NewObject<UGameInstance>(GetTransientPackage()));
 	FApexSessionConditions Sky;
 	Sky.Weather = EApexWeather::LightRain;
 	Sky.TimeOfDayMinutes = 18 * 60 + 15;
-	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandervoort"), Sky);
-	TestFalse(TEXT("not a hotlap until the server says so"), Net->IsHotlapWatch());
+	TestFalse(TEXT("no hotlap yet"), Net->IsHotlapWatch());
 
-	const FString SessionId = TEXT("c401cf66-0e18-4c10-8bbd-18cf5e162ddd");
-	FApexServerMessage Joined;
-	Joined.Type = EApexServerMessageType::SessionJoined;
-	Joined.SessionId = SessionId;
-	Joined.GridPosition = 0;
-	Joined.SessionKind = EApexSessionKind::HotlapWatch;
-	Joined.Conditions = Sky;
-	Net->HandleMessageForTest(Joined);
-
+	// Simulated here: nothing is sent, no server is needed.
+	Net->BeginLocalHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandervoort"), Sky, TArrayView<const uint8>());
 	TestTrue(TEXT("a watched hotlap"), Net->IsHotlapWatch());
-	TestTrue(TEXT("watched as a spectator: no car of ours"), Net->IsSessionSpectator());
-	TestEqual(TEXT("its sky"), static_cast<int32>(Net->GetSessionConditions().Weather), static_cast<int32>(EApexWeather::LightRain));
+	TestFalse(TEXT("not a session the player is in"), Net->IsInSession());
 
-	// It is unlisted, so the lobby cannot name its circuit: the request did.
+	// Unlisted: once its stream names it, the watch stands in for the lobby's entry.
+	const FString StreamId = TEXT("c401cf66-0e18-4c10-8bbd-18cf5e162ddd");
+	Net->SetLocalHotlapWatchId(StreamId);
 	FApexSessionSummary Summary;
-	if (TestTrue(TEXT("found by id"), Net->FindSessionById(SessionId, Summary)))
+	if (TestTrue(TEXT("found by id"), Net->FindSessionById(StreamId, Summary)))
 	{
 		TestEqual(TEXT("its circuit file"), Summary.TrackFile, FString(TEXT("tracks/default/Zandervoort/Zandervoort.yaml")));
 		TestEqual(TEXT("its circuit's name"), Summary.TrackName, FString(TEXT("Zandervoort")));
 		TestEqual(TEXT("its kind"), static_cast<int32>(Summary.SessionKind), static_cast<int32>(EApexSessionKind::HotlapWatch));
+		TestEqual(TEXT("its sky"), static_cast<int32>(Summary.Conditions.Weather), static_cast<int32>(EApexWeather::LightRain));
 	}
 	TestFalse(TEXT("no other session is found"), Net->FindSessionById(TEXT("another"), Summary));
 
-	// The corners come after the join.
-	FApexServerMessage Corners;
-	Corners.Type = EApexServerMessageType::TrackCorners;
-	Corners.TrackCorners = HotlapCorners();
-	Net->HandleMessageForTest(Corners);
-	TestEqual(TEXT("two corners"), Net->GetTrackCorners().Corners.Num(), 2);
-
-	// Another car, another sky: the server replaces the session without a
-	// word, and the next join starts from the lobby with no corners yet.
-	FApexServerMessage Again = Joined;
-	Again.SessionId = TEXT("0c6fb2a4-1f8e-4a52-9d3b-2b3c4d5e6f70");
-	Net->CreateHotlapWatch(TEXT("track-id"), TEXT("Zandervoort"), TEXT("Zandervoort"), Sky);
-	Net->HandleMessageForTest(Again);
-	TestTrue(TEXT("still a hotlap"), Net->IsHotlapWatch());
-	TestEqual(TEXT("the old corners went"), Net->GetTrackCorners().Corners.Num(), 0);
-	TestFalse(TEXT("the old session is no longer found"), Net->FindSessionById(SessionId, Summary));
-	TestTrue(TEXT("the new one is"), Net->FindSessionById(Again.SessionId, Summary));
-
-	FApexServerMessage Left;
-	Left.Type = EApexServerMessageType::SessionLeft;
-	Net->HandleMessageForTest(Left);
-	TestFalse(TEXT("left"), Net->IsHotlapWatch());
-	TestFalse(TEXT("and no longer found"), Net->FindSessionById(Again.SessionId, Summary));
+	Net->EndLocalHotlapWatch();
+	TestFalse(TEXT("ended"), Net->IsHotlapWatch());
+	TestFalse(TEXT("and no longer found"), Net->FindSessionById(StreamId, Summary));
 	return true;
 }
 
