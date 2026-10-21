@@ -56,3 +56,14 @@ north points left on it). The others were not needed.
 
 - Far woods on a flat site: `dress::surroundings` forest impostors need `IMPOSTOR_MIN_RISE_M`, so a flat circuit's dossier woods beyond the groom belt are not drawn at all. Wanted: impostors for mapped woods regardless of rise, or a wider belt.
 - An OSM building whose name matches a grandstand (`Stowe A`, `Vale`, `Club A/B`, `Village A`) is laid as a `media_centre`. A name heuristic in `osm_layout.py` (or a dossier promotion) would fix it at every circuit, although strictly that is a dossier-tool change.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: Club A (5614-5634 left); Club B (5643-5766 left); Hamilton Straight B (100-190 left); Abbey A (200-272 left).
+
+Left, or for later columns:
+
+- Hamilton Straight A stays the OSM outline (-46..49). The map draws it nearer Club (~-120..0), but the map is schematic there (Club's exit bend) and its length agrees with OSM's 95 m; the audit's "extend to 5780" is not supported by OSM and is left out.
+- Hamilton B's span is the least certain (map scale +-50 m); its gap is set by the hotel behind it, not by a source.
+- The Wing (kit gap) and the F1 Paddock Club are the pit complex's. Vale, Stowe A/C and Village A (also plain OSM buildings) are the Stands column's.

@@ -554,6 +554,50 @@ MANUAL_STANDS: dict[str, list[dict]] = {
         # "Grandstand 2" (30-170), which no map shows.
         dict(name="Platine", from_m=95, to_m=165, side="right", depth_m=14, gap_m=25, covered=True),
     ],
+    "Monzarella": [
+        # Stand 25 on the pit straight, in the row of stands facing the pits
+        # between 24 (Vedano, OSM 5565-5711 L) and 26A-C (Laterale Destra, OSM
+        # 16-236 L): 2024-monza-seating-map.jpg and 2026-italian-gp-wayfinding.pdf
+        # p.1 both put it there; OSM has no outline. Its station span is the gap
+        # between the two OSM outlines, short of Torre Sud (5777 L). Roof not
+        # stated on either map.
+        dict(name="Tribuna 25", from_m=5715, to_m=5765, side="left", depth_m=10, gap_m=14, covered=False),
+    ],
+    "Nuerburgerring": [
+        # The main grandstand T3 (rebuilt 2009, 5,000 seats, covered), opposite
+        # the pit building on the outside of the straight and entered from the
+        # ring boulevard behind it (dossier "Buildings and structures", from
+        # de.wikipedia and nuerburgring.de; OSM has no outline). No fetched map
+        # places it: the FIA 2020 map (p.2) draws no structures. The span is the
+        # pit building's (OSM garage 4975-137 R), from just after the
+        # BMW-Bruecke (4958) toward the Lindner hotel's end of the straight;
+        # depth and gap keep its back row clear of the Ring Werk and Ring
+        # Boulevard outlines (their road faces about 34 m from the centerline).
+        dict(name="T3", from_m=5000, to_m=120, side="left", depth_m=18, gap_m=8, covered=True),
+    ],
+    "Shiverstone": [
+        # Club Corner and Club A: OSM has both only as plain buildings named
+        # "Club B" (way 227342448, 5641-5766, 42-73 m left) and "Club A" (way
+        # 227342445, 5607-5631, 42-58 m left), so they were laid as
+        # media_centre blocks. The 2026 spectator map
+        # (2026-british-gp-spectator-map.pdf p1) draws Club A and Club Corner
+        # there, on the outside of Club before the Hamilton Straight. Promoted
+        # under their OSM names, spans and fronts from the footprints (front
+        # 42 m from the centreline = 35 m past the road edge). Club A starts at
+        # 5614, clear of the unnamed OSM building at 5599 beside it. Roof not
+        # marked on the map.
+        dict(name="Club A", from_m=5614, to_m=5634, side="left", depth_m=13, gap_m=35, covered=False),
+        dict(name="Club B", from_m=5643, to_m=5766, side="left", depth_m=22, gap_m=35, covered=False),
+        # Hamilton Straight B and Abbey A: on the 2026 spectator map between
+        # Hamilton Straight A and Abbey B (OSM "Abbey", 278-402), on the
+        # outside of the straight opposite the Wing. Spans scaled on the map
+        # from the Wing's ends (OSM -56 / 319) and OSM Abbey's end (402).
+        # Hamilton B stands in front of the Hilton Garden Inn (OSM 64-186,
+        # 36-59 m left; the map's marker 2 is behind it), so it is a shallow
+        # stand close to the fence; Abbey A sits at Abbey's own front line.
+        dict(name="Hamilton Straight B", from_m=100, to_m=190, side="left", depth_m=12, gap_m=14, covered=False),
+        dict(name="Abbey A", from_m=200, to_m=272, side="left", depth_m=14, gap_m=24, covered=False),
+    ],
 }
 
 # A stand's roof by name, from the circuit's own seating map, for the OSM
@@ -614,6 +658,38 @@ STAND_COVER: dict[str, dict[str, str]] = {
         # Dossier "Setor M": covered, numbered seats, facing the garages; OSM's
         # "M" outline has no roof tag and is 21.4 m deep, under the depth rule.
         "M": "covered",
+    },
+    "Lemons": {
+        # Dossier "Ford chicane grandstand": outside of the Ford chicane, "large,
+        # covered" -- OSM's Tribune 23 at 13353, the stand on the approach to the
+        # line, laid open from OSM tags (14.8 m deep).
+        "Tribune 23 - Motul Raccordement": "covered",
+    },
+    "Monzarella": {
+        # The pit-straight stands the dossier's "Buildings and structures"
+        # table lists as covered: 1 Centrale, 4 Laterale Sinistra, 26A-C
+        # Laterale Destra and 24 Vedano. OSM tags none of them, and all four
+        # are under the 25 m depth that is otherwise taken to be roofed.
+        "Tribuna Centrale": "covered",
+        "Tribuna Laterale Sinistra": "covered",
+        "Tribuna Laterale Destra": "covered",
+        "Tribuna Vedano": "covered",
+    },
+    "RedPullRing": {
+        # The 2026 spectator map (redbullring-2026-spectator-map.png) marks only
+        # Grandstand Start Ziel and Grandstand North "(COVERED)". Start Ziel is
+        # roofed today by the 25 m depth rule (36.7 m deep in OSM, the bank
+        # behind included); said explicitly here. Steiermark, beside it at the
+        # T1 end of the straight, is not marked covered and is 26.5 m deep in
+        # OSM, which the depth rule would roof.
+        "Start/Ziel Tribüne": "covered",
+        "Steiermark Tribüne": "open",
+    },
+    "Shanghaied": {
+        # Grandstand A's upper tiers are under the lotus-leaf roofs (dossier
+        # "Buildings": "some roofs modelled on a lotus leaf"); roofed today
+        # only because OSM's box is 140 m deep (the whole complex behind it).
+        "A看台": "covered",
     },
 }
 
@@ -878,6 +954,18 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
     # than on top of it.
     "RedPullRing": [
         dict(kind="statue", name="Red Bull Statue", station_m=3149.7, side="left", offset_m=90.0),
+        # The live screens of the pit straight on the 2026 wayfinding map
+        # (redbullring-2026-wayfinding.pdf p1, "Live Screen" icons), stations
+        # scaled from the chequered flag (st 0) and the Start/Finish bar's ends
+        # (OSM 4188 / 298): one outside the T10 exit beyond the T10 end of
+        # Start Ziel, by Steiermark Village; one inside, between the pit entry
+        # road and the Champions Club, before the garage row begins; one inside
+        # at the T1 end, past the last garage by the pit exit. The spectator
+        # map's two TV icons on the straight (~st 4200 and ~100) agree with the
+        # inside pair within about 100 m.
+        dict(kind="screen", name="Start/Ziel T10 end screen", station_m=4140, side="left", offset_m=20),
+        dict(kind="screen", name="Pit entry screen", station_m=4200, side="right", offset_m=25),
+        dict(kind="screen", name="Pit exit screen", station_m=320, side="right", offset_m=25),
     ],
     "Hockeyheimring": [
         # The giant screen inside the Nordkurve (gpd-grandstand-map-2019.jpg,
@@ -928,6 +1016,17 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="screen", name="Pit Exit 2 screen", station_m=345.0, side="right", offset_m=40.0),
         dict(kind="screen", name="Pit Exit 1 screen", station_m=450.0, side="right", offset_m=40.0),
         dict(kind="screen", name="T1 screen", station_m=550.0, side="right", offset_m=40.0),
+    ],
+    "Oskarsleben": [
+        # The Race-Tower / Presse Zentrum (mao-uebersichtskarte-2021.jpg item
+        # 1), at the east end of the pit building, east of the Verwaltung (2)
+        # and before the Start/Ziel line: race control, commentary boxes and a
+        # press centre for about 100 media (dossier). OSM has no outline.
+        # Station from the map scaled on the OSM Boxen and Verwaltung outlines
+        # (the map runs about 35 m east of OSM). Set back behind the generated
+        # garage row (boxes 3591-38 L), whose depth reaches about 36 m from the
+        # centerline here.
+        dict(kind="tower", name="Race-Tower", station_m=3625.0, side="left", offset_m=38.0),
     ],
 }
 

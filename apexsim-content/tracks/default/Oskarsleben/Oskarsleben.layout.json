@@ -820,7 +820,19 @@
    "kind": "footbridge"
   }
  ],
- "landmarks": [],
+ "landmarks": [
+  {
+   "kind": "tower",
+   "name": "Race-Tower",
+   "source": "authored",
+   "station_m": 3625.0,
+   "side": "left",
+   "centre": [
+    52.15,
+    -62.29
+   ]
+  }
+ ],
  "woods": [
   {
    "leaf": "broadleaved",

@@ -38,3 +38,15 @@ Driving direction on the straight is westward, so the bottom of the map (pits) i
 - No spectator-bank layer outside fan_dressing: `man_made=embankment` and named spectator areas ("Zuschauerbereich") are not used. Needs a bank rule (`spectator_bank_10m` runs, ideally with a raised terrain berm) or a MANUAL_STANDS `family="bank"`.
 - `natural=tree_row` is never planted (15 rows here).
 - Tecpro default and mapped-wall-to-concrete threshold, as at Nürburgring: 0 tyres and 0 concrete here.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_LANDMARKS`: tower at 3625.0 left.
+
+Left, or for later columns:
+
+- Misplaced: the OSM "stand" "Boxen / VIP-Loungen" (55 L, -34..144) is the pit building (map item 3) with its lounges, not seating, yet 3 x bay_10m_large are laid there on the pit side, past the end of the generated garage row (boxes end at 38). No table drops an OSM stand (MANUAL_STANDS promotes buildings only, and this is a stand): it needs a drop-by-name for OSM stands (tooling) or an OSM fix. "Verwaltung" (3652 L, also an OSM stand) is skipped over the garage row, which is right.
+- The generated garage row (24 boxes, 3591-38) sits mostly before the line, while the map draws the pit building after it (about 5-183; OSM -34..144). That is the export's pit layout, not a dossier table.
+- Not placed: the DTM fan-zone big screen. The overview map has no screen symbol; the dossier puts it in the fan zone behind the main stand (Zuschauerbereich Mitte), facing the fan zone rather than the track. Fanshop (17) and WC (6) are drawn behind the main stand's west end (about 150-200 R), so a screen there would be a guess.
+- For other columns: the Zuschauerbereich banks (rule gap), the two-storey pit building (garage_6m_upper kit gap), the 4*-Hotel as hospitality_3f.

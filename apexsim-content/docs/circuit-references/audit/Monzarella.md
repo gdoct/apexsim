@@ -59,3 +59,18 @@ North points left on both maps. The pit straight runs right to left, and the pad
 - Mapped walls become concrete only with run-off ≤ `WALL_AGAINST_ROAD_M`. Monza has 7 mapped walls and gets 0 concrete.
 - `groom.rs` NEEDLELEAF includes `poplar`, and MIXED is a fifth poplar. Poplars are broadleaf riparian trees, wrong for park or forest woods.
 - No way to set `covered` on an OSM stand (osm_layout tooling).
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: Tribuna 25 (5715-5765 left).
+- `STAND_COVER`: Tribuna Centrale covered; Tribuna Laterale Sinistra covered; Tribuna Laterale Destra covered; Tribuna Vedano covered.
+
+Left, or for later columns:
+
+- The order of the OSM pit-straight stands matches both maps: 26 (126 L), 1 (315 L), 4 (401 L), 5 Piscina (500 L), then the unnamed 50 m outline at 707 L, which is where both maps put 7 (Biassono). It can be named only in OSM or by a tooling change (it is a stand, not a building, so a MANUAL_STANDS promotion does not apply).
+- Not placed: 27-30 (2026 map "30-29-28-27", drawn as one row in front of 26A-C; the 220 m OSM Laterale Destra outline most likely holds them), 2-3 (drawn in front of 4; the OSM gap between 4 and 5 is 21 m), 35 (2026 map, drawn in front of 24, not separable from Vedano within 50 m) and CC (a hospitality box, not a stand).
+- The OSM "tribune" at 408 R (behind the pit lane by the exit, laid as 2 bays clear of the lane) may be the 2026 map's 32, which that map draws about 100 m later (470-545 R). Left as it is.
+- The 2026 map's chequer is about 70 m after the YAML's station 0 (map scaled on the OSM stands); the OSM outlines were trusted throughout.
+- Torre Sud (5777 L) and Torre Nord (584 L) sit 4 and 8 m off the left road edge; the 2026 map also draws both against the road. Left alone.
+- For other columns: Tribuna Parabolica (22) is permanent and covered (dossier) but laid unroofed; the 2026 stands 11, 17, 20, 31-34 and 10bis (Stands); the podium and the two-storey Palazzina Box are the pit complex and the `garage_6m_upper` kit gap; the pedestrian bridge over the pit straight between 7 and 6A (about 750-850) is a MANUAL_CROSSINGS item.

@@ -596,7 +596,8 @@
      -66.78,
      -53.64
     ]
-   ]
+   ],
+   "roof": "covered"
   },
   {
    "name": "Steiermark Tribüne",
@@ -657,7 +658,8 @@
      -435.78,
      -151.84
     ]
-   ]
+   ],
+   "roof": "open"
   },
   {
    "name": "Red Bull Tribüne",
@@ -1052,6 +1054,17 @@
  ],
  "landmarks": [
   {
+   "kind": "screen",
+   "name": "Pit exit screen",
+   "source": "authored",
+   "station_m": 320,
+   "side": "right",
+   "centre": [
+    -320.42,
+    -55.07
+   ]
+  },
+  {
    "kind": "statue",
    "name": "Der Bulle vom Spielberg",
    "station_m": 3161.0,
@@ -1059,6 +1072,28 @@
    "centre": [
     -422.53,
     327.7
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Start/Ziel T10 end screen",
+   "source": "authored",
+   "station_m": 4140,
+   "side": "left",
+   "centre": [
+    167.16,
+    17.21
+   ]
+  },
+  {
+   "kind": "screen",
+   "name": "Pit entry screen",
+   "source": "authored",
+   "station_m": 4200,
+   "side": "right",
+   "centre": [
+    94.38,
+    57.27
    ]
   }
  ],

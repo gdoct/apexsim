@@ -56,3 +56,16 @@ From the FIA 2024 pit lane drawing and red zone (`fia-2024-chinese-gp-circuit-ma
 
 - The same roof rule as at RedPullRing: B1-B3 are open stands, but at 33-46 m deep they get roofs.
 - Trees fall back to a generic broadleaf/conifer/poplar mix when a dossier has no woods. Shanghai's flora should come from the circuit style, broadleaf only (check `circuit_style` flora for Shanghai).
+## S/F dossier pass
+
+In the tables:
+
+- `STAND_COVER`: A看台 covered.
+
+Left, or for later columns:
+
+- The layout files A看台 as side "right" (its 140 m box is centred nearly on the road) but its outline and laid runs are on the left (front lat +17 m), which is correct; the field is cosmetic.
+- Race control tower + podium building (dossier "Start/finish": next to each other, pit side): not drawn on any map here, so no `tower` landmark is placed. The gpdestinations map puts the podium area (颁奖区) at ~5300-5380 right, by the Paddock Club; the bake lays the podium on the middle garage (~150 m off) - a bake/pit-complex matter.
+- The 2026 map draws one SKY BRIDGE only, at the T1 end of A (~330-350); MANUAL_CROSSINGS also has a "Press Centre Wing" at st 15 (from Wikipedia). Landmark column: check it against the 2026 map.
+- GA Zone L (dossier, gpdestinations "草地 L" by K12, between T16 and A) is not on the 2026 map, which draws the "T16 Club" hospitality building there instead: left out. T16 Club and "Grandstand Club" (T1 end of A) are hospitality buildings, not stands.
+- F1 Fanzone (orange hatching behind A) and Fountain Plaza are crowd areas behind the stand; no kit piece or table entry carries them.

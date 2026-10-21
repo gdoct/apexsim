@@ -43,3 +43,16 @@ It is a race-control map: corners, marshal posts and light panels, with no build
 - A crossing of OSM kind `road` with no CROSSING_KINDS entry defaults to `tyre_bridge`. That default suits only Le Mans.
 - `ASSUMED_ROOF_DEPTH_M` reads OSM bounding-box depth. Hillside spectator polygons (T5b 186 m, T8 110 m deep) become huge roofed large stands. Cap the depth or treat them as spectator banks.
 - `barriers::decide` lays Tecpro on the outside of every bend without ample run-off, and lays concrete for mapped walls only at near-zero run-off. Here that gives Tecpro over armco and 0 concrete from 83 mapped walls.
+## S/F dossier pass
+
+In the tables:
+
+- `MANUAL_STANDS`: T3 (5000-120 left covered).
+
+Left, or for later columns:
+
+- The extent is the doubtful part: the dossier says only "opposite the pits", so the 260 m is an estimate from the pit building, good for the stand's side and middle, not its ends.
+- The BMW-Bruecke (4958, OSM kind `road`) is laid as `tyre_bridge`, the Le Mans look, over the straight. It is a footbridge/link bridge: CROSSING_KINDS "Nuerburgerring": {"road": "link"} (as Mordschleife maps road to overpass). That also re-kinds the unnamed crossing at 1236; check that one on the trace page.
+- The FIA map's control line sits about 200 m after the T15 exit (about 4850) and the start line 263 m further on (about 5110), so the YAML's station 0 is near the start line, not the control line.
+- The generated pit boxes run 4857-4995 R, at the T15 end of the 303 m OSM garage (4975-137); the TUeV Rheinland Tower (4889 R, race control) is skipped inside the pit complex. Left to the pit complex.
+- T13 (Nordschleife junction): the Nordschleife runs 60-130 m to the left of GP 4360-4630 (shared OSM buildings, see the Mordschleife draft). A stand there would be on the left between the two roads, but no map places it; not added. T12/T12a and the multi-storey pit building (garage_6m_upper kit gap) are for other columns.

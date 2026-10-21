@@ -69,3 +69,15 @@ the dossier/OSM positions the tables lack, for the trace page to confirm against
   track: across all 28 explain files only Mordschleife has any `concrete_4m_rail`.
 - `fan_dressing` (spectator banks along car parks / camp sites) is off for Le Mans, the venue
   it fits best after the Nordschleife.
+## S/F dossier pass
+
+In the tables:
+
+- `STAND_COVER`: Tribune 23 - Motul Raccordement covered.
+
+Left, or for later columns:
+
+- No map places a screen on the pit straight, and the dossier gives only "some roofed" for the main tribunes ('category 3' stands unroofed), without saying which: no STAND_COVER for Tribunes 10-22.
+- Tribunes T34 (OSM, 238 m, right, over the pit building) now lays 2 bays (current rule keeps the part clear of the garages); the rest is the rule/kit gap of stands on the pit roof (building/pit_building_tiered). Same for the two unnamed right-hand stands at 312 and 349.
+- Pit lane: the layout lane is 15-365 m (347 m) where the dossier has the entry before the Ford chicane (~13190) and the exit at Courbe Dunlop (~600). A MANUAL_PIT_LANE["Lemons"] (or PIT_LANE_REACH_M) entry is the fix, outside the stand/screen tables; not drafted (moves the garages and every pit survey, needs its own check).
+- Left for the Stands column: Dunlop public stands (Tribunes 8/9) and their giant screen (~600-900 left), Tribunes 4-9/T1/T3 promotion from buildings, Karting T28-T32, the Tertre Rouge duplicate.

@@ -67,3 +67,15 @@ The media kit's site plan names every stand. Against the lap (clockwise from the
 - **Tribüne T8** and **Tribüne Mitte**: inside the infield loop, T8 on the T6-T7 side and Mitte facing T5-T6, with the bull beside Mitte.
 - **Tribüne T9** and **Tribüne T10**: outside the last two corners, by gate F.
 - No big screens are drawn.
+## S/F dossier pass
+
+In the tables:
+
+- `STAND_COVER`: Start/Ziel Tribüne covered; Steiermark Tribüne open.
+- `MANUAL_LANDMARKS`: screen at 4140 left; screen at 4200 right; screen at 320 right.
+
+Left, or for later columns:
+
+- The pit-roof giant screen (dossier "Pit building", ~st 150 right on the roof) is not drawn on either map and a landmark cannot sit on the garage roof (the pit zone drops it): left out. A rule or the pit complex's own roof furniture would carry it.
+- The voestalpine Wing media centre over the T1 third of Start Ziel (~150-260 left, elevated) is a kit gap (Landmark column).
+- The F1 Fanzone and its stage (wayfinding: hatched block behind Steiermark, outside T1, ~170-200 m from the road) could not be placed to within 50 m on the schematic map: left out (Stands column). The two live screens inside T1 (wayfinding, ~st 470-500 right) are the Stands column's too.
