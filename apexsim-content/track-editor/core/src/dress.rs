@@ -1105,6 +1105,21 @@ fn stand_family(stand: &Stand) -> &'static str {
             "street_stand_tier_10m"
         };
     }
+    // The other families a dossier names (`MANUAL_STANDS`' or
+    // `STAND_FAMILY`'s `family`): general-admission banks and temporary
+    // stands (R2), the venue modules, and the stadium stand for a tall
+    // single-roof stand the depth rule takes for a two-tier one (R13).
+    match stand.family.as_deref() {
+        Some("bank") => return "grass_bank_10m",
+        Some("scaffold") => return "scaffold_10m",
+        Some("banking_seats") => return "banking_seats",
+        Some("tent") => return "tent_roof_10m",
+        Some("palm") => return "palm_canopy_10m",
+        Some("stone") => return "stone_tribune_10m",
+        Some("stone_centre") => return "stone_tribune_centre_10m",
+        Some("stadium") => return "bay_10m_stadium_roof",
+        _ => {}
+    }
     let large = stand.depth_m >= LARGE_STAND_DEPTH_M;
     let roof = match stand.roof.as_deref() {
         Some("covered") => true,
@@ -3857,6 +3872,27 @@ mod tests {
             "bay_10m_large_roof",
             "too deep to be open"
         );
+    }
+
+    /// A named family is the module the dossier asks for, whatever the
+    /// stand's depth or roof (R2, R13), and every one is in the kit.
+    #[test]
+    fn a_named_family_lays_its_module() {
+        for (family, asset) in [
+            ("bank", "grass_bank_10m"),
+            ("scaffold", "scaffold_10m"),
+            ("banking_seats", "banking_seats"),
+            ("tent", "tent_roof_10m"),
+            ("palm", "palm_canopy_10m"),
+            ("stone", "stone_tribune_10m"),
+            ("stone_centre", "stone_tribune_centre_10m"),
+            ("stadium", "bay_10m_stadium_roof"),
+        ] {
+            let mut s = stand("x", vec![[0.0, 0.0], [40.0, 0.0]], 30.0, true);
+            s.family = Some(family.to_string());
+            assert_eq!(stand_family(&s), asset, "{family}");
+            assert!(props::find(PropKind::Grandstand, asset).is_some(), "{asset} is in the kit");
+        }
     }
 
     #[test]

@@ -777,6 +777,22 @@ STAND_COVER: dict[str, dict[str, str]] = {
     },
 }
 
+# The kit family a stand is built from, by name (or "@<station_m>" for an
+# unnamed one), over the depth rule: what `dress.rs`'s `stand_family`
+# knows. "-" leaves an OSM stand out altogether (R18: a pit building or a
+# hospitality block OSM tags as a stand).
+STAND_FAMILIES = ("street", "street_deck", "bank", "scaffold", "banking_seats", "tent", "palm",
+                  "stone", "stone_centre", "stadium")
+STAND_FAMILY: dict[str, dict[str, str]] = {}
+
+# OSM buildings to leave out by station (an unnamed outline a stand from
+# the tables stands on, often the stand's own outline mapped as a
+# building): `drop_promoted_structures` drops the one within
+# DROP_STRUCTURES_WITHIN_M of each station. A named one goes by naming a
+# MANUAL_STANDS entry after it.
+DROP_STRUCTURES: dict[str, list[float]] = {}
+DROP_STRUCTURES_WITHIN_M = 1.0
+
 # Landmarks that span the road and are not in OSM as bridges.
 MANUAL_CROSSINGS: dict[str, list[dict]] = {
     # The Dunlop bridge has arched over the climb out of the start straight
@@ -3651,24 +3667,43 @@ def same_stand_or(laid: list[dict], stand: dict) -> dict:
 
 def drop_promoted_structures(stem: str, structures: list[dict]) -> list[dict]:
     """Structures less the named OSM buildings a `MANUAL_STANDS` entry
-    stands in for."""
+    stands in for, and the unnamed ones `DROP_STRUCTURES` lists by
+    station."""
     names = {spec["name"] for spec in MANUAL_STANDS.get(stem, [])}
-    return [s for s in structures if s.get("name") not in names]
+    stations = DROP_STRUCTURES.get(stem, [])
+    return [
+        s for s in structures
+        if s.get("name") not in names
+        and not any(abs(s["station_m"] - st) <= DROP_STRUCTURES_WITHIN_M for st in stations)
+    ]
 
 
 def with_stand_cover(stem: str, stands: list[dict]) -> list[dict]:
     """`stands` with `STAND_COVER` applied as each stand's `roof`, which
-    the dress pass takes over `covered` and the depth rule; a stand the
-    table does not name loses any `roof` an earlier run gave it."""
+    the dress pass takes over `covered` and the depth rule, and
+    `STAND_FAMILY` as its `family` (`-` leaves the stand out). A stand the
+    tables do not name loses any `roof` or family an earlier run gave it;
+    a `MANUAL_STANDS` entry keeps the family its own spec names."""
     cover = STAND_COVER.get(stem, {})
+    families = STAND_FAMILY.get(stem, {})
+    manual = {spec["name"]: spec for spec in MANUAL_STANDS.get(stem, [])}
     out = []
     for s in stands:
-        roof = cover.get(s.get("name"), cover.get(f"@{s['station_m']}"))
+        keys = (s.get("name"), f"@{s['station_m']}")
+        roof = next((cover[k] for k in keys if k in cover), None)
         if roof not in (None, "covered", "open"):
             raise SystemExit(f"STAND_COVER[{stem!r}][{s.get('name')!r}]: {roof!r} is not covered or open")
-        s = {k: v for k, v in s.items() if k != "roof"}
+        family = next((families[k] for k in keys if k in families), None)
+        if family not in (None, "-") and family not in STAND_FAMILIES:
+            raise SystemExit(f"STAND_FAMILY[{stem!r}][{s.get('name')!r}]: {family!r} is not one of {STAND_FAMILIES}")
+        if family == "-":
+            continue
+        s = {k: v for k, v in s.items() if k not in ("roof", "family")}
         if roof:
             s["roof"] = roof
+        family = family or manual.get(s.get("name"), {}).get("family")
+        if family:
+            s["family"] = family
         out.append(s)
     return out
 

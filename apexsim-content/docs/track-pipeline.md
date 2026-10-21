@@ -124,7 +124,15 @@ survive a refetch; each entry's comment names its source. `MANUAL_STANDS`
 front is laid along the centerline). `STAND_COVER` gives a stand its roof
 by name from the seating map, OSM and manual stands alike: `covered` or
 `open`, written as the stand's `roof`, which the dress pass takes over its
-`covered` and the depth rule. `MANUAL_CROSSINGS` (`station_m`, or a
+`covered` and the depth rule. `STAND_FAMILY` gives a stand its kit family
+by name (or `@<station_m>`), and a `MANUAL_STANDS` entry may name one as
+`family`: `street` / `street_deck` (the street stands), `bank` (a turfed
+general-admission bank), `scaffold`, `banking_seats`, `tent` (a membrane
+roof), `palm` (a frond canopy), `stone` / `stone_centre` (an open stone
+terrace and its centre block), `stadium` (a tall single-roof stand); `-`
+in `STAND_FAMILY` leaves an OSM stand out. `DROP_STRUCTURES` leaves out an
+unnamed OSM building by station (one a stand from the tables stands on); a
+named one goes by naming a `MANUAL_STANDS` entry after it. `MANUAL_CROSSINGS` (`station_m`, or a
 map anchor `at` / `from_at` + `to_at` (lon, lat); `kind`
 `footbridge`/`link`/`viaduct`/`gantry`/`timing`, `overpass` or `road`
 (a concrete bridge), `building` (a building spanning the road,
