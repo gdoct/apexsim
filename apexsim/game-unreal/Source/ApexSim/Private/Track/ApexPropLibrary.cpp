@@ -253,7 +253,7 @@ namespace ApexProps
 			return FString();
 		}
 		if (Asset.StartsWith(TEXT("bay_10m")) || Asset == TEXT("scaffold_10m") || Asset == TEXT("banking_seats")
-			|| IsStreetStandBay(Asset))
+			|| Asset == TEXT("grass_bank_10m") || IsStreetStandBay(Asset))
 		{
 			return Asset + TEXT("_crowd");
 		}
@@ -398,6 +398,7 @@ namespace ApexProps
 	{
 		const FString Name = SlotName.ToString();
 		return Name == TEXT("fence_mesh") || Name.StartsWith(TEXT("tree_foliage")) || Name == TEXT("crowd_cards")
+			|| Name == TEXT("crowd_standing")
 			|| Name.StartsWith(TEXT("tree_card_")) || Name.StartsWith(TEXT("scatter_"));
 	}
 

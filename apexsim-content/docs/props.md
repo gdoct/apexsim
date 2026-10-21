@@ -24,7 +24,10 @@ buildings the bake turns into `walls.msgpack` (see
   `build_batch_e_kit.py`, `build_batch_f_terrain.py`, `build_bull_statue.py`,
   `build_tyre_bridge.py` (a flat tyre arc on two low legs over a footbridge),
   `build_nordschleife_kit.py`, `build_marina_bay_{a1,a2,a3,b1,c1,d1}.py` on
-  `marina_common.py`), `gen_brands.py`, `gen_graffiti.py`,
+  `marina_common.py`, `build_figures.py` (the people kit)),
+  `gen_crowd.py` (the crowd card textures, plain Python with PIL),
+  `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),
+  `gen_brands.py`, `gen_graffiti.py`,
   `gen_marina_decals.py`, `retexture_kit.py`, `skyline_night.py`.
 - `track-editor/core/src/props.rs`: `props::KIT`, the catalogue (kind, key,
   footprint per asset, default first), `assets_for`, `default_asset`, `find`,
@@ -100,12 +103,18 @@ depth x height, metres). By family:
 - **Pit complex**: `garage_6m[_closed]`, `garage_end`, `pit_wall_6m`,
   `pit_wall_plain_6m`, `pit_wall_gantry_6m`, `box_kit`; building
   `pit_building_roofdeck` for street circuits.
-- **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`, the
-  street stand family; attractions (`video_screen`, `ferris_wheel`,
+- **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`,
+  `grass_bank_10m` (a turfed general-admission bank), the street stand
+  family; attractions (`video_screen`, `ferris_wheel`,
   `camera_tower`, `fanzone_stage`, `food_stall_6m`, `ticket_gate`, tents,
   `portaloo_row`); the Nordschleife's misc `spectator_bank_10m` (turf from
   the ground set's grass, `bank_grass`, and the tree kit's bush cards) and camp
   pieces (`camp_scaffold_tower`, `camp_gazebo`, `camp_flag_pole`).
+- **People**: masked cards from `props/misc/T_crowd_standing.png`, slot
+  `crowd_standing`: the bank's crowd (`grass_bank_10m_crowd`, picked like a
+  stand's `_crowd` twin), `misc/crowd_group` (a knot of standing
+  spectators, centred) and `misc/marshal_figure` (a marshal in orange
+  holding a flag, one card facing the road, centred on the feet).
 - **Buildings**: paddock (`hospitality_3f`, `media_centre`, `control_tower`,
   `clubhouse`, `podium`), `observation_tower`, Styrian village houses, barn
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
@@ -151,10 +160,19 @@ there before using it as a `text`.
   everything at runtime keys on them (below); the import shares a material
   by name across a kind, so the same slot name must mean the same material
   in every GLB of the kind.
-- **Masked cards** (`fence_mesh`, `crowd_cards`, `tree_card_*`, `scatter_*`,
+- **Masked cards** (`fence_mesh`, `crowd_cards`, `crowd_standing`, `tree_card_*`, `scatter_*`,
   `tree_foliage*`) are exported as glTF `MASK` + `doubleSided`; a card's
   front faces out of its crown. `forest_billboard` is masked but one-sided
   (two cards back to back), and must not be named `tree_card_*`.
+- **Crowd strips** (`gen_crowd.py`): a stand's crowd card is a 4.4 x 1.15 m
+  strip showing a 0.55-wide window of `T_crowd.png` at its own offset, so
+  the texture is one 8 m row of seated people, wrapping in u, at 256 px a
+  metre across; the standing sheet's top half is the same for 1.9 m tall
+  figures, its bottom half the group and marshal cells (`SHEET_CELLS`).
+  Every card repeats its strip, so a strip's only flag is a chequered one:
+  a national flag there would fill every stand at every circuit with one
+  country. After repainting, `retexture_crowd.py` and `build_figures.py`
+  carry the strips into the GLBs.
 - **Baked textures**: new builders take materials from
   `apex_tex.kit_material`, which returns the baked material for a slot in
   `apex_tex.KIT_SLOTS` and a flat one otherwise. `retexture_kit.py`
@@ -297,8 +315,9 @@ one `Grandstand_<n>` actor with an HISM per asset):
   bay i is bay 0 turned about that point by `(i - (n-1)/2) x theta`, so
   neighbours share a side edge, and the caps take the outer bays' turn.
   The large family is straight only.
-- `scaffold_10m`, `banking_seats` and `street_stand_deck_10m` are not bay
-  families: the module is tiled at 10 m, no caps.
+- `scaffold_10m`, `banking_seats`, `grass_bank_10m` and
+  `street_stand_deck_10m` are not bay families: the module is tiled at
+  10 m, no caps (all but the deck have a `_crowd` twin).
 - The street stand (`street_stand_tier_10m[_roof]`) is straight only, with
   `street_stand_tier_end` caps at `+-(L/2 + 2)`.
 

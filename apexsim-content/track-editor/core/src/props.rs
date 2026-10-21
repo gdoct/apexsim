@@ -213,6 +213,9 @@ pub const KIT: &[KitAsset] = kit![
     Grandstand "bay_10m_stadium_roof" 10.6 x 35.1 x 28.0,
     Grandstand "scaffold_10m" 10.1 x 5.1 x 4.1,
     Grandstand "banking_seats" 10.0 x 6.0 x 2.6,
+    // A turfed general-admission bank, toe at the road edge, tiled at 10 m
+    // like the scaffold; its `_crowd` twin stands people on it.
+    Grandstand "grass_bank_10m" 10.0 x 11.4 x 2.8,
     Grandstand "street_stand_tier_10m" 10.0 x 26.0 x 17.0,
     Grandstand "street_stand_tier_end" 4.0 x 26.0 x 17.0,
     Grandstand "street_stand_tier_10m_roof" 10.0 x 26.0 x 22.0,
@@ -302,6 +305,10 @@ pub const KIT: &[KitAsset] = kit![
     Misc "camp_scaffold_tower" 3.2 x 2.6 x 6.7,
     Misc "camp_gazebo" 3.1 x 3.1 x 3.0,
     Misc "camp_flag_pole" 1.9 x 0.1 x 6.0,
+    // People (masked cards, `crowd_standing`): a knot of standing
+    // spectators and a marshal facing the road. Centred.
+    Misc "crowd_group" 4.2 x 2.2 x 2.0,
+    Misc "marshal_figure" 1.0 x 0.4 x 2.0,
     // Sky: origin at the hull centre, sized round it.
     Sky "blimp" 60.0 x 19.5 x 19.7,
     Sky "balloon" 16.0 x 16.0 x 22.1,

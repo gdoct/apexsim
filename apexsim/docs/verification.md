@@ -177,6 +177,10 @@ higher and further off.
 - A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
   scale down to 0.85 and may still overlap a little).
+- The repainted seated crowd (`gen_crowd.py`) on a full stand with
+  spectators on: figures read as people at 30-150 m, the masked edges
+  hold at distance, the one chequered flag per strip does not repeat in
+  a visible pattern.
 
 ### R9. Menus and dashboard
 

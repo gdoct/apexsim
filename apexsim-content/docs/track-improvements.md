@@ -232,17 +232,21 @@ What the audit says across the table:
   (R6); the cells marked `ok` are ok apart from that.
 - **Boards**: the corner signs and marshal posts follow the dossier's
   named corners, and ten dossiers have none or bogus ones (R10).
-- **People**: no figure kit exists, so every cell is kit.
+- **People**: the figure kit (kit gap 1) is built and nothing lays it
+  yet: the bank is a stand family `MANUAL_STANDS` cannot name (R2), and
+  no rule puts groups at gates or marshals at posts.
 
 ### Kit gaps
 
 Assets the audit finds no kit piece for, one row each, with the tracks
-that need it. Built once, in the column's pass, before the per-track
-dossier edits that place them. Asset keys are working names.
+that need it. Built once, before the per-track dossier edits that place
+them. A row whose asset is built says so and names the keys; it leaves the
+list when the tracks it names have it placed. Unbuilt keys are working
+names.
 
 | # | Asset (kind/key) | Stands in for | Tracks |
 |---|---|---|---|
-| 1 | `misc/crowd_bank_10m`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
+| 1 | built: `grandstand/grass_bank_10m[_crowd]`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
 | 2 | `pit/` upper storey on the garage row (hospitality floor, roof terrace, roof screens) | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
 | 3 | `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
 | 4 | `grandstand/` tent-fabric roof bay and pit roof | white membrane roofs | Bahrainless |

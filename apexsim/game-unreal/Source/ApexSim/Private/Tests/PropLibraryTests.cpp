@@ -109,6 +109,7 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("a post is not a brand slot"), ApexProps::IsBrandSlot(FName(TEXT("board_post"))));
 	TestTrue(TEXT("foliage is masked"), ApexProps::IsMaskedSlot(FName(TEXT("tree_foliage_conifer"))));
 	TestTrue(TEXT("crowd cards are masked"), ApexProps::IsMaskedSlot(FName(TEXT("crowd_cards"))));
+	TestTrue(TEXT("standing figures are masked"), ApexProps::IsMaskedSlot(FName(TEXT("crowd_standing"))));
 	TestTrue(TEXT("a balloon carries a brand"), ApexProps::IsBrandSlot(FName(TEXT("balloon_envelope"))));
 	TestTrue(TEXT("flag cloth"), ApexProps::IsFlagSlot(FName(TEXT("flag_cloth"))));
 	TestFalse(TEXT("a flag is not a brand"), ApexProps::IsBrandSlot(FName(TEXT("flag_cloth"))));
@@ -134,6 +135,8 @@ bool FApexPropKindsTest::RunTest(const FString& Parameters)
 		FString(TEXT("bay_10m_curve6_roof_crowd")));
 	TestEqual(TEXT("scaffold crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("scaffold_10m")),
 		FString(TEXT("scaffold_10m_crowd")));
+	TestEqual(TEXT("bank crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("grass_bank_10m")),
+		FString(TEXT("grass_bank_10m_crowd")));
 	TestTrue(TEXT("caps have no crowd"), ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("end_cap")).IsEmpty());
 	TestTrue(TEXT("crowd is not doubled"),
 		ApexProps::CrowdVariant(TEXT("grandstand"), TEXT("bay_10m_crowd")).IsEmpty());
