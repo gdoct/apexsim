@@ -4306,6 +4306,7 @@ fn bake_props(
                 layout,
                 terrain,
                 CircuitStyle::for_scene(scene).pit_garages,
+                CircuitStyle::pit_storey_for(scene),
             )
         })
         .unwrap_or_default();
@@ -4529,6 +4530,7 @@ fn bake_pit_complex(
     layout: &PitLayout,
     terrain: Option<&TerrainHeightfield>,
     garages: bool,
+    storey: Option<&'static str>,
 ) -> Vec<UeProp> {
     let total = lane.total_length_m();
     // The stretch of pit road that runs clear of the track and the box row
@@ -4582,9 +4584,17 @@ fn bake_pit_complex(
     for i in 0..boxes {
         let s = row_start + (i as f32 + 0.5) * PIT_MODULE_M;
         if garages {
+            let scale = garage_scale(lane, s, side, half);
             let mut garage = pit_module(lane, ("pit", "garage_6m"), s, box_edge, face_left);
-            garage.scale = garage_scale(lane, s, side, half);
+            garage.scale = scale;
             out.push(garage);
+            // The storey over it, on the same pivot (authored floored at the
+            // garage's parapets); the podium's garage keeps its roof open.
+            if let Some(asset) = storey.filter(|_| i != boxes / 2) {
+                let mut upper = pit_module(lane, ("pit", asset), s, box_edge, face_left);
+                upper.scale = scale;
+                out.push(upper);
+            }
         }
         // The crew's kit on the working lane in front of the door, on the
         // same pivot: it is authored to reach 2.6 m out from the garage.

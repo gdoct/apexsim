@@ -281,9 +281,9 @@ names.
 | # | Asset (kind/key) | Stands in for | Tracks |
 |---|---|---|---|
 | 1 | built: `grandstand/grass_bank_10m[_crowd]`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
-| 2 | built: `pit/garage_upper_6m` (hospitality floor, roof terrace); the exporter does not stack it yet, and roof screens are R20 | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
+| 2 | built and stacked by the exporter (`CircuitStyle::pit_storey_for`): `pit/garage_upper_6m`; roof screens are R20 | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
 | 3 | built: `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
-| 4 | built: `grandstand/tent_roof_10m`, `pit/garage_roof_membrane_6m` (not stacked by the exporter yet) | white membrane roofs | Bahrainless |
+| 4 | built: `grandstand/tent_roof_10m`, `pit/garage_roof_membrane_6m` (stacked at Bahrainless) | white membrane roofs | Bahrainless |
 | 5 | built: `building/round_glass_tower` | a 30 m round glass control tower | Bahrainless |
 | 6 | built: `grandstand/palm_canopy_10m` | leaf-canopy grandstand roofs | Shebang |
 | 7 | built: `bridge/sky_platform` | cantilevered platforms spanning the straight | Shanghaied |

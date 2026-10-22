@@ -338,6 +338,24 @@ impl CircuitStyle {
         ..Self::DEFAULT
     };
 
+    /// The storey stacked on each generated garage (kit gap 2): the
+    /// multi-storey pit buildings get the hospitality floor and terrace,
+    /// Bahrain its white membrane roof. `None` for a one-storey row.
+    pub fn pit_storey_for(scene: &AtsScene) -> Option<&'static str> {
+        let stem = scene
+            .source_track
+            .rsplit_once('.')
+            .map_or(scene.source_track.as_str(), |(stem, _)| stem);
+        match stem {
+            "BrandsScratch" | "ChillyVilleneuve" | "Gnocchi" | "Hockeyheimring" | "Hungoverring"
+            | "Interlaggos" | "Lemons" | "Monzarella" | "Nuerburgerring" | "Oskarsleben" => {
+                Some("garage_upper_6m")
+            }
+            "Bahrainless" => Some("garage_roof_membrane_6m"),
+            _ => None,
+        }
+    }
+
     /// The style of the circuit a scene decorates, by its source track's
     /// stem.
     pub fn for_scene(scene: &AtsScene) -> CircuitStyle {

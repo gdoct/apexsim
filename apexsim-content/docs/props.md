@@ -111,8 +111,9 @@ depth x height, metres). By family:
   `pit_wall_plain_6m`, `pit_wall_gantry_6m`, `box_kit`; building
   `pit_building_roofdeck` for street circuits; storeys that stack on
   `garage_6m`'s roof (`garage_upper_6m`, a hospitality floor and terrace;
-  `garage_roof_membrane_6m`, a membrane roof), which the exporter does not
-  lay yet.
+  `garage_roof_membrane_6m`, a membrane roof), which the exporter stacks on
+  each garage but the podium's at the circuits
+  `CircuitStyle::pit_storey_for` names.
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`,
   `grass_bank_10m` (a turfed general-admission bank), the venue modules
   `tent_roof_10m` and `palm_canopy_10m` (bay_10m's seating under a membrane
