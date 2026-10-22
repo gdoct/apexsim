@@ -3954,6 +3954,35 @@ runs:
         checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
         exec: "apexsim.cam.LookAt 420.0 -540.0 40.0 600.0 -700.0 3.0"
 
+  - id: c5-24h-nuerburgerring24
+    about: "The Nurburgring 24h layout: start/finish, pits and both connectors"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring24
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "down the straight from above the line"
+        checks: "24h: the GP's start/finish, its pit lane and garages, the grid"
+        exec: "apexsim.cam.LookAt 109.7 102.4 37.2 -42.0 -42.8 -0.9"
+      - at: 20
+        label: "the connector onto the Nordschleife"
+        checks: "24h: Anbindung zur Nordschleife: the road continuous, barriers along it, nothing on it"
+        exec: "apexsim.cam.LookAt 250.0 360.0 30.0 324.5 437.0 0.0"
+      - at: 28
+        label: "the connector back onto the GP"
+        checks: "24h: Anbindung zum GP Kurs: the road continuous, barriers along it, nothing on it"
+        exec: "apexsim.cam.LookAt 470.0 440.0 30.0 412.6 386.6 0.0"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:

@@ -244,6 +244,14 @@ impl CircuitStyle {
         fan_dressing: true,
     };
 
+    /// The Nurburgring's 24-hour layout (`combine_tracks.py`): the
+    /// Nordschleife's rails, signs and forest over most of the lap, and the
+    /// GP paddock's pit lane, where the endurance races pit.
+    pub const NURBURGRING_24H: CircuitStyle = CircuitStyle {
+        pit_lane: true,
+        ..Self::NORDSCHLEIFE
+    };
+
     /// Marina Bay: a street circuit between buildings and water. Concrete
     /// walls a couple of metres off the road, no tree belt (the city's
     /// own trees are laid from the dossier), and no floodlight ring: the
@@ -348,7 +356,8 @@ impl CircuitStyle {
             .map_or(scene.source_track.as_str(), |(stem, _)| stem);
         match stem {
             "BrandsScratch" | "ChillyVilleneuve" | "Gnocchi" | "Hockeyheimring" | "Hungoverring"
-            | "Interlaggos" | "Lemons" | "Monzarella" | "Nuerburgerring" | "Oskarsleben" => {
+            | "Interlaggos" | "Lemons" | "Monzarella" | "Nuerburgerring" | "Nuerburgerring24"
+            | "Oskarsleben" => {
                 Some("garage_upper_6m")
             }
             "Bahrainless" => Some("garage_roof_membrane_6m"),
@@ -369,6 +378,7 @@ impl CircuitStyle {
     pub fn for_stem(stem: &str) -> CircuitStyle {
         match stem {
             "Mordschleife" => Self::NORDSCHLEIFE,
+            "Nuerburgerring24" => Self::NURBURGRING_24H,
             "MandarinaBay" => Self::STREET,
             "Bahrainless" => Self::SAKHIR,
             "YasMarinara" => Self::DESERT,

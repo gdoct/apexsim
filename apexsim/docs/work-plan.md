@@ -262,15 +262,13 @@ reason in the column's paragraph; the `c5-*` runs in
 Built 2026-10-22 and waiting for a person to judge the shots: the real
 pit lanes at Albert Park and Le Mans (R21, both pit surveys pass), the
 pit-roof screens at Albert Park and Marina Bay, the tree rows at
-Oschersleben and Shanghai (R8), Shanghai's lotus roof and the Fisht
-stadium. Left: the Nordschleife's T13 pumps and media tower (no source
-places them); Monza's banking curves; the four circuits without a
-dossier. Last: the Nordschleife joined
-to the GP circuit (Nuerburgerring), so it has the GP pit lane and pit
-building and players can drive its routes: the Nordschleife alone from
-the GP pits, the GP circuit, and the combined 24h lap. That is a track
-with more than one route, which the track format, the session and the
-lap timing do not model yet.
+Oschersleben and Shanghai (R8), Shanghai's lotus roof, the Fisht stadium,
+Monza's banking (`c5-kit-*`), and the Nurburgring's 24h layout
+(`Nuerburgerring24`, the GP and the Nordschleife joined by
+`tools/combine_tracks.py`, GP pits; `c5-24h-nuerburgerring24`). Left: the
+Nordschleife's T13 pumps and media tower (no source places them); the four
+circuits without a dossier (their OSM fits fail on layout variants:
+`BBOXES`' notes); one track with selectable routes (follow-ups).
 **Watch out:** hand-placed props are discarded on the next dress; the
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a

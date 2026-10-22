@@ -46,6 +46,12 @@ the same `ApexProps` code.
 - Mandarina Bay: corner names (the dossier has one "corner", the circuit
   itself), the F1 pit building (`building_pit_street`) placed, a quay rail
   along the water, a catch fence pass.
+- The Nurburgring's routes are three circuits (`Nuerburgerring`,
+  `Mordschleife`, `Nuerburgerring24` built by `combine_tracks.py`), not one
+  track with selectable routes: the track format, the session and the lap
+  timing know one lap per track. The Nordschleife alone from the GP pits
+  (the VLN/NLS layout without the GP loop) is not built; it is a
+  `COMBINED` entry with the GP's pit straight and the two connectors.
 - `extract()` in `tools/osm_layout.py` takes a stand only from its
   grandstand tags: an outline tagged only `leisure=bleachers`, carrying
   just a name ("BMW Tribüne") or tagged `building=yes` (Silverstone's

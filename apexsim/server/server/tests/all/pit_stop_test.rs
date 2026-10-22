@@ -1079,7 +1079,7 @@ fn pit_lane_survey() {
 
 /// One AI in a race on `track` with its tyres 72% worn: the laps it ran,
 /// the stops it made and the seconds it spent off the road outside the
-/// lane, over at most `laps` laps or ten minutes.
+/// lane, over at most `laps` laps or twenty minutes a 7 km of lap.
 fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
     let car = gt3();
     let car_id = car.id;
@@ -1097,6 +1097,14 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
         1,
         4,
     );
+    // Twenty minutes for a GP lap's length, longer for a longer lap (the
+    // Nurburgring's 24h layout runs 14 minutes a lap).
+    let lap_m: f32 = track
+        .centerline
+        .windows(2)
+        .map(|w| (w[1].x - w[0].x).hypot(w[1].y - w[0].y))
+        .sum();
+    let minutes = (20.0 * (lap_m / 7000.0).max(1.0)).ceil() as usize;
     let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
     gs.spawn_ai_drivers();
     gs.start_countdown_mode(1, GameMode::Race);
@@ -1108,7 +1116,7 @@ fn ai_stop_on(track: TrackConfig, laps: usize) -> (Vec<f32>, u16, f32) {
     }
     let (mut times, mut off_ticks) = (Vec::new(), 0u32);
     let trace = std::env::var("PIT_TRACE").is_ok();
-    for _ in 0..(HZ * 60 * 20) {
+    for _ in 0..(HZ * 60 * minutes) {
         let inputs: HashMap<PlayerId, PlayerInputData> =
             [(driver, gs.generate_ai_input(&driver))].into();
         gs.tick(&inputs);

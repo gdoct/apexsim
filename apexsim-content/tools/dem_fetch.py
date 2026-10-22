@@ -48,6 +48,7 @@ few kilometres or a whole datum wrong:
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import struct
 import urllib.error
@@ -613,6 +614,10 @@ def main() -> int:
         return 1
     for stem in stems:
         if stem not in BBOXES:
+            layout = track_dir(stem) / f"{stem}.layout.json"
+            if args.all and layout.exists() and "combined_from" in json.loads(layout.read_text(encoding="utf-8")):
+                print(f"{stem}: combined (tools/combine_tracks.py writes its DEM), skipped")
+                continue
             raise SystemExit(f"no bbox for {stem}; add one to osm_layout.BBOXES")
         doc = build(stem, args.offline)
         if args.dry_run:

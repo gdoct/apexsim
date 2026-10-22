@@ -24,6 +24,9 @@ Nordschleife and Mandarina Bay. Display names are in
 - `tools/osm_layout.py`: the per-circuit `MANUAL_*` tables.
 - `tools/seed_scene.py`: starts a new circuit's `.ats` (start line, grass,
   curbs at every apex).
+- `tools/combine_tracks.py`: a lap joined from two circuits of one venue
+  (`COMBINED`): YAML, dossier, DEM sidecar and, with `--scene`, the curbs
+  and surfaces.
 - `tools/bridge_elevation.py`: bridge humps on a flat street circuit.
 
 ## Circuit styles
@@ -211,6 +214,31 @@ that leaves the road is more likely to be pinned against one.
   300 m between Breidscheid and the Hohe Acht section) before trusting it.
 - Tight rails change what the AI hits: run the survey after touching the
   style's distances.
+
+## Nürburgring 24h (`Nuerburgerring24`)
+
+The 24-hour layout: the GP circuit (`Nuerburgerring`) to the NGK
+chicane's exit (GP 4550), OSM's "Anbindung zur Nordschleife" onto the
+loop just past T13 (Nordschleife 20), the Nordschleife to Hohenrain
+(20643), the "Anbindung zum GP Kurs" back onto the GP before its pit
+straight (GP 4695), 25.9 km. It is built, not traced:
+`tools/combine_tracks.py` (its `COMBINED` table) writes the YAML, the
+dossier and the DEM sidecar in the GP's frame and datum, the Nordschleife's
+nodes and entries going through WGS-84 from its own georeference, so
+nothing is refitted; `--scene` (after `seed_scene.py`) carries both
+scenes' curbs and run-off surfaces over by station. A station-only entry
+(corner, crossing, road graffiti) keeps its place inside a kept span and is
+dropped in the cut stretches; one with a position is re-stationed on the
+new lap. Then the refresh order from `dem_elevation.py` for the stem, and
+`generate_race_line.py`. Its dossier carries `combined_from`, so
+`osm_layout.py` and `dem_fetch.py --all` leave it alone: after a change to
+either source dossier, run `combine_tracks.py` again, then `--scene`, then
+the refresh order.
+
+Style `NURBURGRING_24H`: the Nordschleife's rails, German signs and
+forest, with the GP paddock's pit lane (where the endurance races pit)
+and the GP pit building's upper storey. The GP and the Nordschleife stay
+circuits of their own: the three are the venue's three routes.
 
 ## Mandarina Bay (`MandarinaBay`)
 
