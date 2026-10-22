@@ -139,7 +139,9 @@ depth x height, metres). By family:
   backdrop, the Marina Bay landmarks, and the venue landmarks
   `wing_media_centre` (a 40 m module tiled over the garages),
   `round_glass_tower`, `arena_dome`, `stadium_bowl` (a 260 x 208 m football
-  stadium under a white shell roof, the Fisht), `expo_pavilion`, `geodesic_dome`,
+  stadium under a white shell roof, the Fisht), `banked_oval_10m` (a
+  straight module of an old banked oval, tiled along its mapped line),
+  `expo_pavilion`, `geodesic_dome`,
   `fuel_station_canopy` (its fascia a brand slot) and misc `cauldron`.
 - **Landscape**: card trees (`broadleaf_s/m/l`, `conifer_m/l`, `poplar`,
   `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms, the warm-climate

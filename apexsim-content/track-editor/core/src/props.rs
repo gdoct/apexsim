@@ -226,6 +226,9 @@ pub const KIT: &[KitAsset] = kit![
     Building "round_glass_tower" 25.0 x 28.0 x 36.5,
     Building "arena_dome" 134.0 x 104.0 x 30.6,
     Building "stadium_bowl" 260.1 x 208.2 x 47.6,
+    // A straight 10 m module of an old banked oval beside the road, tiled
+    // along its mapped line (the dossier's `banking`).
+    Building "banked_oval_10m" 10.0 x 12.7 x 6.4,
     Building "expo_pavilion" 71.3 x 57.3 x 34.9,
     Building "geodesic_dome" 76.4 x 76.4 x 62.2,
     Building "fuel_station_canopy" 30.0 x 31.3 x 7.1,

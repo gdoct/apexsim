@@ -232,7 +232,9 @@ pass (each audit page's "Landmark dossier pass"), the bake, the survey
 (identical) and the `c5-lm-*` and `c5-r14-*` shots, judged 2026-10-22.
 Open: Gnocchi (the Fisht stadium, `building/stadium_bowl` on its OSM
 centre, built 2026-10-22; `c5-lm-gnocchi` waits for a person) and
-Monzarella (the banking's curves beside the road have no kit piece).
+Monzarella (the Sopraelevate, OSM's banked curves laid as
+`building/banked_oval_10m` modules from the dossier's `banking`, built
+2026-10-22; `c5-kit-monzarella` waits for a person).
 
 **Stands column.** Done but for one circuit: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier

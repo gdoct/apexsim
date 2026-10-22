@@ -249,6 +249,11 @@ stamp.
   or a `venue_hall` when the map gives it one storey and 1500 m2. A tall
   square one is a `control_tower`, a small one a `clubhouse`, and a street
   circuit's neighbours are the `skyline_*` set.
+- **An old banked oval** (the dossier's `banking`: OSM's raceway ways by
+  name, `BANKING_WAYS` in `osm_layout.py`, bridges left out) is tiled with
+  `building/banked_oval_10m` every 10 m along its line, the high side on
+  the curve's outside, nothing within 15 m of the circuit's road
+  (`dress::lay_banking`): Monza's Sopraelevate.
 - **A stand laid against another leg** (most of its bays nearer the road
   150 m or more past its own span: a dossier side error) is laid and
   reported as a `check` line by `--verbose` and `dossier_check.py`.

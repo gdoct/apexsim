@@ -15,6 +15,8 @@ the stands, pit storeys and bridges the dressing audit found no kit piece for.
                                     from either side, nearly meeting
   bridge/banked_oval_span           a steeply banked concrete oval deck on
                                     piers, crossing over the road
+  building/banked_oval_10m          a straight 10 m module of that deck beside
+                                    the road, tiled along the oval's line
 
 Headless, from apexsim-content/ (one Blender at a time):
 
@@ -966,6 +968,62 @@ def sky_platform():
                         extra=[("_c", ((34, -12, 32), (0, 0, 10)))])
 
 
+def banked_oval_10m():
+    """A straight 10 m module of the old banked oval beside the road: the
+    13 m concrete deck banked from 8 degrees at its inner edge to 40 at
+    the outer (the outside of the curve on +Y), its inner edge 1 m up, on
+    two rows of piers, armco along the top lip. Tiled along the oval's
+    mapped line, which runs through the module's middle."""
+    new_scene()
+    m = bridge_mats()
+    conc, dark = m["conc"], m["dark"]
+    galv = M("armco_galv")
+    b = apex.Builder("banked_oval_10m")
+    W, Z_IN, SLAB, NW = 13.0, 1.0, 0.55, 16
+    prof = [(0.0, 0.0)]
+    steps = 160
+    for i in range(1, steps + 1):
+        a = math.radians(8 + 32 * (i / steps) ** 1.6)
+        h0, z0 = prof[-1]
+        prof.append((h0 + math.cos(a) * W / steps, z0 + math.sin(a) * W / steps))
+    HW = prof[-1][0]
+
+    def pt(x, s, dz=0.0):
+        i = min(steps - 1, int(s / W * steps))
+        f = s / W * steps - i
+        (h0, z0), (h1, z1) = prof[i], prof[i + 1]
+        return Vector((x, -HW / 2 + h0 + (h1 - h0) * f, Z_IN + z0 + (z1 - z0) * f + dz))
+
+    ss = [W * j / NW for j in range(NW + 1)]
+    for j in range(NW):
+        a0, a1 = ss[j], ss[j + 1]
+        oface(b, conc, [pt(-5, a0), pt(5, a0), pt(5, a1), pt(-5, a1)], out=(0, 0, 1))
+        oface(b, conc, [pt(-5, a0, -SLAB), pt(5, a0, -SLAB), pt(5, a1, -SLAB), pt(-5, a1, -SLAB)], out=(0, 0, -1))
+        for x, sx in ((-5, -1), (5, 1)):   # module ends, closed (a run's end is open otherwise)
+            oface(b, conc, [pt(x, a0), pt(x, a1), pt(x, a1, -SLAB), pt(x, a0, -SLAB)], out=(sx, 0, 0))
+    oface(b, conc, [pt(-5, 0), pt(5, 0), pt(5, 0, -SLAB), pt(-5, 0, -SLAB)], out=(0, -1, 0))
+    oface(b, conc, [pt(-5, W), pt(5, W), pt(5, W, -SLAB), pt(-5, W, -SLAB)], out=(0, 1, 0))
+    # An expansion joint across the deck.
+    for j in range(NW):
+        oface(b, dark, [pt(-0.06, ss[j], 0.03), pt(0.06, ss[j], 0.03), pt(0.06, ss[j + 1], 0.03),
+                        pt(-0.06, ss[j + 1], 0.03)], out=(0, 0, 1))
+    # The inner kerb wall down to the ground and piers under the deck.
+    b.box(conc, (-5.0, -HW / 2 - 0.3, 0.0), (5.0, -HW / 2 + 0.2, Z_IN))
+    for s_at in (W * 0.45, W * 0.85):
+        top = pt(0, s_at, -SLAB)
+        for x in (-2.5, 2.5):
+            b.box(conc, (x - 0.45, top.y - 0.45, 0.0), (x + 0.45, top.y + 0.45, top.z))
+    # Lip parapet and armco on it.
+    lip = pt(0, W)
+    b.box(conc, (-5.0, lip.y, lip.z - SLAB), (5.0, lip.y + 0.35, lip.z + 0.9))
+    b.box(galv, (-5.0, lip.y - 0.12, lip.z + 0.45), (5.0, lip.y - 0.02, lip.z + 0.8))
+    for x in (-3.75, -1.25, 1.25, 3.75):
+        b.box(dark, (x - 0.05, lip.y - 0.1, lip.z), (x + 0.05, lip.y, lip.z + 0.85))
+    ob = b.finish(recalc=False)
+    return finish_asset("building", "banked_oval_10m", ob,
+                        three_q=((-18, -22, 9), (0, 2, 3)), driver=((-25, -3, 1.2), (0, 0, 3)))
+
+
 def banked_oval_span():
     """The old banked oval crossing over the road: a 13 m concrete deck
     curving in plan (radius 60 m) and banked from 8 degrees at its inner
@@ -1150,6 +1208,7 @@ BUILD = {
     "stone_tribune_centre_10m": stone_tribune_centre_10m,
     "sky_platform": sky_platform,
     "banked_oval_span": banked_oval_span,
+    "banked_oval_10m": banked_oval_10m,
 }
 
 if __name__ == "__main__":

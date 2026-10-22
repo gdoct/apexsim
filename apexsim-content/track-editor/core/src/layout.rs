@@ -58,6 +58,10 @@ pub struct Layout {
     /// them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tree_rows: Vec<Line>,
+    /// The mapped line of an old banked oval beside the circuit (Monza's
+    /// Sopraelevate), laid as `building/banked_oval_10m` modules.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub banking: Vec<Line>,
     /// The real barrier lines: armco, walls and tyre stacks as OSM has
     /// them. The barrier pass lays its runs along these where a circuit
     /// has them and falls back to the runoff edge where it does not.

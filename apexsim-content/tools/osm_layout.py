@@ -110,6 +110,19 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     # filtering or fit problem, so no code change can close it. Once OSM
     # gains linework through the stadium, add:
     #   "HermanosRodriQueso": [(-99.102, 19.396, -99.080, 19.413)],
+    # YasMarinara and Endianapolis are not registered either (2026-10-22,
+    # the same --all-abort reason). Yas Marina, box
+    #   (54.590, 24.455, 54.620, 24.480):
+    # covers 85.7% of the centerline at 3.18 m rmse with only 50.7% of the
+    # raceway ways matched -- OSM carries both the pre- and post-2021
+    # layouts (the hairpin and the T5-T7 chicane re-profiled) over the
+    # same tarmac, and the fit cannot tell this YAML's variant from the
+    # other. Indianapolis, box
+    #   (-86.245, 39.783, -86.222, 39.805):
+    # 66.7% at 3.97 m, 48.1% matched: the road course shares the oval's
+    # banking and front straight, and OSM's infield ways are a different
+    # road-course variant than this YAML's. Both need a variant-aware fit
+    # (raceway ways chosen by name or by layout), not a looser gate.
     "ChillyVilleneuve": [(-73.540, 45.490, -73.510, 45.515)],
     "Lemons": [
         (0.180, 47.910, 0.240, 47.945),
@@ -4606,6 +4619,33 @@ def extract_tree_rows(osm: "Osm", lon0: float, lat0: float, to_track, track: Tra
     return rows
 
 
+# An old banked oval beside the circuit, by the names OSM gives its
+# raceway ways (bridges left out: the span over the road is a crossing).
+# `--manual-only` writes them from the cached extract as the dossier's
+# `banking`, which the dress pass tiles with building/banked_oval_10m.
+BANKING_WAYS: dict[str, tuple[str, ...]] = {
+    # Monza's Sopraelevate, the high-speed oval's two banked curves.
+    "Monzarella": ("Sopraelevata Nord", "Sopraelevata Sud"),
+}
+
+
+def extract_banking(stem: str, osm: "Osm", lon0: float, lat0: float, to_track) -> list[dict]:
+    """BANKING_WAYS' raceway ways as lines in the dossier's frame."""
+    out = []
+    for w in osm.ways:
+        t = w.get("tags") or {}
+        if t.get("highway") != "raceway" or t.get("name") not in BANKING_WAYS[stem]:
+            continue
+        if t.get("bridge") and t.get("bridge") != "no":
+            continue
+        pts = [osm.nodes[n] for n in w["nodes"] if n in osm.nodes]
+        if len(pts) < 2:
+            continue
+        p = to_track(np.array([enu(lon, lat, lon0, lat0) for lon, lat in pts]))
+        out.append({"kind": "banking", "name": t["name"], "line": round_pts(p)})
+    return out
+
+
 def with_podium(stem: str, pit: dict | None, track: Track) -> dict | None:
     """The pit lane with `PIT_PODIUM`'s station, or without one."""
     if not pit:
@@ -5046,6 +5086,8 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
             new["water"] = [w for w in layout.get("water", []) if w.get("source") != "authored"] + manual_water(
                 stem, Frame, to_track
             )
+        if stem in BANKING_WAYS:
+            new["banking"] = extract_banking(stem, Osm(fetch(stem, False)), Frame.lon0, Frame.lat0, to_track)
         if stem in TREE_ROW_STEMS:
             new["tree_rows"] = extract_tree_rows(Osm(fetch(stem, False)), Frame.lon0, Frame.lat0, to_track, track)
         new["corners"] = with_display_names(

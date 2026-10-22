@@ -78,6 +78,10 @@ const STAND_RUNOFF_CLEAR_M: f32 = 2.0;
 /// Least room between the road edge and a general-admission bank, which
 /// stands behind the barrier line, not at the edge of the verge.
 const BANK_ROAD_CLEAR_M: f32 = 10.0;
+/// An old banked oval's modules, and how far they keep off the circuit's
+/// road (their 12.7 m width centred on the mapped line).
+const BANKING_MODULE_M: f32 = 10.0;
+const BANKING_ROAD_CLEAR_M: f32 = 15.0;
 /// A general-admission area's crowd: a knot of spectators about every
 /// `GA_PITCH_M` along the front, rows `GA_ROW_M` apart, no deeper than
 /// `GA_MAX_DEPTH_M`.
@@ -354,6 +358,12 @@ pub fn dress_scene_with_dem(
                 .skipped
                 .push(format!("landmark {}: {reason}", name_of(&landmark.name))),
         }
+    }
+
+    for (i, line) in layout.banking.iter().enumerate() {
+        let props = lay_banking(&path, &terrain, line);
+        report.landmarks += usize::from(!props.is_empty());
+        laid.extend(stamped(props, format!("banking {}", line.name.clone().unwrap_or_else(|| i.to_string()))));
     }
 
     // Anything the circuit has of its own is respected: a venue with its
@@ -673,6 +683,57 @@ fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
 /// own garages, Shanghai's started 62 m off the road in a field and
 /// Melbourne's 8 m short of it, and on seven circuits it ran too close to
 /// the road for more than a handful of garages.
+/// An old banked oval's line laid as `building/banked_oval_10m` modules,
+/// one every 10 m along it, each turned so its high side faces the
+/// outside of the curve, the ones within [`BANKING_ROAD_CLEAR_M`] of the
+/// circuit's road left out (where the oval meets the lap, or the span
+/// over it stands).
+fn lay_banking(path: &CenterlinePath, terrain: &TerrainHeightfield, line: &crate::layout::Line) -> Vec<Prop> {
+    let pts = &line.line;
+    // Which way the line turns overall: left turns put the centre on the
+    // left, so the outside, the module's +Y, is on the right.
+    let turn: f32 = pts
+        .windows(3)
+        .map(|w| {
+            let (a, b) = ((w[1][0] - w[0][0], w[1][1] - w[0][1]), (w[2][0] - w[1][0], w[2][1] - w[1][1]));
+            a.0 * b.1 - a.1 * b.0
+        })
+        .sum();
+    let flip = if turn > 0.0 { std::f32::consts::PI } else { 0.0 };
+    let mut out = Vec::new();
+    let mut carry = BANKING_MODULE_M / 2.0;
+    for seg in pts.windows(2) {
+        let (a, b) = (seg[0], seg[1]);
+        let len = (b[0] - a[0]).hypot(b[1] - a[1]);
+        let heading = (b[1] - a[1]).atan2(b[0] - a[0]);
+        let mut d = carry;
+        while d < len {
+            let (x, y) = (a[0] + (b[0] - a[0]) * d / len, a[1] + (b[1] - a[1]) * d / len);
+            d += BANKING_MODULE_M;
+            let (sample, lat) = nearest_cross_section(path, x, y);
+            let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+            if lat.abs() - side_half_width(&sample, side) < BANKING_ROAD_CLEAR_M {
+                continue;
+            }
+            out.push(Prop {
+                id: 0,
+                kind: PropKind::Building,
+                asset: "banked_oval_10m".to_string(),
+                x,
+                y,
+                z: seat_z(terrain, &sample, lat, x, y),
+                yaw_rad: heading + flip,
+                scale: 1.0,
+                text: None,
+                length_m: None,
+                source: None,
+            });
+        }
+        carry = d - len;
+    }
+    out
+}
+
 /// The source stamp of a landmark the dossier puts on the pit building's
 /// roof (`Landmark::pit_roof`).
 const PIT_ROOF_STAMP: &str = "pit roof";
@@ -4202,6 +4263,41 @@ mod tests {
 
     fn scene(track: &TrackFile) -> AtsScene {
         AtsScene::new_for_track(track, "Dress.yaml")
+    }
+
+    /// An old oval's banking is tiled along its mapped line, its high side
+    /// on the outside of the curve, and none of it near the circuit's road.
+    #[test]
+    fn a_banking_line_is_tiled_with_its_high_side_outside() {
+        let track = track();
+        let mut layout = layout();
+        // A left-turning arc well inside the infield's far side.
+        let arc: Vec<[f32; 2]> = (0..=12)
+            .map(|i| {
+                let a = -0.6 + 1.2 * i as f32 / 12.0;
+                [400.0 + 200.0 * a.sin(), -300.0 + 200.0 * (1.0 - a.cos())]
+            })
+            .collect();
+        layout.banking = vec![crate::layout::Line {
+            kind: "banking".to_string(),
+            name: Some("Oval".to_string()),
+            line: arc,
+            closed: false,
+            bridge: false,
+            tunnel: false,
+        }];
+        let mut scene = scene(&track);
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let mods: Vec<_> = scene.props.iter().filter(|p| p.asset == "banked_oval_10m").collect();
+        assert!(mods.len() >= 20, "{} modules", mods.len());
+        // The arc turns left (centre at +y), so its outside is on the
+        // right: the module's +Y must point away from the centre.
+        let centre = (400.0f32, -100.0f32);
+        for m in &mods {
+            let plus_y = (-m.yaw_rad.sin(), m.yaw_rad.cos());
+            let out = (m.x - centre.0, m.y - centre.1);
+            assert!(plus_y.0 * out.0 + plus_y.1 * out.1 > 0.0, "a module's high side faces the centre");
+        }
     }
 
     /// A general-admission area is laid as loose knots of standing
