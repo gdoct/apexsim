@@ -3634,7 +3634,7 @@
     {
       "id": 6536,
       "kind": "building",
-      "asset": "media_centre",
+      "asset": "clubhouse",
       "x": -49.33625,
       "y": -273.71338,
       "z": 0.059456527,
@@ -3838,10 +3838,10 @@
     {
       "id": 6553,
       "kind": "building",
-      "asset": "hospitality_3f",
-      "x": 549.7992,
-      "y": -149.68213,
-      "z": -17.878685,
+      "asset": "office_block",
+      "x": 550.9594,
+      "y": -143.99936,
+      "z": -17.97217,
       "yaw_rad": 1.3694,
       "scale": 1.0,
       "text": null,
@@ -3850,10 +3850,10 @@
     {
       "id": 6554,
       "kind": "building",
-      "asset": "hospitality_3f",
-      "x": 555.92035,
-      "y": -119.700615,
-      "z": -18.405914,
+      "asset": "office_block",
+      "x": 558.9809,
+      "y": -104.709854,
+      "z": -18.691654,
       "yaw_rad": 1.3694,
       "scale": 1.0,
       "text": null,
@@ -3862,10 +3862,10 @@
     {
       "id": 6555,
       "kind": "building",
-      "asset": "hospitality_3f",
-      "x": 562.04144,
-      "y": -89.71909,
-      "z": -18.97087,
+      "asset": "office_block",
+      "x": 567.0024,
+      "y": -65.42035,
+      "z": -19.440035,
       "yaw_rad": 1.3694,
       "scale": 1.0,
       "text": null,
@@ -3873,18 +3873,6 @@
     },
     {
       "id": 6556,
-      "kind": "building",
-      "asset": "hospitality_3f",
-      "x": 568.1626,
-      "y": -59.73757,
-      "z": -19.578838,
-      "yaw_rad": 1.3694,
-      "scale": 1.0,
-      "text": null,
-      "source": "building (unnamed)"
-    },
-    {
-      "id": 6557,
       "kind": "building",
       "asset": "clubhouse",
       "x": 702.2573,
@@ -3896,7 +3884,7 @@
       "source": "building (unnamed)"
     },
     {
-      "id": 6558,
+      "id": 6557,
       "kind": "building",
       "asset": "clubhouse",
       "x": 694.71014,
@@ -3908,7 +3896,7 @@
       "source": "building (unnamed)"
     },
     {
-      "id": 6559,
+      "id": 6558,
       "kind": "building",
       "asset": "clubhouse",
       "x": 673.11273,
@@ -3920,7 +3908,7 @@
       "source": "building (unnamed)"
     },
     {
-      "id": 6560,
+      "id": 6559,
       "kind": "building",
       "asset": "clubhouse",
       "x": 723.3225,
@@ -3932,7 +3920,7 @@
       "source": "building (unnamed)"
     },
     {
-      "id": 6561,
+      "id": 6560,
       "kind": "building",
       "asset": "clubhouse",
       "x": 725.43866,
@@ -3944,7 +3932,7 @@
       "source": "building (unnamed)"
     },
     {
-      "id": 6562,
+      "id": 6561,
       "kind": "building",
       "asset": "clubhouse",
       "x": 385.65894,
@@ -3956,12 +3944,24 @@
       "source": "building (unnamed)"
     },
     {
+      "id": 6562,
+      "kind": "building",
+      "asset": "office_block",
+      "x": 125.78947,
+      "y": 8.544674,
+      "z": -8.814373,
+      "yaw_rad": 0.729,
+      "scale": 1.0,
+      "text": null,
+      "source": "building (unnamed)"
+    },
+    {
       "id": 6563,
       "kind": "building",
-      "asset": "media_centre",
-      "x": 140.37065,
-      "y": 21.5674,
-      "z": -10.9454365,
+      "asset": "office_block",
+      "x": 155.6977,
+      "y": 35.25625,
+      "z": -13.166865,
       "yaw_rad": 0.729,
       "scale": 1.0,
       "text": null,
@@ -3970,10 +3970,10 @@
     {
       "id": 6564,
       "kind": "building",
-      "asset": "media_centre",
-      "x": 170.6518,
-      "y": 48.612038,
-      "z": -14.957904,
+      "asset": "office_block",
+      "x": 185.6059,
+      "y": 61.967827,
+      "z": -16.369154,
       "yaw_rad": 0.729,
       "scale": 1.0,
       "text": null,
@@ -3982,10 +3982,10 @@
     {
       "id": 6565,
       "kind": "building",
-      "asset": "media_centre",
-      "x": 200.93294,
-      "y": 75.65668,
-      "z": -17.487013,
+      "asset": "office_block",
+      "x": 215.51413,
+      "y": 88.6794,
+      "z": -18.292532,
       "yaw_rad": 0.729,
       "scale": 1.0,
       "text": null,
@@ -4042,7 +4042,7 @@
     {
       "id": 9436,
       "kind": "building",
-      "asset": "media_centre",
+      "asset": "office_block",
       "x": -61.771473,
       "y": 711.8033,
       "z": -3.915742,
@@ -4054,7 +4054,7 @@
     {
       "id": 9437,
       "kind": "building",
-      "asset": "hospitality_3f",
+      "asset": "office_block",
       "x": -63.89227,
       "y": 674.6821,
       "z": -6.3272443,
@@ -4066,7 +4066,7 @@
     {
       "id": 9438,
       "kind": "building",
-      "asset": "hospitality_3f",
+      "asset": "office_block",
       "x": -77.24075,
       "y": 633.82983,
       "z": -6.570127,
@@ -4102,7 +4102,7 @@
     {
       "id": 9441,
       "kind": "building",
-      "asset": "media_centre",
+      "asset": "clubhouse",
       "x": -128.46164,
       "y": 469.28564,
       "z": -5.3563714,
@@ -4150,7 +4150,7 @@
     {
       "id": 9445,
       "kind": "building",
-      "asset": "media_centre",
+      "asset": "office_block",
       "x": -160.97258,
       "y": 363.6318,
       "z": -4.0615287,
@@ -4330,7 +4330,7 @@
     {
       "id": 9460,
       "kind": "building",
-      "asset": "media_centre",
+      "asset": "office_block",
       "x": -120.33687,
       "y": 8.239468,
       "z": -4.5728755,
@@ -85280,5 +85280,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 116371
+  "next_id": 116372
 }
