@@ -3686,6 +3686,153 @@ runs:
         checks: "C5 Landmark/Trees: the lake (MANUAL_WATER) from beside the circuit"
         exec: "apexsim.cam.LookAt -560.0 500.0 25.0 -100.0 700.0 0.0"
 
+  - id: c5-r14-albertparkour
+    about: "C5. R14 buildings: AlbertParkour"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=AlbertParkour
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "Lakeside Stadium from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt -513.2 1028.3 15.5 -447.0 1030.0 7.0"
+
+  - id: c5-r14-brandsscratch
+    about: "C5. R14 buildings: BrandsScratch"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsScratch
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the MSV Centre from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt -258.1 -246.8 18.0 -307.2 -233.6 9.9"
+
+  - id: c5-r14-chillyvilleneuve
+    about: "C5. R14 buildings: ChillyVilleneuve"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=ChillyVilleneuve
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Pavillon du Canada from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt -584.1 393.9 15.4 -549.4 404.6 7.3"
+
+  - id: c5-r14-gnocchi
+    about: "C5. R14 buildings: Gnocchi"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Sirius station row from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt 22.1 85.7 14.8 282.0 -4.0 8.5"
+
+  - id: c5-r14-spafrankenchamps
+    about: "C5. R14 buildings: SpaFrankenchamps"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Salons de l'Eau Rouge from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt 326.2 -24.5 -11.5 276.6 -72.2 -15.3"
+
+  - id: c5-r14-redpullring
+    about: "C5. R14 buildings: RedPullRing"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the unnamed clubhouse from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt -502.4 -59.3 31.8 -413.1 7.9 19.2"
+
+  - id: c5-r14-lemons
+    about: "C5. R14 buildings: Lemons"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Lemons
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the unnamed building from the road"
+        checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
+        exec: "apexsim.cam.LookAt -569.9 -1939.2 63.7 -614.8 -1900.0 56.3"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:
