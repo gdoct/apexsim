@@ -46,6 +46,14 @@ the same `ApexProps` code.
 - Mandarina Bay: corner names (the dossier has one "corner", the circuit
   itself), the F1 pit building (`building_pit_street`) placed, a quay rail
   along the water, a catch fence pass.
+- `extract()` in `tools/osm_layout.py` takes a stand only from its
+  grandstand tags: an outline tagged only `leisure=bleachers`, carrying
+  just a name ("BMW Tribüne") or tagged `building=yes` (Silverstone's
+  Stowe, Vale and Club stands, Le Mans's tribunes) comes out as a building
+  or not at all, and a wrapping outline (Hockenheim's Südtribüne) as one
+  block on its centroid's side. Every known case is entered by hand in
+  `MANUAL_STANDS`; a rule here only matters on the next full extract, and
+  only two circuits have one cached.
 - Stadium grandstands: a scene names the stadium bays and cap that
   `LayoutGrandstand` lays; `grandstand/stair_tower` is built.
 - Nordschleife: rock cuttings. OSM maps no cliff, bare rock or cutting

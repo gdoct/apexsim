@@ -189,11 +189,11 @@ are not repeated per cell. The order of columns is the order of work.
 | [Barcelunatic](circuit-references/audit/Barcelunatic.md) | ok | ok | ok | ok | ok | ok | ok |
 | [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | ok | ok | ok | ok | ok | ok |
 | [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | ok | ok | ok | ok | ok | ok | ok |
-| [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | rule | ok | ok | ok | ok |
-| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | ok | rule | ok | ok | ok | ok |
+| [Gnocchi](circuit-references/audit/Gnocchi.md) | ok | kit | ok | ok | ok | ok | ok |
+| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Hungoverring](circuit-references/audit/Hungoverring.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Interlaggos](circuit-references/audit/Interlaggos.md) | ok | - | ok | ok | ok | ok | ok |
-| [Lemons](circuit-references/audit/Lemons.md) | ok | ok | rule | ok | ok | ok | ok |
+| [Lemons](circuit-references/audit/Lemons.md) | ok | ok | ok | ok | ok | ok | ok |
 | [MandarinaBay](circuit-references/audit/MandarinaBay.md) | rule | ok | ok | ok | ok | ok | ok |
 | [Monzarella](circuit-references/audit/Monzarella.md) | ok | kit | ok | ok | ok | ok | ok |
 | [Mordschleife](circuit-references/audit/Mordschleife.md) | dossier | ok | ok | ok | ok | ok | ok |
@@ -202,7 +202,7 @@ are not repeated per cell. The order of columns is the order of work.
 | [RedPullRing](circuit-references/audit/RedPullRing.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Shanghaied](circuit-references/audit/Shanghaied.md) | ok | ok | kit | rule | ok | ok | ok |
 | [Shebang](circuit-references/audit/Shebang.md) | ok | ok | ok | ok | ok | ok | ok |
-| [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | ok | rule | ok | ok | ok | ok |
+| [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Snorisring](circuit-references/audit/Snorisring.md) | ok | ok | ok | ok | ok | ok | ok |
 | [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Sudoku](circuit-references/audit/Sudoku.md) | ok | ok | ok | ok | ok | ok | ok |
@@ -213,11 +213,12 @@ layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
 says why) and are not dressed. They are outside this work, and removing
 them from the calendar is the owner's option.
 
-**S/F column.** Done for every circuit but four: the dossier pass (each
+**S/F column.** Done for every circuit but three: the dossier pass (each
 audit page's "S/F dossier pass" lists what went in and what is left) and the
-`c5-sf-*` shots, judged 2026-10-21. Open: Bahrainless (the tent-fabric
-roofs, kit gap 4), Gnocchi (the six-storey stand's family, R13),
-MandarinaBay (the screens on the pit building's face, R20) and the
+`c5-sf-*` shots, judged 2026-10-21 (Gnocchi's main stand, `stadium` from
+the Stands pass, with the `c5-st-*` shots). Open: Bahrainless (the
+tent-fabric roofs, kit gap 4), MandarinaBay (the screens on the pit
+building's face, R20) and the
 Nordschleife, whose start/finish needs the trace page. The multi-storey pit
 buildings (kit gap 2, with R12 and R20) stay with their kit row.
 
@@ -227,12 +228,12 @@ pass (each audit page's "Landmark dossier pass"), the bake, the survey
 Open: Gnocchi (the Fisht stadium has no kit piece) and Monzarella (the
 banking's curves beside the road have no kit piece).
 
-**Stands column.** Done but for five circuits: the rules (stand families,
+**Stands column.** Done but for one circuit: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier
-pass ("Stands dossier pass"), the bake, the survey (identical but for noise)
-and the `c5-st-*` shots, judged 2026-10-22. Open: Gnocchi, Hockeyheimring,
-Lemons and Shiverstone (stand outlines, R13) and Shanghaied (Grandstand A's
-lotus-leaf roof has no kit piece).
+pass ("Stands dossier pass": stands OSM maps as buildings, bleachers and
+wrapping outlines entered in `MANUAL_STANDS` by hand), the bake, the survey
+(identical but for noise) and the `c5-st-*` shots, judged 2026-10-22.
+Open: Shanghaied (Grandstand A's lotus-leaf roof has no kit piece).
 
 **Trees column.** Done but for three circuits: the rules (species by
 climate, woods past the belt, scrub, `WOOD_LEAF`), the dossier pass ("Trees
@@ -304,9 +305,6 @@ stay as they are.
 - **R12. The podium sits on the middle garage** and roof screens have no
   height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
   screens on the pit roof.
-- **R13. Stand outlines.** A wrapping OSM outline is laid as one block
-  on its centroid's side (the Hockeyheimring south stand); OSM stands
-  tagged as buildings come out as office blocks (Shiverstone, Lemons).
 - **R16. Water.** `WATER_STEMS` (the extract's water bodies from OSM
   relations) is MandarinaBay alone; Albert Park's lake comes from
   `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the
@@ -324,11 +322,6 @@ stay as they are.
   lane is 347 m against the real one before the Ford chicane to the
   Dunlop curve; a lane change moves the server's pit and needs the pit
   survey.
-- **R22. Bleachers are not stands.** `extract()` takes a stand from its
-  grandstand tags; an outline tagged only `leisure=bleachers` (the
-  Nordschleife's T13 stand, way 34435441) or carrying just a name (the
-  GP circuit's "BMW Tribüne" and "T7") is left out, so the Stands pass
-  enters them by hand. Other circuits may have more.
 
 Found on the way and outside dressing (track geometry, georeference,
 references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).
