@@ -265,7 +265,7 @@ What the audit says across the table:
   of metres (Montreal's hairpin stands at T8-T9, Zandvoort's Hairpin
   stand at Hans Ernst, Albert Park's 800-1400 m early), on the wrong side
   (Sepang's main stand, Spa's Bus Stop, Albert Park's Moss), real stands
-  laid as `media_centre` blocks because OSM tags them as buildings
+  laid as building blocks because OSM tags them as buildings
   (Silverstone, Le Mans), and the general-admission banks absent (R2).
 - **Barriers**: the audit found concrete laid nowhere but the
   Nordschleife and one style for every circuit; both are rules now
@@ -311,7 +311,7 @@ stay as they are.
   screens on the pit roof.
 - **R13. Stand outlines.** A wrapping OSM outline is laid as one block
   on its centroid's side (the Hockeyheimring south stand); OSM stands
-  tagged as buildings come out as `media_centre` (Shiverstone, Lemons).
+  tagged as buildings come out as office blocks (Shiverstone, Lemons).
 - **R15. Floodlights.** Where a dossier maps no masts, the dressing lays a
   fallback ring (13-29 towers a track), and the OSM masts at day venues
   stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert Park

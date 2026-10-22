@@ -45,6 +45,11 @@ const ASSUMED_ROOF_DEPTH_M: f32 = 25.0;
 /// Buildings closer than this to the pit lane are pit garages, which the
 /// Unreal bake generates from the lane itself.
 const PIT_BUILDING_RANGE_M: f32 = 30.0;
+/// How far from the pit lane a real building is still the paddock, and is
+/// laid as a media centre or hospitality block.
+const PADDOCK_RANGE_M: f32 = 100.0;
+/// A one-storey building at least this big is a hall, not an office block.
+const HALL_AREA_M2: f32 = 1500.0;
 /// Footprint below which a building is a shed, not scenery.
 const MIN_BUILDING_AREA_M2: f32 = 250.0;
 /// A building's front stands at least this far past the road edge. The
@@ -1384,16 +1389,27 @@ fn point_along(pts: &[[f32; 2]], d: f32) -> (f32, f32) {
 /// The kit building a real footprint reads as. The kit has four, so this
 /// is a choice between a tower, a media centre, a hospitality block and a
 /// clubhouse — decided by how tall, how big and how square the real one is.
-fn building_asset(structure: &Structure) -> (&'static str, f32) {
+fn building_asset(structure: &Structure, paddock: bool) -> (&'static str, f32) {
     let square = structure.depth_m / structure.length_m.max(1.0);
     if structure.levels >= TOWER_LEVELS && square > 0.6 && structure.length_m < 30.0 {
         return ("control_tower", 13.2);
     }
-    if structure.length_m >= 35.0 && structure.depth_m >= 12.0 {
-        return ("media_centre", 40.6);
-    }
-    if structure.levels >= 2 || structure.area_m2 >= 700.0 {
-        return ("hospitality_3f", 30.6);
+    // The media centre and hospitality blocks have open, colonnaded ground
+    // floors: beside the pit lane they are the paddock, anywhere else they
+    // read as a row of garages. Away from it a big building is an office
+    // block, or a hall when the map gives it one storey.
+    if paddock {
+        if structure.length_m >= 35.0 && structure.depth_m >= 12.0 {
+            return ("media_centre", 40.6);
+        }
+        if structure.levels >= 2 || structure.area_m2 >= 700.0 {
+            return ("hospitality_3f", 30.6);
+        }
+    } else if structure.area_m2 >= 700.0 || structure.levels >= 2 {
+        if structure.levels == 1 && structure.area_m2 >= HALL_AREA_M2 {
+            return ("venue_hall", 40.6);
+        }
+        return ("office_block", 40.1);
     }
     ("clubhouse", 25.6)
 }
@@ -1519,7 +1535,10 @@ fn lay_structure(
         let (asset, row) = city_building_asset(structure);
         return lay_centred_building(path, terrain, structure, asset, row);
     }
-    let (asset, unit_m) = building_asset(structure);
+    let paddock = lane.is_some_and(|lane| {
+        lane_gap(lane, structure.centre[0], structure.centre[1]) < PADDOCK_RANGE_M
+    });
+    let (asset, unit_m) = building_asset(structure, paddock);
     let units = (structure.length_m / unit_m).round().max(1.0) as usize;
     let (sin, cos) = structure.yaw_rad.sin_cos();
     // The pivot is the face toward the road: the kit's footprint runs from
@@ -3590,6 +3609,26 @@ mod tests {
         );
     }
 
+    /// The paddock blocks (open ground floors) stand only near the pit
+    /// lane; a big building elsewhere is an office block, or a hall when it
+    /// has one storey.
+    #[test]
+    fn paddock_blocks_only_by_the_pit_lane() {
+        let mut big = structure([0.0, 0.0], 80.0, 20.0, 0.0);
+        big.area_m2 = 1600.0;
+        big.levels = 0;
+        assert_eq!(building_asset(&big, true).0, "media_centre");
+        assert_eq!(building_asset(&big, false).0, "office_block");
+        big.levels = 1;
+        assert_eq!(building_asset(&big, false).0, "venue_hall");
+        let mut small = structure([0.0, 0.0], 25.0, 20.0, 0.0);
+        small.area_m2 = 400.0;
+        assert_eq!(building_asset(&small, false).0, "clubhouse");
+        for asset in ["office_block", "venue_hall"] {
+            assert!(props::find(PropKind::Building, asset).is_some(), "{asset} is in the kit");
+        }
+    }
+
     /// A long infield row whose tail reaches out past the hairpin loses the
     /// blocks beyond it and keeps the rest (R14: Lakeside Stadium).
     #[test]
@@ -3600,7 +3639,7 @@ mod tests {
         let mut layout = layout();
         layout
             .structures
-            .push(structure([680.0, 40.0], 500.0, 10.0, 0.0));
+            .push(structure([680.0, 40.0], 520.0, 10.0, 0.0));
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         let laid: Vec<_> = scene
             .props

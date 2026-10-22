@@ -236,6 +236,14 @@ stamp.
   of it. The pit zone takes the garage row from the export's own layout
   (`ue_export::garage_row_span`): the garages' depth along the row and
   12 m past its ends, the lane and its apron along the rest.
+- **Buildings** are laid on their real footprints as a row of kit blocks
+  (`dress::building_asset`). Within 100 m of the pit lane they are the
+  paddock: `media_centre` for a long one, `hospitality_3f` for a smaller
+  one of two storeys or 700 m2. Anywhere else the paddock blocks' open
+  ground floors read as garages, so a big building is an `office_block`,
+  or a `venue_hall` when the map gives it one storey and 1500 m2. A tall
+  square one is a `control_tower`, a small one a `clubhouse`, and a street
+  circuit's neighbours are the `skyline_*` set.
 - **Footprints** of stands and buildings are probed whole against every leg
   (`clear_footprint`) and stepped back up to 25 m. A building row that
   finds no room keeps the blocks clear where they stand and loses those on
