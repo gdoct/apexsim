@@ -128,6 +128,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         box_count: 10,
         speed_limit_kmh: 60.0,
         authored: false,
+        podium_m: None,
     });
     scene.next_id = next;
     scene

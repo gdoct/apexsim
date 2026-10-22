@@ -151,6 +151,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         box_count: 10,
         speed_limit_kmh: 60.0,
         authored: false,
+        podium_m: None,
     });
     scene.next_id = next;
     scene
@@ -514,6 +515,7 @@ fn stadium_scene() -> (TrackFile, AtsScene) {
         box_count: 10,
         speed_limit_kmh: 80.0,
         authored: false,
+        podium_m: None,
     });
     (track, scene)
 }
