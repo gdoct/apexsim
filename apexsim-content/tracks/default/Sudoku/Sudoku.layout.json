@@ -516,7 +516,8 @@
     403.42,
     -470.35
    ]
-  ]
+  ],
+  "podium_m": 5785.0
  },
  "stands": [
   {
@@ -1858,22 +1859,6 @@
    "area_m2": 2309
   },
   {
-   "name": "ピットビル",
-   "station_m": 125.5,
-   "side": "right",
-   "offset_m": 24.4,
-   "length_m": 356.8,
-   "depth_m": 57.2,
-   "yaw_rad": 2.2733,
-   "centre": [
-    50.8,
-    -124.21
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 11259
-  },
-  {
    "name": "チームオフィス",
    "station_m": 249.3,
    "side": "right",
@@ -2324,6 +2309,42 @@
  ],
  "crossings": [],
  "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 35,
+   "side": "right",
+   "centre": [
+    4.78,
+    -42.75
+   ],
+   "pit_roof": true
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 125,
+   "side": "right",
+   "centre": [
+    64.89,
+    -113.57
+   ],
+   "pit_roof": true
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 215,
+   "side": "right",
+   "centre": [
+    124.42,
+    -183.14
+   ],
+   "pit_roof": true
+  },
   {
    "kind": "screen",
    "name": "Main straight screen",

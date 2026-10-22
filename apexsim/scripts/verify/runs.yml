@@ -3858,6 +3858,56 @@ runs:
         checks: "C5 R17: 100/50 boards on the outside before T9"
         exec: "apexsim.cam.LookAt 790.0 -191.4 5.2 764.2 -236.5 3.7"
 
+  - id: c5-r20-sudoku
+    about: "C5. R12/R20 podium and roof screens: Sudoku"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sudoku
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the roof screens from across the straight"
+        checks: "C5 R12/R20: screens on the pit building's roof, the podium on the garage at its real end"
+        exec: "apexsim.cam.LookAt 148.6 -107.1 20.5 95.6 -152.8 10.5"
+      - at: 20
+        label: "the podium at the last-corner end"
+        checks: "C5 R12/R20: screens on the pit building's roof, the podium on the garage at its real end"
+        exec: "apexsim.cam.LookAt 97.8 -59.9 16.2 56.1 -95.8 10.2"
+
+  - id: c5-r20-bahrainless
+    about: "C5. R12/R20 podium and roof screens: Bahrainless"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Bahrainless
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the roof screens from across the straight"
+        checks: "C5 R12/R20: screens on the pit building's roof, the podium on the garage at its real end"
+        exec: "apexsim.cam.LookAt -34.6 188.0 25.8 35.3 185.1 20.8"
+      - at: 20
+        label: "the podium at the entry end"
+        checks: "C5 R12/R20: screens on the pit building's roof, the podium on the garage at its real end"
+        exec: "apexsim.cam.LookAt -29.9 118.7 19.1 25.1 116.5 13.1"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:

@@ -529,7 +529,8 @@
     25.36,
     573.02
    ]
-  ]
+  ],
+  "podium_m": 5266.9
  },
  "stands": [
   {
@@ -1532,9 +1533,10 @@
    "station_m": 95.0,
    "side": "right",
    "centre": [
-    50.96,
-    91.18
-   ]
+    30.31,
+    86.75
+   ],
+   "pit_roof": true
   },
   {
    "kind": "screen",
@@ -1543,9 +1545,10 @@
    "station_m": 205.0,
    "side": "right",
    "centre": [
-    56.1,
-    201.08
-   ]
+    36.01,
+    203.99
+   ],
+   "pit_roof": true
   },
   {
    "kind": "screen",
@@ -1554,9 +1557,10 @@
    "station_m": 305.0,
    "side": "right",
    "centre": [
-    60.78,
-    300.93
-   ]
+    39.86,
+    296.32
+   ],
+   "pit_roof": true
   },
   {
    "kind": "floodlight",

@@ -1860,22 +1860,6 @@
  "structures": [
   {
    "name": null,
-   "station_m": 94.9,
-   "side": "right",
-   "offset_m": 24.9,
-   "length_m": 311.3,
-   "depth_m": 18.2,
-   "yaw_rad": 2.4506,
-   "centre": [
-    -52.18,
-    88.99
-   ],
-   "levels": 0,
-   "osm_building": "yes",
-   "area_m2": 4444
-  },
-  {
-   "name": null,
    "station_m": 655.7,
    "side": "left",
    "offset_m": 73.1,
@@ -1936,6 +1920,30 @@
   }
  ],
  "landmarks": [
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 80.0,
+   "side": "right",
+   "centre": [
+    -43.67,
+    68.29
+   ],
+   "pit_roof": true
+  },
+  {
+   "kind": "screen",
+   "name": "Pit building screen",
+   "source": "authored",
+   "station_m": 170.0,
+   "side": "right",
+   "centre": [
+    -111.55,
+    124.45
+   ],
+   "pit_roof": true
+  },
   {
    "kind": "screen",
    "name": "Pit Exit 2 screen",
