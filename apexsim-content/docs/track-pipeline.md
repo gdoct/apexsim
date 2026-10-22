@@ -126,8 +126,8 @@ by name from the seating map, OSM and manual stands alike: `covered` or
 `open`, written as the stand's `roof`, which the dress pass takes over its
 `covered` and the depth rule. `STAND_FAMILY` gives a stand its kit family
 by name (or `@<station_m>`), and a `MANUAL_STANDS` entry may name one as
-`family`: `street` / `street_deck` (the street stands), `bank` (a turfed
-general-admission bank), `scaffold`, `banking_seats`, `tent` (a membrane
+`family`: `street` / `street_deck` (the street stands), `bank` (a
+general-admission area: people standing about), `scaffold`, `banking_seats`, `tent` (a membrane
 roof), `palm` (a frond canopy), `stone` / `stone_centre` (an open stone
 terrace and its centre block), `stadium` (a tall single-roof stand); `-`
 in `STAND_FAMILY` leaves an OSM stand out. `DROP_STRUCTURES` leaves out an
@@ -228,8 +228,12 @@ stamp.
   the large family, 25 m or more roofed unless its `roof` says `open`,
   under 12 m dropped; a `family` names another module. Every run is
   stepped back until its whole footprint is 3 m clear of the road, 2 m
-  past a paved run-off, and a general-admission bank 10 m (it stands
-  behind the barrier line): the server stops cars on stands. A run over
+  past a paved run-off, and a general-admission area 10 m (it stands
+  behind the barrier line): the server stops cars on stands. A
+  general-admission area is no seating: its runs are filled with
+  `misc/crowd_group` knots of standing spectators about every 9 m, in rows
+  4.5 m apart that thin toward the back, each turned roughly to the road
+  (`dress::standing_crowd`); they are not walls. A run over
   the garage row is left to the pit
   complex (the terrace the bake builds); a run in the pit lane or its
   apron anywhere else (behind the entry or exit road) is stepped back out

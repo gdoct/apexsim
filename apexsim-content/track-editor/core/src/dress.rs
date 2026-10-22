@@ -78,6 +78,12 @@ const STAND_RUNOFF_CLEAR_M: f32 = 2.0;
 /// Least room between the road edge and a general-admission bank, which
 /// stands behind the barrier line, not at the edge of the verge.
 const BANK_ROAD_CLEAR_M: f32 = 10.0;
+/// A general-admission area's crowd: a knot of spectators about every
+/// `GA_PITCH_M` along the front, rows `GA_ROW_M` apart, no deeper than
+/// `GA_MAX_DEPTH_M`.
+const GA_PITCH_M: f32 = 9.0;
+const GA_ROW_M: f32 = 4.5;
+const GA_MAX_DEPTH_M: f32 = 14.0;
 /// A building with a footprint at least this square and this many levels
 /// is a tower.
 const TOWER_LEVELS: u32 = 4;
@@ -1271,6 +1277,11 @@ fn lay_stand(
         let Some((x, y)) = clear_of_pit_zone(path, zone, x, y, yaw, len, bay_depth, &run) else {
             continue;
         };
+        if asset == "grass_bank_10m" {
+            out.extend(standing_crowd(path, terrain, x, y, yaw, len, stand.depth_m));
+            walked = to;
+            continue;
+        }
         let (sample, lat) = nearest_cross_section(path, x, y);
         out.push(Prop {
             z: seat_z(terrain, &sample, lat, x, y),
@@ -1279,6 +1290,57 @@ fn lay_stand(
         walked = to;
     }
     let _ = walked;
+    out
+}
+
+/// A general-admission area is people standing about on the ground, not a
+/// terrace: knots of spectators (`misc/crowd_group`) scattered over a run's
+/// footprint, `len` along its front through `(x, y)` and `depth` back from
+/// the road, at uneven spacing, thinning toward the back, each turned
+/// roughly to the road. A raked bank of rows read as one more grandstand.
+fn standing_crowd(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    x: f32,
+    y: f32,
+    yaw: f32,
+    len: f32,
+    depth: f32,
+) -> Vec<Prop> {
+    use surroundings::roll;
+    let depth = depth.clamp(GA_ROW_M, GA_MAX_DEPTH_M);
+    let (_, away) = footprint_road_gap(path, x, y, yaw, len, depth);
+    let along_dir = yaw.sin_cos();
+    let rows = (depth / GA_ROW_M).round().max(1.0) as usize;
+    let per_row = (len / GA_PITCH_M).round().max(1.0) as usize;
+    let mut out = Vec::new();
+    for r in 0..rows {
+        for i in 0..per_row {
+            let salt = (r * 64 + i) as u32;
+            // Fewer people further from the fence.
+            if roll(x, y, 700 + salt) < r as f32 * 0.25 {
+                continue;
+            }
+            let along = -len / 2.0 + (i as f32 + 0.2 + 0.6 * roll(x, y, 800 + salt)) * len / per_row as f32;
+            let back = (r as f32 + 0.25 + 0.5 * roll(x, y, 900 + salt)) * GA_ROW_M;
+            let px = x + along_dir.1 * along + away.0 * back;
+            let py = y + along_dir.0 * along + away.1 * back;
+            let (sample, lat) = nearest_cross_section(path, px, py);
+            out.push(Prop {
+                id: 0,
+                kind: PropKind::Misc,
+                asset: "crowd_group".to_string(),
+                x: px,
+                y: py,
+                z: seat_z(terrain, &sample, lat, px, py),
+                yaw_rad: sample.heading_rad + (roll(x, y, 1000 + salt) - 0.5) * 0.7,
+                scale: 1.0,
+                text: None,
+                length_m: None,
+                source: None,
+            });
+        }
+    }
     out
 }
 
@@ -2606,7 +2668,7 @@ mod surroundings {
     /// A deterministic value in 0..1 from a position, so a scatter is the
     /// same on every run without a random number generator anywhere near
     /// the pass.
-    fn roll(x: f32, y: f32, salt: u32) -> f32 {
+    pub(super) fn roll(x: f32, y: f32, salt: u32) -> f32 {
         let mut h = (x * 100.0) as i32 as u32;
         h = h.wrapping_mul(2_654_435_761) ^ ((y * 100.0) as i32 as u32);
         h = h.wrapping_mul(2_246_822_519) ^ salt.wrapping_mul(0x9E37_79B9);
@@ -4048,6 +4110,28 @@ mod tests {
 
     fn scene(track: &TrackFile) -> AtsScene {
         AtsScene::new_for_track(track, "Dress.yaml")
+    }
+
+    /// A general-admission area is laid as loose knots of standing
+    /// spectators clear of the road, not as a raked bank of seats.
+    #[test]
+    fn a_general_admission_area_is_people_standing_about() {
+        let track = track();
+        let mut layout = layout();
+        let mut ga = stand("GA1", vec![[200.0, -14.0], [400.0, -14.0]], 11.4, false);
+        ga.station_m = 300.0;
+        ga.family = Some("bank".to_string());
+        layout.stands = vec![ga];
+        let mut scene = scene(&track);
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let laid: Vec<_> = scene.props.iter().filter(|p| p.source.as_deref() == Some("stand GA1")).collect();
+        assert!(laid.len() >= 20, "{} groups", laid.len());
+        assert!(laid.iter().all(|p| p.kind == PropKind::Misc && p.asset == "crowd_group"));
+        let path = CenterlinePath::from_track(&track).unwrap();
+        for p in &laid {
+            let lat = nearest_cross_section(&path, p.x, p.y).1;
+            assert!(lat < -(6.0 + BANK_ROAD_CLEAR_M) + 0.5, "a group at lateral {lat}");
+        }
     }
 
     /// A stand whose dossier station is the main straight but whose bays

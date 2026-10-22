@@ -116,7 +116,8 @@ depth x height, metres). By family:
   each garage but the podium's at the circuits
   `CircuitStyle::pit_storey_for` names.
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`,
-  `grass_bank_10m` (a turfed general-admission bank), the venue modules
+  `grass_bank_10m` (a turfed bank; the dress pass lays general-admission
+  areas as `crowd_group` knots instead, so nothing places it now), the venue modules
   `tent_roof_10m` and `palm_canopy_10m` (bay_10m's seating under a membrane
   or a frond canopy, with `_crowd` twins) and `stone_tribune_10m` /
   `stone_tribune_centre_10m` (an open stone terrace), the street stand
