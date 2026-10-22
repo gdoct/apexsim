@@ -225,6 +225,7 @@ pub const KIT: &[KitAsset] = kit![
     Building "wing_media_centre" 40.1 x 29.1 x 28.8,
     Building "round_glass_tower" 25.0 x 28.0 x 36.5,
     Building "arena_dome" 134.0 x 104.0 x 30.6,
+    Building "stadium_bowl" 260.1 x 208.2 x 47.6,
     Building "expo_pavilion" 71.3 x 57.3 x 34.9,
     Building "geodesic_dome" 76.4 x 76.4 x 62.2,
     Building "fuel_station_canopy" 30.0 x 31.3 x 7.1,
@@ -240,11 +241,12 @@ pub const KIT: &[KitAsset] = kit![
     // like the scaffold; its `_crowd` twin stands people on it.
     Grandstand "grass_bank_10m" 10.0 x 11.4 x 2.8,
     // Venue stand modules (build_kit_gaps_stands.py), tiled at 10 m with no
-    // caps: bay_10m's seating under a white membrane or a palm-frond
-    // canopy (both with `_crowd` twins), and an open stone terrace with its
+    // caps: bay_10m's seating under a white membrane, a palm-frond
+    // canopy or a lotus-leaf shell (all with `_crowd` twins), and an open stone terrace with its
     // centre block.
     Grandstand "tent_roof_10m" 10.0 x 12.1 x 17.7,
     Grandstand "palm_canopy_10m" 10.0 x 10.8 x 10.9,
+    Grandstand "lotus_canopy_10m" 10.0 x 14.8 x 18.1,
     Grandstand "stone_tribune_10m" 10.0 x 16.7 x 6.9,
     Grandstand "stone_tribune_centre_10m" 10.0 x 16.9 x 14.3,
     Grandstand "street_stand_tier_10m" 10.0 x 26.0 x 17.0,

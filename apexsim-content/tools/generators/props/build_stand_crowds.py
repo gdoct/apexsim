@@ -1,5 +1,6 @@
 r"""The `_crowd` twins of the stand modules that copy bay_10m's seating
-section (tent_roof_10m, palm_canopy_10m from build_kit_gaps_stands.py):
+section (tent_roof_10m, palm_canopy_10m, lotus_canopy_10m from
+build_kit_gaps_stands.py):
 bay_10m_crowd's crowd cards, unchanged, joined onto each module. Run after
 either module or the crowd strip changes.
 
@@ -14,7 +15,7 @@ _ROOT = (os.path.abspath(os.path.join(_SELF, "..", "..", ".."))
 _s = importlib.util.spec_from_file_location("apex", os.path.join(_ROOT, "tools", "generators", "props", "apex_props.py"))
 apex = importlib.util.module_from_spec(_s); sys.modules["apex"] = apex; _s.loader.exec_module(apex)
 
-MODULES = ["tent_roof_10m", "palm_canopy_10m"]
+MODULES = ["tent_roof_10m", "palm_canopy_10m", "lotus_canopy_10m"]
 SOURCE = "bay_10m_crowd"
 
 

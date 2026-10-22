@@ -341,6 +341,38 @@ def arena_dome():
     return done(b)
 
 
+# ======================================================== building/stadium_bowl
+def stadium_bowl():
+    """A 250 x 200 m football stadium (Sochi's Fisht): a glazed facade on a
+    plinth, a white shell roof sweeping up and in over the stands and open
+    over the pitch, raked seating in the bowl and the pitch. Centred."""
+    m = mats()
+    seats = apex.material("stadium_seats", (0.32, 0.05, 0.05), roughness=0.7)
+    pitch = apex.material("stadium_pitch", (0.10, 0.30, 0.08), roughness=0.9)
+    b = apex.Builder("stadium_bowl")
+    S, sx = 128, 1.25
+    rev = lambda mat, prof, segs=S: revolve(b, mat, prof, segs, sx=sx, sy=1.0)
+    # plinth, the facade leaning out, the roof's outer skin up to its crest
+    # and in to the opening, its soffit back out, the stand under it
+    rev(m["concrete"], [(100.0, 0.0), (100.0, 3.0)])
+    rev(m["glass_blue"], [(100.0, 3.0), (103.0, 18.0)])
+    rev(m["white"], [(103.0, 18.0), (103.5, 30.0), (98.0, 42.0), (86.0, 47.0), (72.0, 44.0), (64.0, 38.5)])
+    rev(m["white"], [(64.0, 38.5), (64.0, 37.8), (74.0, 42.6), (88.0, 44.6), (97.0, 40.5)])
+    rev(m["concrete"], [(97.0, 40.5), (96.0, 34.0)])
+    # the bowl: walked from the pitch's edge outward and up, so it faces up
+    rev(m["concrete"], [(50.0, 0.3), (52.0, 1.6)])
+    rev(seats, [(52.0, 1.6), (62.0, 8.5), (74.0, 17.0), (86.0, 26.5), (96.0, 34.0)])
+    rev(pitch, [(50.0, 0.3), (0.0, 0.3)], 64)
+    # roof ribs over the shell, for scale from the road
+    prof = [(103.5, 30.0), (98.0, 42.0), (86.0, 47.0), (72.0, 44.0), (64.0, 38.5)]
+    for k in range(48):
+        a = TAU * k / 48
+        pts = [(sx * (r + 0.3) * math.cos(a), (r + 0.3) * math.sin(a), z + 0.3) for (r, z) in prof]
+        for p0, p1 in zip(pts, pts[1:]):
+            b.bar(m["alu"], p0, p1, 0.35, segs=4)
+    return done(b)
+
+
 # ======================================================== misc/cauldron
 CAULDRON_H = 48.0
 
@@ -636,6 +668,8 @@ BUILD = {
                       [((-60, -170, 4), (0, 0, 15), 32), ((-75, -75, 50), (0, 0, 12), 45)]),
     "geodesic_dome": ("building", geodesic_dome, 300,
                       [((-60, -230, 4), (0, 0, 30), 40), ((-110, -110, 70), (0, 0, 25), 50)]),
+    "stadium_bowl": ("building", stadium_bowl, 500,
+                     [((-120, -330, 6), (0, 0, 22), 45), ((-230, -230, 160), (0, 0, 10), 45)]),
     "fuel_station_canopy": ("building", fuel_station_canopy, 120,
                             [((-22, -45, 2.0), (0, 12, 3.5), 55), ((-30, -22, 18), (0, 14, 2), 50)]),
 }

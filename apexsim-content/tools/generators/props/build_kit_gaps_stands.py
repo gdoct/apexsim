@@ -7,6 +7,8 @@ the stands, pit storeys and bridges the dressing audit found no kit piece for.
   grandstand/tent_roof_10m          bay_10m-family stand under a fabric peak
   grandstand/palm_canopy_10m        bay_10m-family stand under a frond leaf on
                                     a branching steel trunk
+  grandstand/lotus_canopy_10m       bay_10m-family stand under a white shell
+                                    sweeping up and out to a raised lip
   grandstand/stone_tribune_10m      open 1930s stone terrace, no seats or roof
   grandstand/stone_tribune_centre_10m  the same with the speaker's tower block
   bridge/sky_platform               two glazed wings cantilevered over the road
@@ -554,6 +556,52 @@ def palm_canopy_10m():
                         extra=[("_c", ((6, 24, 22), (0, 3, 8)))])
 
 
+# ---------------------------------------------------- grandstand/lotus_canopy
+def lotus_canopy_10m():
+    """bay_10m's seating under a smooth white shell that sweeps up and out
+    over the seats from columns behind the back wall, its lip raised like
+    a leaf's edge: Shanghai's Grandstand A. Tiles along X."""
+    new_scene()
+    m = stand_mats()
+    m["shell"] = membrane_mat("grandstand_lotus", 83)
+    b = apex.Builder("lotus_canopy_10m")
+    stand_base(b, m)
+    steel = m["steel"]
+
+    Y_B, Y_F = 10.2, -4.5          # shell's back edge / front lip
+    Z_B, Z_F = 9.6, 17.2           # their heights
+
+    def P(u, v):                   # u -1..1 along X, v 0 back .. 1 lip
+        y = Y_B + (Y_F - Y_B) * v
+        z = Z_B + (Z_F - Z_B) * v ** 1.6 + 1.1 * math.sin(math.pi * v) + 0.9 * max(0.0, v - 0.85) / 0.15
+        return (5.0 * u, y, z)
+
+    nu, nv = 10, 32
+    grid = [[P(-1 + 2 * i / nu, j / nv) for j in range(nv + 1)] for i in range(nu + 1)]
+    shell(b, m["shell"], grid, 0.22,
+          lambda side: {'u0': (-1, 0, 0), 'u1': (1, 0, 0), 'v0': (0, 1, -0.3), 'v1': (0, -1, 0.3)}[side])
+
+    # Ribs under the shell on the module edges (split in half), and a
+    # column behind the back wall carrying each, with a raking strut.
+    for s in (-1, 1):
+        x = s * 4.93
+        rib = [Vector(P(s, j / 16)) - Vector((0, 0, 0.25)) for j in range(17)]
+        rib = [Vector((x, r.y, r.z)) for r in rib]
+        for a, c in zip(rib, rib[1:]):
+            b.bar(steel, a, c, 0.07, segs=6)
+        b.box(steel, (min(s * 5.0, s * 4.8), 9.6, 0.0), (max(s * 5.0, s * 4.8), 10.1, Z_B))
+        b.box(m["conc"], (min(s * 5.0, s * 4.6), 9.4, 0.0), (max(s * 5.0, s * 4.6), 10.3, 0.4))
+        mid = P(s, 0.45)
+        b.bar(steel, (x, 9.85, 3.0), (x, mid[1], mid[2] - 0.3), 0.08, segs=8)
+    # Tie the columns to the back wall.
+    b.bar(steel, (-5.0, 9.85, BACK_TOP), (5.0, 9.85, BACK_TOP), 0.08, segs=8)
+
+    ob = b.finish(recalc=False)
+    stand_context(ob)
+    return finish_asset("grandstand", "lotus_canopy_10m", ob, **STAND_VIEWS,
+                        extra=[("_c", ((6, 24, 22), (0, 3, 8)))])
+
+
 # ---------------------------------------------------- grandstand/stone_tribune
 # Wide, shallow stone steps, no seats or roof: a 0.6 m parapet to 1.3 at the
 # front, a 2 m promenade, fourteen 0.8 m steps rising 0.38, a top promenade
@@ -1097,6 +1145,7 @@ BUILD = {
     "garage_roof_membrane_6m": garage_roof_membrane_6m,
     "tent_roof_10m": tent_roof_10m,
     "palm_canopy_10m": palm_canopy_10m,
+    "lotus_canopy_10m": lotus_canopy_10m,
     "stone_tribune_10m": stone_tribune_10m,
     "stone_tribune_centre_10m": stone_tribune_centre_10m,
     "sky_platform": sky_platform,

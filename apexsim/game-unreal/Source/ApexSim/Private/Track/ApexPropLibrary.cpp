@@ -254,6 +254,7 @@ namespace ApexProps
 		}
 		if (Asset.StartsWith(TEXT("bay_10m")) || Asset == TEXT("scaffold_10m") || Asset == TEXT("banking_seats")
 			|| Asset == TEXT("grass_bank_10m") || Asset == TEXT("tent_roof_10m") || Asset == TEXT("palm_canopy_10m")
+			|| Asset == TEXT("lotus_canopy_10m")
 			|| IsStreetStandBay(Asset))
 		{
 			return Asset + TEXT("_crowd");

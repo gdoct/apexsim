@@ -118,8 +118,9 @@ depth x height, metres). By family:
 - **Spectators**: stand bays (below), `scaffold_10m`, `banking_seats`,
   `grass_bank_10m` (a turfed bank; the dress pass lays general-admission
   areas as `crowd_group` knots instead, so nothing places it now), the venue modules
-  `tent_roof_10m` and `palm_canopy_10m` (bay_10m's seating under a membrane
-  or a frond canopy, with `_crowd` twins) and `stone_tribune_10m` /
+  `tent_roof_10m`, `palm_canopy_10m` and `lotus_canopy_10m` (bay_10m's
+  seating under a membrane, a frond canopy or a white lotus-leaf shell,
+  with `_crowd` twins) and `stone_tribune_10m` /
   `stone_tribune_centre_10m` (an open stone terrace), the street stand
   family; attractions (`video_screen`, `ferris_wheel`,
   `camera_tower`, `fanzone_stage`, `food_stall_6m`, `ticket_gate`, tents,
@@ -137,7 +138,8 @@ depth x height, metres). By family:
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
   backdrop, the Marina Bay landmarks, and the venue landmarks
   `wing_media_centre` (a 40 m module tiled over the garages),
-  `round_glass_tower`, `arena_dome`, `expo_pavilion`, `geodesic_dome`,
+  `round_glass_tower`, `arena_dome`, `stadium_bowl` (a 260 x 208 m football
+  stadium under a white shell roof, the Fisht), `expo_pavilion`, `geodesic_dome`,
   `fuel_station_canopy` (its fascia a brand slot) and misc `cauldron`.
 - **Landscape**: card trees (`broadleaf_s/m/l`, `conifer_m/l`, `poplar`,
   `bush_cluster`, near-LOD `*_near`, `raintree_l`, palms, the warm-climate
@@ -337,7 +339,8 @@ one `Grandstand_<n>` actor with an HISM per asset):
   neighbours share a side edge, and the caps take the outer bays' turn.
   The large family is straight only.
 - `scaffold_10m`, `banking_seats`, `grass_bank_10m`, the venue modules
-  (`tent_roof_10m`, `palm_canopy_10m`, `stone_tribune[_centre]_10m`) and
+  (`tent_roof_10m`, `palm_canopy_10m`, `lotus_canopy_10m`,
+  `stone_tribune[_centre]_10m`) and
   `street_stand_deck_10m` are not bay families: the module is tiled at
   10 m, no caps. The first five have a `_crowd` twin (`CrowdVariant`); the
   terrace and the deck stand empty.
