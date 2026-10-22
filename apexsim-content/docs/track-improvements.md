@@ -170,9 +170,8 @@ Traps met on the S/F and Landmark passes:
 - Python on the Windows console prints cp1252: set `PYTHONIOENCODING=utf-8`
   before piping track names into a YAML or JSON file.
 
-Open decisions for the owner: R15 (fallback floodlight towers at day
-venues; night sessions light the track with them), and whether the four
-circuits without a dossier are removed from the calendar.
+Open decision for the owner: whether the four circuits without a dossier
+are removed from the calendar.
 
 ## Status
 
@@ -184,11 +183,11 @@ are not repeated per cell. The order of columns is the order of work.
 
 | Stem | S/F | Landmark | Stands | Trees | Barriers | Boards | People |
 |---|---|---|---|---|---|---|---|
-| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | ok | dossier | ok | dossier | ok | ok | ok |
+| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Armadillos](circuit-references/audit/Armadillos.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Bahrainless](circuit-references/audit/Bahrainless.md) | kit | ok | ok | ok | ok | ok | ok |
 | [Barcelunatic](circuit-references/audit/Barcelunatic.md) | ok | ok | ok | ok | ok | ok | ok |
-| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | rule | ok | ok | ok | ok | ok |
+| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | ok | ok | ok | ok | ok | ok |
 | [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | rule | ok | ok | ok | ok |
 | [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | ok | rule | ok | ok | ok | ok |
@@ -205,7 +204,7 @@ are not repeated per cell. The order of columns is the order of work.
 | [Shebang](circuit-references/audit/Shebang.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | ok | rule | ok | ok | ok | ok |
 | [Snorisring](circuit-references/audit/Snorisring.md) | ok | ok | ok | ok | ok | ok | ok |
-| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | rule | ok | ok | ok | ok | ok |
+| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Sudoku](circuit-references/audit/Sudoku.md) | ok | ok | ok | ok | ok | ok | ok |
 | [Zandervoort](circuit-references/audit/Zandervoort.md) | ok | ok | ok | ok | ok | rule | ok |
 
@@ -222,14 +221,11 @@ MandarinaBay (the screens on the pit building's face, R20) and the
 Nordschleife, whose start/finish needs the trace page. The multi-storey pit
 buildings (kit gap 2, with R12 and R20) stay with their kit row.
 
-**Landmark column.** Done but for five circuits: the rules, the dossier
+**Landmark column.** Done but for two circuits: the rules, the dossier
 pass (each audit page's "Landmark dossier pass"), the bake, the survey
-(identical) and the `c5-lm-*` shots, judged 2026-10-22. Open: AlbertParkour
-(the lake, baked from `MANUAL_WATER` after the shots, and Lakeside Stadium,
-laid by R14), BrandsScratch and SpaFrankenchamps (the MSV Centre and the
-Salons de l'Eau Rouge, laid by R14), Gnocchi (the Fisht stadium has no kit
-piece; R15) and Monzarella (the banking's
-curves beside the road have no kit piece).
+(identical) and the `c5-lm-*` and `c5-r14-*` shots, judged 2026-10-22.
+Open: Gnocchi (the Fisht stadium has no kit piece) and Monzarella (the
+banking's curves beside the road have no kit piece).
 
 **Stands column.** Done but for five circuits: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier
@@ -241,8 +237,7 @@ lotus-leaf roof has no kit piece).
 **Trees column.** Done but for three circuits: the rules (species by
 climate, woods past the belt, scrub, `WOOD_LEAF`), the dossier pass ("Trees
 dossier pass"), the bake, the survey (identical) and the `c5-tr-*` shots,
-judged 2026-10-22. Open: Oskarsleben and Shanghaied (tree rows, R8) and
-AlbertParkour (the lake, unseen).
+judged 2026-10-22. Open: Oskarsleben and Shanghaied (tree rows, R8).
 
 **Barriers, Boards and People columns.** Done but for one cell: the rules
 (concrete by the pit lane and against mapped walls, street/park/club rails;
@@ -312,11 +307,6 @@ stay as they are.
 - **R13. Stand outlines.** A wrapping OSM outline is laid as one block
   on its centroid's side (the Hockeyheimring south stand); OSM stands
   tagged as buildings come out as office blocks (Shiverstone, Lemons).
-- **R15. Floodlights.** Where a dossier maps no masts, the dressing lays a
-  fallback ring (13-29 towers a track), and the OSM masts at day venues
-  stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert Park
-  only. Night sessions light the track with them, so this is a decision
-  before it is a rule: which circuits keep towers.
 - **R16. Water.** `WATER_STEMS` (the extract's water bodies from OSM
   relations) is MandarinaBay alone; Albert Park's lake comes from
   `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the

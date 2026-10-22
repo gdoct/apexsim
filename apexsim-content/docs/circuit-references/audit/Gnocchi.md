@@ -78,7 +78,7 @@ Left, or for later columns:
 - Fisht stadium: not in the extract, no stadium piece.
 - The Medals Plaza fountain: a `MANUAL_FURNITURE` item.
 - "Сириус" (reaches across the road) is the Olympic Park railway station, not a landmark: laid by R14 as a row of ten blocks on its side of the road.
-- The 72 OSM floodlight masts: R15, the owner's call.
+- The 72 OSM floodlight masts stay: day venues keep their towers for night sessions.
 
 ## Stands dossier pass
 

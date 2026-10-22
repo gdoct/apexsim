@@ -262,10 +262,9 @@ reason in the column's paragraph; the `c5-*` runs in
 Left: AlbertParkour's lake on screen; the Nordschleife's start/finish from
 the trace page; kit gap 2 with R12/R20 (the pit building's roof screens,
 podium); the open rule gaps (R8 tree rows, R13 stand outlines, R17
-checks, R21 short pit lanes with the pit survey, R22 bleachers); the kit pieces with no build yet (Fisht stadium,
-Monza's banking curves, Shanghai's lotus roof); the four circuits without
-a dossier. R15 (fallback floodlights at day venues) needs the owner's call
-before it is touched.
+checks, R21 short pit lanes with the pit survey, R22 bleachers); the kit
+pieces with no build yet (Fisht stadium, Monza's banking curves, Shanghai's lotus roof); the four circuits without
+a dossier.
 **Watch out:** hand-placed props are discarded on the next dress; the
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a

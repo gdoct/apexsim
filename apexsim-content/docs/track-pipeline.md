@@ -276,7 +276,9 @@ stamp.
   stage, big wheel and food stall, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes and in every mapped wood from 120 m out
   (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
-  dossier maps no lighting masts.
+  dossier maps no lighting masts. Day venues keep their towers and their
+  OSM masts, since night sessions light the track with them; only
+  `DAY_RACE_NO_FLOODLIGHTS` (Albert Park) strips them.
 - Anything standing in mapped water that no bridge carries is dropped.
 
 ## Grooming (`ats-groom`) and barriers
