@@ -333,6 +333,11 @@ what it touches, how it is checked) before it becomes a package.
 
 - **Driver rating / safety rating.** No definition yet of what is rated or
   where it is stored.
+- **Driver pictures.** Portraits for the drivers (results, standings, the
+  HUD's driver tags) from the owner's own contact sheet of portrait
+  photos (a 4-wide grid): split into single square crops, one per driver.
+  Not on the spectator figures: a photo on their block heads read as a
+  sticker. Needs the people's consent before it ships.
 - **Shared leaderboards across servers.** Lap records and the track
   leaderboard screen are per server; sharing needs a service and a trust
   model.
