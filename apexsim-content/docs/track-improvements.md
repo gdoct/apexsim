@@ -309,9 +309,6 @@ stay as they are.
   relations) is MandarinaBay alone; Albert Park's lake comes from
   `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the
   Norisring's Dutzendteich) are only the small water `areas`.
-- **R17. Checks.** Nothing flags a stand laid on the far side of its
-  straight (the Shebang main stand) or a distance-board set missing at a
-  heavy braking zone (Zandervoort's Hans Ernst and T9/T10).
 - **R20. Screens on the pit building's roof or track face** have no rule:
   a `screen` landmark stands on the ground, and one in the garage zone is
   dropped (AlbertParkour, Armadillos, Bahrainless, Hungoverring,

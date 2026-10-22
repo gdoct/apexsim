@@ -114,6 +114,10 @@ const CORNER_MERGE_GAP_M: f32 = 80.0;
 /// A braking corner needs this much sub-threshold curvature before its
 /// entry: boards belong on a straight, not between the bends of an S.
 const BOARD_APPROACH_M: f32 = 150.0;
+/// A bend in that approach gentler than this (a radius over 150 m) is a
+/// kink taken flat out and leaves the approach clean: Zandvoort's run into
+/// Hans Ernst and into the T9/T10 hairpin each has one.
+const BOARD_APPROACH_KAPPA: f32 = 1.0 / 150.0;
 /// Cornering speed model, `v = sqrt(a_lat / kappa)`: with a lateral grip
 /// of ~12 m/s² a 250 m radius (the corner threshold) still allows 55 m/s,
 /// so a corner whose tightest point holds the car under
@@ -1503,7 +1507,7 @@ pub fn corner_runs(path: &CenterlinePath) -> Vec<CornerRun> {
 }
 
 /// The corners that get distance boards: a clean [`BOARD_APPROACH_M`]
-/// before the entry and a tightest point slower than
+/// (nothing tighter than [`BOARD_APPROACH_KAPPA`]) before the entry and a tightest point slower than
 /// [`BOARD_MAX_CORNER_SPEED_MPS`] under the `v = sqrt(a_lat / kappa)`
 /// model. Board stations that would land inside another corner run are
 /// left out.
@@ -1523,7 +1527,7 @@ pub fn braking_corners(path: &CenterlinePath) -> Vec<BrakingCorner> {
             let approach_steps = (BOARD_APPROACH_M / CORNER_SWEEP_M) as i32;
             let clean_approach = (1..=approach_steps).all(|i| {
                 match station(run.start_m - i as f32 * CORNER_SWEEP_M) {
-                    Some(s) => curvature_at(path, s).abs() < CORNER_KAPPA,
+                    Some(s) => curvature_at(path, s).abs() < BOARD_APPROACH_KAPPA,
                     None => false,
                 }
             });
@@ -3952,6 +3956,33 @@ mod tests {
             "yaw {} vs lane {}",
             b.yaw_rad,
             ls.heading_rad
+        );
+    }
+
+    /// A flat-out kink in the approach (a radius around 200 m, 100 m
+    /// before the entry) leaves it clean: the hairpin still gets its
+    /// boards (Zandvoort's Hans Ernst).
+    #[test]
+    fn a_kink_in_the_approach_keeps_a_corners_boards() {
+        let mut track = track();
+        // A 2.5 m sideways bump over x 600..700 on the first straight.
+        track.nodes.retain(|n| !(n.y == 0.0 && n.x > 600.0 && n.x < 700.0));
+        let at = track.nodes.iter().position(|n| n.y == 0.0 && n.x == 700.0).unwrap();
+        for i in (1..20).rev() {
+            let x = 600.0 + i as f32 * 5.0;
+            let y = 1.25 * (1.0 - (std::f32::consts::TAU * (x - 600.0) / 100.0).cos());
+            track.nodes.insert(at, node(x, y, 0.0));
+        }
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let peak = (600..700)
+            .step_by(5)
+            .map(|x| curvature_at(&path, x as f32).abs())
+            .fold(0.0, f32::max);
+        assert!(peak > CORNER_KAPPA && peak < BOARD_APPROACH_KAPPA, "kink radius {}", 1.0 / peak);
+        let corners = braking_corners(&path);
+        assert!(
+            corners.iter().any(|c| (c.entry_m() - 800.0).abs() < 40.0 && c.boards.len() >= 2),
+            "{corners:?}"
         );
     }
 

@@ -237,6 +237,9 @@ fn main() -> ExitCode {
             for note in &report.skipped {
                 println!("    skipped {note}");
             }
+            for note in &report.checks {
+                println!("    check {note}");
+            }
         }
         if explain {
             for line in explain_scene(&scene) {

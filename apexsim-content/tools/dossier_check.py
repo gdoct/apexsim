@@ -7,7 +7,7 @@ STAND_COVER, MANUAL_LANDMARKS, ...): writes the dossier with
 `osm_layout.py --manual-only` (MandarinaBay, which has no DEM sidecar, with
 `--offline` from the cached extract), flags a STAND_COVER key that names no
 stand, prints the stand and landmark lines of `ats-dress --explain` that
-the edit changed, and lists the structures the dossier lost against HEAD
+the edit changed (and its `check` lines: a stand laid against another leg), and lists the structures the dossier lost against HEAD
 (an authored landmark drops every OSM structure within its reach) and
 whether the dress pass laid them before. Needs the release ats-dress
 (`cargo build --release --manifest-path track-editor/Cargo.toml --bin ats-dress`).
@@ -25,7 +25,7 @@ import osm_layout as ol  # noqa: E402
 DRESS = ROOT / "track-editor" / "target" / "release" / "ats-dress.exe"
 if not DRESS.exists():
     DRESS = DRESS.with_suffix("")
-KEEP = ("stand ", "landmark ", "skipped stand", "skipped landmark", "skipped building")
+KEEP = ("stand ", "landmark ", "skipped stand", "skipped landmark", "skipped building", "check ")
 
 
 def explain(yaml: pathlib.Path) -> tuple[list[str], str]:

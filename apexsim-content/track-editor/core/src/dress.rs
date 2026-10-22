@@ -69,6 +69,9 @@ const BUILDING_MAX_PUSH_M: f32 = 25.0;
 const BUILDING_RUNOFF_MAX_STEP_M: f32 = 40.0;
 /// Least room between the road edge and any part of a stand bay.
 const STAND_ROAD_CLEAR_M: f32 = 3.0;
+/// How far past its own span a stand's bays may find their nearest road
+/// before the check calls them laid against another leg.
+const STAND_LEG_SLACK_M: f32 = 150.0;
 /// Room a stand keeps past a paved run-off: the server stops cars on
 /// stands, and one on the apron is a wall where a car runs wide.
 const STAND_RUNOFF_CLEAR_M: f32 = 2.0;
@@ -136,6 +139,8 @@ pub struct DressReport {
     pub graffiti: usize,
     /// Dossier entries that could not be placed, with the reason.
     pub skipped: Vec<String>,
+    /// Entries laid where they look wrong, for a person to read (R17).
+    pub checks: Vec<String>,
 }
 
 impl DressReport {
@@ -287,6 +292,9 @@ pub fn dress_scene_with_dem(
                 .skipped
                 .push(format!("stand {}: {why}", name_of(&stand.name)));
             continue;
+        }
+        if let Some(note) = stand_off_its_leg(&path, stand, &props) {
+            report.checks.push(note);
         }
         report.stands += 1;
         report.stand_props += props.len();
@@ -1153,6 +1161,38 @@ fn stand_family(stand: &Stand) -> &'static str {
 /// Each run becomes one grandstand prop carrying its own `length_m`, so
 /// the Unreal side lays `round(length / 10)` bays there; a stand built
 /// round a bend comes out as a chain of runs that follows it.
+/// A laid stand whose bays stand nearer another stretch of the course than
+/// its own (a dossier side error puts a main stand across the straight
+/// and against the next leg: Sepang's stood on the back straight). Its
+/// own stretch is its station give or take half its length and
+/// [`STAND_LEG_SLACK_M`].
+fn stand_off_its_leg(path: &CenterlinePath, stand: &Stand, props: &[Prop]) -> Option<String> {
+    let total = path.total_length_m();
+    let along = |a: f32, b: f32| {
+        let d = (a - b).abs();
+        if path.is_closed() {
+            d.min(total - d)
+        } else {
+            d
+        }
+    };
+    let reach = stand.length_m / 2.0 + STAND_LEG_SLACK_M;
+    let off: Vec<f32> = props
+        .iter()
+        .map(|p| nearest_cross_section(path, p.x, p.y).0.station_m)
+        .filter(|&s| along(s, stand.station_m) > reach)
+        .collect();
+    if off.len() * 2 <= props.len() {
+        return None;
+    }
+    Some(format!(
+        "stand {}: laid nearer the road at {:.0} m than at its own {:.0} m (the far side of a leg?)",
+        name_of(&stand.name),
+        off[off.len() / 2],
+        stand.station_m
+    ))
+}
+
 fn lay_stand(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
@@ -4008,6 +4048,28 @@ mod tests {
 
     fn scene(track: &TrackFile) -> AtsScene {
         AtsScene::new_for_track(track, "Dress.yaml")
+    }
+
+    /// A stand whose dossier station is the main straight but whose bays
+    /// stand against the back straight is laid and flagged (R17: Sepang's
+    /// mis-sided main stand); one beside its own straight is not.
+    #[test]
+    fn a_stand_laid_against_another_leg_is_flagged() {
+        let track = track();
+        let mut layout = layout();
+        let mut wrong = stand("Main", vec![[240.0, 122.0], [360.0, 122.0]], 15.0, false);
+        wrong.station_m = 300.0;
+        wrong.side = Side::Left;
+        let mut right = stand("Main", vec![[240.0, -20.0], [360.0, -20.0]], 15.0, false);
+        right.station_m = 300.0;
+        layout.stands = vec![wrong];
+        let report = dress_scene(&track, &mut scene(&track), &layout).unwrap();
+        assert_eq!(report.stands, 1, "{:?}", report.skipped);
+        assert!(report.checks.iter().any(|c| c.contains("far side of a leg")), "{:?}", report.checks);
+        layout.stands = vec![right];
+        let report = dress_scene(&track, &mut scene(&track), &layout).unwrap();
+        assert_eq!(report.stands, 1, "{:?}", report.skipped);
+        assert!(report.checks.is_empty(), "{:?}", report.checks);
     }
 
     #[test]

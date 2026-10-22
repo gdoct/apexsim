@@ -244,6 +244,9 @@ stamp.
   or a `venue_hall` when the map gives it one storey and 1500 m2. A tall
   square one is a `control_tower`, a small one a `clubhouse`, and a street
   circuit's neighbours are the `skyline_*` set.
+- **A stand laid against another leg** (most of its bays nearer the road
+  150 m or more past its own span: a dossier side error) is laid and
+  reported as a `check` line by `--verbose` and `dossier_check.py`.
 - **Footprints** of stands and buildings are probed whole against every leg
   (`clear_footprint`) and stepped back up to 25 m. A building row that
   finds no room keeps the blocks clear where they stand and loses those on
@@ -311,7 +314,11 @@ the *front* (`groom::footprint_centre_of`, `Slab`), as every other stage does.
 **Hoardings** (`groom::lay_hoardings`): `board/hoarding_3m` behind plain rail
 on the pit straight, through braking zones, round corners' outsides and in
 front of stands, a brand per 36 m (15 m on a street circuit), never on Tecpro
-or tyres. **Trees** go only inside the dossier's woods, species from the
+or tyres. **Distance boards** (`groom::braking_corners`) stand at 200,
+100 and 50 m before every corner whose tightest point holds a car under
+30 m/s, on the outside of the bend, when its last 150 m bend no tighter
+than a 150 m radius (a flat-out kink leaves the approach clean); a board
+that would stand inside another corner is left out. **Trees** go only inside the dossier's woods, species from the
 leaf type and the circuit style's flora (poplars only in broadleaved woods;
 the desert sets plant date palms), and bushes (`bush_cluster`) inside its
 `scrub` areas. `WOOD_LEAF` in `osm_layout.py` sets a circuit's leaf types
