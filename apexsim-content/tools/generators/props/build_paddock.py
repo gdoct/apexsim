@@ -330,12 +330,92 @@ def build_clubhouse():
     return b.finish(planar_uv=True, uv_scale=UV)
 
 
+def punched_row(b, m, x0, x1, z0, z1, y, out, pitch=2.4, w=1.5):
+    """A row of punched windows in a wall face at y (`out` its outward
+    sign): glass 1 cm proud and a sill under each, solid wall between."""
+    n = max(1, int((x1 - x0) // pitch))
+    pad = (x1 - x0 - n * pitch) / 2
+    for i in range(n):
+        xc = x0 + pad + pitch * (i + 0.5)
+        g0, g1 = sorted((y, y + out * 0.01))
+        b.box(m["glass"], (xc - w / 2, g0, z0), (xc + w / 2, g1, z1))
+        s0, s1 = sorted((y, y + out * 0.14))
+        b.box(m["conc"], (xc - w / 2 - 0.1, s0, z0 - 0.12), (xc + w / 2 + 0.1, s1, z0))
+
+
+def build_office_block():
+    """40 x 16 x 12: an office block for a real building away from the
+    paddock: three floors of punched windows in a solid rendered wall,
+    a dark plinth, string courses, one glazed entrance under a canopy and
+    roof plant. No open ground floor: it must not read as a garage row."""
+    apex.reset_scene()
+    m = mats()
+    b = apex.Builder("office_block")
+    X0, X1, Y1 = -20.0, 20.0, 16.0
+    floors = (0.0, 3.8, 7.4, 11.0)
+    R = floors[-1]
+    b.box(m["wall"], (X0, 0.0, 0.0), (X1, Y1, R))
+    b.box(m["dark"], (X0 - 0.03, -0.03, 0.0), (X1 + 0.03, Y1 + 0.03, 0.6))          # plinth
+    for z in floors[1:-1]:
+        b.box(m["conc"], (X0 - 0.05, -0.05, z - 0.15), (X1 + 0.05, Y1 + 0.05, z + 0.15))
+    for z0 in floors[:-1]:
+        lo, hi = z0 + 1.0, z0 + 2.9
+        for y, out in ((0.0, -1), (Y1, 1)):
+            if z0 == 0.0 and out < 0:
+                punched_row(b, m, X0 + 1.0, -3.0, lo, hi, y, out)
+                punched_row(b, m, 3.0, X1 - 1.0, lo, hi, y, out)
+            else:
+                punched_row(b, m, X0 + 1.0, X1 - 1.0, lo, hi, y, out)
+    # The entrance: a glazed screen in a dark frame, a canopy over it.
+    b.box(m["dark"], (-2.4, -0.06, 0.0), (2.4, 0.0, 3.3))
+    b.box(m["glass"], (-2.1, -0.08, 0.0), (2.1, -0.06, 3.0))
+    b.box(m["dark"], (-3.0, -1.8, 3.3), (3.0, 0.0, 3.55))
+    # Parapet and plant.
+    roof_plant(b, m, X0, X1, 0.0, Y1, R, overrun=2.2)
+    return b.finish(planar_uv=True, uv_scale=UV)
+
+
+def build_venue_hall():
+    """40 x 30 x 10: a low hall for a big single-storey building (a sports
+    hall, an exhibition shed, a workshop): clad walls with a band of high
+    windows, a dark plinth, entrance doors, a shallow pitched roof with
+    rooflights. Tiles along its length like the office block."""
+    apex.reset_scene()
+    m = mats()
+    b = apex.Builder("venue_hall")
+    X0, X1, Y1 = -20.0, 20.0, 30.0
+    E, RIDGE = 8.0, 10.0
+    b.box(m["wall"], (X0, 0.0, 0.0), (X1, Y1, E))
+    b.box(m["dark"], (X0 - 0.03, -0.03, 0.0), (X1 + 0.03, Y1 + 0.03, 1.0))
+    for y, out in ((0.0, -1), (Y1, 1)):
+        punched_row(b, m, X0 + 1.0, X1 - 1.0, 5.6, 7.2, y, out, pitch=3.0, w=2.4)
+    # Two pairs of entrance doors on the road face, nothing garage-wide.
+    for xc in (-8.0, 8.0):
+        b.box(m["dark"], (xc - 1.6, -0.06, 0.0), (xc + 1.6, 0.0, 2.8))
+        b.box(m["glass"], (xc - 1.3, -0.08, 0.0), (xc + 1.3, -0.06, 2.5))
+    # Shallow roof, ridge along X, eaves overhanging.
+    yc, ov = Y1 / 2, 0.6
+    ring = lambda x: [(x, -ov, E - 0.1), (x, yc, RIDGE), (x, Y1 + ov, E - 0.1), (x, Y1 + ov, E + 0.2), (x, yc, RIDGE + 0.3), (x, -ov, E + 0.2)]
+    b.loft(m["steel"], [ring(X0 - 0.3), ring(X1 + 0.3)], closed=True, cap_ends=True)
+    b.loft(m["wall"], [[(X0, 0.0, E), (X0, Y1, E), (X0, yc, RIDGE)], [(X1, 0.0, E), (X1, Y1, E), (X1, yc, RIDGE)]],
+           closed=True, cap_ends=True)
+    k = (RIDGE - E) / yc
+    for y0 in (4.0, Y1 - 7.0):   # rooflight strips on both slopes
+        ym = y0 + 1.5
+        z = E + 0.32 + k * (ym if ym < yc else Y1 - ym)
+        b.box(m["glass"], (X0 + 3.0, y0, z), (X1 - 3.0, y0 + 3.0, z + 0.25))
+    return b.finish(planar_uv=True, uv_scale=UV)
+
+
 BUILDS = {"media_centre": build_media_centre, "hospitality_3f": build_hospitality,
-          "control_tower": build_control_tower, "clubhouse": build_clubhouse}
+          "control_tower": build_control_tower, "clubhouse": build_clubhouse,
+          "office_block": build_office_block, "venue_hall": build_venue_hall}
 VIEWS = {"media_centre": [((-30, -42, 9), (2, 6, 9)), ((-55, -14, 3), (0, 6, 9))],
          "hospitality_3f": [((-24, -32, 7), (1, 5, 6)), ((-42, -10, 2.5), (0, 5, 6))],
          "control_tower": [((-34, -56, 12), (0, 0, 15)), ((-50, -25, 3), (0, 0, 15))],
-         "clubhouse": [((-22, -30, 8), (0, 5, 5)), ((-30, 30, 10), (0, 7, 5))]}
+         "clubhouse": [((-22, -30, 8), (0, 5, 5)), ((-30, 30, 10), (0, 7, 5))],
+         "office_block": [((-30, -40, 8), (2, 6, 6)), ((-50, -12, 3), (0, 8, 6))],
+         "venue_hall": [((-36, -46, 9), (2, 12, 5)), ((-55, 50, 12), (0, 15, 5))]}
 
 if __name__ == "__main__":
     out = {}

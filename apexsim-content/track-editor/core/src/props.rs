@@ -176,6 +176,11 @@ pub const KIT: &[KitAsset] = kit![
     Building "hospitality_3f" 30.6 x 12.6 x 13.6,
     Building "media_centre" 40.6 x 15.6 x 21.0,
     Building "control_tower" 13.2 x 13.2 x 29.0,
+    // Real buildings away from the paddock: an office block, a low hall
+    // for a big single-storey footprint. Solid ground floors, unlike the
+    // paddock blocks above, which read as garages anywhere else.
+    Building "office_block" 40.1 x 17.9 x 13.2,
+    Building "venue_hall" 40.6 x 31.2 x 10.3,
     Building "observation_tower" 8.3 x 8.3 x 60.5,
     // Skyline: city backdrop for street circuits, set well back.
     Building "skyline_lowrise" 26.2 x 18.2 x 40.8,

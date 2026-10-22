@@ -25,8 +25,9 @@ buildings the bake turns into `walls.msgpack` (see
   `build_tyre_bridge.py` (a flat tyre arc on two low legs over a footbridge),
   `build_nordschleife_kit.py`, `build_marina_bay_{a1,a2,a3,b1,c1,d1}.py` on
   `marina_common.py`, `build_figures.py` (the people kit),
-  `build_paddock.py` (`media_centre`, `hospitality_3f`, `control_tower`, `clubhouse`:
-  the stand-ins the dress pass lays for real buildings),
+  `build_paddock.py` (`media_centre`, `hospitality_3f`, `control_tower`, `clubhouse`,
+  `office_block`, `venue_hall`: the stand-ins the dress pass lays for real
+  buildings),
   `build_kit_gaps_landmarks.py` (the venue landmarks below),
   `build_kit_gaps_stands.py` (venue stands, sky bridges, pit storeys) and
   `build_stand_crowds.py` (their `_crowd` twins from `bay_10m_crowd`),
@@ -130,7 +131,8 @@ depth x height, metres). By family:
   spectators, centred) and `misc/marshal_figure` (a marshal in orange
   holding a flag, one card facing the road, centred on the feet).
 - **Buildings**: paddock (`hospitality_3f`, `media_centre`, `control_tower`,
-  `clubhouse`, `podium`), `observation_tower`, Styrian village houses, barn
+  `clubhouse`, `podium`), the solid-ground-floor `office_block` and
+  `venue_hall` for real buildings away from the paddock, `observation_tower`, Styrian village houses, barn
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
   backdrop, the Marina Bay landmarks, and the venue landmarks
   `wing_media_centre` (a 40 m module tiled over the garages),
