@@ -3677,6 +3677,14 @@ runs:
         label: "the Fangio footbridge"
         checks: "C5 Landmark: the audit page's Landmark dossier pass, against the maps"
         exec: "apexsim.cam.LookAt 252.5 -245.3 5.7 202.1 -196.7 4.2"
+      - at: 16
+        label: "Albert Park Lake from above the pit straight"
+        checks: "C5 Landmark/Trees: the lake (MANUAL_WATER) fills its shoreline, the belts stop at the water"
+        exec: "apexsim.cam.LookAt 250.0 0.0 80.0 100.0 600.0 0.0"
+      - at: 20
+        label: "Albert Park Lake from the west shore"
+        checks: "C5 Landmark/Trees: the lake (MANUAL_WATER) from beside the circuit"
+        exec: "apexsim.cam.LookAt -560.0 500.0 25.0 -100.0 700.0 0.0"
 
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
