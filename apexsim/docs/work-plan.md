@@ -254,22 +254,19 @@ tracks: S/F, landmarks, stands, trees, barriers, boards, people last.
 [track-improvements.md](../../apexsim-content/docs/track-improvements.md),
 each track's positions from the maps in
 `apexsim-content/docs/circuit-references/audit/<Stem>.md`
-(`render_maps.py` renders the PDF maps). The S/F column is done but for
-four circuits (track-improvements.md, "S/F column"): its rules (a stand's
-roof by name or station, `STAND_COVER`; stands beside the pit lane
-stepped back off it unless over the garage row), each circuit's stands,
-roofs and screens from its maps (listed on its audit page), and the
-`c5-sf-*` runs in `scripts/verify/runs.yml`, which shoot any circuit's
-straight again after a later edit. Next, the Landmark column: its rules
-first (R4 a road crossing as an overpass, R5 a building across the road,
-R11 a tower landmark beyond `control_tower`), then each circuit's
-landmarks from its audit page, then the kit gaps they need. Later: the
-Nordschleife's start/finish from the trace page; kit gap 2 with R12/R20
-(the pit building's upper storey, roof screens, podium); R21 (the short
-pit lanes) with the pit survey; then Stands, Trees, Barriers (R6 and R7
-with the AI survey), Boards (R10, a `MANUAL_CORNERS` table), People. R15
-(fallback floodlights at day venues) needs the owner's call before it is
-touched.
+(`render_maps.py` renders the PDF maps). Every column is done
+to its judged shots (2026-10-21 for S/F, 2026-10-22 for the rest) but for
+the cells left open in track-improvements.md's status table, each with its
+reason in the column's paragraph; the `c5-*` runs in
+`scripts/verify/runs.yml` shoot any circuit again after a later edit.
+Left: AlbertParkour's lake on screen; the Nordschleife's start/finish from
+the trace page; kit gap 2 with R12/R20 (the pit building's roof screens,
+podium); the open rule gaps (R8 tree rows, R13 stand outlines, R14 big
+buildings stepped back, R17 checks, R21 short pit lanes with the pit
+survey, R22 bleachers); the kit pieces with no build yet (Fisht stadium,
+Monza's banking curves, Shanghai's lotus roof); the four circuits without
+a dossier. R15 (fallback floodlights at day venues) needs the owner's call
+before it is touched.
 **Watch out:** hand-placed props are discarded on the next dress; the
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a

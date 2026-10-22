@@ -184,30 +184,30 @@ are not repeated per cell. The order of columns is the order of work.
 
 | Stem | S/F | Landmark | Stands | Trees | Barriers | Boards | People |
 |---|---|---|---|---|---|---|---|
-| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | ok | dossier | dossier | dossier | rule | dossier | kit |
-| [Armadillos](circuit-references/audit/Armadillos.md) | ok | rule | dossier | rule | ok | ok | kit |
-| [Bahrainless](circuit-references/audit/Bahrainless.md) | kit | kit | ok | ok | ok | dossier | kit |
-| [Barcelunatic](circuit-references/audit/Barcelunatic.md) | ok | dossier | dossier | dossier | ok | dossier | kit |
-| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | dossier | dossier | dossier | rule | ok | kit |
-| [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | ok | kit | dossier | dossier | rule | dossier | kit |
-| [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | dossier | dossier | rule | dossier | kit |
-| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | dossier | dossier | dossier | rule | ok | kit |
-| [Hungoverring](circuit-references/audit/Hungoverring.md) | ok | dossier | dossier | ok | dossier | rule | kit |
-| [Interlaggos](circuit-references/audit/Interlaggos.md) | ok | - | dossier | ok | ok | ok | kit |
-| [Lemons](circuit-references/audit/Lemons.md) | ok | ok | dossier | rule | ok | rule | kit |
-| [MandarinaBay](circuit-references/audit/MandarinaBay.md) | rule | ok | dossier | ok | rule | rule | kit |
-| [Monzarella](circuit-references/audit/Monzarella.md) | ok | kit | dossier | dossier | rule | dossier | kit |
-| [Mordschleife](circuit-references/audit/Mordschleife.md) | dossier | ok | dossier | rule | rule | dossier | kit |
-| [Nuerburgerring](circuit-references/audit/Nuerburgerring.md) | ok | dossier | dossier | dossier | rule | dossier | kit |
-| [Oskarsleben](circuit-references/audit/Oskarsleben.md) | ok | - | rule | rule | rule | dossier | kit |
-| [RedPullRing](circuit-references/audit/RedPullRing.md) | ok | kit | dossier | ok | ok | dossier | kit |
-| [Shanghaied](circuit-references/audit/Shanghaied.md) | ok | kit | dossier | dossier | ok | dossier | kit |
-| [Shebang](circuit-references/audit/Shebang.md) | ok | kit | dossier | dossier | ok | ok | kit |
-| [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | kit | dossier | rule | ok | dossier | kit |
-| [Snorisring](circuit-references/audit/Snorisring.md) | ok | kit | dossier | dossier | rule | dossier | kit |
-| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | dossier | dossier | dossier | ok | ok | kit |
-| [Sudoku](circuit-references/audit/Sudoku.md) | ok | ok | rule | rule | ok | ok | kit |
-| [Zandervoort](circuit-references/audit/Zandervoort.md) | ok | dossier | dossier | rule | dossier | rule | kit |
+| [AlbertParkour](circuit-references/audit/AlbertParkour.md) | ok | dossier | ok | dossier | ok | ok | ok |
+| [Armadillos](circuit-references/audit/Armadillos.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Bahrainless](circuit-references/audit/Bahrainless.md) | kit | ok | ok | ok | ok | ok | ok |
+| [Barcelunatic](circuit-references/audit/Barcelunatic.md) | ok | ok | ok | ok | ok | ok | ok |
+| [BrandsScratch](circuit-references/audit/BrandsScratch.md) | ok | rule | ok | ok | ok | ok | ok |
+| [ChillyVilleneuve](circuit-references/audit/ChillyVilleneuve.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Gnocchi](circuit-references/audit/Gnocchi.md) | rule | kit | rule | ok | ok | ok | ok |
+| [Hockeyheimring](circuit-references/audit/Hockeyheimring.md) | ok | ok | rule | ok | ok | ok | ok |
+| [Hungoverring](circuit-references/audit/Hungoverring.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Interlaggos](circuit-references/audit/Interlaggos.md) | ok | - | ok | ok | ok | ok | ok |
+| [Lemons](circuit-references/audit/Lemons.md) | ok | ok | rule | ok | ok | ok | ok |
+| [MandarinaBay](circuit-references/audit/MandarinaBay.md) | rule | ok | ok | ok | ok | ok | ok |
+| [Monzarella](circuit-references/audit/Monzarella.md) | ok | kit | ok | ok | ok | ok | ok |
+| [Mordschleife](circuit-references/audit/Mordschleife.md) | dossier | ok | ok | ok | ok | ok | ok |
+| [Nuerburgerring](circuit-references/audit/Nuerburgerring.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Oskarsleben](circuit-references/audit/Oskarsleben.md) | ok | - | ok | rule | ok | ok | ok |
+| [RedPullRing](circuit-references/audit/RedPullRing.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Shanghaied](circuit-references/audit/Shanghaied.md) | ok | ok | kit | rule | ok | ok | ok |
+| [Shebang](circuit-references/audit/Shebang.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Shiverstone](circuit-references/audit/Shiverstone.md) | ok | ok | rule | ok | ok | ok | ok |
+| [Snorisring](circuit-references/audit/Snorisring.md) | ok | ok | ok | ok | ok | ok | ok |
+| [SpaFrankenchamps](circuit-references/audit/SpaFrankenchamps.md) | ok | rule | ok | ok | ok | ok | ok |
+| [Sudoku](circuit-references/audit/Sudoku.md) | ok | ok | ok | ok | ok | ok | ok |
+| [Zandervoort](circuit-references/audit/Zandervoort.md) | ok | ok | ok | ok | ok | rule | ok |
 
 Endianapolis, HermanosRodriQueso, MoscowMule and YasMarinara have no
 layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
@@ -222,31 +222,37 @@ MandarinaBay (the screens on the pit building's face, R20) and the
 Nordschleife, whose start/finish needs the trace page. The multi-storey pit
 buildings (kit gap 2, with R12 and R20) stay with their kit row.
 
-**Landmark column.** Rules, dossier pass (each audit page's "Landmark
-dossier pass"), bake and survey (identical) done; the `c5-lm-*` shots
-(`out/verify/c5-lm-<stem>/sheet_1.jpg`) wait for a person to judge them
-before the cells close. Open: the Albert Park lake (R16), the Steintribüne,
-Sepang's frond canopy and Bahrain's tent roofs (Stands column), the
-banking's curves at Monza (no kit piece).
+**Landmark column.** Done but for five circuits: the rules, the dossier
+pass (each audit page's "Landmark dossier pass"), the bake, the survey
+(identical) and the `c5-lm-*` shots, judged 2026-10-22. Open: AlbertParkour
+(the lake, baked from `MANUAL_WATER` after the shots, is unseen; Lakeside
+Stadium is R14), BrandsScratch and SpaFrankenchamps (R14), Gnocchi (the
+Fisht stadium has no kit piece; R14, R15) and Monzarella (the banking's
+curves beside the road have no kit piece).
 
-**Stands column.** Rules (stand families, `STAND_FAMILY`,
-`DROP_STRUCTURES`, stands clear of the run-off), dossier pass (each audit
-page's "Stands dossier pass"), bake and survey (identical but for noise)
-done; the `c5-st-*` shots were taken and two findings fixed (the
-Steintribüne's centre block, the banks' turf); they wait for a person to
-judge them before the cells close.
+**Stands column.** Done but for five circuits: the rules (stand families,
+`STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier
+pass ("Stands dossier pass"), the bake, the survey (identical but for noise)
+and the `c5-st-*` shots, judged 2026-10-22. Open: Gnocchi, Hockeyheimring,
+Lemons and Shiverstone (stand outlines, R13) and Shanghaied (Grandstand A's
+lotus-leaf roof has no kit piece).
 
-**Trees column.** Rules (species by climate, woods past the belt, scrub,
-`WOOD_LEAF`), dossier pass ("Trees dossier pass"), bake and survey
-(identical) done; the `c5-tr-*` shots wait for a person to judge them.
-Open: tree rows (R8), the Albert Park lake (R16).
+**Trees column.** Done but for three circuits: the rules (species by
+climate, woods past the belt, scrub, `WOOD_LEAF`), the dossier pass ("Trees
+dossier pass"), the bake, the survey (identical) and the `c5-tr-*` shots,
+judged 2026-10-22. Open: Oskarsleben and Shanghaied (tree rows, R8) and
+AlbertParkour (the lake, unseen).
 
-**Barriers, Boards and People columns.** Rules (concrete by the pit lane
-and against mapped walls, street/park/club rails; `MANUAL_CORNERS` and a
-post every 150 m; marshals at the posts and groups at the fan zones), the
-Boards dossier pass, bake and survey (identical but for the
-Nordschleife's guard rail) done; the `c5-bp-*` shots wait for a person to
-judge them.
+**Barriers, Boards and People columns.** Done but for one cell: the rules
+(concrete by the pit lane and against mapped walls, street/park/club rails;
+`MANUAL_CORNERS` and a post every 150 m; marshals at the posts and groups
+at the fan zones), the Boards dossier pass, the bake, the survey (identical
+but for the Nordschleife's guard rail) and the `c5-bp-*` shots, judged
+2026-10-22. Open: Zandervoort's Boards (the board sets at Hans Ernst and
+T9/T10, R17).
+
+The `c5-*` runs stay in `scripts/verify/runs.yml` to shoot a circuit again
+after a later edit.
 
 What the audit says across the table:
 
@@ -266,7 +272,7 @@ What the audit says across the table:
   park and club rails), and no cell needs a dossier edit.
 - **Boards**: the corner signs and marshal posts follow the dossier's
   named corners, and ten dossiers have none or bogus ones (R10).
-- **People**: the figure kit (kit gap 1) is laid now: the banks'
+- **People**: the figure kit is laid: the banks'
   crowds from the Stands pass, a marshal at every post, knots of
   spectators round the fan zones' stages, wheels and food stalls.
 
@@ -280,19 +286,9 @@ names.
 
 | # | Asset (kind/key) | Stands in for | Tracks |
 |---|---|---|---|
-| 1 | built: `grandstand/grass_bank_10m[_crowd]`, `misc/crowd_group`, `misc/marshal_figure` | standing crowd on a bank, groups at gates and fan zones, marshals at posts | all 24 |
 | 2 | built and stacked by the exporter (`CircuitStyle::pit_storey_for`): `pit/garage_upper_6m`; roof screens are R20 | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
-| 3 | built: `building/wing_media_centre` | an elevated, wing-shaped pit or media building | Shiverstone, RedPullRing |
 | 4 | built: `grandstand/tent_roof_10m`, `pit/garage_roof_membrane_6m` (stacked at Bahrainless) | white membrane roofs | Bahrainless |
-| 5 | built: `building/round_glass_tower` | a 30 m round glass control tower | Bahrainless |
-| 6 | built: `grandstand/palm_canopy_10m` | leaf-canopy grandstand roofs | Shebang |
-| 7 | built: `bridge/sky_platform` | cantilevered platforms spanning the straight | Shanghaied |
-| 8 | built: `bridge/banked_oval_span` | the old banked oval on piers, over the GP road | Monzarella |
-| 9 | built: `grandstand/stone_tribune_10m`, `stone_tribune_centre_10m` | a long open stone terrace with a central platform | Snorisring |
 | 10 | built: `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
-| 11 | built: `building/expo_pavilion`, `building/geodesic_dome` | the Expo casino and the Biosphere | ChillyVilleneuve |
-| 12 | built: `building/fuel_station_canopy` | fuel stations by the lap | Mordschleife |
-| 13 | built: `tree/eucalypt_l`, `tree/stone_pine_l`, `tree/date_palm_l` | eucalypts; Mediterranean stone pines; date palms | AlbertParkour; Barcelunatic; Bahrainless |
 
 Smaller asks, built only if a column's shots call for them: an amphitheatre canopy (Armadillos), a raised viewing deck
 (Interlaggos), stone block towers (Snorisring), a lit light truss
