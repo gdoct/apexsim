@@ -341,9 +341,9 @@ pub const KIT: &[KitAsset] = kit![
     Misc "camp_scaffold_tower" 3.2 x 2.6 x 6.7,
     Misc "camp_gazebo" 3.1 x 3.1 x 3.0,
     Misc "camp_flag_pole" 1.9 x 0.1 x 6.0,
-    // People (masked cards, `crowd_standing`): a knot of standing
-    // spectators and a marshal facing the road. Centred.
-    Misc "crowd_group" 4.2 x 2.2 x 2.0,
+    // People: a knot of low-poly standing spectators and a marshal (a
+    // masked card, `crowd_standing`) facing the road. Centred.
+    Misc "crowd_group" 4.1 x 2.2 x 2.1,
     Misc "marshal_figure" 1.0 x 0.4 x 2.0,
     // A twisting steel cauldron on its plinth, the flame `step_light_orange`.
     Misc "cauldron" 17.1 x 14.3 x 56.5,

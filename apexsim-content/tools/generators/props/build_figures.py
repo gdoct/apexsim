@@ -12,8 +12,10 @@ per asset and previews in props/_preview/.
   road-facing edge, the bank reaching +Y), tiled by the grandstand layout
   like scaffold_10m; the client picks the `_crowd` twin when the scene has
   spectators. Turf is the baked `bank_turf` slot (apex_tex.KIT_SLOTS).
-- misc/crowd_group: three cards of standing people in a loose knot, for
-  gates, fan zones and the paddock. Centred.
+- misc/crowd_group: a dozen low-poly standing figures in a loose knot (real
+  geometry, not cards: it stands on open ground and is seen from every
+  side), for general-admission areas, gates, fan zones and the paddock.
+  Centred.
 - misc/marshal_figure: one marshal in orange overalls holding a furled flag,
   one card facing the road. Centred on the card's foot.
 """
@@ -105,23 +107,69 @@ def build_bank(crowd):
     return b.finish(planar_uv=True, uv_scale=1.0), "grandstand", name
 
 
-def cell_card(b, mat, cell, x, y, yaw, scale=1.0):
-    u0, u1 = CELLS[cell]
-    w = (u1 - u0) * STRIP_M * scale
-    h = CELL_H * scale
-    b.card(mat, (x, y, 0.0), w, h, yaw=yaw, uv=(u0, 0.0, u1, 0.5))
+SHIRTS = [(0.62, 0.08, 0.07), (0.95, 0.45, 0.05), (0.10, 0.22, 0.55), (0.85, 0.85, 0.82),
+          (0.12, 0.42, 0.20), (0.92, 0.75, 0.10), (0.20, 0.20, 0.22), (0.45, 0.60, 0.80)]
+LEGS = [(0.10, 0.13, 0.22), (0.28, 0.27, 0.25), (0.55, 0.50, 0.42)]
+SKIN = [(0.93, 0.76, 0.62), (0.72, 0.52, 0.38), (0.42, 0.28, 0.20)]
+HAIR = [(0.08, 0.06, 0.05), (0.40, 0.26, 0.12), (0.80, 0.70, 0.45)]
+LIN = lambda c: tuple(v ** 2.2 for v in c)   # the tables are sRGB; Blender's base colour is linear
+
+
+def figure(b, rng, x, y, yaw, h):
+    """One standing spectator, `h` tall, feet at (x, y), facing -Y turned by
+    `yaw`: legs, a torso, arms hanging or one or both raised, a head with
+    hair or a cap. Built in its own frame and turned into place."""
+    k = h / 1.75
+    ti = rng.randrange(len(SHIRTS))
+    li, si, hi = rng.randrange(len(LEGS)), rng.randrange(len(SKIN)), rng.randrange(len(HAIR))
+    shirt = apex.material("crowd_shirt_%d" % ti, LIN(SHIRTS[ti]), roughness=0.85)
+    legs = apex.material("crowd_legs_%d" % li, LIN(LEGS[li]), roughness=0.9)
+    skin = apex.material("crowd_skin_%d" % si, LIN(SKIN[si]), roughness=0.7)
+    hair = apex.material("crowd_hair_%d" % hi, LIN(HAIR[hi]), roughness=0.9)
+    c, s_ = math.cos(yaw), math.sin(yaw)
+    place = lambda p: (x + p[0] * c - p[1] * s_, y + p[0] * s_ + p[1] * c, p[2])
+
+    def box(mat, lo, hi):
+        for v in b.box(mat, lo, hi):
+            v.co = place(v.co)
+
+    hip, sh, top = 0.86 * k, 1.42 * k, h
+    for sx in (-0.1, 0.1):                                   # legs
+        box(legs, (sx * k - 0.07, -0.08, 0.0), (sx * k + 0.07, 0.08, hip))
+    box(shirt, (-0.2 * k, -0.11, hip), (0.2 * k, 0.11, sh))    # torso
+    box(shirt, (-0.08, -0.07, sh), (0.08, 0.07, sh + 0.06))   # neck line
+    box(skin, (-0.1, -0.11, sh + 0.04), (0.1, 0.1, top - 0.03))   # head
+    if rng.random() < 0.35:                                     # a cap
+        box(shirt, (-0.11, -0.2, top - 0.08), (0.11, 0.11, top + 0.01))
+    else:
+        box(hair, (-0.11, -0.05, top - 0.1), (0.11, 0.12, top + 0.01))
+    raise_l, raise_r = rng.random() < 0.1, rng.random() < 0.12
+    for side, up in ((-1, raise_l), (1, raise_r)):
+        p0 = place((side * 0.25 * k, 0.0, sh - 0.06))
+        if up:
+            p1 = place((side * 0.36 * k, -0.04, top + 0.12))
+        else:
+            p1 = place((side * 0.28 * k, 0.03, hip + 0.02))
+        b.bar(shirt, p0, p1, 0.055, segs=4)
+        if up:   # the hand
+            box(skin, (side * 0.36 * k - 0.05, -0.09, top + 0.1), (side * 0.36 * k + 0.05, 0.01, top + 0.22))
 
 
 def build_group():
+    """A loose knot of standing spectators facing the road (-Y), real
+    low-poly figures rather than cards so it reads from any side: about a
+    dozen in the 4.2 x 2.2 m footprint, mixed heights and turns."""
     apex.reset_scene()
     b = apex.Builder("crowd_group")
-    mat = crowd_material()
-    # A loose knot: three groups facing roughly the same way (the road, -Y),
-    # turned a little so the knot has depth from any side.
-    cell_card(b, mat, "group_a", -1.3, 0.0, math.radians(8))
-    cell_card(b, mat, "group_b", 0.9, 0.9, math.radians(-14))
-    cell_card(b, mat, "group_c", -0.2, 2.0, math.radians(4))
-    return b.finish(planar_uv=False, recalc=False), "misc", "crowd_group"
+    rng = random.Random(7)
+    spots = []
+    while len(spots) < 12:
+        x, y = rng.uniform(-1.9, 1.9), rng.uniform(-0.9, 1.0)
+        if all(math.hypot(x - a, y - c) > 0.55 for a, c in spots):
+            spots.append((x, y))
+    for x, y in spots:
+        figure(b, rng, x, y, math.radians(rng.uniform(-30, 30)), rng.uniform(1.6, 1.88))
+    return b.finish(planar_uv=True, uv_scale=1.0), "misc", "crowd_group"
 
 
 def build_marshal():
