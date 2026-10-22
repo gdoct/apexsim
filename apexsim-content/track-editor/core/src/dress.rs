@@ -58,6 +58,10 @@ const FOOTPRINT_PROBES: usize = 8;
 /// How far a building row is stepped back from its mapped spot looking
 /// for room for its whole footprint before it is left out.
 const BUILDING_MAX_PUSH_M: f32 = 25.0;
+/// How far a building row whose every block stands on a paved run-off is
+/// stepped back off it before it is left out. A corner apron reaches
+/// further than the asphalt clearance does (Spa's at Eau Rouge).
+const BUILDING_RUNOFF_MAX_STEP_M: f32 = 40.0;
 /// Least room between the road edge and any part of a stand bay.
 const STAND_ROAD_CLEAR_M: f32 = 3.0;
 /// Room a stand keeps past a paved run-off: the server stops cars on
@@ -1543,6 +1547,23 @@ fn lay_structure(
         (front.0 + cos * along, front.1 + sin * along)
     };
 
+    // A block whose front is nearest the road on the far side of it is
+    // where a long row reaches round a bend or onto another leg: it is left
+    // out and the rest of the row kept, rather than the building dropped
+    // whole (R14: Lakeside Stadium).
+    let mut row: Vec<usize> = (0..units)
+        .filter(|&i| {
+            let (x, y) = unit_at((front_x, front_y), i);
+            (nearest_cross_section(path, x, y).1 >= 0.0) == (centre_lat >= 0.0)
+        })
+        .collect();
+    // A `building=roof` outline is a stand's or a car park's canopy: what
+    // is left of it after trimming is no building at all.
+    let roof = structure.osm_building.as_deref() == Some("roof");
+    if row.is_empty() || (roof && row.len() < units) {
+        return Err("reaches across the road".to_string());
+    }
+
     // Move the row back until every unit's front is clear of the road.
     // The row's normal is not the road's where the building sits at an
     // angle to it, so the push is scaled by the cosine between them and
@@ -1550,7 +1571,7 @@ fn lay_structure(
     // cannot be pushed clear.
     let shortfall = |front: (f32, f32)| -> Result<f32, String> {
         let mut worst: f32 = 0.0;
-        for i in 0..units {
+        for &i in &row {
             let (x, y) = unit_at(front, i);
             let (sample, lat) = nearest_cross_section(path, x, y);
             if (lat >= 0.0) != (centre_lat >= 0.0) {
@@ -1585,37 +1606,46 @@ fn lay_structure(
     // was laid with its back on the far one (Zandvoort's Hunserug).
     let kit_depth = props::resolve(PropKind::Building, asset).map_or(unit_m * 0.6, |a| a.depth_m);
     let away = (-normal.0, -normal.1);
-    let footprint_gap = |front: (f32, f32)| -> f32 {
+    let unit_gap = |front: (f32, f32), i: usize| -> f32 {
         let mut worst = f32::MAX;
-        for i in 0..units {
-            let (ux, uy) = unit_at(front, i);
-            for a in 0..=FOOTPRINT_PROBES {
-                let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * unit_m;
-                for b in 0..=FOOTPRINT_PROBES {
-                    let back = b as f32 / FOOTPRINT_PROBES as f32 * kit_depth;
-                    let x = ux + cos * along + away.0 * back;
-                    let y = uy + sin * along + away.1 * back;
-                    let (sample, lat) = nearest_cross_section(path, x, y);
-                    let side = if lat >= 0.0 { Side::Left } else { Side::Right };
-                    worst = worst.min(lat.abs() - side_half_width(&sample, side));
-                }
+        let (ux, uy) = unit_at(front, i);
+        for a in 0..=FOOTPRINT_PROBES {
+            let along = (a as f32 / FOOTPRINT_PROBES as f32 - 0.5) * unit_m;
+            for b in 0..=FOOTPRINT_PROBES {
+                let back = b as f32 / FOOTPRINT_PROBES as f32 * kit_depth;
+                let x = ux + cos * along + away.0 * back;
+                let y = uy + sin * along + away.1 * back;
+                let (sample, lat) = nearest_cross_section(path, x, y);
+                let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                worst = worst.min(lat.abs() - side_half_width(&sample, side));
             }
         }
         worst
     };
+    let footprint_gap = |front: (f32, f32), row: &[usize]| -> f32 {
+        row.iter().map(|&i| unit_gap(front, i)).fold(f32::MAX, f32::min)
+    };
+    let mapped_front = (front_x, front_y);
     let mut pushed = 0.0f32;
     loop {
-        let gap = footprint_gap((front_x, front_y));
+        let gap = footprint_gap((front_x, front_y), &row);
         if gap >= BUILDING_ROAD_CLEAR_M - 0.05 {
             break;
         }
         // Stepping back from the near road can only help when the far
-        // side has room; walk until it does, or give up.
+        // side has room; walk until it does. A row that finds none keeps
+        // the blocks clear where they stand and loses the ones on another
+        // road section (R14: Lakeside Stadium, Barcelona's VIP Rooftop).
         pushed += 1.0;
         if pushed > BUILDING_MAX_PUSH_M {
-            return Err(format!(
-                "no room for its footprint between the road sections ({gap:.1} m to the asphalt)"
-            ));
+            (front_x, front_y) = mapped_front;
+            row.retain(|&i| unit_gap(mapped_front, i) >= BUILDING_ROAD_CLEAR_M - 0.05);
+            if row.is_empty() || roof {
+                return Err(format!(
+                    "no room for its footprint between the road sections ({gap:.1} m to the asphalt)"
+                ));
+            }
+            break;
         }
         front_x += away.0;
         front_y += away.1;
@@ -1641,11 +1671,24 @@ fn lay_structure(
             })
         })
     };
-    let kept: Vec<usize> = (0..units)
-        .filter(|&i| !on_runoff((front_x, front_y), i))
-        .collect();
-    if kept.is_empty() {
-        return Err("stands on the run-off".to_string());
+    let clear_units = |front: (f32, f32)| -> Vec<usize> {
+        row.iter().copied().filter(|&i| !on_runoff(front, i)).collect()
+    };
+    let mut kept = clear_units((front_x, front_y));
+    // A row the apron takes whole is a big building beside a corner, not a
+    // row reaching into one: step it back off the apron rather than lose
+    // it (the BrandsScratch MSV Centre, Spa's Salons de l'Eau Rouge).
+    let mut stepped = 0.0f32;
+    while kept.is_empty() {
+        stepped += 1.0;
+        if stepped > BUILDING_RUNOFF_MAX_STEP_M {
+            return Err("stands on the run-off".to_string());
+        }
+        front_x += away.0;
+        front_y += away.1;
+        if footprint_gap((front_x, front_y), &row) >= BUILDING_ROAD_CLEAR_M - 0.05 {
+            kept = clear_units((front_x, front_y));
+        }
     }
 
     let mut out = Vec::new();
@@ -3545,6 +3588,66 @@ mod tests {
             all - 1,
             "the block on the apron is left out"
         );
+    }
+
+    /// A long infield row whose tail reaches out past the hairpin loses the
+    /// blocks beyond it and keeps the rest (R14: Lakeside Stadium).
+    #[test]
+    fn a_row_reaching_round_a_bend_keeps_the_blocks_on_its_side() {
+        let track = track();
+        let path = CenterlinePath::from_track(&track).unwrap();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([680.0, 40.0], 500.0, 10.0, 0.0));
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        let laid: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Building)
+            .collect();
+        assert!(!laid.is_empty(), "{:?}", report.skipped);
+        for p in &laid {
+            assert!(nearest_cross_section(&path, p.x, p.y).1 > 0.0, "a block outside the hairpin at {}", p.x);
+        }
+
+        // A roof outline (a stand's canopy) is not trimmed into a row.
+        let mut roofed = self::scene(&track);
+        layout.structures[0].osm_building = Some("roof".to_string());
+        let report = dress_scene(&track, &mut roofed, &layout).unwrap();
+        assert!(building_lats(&track, &roofed).is_empty());
+        assert!(report.skipped.iter().any(|s| s.contains("across the road")), "{:?}", report.skipped);
+    }
+
+    /// A building the apron takes whole is stepped back off it rather than
+    /// left out (R14: the MSV Centre, the Salons de l'Eau Rouge).
+    #[test]
+    fn a_building_wholly_on_a_paved_runoff_is_stepped_back_off_it() {
+        let track = track();
+        let mut layout = layout();
+        layout
+            .structures
+            .push(structure([300.0, -30.0], 40.0, 20.0, 0.0));
+        let mut scene = scene(&track);
+        let id = scene.alloc_id();
+        scene.surfaces.push(Surface {
+            id,
+            kind: crate::ats::SurfaceKind::AsphaltRunoff,
+            side: Side::Right,
+            start_m: 250.0,
+            end_m: 350.0,
+            inner_m: 0.0,
+            width_m: 30.0,
+            end_width_m: None,
+            paint: None,
+        });
+        let report = dress_scene(&track, &mut scene, &layout).unwrap();
+        let lats = building_lats(&track, &scene);
+        assert!(!lats.is_empty(), "{:?}", report.skipped);
+        for lat in &lats {
+            assert!(*lat <= -(6.0 + 30.0) + 0.1, "a building front at lateral {lat} m: {lats:?}");
+        }
     }
 
     #[test]

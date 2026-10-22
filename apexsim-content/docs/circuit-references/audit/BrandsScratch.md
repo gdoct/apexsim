@@ -67,7 +67,7 @@ In the tables:
 
 Left, or for later columns:
 
-- The MSV Centre: R14.
+- The MSV Centre: laid by R14, stepped back off the apron.
 
 ## Stands dossier pass
 

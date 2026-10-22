@@ -77,7 +77,7 @@ Left, or for later columns:
 - The Adler Arena (273 x 162 m) keeps its block row: the 134 x 104 m dome does not fit it.
 - Fisht stadium: not in the extract, no stadium piece.
 - The Medals Plaza fountain: a `MANUAL_FURNITURE` item.
-- "Сириус" (reaches across the road) is the Olympic Park railway station, not a landmark: R14.
+- "Сириус" (reaches across the road) is the Olympic Park railway station, not a landmark: laid by R14 as a row of ten blocks on its side of the road.
 - The 72 OSM floodlight masts: R15, the owner's call.
 
 ## Stands dossier pass

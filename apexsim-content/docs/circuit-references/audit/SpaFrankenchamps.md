@@ -83,7 +83,7 @@ In the tables:
 
 Left, or for later columns:
 
-- The Eau Rouge Champions Club (OSM "Salons de l'Eau Rouge", dropped as on the run-off) as `hospitality_3f` through `MANUAL_STRUCTURE_ASSETS` on the next full extract.
+- The Eau Rouge Champions Club (OSM "Salons de l'Eau Rouge", laid by R14, stepped back off the apron, as a venue block) as `hospitality_3f` through `MANUAL_STRUCTURE_ASSETS` on the next full extract.
 - The CC Business Tower (about 950 right): re-read now that R19 takes only the outline a landmark stands on.
 
 ## Stands dossier pass

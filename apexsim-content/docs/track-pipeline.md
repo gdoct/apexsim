@@ -237,11 +237,17 @@ stamp.
   (`ue_export::garage_row_span`): the garages' depth along the row and
   12 m past its ends, the lane and its apron along the rest.
 - **Footprints** of stands and buildings are probed whole against every leg
-  (`clear_footprint`) and stepped back up to 25 m or left out.
+  (`clear_footprint`) and stepped back up to 25 m. A building row that
+  finds no room keeps the blocks clear where they stand and loses those on
+  another road section; a block whose front is nearest the road on its far
+  side (a long row reaching round a bend) is left out the same way. Only a
+  row with no block left is skipped, and a `building=roof` outline (a
+  stand's canopy) is never trimmed: it is laid whole or skipped.
 - **A building block on a paved apron** (a unit of a venue row whose
   footprint reaches into an `asphalt_runoff` or `concrete` band of the
   scene's surfaces, `runoff_reach`) is left out, the rest of the row kept;
-  a whole building that stands on one is skipped ("stands on the run-off").
+  a building whose every block stands on one is stepped back off it, up
+  to 40 m, before it is skipped ("stands on the run-off").
   Gravel and sand are not counted: their wedges run out to the barriers.
 - **Pit lane** (`build_pit_lane`): the dossier polyline resampled every 4 m
   and smoothed, read against its own leg (a point the window finds over

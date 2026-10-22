@@ -108,7 +108,7 @@ Left, or for later columns:
 - The venue's landmark is Albert Park Lake: R16.
 - The T11 footbridge to Webber is in the dossier text but on no map: not placed.
 - The pit-building screens: not placed (they stand on the clubhouses' outlines' reach before R19 was narrowed; re-read on the trace page now that R19 takes only the outline a landmark stands on).
-- Lakeside Stadium: R14.
+- Lakeside Stadium: laid by R14 as four blocks on its side of the road (the rest of its outline reaches across).
 
 ## Stands dossier pass
 

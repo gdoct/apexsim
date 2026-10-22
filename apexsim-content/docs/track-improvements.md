@@ -225,9 +225,10 @@ buildings (kit gap 2, with R12 and R20) stay with their kit row.
 **Landmark column.** Done but for five circuits: the rules, the dossier
 pass (each audit page's "Landmark dossier pass"), the bake, the survey
 (identical) and the `c5-lm-*` shots, judged 2026-10-22. Open: AlbertParkour
-(the lake, baked from `MANUAL_WATER` after the shots, is unseen; Lakeside
-Stadium is R14), BrandsScratch and SpaFrankenchamps (R14), Gnocchi (the
-Fisht stadium has no kit piece; R14, R15) and Monzarella (the banking's
+(the lake, baked from `MANUAL_WATER` after the shots, and Lakeside Stadium,
+laid by R14), BrandsScratch and SpaFrankenchamps (the MSV Centre and the
+Salons de l'Eau Rouge, laid by R14), Gnocchi (the Fisht stadium has no kit
+piece; R15) and Monzarella (the banking's
 curves beside the road have no kit piece).
 
 **Stands column.** Done but for five circuits: the rules (stand families,
@@ -311,9 +312,6 @@ stay as they are.
 - **R13. Stand outlines.** A wrapping OSM outline is laid as one block
   on its centroid's side (the Hockeyheimring south stand); OSM stands
   tagged as buildings come out as `media_centre` (Shiverstone, Lemons).
-- **R14. Big buildings are dropped whole** by the run-off and
-  across-the-road skips instead of stepped back: the BrandsScratch MSV
-  Centre, the SpaFrankenchamps building at Eau Rouge.
 - **R15. Floodlights.** Where a dossier maps no masts, the dressing lays a
   fallback ring (13-29 towers a track), and the OSM masts at day venues
   stay (Gnocchi 72); `DAY_RACE_NO_FLOODLIGHTS` strips masts at Albert Park
