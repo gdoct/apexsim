@@ -447,6 +447,10 @@ pub struct PitLane {
     /// Grooming re-seats everything around it but never replaces it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub authored: bool,
+    /// The track station the podium stands at (the dossier's); `None`
+    /// puts it on the middle garage.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub podium_m: Option<f32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

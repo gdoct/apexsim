@@ -785,6 +785,10 @@ pub fn groom_props_with_dem(
             // layout, so an authored pit module is left exactly where it
             // is; a sky prop's z is its altitude and never gets seated.
             PropKind::Pit | PropKind::Sky => kept.push(prop),
+            // A screen the dressing pass stood on the pit building's roof
+            // is above the garages on purpose: not pushed off the lane's
+            // margin, not seated on the ground.
+            _ if crate::dress::on_the_pit_roof(&prop) => kept.push(prop),
             PropKind::Bridge => {
                 // A bridge spans the road on purpose: never pushed, its
                 // pivot is the road centre, so it takes the road's height

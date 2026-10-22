@@ -259,9 +259,9 @@ to its judged shots (2026-10-21 for S/F, 2026-10-22 for the rest) but for
 the cells left open in track-improvements.md's status table, each with its
 reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
-Left: the Nordschleife's start/finish from the trace page; kit gap 2 with
-R12/R20 (the pit building's roof screens, podium); the open rule gaps (R8
-tree rows, R21 short pit lanes with the pit survey); the kit pieces with
+Left: the Nordschleife's start/finish from the trace page; Marina Bay's
+screens on its own pit building (R20); the open rule gaps (R8 tree rows,
+R21 short pit lanes with the pit survey); the kit pieces with
 no build yet (Fisht stadium, Monza's banking curves, Shanghai's lotus
 roof); the four circuits without a dossier. Last: the Nordschleife joined
 to the GP circuit (Nuerburgerring), so it has the GP pit lane and pit
@@ -456,7 +456,8 @@ shipped as audio files. 🟡: the result is judged by ear.
 #### N15. Driver profile and stats — P3 · 🟢 · M
 Laps, distance, races, wins, PBs per track/car, incidents; a profile screen.
 Offline from the save, online keyed on R3's identity. Base for a safety
-rating later.
+rating later. Users should create a profile. The game should list availble profiles on launch. 
+The profile selection screen has 16 AI generated driver portraits to choose from. These photos are in game-unreal/DriverImages but need to be moved elsewhere (they need to be in git).
 
 #### N16. Driving school / licence tests — P3 · 🟡 · M
 Short challenges built on the racing line, track guide and corner data:

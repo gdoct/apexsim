@@ -219,8 +219,7 @@ audit page's "S/F dossier pass" lists what went in and what is left) and the
 the Stands pass, with the `c5-st-*` shots). Open: Bahrainless (the
 tent-fabric roofs, kit gap 4), MandarinaBay (the screens on the pit
 building's face, R20) and the
-Nordschleife, whose start/finish needs the trace page. The multi-storey pit
-buildings (kit gap 2, with R12 and R20) stay with their kit row.
+Nordschleife, whose start/finish needs the trace page.
 
 **Landmark column.** Done but for two circuits: the rules, the dossier
 pass (each audit page's "Landmark dossier pass"), the bake, the survey
@@ -283,7 +282,6 @@ names.
 
 | # | Asset (kind/key) | Stands in for | Tracks |
 |---|---|---|---|
-| 2 | built and stacked by the exporter (`CircuitStyle::pit_storey_for`): `pit/garage_upper_6m`; roof screens are R20 | multi-storey pit buildings | BrandsScratch, ChillyVilleneuve, Gnocchi, Hockeyheimring, Hungoverring, Interlaggos, Lemons, Monzarella, Nuerburgerring, Oskarsleben |
 | 4 | built: `grandstand/tent_roof_10m`, `pit/garage_roof_membrane_6m` (stacked at Bahrainless) | white membrane roofs | Bahrainless |
 | 10 | built: `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
 
@@ -302,18 +300,14 @@ stay as they are.
   Shanghaied's 13) are never extracted, so the rows that edge an open
   bowl or an access road are missing; the extract needs a refetch, and
   only MandarinaBay and Shiverstone have one cached.
-- **R12. The podium sits on the middle garage** and roof screens have no
-  height: the Bahrainless and Sudoku podiums are at one end, the Sudoku
-  screens on the pit roof.
 - **R16. Water.** `WATER_STEMS` (the extract's water bodies from OSM
   relations) is MandarinaBay alone; Albert Park's lake comes from
   `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the
   Norisring's Dutzendteich) are only the small water `areas`.
-- **R20. Screens on the pit building's roof or track face** have no rule:
-  a `screen` landmark stands on the ground, and one in the garage zone is
-  dropped (AlbertParkour, Armadillos, Bahrainless, Hungoverring,
-  MandarinaBay, Sudoku); with R12 (the podium) it is the pit building's
-  share of kit gap 2.
+- **R20. Screens on a pit building of its own.** Roof screens stand on the
+  generated garages (`pit_roof` landmarks); MandarinaBay's screens on the
+  face of its own pit building (`pit_building_roofdeck`) are not placed,
+  and AlbertParkour's wait for its real pit lane (R21).
 - **R21. Pit lanes that stop short.** AlbertParkour's `MANUAL_PIT_LANE`
   is 0-380 where the real lane runs from about 4760 to 140, and Lemons'
   lane is 347 m against the real one before the Ford chicane to the

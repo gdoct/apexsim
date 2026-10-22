@@ -302,6 +302,11 @@ pub struct PitRoad {
     #[serde(default)]
     pub length_m: f32,
     pub nodes: Vec<[f32; 2]>,
+    /// The track station the podium stands at, when the real one is not
+    /// on the middle garage (R12: Bahrain's at the entry end, Suzuka's at
+    /// the last-corner end).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub podium_m: Option<f32>,
 }
 
 /// One grandstand. `front` is the run of its outline that faces the road,
@@ -411,6 +416,10 @@ pub struct Landmark {
     /// default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude_m: Option<f32>,
+    /// It stands on the pit building's roof (R20): the dressing pass lifts
+    /// it there and spreads the roof's ones along the garage row.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub pit_roof: bool,
 }
 
 #[derive(Debug, thiserror::Error)]

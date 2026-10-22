@@ -345,7 +345,8 @@ pub fn dress_scene_with_dem(
         match lay_landmark(&path, &terrain, landmark) {
             Ok(Some(mut prop)) => {
                 report.landmarks += 1;
-                prop.source = Some(format!("landmark {}", name_of(&landmark.name)));
+                let stamp = if landmark.pit_roof { PIT_ROOF_STAMP } else { "landmark" };
+                prop.source = Some(format!("{stamp} {}", name_of(&landmark.name)));
                 laid.push(prop);
             }
             Ok(None) => {}
@@ -419,11 +420,33 @@ pub fn dress_scene_with_dem(
     }
 
     if let Some(zone) = &zone {
+        // A screen over the garage row stands on the pit building's roof,
+        // as the real ones do (R20), rather than being dropped with what
+        // stands in the garages' way.
+        // The generated garage row is shorter than most real pit
+        // buildings, so the roof's screens are spread evenly along it in
+        // their order rather than kept at stations past its ends.
+        let roof = pit_roof_height(scene);
+        let mut on_garages: Vec<(f32, usize)> = laid
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| on_the_pit_roof(p))
+            .map(|(i, p)| (zone.lane_station(p.x, p.y), i))
+            .collect();
+        on_garages.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let spots = zone.roof_spots(on_garages.len());
+        for (&(_, i), &(x, y)) in on_garages.iter().zip(&spots) {
+            let (sample, lat) = nearest_cross_section(&path, x, y);
+            let p = &mut laid[i];
+            (p.x, p.y) = (x, y);
+            p.z = seat_z(&terrain, &sample, lat, x, y) + roof;
+        }
+        let on_roof = |p: &Prop| on_the_pit_roof(p) && zone.on_the_garage_roof(p.x, p.y);
         drop_laid(
             &mut laid,
             &mut report.skipped,
             "in the pit lane or where its garages stand",
-            |p| !matches!(p.kind, PropKind::Bridge | PropKind::Sky) && zone.blocks(&path, p),
+            |p| !matches!(p.kind, PropKind::Bridge | PropKind::Sky) && !on_roof(p) && zone.blocks(&path, p),
         );
     }
 
@@ -650,6 +673,31 @@ fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
 /// own garages, Shanghai's started 62 m off the road in a field and
 /// Melbourne's 8 m short of it, and on seven circuits it ran too close to
 /// the road for more than a handful of garages.
+/// The source stamp of a landmark the dossier puts on the pit building's
+/// roof (`Landmark::pit_roof`).
+const PIT_ROOF_STAMP: &str = "pit roof";
+
+/// A prop the dressing pass stood on the pit building's roof, which
+/// grooming leaves where it is.
+pub fn on_the_pit_roof(prop: &Prop) -> bool {
+    prop.source.as_deref().is_some_and(|s| s.starts_with(PIT_ROOF_STAMP))
+}
+
+/// How high the pit building's roof stands over the ground: the generated
+/// garages, or the storey the export stacks on them
+/// (`CircuitStyle::pit_storey_for`), or a circuit's own pit building.
+fn pit_roof_height(scene: &AtsScene) -> f32 {
+    let (kind, asset) = if !crate::circuit_style::CircuitStyle::for_scene(scene).pit_garages {
+        (PropKind::Building, "pit_building_roofdeck")
+    } else {
+        (
+            PropKind::Pit,
+            crate::circuit_style::CircuitStyle::pit_storey_for(scene).unwrap_or("garage_6m"),
+        )
+    };
+    props::resolve(kind, asset).map_or(10.0, |a| a.height_m)
+}
+
 fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
     let road = layout.pit_lane.as_ref()?;
     if road.nodes.len() < 3 {
@@ -835,6 +883,7 @@ fn build_pit_lane(path: &CenterlinePath, layout: &Layout) -> Option<PitLane> {
         box_count,
         speed_limit_kmh: PIT_SPEED_LIMIT_KMH,
         authored: true,
+        podium_m: road.podium_m,
     })
 }
 
@@ -990,6 +1039,10 @@ struct PitZone {
     row: Option<(f32, f32)>,
 }
 
+/// A roof screen stands this far past the lane's edge: over the middle of
+/// a garage (`pit/garage_6m` is 14.2 m deep).
+const PIT_ROOF_SPOT_M: f32 = 7.0;
+
 /// The zone reaches this far past the lane's road-side edge (the apron
 /// and the pit wall)…
 const PIT_ZONE_APRON_M: f32 = 2.5;
@@ -1031,6 +1084,40 @@ impl PitZone {
     /// Whether `(x, y)` stands over the garage row: seating there is the
     /// terrace over the garages, which the bake builds as part of the pit
     /// complex from the lane.
+    /// The lane station nearest `(x, y)`.
+    fn lane_station(&self, x: f32, y: f32) -> f32 {
+        self.lane
+            .samples()
+            .iter()
+            .min_by(|a, b| {
+                let d = |s: &PathSample| (s.pos.0 - x).hypot(s.pos.1 - y);
+                d(a).total_cmp(&d(b))
+            })
+            .map_or(0.0, |s| s.station_m)
+    }
+
+    /// `n` spots spread evenly along the garage row, over the middle of
+    /// the garages' depth: where screens stand on the pit building's roof.
+    fn roof_spots(&self, n: usize) -> Vec<(f32, f32)> {
+        let (from, to) = self.row.unwrap_or((0.0, self.lane.total_length_m()));
+        (0..n)
+            .map(|k| {
+                let sample = self.lane.sample_at(from + (to - from) * (k as f32 + 0.5) / n as f32);
+                let p = offset_point(&sample, self.garage_side * (self.half + PIT_ROOF_SPOT_M));
+                (p.0, p.1)
+            })
+            .collect()
+    }
+
+    /// Whether `(x, y)` is on the garages' own footprint, past the lane's
+    /// edge: where the pit building's roof is.
+    fn on_the_garage_roof(&self, x: f32, y: f32) -> bool {
+        let (toward_garages, by_the_garages, beyond_an_end) = self.locate(x, y);
+        !beyond_an_end
+            && by_the_garages
+            && (self.half..self.half + PIT_ZONE_GARAGES_M).contains(&toward_garages)
+    }
+
     fn over_the_garages(&self, x: f32, y: f32) -> bool {
         let (toward_garages, by_the_garages, beyond_an_end) = self.locate(x, y);
         !beyond_an_end
@@ -3838,6 +3925,7 @@ mod tests {
                 brand: None,
                 yaw_rad: None,
                 altitude_m: None,
+                pit_roof: false,
             });
             let report = dress_scene(&track, &mut scene, &layout).unwrap();
             assert_eq!(report.landmarks, 1, "{kind}: {:?}", report.skipped);
@@ -3868,6 +3956,7 @@ mod tests {
             brand: None,
             yaw_rad: None,
             altitude_m: None,
+            pit_roof: false,
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(report.landmarks, 1, "{:?}", report.skipped);
@@ -4278,6 +4367,43 @@ mod tests {
         assert_eq!(stand_family(&s), "bay_10m", "over the tags too");
     }
 
+    /// A screen the dossier puts on the pit building stands on its roof,
+    /// over the garages (R20).
+    #[test]
+    fn a_screen_over_the_garages_goes_on_the_roof() {
+        let track = track();
+        let mut scene = scene(&track);
+        let mut layout = layout();
+        layout.pit_lane = Some(PitRoad {
+            side: Side::Right,
+            length_m: 300.0,
+            nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            podium_m: None,
+        });
+        let screen = |x: f32, y: f32| Landmark {
+            kind: "screen".to_string(),
+            name: Some(format!("screen {y}")),
+            station_m: x,
+            side: Side::Right,
+            centre: [x, y],
+            brand: None,
+            yaw_rad: None,
+            altitude_m: None,
+            pit_roof: true,
+        };
+        layout.landmarks = vec![screen(250.0, -33.0)];
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let screens: Vec<_> = scene.props.iter().filter(|p| p.asset == "video_screen").collect();
+        assert_eq!(screens.len(), 1);
+        assert!(on_the_pit_roof(screens[0]));
+        let garage = props::resolve(PropKind::Pit, "garage_6m").unwrap().height_m;
+        assert!(screens[0].z >= garage - 0.5, "on the roof: z {}", screens[0].z);
+        let before = screens[0].clone();
+        crate::groom::groom_props(&track, &mut scene).unwrap();
+        let after = scene.props.iter().find(|p| p.asset == "video_screen").unwrap();
+        assert_eq!((after.x, after.y, after.z), (before.x, before.y, before.z), "grooming leaves it on the roof");
+    }
+
     #[test]
     fn the_real_pit_lane_replaces_the_generated_one_and_is_left_alone() {
         let track = track();
@@ -4287,6 +4413,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            podium_m: None,
         });
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         assert!(report.pit_lane);
@@ -4331,6 +4458,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            podium_m: None,
         });
         dress_scene(&track, &mut scene, &layout).unwrap();
         assert_eq!(
@@ -4349,6 +4477,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            podium_m: None,
         });
         // 13 m beyond the lane's centre: behind the lane where it leaves
         // the road, and over the garages where they stand, mid-lane.
@@ -4380,6 +4509,7 @@ mod tests {
             side: Side::Right,
             length_m: 300.0,
             nodes: (0..=15).map(|i| [100.0 + i as f32 * 20.0, -22.0]).collect(),
+            podium_m: None,
         });
         layout.structures.push(Structure {
             name: Some("Pit building".to_string()),
@@ -4446,6 +4576,7 @@ mod tests {
             brand: None,
             yaw_rad: None,
             altitude_m: None,
+            pit_roof: false,
         });
         dress_scene(&track, &mut scene, &layout).unwrap();
         let once = scene.clone();
@@ -4752,6 +4883,7 @@ mod tests {
                 brand: None,
                 yaw_rad: Some(0.3),
                 altitude_m: None,
+                pit_roof: false,
             });
         }
         dress_scene(&track, &mut scene, &layout).unwrap();
@@ -4791,6 +4923,7 @@ mod tests {
             brand: None,
             yaw_rad: None,
             altitude_m: None,
+            pit_roof: false,
         });
         dress_scene(&track, &mut lit_scene, &lit).unwrap();
         let masts = lit_scene
@@ -4863,6 +4996,7 @@ mod tests {
             brand: None,
             yaw_rad: None,
             altitude_m: None,
+            pit_roof: false,
         });
         dress_scene(&track, &mut scene, &layout).unwrap();
         dress_scene(&track, &mut scene, &layout).unwrap();

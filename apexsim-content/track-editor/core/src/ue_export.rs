@@ -4307,6 +4307,7 @@ fn bake_props(
                 terrain,
                 CircuitStyle::for_scene(scene).pit_garages,
                 CircuitStyle::pit_storey_for(scene),
+                podium_box(path, lane, layout, pit.podium_m),
             )
         })
         .unwrap_or_default();
@@ -4516,6 +4517,25 @@ fn pit_signs(lane: &CenterlinePath, width_m: f32, side: f32, layout: &PitLayout)
     ]
 }
 
+/// The garage the podium stands on: the one nearest the road at the
+/// dossier's `podium_m`, or the middle of the row.
+fn podium_box(path: &CenterlinePath, lane: &CenterlinePath, layout: &PitLayout, podium_m: Option<f32>) -> u32 {
+    let middle = layout.boxes / 2;
+    let Some(station) = podium_m else {
+        return middle;
+    };
+    let at = path.sample_at(station).pos;
+    (0..layout.boxes)
+        .min_by(|&a, &b| {
+            let d = |i: u32| {
+                let p = lane.sample_at(layout.row_start + (i as f32 + 0.5) * PIT_MODULE_M).pos;
+                (p.0 - at.0).hypot(p.1 - at.1)
+            };
+            d(a).total_cmp(&d(b))
+        })
+        .unwrap_or(middle)
+}
+
 /// The pit complex implied by the lane: one `pit/garage_6m` per box (with a
 /// `pit/box_kit` in front of it) on the
 /// garage side of the parallel pit road (6 m pitch, centred on the road,
@@ -4531,6 +4551,7 @@ fn bake_pit_complex(
     terrain: Option<&TerrainHeightfield>,
     garages: bool,
     storey: Option<&'static str>,
+    podium: u32,
 ) -> Vec<UeProp> {
     let total = lane.total_length_m();
     // The stretch of pit road that runs clear of the track and the box row
@@ -4590,7 +4611,7 @@ fn bake_pit_complex(
             out.push(garage);
             // The storey over it, on the same pivot (authored floored at the
             // garage's parapets); the podium's garage keeps its roof open.
-            if let Some(asset) = storey.filter(|_| i != boxes / 2) {
+            if let Some(asset) = storey.filter(|_| i != podium) {
                 let mut upper = pit_module(lane, ("pit", asset), s, box_edge, face_left);
                 upper.scale = scale;
                 out.push(upper);
@@ -4614,7 +4635,7 @@ fn bake_pit_complex(
         // The podium on the roof of the row's middle garage: the kit's
         // `building/podium` is floored at the garage's roof, on the same
         // pivot as the module under it (the roof-deck building has its own).
-        let s = row_start + ((boxes / 2) as f32 + 0.5) * PIT_MODULE_M;
+        let s = row_start + (podium as f32 + 0.5) * PIT_MODULE_M;
         out.push(pit_module(
             lane,
             ("building", "podium"),
@@ -4954,5 +4975,25 @@ mod bridge_tests {
         assert!((pieces[0].end_width_m.unwrap() - 25.0).abs() < 1e-3);
         assert!((pieces[1].width_m - 35.0).abs() < 1e-3);
         assert!((pieces[1].end_width_m.unwrap() - 50.0).abs() < 1e-3);
+    }
+}
+
+#[cfg(test)]
+mod pit_tests {
+    use super::*;
+
+    /// The podium stands on the garage nearest the dossier's station, or on
+    /// the middle one without it (R12).
+    #[test]
+    fn the_podium_goes_on_the_garage_nearest_its_station() {
+        let road: Vec<[f32; 3]> = (0..=40).map(|i| [i as f32 * 25.0, 0.0, 0.0]).collect();
+        let path = CenterlinePath::from_polyline(&road, 6.0).unwrap();
+        let lane_pts: Vec<[f32; 3]> = (0..=40).map(|i| [i as f32 * 25.0, -20.0, 0.0]).collect();
+        let lane = CenterlinePath::from_polyline(&lane_pts, 4.0).unwrap();
+        let layout = PitLayout { limit_start: 100.0, limit_end: 700.0, row_start: 200.0, boxes: 20 };
+        assert_eq!(podium_box(&path, &lane, &layout, None), 10);
+        assert_eq!(podium_box(&path, &lane, &layout, Some(205.0)), 0);
+        assert_eq!(podium_box(&path, &lane, &layout, Some(316.0)), 19);
+        assert_eq!(podium_box(&path, &lane, &layout, Some(900.0)), 19, "past the row: its end");
     }
 }

@@ -166,6 +166,7 @@ pub fn generate_pit_lane(path: &CenterlinePath, existing: Option<&PitLane>) -> O
         speed_limit_kmh,
         // Generated, not the circuit's real lane: see crate::dress.
         authored: false,
+        podium_m: None,
     })
 }
 

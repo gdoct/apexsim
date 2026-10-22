@@ -1813,11 +1813,10 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # 85 % of the stand, gpgt-circuit-map-bahrain.webp's three S/F giant
         # screens (beside the F1 Paddock Club, either side of the line) at
         # 27 %, 51 % and 73 %; taken as 20 %, 51 % and 80 % of OSM's stand
-        # front (26-375 left). On the pit side, 42 m off the edge, behind the
-        # garage row (lane centre 9 m off the edge).
-        dict(kind="screen", name="Pit building screen", station_m=95.0, side="right", offset_m=42.0),
-        dict(kind="screen", name="Pit building screen", station_m=205.0, side="right", offset_m=42.0),
-        dict(kind="screen", name="Pit building screen", station_m=305.0, side="right", offset_m=42.0),
+        # front (26-375 left). On the pit building's roof (R20).
+        dict(kind="screen", name="Pit building screen", station_m=95.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=205.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=305.0, pit_roof=True),
     ],
     # The 2014 Winter Olympics cauldron still stands in the Medals Plaza,
     # inside the loop of T3; OSM has it only as a tourism=attraction node
@@ -1910,12 +1909,11 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # across the straight (dossier S/F "Pit building" and the structures
         # table; not drawn on the oversteer48 or F1 programme maps). Spread
         # evenly over OSM's "Pit Garages" building (114.7 m left, 363 m long,
-        # so about -65..295). On the ground behind the garage row: 40 m off the
-        # edge clears the pit zone (lane centre about 6 m off the edge).
-        dict(kind="screen", name="Pit building screen", station_m=20.0, side="left", offset_m=40.0),
-        dict(kind="screen", name="Pit building screen", station_m=105.0, side="left", offset_m=40.0),
-        dict(kind="screen", name="Pit building screen", station_m=190.0, side="left", offset_m=40.0),
-        dict(kind="screen", name="Pit building screen", station_m=275.0, side="left", offset_m=40.0),
+        # so about -65..295). On its roof (R20).
+        dict(kind="screen", name="Pit building screen", station_m=20.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=105.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=190.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=275.0, pit_roof=True),
     ],
     "Barcelunatic": [
         # The 2026 spectator map's "Live Screens" along the straight, all drawn
@@ -1952,6 +1950,10 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         dict(kind="screen", name="Pit Exit 2 screen", station_m=345.0, side="right", offset_m=40.0),
         dict(kind="screen", name="Pit Exit 1 screen", station_m=450.0, side="right", offset_m=40.0),
         dict(kind="screen", name="T1 screen", station_m=550.0, side="right", offset_m=40.0),
+        # The two on the pit building facing the H stand (same map, ~50-200
+        # right): on its roof (R20).
+        dict(kind="screen", name="Pit building screen", station_m=80.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=170.0, pit_roof=True),
         # The fan zone outside T12 (2026 wayfinding map p1, Blue Zone: "Giant
         # Wheel" and "Stage" icons past Fan 1-2; affine fit on 5 stands and
         # the T13/T14 apexes, residuals 6-43 m). The map's icons hug the road:
@@ -2000,6 +2002,12 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # Circuit-vision screen on the inside of the main straight opposite
         # A1/A2, beyond the pit lane (seat map, yellow bar).
         dict(kind="screen", name="Main straight screen", station_m=450, side="right", offset_m=30),
+        # The three Giant Screens on the pit building's roof, facing V1/V2,
+        # at about 25 %, 50 % and 75 % along it
+        # (suzuka-grandstand-pit-building.pdf).
+        dict(kind="screen", name="Pit building screen", station_m=35, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=125, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=215, pit_roof=True),
     ],
     "Zandervoort": [
         # Live screens inside the pit straight (wayfinding map): one at the
@@ -4322,7 +4330,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
             unique.append(l)
         landmarks = unique
     landmarks = drop_scanned_landmarks(stem, landmarks)
-    landmarks += manual_landmarks(stem, track, osm, to_track, landmarks)
+    landmarks += manual_landmarks(stem, track, osm, to_track, landmarks, pit)
     landmarks.sort(key=lambda e: e["station_m"])
 
     woods = []
@@ -4377,7 +4385,7 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
         "osm_bbox": [list(b) for b in BBOXES[stem]],
         "fit": fit_report,
         "corners": with_display_names(stem, with_manual_corners(stem, corners, track.total)),
-        "pit_lane": pit,
+        "pit_lane": with_podium(stem, pit, track),
         "stands": stands,
         "structures": structures,
         "crossings": crossings,
@@ -4534,11 +4542,42 @@ def manual_graffiti(stem: str, track: Track, osm: Osm, to_track) -> list[dict]:
     return out
 
 
-def manual_landmarks(stem: str, track: Track, osm, to_track, landmarks: list[dict]) -> list[dict]:
+# A pit-roof landmark stands this far from the pit lane's centre line, on
+# the garage row: half the lane (12 m) and half a garage (14.2 m deep).
+PIT_ROOF_FROM_LANE_M = 13.0
+
+# The track station a circuit's podium stands at when the real one is not
+# on the middle garage, as the export puts it (R12). Negative counts back
+# from the line.
+PIT_PODIUM: dict[str, float] = {
+    # The entry (upstream) end of the garages, about 100-150 m before the
+    # line (oversteer48 seating map).
+    "Bahrainless": -125.0,
+    # The last-corner end of the pit building, upper floor, ~5770-5800
+    # (suzuka-grandstand-pit-building.pdf: Podium + Media Center).
+    "Sudoku": 5785.0,
+}
+
+
+def with_podium(stem: str, pit: dict | None, track: Track) -> dict | None:
+    """The pit lane with `PIT_PODIUM`'s station, or without one."""
+    if not pit:
+        return pit
+    pit = {k: v for k, v in pit.items() if k != "podium_m"}
+    if stem in PIT_PODIUM:
+        pit["podium_m"] = round(PIT_PODIUM[stem] % track.total, 1)
+    return pit
+
+
+def manual_landmarks(stem: str, track: Track, osm, to_track, landmarks: list[dict],
+                     pit: dict | None = None) -> list[dict]:
     """`MANUAL_LANDMARKS` as dossier entries, each `source: authored`. An
-    entry is anchored on the map (`at`, lon/lat) or beside the road
-    (`station_m`, `side`, `offset_m`); `landmarks` are what the scan found,
-    which an estimate yields to. `osm` needs only `lon0` / `lat0`."""
+    entry is anchored on the map (`at`, lon/lat), beside the road
+    (`station_m`, `side`, `offset_m`) or on the pit building's roof
+    (`station_m`, `pit_roof=True`: on the garage row behind `pit`'s lane,
+    where the dress pass lifts a screen onto the roof); `landmarks` are
+    what the scan found, which an estimate yields to. `osm` needs only
+    `lon0` / `lat0`."""
     out: list[dict] = []
     for spec in MANUAL_LANDMARKS.get(stem, []):
         if "at" in spec:
@@ -4549,6 +4588,15 @@ def manual_landmarks(stem: str, track: Track, osm, to_track, landmarks: list[dic
             s_at, lat_at = track.locate(p[None, :])
             spec = {**spec, "station_m": round(float(s_at[0]), 1),
                     "side": "left" if lat_at[0] > 0 else "right"}
+        elif spec.get("pit_roof"):
+            if not pit:
+                continue
+            spec = {**spec, "side": pit["side"]}
+            edge = track.offset_point(spec["station_m"], pit["side"], 0.0)
+            nodes = np.asarray(pit["nodes"], dtype=float)
+            near = nodes[int(np.argmin(np.hypot(*(nodes - edge).T)))]
+            away = (near - edge) / max(float(np.hypot(*(near - edge))), 1e-6)
+            p = near + away * PIT_ROOF_FROM_LANE_M
         else:
             p = track.offset_point(spec["station_m"], spec["side"], spec.get("offset_m", 40.0))
         # A hand-placed landmark is an estimate standing in for a fact.
@@ -4573,6 +4621,8 @@ def manual_landmarks(stem: str, track: Track, osm, to_track, landmarks: list[dic
         }
         if spec.get("brand"):
             entry["brand"] = spec["brand"]
+        if spec.get("pit_roof"):
+            entry["pit_roof"] = True
         if "altitude_m" in spec:
             entry["altitude_m"] = spec["altitude_m"]
         if "yaw_rad" in spec:
@@ -4911,7 +4961,7 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
             [dict(l, kind=kind_map.get(l["kind"], l["kind"]))
              for l in layout.get("landmarks", []) if l.get("source") != "authored"],
         )
-        landmarks = scanned + manual_landmarks(stem, track, Frame, to_track, scanned)
+        landmarks = scanned + manual_landmarks(stem, track, Frame, to_track, scanned, layout.get("pit_lane"))
         landmarks.sort(key=lambda e: e["station_m"])
         kinds = CROSSING_KINDS.get(stem, {})
         # The scan's crossings, and the street circuits' lap bridges (laid
@@ -4932,6 +4982,7 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
         stands = with_stand_cover(stem, stands + manual)
         stands.sort(key=lambda e: e["station_m"])
         new = dict(layout)
+        new["pit_lane"] = with_podium(stem, layout.get("pit_lane"), track)
         new["stands"] = stands
         new["landmarks"] = landmarks
         new["crossings"] = crossings

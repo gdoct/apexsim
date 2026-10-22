@@ -838,6 +838,7 @@ fn apply_ui_action(
                 box_count: 10,
                 speed_limit_kmh: 80.0,
                 authored: false,
+                podium_m: None,
             });
             selection.0 = Some(SelectedElement::PitLane);
             status.0 = "Created pit lane — drag its nodes into place.".to_string();

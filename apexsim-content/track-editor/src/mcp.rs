@@ -631,6 +631,7 @@ fn drain_mcp_commands(
                         box_count: params.box_count.unwrap_or(10),
                         speed_limit_kmh: params.speed_limit_kmh.unwrap_or(80.0),
                         authored: false,
+                        podium_m: None,
                     });
                     Ok(())
                 });

@@ -80,7 +80,7 @@ what it owns on every run. Ownership is by **kind** for whole kinds and by
 |---|---|
 | `ats-dress` (`dress.rs`) | Kinds grandstand, building, attraction, bridge, light, vehicle, sky; the pit lane (`authored: true`); landmark assets (`dress::LANDMARK_ASSETS`: `misc/bull_statue`, `misc/toll_gate_lane`, `sign/hillside_letters`); the surroundings assets (`dress::surroundings::OWNED`: car-park cars and lamps, tents and campers, houses and barns, chapels, pylons, marshal posts (numbered ones too), the marshals' `light_panel`s (one beside each post, one in any 250 m race-control sector without a post), `corner_sign`, fallback `floodlight_tower`s, forest impostors, the fan dressing's banks and camp pieces, and the track edge's `kerb_marker` at each curb's ends and `sausage_kerb_2m` behind the inside curb of a bend under 80 m radius, `lay_kerb_pieces`); furniture runs (`lay_furniture`); road decals from the dossier |
 | `ats-groom` (`groom.rs`) | Barriers, tyre walls, Tecpro, fences and their end caps (by asset); hoardings (`HOARDING_ASSETS`); braking and distance boards; tree belts, near trees and ground scatter; German signs on the Nordschleife (`GERMAN_SIGN_ASSETS`); the graffiti tags on the rails (`RAIL_TAG_ASSETS`) |
-| `ats-export` | Nothing in the `.ats`: it generates the pit complex (garages, box kits, pit walls, pit signs, the podium on the middle garage's roof), road paint, DRS lines and boards, terrain and horizon in the export only |
+| `ats-export` | Nothing in the `.ats`: it generates the pit complex (garages, box kits, pit walls, pit signs, the podium on a garage's roof: the middle one, or the dossier's `podium_m`), road paint, DRS lines and boards, terrain and horizon in the export only |
 
 `ats-dress` grooms after dressing (`--no-groom` to skip); `ats-groom` run
 alone loads the dossier itself (`groom_scene_with`). Grooming re-seats dressed
@@ -274,8 +274,15 @@ stamp.
   the road any stretch steeper than 8% eased into a ramp
   (`ease_steep_grades`): a lane cutting from one leg's side to another's
   (Spa's exit past La Source) otherwise steps between their heights. `PitZone`
-  keeps everything dressed off the lane, its apron and the garage depth. The
-  server side is in [apexsim/docs/server/pit-lane.md](../../apexsim/docs/server/pit-lane.md).
+  keeps everything dressed off the lane, its apron and the garage depth. A
+  dossier `podium_m` (from `PIT_PODIUM`) puts the export's podium on the
+  garage nearest that station instead of the middle one. A landmark marked
+  `pit_roof` (`MANUAL_LANDMARKS`' `pit_roof=True`) stands on the pit
+  building's roof: the dress pass stamps it `pit roof <name>`, spreads a
+  circuit's roof screens evenly along the generated garage row (shorter
+  than most real buildings) and lifts them to the roof's height (the
+  garage, the storey the export stacks on it, or Marina Bay's own
+  building); grooming leaves them there. The server side is in [apexsim/docs/server/pit-lane.md](../../apexsim/docs/server/pit-lane.md).
 - **Surroundings** (`dress::surroundings`): car-park cars and lamps, camp-site
   tents (pitched over the area on the R2 sequence, `r2_point`), village houses, chapels and pylons, a marshal post at every named
   corner and every 150 m (each with a `misc/marshal_figure` beside it),

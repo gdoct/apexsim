@@ -170,6 +170,7 @@ mod tests {
             box_count: 10,
             speed_limit_kmh: 80.0,
             authored: false,
+            podium_m: None,
         });
         scene
     }
