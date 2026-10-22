@@ -3833,6 +3833,31 @@ runs:
         checks: "C5 R14: a building stepped back off the run-off or trimmed to its side of the road stands clear of road, barriers and stands"
         exec: "apexsim.cam.LookAt -569.9 -1939.2 63.7 -614.8 -1900.0 56.3"
 
+  - id: c5-r17-zandervoort
+    about: "C5. R17 distance boards: Zandervoort"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandervoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the boards into Hans Ernst"
+        checks: "C5 R17: 200/100/50 boards on the outside before Hans Ernst"
+        exec: "apexsim.cam.LookAt 424.4 -73.4 3.1 374.3 -87.3 1.6"
+      - at: 20
+        label: "the boards into the T9/T10 hairpin"
+        checks: "C5 R17: 100/50 boards on the outside before T9"
+        exec: "apexsim.cam.LookAt 790.0 -191.4 5.2 764.2 -236.5 3.7"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:

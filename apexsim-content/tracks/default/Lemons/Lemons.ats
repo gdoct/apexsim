@@ -132273,7 +132273,7 @@
       "source": "groom wall"
     },
     {
-      "id": 445726,
+      "id": 615030,
       "kind": "sign",
       "asset": "board_200m",
       "x": 1279.0941,
@@ -132285,7 +132285,7 @@
       "source": "groom board"
     },
     {
-      "id": 445727,
+      "id": 615031,
       "kind": "sign",
       "asset": "board_100m",
       "x": 1329.2362,
@@ -132297,7 +132297,7 @@
       "source": "groom board"
     },
     {
-      "id": 445728,
+      "id": 615032,
       "kind": "sign",
       "asset": "board_50m",
       "x": 1347.8013,
@@ -132309,7 +132309,7 @@
       "source": "groom board"
     },
     {
-      "id": 445729,
+      "id": 615033,
       "kind": "sign",
       "asset": "board_200m",
       "x": -274.97998,
@@ -132321,7 +132321,7 @@
       "source": "groom board"
     },
     {
-      "id": 445730,
+      "id": 615034,
       "kind": "sign",
       "asset": "board_100m",
       "x": -369.29404,
@@ -132333,7 +132333,7 @@
       "source": "groom board"
     },
     {
-      "id": 445731,
+      "id": 615035,
       "kind": "sign",
       "asset": "board_50m",
       "x": -416.44824,
@@ -132345,7 +132345,7 @@
       "source": "groom board"
     },
     {
-      "id": 445732,
+      "id": 615036,
       "kind": "sign",
       "asset": "board_200m",
       "x": -2108.0137,
@@ -132357,7 +132357,7 @@
       "source": "groom board"
     },
     {
-      "id": 445733,
+      "id": 615037,
       "kind": "sign",
       "asset": "board_100m",
       "x": -2202.272,
@@ -132369,7 +132369,7 @@
       "source": "groom board"
     },
     {
-      "id": 445734,
+      "id": 615038,
       "kind": "sign",
       "asset": "board_50m",
       "x": -2249.3687,
@@ -132381,7 +132381,31 @@
       "source": "groom board"
     },
     {
-      "id": 445735,
+      "id": 615039,
+      "kind": "sign",
+      "asset": "board_200m",
+      "x": -3749.867,
+      "y": -2823.5293,
+      "z": 64.247116,
+      "yaw_rad": -3.0615447,
+      "scale": 1.0,
+      "text": "200",
+      "source": "groom board"
+    },
+    {
+      "id": 615040,
+      "kind": "sign",
+      "asset": "board_50m",
+      "x": -3900.6567,
+      "y": -2813.747,
+      "z": 65.61599,
+      "yaw_rad": 2.9099083,
+      "scale": 1.0,
+      "text": "50",
+      "source": "groom board"
+    },
+    {
+      "id": 615041,
       "kind": "sign",
       "asset": "board_200m",
       "x": -3045.9302,
@@ -132393,7 +132417,7 @@
       "source": "groom board"
     },
     {
-      "id": 445736,
+      "id": 615042,
       "kind": "sign",
       "asset": "board_100m",
       "x": -3084.7585,
@@ -132405,7 +132429,7 @@
       "source": "groom board"
     },
     {
-      "id": 445737,
+      "id": 615043,
       "kind": "sign",
       "asset": "board_50m",
       "x": -3104.3245,
@@ -132417,7 +132441,7 @@
       "source": "groom board"
     },
     {
-      "id": 445738,
+      "id": 615044,
       "kind": "sign",
       "asset": "board_200m",
       "x": -531.55066,
@@ -132429,7 +132453,7 @@
       "source": "groom board"
     },
     {
-      "id": 445739,
+      "id": 615045,
       "kind": "sign",
       "asset": "board_100m",
       "x": -435.88782,
@@ -132441,7 +132465,7 @@
       "source": "groom board"
     },
     {
-      "id": 445740,
+      "id": 615046,
       "kind": "sign",
       "asset": "board_50m",
       "x": -388.0599,
@@ -428817,5 +428841,5 @@
       "source": "groom tree"
     }
   ],
-  "next_id": 615030
+  "next_id": 615047
 }
