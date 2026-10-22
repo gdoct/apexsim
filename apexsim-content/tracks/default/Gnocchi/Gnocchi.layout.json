@@ -2711,6 +2711,18 @@
    ]
   },
   {
+   "kind": "stadium",
+   "name": "Fisht Stadium",
+   "source": "authored",
+   "station_m": 2081.9,
+   "side": "left",
+   "centre": [
+    -1088.41,
+    -1004.0
+   ],
+   "yaw_rad": 1.5708
+  },
+  {
    "kind": "floodlight",
    "name": null,
    "station_m": 2101.0,

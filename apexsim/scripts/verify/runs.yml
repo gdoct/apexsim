@@ -3908,6 +3908,52 @@ runs:
         checks: "C5 R12/R20: screens on the pit building's roof, the podium on the garage at its real end"
         exec: "apexsim.cam.LookAt -29.9 118.7 19.1 25.1 116.5 13.1"
 
+  - id: c5-kit-gnocchi
+    about: "C5. Kit pieces placed: Gnocchi"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Fisht stadium toward the sea"
+        checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
+        exec: "apexsim.cam.LookAt -760.0 -640.0 70.0 -1088.4 -1004.0 15.0"
+
+  - id: c5-kit-monzarella
+    about: "C5. Kit pieces placed: Monzarella"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the Sopraelevata Nord banking"
+        checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
+        exec: "apexsim.cam.LookAt 120.0 860.0 40.0 360.0 1063.0 3.0"
+      - at: 20
+        label: "the Sopraelevata Sud banking"
+        checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
+        exec: "apexsim.cam.LookAt 420.0 -540.0 40.0 600.0 -700.0 3.0"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:
