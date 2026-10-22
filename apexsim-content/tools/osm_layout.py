@@ -140,7 +140,11 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Shanghaied": [(121.205, 31.328, 121.235, 31.352)],
     "Shebang": [(101.725, 2.750, 101.752, 2.772)],
     "Gnocchi": [(39.945, 43.398, 39.972, 43.415)],
-    "AlbertParkour": [(144.955, -37.860, 144.985, -37.838)],
+    "AlbertParkour": [
+        # The two large screens on the pit building (dossier S/F; text
+        # positions ~5100 and ~5240, to about 50 m): on its roof (R20).
+        dict(kind="screen", name="Pit building screen", station_m=5100.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=5240.0, pit_roof=True),(144.955, -37.860, 144.985, -37.838)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -1346,7 +1350,7 @@ STAND_COVER: dict[str, dict[str, str]] = {
 # knows. "-" leaves an OSM stand out altogether (R18: a pit building or a
 # hospitality block OSM tags as a stand).
 STAND_FAMILIES = ("street", "street_deck", "bank", "scaffold", "banking_seats", "tent", "palm",
-                  "stone", "stone_centre", "stadium")
+                  "lotus", "stone", "stone_centre", "stadium")
 STAND_FAMILY: dict[str, dict[str, str]] = {
     "Gnocchi": {
         # The Main Grandstand is one permanent six-storey, 400 m building under a single cantilevered
@@ -1356,10 +1360,9 @@ STAND_FAMILY: dict[str, dict[str, str]] = {
     },
     "Shanghaied": {
         # Grandstand A: ~29,000-30,000 seats in lower and upper tiers along the whole straight, the upper
-        # tiers under the lotus-leaf roofs (dossier "Grandstand A"): a tall single-roof stand, not the
-        # two-tier bay the depth rule takes from its 140 m OSM box. Stands in for the lotus roof until a
-        # kit piece exists.
-        "A看台": "stadium",
+        # tiers under the lotus-leaf roofs (dossier "Grandstand A"): the white shell of
+        # lotus_canopy_10m, not the two-tier bay the depth rule takes from its 140 m OSM box.
+        "A看台": "lotus",
     },
     "Monzarella": {
         # Drop OSM's two Parabolica-interna outlines (they stand on the pit-entry lane); the
@@ -1714,6 +1717,11 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # platform, one on the T1 approach by the Turn 1 Platform.
         dict(kind="screen", name="Pit straight superscreen", station_m=240.0, side="right", offset_m=15.0),
         dict(kind="screen", name="Turn 1 superscreen", station_m=320.0, side="right", offset_m=25.0),
+        # The park map's three superscreens on the pit building, facing the
+        # straight (~4780, ~4860, ~0): on its roof (R20).
+        dict(kind="screen", name="Pit building superscreen", station_m=4780.0, pit_roof=True),
+        dict(kind="screen", name="Pit building superscreen", station_m=4860.0, pit_roof=True),
+        dict(kind="screen", name="Pit building superscreen", station_m=0.0, pit_roof=True),
     ],
     # Burg Nürburg, the castle ruin on its basalt cone in Nürburg, inside
     # the loop between the GP circuit and the Hatzenbach: the landmark every
@@ -1834,6 +1842,10 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # Bolshoy Ice Dome, encircled by T4-T6 (OSM "Ледовый дворец «Большой»",
         # 201 x 151 m, 3088 right).
         dict(kind="arena", name="Bolshoy Ice Dome", at=(39.9499219, 43.4046023), yaw_rad=1.7731),
+        # Fisht Olympic Stadium south of the Medals Plaza, toward the sea: OSM
+        # maps it as a relation the way-only extract never sees; its centre, the
+        # pitch running north-south.
+        dict(kind="stadium", name="Fisht Stadium", at=(39.95601, 43.40236), yaw_rad=1.5708),
         # Shayba Arena (OSM 'Ледовая арена "Шайба"', 122 x 122 m, 2256 left).
         dict(kind="arena", name="Shayba Arena", at=(39.9519037, 43.4023960), yaw_rad=0.1549),
         # Iceberg Skating Palace (OSM "Дворец зимнего спорта «Айсберг»",
@@ -2054,6 +2066,12 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
         # centroid) and its yaw carried into this dossier's frame.
         dict(kind="castle", name="Burg Nürburg", at=NUERBURG_CASTLE, yaw_rad=2.95),
     ],
+    "AlbertParkour": [
+        # The two large screens on the pit building (dossier S/F; text
+        # positions ~5100 and ~5240, to about 50 m): on its roof (R20).
+        dict(kind="screen", name="Pit building screen", station_m=5100.0, pit_roof=True),
+        dict(kind="screen", name="Pit building screen", station_m=5240.0, pit_roof=True),
+    ],
 }
 
 # For a circuit whose pit lane leaves no separate polyline in OSM at all --
@@ -2066,17 +2084,19 @@ MANUAL_LANDMARKS: dict[str, list[dict]] = {
 MANUAL_PIT_LANE: dict[str, dict] = {
     # The pit building (3/12 Aughtie Drive; Development Victoria's Albert
     # Park Pit Building project) sits on the lake side of the main
-    # straight, i.e. the right as driven -- matching the task card and
-    # https://www.development.vic.gov.au/projects/albert-park. The span
-    # runs from the start/finish line to just short of the Turn 1/2
-    # chicane (this dossier's own corner geometry turns hard right at
-    # ~station 348), which is where the pit exit rejoins; published pit
-    # lane length figures cluster around 380 m (e.g. motorsport press
-    # coverage of the 2019 pit-lane widening), which this span reproduces.
-    # No OSM way represents the actual lane (cars pit on the same
-    # Aughtie Drive pavement the lap uses); this is an estimate, not a
-    # trace, and is noted as such in the dossier's own `source` field.
-    "AlbertParkour": dict(from_m=0.0, to_m=380.0, side="right", gap_m=8.0),
+    # straight, i.e. the right as driven. Both 2026 maps draw the lane
+    # leaving at T13/T14 (about 4760) and rejoining about 200 m before T1
+    # (about 140), the garages facing Senna, Fangio and Piastri (R21). No
+    # OSM way represents the actual lane (cars pit on the same Aughtie
+    # Drive pavement the lap uses); an estimate, not a trace, noted as such
+    # in the dossier's own `source` field.
+    "AlbertParkour": dict(from_m=4760.0, to_m=140.0, side="right", gap_m=8.0),
+    # The ACO's pit lane runs the length of the pit straight on the right,
+    # from the Ford chicane to the Dunlop curve (dossier "Start/finish, pit
+    # lane, paddock"; ~13190 -> 600); OSM's lane was clipped to 347 m (R21).
+    # Laid along the road edge, so it starts past the Raccordement rather
+    # than following the Ford chicane's kinks.
+    "Lemons": dict(from_m=13450.0, to_m=600.0, side="right", gap_m=8.0),
 }
 
 # How far from the track a mapped pit lane may run and still be the pit
@@ -4559,6 +4579,33 @@ PIT_PODIUM: dict[str, float] = {
 }
 
 
+# Circuits whose OSM tree rows (`natural=tree_row`) edge an open bowl or an
+# access road and are worth a refetch of the extract (R8): `--manual-only`
+# fetches the extract into the cache when it is missing and writes the
+# rows as the dossier's `tree_rows`, leaving every other layer alone.
+TREE_ROW_STEMS = ("Oskarsleben", "Shanghaied")
+TREE_ROW_RANGE_M = 400.0
+
+
+def extract_tree_rows(osm: "Osm", lon0: float, lat0: float, to_track, track: Track) -> list[dict]:
+    """OSM's tree rows within TREE_ROW_RANGE_M of the lap, in the dossier's
+    own frame (`lon0`/`lat0` and `to_track` are its georeference, not the
+    fresh extract's)."""
+    rows = []
+    for w in osm.ways:
+        if (w.get("tags") or {}).get("natural") != "tree_row":
+            continue
+        pts = [osm.nodes[n] for n in w["nodes"] if n in osm.nodes]
+        if len(pts) < 2:
+            continue
+        p = to_track(np.array([enu(lon, lat, lon0, lat0) for lon, lat in pts]))
+        d, _ = track.grid.query(p, max_rings=30)
+        if float(d.min()) > TREE_ROW_RANGE_M:
+            continue
+        rows.append({"kind": "tree_row", "line": round_pts(p)})
+    return rows
+
+
 def with_podium(stem: str, pit: dict | None, track: Track) -> dict | None:
     """The pit lane with `PIT_PODIUM`'s station, or without one."""
     if not pit:
@@ -4928,7 +4975,7 @@ def with_stand_cover(stem: str, stands: list[dict]) -> list[dict]:
 
 def reapply_manual(stems: list[str], dry_run: bool) -> int:
     """`--manual-only`: re-apply the hand-authored layers (MANUAL_STANDS and
-    STAND_COVER, MANUAL_LANDMARKS, MANUAL_CROSSINGS and CROSSING_KINDS, the
+    STAND_COVER, MANUAL_PIT_LANE and PIT_PODIUM, MANUAL_LANDMARKS, MANUAL_CROSSINGS and CROSSING_KINDS, the
     graffiti, decal runs and skid marks, MANUAL_FURNITURE) to a checked-in dossier without the OSM
     extract, through the georeference the DEM sidecar records (the same fit
     the dossier was built from, `dem_fetch.py`). Everything the extract
@@ -4982,7 +5029,8 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
         stands = with_stand_cover(stem, stands + manual)
         stands.sort(key=lambda e: e["station_m"])
         new = dict(layout)
-        new["pit_lane"] = with_podium(stem, layout.get("pit_lane"), track)
+        pit = manual_pit_lane(track, MANUAL_PIT_LANE[stem]) if stem in MANUAL_PIT_LANE else layout.get("pit_lane")
+        new["pit_lane"] = with_podium(stem, pit, track)
         new["stands"] = stands
         new["landmarks"] = landmarks
         new["crossings"] = crossings
@@ -4998,6 +5046,8 @@ def reapply_manual(stems: list[str], dry_run: bool) -> int:
             new["water"] = [w for w in layout.get("water", []) if w.get("source") != "authored"] + manual_water(
                 stem, Frame, to_track
             )
+        if stem in TREE_ROW_STEMS:
+            new["tree_rows"] = extract_tree_rows(Osm(fetch(stem, False)), Frame.lon0, Frame.lat0, to_track, track)
         new["corners"] = with_display_names(
             stem, with_manual_corners(stem, layout.get("corners", []), track.total)
         )

@@ -216,28 +216,38 @@ them from the calendar is the owner's option.
 **S/F column.** Done for every circuit but three: the dossier pass (each
 audit page's "S/F dossier pass" lists what went in and what is left) and the
 `c5-sf-*` shots, judged 2026-10-21 (Gnocchi's main stand, `stadium` from
-the Stands pass, with the `c5-st-*` shots). Open: Bahrainless (the
-tent-fabric roofs, kit gap 4), MandarinaBay (the screens on the pit
-building's face, R20) and the
-Nordschleife, whose start/finish needs the trace page.
+the Stands pass, with the `c5-st-*` shots). Open, built 2026-10-22 and
+waiting for a person to judge the shots: Bahrainless (the Main
+Grandstand's `tent_roof_10m` and the pit building's membrane storey,
+`c5-st-bahrainless`, `c5-r20-bahrainless`) and MandarinaBay (its three
+superscreens on the pit building's roof, `c5-sf-mandarinabay`). Open: the
+Nordschleife, whose start/finish has no source for its T13 pumps and
+media tower (the T13 stand is in). AlbertParkour's and Lemons' pit lanes
+run their real length since 2026-10-22 (R21: Albert Park 4760-140 with its
+two roof screens, Le Mans from the Raccordement to the Dunlop curve; both
+pit surveys pass); their `c5-sf-*` shots wait for a person.
 
 **Landmark column.** Done but for two circuits: the rules, the dossier
 pass (each audit page's "Landmark dossier pass"), the bake, the survey
 (identical) and the `c5-lm-*` and `c5-r14-*` shots, judged 2026-10-22.
-Open: Gnocchi (the Fisht stadium has no kit piece) and Monzarella (the
-banking's curves beside the road have no kit piece).
+Open: Gnocchi (the Fisht stadium, `building/stadium_bowl` on its OSM
+centre, built 2026-10-22; `c5-lm-gnocchi` waits for a person) and
+Monzarella (the banking's curves beside the road have no kit piece).
 
 **Stands column.** Done but for one circuit: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier
 pass ("Stands dossier pass": stands OSM maps as buildings, bleachers and
 wrapping outlines entered in `MANUAL_STANDS` by hand), the bake, the survey
 (identical but for noise) and the `c5-st-*` shots, judged 2026-10-22.
-Open: Shanghaied (Grandstand A's lotus-leaf roof has no kit piece).
+Open: Shanghaied (Grandstand A under `grandstand/lotus_canopy_10m`, built
+2026-10-22; `c5-st-shanghaied` waits for a person).
 
 **Trees column.** Done but for three circuits: the rules (species by
 climate, woods past the belt, scrub, `WOOD_LEAF`), the dossier pass ("Trees
 dossier pass"), the bake, the survey (identical) and the `c5-tr-*` shots,
-judged 2026-10-22. Open: Oskarsleben and Shanghaied (tree rows, R8).
+judged 2026-10-22. Open: Oskarsleben and Shanghaied, whose OSM tree rows
+(R8: `TREE_ROW_STEMS`, refetched into the cache, planted by the tree pass)
+went in 2026-10-22; their `c5-tr-*` shots wait for a person.
 
 **Barriers, Boards and People columns.** Done but for one cell: the rules
 (concrete by the pit lane and against mapped walls, street/park/club rails;
@@ -282,8 +292,6 @@ names.
 
 | # | Asset (kind/key) | Stands in for | Tracks |
 |---|---|---|---|
-| 4 | built: `grandstand/tent_roof_10m`, `pit/garage_roof_membrane_6m` (stacked at Bahrainless) | white membrane roofs | Bahrainless |
-| 10 | built: `building/arena_dome`, `misc/cauldron` | Olympic ice arenas, the Olympic cauldron | Gnocchi |
 
 Smaller asks, built only if a column's shots call for them: an amphitheatre canopy (Armadillos), a raised viewing deck
 (Interlaggos), stone block towers (Snorisring), a lit light truss
@@ -296,23 +304,10 @@ tracks they show at. Each is a rule change: re-dress `--all` and read the
 counts against the commit before. A built rule leaves the list; the labels
 stay as they are.
 
-- **R8. Tree rows.** OSM `natural=tree_row` ways (Oskarsleben's 15,
-  Shanghaied's 13) are never extracted, so the rows that edge an open
-  bowl or an access road are missing; the extract needs a refetch, and
-  only MandarinaBay and Shiverstone have one cached.
 - **R16. Water.** `WATER_STEMS` (the extract's water bodies from OSM
   relations) is MandarinaBay alone; Albert Park's lake comes from
   `MANUAL_WATER`. Other circuits' lakes and channels (Montreal's, the
   Norisring's Dutzendteich) are only the small water `areas`.
-- **R20. Screens on a pit building of its own.** Roof screens stand on the
-  generated garages (`pit_roof` landmarks); MandarinaBay's screens on the
-  face of its own pit building (`pit_building_roofdeck`) are not placed,
-  and AlbertParkour's wait for its real pit lane (R21).
-- **R21. Pit lanes that stop short.** AlbertParkour's `MANUAL_PIT_LANE`
-  is 0-380 where the real lane runs from about 4760 to 140, and Lemons'
-  lane is 347 m against the real one before the Ford chicane to the
-  Dunlop curve; a lane change moves the server's pit and needs the pit
-  survey.
 
 Found on the way and outside dressing (track geometry, georeference,
 references): in [follow-ups.md](../../apexsim/docs/follow-ups.md#6-circuit-dressing).

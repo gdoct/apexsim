@@ -285,6 +285,11 @@ const TREE_STAND_CLEAR_M: f32 = 40.0;
 const TREE_PROP_CLEAR_M: f32 = 6.0;
 /// No tree this close to the pit lane's edge.
 const TREE_LANE_CLEAR_M: f32 = 6.0;
+/// Spacing of the trees along a mapped tree row (R8), m.
+const TREE_ROW_PITCH_M: f32 = 9.0;
+/// A tree row runs up to a building or a stand's back: closer than the
+/// belt's [`TREE_STAND_CLEAR_M`].
+const TREE_ROW_STAND_CLEAR_M: f32 = 6.0;
 /// A tree stays this far outside an authored runoff patch.
 const TREE_RUNOFF_MARGIN_M: f32 = 2.0;
 
@@ -1090,6 +1095,19 @@ pub fn groom_props_with_dem(
         &style.trees,
         style.flora,
     );
+    // And a tree every few metres along the mapped tree rows.
+    if let Some(l) = layout {
+        trees.extend(lay_tree_rows(
+            &path,
+            &terrain,
+            lane.as_ref(),
+            &props,
+            &trees,
+            &l.tree_rows,
+            &style.trees,
+            style.flora,
+        ));
+    }
     // Green clumps and wildflowers on a desert floor would undo it.
     let cover_density = match style.ground {
         Ground::Grass if style.ground_cover => tree_density(track),
@@ -2951,6 +2969,89 @@ fn lay_tree_belts(
     trees
 }
 
+/// A tree every [`TREE_ROW_PITCH_M`] (jittered) along each of the
+/// dossier's tree rows, broadleaf as rows mostly are: kept a belt's near
+/// distance off the road, clear of the pit lane, of buildings and stands
+/// by [`TREE_ROW_STAND_CLEAR_M`] and of the trees already planted.
+#[allow(clippy::too_many_arguments)]
+fn lay_tree_rows(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    lane: Option<&CenterlinePath>,
+    others: &[Prop],
+    planted: &[Prop],
+    rows: &[crate::layout::Line],
+    belt: &TreeBelt,
+    flora: Flora,
+) -> Vec<Prop> {
+    let slabs: Vec<Slab> = others.iter().map(|p| Slab::of(path, p)).collect();
+    let mut trees: Vec<Prop> = Vec::new();
+    for (ri, row) in rows.iter().enumerate() {
+        let mut k = 0u64;
+        for seg in row.line.windows(2) {
+            let (a, b) = (seg[0], seg[1]);
+            let len = (b[0] - a[0]).hypot(b[1] - a[1]);
+            if len < 1e-3 {
+                continue;
+            }
+            let (ux, uy) = ((b[0] - a[0]) / len, (b[1] - a[1]) / len);
+            let mut d = TREE_ROW_PITCH_M * 0.5;
+            while d < len {
+                let key = [ri as u64, k];
+                k += 1;
+                let along = d + (hash01(&key, 1) - 0.5) * 2.0;
+                let side = (hash01(&key, 2) - 0.5) * 1.2;
+                d += TREE_ROW_PITCH_M;
+                let pos = (a[0] + ux * along - uy * side, a[1] + uy * along + ux * side);
+                let (ns, nlat, _) = nearest_cross_section(path, pos.0, pos.1);
+                if nlat.abs() < half_width_on(&ns, nlat) + belt.near_m - 0.5 {
+                    continue;
+                }
+                if lane.is_some_and(|lane| lane_edge_gap(lane, pos.0, pos.1) < TREE_LANE_CLEAR_M) {
+                    continue;
+                }
+                let blocked = slabs.iter().any(|p| {
+                    let clear = match p.kind {
+                        PropKind::Building | PropKind::Grandstand | PropKind::Pit | PropKind::Attraction => {
+                            TREE_ROW_STAND_CLEAR_M
+                        }
+                        PropKind::Sky => return false,
+                        _ => TREE_PROP_CLEAR_M,
+                    };
+                    p.gap(pos.0, pos.1) < clear
+                });
+                let crowded = planted
+                    .iter()
+                    .chain(&trees)
+                    .any(|t| (t.x - pos.0).hypot(t.y - pos.1) < TREE_ROW_PITCH_M * 0.5);
+                if blocked || crowded {
+                    continue;
+                }
+                let species = tree_asset(flora, Some("broadleaved"), hash01(&key, 5));
+                let asset = if nlat.abs() - half_width_on(&ns, nlat) <= TREE_NEAR_VIEW_M {
+                    near_variant(species)
+                } else {
+                    species
+                };
+                trees.push(Prop {
+                    id: 0,
+                    kind: PropKind::Tree,
+                    asset: asset.to_string(),
+                    x: pos.0,
+                    y: pos.1,
+                    z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
+                    yaw_rad: hash01(&key, 3) * TAU,
+                    scale: TREE_SCALE_MIN + hash01(&key, 4) * (TREE_SCALE_MAX - TREE_SCALE_MIN),
+                    text: None,
+                    length_m: None,
+                    source: None,
+                });
+            }
+        }
+    }
+    trees
+}
+
 fn is_prepared_runoff(kind: SurfaceKind) -> bool {
     matches!(
         kind,
@@ -3644,6 +3745,35 @@ mod tests {
     /// it: the line at 7-14 m landed inside the seating and was dropped,
     /// so most of Melbourne's and Zandvoort's stands had nothing between
     /// them and the track. The line funnels in to the stand's front now.
+    /// A mapped tree row is planted along its line, a tree every
+    /// TREE_ROW_PITCH_M or so, off the road (R8).
+    #[test]
+    fn a_tree_row_is_planted_along_its_line() {
+        let track = track();
+        let mut scene = scene_with(&track, vec![]);
+        let mut layout = crate::layout::Layout::default();
+        // A wood far from the row, so the belt grows only there.
+        layout.woods = vec![Wood {
+            leaf: "broadleaved".to_string(),
+            ring: vec![[300.0, 600.0], [400.0, 600.0], [400.0, 700.0], [300.0, 700.0]],
+        }];
+        layout.tree_rows = vec![crate::layout::Line {
+            kind: "tree_row".to_string(),
+            name: None,
+            line: vec![[100.0, -80.0], [400.0, -80.0]],
+            closed: false,
+            bridge: false,
+            tunnel: false,
+        }];
+        groom_props_with(&track, &mut scene, Some(&layout)).unwrap();
+        let row: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.kind == PropKind::Tree && (p.y + 80.0).abs() < 2.0)
+            .collect();
+        assert!(row.len() >= 25, "{} trees along the 300 m row", row.len());
+    }
+
     #[test]
     fn a_grandstand_keeps_a_barrier_in_front_of_it() {
         let track = track();

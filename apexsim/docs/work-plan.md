@@ -259,11 +259,13 @@ to its judged shots (2026-10-21 for S/F, 2026-10-22 for the rest) but for
 the cells left open in track-improvements.md's status table, each with its
 reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
-Left: the Nordschleife's start/finish from the trace page; Marina Bay's
-screens on its own pit building (R20); the open rule gaps (R8 tree rows,
-R21 short pit lanes with the pit survey); the kit pieces with
-no build yet (Fisht stadium, Monza's banking curves, Shanghai's lotus
-roof); the four circuits without a dossier. Last: the Nordschleife joined
+Built 2026-10-22 and waiting for a person to judge the shots: the real
+pit lanes at Albert Park and Le Mans (R21, both pit surveys pass), the
+pit-roof screens at Albert Park and Marina Bay, the tree rows at
+Oschersleben and Shanghai (R8), Shanghai's lotus roof and the Fisht
+stadium. Left: the Nordschleife's T13 pumps and media tower (no source
+places them); Monza's banking curves; the four circuits without a
+dossier. Last: the Nordschleife joined
 to the GP circuit (Nuerburgerring), so it has the GP pit lane and pit
 building and players can drive its routes: the Nordschleife alone from
 the GP pits, the GP circuit, and the combined 24h lap. That is a track

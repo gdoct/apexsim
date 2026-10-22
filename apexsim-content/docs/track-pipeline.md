@@ -128,7 +128,7 @@ by name from the seating map, OSM and manual stands alike: `covered` or
 by name (or `@<station_m>`), and a `MANUAL_STANDS` entry may name one as
 `family`: `street` / `street_deck` (the street stands), `bank` (a
 general-admission area: people standing about), `scaffold`, `banking_seats`, `tent` (a membrane
-roof), `palm` (a frond canopy), `stone` / `stone_centre` (an open stone
+roof), `palm` (a frond canopy), `lotus` (a lotus-leaf shell), `stone` / `stone_centre` (an open stone
 terrace and its centre block), `stadium` (a tall single-roof stand); `-`
 in `STAND_FAMILY` leaves an OSM stand out. `DROP_STRUCTURES` leaves out an
 unnamed OSM building by station (one a stand from the tables stands on); a
@@ -188,7 +188,8 @@ refetch) lays it.
 
 **Without the extract** (`--manual-only`): the hand-authored layers (the
 `MANUAL_STANDS` stands and the `STAND_COVER` roofs, the authored landmarks
-and crossings, graffiti, decal runs and skid marks, furniture) are rebuilt
+and crossings, graffiti, decal runs and skid marks, furniture, a
+`MANUAL_PIT_LANE` lane and the `PIT_PODIUM` station) are rebuilt
 from the tables through the georeference the DEM
 sidecar records, which is the dossier's own fit; the surveyed layers are
 left byte for byte, and so is a manual stand whose table entry has not
@@ -329,11 +330,16 @@ or tyres. **Distance boards** (`groom::braking_corners`) stand at 200,
 100 and 50 m before every corner whose tightest point holds a car under
 30 m/s, on the outside of the bend, when its last 150 m bend no tighter
 than a 150 m radius (a flat-out kink leaves the approach clean); a board
-that would stand inside another corner is left out. **Trees** go only inside the dossier's woods, species from the
+that would stand inside another corner is left out. **Trees** go only
+inside the dossier's woods, species from the
 leaf type and the circuit style's flora (poplars only in broadleaved woods;
 the desert sets plant date palms), and bushes (`bush_cluster`) inside its
 `scrub` areas. `WOOD_LEAF` in `osm_layout.py` sets a circuit's leaf types
-over OSM's (`*`, or one wood by `area:<m2>`).
+over OSM's (`*`, or one wood by `area:<m2>`). A dossier's `tree_rows` (OSM
+`natural=tree_row`, written for the `TREE_ROW_STEMS` circuits by
+`--manual-only` from a refetched extract) get a broadleaf tree about every
+9 m along the line (`groom::lay_tree_rows`), off the road by the belt's
+near distance and 6 m clear of buildings and stands.
 
 `python tools/check_walls.py --openings --all` (`-v` lists runs) probes
 every 2 m of the lap for a ray from the road edge that meets no wall within
