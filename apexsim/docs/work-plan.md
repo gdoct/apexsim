@@ -32,7 +32,6 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 2 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 5 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 5 |
@@ -75,9 +74,9 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **Race control, one pass.** A6 again, from the Nordschleife's seed 2
-   (follow-ups #20); R8's edges where they touch
-   the same files.
+2. **Race control, one pass.** R8's edges (follow-ups #20). A6 is
+   dropped: tried twice more without a gain, and the off-road time it
+   chased is back below its target (follow-ups #20).
 3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install).
    N26 phase 2 waits on the repository and the signing key.
@@ -120,16 +119,6 @@ lateral band until one is a car length clear), built on `racecraft::pass_here`'s
 lane choice rather than an offset on the line.
 **Watch out:** the previous attempt failed — start with the survey's
 contact count on Zandvoort as the target number; human review on R7.
-
-#### A6. AI lifts for trouble it sees ahead — P2 · 🟢 · M
-*Source: follow-ups #20.* Since a yellow waits `INCIDENT_CONFIRM_S`
-(1.5 s), the AI no longer slows for a car only briefly in trouble ahead:
-the whole-calendar survey (seeds 1-2) went from 485 to 654 car-seconds
-off the road. An AI driver lifts for a car it sees off or crawling within
-its view, apart from the flag rules. Judged by the survey against the
-commit before; the target is back near 485. Tried 2026-10-20 and not
-landed (the survey split by seed; the Nordschleife got worse): see
-follow-ups #20 for the numbers and where to look next.
 
 #### A7. AI in imported cars — P3 · 🟢 · M
 *Source: follow-ups #19.* Imported F1s and prototypes finish their races

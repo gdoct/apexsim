@@ -145,23 +145,18 @@ the client does not show all of them yet, and the server leaves a few edges.
 - client: the safety car is a car of its own (the Murcetes-AMD GT3's body,
   amber roof lamps); it drives through a lapped car passing it (it is no
   body on the server), so the pass is seen as an overlap.
-- Since a yellow waits `INCIDENT_CONFIRM_S` (1.5 s), the AI no longer slows
-  for a car that is only briefly in trouble ahead: the whole-calendar
-  survey (seeds 1-2) went from 485 to 654 car-seconds off the road
-  (+35%, on both seeds), contact +9% and sliding +13% (noise-sized). An AI
-  driver could lift for trouble it sees ahead (a car off or crawling
-  within its view) on its own, apart from the flag's rules. Tried
-  2026-10-20 (A6): race control kept every car's trouble without the
-  confirmation and the AI lifted to the single-yellow pace for one within
-  150 m up the road. Against the refresh's survey (seeds 1-2) it did not
-  clearly help: seed 1 off -17%, seed 2 off +16% and sliding +30%, the
-  Nordschleife alone +83 car-seconds on seed 2 with either trigger
-  (contact and backing up counted or not); elsewhere contact plus off
-  about -5%. Not landed; the patch (`race_control::trouble_ahead_for`,
-  `CarState::trouble_ahead`, `TROUBLE_AHEAD_PACE`) is easily redone. Look
-  at the Nordschleife's seed 2 first (`SURVEY_TRACKS=Mordschleife
-  AI_TEST_SEED=2 SURVEY_EVENTS=1`): blind crests may make a lift for a car
-  out of sight cost more than it saves.
+- The AI lifts only for a confirmed yellow (`INCIDENT_CONFIRM_S`, 1.5 s),
+  not for trouble it could see sooner. When the confirmation came in, the
+  survey's off-road time rose 485 -> 654 car-seconds; on 2026-10-23 at
+  2523c4a5 it is 275 (seed 1) and 294 (seed 2), so that loss is gone. Two
+  tries at an AI-only early lift did not pay: 2026-10-20 (a lift for a car
+  within 150 m) and 2026-10-23 (a second, unconfirmed flag board, the
+  same sector logic from the first tick of trouble, read only by the AI's
+  pace and passing; patch kept outside the repo): contact -10% on both
+  seeds, but off +3% and +31%, the Nordschleife +50 car-seconds on each.
+  Blind crests make a lift for a car out of sight cost more than it saves;
+  a third try would start from line of sight on the Nordschleife
+  (`SURVEY_TRACKS=Mordschleife SURVEY_EVENTS=1`).
 - The formation lap holds the grid's tyre warmth but puts none in (a
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.
