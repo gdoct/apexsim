@@ -108,10 +108,10 @@ no protection (as the real ones), so warn before a missed downshift hurts
 and carry the rpm past the limit in telemetry and the recording.
 
 #### B13. Tent over the track at Armadillos T15–16 — P2 · 🟡 · S
-*Source: follow-ups #6, wheel sitting 2026-10-23.* A tent prop stands over
-the road at turns 15 and 16. Find it in `Armadillos.ats`, fix the dress
-rule that let it onto the road, re-export, judge from a shot. The run's
-replay: `out/sit/2026-10-23/cota-f1/practice.apxs`.
+*Source: follow-ups #6, wheel sitting 2026-10-23.* Not found in the scene:
+the only prop over the road there is the T16 footbridge, a truss gantry
+with a PIRETTI banner (verify run `b13-armadillos-t15`). Needs the driver
+to point at it again (a shot or a MARK where it stands).
 
 #### B5. Chase camera inside a car body — P3 · 🟡 · S
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
