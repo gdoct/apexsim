@@ -156,7 +156,7 @@ impl CarEnvelope {
             && car.drivetrain == Drivetrain::RWD)
             .then(|| car.weight_distribution_front.clamp(0.2, 1.0));
         let downforce_k = 0.5 * AIR_DENSITY * air * car.frontal_area_m2 * (-lift).max(0.0) / mass;
-        let aero_factor: Vec<f32> = if car.aero.is_constant() {
+        let aero_factor: Vec<f32> = if car.aero.is_constant() && car.aero.speed_map.is_empty() {
             Vec::new()
         } else {
             (0..=(AERO_TABLE_TOP_MPS / AERO_TABLE_STEP_MPS) as usize)

@@ -86,6 +86,18 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
 
     for name in TABLE_ORDER:
         entries = physics.tables.get(name)
+        if name == "aero" and physics.aero_speed_map:
+            if entries:
+                table(name, entries)
+            w("")
+            w("# aero.ini DYNAMIC_CONTROLLER: the wings' angles by speed, as multipliers on the")
+            w("# downforce and drag above (1 at 50 m/s, where they were taken)")
+            for pt in physics.aero_speed_map:
+                w("")
+                w("[[aero.speed_point]]")
+                for key in ("speed_mps", "downforce_front", "downforce_rear", "drag"):
+                    w(f"{key} = {fmt(float(pt[key]))}")
+            continue
         if not entries:
             continue
         table(name, entries)

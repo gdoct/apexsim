@@ -68,6 +68,9 @@ class Physics:
     turbo: bool = False
     #: The `[[tires.compound]]` tables, in order; empty keeps the defaults.
     compounds: list[dict] = field(default_factory=list)
+    #: The `[[aero.speed_point]]` tables (`speed_map`); empty for a car
+    #: whose wings do not move with its speed.
+    aero_speed_map: list[dict] = field(default_factory=list)
 
     def put(self, table: str, key: str, value, source: str = "") -> None:
         self.tables.setdefault(table, {})[key] = Value(value, source)
@@ -703,6 +706,113 @@ def _wing_coefficients(car: CarData, s: dict, angle: float, ride_height: float |
     return cl, cd
 
 
+#: What a wing controller on another input than the speed is read at: the
+#: car flat out in a straight line (no brake, no steer, no cornering).
+CRUISE_INPUTS = {"GAS": 1.0, "BRAKE": 0.0, "STEER": 0.0, "LATG": 0.0, "LONG_G": 0.0}
+#: The server's limits on a speed map's multipliers (`car_loader.rs`).
+SPEED_MAP_RANGE = (0.2, 3.0)
+#: Fastest speed point written, m/s (the server takes up to 150).
+SPEED_MAP_TOP_MPS = 120.0
+
+
+def wing_controllers(car: CarData, aero: dict) -> dict[int, list[Controller]]:
+    """aero.ini's `[DYNAMIC_CONTROLLER_n]` by the wing they move, in file
+    order: each folds its LUT of one input into the wing's angle."""
+    out: dict[int, list[Controller]] = {}
+    i = 0
+    while f"DYNAMIC_CONTROLLER_{i}" in aero:
+        s = aero[f"DYNAMIC_CONTROLLER_{i}"]
+        i += 1
+        wing = number(s.get("WING"))
+        lut_text = str(s.get("LUT", "")).strip()
+        lut = parse_inline_lut(lut_text) if lut_text.startswith("(") else car.lut(lut_text)
+        if wing is None or lut is None:
+            continue
+        out.setdefault(int(wing), []).append(Controller(
+            str(s.get("INPUT", "")).split()[0].upper() if s.get("INPUT") else "",
+            str(s.get("COMBINATOR", "ADD")).split()[0].upper(), lut,
+            number(s.get("UP_LIMIT")), number(s.get("DOWN_LIMIT"))))
+    return out
+
+
+def controlled_angle(angle: float, controllers: list[Controller], speed_kmh: float) -> float:
+    """A wing's angle at `speed_kmh` with its dynamic controllers: from its
+    authored ANGLE, each controller's LUT added (`ADD`) or multiplied in
+    (`MULT`), clamped to its limits; inputs other than the speed at
+    `CRUISE_INPUTS`."""
+    value = angle
+    for c in controllers:
+        x = speed_kmh if c.input == "SPEED_KMH" else CRUISE_INPUTS.get(c.input, 0.0)
+        y = c.lut(x)
+        if c.combinator == "MULT":
+            value *= y
+        elif c.combinator == "MIN":
+            value = min(value, y)
+        elif c.combinator == "MAX":
+            value = max(value, y)
+        else:
+            value += y
+        if c.up is not None:
+            value = min(value, c.up)
+        if c.down is not None:
+            value = max(value, c.down)
+    return value
+
+
+def speed_map(car: CarData, aero: dict, wings: list, controllers: dict[int, list[Controller]],
+              z_rear: float, wheelbase: float) -> list[dict]:
+    """The server's `[[aero.speed_point]]` list: at each speed a speed
+    controller's LUT names (and the reference speed), the car's front and
+    rear Cl x area and its Cd x area with every wing at its controlled
+    angle, over the same at `AERO_REFERENCE_SPEED_MPS` (where the car.toml's
+    figures are taken), the wings held at the heights they run at there.
+    Empty when no wing moves with the speed."""
+    speed_ctrls = {i: c for i, c in controllers.items() if any(x.input == "SPEED_KMH" for x in c)}
+    if not speed_ctrls:
+        return []
+    speeds = {AERO_REFERENCE_SPEED_MPS}
+    for ctrls in speed_ctrls.values():
+        for c in ctrls:
+            if c.input == "SPEED_KMH":
+                speeds.update(float(x) / 3.6 for x in c.lut.x)
+    speeds = sorted(round(v, 2) for v in speeds if 0.0 <= v <= SPEED_MAP_TOP_MPS)
+
+    def sums(speed_mps: float) -> tuple[float, float, float]:
+        front = total = drag = 0.0
+        for w in wings:
+            angle = controlled_angle(w.angle, controllers.get(w.index, []), speed_mps * 3.6) \
+                if w.index in controllers else w.angle
+            cl, cd = _wing_coefficients(car, aero[f"WING_{w.index}"], angle, w.ride_height)
+            total += cl * w.area
+            front += cl * w.area * (w.position[2] - z_rear) / wheelbase
+            drag += cd * w.area
+        return front, total - front, drag
+
+    base = sums(AERO_REFERENCE_SPEED_MPS)
+
+    def ratio(a: float, b: float) -> float:
+        r = a / b if abs(b) > 1e-6 else 1.0
+        return round(min(max(r, SPEED_MAP_RANGE[0]), SPEED_MAP_RANGE[1]), 4)
+
+    points = []
+    for v in speeds:
+        f, r, d = sums(v)
+        points.append({"speed_mps": v, "downforce_front": ratio(f, base[0]),
+                       "downforce_rear": ratio(r, base[1]), "drag": ratio(d, base[2])})
+    # A point the line through its neighbours already gives is dropped.
+    kept = [points[0]]
+    for prev, p, nxt in zip(points, points[1:], points[2:]):
+        t = (p["speed_mps"] - kept[-1]["speed_mps"]) / max(nxt["speed_mps"] - kept[-1]["speed_mps"], 1e-6)
+        if any(abs(kept[-1][k] + (nxt[k] - kept[-1][k]) * t - p[k]) > 1e-3
+               for k in ("downforce_front", "downforce_rear", "drag")):
+            kept.append(p)
+    if len(points) > 1:
+        kept.append(points[-1])
+    if all(p[k] == 1.0 for p in kept for k in ("downforce_front", "downforce_rear", "drag")):
+        return []
+    return kept
+
+
 def axle_travel(delta_n: float, spring_n_per_m: float, static_height_m: float) -> float:
     """How far an axle moves down for a load `delta_n` over its static
     load: the server's `aero::axle_travel`, bump rubbers and all."""
@@ -1112,12 +1222,18 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
     drs_wings = {int(m.group(1)) for sec in drs_ini for m in [re.match(r"WING_(\d+)$", sec)] if m}
     z_front_axle = wheelbase * (1.0 - wf)
     z_rear_axle = -wheelbase * wf
+    # A wing that moves with the speed (`DYNAMIC_CONTROLLER`) is taken at
+    # the angle it has at the reference speed; `speed_map` carries the rest.
+    controllers = wing_controllers(car, aero)
     sections = []
     i = 0
     while f"WING_{i}" in aero:
         s = aero[f"WING_{i}"]
         pos = vector(s.get("POSITION")) or [0.0, 0.0, 0.0]
-        sections.append((i, s, pos, number(s.get("ANGLE"), 0.0),
+        angle = number(s.get("ANGLE"), 0.0)
+        if i in controllers:
+            angle = controlled_angle(angle, controllers[i], AERO_REFERENCE_SPEED_MPS * 3.6)
+        sections.append((i, s, pos, angle,
                          number(s.get("CHORD"), 1.0) * number(s.get("SPAN"), 1.0)))
         i += 1
     has_ground_tables = any(str(s.get("LUT_GH_CL", "")).strip() for _, s, _, _, _ in sections)
@@ -1135,9 +1251,14 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
                   else (ride_f if pos[2] >= 0.0 else ride_r))
         cl, cd = _wing_coefficients(car, s, angle, height)
         wings.append(Wing(i, str(s.get("NAME", f"WING_{i}")).strip(), area, pos, angle, cl, cd, height))
-    if any(sec.startswith("DYNAMIC_CONTROLLER") for sec in aero):
-        out.warnings.append("aero.ini's dynamic controllers (wings that move with speed or throttle) are not "
-                            "modelled: every wing is taken at its authored ANGLE")
+    # `speed_map` wants each wing's authored angle, not the controlled one.
+    authored = [Wing(w.index, w.name, w.area, w.position, number(aero[f"WING_{w.index}"].get("ANGLE"), 0.0),
+                     w.cl, w.cd, w.ride_height) for w in wings]
+    out.aero_speed_map = speed_map(car, aero, authored, controllers, z_rear, wheelbase)
+    other_inputs = sorted({c.input for cs in controllers.values() for c in cs if c.input != "SPEED_KMH"})
+    if other_inputs:
+        out.warnings.append(f"aero.ini dynamic controllers on {', '.join(other_inputs)} are read with the car flat "
+                            f"out in a straight line (no brake, no steer): only the speed moves a wing")
     body = next((w for w in wings if w.name.upper() == "BODY"), wings[0] if wings else None)
     area_ref = body.area if body else 2.0
     cla = sum(w.cl * w.area for w in wings)
@@ -1153,6 +1274,8 @@ def map_physics(car: CarData, *, compound: int | None = None, bounds_m: tuple[fl
         "wings": [{"name": w.name, "angle": w.angle, "cl": round(w.cl, 4), "cd": round(w.cd, 4),
                    "area_m2": round(w.area, 3), "z_m": w.position[2]} for w in wings],
     }
+    if out.aero_speed_map:
+        out.fit["aero"]["speed_map"] = [dict(p) for p in out.aero_speed_map]
     if aero_map:
         out.fit["aero"]["posture_at_reference_m"] = [round(post_f, 4), round(post_r, 4)]
         out.fit["aero"]["map"] = {k: round(v, 5) for k, v in aero_map.items()

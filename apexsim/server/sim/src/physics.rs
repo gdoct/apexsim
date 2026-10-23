@@ -1959,6 +1959,8 @@ fn calculate_aerodynamic_forces(
     // air and the porpoising; exactly 1.0 for a car without an `[aero]`
     // table) and a damaged nose.
     let posture = crate::aero::multipliers_at(config, ride_front_m, ride_rear_m, posture);
+    // Wings that move with the car's speed (exactly 1.0 without a speed map).
+    let by_speed = crate::aero::speed_multipliers(config, state.speed_mps);
     let felt = state.felt_damage();
     let nose = 1.0
         - crate::aero::FRONT_DAMAGE_AERO_LOSS * (felt.front_damage_percent / 100.0).clamp(0.0, 1.0);
@@ -1969,7 +1971,8 @@ fn calculate_aerodynamic_forces(
         * config.frontal_area_m2
         * drag_scale
         * wake.drag
-        * posture.drag;
+        * posture.drag
+        * by_speed.drag;
     let airspeed = airspeed_sq.sqrt();
     let (drag_x, drag_y) = if airspeed > 1e-3 {
         (-drag * along / airspeed, -drag * across / airspeed)
@@ -1981,14 +1984,18 @@ fn calculate_aerodynamic_forces(
     let side = -0.5 * rho * across * across.abs() * SIDE_FORCE_COEFFICIENT * flank;
 
     // Downforce (lift coefficients are negative for downforce)
-    let front_filed =
-        (-config.lift_coefficient_front * config.frontal_area_m2 * posture.downforce_front * nose)
-            .max(0.0);
+    let front_filed = (-config.lift_coefficient_front
+        * config.frontal_area_m2
+        * posture.downforce_front
+        * by_speed.downforce_front
+        * nose)
+        .max(0.0);
     let tail = crate::damage::rear_downforce_factor(&felt);
     let rear_filed = (-config.lift_coefficient_rear
         * config.frontal_area_m2
         * rear_scale
-        * posture.downforce_rear)
+        * posture.downforce_rear
+        * by_speed.downforce_rear)
         .max(0.0);
     let downforce_front = flow_pressure * front_filed * wake.downforce_front;
     let downforce_rear = flow_pressure * rear_filed * tail * wake.downforce_rear;

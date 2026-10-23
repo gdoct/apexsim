@@ -33,6 +33,14 @@
 //! the downforce its car.toml says, so the class lap-time calibration holds,
 //! and it makes more lower down and less higher up. A car without an
 //! `[aero]` table has no sensitivity and makes exactly what it always did.
+//!
+//! A car whose wings move with its speed (an active rear wing that flattens
+//! at the top, a flap that stands up at low speed: an AC import's
+//! `DYNAMIC_CONTROLLER`s) carries a **speed map** ([`speed_multipliers`],
+//! `[[aero.speed_point]]`): multipliers on its front and rear downforce and
+//! its drag by the car's speed, linear between the points and held past
+//! either end, 1.0 at the speed the car.toml's figures were taken at. A car
+//! without one has none.
 //! The racing line plans with the same map at steady state
 //! ([`steady_downforce_factor`]).
 
@@ -60,9 +68,21 @@ pub const FRONT_DAMAGE_AERO_LOSS: f32 = 0.5;
 /// downforce and gets at most this much more.
 const MULTIPLIER_RANGE: (f32, f32) = (0.3, 1.8);
 
+/// One point of a car's speed map ([`speed_multipliers`]): at
+/// `speed_mps`, multipliers on its car.toml front and rear downforce and on
+/// its drag.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SpeedPoint {
+    pub speed_mps: f32,
+    pub downforce_front: f32,
+    pub downforce_rear: f32,
+    pub drag: f32,
+}
+
 /// A car's ride-height aero (`[aero]` in car.toml). All sensitivities zero
 /// is a car whose downforce is a constant, as every car's was.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AeroConfig {
     /// Static ride height at rest, front and rear, m.
     pub ride_height_front_m: f32,
@@ -91,6 +111,10 @@ pub struct AeroConfig {
     pub reference_front_m: f32,
     #[serde(default)]
     pub reference_rear_m: f32,
+    /// Its wings' answer to its speed (`[[aero.speed_point]]`), by rising
+    /// speed; empty for a car whose wings do not move.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub speed_map: Vec<SpeedPoint>,
 }
 
 impl Default for AeroConfig {
@@ -106,6 +130,7 @@ impl Default for AeroConfig {
             porpoising: 0.0,
             reference_front_m: 0.0,
             reference_rear_m: 0.0,
+            speed_map: Vec::new(),
         }
     }
 }
@@ -306,6 +331,39 @@ pub fn multipliers_at(
     }
 }
 
+/// What a car's moving wings make of its car.toml downforce and drag at
+/// `speed_mps` (its speed map, linear between the points, held past either
+/// end); exactly [`AeroMultipliers::ONE`] for a car without one.
+pub fn speed_multipliers(config: &CarConfig, speed_mps: f32) -> AeroMultipliers {
+    let map = &config.aero.speed_map;
+    let (Some(first), Some(last)) = (map.first(), map.last()) else {
+        return AeroMultipliers::ONE;
+    };
+    let at = |p: &SpeedPoint| AeroMultipliers {
+        downforce_front: p.downforce_front,
+        downforce_rear: p.downforce_rear,
+        drag: p.drag,
+    };
+    let v = speed_mps.abs();
+    if v <= first.speed_mps {
+        return at(first);
+    }
+    if v >= last.speed_mps {
+        return at(last);
+    }
+    let i = map
+        .partition_point(|p| p.speed_mps <= v)
+        .clamp(1, map.len() - 1);
+    let (a, b) = (&map[i - 1], &map[i]);
+    let t = (v - a.speed_mps) / (b.speed_mps - a.speed_mps).max(1e-6);
+    let lerp = |x: f32, y: f32| x + (y - x) * t;
+    AeroMultipliers {
+        downforce_front: lerp(a.downforce_front, b.downforce_front),
+        downforce_rear: lerp(a.downforce_rear, b.downforce_rear),
+        drag: lerp(a.drag, b.drag),
+    }
+}
+
 /// The car's clean-air downforce from its car.toml, front and rear, N, at
 /// `speed`.
 fn filed_downforce(config: &CarConfig, speed: f32) -> (f32, f32) {
@@ -336,16 +394,18 @@ pub fn steady_state(config: &CarConfig, speed: f32) -> ((f32, f32), AeroMultipli
 /// The share of its car.toml downforce the car makes at steady `speed`:
 /// what the racing line plans with.
 pub fn steady_downforce_factor(config: &CarConfig, speed: f32) -> f32 {
-    if config.aero.is_constant() {
+    if config.aero.is_constant() && config.aero.speed_map.is_empty() {
         return 1.0;
     }
     let (front0, rear0) = filed_downforce(config, speed.max(1.0));
     let (_, m) = steady_state(config, speed.max(1.0));
+    let s = speed_multipliers(config, speed.max(1.0));
     let total = front0 + rear0;
     if total <= 0.0 {
         return 1.0;
     }
-    (front0 * m.downforce_front + rear0 * m.downforce_rear) / total
+    (front0 * m.downforce_front * s.downforce_front + rear0 * m.downforce_rear * s.downforce_rear)
+        / total
 }
 
 /// Set the map's reference: where the car rides at [`REFERENCE_SPEED_MPS`]
@@ -380,6 +440,32 @@ mod tests {
         };
         fit_reference(&mut car);
         car
+    }
+
+    #[test]
+    fn the_speed_map_is_linear_held_at_its_ends_and_absent_is_one() {
+        let mut car = CarConfig::default();
+        assert_eq!(speed_multipliers(&car, 40.0), AeroMultipliers::ONE);
+        let point = |speed_mps, f, r, d| SpeedPoint {
+            speed_mps,
+            downforce_front: f,
+            downforce_rear: r,
+            drag: d,
+        };
+        car.aero.speed_map = vec![
+            point(10.0, 1.4, 1.2, 1.3),
+            point(50.0, 1.0, 1.0, 1.0),
+            point(70.0, 1.0, 0.8, 0.9),
+        ];
+        assert_eq!(speed_multipliers(&car, 0.0).downforce_front, 1.4);
+        assert_eq!(speed_multipliers(&car, 50.0), AeroMultipliers::ONE);
+        let mid = speed_multipliers(&car, 30.0);
+        assert!((mid.downforce_front - 1.2).abs() < 1e-6 && (mid.drag - 1.15).abs() < 1e-6);
+        assert!((speed_multipliers(&car, 90.0).downforce_rear - 0.8).abs() < 1e-6);
+        // The racing line plans with it, on a car with no ride-height map.
+        assert!(car.aero.is_constant());
+        assert!(steady_downforce_factor(&car, 10.0) > 1.2);
+        assert!(steady_downforce_factor(&car, 80.0) < 1.0);
     }
 
     #[test]

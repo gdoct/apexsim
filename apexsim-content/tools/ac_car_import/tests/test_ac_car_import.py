@@ -1191,6 +1191,49 @@ class AttitudeAndFuelImportTest(unittest.TestCase):
         self.assertIsNone(physics.map_physics(fake_car()).get("fuel", "tank_front_share"))
 
 
+class DynamicAeroImportTest(unittest.TestCase):
+    """A rear wing that stands up at low speed and flattens at the top
+    (`DYNAMIC_CONTROLLER` on `SPEED_KMH`) becomes the server's speed map."""
+
+    AERO = DATA["aero.ini"] + """[DYNAMIC_CONTROLLER_0]
+WING=1
+COMBINATOR=ADD
+INPUT=SPEED_KMH
+LUT=wing_speed.lut
+UP_LIMIT=25
+DOWN_LIMIT=0
+"""
+
+    def test_the_wing_s_angle_by_speed_is_a_map_on_the_downforce_and_drag(self):
+        # 10 degrees more at rest, none at 180 km/h (the reference), 5 fewer at 300.
+        car = fake_car(aero__ini=self.AERO, wing_speed__lut="0|10\n180|0\n300|-5\n")
+        phys = physics.map_physics(car)
+        points = {p["speed_mps"]: p for p in phys.aero_speed_map}
+        self.assertEqual(sorted(points), [0.0, 50.0, 83.33])
+        # At 50 m/s the car.toml's own figures: the wing at its ANGLE.
+        self.assertEqual((points[50.0]["downforce_front"], points[50.0]["downforce_rear"], points[50.0]["drag"]),
+                         (1.0, 1.0, 1.0))
+        self.assertAlmostEqual(phys.get("physics", "lift_coefficient_rear"),
+                               physics.map_physics(fake_car()).get("physics", "lift_coefficient_rear"))
+        # The rear wing on the rear axle, the body 45% on the front: 0.11 +
+        # 0.6 at 10 degrees, 0.11 + 1.0 at 20, 0.11 + 0.4 at 5; drag 0.7 + 0.07.
+        self.assertEqual(points[0.0]["downforce_front"], 1.0)
+        self.assertAlmostEqual(points[0.0]["downforce_rear"], 1.11 / 0.71, places=3)
+        self.assertAlmostEqual(points[0.0]["drag"], 0.82 / 0.77, places=3)
+        self.assertAlmostEqual(points[83.33]["downforce_rear"], 0.51 / 0.71, places=3)
+        self.assertAlmostEqual(points[83.33]["drag"], 0.745 / 0.77, places=3)
+        self.assertNotIn("dynamic", " ".join(phys.warnings))
+
+    def test_other_inputs_are_read_flat_out_and_named(self):
+        aero = self.AERO.replace("INPUT=SPEED_KMH", "INPUT=BRAKE")
+        phys = physics.map_physics(fake_car(aero__ini=aero, wing_speed__lut="0|0\n1|10\n"))
+        self.assertEqual(phys.aero_speed_map, [])
+        self.assertTrue(any("BRAKE" in w for w in phys.warnings))
+
+    def test_a_car_without_controllers_has_no_map(self):
+        self.assertEqual(physics.map_physics(fake_car()).aero_speed_map, [])
+
+
 @unittest.skipUnless(GT3R.is_dir(), "no Assetto Corsa install with the 911 GT3 R on this machine")
 class Porsche911Gt3RTest(unittest.TestCase):
     """The figures docs/ac-import.md quotes for the Kunos 911 GT3 R."""

@@ -399,14 +399,21 @@ balance forward per cm of extra rake, induced drag a quarter of the change.
 - **Porpoising** (`step_porpoising`): within 1.6 stall heights above 50 m/s the downforce
   oscillates at `PORPOISE_HZ` (5), building over 0.6 s to `porpoising x PORPOISE_MAX_SWING`,
   dying in 0.3 s; the reported ride height swings ±15 mm.
+- **Speed map** (`speed_multipliers`, `[[aero.speed_point]]`): wings that move with the
+  car's speed (an AC import's `DYNAMIC_CONTROLLER`s) as multipliers on the front and rear
+  downforce and the drag by the car's ground speed, linear between the points and held past
+  either end, 1.0 at 50 m/s for an import (where its figures are taken). Applied on top of
+  the posture in `calculate_aerodynamic_forces`; no points, exactly 1.0.
 - **Damage**: front up to `FRONT_DAMAGE_AERO_LOSS` (half) of its downforce, rear up to 40%.
-- The racing line uses the steady-state map on a straight car (`steady_downforce_factor`).
+- The racing line uses the steady-state map on a straight car (`steady_downforce_factor`),
+  the speed map's downforce in it; its drag stays the car.toml's.
 - **Setup**: wings 5% of an axle's lift a click; ride heights 2 mm a click, never under 10
   mm (the reference stays the file's); springs move the aero too. No `[aero]`: wings work,
   ride heights do not.
 - car.toml `[aero]`: `ride_height_front_m`, `ride_height_rear_m`, `ride_height_sensitivity`,
-  `rake_sensitivity`, `stall_height_m`, `yaw_sensitivity`, `roll_sensitivity`, `porpoising`.
-  Lift and drag stay in `[physics]` (`lift_coefficient_front/_rear`, `frontal_area_m2`,
+  `rake_sensitivity`, `stall_height_m`, `yaw_sensitivity`, `roll_sensitivity`, `porpoising`;
+  `[[aero.speed_point]]`: `speed_mps` (rising, 0-150), `downforce_front`, `downforce_rear`,
+  `drag` (0.2-3 each). Lift and drag stay in `[physics]` (`lift_coefficient_front/_rear`, `frontal_area_m2`,
   `drag_coefficient`). Shipped: F1 45/90 mm, 3%/cm, porpoising 0.6; Hypercar/LMP2 50/80 mm,
   2%/cm, 0.3; GT3 70/90 mm, 1%/cm, 0.
 - Tests: `server/sim/tests/all/aero_test.rs`, `a_low_floor_porpoises_at_speed_and_a_raised_one_does_not`.

@@ -218,6 +218,10 @@ struct AeroToml {
     roll_sensitivity: Option<f32>,
     #[serde(default)]
     porpoising: Option<f32>,
+    /// The wings' answer to the car's speed (`aero::SpeedPoint`), by
+    /// rising speed; none when absent.
+    #[serde(default)]
+    speed_point: Vec<crate::aero::SpeedPoint>,
 }
 
 /// Optional `[tires]` section: what the one `grip_coefficient` cannot say
@@ -955,7 +959,7 @@ impl CarLoader {
             lift_coefficient_front: car_toml.physics.lift_coefficient_front.unwrap_or(-0.15),
             lift_coefficient_rear: car_toml.physics.lift_coefficient_rear.unwrap_or(-0.20),
             drs,
-            aero: aero_defaults,
+            aero: aero_defaults.clone(),
             brake_material: crate::brakes::BrakeMaterial::Steel,
             brake_duct_scale: 1.0,
             brake_duct_scale_rear: 1.0,
@@ -1137,6 +1141,7 @@ impl CarLoader {
             yaw_sensitivity: aero_toml.yaw_sensitivity.unwrap_or(0.0),
             roll_sensitivity: aero_toml.roll_sensitivity.unwrap_or(0.0),
             porpoising: aero_toml.porpoising.unwrap_or(0.0),
+            speed_map: aero_toml.speed_point.clone(),
             ..aero_defaults
         };
         Self::validate(&config, &path_str)?;
@@ -1387,6 +1392,24 @@ impl CarLoader {
         in_range("aero.yaw_sensitivity", aero.yaw_sensitivity, 0.0, 0.05);
         in_range("aero.roll_sensitivity", aero.roll_sensitivity, 0.0, 0.1);
         in_range("aero.porpoising", aero.porpoising, 0.0, 1.0);
+        // The speed map's points by rising speed, each a sane multiplier.
+        let mut slowest = 0.0;
+        for (i, p) in aero.speed_map.iter().enumerate() {
+            in_range(
+                &format!("aero.speed_point[{i}].speed_mps (rising)"),
+                p.speed_mps,
+                slowest,
+                150.0,
+            );
+            slowest = p.speed_mps + 0.1;
+            for (key, v) in [
+                ("downforce_front", p.downforce_front),
+                ("downforce_rear", p.downforce_rear),
+                ("drag", p.drag),
+            ] {
+                in_range(&format!("aero.speed_point[{i}].{key}"), v, 0.2, 3.0);
+            }
+        }
         let susp = &config.suspension;
         for (name, value) in [
             ("suspension.roll_centre_front_m", susp.roll_centre_front_m),
@@ -2170,6 +2193,18 @@ yaw_sensitivity = 0.005
 roll_sensitivity = 0.01
 porpoising = 0.5
 
+[[aero.speed_point]]
+speed_mps = 10.0
+downforce_front = 1.0
+downforce_rear = 1.3
+drag = 1.2
+
+[[aero.speed_point]]
+speed_mps = 50.0
+downforce_front = 1.0
+downforce_rear = 1.0
+drag = 1.0
+
 [hybrid]
 enabled = true
 battery_capacity_kwh = 1.0
@@ -2205,6 +2240,8 @@ axle = \"front\"
         assert_eq!(config.suspension.bump_stop_gap(true), Some(0.02));
         assert_eq!(config.suspension.bump_stop_gap(false), Some(0.03));
         assert_eq!(config.aero.porpoising, 0.5);
+        assert_eq!(config.aero.speed_map.len(), 2);
+        assert_eq!(config.aero.speed_map[0].downforce_rear, 1.3);
         assert_eq!(config.hybrid.stint_kj, Some(30000.0));
         assert_eq!(config.hybrid.override_kj_per_lap, Some(1500.0));
         assert!(!config.hybrid.brake_by_wire);

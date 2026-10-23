@@ -437,6 +437,21 @@ importer change.
     map (`ride_height_sensitivity`, `rake_sensitivity`, `stall_height_m`);
     DRS reductions from the DRS wing's tables, **0 when there is no DRS
     wing** whatever the class;
+  - a wing `aero.ini`'s `DYNAMIC_CONTROLLER`s move (`wing_controllers`,
+    `controlled_angle`: from its `ANGLE` each LUT added or multiplied in,
+    clamped to `UP_LIMIT` / `DOWN_LIMIT`) is taken at its angle at 50 m/s
+    for the figures above, and `speed_map` writes `[[aero.speed_point]]`:
+    at each speed a `SPEED_KMH` controller's LUT names (to 120 m/s) the
+    car's front and rear Cl x area and its Cd x area over those at 50 m/s,
+    the wings held at their 50 m/s heights, a point its neighbours' line
+    already gives dropped. Controllers on other inputs (`BRAKE`, `GAS`,
+    `STEER`, `LATG`, suspension travel: 20 of the 78 controlled cars in an AC install have one) are read
+    flat out in a straight line (`CRUISE_INPUTS`: full gas, no brake, no
+    steer, no cornering) with a warning, so an air brake or a cornering
+    flap is not carried. The 919's diffuser flap (20 degrees at rest, 2
+    from 110 km/h) and its rear wing (x0.8 past 230 km/h): 0.80 / 0.64 of
+    the downforce and 1.19 of the drag at rest, 0.99 of the rear and 0.95
+    of the drag at 260 km/h;
   - brakes `2 x MAX_TORQUE x (share / r_front + (1 - share) / r_rear)`;
   - `[differential] simulated = true` with `POWER` / `COAST` / `PRELOAD`;
     `awd_front_share` from AC's AWD split;
@@ -592,6 +607,7 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
   porpoising: an import gets the defaults (standard pads, brake-by-wire,
   none).
 - AC's older `kers.ini`, a second ERS motor (one motor per car), and the
-  ERS delivery profiles beyond their minimum speed; aero controllers are
-  read as their authored figures, with a warning.
+  ERS delivery profiles beyond their minimum speed; aero controllers on
+  anything but the speed are read flat out in a straight line, with a
+  warning.
 - `--lod B` exists but is untested.
