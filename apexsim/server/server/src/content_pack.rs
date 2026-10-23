@@ -89,7 +89,10 @@ fn owned_dirs(root: &Path, manifest: &PackManifest) -> Vec<PathBuf> {
         ],
         PackKind::Car => vec![
             server,
-            root.join("Game").join("Cars").join("default").join(&manifest.folder),
+            root.join("Game")
+                .join("Cars")
+                .join("default")
+                .join(&manifest.folder),
         ],
     }
 }
