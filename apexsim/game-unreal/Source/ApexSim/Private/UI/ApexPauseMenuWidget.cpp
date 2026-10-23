@@ -390,7 +390,12 @@ void UApexPauseMenuWidget::OpenLapTraces()
 	const int32 BestIndex = Traces->GetBestIndex();
 	// The last lap against the best; the best against itself says nothing,
 	// so when the last lap is the best, the lap before it is shown.
-	const int32 LapIndex = Laps.Num() > 1 && BestIndex == 0 ? 1 : 0;
+	int32 LapIndex = Laps.Num() > 1 && BestIndex == 0 ? 1 : 0;
+	// LAP is one of the player's own: the record lap is only ever against.
+	while (Laps.IsValidIndex(LapIndex + 1) && Laps[LapIndex].bRecord)
+	{
+		++LapIndex;
+	}
 	const int32 AgainstIndex = BestIndex != INDEX_NONE ? BestIndex : FMath::Min(1, Laps.Num() - 1);
 	auto Time = [](int32 Ms) { return FString::Printf(TEXT("%d:%02d.%03d"), Ms / 60000, (Ms / 1000) % 60, Ms % 1000); };
 	for (UApexStepperWidget* Stepper : LapTraceSteppers)
@@ -403,6 +408,10 @@ void UApexPauseMenuWidget::OpenLapTraces()
 				return FString(TEXT("NO LAP"));
 			}
 			const FApexLapTrace& Lap = Held[Value];
+			if (Lap.bRecord)
+			{
+				return FString::Printf(TEXT("RECORD  %s"), *Time(Lap.LapMs));
+			}
 			return FString::Printf(TEXT("LAP %d  %s%s"), Lap.LapNumber, *Time(Lap.LapMs),
 				Value == Traces->GetBestIndex() ? TEXT("  BEST") : (Lap.bValid ? TEXT("") : TEXT("  INV")));
 		};
@@ -450,6 +459,10 @@ void UApexPauseMenuWidget::ShowPickedLapTraces()
 		// FDateTime::ToString has no month name: "18 OCT 18:41".
 		static const TCHAR* const Months[] = { TEXT("JAN"), TEXT("FEB"), TEXT("MAR"), TEXT("APR"), TEXT("MAY"), TEXT("JUN"),
 			TEXT("JUL"), TEXT("AUG"), TEXT("SEP"), TEXT("OCT"), TEXT("NOV"), TEXT("DEC") };
+		if (Trace.bRecord)
+		{
+			return FString::Printf(TEXT("RECORD  %s  (the circuit's record for the car; no pedals)"), *Time(Trace.LapMs));
+		}
 		const FString When = FString::Printf(TEXT("%d %s %s"), Trace.RecordedAt.GetDay(),
 			Months[FMath::Clamp(Trace.RecordedAt.GetMonth(), 1, 12) - 1], *Trace.RecordedAt.ToString(TEXT("%H:%M")));
 		return FString::Printf(TEXT("LAP %d  %s  %s%s%s"), Trace.LapNumber, *Time(Trace.LapMs), *When,

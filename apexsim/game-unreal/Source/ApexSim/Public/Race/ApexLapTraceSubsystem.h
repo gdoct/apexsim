@@ -51,12 +51,24 @@ public:
 	/** The folder for a circuit and car: Saved/Telemetry/<circuit>/<car>. */
 	static FString FolderFor(const FString& TrackName, const FString& CarId);
 
+	/**
+	 * The circuit's record lap for the car (the server's ghost trace, as a
+	 * hotlap asks for it) joins the end of GetLaps() as RECORD, laid on the
+	 * best lap's distances (`ApexLapTrace::FromGhost`) and laid again as a
+	 * better lap arrives. Public for the tests.
+	 */
+	void SetRecordLap(const FApexGhostLap& Ghost);
+
 	/** Feeds one frame as if it came from the server (tests). */
 	void AddFrameForTest(const FApexTelemetryFrame& Frame, int32 LocalCarIndex, const FString& TrackName, const FString& CarId);
 
 private:
 	UFUNCTION()
 	void HandleTelemetry(const FApexTelemetryFrame& Frame);
+	UFUNCTION()
+	void HandleGhostLap(const FApexGhostLap& Ghost);
+	/** The record's entry in Laps out, then back in laid on the current best. */
+	void RefreshRecord();
 	void Take(const FApexTelemetryFrame& Frame, int32 LocalCarIndex, const FString& TrackName, const FString& CarId);
 	/** A new circuit or car: start over and look for a stored best. */
 	void Begin(const FString& TrackName, const FString& CarId);
@@ -66,6 +78,8 @@ private:
 	FApexLapTrace Previous;
 	FApexLapTrace Best;
 	TArray<FApexLapTrace> Laps;
+	/** The server's record lap for this circuit and car, as it came. */
+	FApexGhostLap RecordGhost;
 	bool bBestStored = false;
 	FString Key;
 	FString Folder;

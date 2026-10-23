@@ -136,8 +136,12 @@ int32 UApexLapTraceWidget::NativePaint(const FPaintArgs& Args, const FGeometry& 
 			BrakeLine.Add(FVector2D(Px, Pedals.Y(S.Brake)));
 		}
 		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, SpeedLine, Colour, Thickness);
-		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, ThrottleLine, Colour, Thickness);
-		LapTraceLine(OutDrawElements, Layer, AllottedGeometry, BrakeLine, BrakeColour, Thickness);
+		// The record lap's trace has no pedals.
+		if (!Trace.bRecord)
+		{
+			LapTraceLine(OutDrawElements, Layer, AllottedGeometry, ThrottleLine, Colour, Thickness);
+			LapTraceLine(OutDrawElements, Layer, AllottedGeometry, BrakeLine, BrakeColour, Thickness);
+		}
 	};
 	Draw(Reference, RefLayer, RefColour, ApexUI::Palette::Error.CopyWithNewOpacity(0.4f), 1.5f);
 	Draw(Lap, LapLayer, LapColour, ApexUI::Palette::Error, 2.0f);

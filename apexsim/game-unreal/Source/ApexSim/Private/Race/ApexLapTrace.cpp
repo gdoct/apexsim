@@ -64,6 +64,72 @@ FApexTraceSample FApexLapTrace::At(float DistanceM) const
 	return LapTraceLerp(A, B, Span > KINDA_SMALL_NUMBER ? (DistanceM - A.DistanceM) / Span : 0.0f);
 }
 
+FApexLapTrace ApexLapTrace::FromGhost(const FApexGhostLap& Ghost, const FApexLapTrace* StationRef)
+{
+	FApexLapTrace Out;
+	Out.TrackId = Ghost.TrackId;
+	Out.CarId = Ghost.CarConfigId;
+	Out.LapMs = Ghost.LapTimeMs;
+	Out.bValid = true;
+	Out.bRecord = true;
+	Out.RecordedAt = FDateTime::Now();
+	if (!Ghost.IsValid())
+	{
+		return Out;
+	}
+	const bool bProject = StationRef && !StationRef->IsEmpty();
+	// How far ahead of the last match the nearest point is looked for: a
+	// tenth of a lap, so a hairpin's other side (close in space, far along
+	// the lap) is never taken.
+	const int32 Window = bProject ? FMath::Max(8, StationRef->Samples.Num() / 10) : 0;
+	int32 Cursor = 0;
+	float PathM = 0.0f;
+	FVector2D Previous(Ghost.Samples[0].Position.X, Ghost.Samples[0].Position.Y);
+	for (const FApexGhostSample& G : Ghost.Samples)
+	{
+		const FVector2D At(G.Position.X, G.Position.Y);
+		PathM += FVector2D::Distance(At, Previous);
+		Previous = At;
+		float Distance = PathM;
+		if (bProject)
+		{
+			const TArray<FApexTraceSample>& Ref = StationRef->Samples;
+			int32 BestIndex = Cursor;
+			double BestSq = TNumericLimits<double>::Max();
+			const int32 Last = FMath::Min(Ref.Num() - 1, Cursor + Window);
+			for (int32 i = Cursor; i <= Last; ++i)
+			{
+				const double Sq = FVector2D::DistSquared(At, FVector2D(Ref[i].X, Ref[i].Y));
+				if (Sq < BestSq)
+				{
+					BestSq = Sq;
+					BestIndex = i;
+				}
+			}
+			Cursor = BestIndex;
+			Distance = Ref[BestIndex].DistanceM;
+		}
+		// Distance only grows: two samples on one reference point keep the order.
+		if (Out.Samples.Num() > 0 && Distance <= Out.Samples.Last().DistanceM)
+		{
+			Distance = Out.Samples.Last().DistanceM + 0.01f;
+		}
+		FApexTraceSample S;
+		S.DistanceM = Distance;
+		S.TimeS = G.TimeMs / 1000.0f;
+		S.SpeedKph = G.SpeedMps * 3.6f;
+		S.Throttle = -1.0f;
+		S.Brake = -1.0f;
+		S.Steering = G.Steering;
+		S.Gear = G.Gear;
+		S.Rpm = G.EngineRpm;
+		S.X = G.Position.X;
+		S.Y = G.Position.Y;
+		Out.Samples.Add(S);
+	}
+	return Out;
+}
+
 FString ApexLapTrace::ToCsv(const FApexLapTrace& Trace)
 {
 	FString Out = FString::Printf(TEXT("# apexsim lap trace 1; track=%s; car=%s; lap=%d; lap_ms=%d; valid=%d; recorded=%s\n"),

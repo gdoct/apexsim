@@ -194,4 +194,77 @@ bool FApexLapTraceHeldLapsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexLapTraceRecordTest, "ApexSim.LapTrace.Record", ApexTestFlags)
+
+bool FApexLapTraceRecordTest::RunTest(const FString& Parameters)
+{
+	// The player's lap: a 1000 m straight along X, a sample every 2 m.
+	FApexLapTrace Own;
+	for (int32 i = 0; i <= 500; ++i)
+	{
+		FApexTraceSample S;
+		S.DistanceM = i * 2.0f;
+		S.X = i * 2.0f;
+		Own.Samples.Add(S);
+	}
+	// The record: the same road a metre and a half to the left, at 50 m/s,
+	// 20 samples a second.
+	FApexGhostLap Ghost;
+	Ghost.LapTimeMs = 20000;
+	for (int32 i = 0; i <= 400; ++i)
+	{
+		FApexGhostSample G;
+		G.TimeMs = i * 50;
+		G.Position = FVector(i * 2.5, 1.5, 0.0);
+		G.SpeedMps = 50.0f;
+		G.Gear = 5;
+		Ghost.Samples.Add(G);
+	}
+	const FApexLapTrace Record = ApexLapTrace::FromGhost(Ghost, &Own);
+	TestTrue(TEXT("a record trace"), Record.bRecord && Record.bValid && Record.LapMs == 20000);
+	TestEqual(TEXT("a sample per ghost sample"), Record.Samples.Num(), Ghost.Samples.Num());
+	TestTrue(TEXT("laid on the player's distances"), FMath::Abs(Record.At(500.0f).TimeS - 10.0f) < 0.1f);
+	TestEqual(TEXT("no pedals"), Record.Samples[10].Throttle, -1.0f);
+	bool bRising = true;
+	for (int32 i = 1; i < Record.Samples.Num(); ++i)
+	{
+		bRising &= Record.Samples[i].DistanceM > Record.Samples[i - 1].DistanceM;
+	}
+	TestTrue(TEXT("distance only grows"), bRising);
+	TestTrue(TEXT("speed in km/h"), FMath::IsNearlyEqual(Record.Samples[5].SpeedKph, 180.0f));
+
+	// With no lap of the player's, its own path length.
+	const FApexLapTrace Alone = ApexLapTrace::FromGhost(Ghost, nullptr);
+	TestTrue(TEXT("path length alone"), FMath::IsNearlyEqual(Alone.LengthM(), 1000.0f, 0.5f));
+
+	// Against a lap at a steady 40 m/s: the record gains a quarter of the time.
+	FApexLapTrace Slow = Own;
+	for (FApexTraceSample& S : Slow.Samples)
+	{
+		S.TimeS = S.DistanceM / 40.0f;
+	}
+	const TArray<FVector2f> Delta = ApexLapTrace::DeltaByDistance(Record, Slow, 100.0f);
+	TestTrue(TEXT("the slow lap loses 5 s by the end"), Delta.Num() > 0 && FMath::Abs(Delta.Last().Y - 5.0f) < 0.2f);
+
+	// In the held list: right after the best, and never the best itself.
+	UGameInstance* GameInstance = NewObject<UGameInstance>();
+	UApexLapTraceSubsystem* Traces = NewObject<UApexLapTraceSubsystem>(GameInstance);
+	ApexLapTraceTest::FDrive Drive;
+	for (int32 Frame = 0; Frame < 60 * 80 && Traces->GetLaps().Num() < 2; ++Frame)
+	{
+		FApexTelemetryFrame Telemetry;
+		Telemetry.Cars.Add(Drive.Step());
+		Traces->AddFrameForTest(Telemetry, 0, TEXT("Test Ring"), TEXT("Test Car"));
+	}
+	const int32 Own2 = Traces->GetLaps().Num();
+	Traces->SetRecordLap(Ghost);
+	const TArray<FApexLapTrace>& Laps = Traces->GetLaps();
+	TestEqual(TEXT("the record joins the list"), Laps.Num(), Own2 + 1);
+	TestTrue(TEXT("right after the best"), Laps.IsValidIndex(Traces->GetBestIndex() + 1) && Laps[Traces->GetBestIndex() + 1].bRecord);
+	TestFalse(TEXT("never the best"), Traces->GetBestIndex() == Laps.Num() - 1);
+	Traces->SetRecordLap(Ghost);
+	TestEqual(TEXT("once"), Traces->GetLaps().Num(), Own2 + 1);
+	return true;
+}
+
 #endif

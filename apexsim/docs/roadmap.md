@@ -39,20 +39,6 @@ None open.
 
 ## P2: depth
 
-### 6. Telemetry logging and lap comparison
-
-Built: every whole lap recorded and saved as CSV, the pause menu's last
-against best by distance ([game/client.md](game/client.md#lap-traces-raceapexlaptraceh-uapexlaptracesubsystem)).
-Left:
-
-- Comparing against the ghost or the hotlap record (the server's
-  `GhostLap` traces are 20 Hz positions only).
-
-Built: the MoTeC i2 export (`scripts/motec_export.py`) and any two held
-laps against each other in the pause menu.
-
-**Check:** the pause menu comparing a lap against the ghost.
-
 ### 7. Championships
 
 The offline season is built (Main menu > Drive > Season,

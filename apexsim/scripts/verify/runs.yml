@@ -7393,3 +7393,31 @@ runs:
       - at: 28
         label: "running on"
         checks: "N13: the cars moving again, smoothly"
+
+  - id: n6-record-trace
+    about: "N6. The record lap (the server's ghost) as RECORD among the lap traces, in a hotlap"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexMode=8
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=10
+      - -ApexView=chase
+      - -ApexOpenPause=240
+    exec:
+      235: ["apexsim.telemetry.Laps"]
+      242: ["apexsim.ui.Click LAP TRACES"]
+      247: ["apexsim.ui.Click + #1"]
+      251: ["apexsim.ui.Click + #1"]
+      255: ["apexsim.ui.Click + #1"]
+    shots:
+      - {at: 245, label: "LAP TRACES", checks: "the last lap against the best"}
+      - {at: 249, label: "AGAINST +1", checks: "N6: stepping AGAINST reaches RECORD"}
+      - {at: 253, label: "AGAINST +2", checks: "N6: RECORD: speed only, no pedal lines; the delta against it"}
+      - {at: 257, label: "AGAINST +3", checks: "N6"}

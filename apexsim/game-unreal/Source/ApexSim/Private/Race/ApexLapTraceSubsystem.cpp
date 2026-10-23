@@ -48,6 +48,7 @@ void UApexLapTraceSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>())
 	{
 		Net->OnTelemetry.AddDynamic(this, &UApexLapTraceSubsystem::HandleTelemetry);
+		Net->OnGhostLap.AddDynamic(this, &UApexLapTraceSubsystem::HandleGhostLap);
 	}
 }
 
@@ -56,8 +57,35 @@ void UApexLapTraceSubsystem::Deinitialize()
 	if (UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>())
 	{
 		Net->OnTelemetry.RemoveDynamic(this, &UApexLapTraceSubsystem::HandleTelemetry);
+		Net->OnGhostLap.RemoveDynamic(this, &UApexLapTraceSubsystem::HandleGhostLap);
 	}
 	Super::Deinitialize();
+}
+
+void UApexLapTraceSubsystem::HandleGhostLap(const FApexGhostLap& Ghost)
+{
+	SetRecordLap(Ghost);
+}
+
+void UApexLapTraceSubsystem::SetRecordLap(const FApexGhostLap& Ghost)
+{
+	RecordGhost = Ghost;
+	RefreshRecord();
+}
+
+void UApexLapTraceSubsystem::RefreshRecord()
+{
+	Laps.RemoveAll([](const FApexLapTrace& Lap) { return Lap.bRecord; });
+	if (!RecordGhost.IsValid())
+	{
+		return;
+	}
+	// Laid on the best lap, else the newest: the player's own line. Listed
+	// right after the best, one step from where AGAINST opens.
+	const FApexLapTrace* Ref = !Best.IsEmpty() ? &Best : (Laps.Num() > 0 ? &Laps[0] : nullptr);
+	FApexLapTrace Record = ApexLapTrace::FromGhost(RecordGhost, Ref);
+	const int32 BestIndex = GetBestIndex();
+	Laps.Insert(MoveTemp(Record), BestIndex != INDEX_NONE ? BestIndex + 1 : Laps.Num());
 }
 
 FString UApexLapTraceSubsystem::FolderFor(const FString& TrackName, const FString& CarId)
@@ -109,6 +137,8 @@ void UApexLapTraceSubsystem::Begin(const FString& TrackName, const FString& CarI
 	Previous = FApexLapTrace();
 	Best = FApexLapTrace();
 	Laps.Reset();
+	// Another circuit or car: the record held is not this one's.
+	RecordGhost = FApexGhostLap();
 	bBestStored = false;
 	Folder = FolderFor(TrackName, CarId);
 	if (!bWriteFiles)
@@ -203,6 +233,7 @@ void UApexLapTraceSubsystem::Take(const FApexTelemetryFrame& Frame, int32 LocalC
 					Lap.bValid ? TEXT("") : TEXT(" (invalid)"), Lap.Samples.Num(), *Path);
 			}
 		}
+		Laps.RemoveAll([](const FApexLapTrace& Held) { return Held.bRecord; });
 		Laps.Insert(Lap, 0);
 		// The list keeps its length: the oldest lap that is not the best goes.
 		if (Laps.Num() > MaxListedLaps + 1)
@@ -210,8 +241,9 @@ void UApexLapTraceSubsystem::Take(const FApexTelemetryFrame& Frame, int32 LocalC
 			const int32 Keep = GetBestIndex();
 			Laps.RemoveAt(Keep == Laps.Num() - 1 ? Laps.Num() - 2 : Laps.Num() - 1);
 		}
-		Previous = MoveTemp(Last);
-		Last = MoveTemp(Lap);
+		Previous = Last;
+		Last = Lap;
+		RefreshRecord();
 		return;
 	}
 }

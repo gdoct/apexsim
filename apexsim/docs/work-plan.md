@@ -46,7 +46,6 @@ takes it up (— : no step, taken opportunistically).
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 3 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
-| N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
@@ -322,13 +321,6 @@ Planned block by block, with the agent's prep and follow-up, in
 
 Not in any backlog before this plan; each is a package in
 [roadmap.md](roadmap.md).
-
-#### N6. Lap comparison: the ghost, any two laps, MoTeC — P3 · 🟢 · S
-Built: every whole lap recorded and saved as CSV, any two held laps against
-each other by distance in the pause menu (seen on 2026-10-18,
-`n6-lap-traces`), and the MoTeC i2 export (`scripts/motec_export.py`, not
-yet opened in i2: verification.md). Left: comparing against the ghost or
-the hotlap record (the server's ghost traces are 20 Hz positions only).
 
 #### N7. Championships and series with points — P2 · 🟡 · M
 **Built 2026-10-23:** the offline season against the AI (calendar, class

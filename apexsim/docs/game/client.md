@@ -781,6 +781,15 @@ Two steppers pick the laps from `GetLaps`: LAP (drawn in the accent
 colour; the last, or the one before when the last is the best) and
 AGAINST (muted; the best), each read out as lap, time and BEST / INV, with
 both laps' times and dates, the gap and the folder above.
+The circuit's record lap for the car joins the list as RECORD, right after
+the best (one step from where AGAINST opens) whenever the server's ghost
+trace arrives (`OnGhostLap`: a hotlap asks for it, and again after a new
+record): `ApexLapTrace::FromGhost` lays each of its 20 Hz positions on the
+nearest point of the player's best lap, searching forward a tenth of a lap
+at a time, so the two are measured along one line (with no lap of the
+player's, its own path length). It has speed, steering, gear and revs but
+no pedals, which the graph leaves out; it is never written to disk, and
+LAP never opens on it. Verify run `n6-record-trace`.
 `apexsim.telemetry.Laps` logs what is held and the lap being recorded.
 
 `scripts/motec_export.py <lap.csv>... [-o out.ld] [--rate 20] [--driver

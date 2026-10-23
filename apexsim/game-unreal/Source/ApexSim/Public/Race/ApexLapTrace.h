@@ -39,6 +39,11 @@ struct APEXSIM_API FApexLapTrace
 	int32 LapMs = 0;
 	/** Inside track limits. */
 	bool bValid = false;
+	/**
+	 * The record lap of the circuit and car, from the server's ghost trace
+	 * (`FromGhost`): no pedals or treads, never written to disk.
+	 */
+	bool bRecord = false;
 	FDateTime RecordedAt;
 	/** In distance order. */
 	TArray<FApexTraceSample> Samples;
@@ -70,6 +75,16 @@ namespace ApexLapTrace
 	 * seconds.
 	 */
 	APEXSIM_API TArray<FVector2f> DeltaByDistance(const FApexLapTrace& Reference, const FApexLapTrace& Lap, float StepM);
+
+	/**
+	 * The server's record lap (`GhostLap`, 20 Hz poses, speed, steering, gear
+	 * and revs) as a trace to compare against. Its distances are the player's
+	 * own: each ghost position is laid on the nearest point of `StationRef`
+	 * (a lap the player drove here), searching forward from the last, so the
+	 * two laps are measured along one line; with no reference lap, the
+	 * ghost's own path length. Pedals and treads are unknown (-1).
+	 */
+	APEXSIM_API FApexLapTrace FromGhost(const FApexGhostLap& Ghost, const FApexLapTrace* StationRef);
 
 	/** `<yyyymmdd-hhmmss>_lap<N>_<m-ss-mmm>[_invalid].csv`. */
 	APEXSIM_API FString FileName(const FApexLapTrace& Trace);
