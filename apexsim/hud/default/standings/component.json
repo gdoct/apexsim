@@ -1,5 +1,5 @@
 // Five rows of the order around the player, each with the compound it runs
-// on, and the session's fastest lap.
+// on, and the session's fastest lap; in qualifying the order by best lap.
 {
   "name": "Standings",
   "region": "bottom-left",
@@ -10,7 +10,7 @@
     "type": "column", "width": 366,
     "children": [
       { "type": "panel", "padding": [16, 9], "background": "surface_hover",
-        "children": [{ "type": "label", "text": "Standings" }] },
+        "children": [{ "type": "label", "text": "=race.qualifying_order ? 'Qualifying' : 'Standings'" }] },
 
       // One row per car, five at most, scrolled so the player sits in the
       // middle: in eleventh place the leaders are not who you are racing.
@@ -52,8 +52,10 @@
             // The leader's cell carries a lap time; everyone else's the gap to
             // them. A gap means nothing once a car has taken the flag, once
             // it is out, or for a car the qualifying cut-off left out (DNQ).
+            // In qualifying the order is by best lap: pole's time, the
+            // others' gaps to it, NO TIME for a car without one.
             { "type": "text", "margin": [10, 0, 0, 0], "font": "mono", "size": 13,
-              "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : item.finished ? 'FINISHED' : item.position == 1 ? (has(item.best_lap_s) ? fmt_time(item.best_lap_s) : 'LEADER') : fmt_gap(item.gap_leader_s)",
+              "text": "=item.retired ? 'OUT' : item.dnq ? 'DNQ' : (race.qualifying_order && !has(item.best_lap_s)) ? 'NO TIME' : item.finished ? 'FINISHED' : item.position == 1 ? (has(item.best_lap_s) ? fmt_time(item.best_lap_s) : 'LEADER') : fmt_gap(item.gap_leader_s)",
               "color": "=item.is_local ? 'on_accent' : item.retired ? 'error' : item.dnq ? 'text_muted' : 'text_secondary'" }
           ]
         }]

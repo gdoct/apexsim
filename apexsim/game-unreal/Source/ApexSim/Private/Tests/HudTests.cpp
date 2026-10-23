@@ -1209,6 +1209,66 @@ bool FApexHudDataStintTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataQualifyingOrderTest, "ApexSim.Hud.Data.QualifyingOrder", ApexTestFlags)
+
+bool FApexHudDataQualifyingOrderTest::RunTest(const FString& Parameters)
+{
+	// Three cars in qualifying: the local car (0) on 1:32.000, car 1 on
+	// 1:31.500 (the timing board's), car 2 furthest round the lap but with
+	// no time yet.
+	FApexTelemetryFrame Frame;
+	Frame.GameMode = EApexGameMode::Qualification;
+	Frame.Cars.Add(HudCar(0, 3, 100.0f, 50.0f));
+	Frame.Cars.Add(HudCar(1, 2, 900.0f, 50.0f));
+	Frame.Cars.Add(HudCar(2, 4, 500.0f, 50.0f));
+	Frame.Cars[0].BestLapTimeMs = 92000;
+	Frame.Cars[1].BestLapTimeMs = 93000;
+	FApexTimingBoard Timing;
+	Timing.Cars.Add(1).BestLapMs = 91500;
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.Timing = &Timing;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Qualification;
+	In.TrackLengthM = 1000.0f;
+	In.TimeSeconds = 1.0;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("qualifying's order"), HudValue(Data, TEXT("race.qualifying_order")).AsBool());
+	const TArray<FApexHudRecord>* Standings = Data.FindList(TEXT("standings"));
+	if (!TestTrue(TEXT("three rows"), Standings && Standings->Num() == 3))
+	{
+		return false;
+	}
+	auto Field = [&](int32 Row, const TCHAR* Name) -> FApexHudValue
+	{
+		const FApexHudValue* Value = (*Standings)[Row].Find(FName(Name));
+		return Value ? *Value : FApexHudValue();
+	};
+	TestEqual(TEXT("pole: the board's best"), static_cast<int32>(FMath::RoundToInt(Field(0, TEXT("car_index")).AsNumber())), 1);
+	TestEqual(TEXT("then the local car"), static_cast<int32>(FMath::RoundToInt(Field(1, TEXT("car_index")).AsNumber())), 0);
+	TestEqual(TEXT("no time last, however far round"), static_cast<int32>(FMath::RoundToInt(Field(2, TEXT("car_index")).AsNumber())), 2);
+	TestTrue(TEXT("pole has no gap"), Field(0, TEXT("gap_leader_s")).IsNone());
+	TestEqual(TEXT("half a second to pole"), Field(1, TEXT("gap_leader_s")).AsNumber(), 0.5, 0.0001);
+	TestEqual(TEXT("and to the car ahead"), Field(1, TEXT("interval_s")).AsNumber(), 0.5, 0.0001);
+	TestTrue(TEXT("no time, no gap"), Field(2, TEXT("gap_leader_s")).IsNone());
+	TestEqual(TEXT("the local car's place"), HudValue(Data, TEXT("race.position")).AsNumber(), 2.0);
+	TestEqual(TEXT("the gap ahead in lap time"), HudValue(Data, TEXT("gap.ahead_s")).AsNumber(), 0.5, 0.0001);
+	TestTrue(TEXT("nobody timed behind"), HudValue(Data, TEXT("gap.behind_s")).IsNone());
+
+	// The race orders by the road again.
+	In.GameMode = EApexGameMode::Race;
+	Frame.GameMode = EApexGameMode::Race;
+	In.TimeSeconds = 2.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestFalse(TEXT("not qualifying"), HudValue(Data, TEXT("race.qualifying_order")).AsBool());
+	Standings = Data.FindList(TEXT("standings"));
+	TestEqual(TEXT("furthest round leads the race"), static_cast<int32>(FMath::RoundToInt((*Standings)[0].Find(TEXT("car_index"))->AsNumber())), 2);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataRadarTest, "ApexSim.Hud.Data.Radar", ApexTestFlags)
 
 bool FApexHudDataRadarTest::RunTest(const FString& Parameters)

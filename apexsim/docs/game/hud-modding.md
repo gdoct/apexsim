@@ -404,13 +404,18 @@ then; `standings`, `race_state`, `track_info`, `status` and `mirror` hide.
 
 The order, the places and every gap here and in `standings` are taken at
 most twice a second and held in between, so two cars side by side do not
-swap places on screen every frame.
+swap places on screen every frame. In qualifying (`race.qualifying_order`)
+they are a timing sheet's instead, taken every frame: the order is by best
+lap (the timing board's for this session or weekend round, else
+telemetry's), the cars with no time behind in car order, and every gap is
+best laps apart (*null* while either car has no time).
 
 | Name | Meaning |
 |---|---|
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
 | `race.class`, `race.class_position`, `race.class_car_count` | the local car's catalog class as the menus show it, its place among the cars of that class, and how many there are (the overall figures in a field of one class; *null* without a car or, for the class, without a known one) |
+| `race.qualifying_order` | the session is in qualifying: the order, the places and the gaps are by best lap, not track position (the default standings then head QUALIFYING and read NO TIME for a car without one) |
 | `race.multi_class` | two or more classes are on the road: a multi-class race ([sessions.md](../server/sessions.md#multi-class-racing)); the default standings then tag each row with its class and class place |
 | `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
 | `race.finished` | the session is over (the flag is out and every car is in, or the finish deadline passed) |
@@ -593,7 +598,7 @@ draws them. See [pit lane](../server/pit-lane.md).
 Read with a `repeat`; each row's fields are `item.<field>`.
 
 **`standings`**: every car, leader first (finishers in classified order, then
-the furthest round).
+the furthest round; in qualifying by best lap, see `race.qualifying_order`).
 
 | Field | Meaning |
 |---|---|
@@ -614,7 +619,7 @@ the furthest round).
 | `item.blue_flag` | race control shows the car the blue flag (a car a lap up close behind) |
 | `item.yellow` | the yellow ahead of the car, as `flag.yellow` |
 | `item.lap` | lap, as `lap.display` |
-| `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown) |
+| `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown); in qualifying the best lap's gap to pole |
 | `item.interval_s` | seconds behind the car one place ahead (*null* as above) |
 | `item.laps_down` | whole laps behind the leader |
 | `item.gap_s` | seconds behind the local car (negative: ahead) |

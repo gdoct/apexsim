@@ -7736,3 +7736,27 @@ runs:
       - {at: 12, label: "garage before the run", checks: "every stepper live, no PARC FERMÉ"}
       - {at: 230, label: "back in after the run: Suspension", checks: "springs, dampers, bars greyed; PARC FERMÉ: SETUP HELD", exec: "apexsim.hotlap.Tab 1"}
       - {at: 236, label: "the Tyres tab", checks: "pressures and compound still live", exec: "apexsim.hotlap.Tab 0"}
+
+  # Qualifying against three AI: the standings panel is a timing sheet, by
+  # best lap with gaps to pole, NO TIME for a car still on its outlap.
+  - id: r4c-qualifying-hud
+    about: "R4. The qualifying HUD: the order by best lap, not track position"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexMode=6
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=15
+    exec:
+      60: ["apexsim.hud.Data race."]
+      150: ["apexsim.hud.Data race."]
+    shots:
+      - {at: 45, label: "outlaps", checks: "QUALIFYING heads the panel; NO TIME on every row"}
+      - {at: 150, label: "first timed laps in", checks: "rows by best lap: pole's time, the others' +gaps, untimed cars last"}
+      - {at: 240, label: "later", checks: "the order follows the best laps, not who is ahead on the road; Ahead/Behind gaps in lap time"}

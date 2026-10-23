@@ -817,12 +817,40 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		return A.Car->CarIndex < B.Car->CarIndex;
 	});
 
+	// Each car's best lap: the timing board's (this session's, or this
+	// weekend round's), else telemetry's.
+	auto BestLapMsOf = [&Timing](const FApexCarTelemetry& Car)
+	{
+		const FApexCarTiming* CarTiming = Timing.Find(Car.CarIndex);
+		return CarTiming && CarTiming->BestLapMs > 0 ? CarTiming->BestLapMs : Car.BestLapTimeMs;
+	};
+	// Qualifying is a timing sheet, not a race: the order is by best lap,
+	// the cars with no time behind in car order, and the gaps are lap times'.
+	const bool bQualifyingOrder = In.GameMode == EApexGameMode::Qualification;
+	if (bQualifyingOrder)
+	{
+		Order.Sort([&BestLapMsOf](const FHudStanding& A, const FHudStanding& B)
+		{
+			const int32 BestA = BestLapMsOf(*A.Car);
+			const int32 BestB = BestLapMsOf(*B.Car);
+			if ((BestA > 0) != (BestB > 0))
+			{
+				return BestA > 0;
+			}
+			if (BestA != BestB)
+			{
+				return BestA < BestB;
+			}
+			return A.Car->CarIndex < B.Car->CarIndex;
+		});
+	}
+
 	// Two cars side by side swap places on the road every few frames, and
 	// every place, gap and lit row flickered with them: the order and the
 	// distances the gaps are read from are taken at most twice a second and
 	// held in between. A change in the field, a clock that ran back (a replay
 	// seek) or no race clock at all takes them at once.
-	bool bTakeOrder = In.TimeSeconds <= 0.0 || Memory.StandingsTakenAt < 0.0
+	bool bTakeOrder = bQualifyingOrder || In.TimeSeconds <= 0.0 || Memory.StandingsTakenAt < 0.0
 		|| In.TimeSeconds < Memory.StandingsTakenAt
 		|| In.TimeSeconds - Memory.StandingsTakenAt >= HudStandingsRefreshSeconds
 		|| Memory.Standings.Num() != Order.Num();
@@ -896,7 +924,6 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	{
 		const FHudStanding& Entry = Order[Place];
 		const FApexCarTelemetry& Car = *Entry.Car;
-		const FApexCarTiming* CarTiming = Timing.Find(Car.CarIndex);
 		FApexHudRecord& Row = Standings.AddDefaulted_GetRef();
 		Row.Add(TEXT("position"), FApexHudValue::Of(Place + 1));
 		Row.Add(TEXT("class"), ClassOfPlace[Place].IsEmpty() ? FApexHudValue() : FApexHudValue::Of(ApexCatalog::DisplayClass(ClassOfPlace[Place])));
@@ -908,23 +935,39 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Row.Add(TEXT("finished"), FApexHudValue::Of(Car.FinishPosition > 0));
 		Row.Add(TEXT("finish_position"), FApexHudValue::Of(Car.FinishPosition));
 		Row.Add(TEXT("lap"), FApexHudValue::Of(ApexRace::DisplayLap(Car.CurrentLap, In.LapLimit)));
-		// Gaps are a time, not a distance: how long the car behind would take,
-		// at its current speed, to cover the ground between them.
-		Row.Add(TEXT("gap_leader_s"), bLengthKnown && Place > 0
-			? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / Entry.Speed)
-			: FApexHudValue());
-		Row.Add(TEXT("gap_s"), bLengthKnown && LocalPlace >= 0
-			? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / Order[LocalPlace].Speed)
-			: FApexHudValue());
-		// The car directly ahead on the road of the order, the way a timing
-		// tower reads: the leader has none.
-		Row.Add(TEXT("interval_s"), bLengthKnown && Place > 0
-			? FApexHudValue::Of((Order[Place - 1].Progress - Entry.Progress) / Entry.Speed)
-			: FApexHudValue());
-		Row.Add(TEXT("laps_down"), FApexHudValue::Of(bLengthKnown && Place > 0 && Car.FinishPosition <= 0
-			? FMath::Max(0, FMath::FloorToInt((Order[0].Progress - Entry.Progress) / In.TrackLengthM))
-			: 0));
-		const int32 BestMs = CarTiming && CarTiming->BestLapMs > 0 ? CarTiming->BestLapMs : Car.BestLapTimeMs;
+		const int32 BestMs = BestLapMsOf(Car);
+		if (bQualifyingOrder)
+		{
+			// Qualifying's gaps are best laps': to pole, to the local car's,
+			// to the car one place up; none for a car without a time.
+			auto LapGap = [BestMs](int32 OtherMs)
+			{
+				return BestMs > 0 && OtherMs > 0 ? FApexHudValue::Of((BestMs - OtherMs) / 1000.0) : FApexHudValue();
+			};
+			Row.Add(TEXT("gap_leader_s"), Place > 0 ? LapGap(BestLapMsOf(*Order[0].Car)) : FApexHudValue());
+			Row.Add(TEXT("gap_s"), LocalPlace >= 0 ? LapGap(BestLapMsOf(*Order[LocalPlace].Car)) : FApexHudValue());
+			Row.Add(TEXT("interval_s"), Place > 0 ? LapGap(BestLapMsOf(*Order[Place - 1].Car)) : FApexHudValue());
+			Row.Add(TEXT("laps_down"), FApexHudValue::Of(0));
+		}
+		else
+		{
+			// Gaps are a time, not a distance: how long the car behind would
+			// take, at its current speed, to cover the ground between them.
+			Row.Add(TEXT("gap_leader_s"), bLengthKnown && Place > 0
+				? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / Entry.Speed)
+				: FApexHudValue());
+			Row.Add(TEXT("gap_s"), bLengthKnown && LocalPlace >= 0
+				? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / Order[LocalPlace].Speed)
+				: FApexHudValue());
+			// The car directly ahead on the road of the order, the way a
+			// timing tower reads: the leader has none.
+			Row.Add(TEXT("interval_s"), bLengthKnown && Place > 0
+				? FApexHudValue::Of((Order[Place - 1].Progress - Entry.Progress) / Entry.Speed)
+				: FApexHudValue());
+			Row.Add(TEXT("laps_down"), FApexHudValue::Of(bLengthKnown && Place > 0 && Car.FinishPosition <= 0
+				? FMath::Max(0, FMath::FloorToInt((Order[0].Progress - Entry.Progress) / In.TrackLengthM))
+				: 0));
+		}
 		Row.Add(TEXT("best_lap_s"), HudSeconds(BestMs));
 		Row.Add(TEXT("last_lap_s"), HudSeconds(Car.LastLapTimeMs));
 		Row.Add(TEXT("last_lap_invalid"), FApexHudValue::Of(Car.LastLapTimeMs > 0 && Car.bLastLapInvalid));
@@ -979,6 +1022,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		? FApexHudValue::Of(ApexCatalog::DisplayClass(ClassOfPlace[LocalPlace]))
 		: FApexHudValue();
 	Out.Set(TEXT("race.multi_class"), bMultiClass);
+	Out.Set(TEXT("race.qualifying_order"), bQualifyingOrder);
 	// The race's lap is the leader's, whoever the HUD is about.
 	Out.Set(TEXT("race.leader_lap"), Order.Num() > 0
 		? FApexHudValue::Of(ApexRace::DisplayLap(Order[0].Car->CurrentLap, In.LapLimit))
@@ -989,7 +1033,17 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		const bool bThere = LocalPlace >= 0 && Order.IsValidIndex(OtherPlace);
 		Out.Values.FindOrAdd(FName(FString(Prefix) + TEXT("_name"))) = bThere ? FApexHudValue::Of(Order[OtherPlace].Name) : FApexHudValue();
 		FApexHudValue Gap;
-		if (bThere && bLengthKnown)
+		if (bThere && bQualifyingOrder)
+		{
+			// Best laps apart; none while either has no time.
+			const int32 Mine = BestLapMsOf(*Order[LocalPlace].Car);
+			const int32 Theirs = BestLapMsOf(*Order[OtherPlace].Car);
+			if (Mine > 0 && Theirs > 0)
+			{
+				Gap = FApexHudValue::Of(FMath::Abs(Theirs - Mine) / 1000.0);
+			}
+		}
+		else if (bThere && bLengthKnown)
 		{
 			Gap = FApexHudValue::Of(FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) / Order[LocalPlace].Speed);
 		}
