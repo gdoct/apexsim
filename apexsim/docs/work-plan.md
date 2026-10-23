@@ -35,7 +35,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
-| R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
+| R3 | Race events across days (schedule, AI identities, results record; identity and persistence built) | Race rules (epic) | P2 | 🟡 | L | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | N11 | Livery editor; own liveries seen online (import built) | Content | P2 | 🟡 | M | 4 |
@@ -158,16 +158,22 @@ Bundle by module, each judged by the survey:
 #### R3. Race events across days — P2 · 🟡 · L (epic)
 *Source: simulation-gaps, race weekends.*
 
-**What:** A weekend lives only as one in-memory session. No event entity, no
-persistence across restarts, no schedule, no AI identities, no combined
-results record. Drivers are known across connections (built 2026-10-23:
-each profile's id, proved by its Ed25519 key, `driver_keys.rs`).
+**What:** An event keeps a weekend across restarts (built 2026-10-23:
+`events.rs`, `records/events/<id>.json`, run from the dashboard's API;
+[sessions](server/sessions.md#events-across-restarts)). No schedule, no
+AI identities of the event's own, no combined results record shown to
+players, no dashboard page or client view of an event. Drivers are known
+across connections (each profile's id, proved by its Ed25519 key,
+`driver_keys.rs`).
 **Outcome:** Real league-style weekends: practice Friday, qualifying
 Saturday, race Sunday, same drivers, results kept.
 **Implementation, in phases:**
 1. *Stable driver identity*: built (a key per profile, trust on first use
    per server).
-2. *Event entity + persistence*, car and livery fixed per event beside `records/` with deterministic ids.
+2. *Event entity + persistence*: built (entries by proved id with car and
+   livery fixed, phases and results, resumed at the next phase after a
+   restart). Left: an Events view on the dashboard page, and the client
+   told it is in an event (it sees a hosted weekend).
 3. *Schedule*: sessions open and start on time, lobby view and countdown,
    late joiners from the pit lane.
 4. *AI entries* with fixed identities and levels across days.

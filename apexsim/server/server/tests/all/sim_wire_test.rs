@@ -355,3 +355,32 @@ fn a_weekend_day_bakes_its_own_sky() {
     assert_eq!(game_session.track_config.track_surface.base_grip, dry);
     assert!(!game_session.track_config.track_surface.wet);
 }
+
+/// A weekend resumed in a fresh session (an event after a restart) goes
+/// from its lobby straight to the phase it is at: Q1 for qualifying, the
+/// race's grid for the race, the phases before skipped.
+#[test]
+fn a_resumed_weekend_skips_the_phases_already_run() {
+    use apexsim_server::weekend::WeekendPhase;
+    let (mut game_session, _) = weekend_of(2, 600, &[600, 600]);
+    game_session.resume_weekend(WeekendPhase::Qualifying);
+    game_session.advance_weekend().unwrap();
+    assert_eq!(game_session.session.game_mode, GameMode::Qualification);
+    assert_eq!(game_session.weekend_state().unwrap().round, 1);
+
+    let (mut game_session, _) = weekend_of(2, 600, &[600]);
+    game_session.resume_weekend(WeekendPhase::Race);
+    game_session.advance_weekend().unwrap();
+    assert!(matches!(
+        game_session.session.game_mode,
+        GameMode::Grid | GameMode::Countdown
+    ));
+    assert_eq!(game_session.weekend_progress().phase, WeekendPhase::Race);
+    assert_eq!(game_session.advance_weekend(), Err("The race has begun"));
+
+    // Resuming at practice is a weekend from its start.
+    let (mut game_session, _) = weekend_of(2, 600, &[600]);
+    game_session.resume_weekend(WeekendPhase::Practice);
+    game_session.advance_weekend().unwrap();
+    assert_eq!(game_session.session.game_mode, GameMode::Practice);
+}

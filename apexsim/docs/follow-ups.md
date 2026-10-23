@@ -68,6 +68,21 @@ The ghost, the hotlap replay and watch.
 **Check:** a hotlap with ghost and replay; a server restart between two
 watches.
 
+### 33. Race events on the dashboard and in the game
+
+The event entity (`events.rs`) is run from the dashboard's API only.
+
+- The dashboard page has no Events view: create, open, start, advance,
+  close and the entry list are `curl` against `/api/events` (operations.md).
+- The client is not told a session is an event's: it shows a hosted
+  weekend, a resumed one at its lobby (`WeekendState.Phase` 0) though
+  practice and qualifying are done, and a refused join or livery is a bare
+  `Error 403`. Needs a wire field (an event name and phase in
+  `SessionJoined`), so it waits for the client work of R3.
+
+**Check:** an event created, entered and run through a restart from the
+page alone; the client's lobby names the event and its phase.
+
 ### 6. Circuit dressing
 
 Prop-kit and `ats-dress` work on circuits and pieces that are built. Laid by

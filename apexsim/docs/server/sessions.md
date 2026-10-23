@@ -5,7 +5,8 @@ server as a `GameSession`. This doc covers session kinds, states and game
 modes, the rules a host sets on create, the race's grid before the
 countdown, race start and finish (over laps or against a clock), starting order and qualifying (timed, open-ended or a
 one-lap shoot-out, with an optional lap allowance), the race weekend (practice,
-knockout qualifying and the race in one session), lap timing and records,
+knockout qualifying and the race in one session), events kept across
+server restarts, lap timing and records,
 recovering a stuck car, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
 belong to these rules are described briefly beside them.
@@ -27,7 +28,9 @@ belong to these rules are described briefly beside them.
   `begin_phase_damage`), the watched hotlap
   (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
 - `server/sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
-  `WeekendProgress`
+  `WeekendProgress`; `GameSession::resume_weekend`
+- `server/server/src/events.rs`: events kept across restarts (`Event`,
+  `EventStore`, `finished_phase`, `open_session`, `run_once`)
 - `server/server/src/server.rs`: `ServerState::create_session` (resolves the
   conditions, clamps the rules, seeds the AI)
 - `server/server/src/game_loop/dispatch.rs`: message handlers; a watch-only kind
@@ -1190,6 +1193,67 @@ for the rest, enabled only when `Finished`). The HUD's `session.mode` is
 `timed_practice` in practice, which binds to the hotlap/qualifying layout.
 `-ApexWeekend=P,R,M` runs one from an auto race.
 
+## Events across restarts
+
+An **event** is a race weekend that outlives its session and the server:
+a hosted weekend (`admin::hosted::HostedSpec`: track, the AI's class and
+level, lengths, sky, damage, rules) with a name, an entry list, the phase
+it is at and each finished phase's results (`server/server/src/events.rs`).
+The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
+
+- **Kept** in `<records>/events/<id>.json` (`EventStore`), written on every
+  change (atomic: a `.tmp` renamed over the file). The id is the slug of
+  the name (`events::slug`: "Autumn Cup" is `autumn-cup`, a second
+  "Autumn cup" `autumn-cup-2`), so the same names make the same files; no
+  random id is stored. A file that does not read is logged and left alone.
+- **Phases** (`EventPhase`): `practice` (when the weekend has practice),
+  `qualifying` (every knockout round together, as one day), `race`, then
+  `done`. A spec with no weekend is a race alone.
+- **Entries** (`EventEntry { driver_id, name, car_id, livery }`) are drivers
+  by a **proved driver id**: the connection sent the profile's key and its
+  proof checked out ([protocol.md](protocol.md#connection-flow), the id
+  bound in `drivers.json`). `EventStore::admit`, from `JoinSession` before
+  the lobby seats anyone: no proved id is `Error 403` ("This event takes
+  drivers by their proved driver id"); an entered driver is seated in their
+  entry's car and livery whatever they picked; a driver not entered is
+  entered with the car and livery they join with while `entries_open` and
+  fewer than `spec.player_slots` are entered, else `Error 403` ("Not
+  entered in this event", "This event's entry list is full"). `SetLivery`
+  in an event's session is `Error 403` ("The livery is fixed for this
+  event"). Spectators are always taken.
+- **Results** (`PhaseResult { phase, finished_at, lines }`, from
+  `events::finished_phase`): practice by best lap (no time behind, by grid
+  slot); qualifying as the grid it set (the final round's order, then the
+  knocked-out cars by slot, each with its round's lap and
+  `knocked_out_in`); the race its classification (`GameSession::classification`:
+  laps, best lap, race time, status). Each line names a human by
+  `driver_id` and an AI car by `ai`, its 1-based place in the seating
+  order (what `@ai:N` names). A phase counts once the session is
+  `Finished` in it (qualifying: the final round ranked); recorded by the
+  event runner and by every advance (`hosted::advance` records before it
+  moves on), and then the event is at its next phase. The race recorded,
+  the event is `done` and no longer opened.
+- **The session.** While `opened` the server keeps one hosted session for
+  the event (`events::open_session`; the lobby lists it under the event's
+  name): the runner (`events::run_once`, every second while the server is
+  healthy, started by `run_server_from` whether or not the dashboard is on)
+  records what it has finished and opens a session for any opened event
+  that has none: after a restart, every one. A session opened for an event
+  at `qualifying` or `race` skips the phases before
+  (`GameSession::resume_weekend`, `WeekendProgress::resume_at`: the lobby's
+  advance goes to Q1, or to the race's grid or countdown), and at `race`
+  grids from the stored qualifying: its lines as `@driver:` / `@ai:` / name
+  references in `grid_order` (`Event::race_grid_refs`), so a driver who is
+  not back leaves their slot empty, as anywhere. The runner reads the
+  session under the server lock and hands the resume data in; nothing in
+  the simulation reads the event.
+- **A phase under way when the server stops is run again** from its start
+  (qualifying from Q1): only finished phases are kept. Ending an event's
+  session (STOP) ends this sitting; the runner opens it again at its phase.
+  RESTART is refused for an event's session.
+- The AI field is dealt again in each session from the spec: `@ai:N` names
+  the Nth AI car seated, whose driver may be another after a restart.
+
 ## Lap timing, track limits and records
 
 The stopwatch is the server's. The lap counter lives in
@@ -1502,6 +1566,9 @@ SURVEY_CLASSES=LMP2:6,GT3:6 SURVEY_TRACKS=Snorisring cargo test --release --test
 cd ../server
 cargo test --test all sim_wire_test::               # the yellows at Monza on telemetry; a weekend day's own sky
 cargo test --test all weekend_test::                # a weekend from the lobby to the race over the wire
+cargo test --test all event_test::                  # an event's practice and qualifying, a restart, its race gridded from them
+cargo test --test all sim_wire_test::a_resumed      # a resumed weekend skips the phases run
+cargo test --lib events                             # ids, entries, the event file, the grid from stored qualifying
 cargo test --test all shootout_test::               # a shoot-out run at the Norisring, order and classification; over the wire
 cargo test --test all race_flow_test::              # incl. test_timed_race_flow_to_the_flag_monza
 cargo test --test all session_conditions_test::     # rules echoed and enforced end to end

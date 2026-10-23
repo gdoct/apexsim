@@ -113,6 +113,8 @@ pub struct AdminHandle {
 
 pub struct AdminInputs {
     pub settings: AdminSettings,
+    /// The sessions the server hosts (shared with the event runner).
+    pub hosted: Arc<hosted::HostedSessions>,
     pub state: Arc<RwLock<ServerState>>,
     pub transport: Arc<RwLock<TransportLayer>>,
     pub metrics: Arc<ServerMetrics>,
@@ -164,7 +166,7 @@ pub async fn start(inputs: AdminInputs) -> Result<Option<AdminHandle>, Box<dyn s
             telemetry_divisor: st.config.network.telemetry_divisor.max(1) as u64,
         })
     };
-    let hosted = Arc::new(hosted::HostedSessions::default());
+    let hosted = Arc::clone(&inputs.hosted);
     let schedule = Arc::new(schedule::Schedule::open(&settings.schedule_file));
     schedule::spawn(
         Arc::clone(&schedule),

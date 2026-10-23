@@ -300,9 +300,13 @@ pub(crate) async fn start(ctx: &GameLoopCtx, id: SessionId) -> Result<&'static s
 /// (`GameSession::advance_weekend`).
 pub(crate) async fn advance(ctx: &GameLoopCtx, id: SessionId) -> Result<&'static str, String> {
     let mut st = ctx.state.write().await;
+    let events = std::sync::Arc::clone(&st.events);
     let Some(gs) = st.sessions.get_mut(&id) else {
         return Err("no such session".into());
     };
+    // An event keeps the phase just finished before the next one begins.
+    gs.settle_weekend();
+    events.note_finished(id, gs, super::schedule::unix_now());
     gs.advance_weekend().map_err(str::to_string)?;
     let mode = gs.session.game_mode;
     let players = audience(&st, id).await;
@@ -405,6 +409,9 @@ pub(crate) async fn restart(
     let Some(spec) = hosted.spec(id) else {
         return Err("only a session the server hosts can be restarted".into());
     };
+    if ctx.state.read().await.events.event_of_session(id).is_some() {
+        return Err("an event's session: STOP it and the event opens it again at its phase".into());
+    }
     let (drivers, spectators) = {
         let st = ctx.state.read().await;
         let drivers: Vec<PlayerId> = st

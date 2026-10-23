@@ -49,6 +49,9 @@ pub struct ServerState {
     pub disabled_content: std::collections::BTreeSet<uuid::Uuid>,
     /// Chat's rate limit and the operator's mutes (`crate::chat`).
     pub chat: crate::chat::ChatGuard,
+    /// Race events kept across restarts (`crate::events`), in
+    /// `<records>/events`.
+    pub events: Arc<crate::events::EventStore>,
 }
 
 impl ServerState {
@@ -112,6 +115,13 @@ impl ServerState {
         let replay_dir = std::path::PathBuf::from(&config.records.replay_dir);
 
         let disabled_content = crate::admin::content::load_disabled(&config.admin.content_file);
+        let events = if config.records.enabled {
+            crate::events::EventStore::open(
+                Path::new(&config.records.dir).join(crate::events::EVENTS_DIR),
+            )
+        } else {
+            crate::events::EventStore::in_memory()
+        };
 
         Self {
             showcase,
@@ -129,6 +139,7 @@ impl ServerState {
             streams: HashMap::new(),
             live: crate::session_stream::LiveWatchers::default(),
             records: Arc::new(records),
+            events: Arc::new(events),
         }
     }
 
@@ -555,7 +566,22 @@ pub async fn run_server_from(
     health_state.set_ready(true).await;
 
     let restart = Arc::new(tokio::sync::Notify::new());
+    // The sessions the server hosts itself: the dashboard's, the schedule's
+    // and the events'.
+    let hosted = Arc::new(crate::admin::hosted::HostedSessions::default());
+    {
+        let events = Arc::clone(&state.read().await.events);
+        let ctx = Arc::new(crate::game_loop::GameLoopCtx {
+            state: Arc::clone(&state),
+            transport: Arc::clone(&transport),
+            metrics: Arc::clone(&metrics),
+            tick_rate: config.server.tick_rate_hz,
+            telemetry_divisor: config.network.telemetry_divisor.max(1) as u64,
+        });
+        crate::events::spawn(events, ctx, Arc::clone(&hosted), health_state.clone());
+    }
     let admin = crate::admin::start(crate::admin::AdminInputs {
+        hosted,
         settings: config.admin.clone(),
         state: Arc::clone(&state),
         transport: Arc::clone(&transport),

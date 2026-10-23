@@ -3,6 +3,7 @@ pub mod chat;
 pub mod config;
 pub mod content_pack;
 pub mod driver_keys;
+pub mod events;
 pub mod game_loop;
 pub mod health;
 pub mod lobby;

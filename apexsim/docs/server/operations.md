@@ -242,7 +242,8 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   notice and then seats them in the new session as a join would: each
   connected driver in their car (`handle_join_session`), each spectator
   watching (`handle_join_as_spectator`), with no `SessionLeft` in between;
-  a driver whose seat was being held is not carried over. The client takes
+  a driver whose seat was being held is not carried over (an event's
+  session is refused: STOP it and the event opens it again). The client takes
   a `SessionJoined` for another session that it did not ask for as that
   move (`UApexNetSubsystem`: back to the lobby state, a spectator if seated
   at grid position 0). A broadcast sends a `ServerNotice` to everyone
@@ -258,6 +259,19 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   before its start counts as cancelled. Times are Unix seconds, so a daily
   entry keeps to UTC across a change of the clocks; the page shows them in
   the browser's time.
+- **Events** (`crate::events`, [sessions.md](sessions.md#events-across-restarts)):
+  a weekend kept across restarts, in `<records>/events/<id>.json`. API
+  only for now (the page has no Events view): `GET /api/events` and
+  `/api/events/<id>` (the event, the session open for it, its state and
+  mode); `POST /api/events` with `{ "name", "spec": <a hosted session's
+  settings>, "entries_open" }` makes one (id the name's slug);
+  `POST /api/events/<id>/open` opens its session (and keeps it open across
+  restarts), `/start` starts that session (its next phase), `/advance`
+  moves it on between phases (recording the one finished), `/close` ends
+  the session and stops reopening it, `/entries` with `{ "open": bool }`
+  opens or closes the entry list, `/entries/<driver id>/remove` takes an
+  entrant off; `DELETE /api/events/<id>` deletes the event and ends its
+  session.
 - **Content** (`content.rs`): every car and track can be switched off (kept
   in `[admin] content_file`): the lobby leaves it out, a select or create
   naming it is refused with `Error 403`, and the AI field is never dealt it
@@ -339,6 +353,7 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 `drivers.json` (each driver id's key, the first one seen; delete a line to
 let a driver who lost their install take their id back with a new key),
 `results/*.json` and `*.csv` (a finished race's classification),
+`events/<id>.json` (each event: its spec, entries, phase and results),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated

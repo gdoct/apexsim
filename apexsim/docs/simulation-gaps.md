@@ -68,20 +68,21 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 The goal: an **event** that runs practice on one day, qualifying with the
 same drivers on the next, and the race the day after, gridded from the
-qualifying result. Today a session lives only while someone is in it (it is
-removed when its last driver or spectator leaves, and a finished one
-`session_timeout_seconds` after it finished), and nothing about it survives
-a restart but the lap records and the stored qualifying results
-(`records/qualifying.json`). Within one session, Qualification -> Race
-grids from the qualifying classification, and a race weekend runs timed
-practice, one to three knockout qualifying rounds and the race as phases of
-one session, advanced by the host (see
-[sessions](server/sessions.md#race-weekend)).
+qualifying result. Within one session, Qualification -> Race grids from
+the qualifying classification, and a race weekend runs timed practice, one
+to three knockout qualifying rounds and the race as phases of one session,
+advanced by the host (see [sessions](server/sessions.md#race-weekend)). An
+event keeps such a weekend across server restarts: its entry list of
+proved driver ids with their cars and liveries, its phase and each finished
+phase's results, in `records/events/`; the dashboard opens it, starts and
+advances it, and a restart opens it again at its next phase, the race
+gridded from the stored qualifying (see
+[sessions](server/sessions.md#events-across-restarts)). Nothing starts it
+at a set time yet.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| No event across days: a race weekend is one session with phases, live only while someone is in it. Nothing groups sessions on one track and car class with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
-| Sessions are not persisted: an event, its entry list (drivers by their proved driver id, car and livery fixed for the event), each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
+| An event ([sessions](server/sessions.md#events-across-restarts)) keeps finished phases only: a phase under way when the server stops is run again from its start (a knockout from Q1), and the session's own state (the cars, a round's laps) is not persisted. | Med | Low |
 | Qualifying has no tyre allowance: a car may fit fresh sets for every run, and nothing makes the top cars start the race on the tyres they qualified on. | Low | Low |
 | In qualifying the HUD shows race-style standings by track position, not a qualifying table. | Med | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |

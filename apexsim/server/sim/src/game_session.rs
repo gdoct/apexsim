@@ -2583,6 +2583,12 @@ impl GameSession {
         self.settle_weekend();
         let finished = self.session.state == SessionState::Finished;
         match self.weekend.phase {
+            WeekendPhase::Lobby if self.weekend.resume_at == Some(WeekendPhase::Race) => {
+                self.begin_weekend_race()
+            }
+            WeekendPhase::Lobby if self.weekend.resume_at == Some(WeekendPhase::Qualifying) => {
+                self.begin_round(1)
+            }
             WeekendPhase::Lobby if format.practice_seconds > 0 => self.begin_practice(),
             WeekendPhase::Lobby => self.begin_round(1),
             WeekendPhase::Practice if finished => self.begin_round(1),
@@ -2591,15 +2597,33 @@ impl GameSession {
             WeekendPhase::Qualifying if (self.weekend.round as usize) < format.rounds() => {
                 self.begin_round(self.weekend.round + 1)
             }
-            WeekendPhase::Qualifying if self.has_connected_driver() => {
-                self.open_grid(START_SESSION_COUNTDOWN_SECONDS)
-            }
-            WeekendPhase::Qualifying => {
-                self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race)
-            }
+            WeekendPhase::Qualifying => self.begin_weekend_race(),
             WeekendPhase::Race => return Err("The race has begun"),
         }
         Ok(())
+    }
+
+    /// The weekend goes to its race: the grid card when a driver is here to
+    /// say ready, else the countdown at once.
+    fn begin_weekend_race(&mut self) {
+        if self.has_connected_driver() {
+            self.open_grid(START_SESSION_COUNTDOWN_SECONDS)
+        } else {
+            self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race)
+        }
+    }
+
+    /// A weekend whose phases before `next` were run in an earlier session
+    /// (an event the server resumes after a restart): the lobby's advance
+    /// goes to `next` (Q1 for qualifying, the race's grid for the race), the
+    /// phases before it skipped. The race's grid is then the session's
+    /// `grid_order`, which the server sets from the stored qualifying.
+    /// Nothing for `Lobby` or `Practice`, or outside a weekend.
+    pub fn resume_weekend(&mut self, next: crate::weekend::WeekendPhase) {
+        use crate::weekend::WeekendPhase;
+        if self.is_weekend() && matches!(next, WeekendPhase::Qualifying | WeekendPhase::Race) {
+            self.weekend.resume_at = Some(next);
+        }
     }
 
     /// Timed practice begins: every human in the garage, the AI out.
@@ -4670,7 +4694,9 @@ impl GameSession {
         self.driver_ids.get(player_id).copied()
     }
 
-    fn driver_name(&self, player_id: &PlayerId) -> String {
+    /// A seated driver's name: an AI's profile, else the name a human joined
+    /// under; empty for neither.
+    pub fn driver_name(&self, player_id: &PlayerId) -> String {
         self.ai_profiles
             .get(player_id)
             .map(|p| p.name.clone())

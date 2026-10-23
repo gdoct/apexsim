@@ -135,6 +135,20 @@ pub async fn handle(
             },
             Err(_) => error(StatusCode::BAD_REQUEST, "bad id"),
         },
+        (&Method::GET, ["events"]) => events_list(ctx).await,
+        (&Method::GET, ["events", id]) => event_detail(ctx, id).await,
+        (&Method::POST, ["events"]) => event_create(ctx, &body).await,
+        (
+            &Method::POST,
+            ["events", id, action @ ("open" | "start" | "advance" | "close" | "entries")],
+        ) => event_action(ctx, id, action, &body).await,
+        (&Method::POST, ["events", id, "entries", driver, "remove"]) => {
+            match driver.parse::<Uuid>() {
+                Ok(driver) => event_remove_entry(ctx, id, driver).await,
+                Err(_) => error(StatusCode::BAD_REQUEST, "bad driver id"),
+            }
+        }
+        (&Method::DELETE, ["events", id]) => event_delete(ctx, id).await,
         (&Method::POST, ["content", "toggle"]) => content_toggle(ctx, &body).await,
         (&Method::POST, ["content", "upload"]) => content_upload(ctx, &q, body).await,
         (&Method::GET, ["players"]) => players(ctx).await,
@@ -1049,6 +1063,162 @@ async fn schedule_put(ctx: &AdminContext, body: &Bytes) -> Resp {
         saved.repeat
     );
     ok(json!({ "ok": true, "entry": saved }))
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+/// An event as the dashboard shows it: the stored event, the session open
+/// for it now (if any) and that session's state.
+async fn event_json(ctx: &AdminContext, event: &crate::events::Event) -> Value {
+    let st = ctx.state.read().await;
+    let session = st.events.session_of(&event.id);
+    let live = session.and_then(|s| st.sessions.get(&s));
+    let mut v = serde_json::to_value(event).unwrap_or(Value::Null);
+    v["session"] = json!(session.filter(|_| live.is_some()));
+    v["session_state"] = json!(live.map(|gs| state_label(gs.session.state)));
+    v["session_mode"] = json!(live.map(|gs| mode_label(gs.session.game_mode)));
+    v["track"] = json!(st
+        .track_configs
+        .get(&event.spec.track_id)
+        .map(|t| t.name.clone()));
+    v
+}
+
+async fn events_list(ctx: &AdminContext) -> Resp {
+    let events = ctx.state.read().await.events.list();
+    let mut out = Vec::with_capacity(events.len());
+    for event in &events {
+        out.push(event_json(ctx, event).await);
+    }
+    ok(json!({ "events": out }))
+}
+
+async fn event_detail(ctx: &AdminContext, id: &str) -> Resp {
+    let Some(event) = ctx.state.read().await.events.get(id) else {
+        return error(StatusCode::NOT_FOUND, "no such event");
+    };
+    ok(event_json(ctx, &event).await)
+}
+
+#[derive(serde::Deserialize)]
+struct NewEvent {
+    name: String,
+    spec: HostedSpec,
+    #[serde(default = "yes")]
+    entries_open: bool,
+}
+
+fn yes() -> bool {
+    true
+}
+
+async fn event_create(ctx: &AdminContext, body: &Bytes) -> Resp {
+    let new: NewEvent = match serde_json::from_slice(body) {
+        Ok(e) => e,
+        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("event: {}", e)),
+    };
+    if new.name.trim().is_empty() {
+        return error(StatusCode::BAD_REQUEST, "the event needs a name");
+    }
+    let events = {
+        let st = ctx.state.read().await;
+        if !st.track_configs.contains_key(&new.spec.track_id) {
+            return error(StatusCode::BAD_REQUEST, "no such track");
+        }
+        if !st.car_configs.contains_key(&new.spec.car_id) {
+            return error(StatusCode::BAD_REQUEST, "no such car");
+        }
+        std::sync::Arc::clone(&st.events)
+    };
+    let event = events.create(&new.name, new.spec, new.entries_open, unix_now());
+    tracing::info!("Admin created event {} ({})", event.id, event.name);
+    ok(json!({ "ok": true, "event": event_json(ctx, &event).await }))
+}
+
+async fn event_action(ctx: &AdminContext, id: &str, action: &str, body: &Bytes) -> Resp {
+    let events = std::sync::Arc::clone(&ctx.state.read().await.events);
+    if events.get(id).is_none() {
+        return error(StatusCode::NOT_FOUND, "no such event");
+    }
+    let lc = &ctx.loop_ctx;
+    let session = events.session_of(id);
+    let result: Result<Value, String> = match action {
+        "open" => {
+            events.update(id, |e| {
+                e.opened = true;
+                e.last_error = None;
+            });
+            crate::events::open_session(lc, &ctx.hosted, &events, id)
+                .await
+                .map(|s| json!({ "session": s }))
+        }
+        "start" | "advance" => match session {
+            None => Err("the event has no session open".into()),
+            Some(s) if action == "start" => {
+                hosted::start(lc, s).await.map(|p| json!({ "phase": p }))
+            }
+            Some(s) => hosted::advance(lc, s).await.map(|p| json!({ "phase": p })),
+        },
+        "close" => {
+            events.update(id, |e| e.opened = false);
+            match session {
+                Some(s) => hosted::stop(lc, &ctx.hosted, s, "The event is closed for now")
+                    .await
+                    .map(|_| json!({})),
+                None => Ok(json!({})),
+            }
+        }
+        _ => {
+            let open = serde_json::from_slice::<Value>(body)
+                .ok()
+                .and_then(|v| v.get("open").and_then(Value::as_bool));
+            match open {
+                Some(open) => {
+                    events.update(id, |e| e.entries_open = open);
+                    Ok(json!({ "entries_open": open }))
+                }
+                None => Err("send {\"open\": true} or false".into()),
+            }
+        }
+    };
+    match result {
+        Ok(mut v) => {
+            v["ok"] = json!(true);
+            tracing::info!("Admin: event {} {}", id, action);
+            ok(v)
+        }
+        Err(why) => error(StatusCode::CONFLICT, &why),
+    }
+}
+
+async fn event_remove_entry(ctx: &AdminContext, id: &str, driver: Uuid) -> Resp {
+    let events = std::sync::Arc::clone(&ctx.state.read().await.events);
+    let mut removed = false;
+    let found = events.update(id, |e| {
+        let before = e.entries.len();
+        e.entries.retain(|x| x.driver_id != driver);
+        removed = e.entries.len() != before;
+    });
+    match (found, removed) {
+        (None, _) => error(StatusCode::NOT_FOUND, "no such event"),
+        (_, false) => error(StatusCode::NOT_FOUND, "no such entry"),
+        _ => ok(json!({ "ok": true })),
+    }
+}
+
+async fn event_delete(ctx: &AdminContext, id: &str) -> Resp {
+    let events = std::sync::Arc::clone(&ctx.state.read().await.events);
+    let session = events.session_of(id);
+    if events.remove(id).is_none() {
+        return error(StatusCode::NOT_FOUND, "no such event");
+    }
+    if let Some(s) = session {
+        let _ = hosted::stop(&ctx.loop_ctx, &ctx.hosted, s, "The event was cancelled").await;
+    }
+    tracing::info!("Admin deleted event {}", id);
+    ok(json!({ "ok": true }))
 }
 
 // ---------------------------------------------------------------------------

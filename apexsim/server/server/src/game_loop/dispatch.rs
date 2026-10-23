@@ -682,6 +682,18 @@ pub(crate) async fn handle_join_session(
     let Some(conn_info) = ctx.connection(connection_id).await else {
         return;
     };
+    // An event takes drivers by a proved driver id: one whose key is bound
+    // here and whose connection proved it (`driver_keys`).
+    let proved = match conn_info.driver_id {
+        Some(id) => ctx
+            .transport
+            .read()
+            .await
+            .driver_keys()
+            .key_of(id)
+            .is_some(),
+        None => false,
+    };
     let mut state_write = ctx.state.write().await;
 
     // A seat held here is taken back; one held elsewhere is given up.
@@ -712,6 +724,25 @@ pub(crate) async fn handle_join_session(
         ctx.send_error(connection_id, 409, reason).await;
         return;
     }
+
+    // An event's entrant drives their entry's car and livery; a driver it
+    // does not take is refused (`events::EventStore::admit`).
+    let (selected_car, livery) = match state_write.events.admit(
+        session_id,
+        conn_info.driver_id,
+        proved,
+        &conn_info.player_name,
+        selected_car,
+        livery,
+    ) {
+        crate::events::Admission::NotAnEvent => (selected_car, livery),
+        crate::events::Admission::Seat { car_id, livery } => (Some(car_id), livery),
+        crate::events::Admission::Refused(reason) => {
+            drop(state_write);
+            ctx.send_error(connection_id, 403, reason).await;
+            return;
+        }
+    };
 
     let joined = state_write
         .lobby
@@ -1731,6 +1762,16 @@ async fn handle_set_livery(ctx: &GameLoopCtx, connection_id: ConnectionId, liver
         return;
     };
     let mut state_write = ctx.state.write().await;
+    // An event fixes each entrant's livery for all its sessions.
+    if conn_info
+        .in_session
+        .is_some_and(|id| state_write.events.event_of_session(id).is_some())
+    {
+        drop(state_write);
+        ctx.send_error(connection_id, 403, "The livery is fixed for this event")
+            .await;
+        return;
+    }
     state_write
         .lobby
         .set_player_livery(conn_info.player_id, livery)

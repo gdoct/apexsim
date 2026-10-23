@@ -9,6 +9,7 @@ mod auth_test;
 mod common;
 mod demo_lap_tests;
 mod driver_key_test;
+mod event_test;
 mod grid_order_test;
 mod hotlap_test;
 mod hotlap_watch_test;

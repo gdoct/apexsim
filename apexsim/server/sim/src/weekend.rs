@@ -173,6 +173,10 @@ pub struct WeekendProgress {
     /// The last round closed, ranked as `first_round` is: a shoot-out final
     /// runs its cars in the reverse of it.
     pub last_round: Vec<(PlayerId, u32)>,
+    /// The phase the lobby's advance goes to when the phases before it were
+    /// run in an earlier session (an event resumed after a server restart,
+    /// `GameSession::resume_weekend`); `None` for a weekend from its start.
+    pub resume_at: Option<WeekendPhase>,
 }
 
 impl WeekendProgress {
