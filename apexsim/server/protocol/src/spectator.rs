@@ -23,11 +23,13 @@
 //! | 2 | [`StreamRoster`] | `[2, epoch, revision, [[car_index, car_config_id, content_crc, livery, name, is_ai], ...]]` |
 //! | 3 | [`StreamFrame`] | `[3, epoch, tick, revision, state, countdown_ms, part, parts, bin rows]` |
 //! | 4 | [`StreamEvent`] | `[4, epoch, tick, kind, payload]` |
-//! | 5 | [`Block`] | `[5, first_tick, last_tick, records, raw_len, bin zlib]` (file only) |
+//! | 5 | [`Block`] | `[5, first_tick, last_tick, records, raw_len, bin zlib]` (file only, version 1) |
 //! | 6 | [`Index`] | `[6, [[first_tick, offset, records], ...]]` (file only) |
 //! | 7 | [`StreamPath`] | `[7, epoch, spacing_m, bin points]` |
 //! | 8 | [`StreamRoad`] | `[8, epoch, tick, lap_m, cell_m, bins, half_span_m, first_cell, rows bin, debris bin, geometry bin]` |
 //! | 9 | [`StreamState`] | `[9, epoch, tick, sky, race_clock, entry_size, extras bin]` |
+//! | 10 | [`StreamGhost`] | `[10, epoch, tick, lap_time_ms, sample_hz, track_id, car_config_id, bin samples]` |
+//! | 11 | [`ColumnBlock`] | `[11, first_tick, last_tick, records, raw_len, layout, bin zlib]` (file only, version 2) |
 //!
 //! Golden bytes for the client's codec come from
 //! `cargo test spectator_wire_format -- --nocapture`
@@ -40,12 +42,17 @@ use crate::data::*;
 use crate::game_session::GameSession;
 use crate::network::LapTimingData;
 
+mod columns;
+
 /// Version of the record layout, carried in every [`StreamHeader`].
 pub const FORMAT_VERSION: u8 = 1;
 /// The first four bytes of an `.apxs` file.
 pub const FILE_MAGIC: &[u8; 4] = b"APXS";
-/// Version of the file's container (magic, blocks, index, trailer).
-pub const FILE_VERSION: u16 = 1;
+/// Version of the file's container (magic, blocks, index, trailer) as this
+/// build writes it: 2, its blocks [`ColumnBlock`]s.
+pub const FILE_VERSION: u16 = 2;
+/// The oldest container this build reads: 1, its blocks plain [`Block`]s.
+pub const FILE_VERSION_MIN: u16 = 1;
 /// Bytes of one car in a frame's `rows` as this build writes them. A later
 /// version only ever appends: a reader takes the fields it knows and skips
 /// the rest, and fills what an older stream's shorter rows lack as unknown.
@@ -80,6 +87,16 @@ pub const RECORD_PATH: u8 = 7;
 pub const RECORD_ROAD: u8 = 8;
 pub const RECORD_STATE: u8 = 9;
 pub const RECORD_GHOST: u8 = 10;
+pub const RECORD_COLUMN_BLOCK: u8 = 11;
+
+/// [`ColumnBlock::layout`]: the frames by field and car, as deltas, in byte
+/// planes (`spectator/columns.rs`).
+pub const COLUMN_LAYOUT_DELTA: u8 = 1;
+/// The zlib level every block is written at: pinned, so a render's bytes
+/// do not move with a library default.
+pub const BLOCK_ZLIB_LEVEL: u32 = 6;
+/// Seconds of records in one block of a version 2 file: the reach of a seek.
+pub const BLOCK_SECONDS: u32 = 1;
 
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
@@ -1995,14 +2012,125 @@ impl Block {
 
     /// The record bodies inside, in order.
     pub fn bodies(&self) -> Result<Vec<Vec<u8>>, StreamError> {
-        // A corrupt length must not allocate the moon.
-        let cap = (self.raw_len as usize).min(64 << 20);
-        let mut raw = Vec::with_capacity(cap);
-        flate2::read::ZlibDecoder::new(&self.zlib[..])
-            .take(64 << 20)
-            .read_to_end(&mut raw)?;
-        split_framed(&raw)
+        split_framed(&inflate(&self.zlib, self.raw_len)?)
     }
+}
+
+/// zlib at [`BLOCK_ZLIB_LEVEL`].
+fn deflate(raw: &[u8]) -> Result<Vec<u8>, StreamError> {
+    let mut encoder =
+        flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::new(BLOCK_ZLIB_LEVEL));
+    encoder.write_all(raw)?;
+    Ok(encoder.finish()?)
+}
+
+fn inflate(zlib: &[u8], size_hint: u32) -> Result<Vec<u8>, StreamError> {
+    // A corrupt length must not allocate the moon.
+    let mut raw = Vec::with_capacity((size_hint as usize).min(64 << 20));
+    flate2::read::ZlibDecoder::new(zlib)
+        .take(64 << 20)
+        .read_to_end(&mut raw)?;
+    Ok(raw)
+}
+
+/// A block of a version 2 file: the same records as a [`Block`], laid out
+/// by column before zlib ([`COLUMN_LAYOUT_DELTA`], `spectator/columns.rs`),
+/// so they take about half the bytes. [`ColumnBlock::bodies`] gives back the
+/// very bodies [`ColumnBlock::pack`] was given. File only: the wire carries
+/// the records themselves.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ColumnBlock {
+    pub first_tick: u32,
+    pub last_tick: u32,
+    pub records: u32,
+    /// Bytes of the records framed as a [`Block`] holds them: what a reader
+    /// sets aside for them.
+    pub raw_len: u32,
+    pub layout: u8,
+    pub zlib: Vec<u8>,
+}
+
+impl ColumnBlock {
+    /// The block of `bodies`, the records from `first_tick` to `last_tick`.
+    pub fn pack(first_tick: u32, last_tick: u32, bodies: &[&[u8]]) -> Result<Self, StreamError> {
+        Ok(Self {
+            first_tick,
+            last_tick,
+            records: bodies.len() as u32,
+            raw_len: bodies.iter().map(|b| 4 + b.len() as u32).sum(),
+            layout: COLUMN_LAYOUT_DELTA,
+            zlib: deflate(&columns::pack(bodies))?,
+        })
+    }
+
+    /// The block of a run of framed records (`[u32 length][body]`, as a
+    /// [`Block`] holds them).
+    pub fn pack_framed(first_tick: u32, last_tick: u32, raw: &[u8]) -> Result<Self, StreamError> {
+        let bodies = split_framed(raw)?;
+        let views: Vec<&[u8]> = bodies.iter().map(Vec::as_slice).collect();
+        Self::pack(first_tick, last_tick, &views)
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut out = Vec::with_capacity(self.zlib.len() + 24);
+        wr::array(&mut out, 7);
+        wr::uint(&mut out, RECORD_COLUMN_BLOCK as u64);
+        wr::uint(&mut out, self.first_tick as u64);
+        wr::uint(&mut out, self.last_tick as u64);
+        wr::uint(&mut out, self.records as u64);
+        wr::uint(&mut out, self.raw_len as u64);
+        wr::uint(&mut out, self.layout as u64);
+        wr::bin(&mut out, &self.zlib);
+        out
+    }
+
+    fn decode(rd: &mut Rd, len: usize) -> Result<Self, StreamError> {
+        if len < 7 {
+            return malformed("column block of too few fields");
+        }
+        let block = Self {
+            first_tick: rd.uint()? as u32,
+            last_tick: rd.uint()? as u32,
+            records: rd.uint()? as u32,
+            raw_len: rd.uint()? as u32,
+            layout: rd.uint()? as u8,
+            zlib: rd.bin()?.to_vec(),
+        };
+        rd.skip_rest(len, 7)?;
+        Ok(block)
+    }
+
+    /// The record bodies inside, in order.
+    pub fn bodies(&self) -> Result<Vec<Vec<u8>>, StreamError> {
+        if self.layout != COLUMN_LAYOUT_DELTA {
+            return Err(StreamError::Version {
+                what: "column block layout",
+                found: self.layout as u32,
+                supported: COLUMN_LAYOUT_DELTA as u32,
+            });
+        }
+        let bodies = columns::unpack(&inflate(&self.zlib, self.raw_len)?)?;
+        if bodies.len() != self.records as usize {
+            return malformed("a column block holds another count of records");
+        }
+        Ok(bodies)
+    }
+
+    /// The bodies framed back to back, as a [`Block`] inflates to: what the
+    /// client's codec takes from the physics library (`apx_stream_block_raw`).
+    pub fn raw(&self) -> Result<Vec<u8>, StreamError> {
+        let mut raw = Vec::with_capacity(self.raw_len as usize);
+        for body in self.bodies()? {
+            raw.extend_from_slice(&(body.len() as u32).to_be_bytes());
+            raw.extend_from_slice(&body);
+        }
+        Ok(raw)
+    }
+}
+
+/// Whether a record type is a file's block, of either version.
+pub fn is_block(kind: Option<u8>) -> bool {
+    matches!(kind, Some(RECORD_BLOCK | RECORD_COLUMN_BLOCK))
 }
 
 /// Split a run of `[u32 length][body]` records.
@@ -2189,6 +2317,7 @@ pub enum Record {
     Frame(StreamFrame),
     Event(StreamEvent),
     Block(Block),
+    ColumnBlock(ColumnBlock),
     Index(Index),
     Path(StreamPath),
     Road(StreamRoad),
@@ -2208,6 +2337,7 @@ impl Record {
         let kind = rd.uint()? as u8;
         match kind {
             RECORD_BLOCK => Ok(Record::Block(Block::decode(&mut rd, len)?)),
+            RECORD_COLUMN_BLOCK => Ok(Record::ColumnBlock(ColumnBlock::decode(&mut rd, len)?)),
             RECORD_INDEX => Ok(Record::Index(Index::decode(&mut rd, len)?)),
             RECORD_HEADER | RECORD_ROSTER | RECORD_FRAME | RECORD_EVENT | RECORD_PATH
             | RECORD_ROAD | RECORD_STATE | RECORD_GHOST => {
@@ -2234,6 +2364,7 @@ impl Record {
             Record::Frame(r) => r.encode(),
             Record::Event(r) => r.encode(),
             Record::Block(r) => r.encode(),
+            Record::ColumnBlock(r) => r.encode(),
             Record::Index(r) => r.encode(),
             Record::Path(r) => r.encode(),
             Record::Road(r) => r.encode(),
@@ -2271,16 +2402,30 @@ impl StreamContent {
     /// ```text
     /// "APXS", u16 file version (big-endian)
     /// Header, Roster, [Path], preamble events     (plain records)
-    /// Block, Block, ...                           (zlib, ~1 s each)
+    /// ColumnBlock, ColumnBlock, ...               ([`BLOCK_SECONDS`] each)
     /// Index                                       (plain)
     /// u64 offset of the Index record (big-endian)
     /// ```
     ///
     /// The same content gives the same bytes: nothing here reads a clock.
     pub fn to_bytes(&self) -> Result<Vec<u8>, StreamError> {
+        self.to_bytes_version(FILE_VERSION)
+    }
+
+    /// The file as version `version` writes it: 2 with [`ColumnBlock`]s, 1
+    /// with plain [`Block`]s of a second (what an older build wrote, and
+    /// still reads).
+    pub fn to_bytes_version(&self, version: u16) -> Result<Vec<u8>, StreamError> {
+        if !(FILE_VERSION_MIN..=FILE_VERSION).contains(&version) {
+            return Err(StreamError::Version {
+                what: "file",
+                found: version as u32,
+                supported: FILE_VERSION as u32,
+            });
+        }
         let mut out = Vec::new();
         out.extend_from_slice(FILE_MAGIC);
-        out.extend_from_slice(&FILE_VERSION.to_be_bytes());
+        out.extend_from_slice(&version.to_be_bytes());
         out.extend_from_slice(&framed(&self.header.encode()));
         out.extend_from_slice(&framed(&self.roster.encode()));
         if let Some(path) = &self.path {
@@ -2290,36 +2435,45 @@ impl StreamContent {
             out.extend_from_slice(&framed(&event.encode()));
         }
 
-        let block_ticks = self.header.tick_rate.max(1) as u32;
+        let tick_rate = self.header.tick_rate.max(1) as u32;
+        let block_ticks = if version == 1 {
+            tick_rate
+        } else {
+            tick_rate * BLOCK_SECONDS
+        };
         let mut index = Index::default();
         let mut i = 0;
         while i < self.records.len() {
             let first_tick = self.records[i].0;
-            let mut raw = Vec::new();
-            let mut count = 0u32;
-            let mut last_tick = first_tick;
+            let start = i;
             while i < self.records.len() && self.records[i].0 < first_tick + block_ticks {
-                raw.extend_from_slice(&framed(&self.records[i].1));
-                last_tick = self.records[i].0;
-                count += 1;
                 i += 1;
             }
-            let mut encoder =
-                flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::new(6));
-            encoder.write_all(&raw)?;
-            let block = Block {
-                first_tick,
-                last_tick,
-                records: count,
-                raw_len: raw.len() as u32,
-                zlib: encoder.finish()?,
+            let run = &self.records[start..i];
+            let last_tick = run.last().map_or(first_tick, |r| r.0);
+            let body = if version == 1 {
+                let mut raw = Vec::new();
+                for (_, body) in run {
+                    raw.extend_from_slice(&framed(body));
+                }
+                Block {
+                    first_tick,
+                    last_tick,
+                    records: run.len() as u32,
+                    raw_len: raw.len() as u32,
+                    zlib: deflate(&raw)?,
+                }
+                .encode()
+            } else {
+                let bodies: Vec<&[u8]> = run.iter().map(|(_, b)| b.as_slice()).collect();
+                ColumnBlock::pack(first_tick, last_tick, &bodies)?.encode()
             };
             index.blocks.push(IndexEntry {
                 first_tick,
                 offset: out.len() as u64,
-                records: count,
+                records: run.len() as u32,
             });
-            out.extend_from_slice(&framed(&block.encode()));
+            out.extend_from_slice(&framed(&body));
         }
         let index_offset = out.len() as u64;
         out.extend_from_slice(&framed(&index.encode()));
@@ -2367,7 +2521,7 @@ impl StreamFile {
             return malformed("no APXS magic");
         }
         let version = u16::from_be_bytes([bytes[4], bytes[5]]);
-        if version != FILE_VERSION {
+        if !(FILE_VERSION_MIN..=FILE_VERSION).contains(&version) {
             return Err(StreamError::Version {
                 what: "file",
                 found: version as u32,
@@ -2398,7 +2552,7 @@ impl StreamFile {
         let mut offset = 6;
         while offset < index_offset {
             let (body, next) = read_at(offset)?;
-            if record_type(body) == Some(RECORD_BLOCK) {
+            if is_block(record_type(body)) {
                 break;
             }
             match Record::decode(body)? {
@@ -2443,6 +2597,7 @@ impl StreamFile {
         }
         match Record::decode(&self.bytes[offset + 4..offset + 4 + len])? {
             Record::Block(block) => block.bodies(),
+            Record::ColumnBlock(block) => block.bodies(),
             _ => malformed("the index does not point at a block"),
         }
     }
@@ -2466,6 +2621,32 @@ impl StreamFile {
 
     pub fn file_len(&self) -> usize {
         self.bytes.len()
+    }
+
+    /// The container's version: 1 plain blocks, 2 column blocks.
+    pub fn file_version(&self) -> u16 {
+        u16::from_be_bytes([self.bytes[4], self.bytes[5]])
+    }
+
+    /// The whole stream again, to be written as this build writes it: the
+    /// same records in the same order. A record with no tick of its own (a
+    /// roster change) takes the tick of the record before it.
+    pub fn content(&self) -> Result<StreamContent, StreamError> {
+        let mut records = Vec::new();
+        for (i, entry) in self.index.blocks.iter().enumerate() {
+            let mut tick = entry.first_tick;
+            for body in self.block(i)? {
+                tick = record_tick(&body).unwrap_or(tick);
+                records.push((tick, body));
+            }
+        }
+        Ok(StreamContent {
+            header: self.header.clone(),
+            roster: self.roster.clone(),
+            path: self.path.clone(),
+            preamble: self.preamble.clone(),
+            records,
+        })
     }
 }
 
@@ -3508,6 +3689,123 @@ mod tests {
     }
 
     #[test]
+    fn a_version_1_file_still_reads_to_the_same_records() {
+        let content = sample_content();
+        let v1 = content.to_bytes_version(1).unwrap();
+        let v2 = content.to_bytes().unwrap();
+        assert_eq!(&v1[4..6], &[0, 1]);
+        assert_eq!(&v2[4..6], &FILE_VERSION.to_be_bytes());
+        let old = StreamFile::from_bytes(v1).unwrap();
+        let new = StreamFile::from_bytes(v2).unwrap();
+        assert_eq!(old.header, new.header);
+        assert_eq!(old.preamble, new.preamble);
+        assert_eq!(old.records().unwrap(), new.records().unwrap());
+        assert!(content.to_bytes_version(3).is_err());
+    }
+
+    #[test]
+    fn a_column_block_gives_back_every_body() {
+        // Frames of moving cars that come and go, split in parts, between
+        // events, a state, a frame of an older row layout and a frame spelled
+        // with a wider integer than this build writes: all come back as they
+        // went in.
+        let mut bodies: Vec<Vec<u8>> = Vec::new();
+        for i in 0..40u32 {
+            let rows: Vec<CarRow> = (0..(24 + (i % 3)) as u8)
+                .filter(|c| !(i > 20 && *c == 5))
+                .map(|c| {
+                    let mut row = sample_row(c);
+                    row.x_mm = (i as i32 - 20) * 937 * (c as i32 + 1);
+                    row.yaw = (0xFFF0u32 + i * 3) as u16;
+                    row.station_cm = i * 1_000 + c as u32;
+                    row.wheel_slip_angle = [i as i8, -(i as i8), 3, -3];
+                    row
+                })
+                .collect();
+            let countdown = (i < 10).then(|| 1000 - i as u16 * 33);
+            bodies.extend(encode_frames(
+                3,
+                8 + i * 14,
+                1,
+                SessionState::Racing,
+                countdown,
+                &rows,
+            ));
+            if i == 7 {
+                bodies.push(sample_state().encode());
+                bodies.push(sample_pit_service().encode());
+            }
+        }
+        let mut old_rows = Vec::new();
+        sample_row(1).write(&mut old_rows);
+        old_rows.truncate(ROW_SIZE_V1);
+        bodies.push(
+            StreamFrame {
+                epoch: 3,
+                tick: 700,
+                roster_revision: 1,
+                state: SessionState::Finished,
+                countdown_ms: NO_COUNTDOWN,
+                part: 0,
+                parts: 1,
+                rows: old_rows,
+            }
+            .encode(),
+        );
+        let mut wide =
+            encode_frames(3, 714, 1, SessionState::Finished, None, &[sample_row(2)]).remove(0);
+        // The revision (a fixint 1 after the epoch and the tick) as a uint 16.
+        let at = 1 + 1 + 5 + 5;
+        assert_eq!(wide[at], 1);
+        wide.splice(at..at + 1, [0xCD, 0, 1]);
+        assert!(
+            matches!(Record::decode(&wide).unwrap(), Record::Frame(f) if f.roster_revision == 1)
+        );
+        bodies.push(wide);
+
+        let views: Vec<&[u8]> = bodies.iter().map(Vec::as_slice).collect();
+        let block = ColumnBlock::pack(8, 714, &views).unwrap();
+        assert_eq!(block.records as usize, bodies.len());
+        let Record::ColumnBlock(read) = Record::decode(&block.encode()).unwrap() else {
+            panic!("not a column block");
+        };
+        assert_eq!(read, block);
+        assert_eq!(read.bodies().unwrap(), bodies);
+        let raw: Vec<u8> = bodies.iter().flat_map(|b| framed(b)).collect();
+        assert_eq!(read.raw().unwrap(), raw);
+        assert_eq!(read.raw_len as usize, raw.len());
+        assert_eq!(ColumnBlock::pack_framed(8, 714, &raw).unwrap(), block);
+        // And smaller than the plain block of the same records.
+        assert!(block.zlib.len() * 3 < deflate(&raw).unwrap().len() * 2);
+        // An empty block is a block too.
+        assert!(ColumnBlock::pack(0, 0, &[])
+            .unwrap()
+            .bodies()
+            .unwrap()
+            .is_empty());
+        // A layout this build does not know is refused, not misread.
+        let unknown = ColumnBlock {
+            layout: 2,
+            ..block.clone()
+        };
+        assert!(matches!(unknown.bodies(), Err(StreamError::Version { .. })));
+        // Corrupt bytes fail, they do not panic.
+        let mut cut = columns_payload(&views);
+        for len in [0, 3, 12, cut.len() / 2, cut.len() - 1] {
+            cut.truncate(len);
+            let bad = ColumnBlock {
+                zlib: deflate(&cut).unwrap(),
+                ..block.clone()
+            };
+            assert!(bad.bodies().is_err(), "{len}");
+        }
+    }
+
+    fn columns_payload(bodies: &[&[u8]]) -> Vec<u8> {
+        columns::pack(bodies)
+    }
+
+    #[test]
     fn a_newer_writers_extra_fields_are_skipped() {
         // A frame with a tenth element, rows four bytes longer, and an
         // event kind nobody has heard of.
@@ -3706,7 +4004,12 @@ mod tests {
         .encode();
         let state = sample_state().encode();
         let pit_service = sample_pit_service().encode();
-        let file = sample_content().to_bytes().unwrap();
+        // `File` is a version 1 file (plain blocks), which the client's own
+        // codec inflates; `FileV2` the same content as this build writes it
+        // (column blocks, which the client unpacks through the physics
+        // library, `apx_stream_block_raw`).
+        let file = sample_content().to_bytes_version(1).unwrap();
+        let file_v2 = sample_content().to_bytes().unwrap();
         let ghost = sample_ghost().encode();
 
         println!(
@@ -3764,6 +4067,10 @@ mod tests {
         println!(
             "\tinline constexpr uint8 File[] = {{\n\t\t{}\n\t}};\n",
             hex(&file)
+        );
+        println!(
+            "\tinline constexpr uint8 FileV2[] = {{\n\t\t{}\n\t}};\n",
+            hex(&file_v2)
         );
 
         // The shapes the client's reader leans on.

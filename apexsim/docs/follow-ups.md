@@ -386,6 +386,26 @@ at `-ApexTimeScale=30`.
 
 **Check:** the figure, and the determinism test.
 
+### 36. Recorded sessions on the client
+
+For: the client reading and writing the smaller version 2 stream files
+([game/spectator.md](game/spectator.md), the file).
+
+- The client's reading of version 2 files (`FApexStreamFile::ReadBlock`
+  handing a column block to `apx_stream_block_raw`, `ApexSimNet` linking
+  the `ApexPhysics` module, `ApexSim.Spectator.FileV2` against the golden
+  `FileV2`) was written without an Unreal build: compile it (with
+  `-DisableAdaptiveUnity`), rebuild the physics library (ABI 6) and run the
+  `ApexSim.Spectator` tests.
+- The client's own recorder (`FApexStreamWriter`) still writes version 1
+  (plain blocks of a second): its replays in `Saved/Replays/` stay twice
+  the size of the server's. Packing its blocks through the physics library
+  (a pack call beside `apx_stream_block_raw`) halves them.
+
+**Check:** `ApexSim.Spectator.*` green; a server replay downloaded from the
+Recorded list, a showcase rendered in the game and a client-recorded replay
+all play.
+
 ## P4: Unrefined
 
 ### 13. Windshield wipers

@@ -24,7 +24,7 @@ use crate::data::*;
 use crate::replay::{ReplayMetadata, ReplayParticipant};
 use crate::session_stream::{SessionStream, StreamRecord};
 use crate::spectator::{
-    framed, Block, Index, IndexEntry, StreamEvent, StreamHeader, StreamPath, StreamRoster,
+    framed, ColumnBlock, Index, IndexEntry, StreamEvent, StreamHeader, StreamPath, StreamRoster,
     FILE_MAGIC, FILE_VERSION,
 };
 
@@ -219,15 +219,9 @@ fn write_blocks(path: &Path, jobs: Receiver<Job>) -> std::io::Result<Written> {
     let mut written = Written::new();
     let mut offset = 0u64;
     for job in jobs {
-        let mut encoder = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::new(6));
-        encoder.write_all(&job.raw)?;
-        let block = Block {
-            first_tick: job.first_tick,
-            last_tick: job.last_tick,
-            records: job.records,
-            raw_len: job.raw.len() as u32,
-            zlib: encoder.finish()?,
-        };
+        let block = ColumnBlock::pack_framed(job.first_tick, job.last_tick, &job.raw)
+            .map_err(std::io::Error::other)?;
+        debug_assert_eq!(block.records, job.records);
         let bytes = framed(&block.encode());
         written.push(IndexEntry {
             first_tick: job.first_tick,
@@ -302,7 +296,7 @@ impl StreamRecorders {
             path: stream.path(session),
             preamble: vec![stream.encoder.sectors(session)],
             meta,
-            block_ticks: u32::from(session.tick_rate_hz()).max(1),
+            block_ticks: u32::from(session.tick_rate_hz()).max(1) * crate::spectator::BLOCK_SECONDS,
             pending: Vec::new(),
             pending_first: 0,
             pending_records: 0,

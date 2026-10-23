@@ -7,6 +7,11 @@
 #include "MsgPack/MsgPackFormat.h"
 #include "MsgPack/MsgPackReader.h"
 
+// The physics library (server/ffi): a version 2 file's column blocks are
+// unpacked by the server's own code. Without it (WITH_APEX_PHYSICS 0) a
+// version 1 file still plays and a version 2 one fails with the reason.
+#include "apexsim_physics.h"
+
 // Named, not anonymous: this module is unity-built.
 namespace ApexSpectatorCodec
 {
@@ -584,6 +589,55 @@ namespace ApexSpectatorCodec
 		}
 		Out.Zlib = TArray<uint8>(Zlib.GetData(), Zlib.Num());
 		return SkipRest(Reader, Count, 6);
+	}
+
+	/**
+	 * A column block's records, framed as a plain block inflates to:
+	 * `[11, first_tick, last_tick, records, raw_len, layout, bin zlib]`
+	 * handed to `apx_stream_block_raw`, with `raw_len` as the buffer it fills.
+	 */
+	bool UnpackColumnBlock(TArrayView<const uint8> Body, TArray<uint8>& OutRaw, FString& OutError)
+	{
+#if WITH_APEX_PHYSICS
+		FMsgPackReader Reader(Body);
+		int32 Count = 0;
+		int32 Type = 0;
+		int64 FirstTick = 0;
+		int64 LastTick = 0;
+		int32 Records = 0;
+		int32 RawLen = 0;
+		if (!Reader.ReadArrayHeader(Count) || Count < 7 || !ReadI32(Reader, Type) || !ReadI64(Reader, FirstTick)
+			|| !ReadI64(Reader, LastTick) || !ReadI32(Reader, Records) || !ReadI32(Reader, RawLen))
+		{
+			OutError = TEXT("a column block of too few fields");
+			return false;
+		}
+		if (RawLen < 0 || RawLen > MaxInflatedBytes)
+		{
+			OutError = TEXT("a block claims an absurd size");
+			return false;
+		}
+		OutRaw.SetNumUninitialized(RawLen);
+		size_t Written = 0;
+		ApxStatus Status = apx_stream_block_raw(Body.GetData(), Body.Num(), OutRaw.GetData(), OutRaw.Num(), &Written);
+		if (Status == APX_ERR_BUFFER && Written <= static_cast<size_t>(MaxInflatedBytes))
+		{
+			// raw_len was short: the library says what it needs.
+			OutRaw.SetNumUninitialized(static_cast<int32>(Written));
+			Status = apx_stream_block_raw(Body.GetData(), Body.Num(), OutRaw.GetData(), OutRaw.Num(), &Written);
+		}
+		if (Status != APX_OK)
+		{
+			OutError = FString::Printf(TEXT("the column block does not unpack (%d): %s"), Status, UTF8_TO_TCHAR(apx_last_error()));
+			return false;
+		}
+		OutRaw.SetNum(static_cast<int32>(Written));
+		return true;
+#else
+		OutRaw.Reset();
+		OutError = TEXT("a version 2 file's column blocks need the physics library (scripts/build_physics_lib.ps1)");
+		return false;
+#endif
 	}
 
 	bool ParseIndex(FMsgPackReader& Reader, int32 Count, TArray<FApexStreamIndexEntry>& Out)
@@ -1227,7 +1281,7 @@ bool FApexStreamFile::ReadPreamble(const FString& FilePath, FApexStreamHeader& O
 		}
 		const TArrayView<const uint8> Body(Head.GetData() + Offset + 4, static_cast<int32>(Len));
 		const uint8 Type = ApexSpectator::RecordType(Body);
-		if (Type == ApexSpectator::RecordBlock || Type == ApexSpectator::RecordIndex || (bHeader && bRoster))
+		if (ApexSpectator::IsBlock(Type) || Type == ApexSpectator::RecordIndex || (bHeader && bRoster))
 		{
 			break;
 		}
@@ -1287,9 +1341,9 @@ bool FApexStreamFile::LoadFromBytes(TArray<uint8>&& Data, FString& OutError)
 		return false;
 	}
 	const uint16 Version = (static_cast<uint16>(Bytes[4]) << 8) | Bytes[5];
-	if (Version != ApexSpectator::FileVersion)
+	if (Version < 1 || Version > ApexSpectator::MaxFileVersion)
 	{
-		OutError = FString::Printf(TEXT("file version %d (this build reads %d)"), Version, ApexSpectator::FileVersion);
+		OutError = FString::Printf(TEXT("file version %d (this build reads 1 to %d)"), Version, ApexSpectator::MaxFileVersion);
 		return false;
 	}
 	const int64 Trailer = Bytes.Num() - 8;
@@ -1322,7 +1376,7 @@ bool FApexStreamFile::LoadFromBytes(TArray<uint8>&& Data, FString& OutError)
 		{
 			return false;
 		}
-		if (ApexSpectator::RecordType(Body) == ApexSpectator::RecordBlock)
+		if (ApexSpectator::IsBlock(ApexSpectator::RecordType(Body)))
 		{
 			break;
 		}
@@ -1359,29 +1413,47 @@ bool FApexStreamFile::ReadBlock(int32 BlockIndex, TArray<TArray<uint8>>& OutBodi
 	}
 	TArrayView<const uint8> Body;
 	int64 Next = 0;
-	FApexStreamRecord Record;
-	if (!ReadRecordAt(Index[BlockIndex].Offset, Body, Next, OutError) || !ApexSpectator::DecodeRecord(Body, Record, OutError))
+	if (!ReadRecordAt(Index[BlockIndex].Offset, Body, Next, OutError))
 	{
-		return false;
-	}
-	if (Record.Type != ApexSpectator::RecordBlock)
-	{
-		OutError = TEXT("the index does not point at a block");
-		return false;
-	}
-	const FApexStreamBlock& Block = Record.Block;
-	if (Block.RawLen < 0 || Block.RawLen > ApexSpectatorCodec::MaxInflatedBytes)
-	{
-		OutError = TEXT("a block claims an absurd size");
 		return false;
 	}
 	TArray<uint8> Raw;
-	Raw.SetNumUninitialized(Block.RawLen);
-	if (Block.RawLen > 0
-		&& !FCompression::UncompressMemory(NAME_Zlib, Raw.GetData(), Block.RawLen, Block.Zlib.GetData(), Block.Zlib.Num()))
+	if (ApexSpectator::RecordType(Body) == ApexSpectator::RecordColumnBlock)
 	{
-		OutError = FString::Printf(TEXT("block %d does not inflate"), BlockIndex);
-		return false;
+		// A version 2 file's block: unpacked by the server's own code in the
+		// physics library, so the column layout lives in one place
+		// (server/protocol/src/spectator/columns.rs).
+		if (!ApexSpectatorCodec::UnpackColumnBlock(Body, Raw, OutError))
+		{
+			OutError = FString::Printf(TEXT("block %d: %s"), BlockIndex, *OutError);
+			return false;
+		}
+	}
+	else
+	{
+		FApexStreamRecord Record;
+		if (!ApexSpectator::DecodeRecord(Body, Record, OutError))
+		{
+			return false;
+		}
+		if (Record.Type != ApexSpectator::RecordBlock)
+		{
+			OutError = TEXT("the index does not point at a block");
+			return false;
+		}
+		const FApexStreamBlock& Block = Record.Block;
+		if (Block.RawLen < 0 || Block.RawLen > ApexSpectatorCodec::MaxInflatedBytes)
+		{
+			OutError = TEXT("a block claims an absurd size");
+			return false;
+		}
+		Raw.SetNumUninitialized(Block.RawLen);
+		if (Block.RawLen > 0
+			&& !FCompression::UncompressMemory(NAME_Zlib, Raw.GetData(), Block.RawLen, Block.Zlib.GetData(), Block.Zlib.Num()))
+		{
+			OutError = FString::Printf(TEXT("block %d does not inflate"), BlockIndex);
+			return false;
+		}
 	}
 	TArray<TArrayView<const uint8>> Views;
 	if (!ApexSpectator::SplitFramed(Raw, Views, OutError))

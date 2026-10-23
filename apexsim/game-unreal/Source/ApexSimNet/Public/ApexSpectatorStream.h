@@ -21,7 +21,10 @@
 namespace ApexSpectator
 {
 	constexpr uint8 FormatVersion = 1;
+	/** The container this client's writer writes: plain zlib blocks (record 5). */
 	constexpr uint16 FileVersion = 1;
+	/** The newest container it reads: version 2's column blocks (record 11), unpacked by the physics library. */
+	constexpr uint16 MaxFileVersion = 2;
 	/** Bytes of one car in a frame as written now; a newer writer only appends. */
 	constexpr int32 RowSize = 66;
 	/** The third layout (wheels, no ground or race flags): read with both clear. */
@@ -47,6 +50,8 @@ namespace ApexSpectator
 	constexpr uint8 RecordState = 9;
 	/** The ghost of a hotlap replay (the record lap's trace): written by the client's recorder only. */
 	constexpr uint8 RecordGhost = 10;
+	/** A version 2 file's block: the records laid out by column (`spectator::ColumnBlock`), file only. */
+	constexpr uint8 RecordColumnBlock = 11;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
 	constexpr int32 ExtraSize = 49;
@@ -365,6 +370,8 @@ namespace ApexSpectator
 {
 	/** The record type of a body without decoding it; 0 when the bytes are not a record. */
 	APEXSIMNET_API uint8 RecordType(TArrayView<const uint8> Body);
+	/** Whether a record type is a file's block, plain (version 1) or column (version 2). */
+	inline bool IsBlock(uint8 Type) { return Type == RecordBlock || Type == RecordColumnBlock; }
 	/** The epoch of a viewer-facing record without decoding it; false when the bytes carry none. */
 	APEXSIMNET_API bool RecordEpoch(TArrayView<const uint8> Body, uint32& OutEpoch);
 	/** The tick of a frame or event without decoding it. */

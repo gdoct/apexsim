@@ -398,6 +398,40 @@ bool FApexSpectatorFileTest::RunTest(const FString& Parameters)
 }
 
 // -----------------------------------------------------------------------------
+// A version 2 file: column blocks, unpacked by the physics library, read to
+// exactly the records of the version 1 file of the same content.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorFileV2Test, "ApexSim.Spectator.FileV2", ApexSpectatorTests::Flags)
+
+bool FApexSpectatorFileV2Test::RunTest(const FString& Parameters)
+{
+	using namespace ApexSpectatorGolden;
+	FApexStreamFile V1;
+	FApexStreamFile V2;
+	FString Error;
+	TestTrue(TEXT("v1 loads"), V1.LoadFromBytes(TArray<uint8>(File, UE_ARRAY_COUNT(File)), Error));
+	TestTrue(TEXT("v2 loads"), V2.LoadFromBytes(TArray<uint8>(FileV2, UE_ARRAY_COUNT(FileV2)), Error));
+	TestEqual(TEXT("v2 header stem"), V2.GetHeader().Track.Stem, V1.GetHeader().Track.Stem);
+	TestEqual(TEXT("v2 preamble"), V2.GetPreamble().Num(), V1.GetPreamble().Num());
+	TArray<TArray<uint8>> Old;
+	TArray<TArray<uint8>> New;
+	TestTrue(TEXT("v1 inflates"), V1.ReadAll(Old, Error));
+#if WITH_APEX_PHYSICS
+	TestTrue(TEXT("v2 unpacks"), V2.ReadAll(New, Error));
+	if (!Error.IsEmpty())
+	{
+		AddError(Error);
+	}
+	TestTrue(TEXT("v2 holds the very records of v1"), New == Old);
+#else
+	TestFalse(TEXT("v2 without the physics library says why"), V2.ReadAll(New, Error));
+	TestTrue(TEXT("the reason names the library"), Error.Contains(TEXT("physics library")));
+#endif
+	return true;
+}
+
+// -----------------------------------------------------------------------------
 // Player: epochs, revisions and parts.
 // -----------------------------------------------------------------------------
 

@@ -14,12 +14,13 @@ telemetry, not the stream.
 
 - `server/protocol/src/spectator.rs`: records, the car row, the file (blocks, index),
   `BroadcastEncoder` (session state to records), `patch_epoch`, `RaceScore`;
+  `server/protocol/src/spectator/columns.rs` (the inside of a version 2 block);
   `server/protocol/src/session_stream.rs` (`SessionStream`: a session, tick by tick, as
   the records the format promises) and `server/server/src/stream_recorder.rs` (the
   server's replay files).
 - `server/server/src/replay_tools.rs` and `server/server/src/bin/apexsim_replay.rs`: the
   `apexsim-replay` tool (`simulate`, `info`, `find`, `pose`, `cut`, `render`,
-  `convert`, `guide`); `server/server/src/replay.rs`: the `.bin` replay format of the offline tools.
+  `convert`, `repack`, `guide`); `server/server/src/replay.rs`: the `.bin` replay format of the offline tools.
 - `server/server/src/showcase.rs` (`ShowcaseState`, channels),
   `server/server/src/game_loop/showcase.rs` (messages), `server/server/src/health.rs`
   (`/showcase`).
@@ -48,12 +49,13 @@ and readers skip what they do not know (`a_newer_writers_extra_fields_are_skippe
 | 2 | `Roster` | TCP, on change | revision; per car: index, car config id, `content_crc`, livery, name, is_ai |
 | 3 | `Frame` | UDP | tick, roster revision, state, countdown, part / parts, a `bin` of car rows |
 | 4 | `Event` | TCP | tick, kind, payload |
-| 5 | `Block` | file only | a second of records, zlib |
+| 5 | `Block` | file only (version 1) | a second of records, zlib |
 | 6 | `Index` | file only | first tick and offset of every block |
 | 7 | `Path` | TCP, with the header | the centerline every 10 m, for the TV cameras of a viewer with no lobby |
 | 8 | `Road` | TCP | tick, a slice of the road state (lap, cell length, bins, half span, first cell, rows, debris, geometry, snow rows, water rows): the `RoadState` message's payload ([../server/conditions.md](../server/conditions.md#the-road-on-screen)) |
 | 9 | `State` | TCP | tick, the sky as it is now (`SkyNow`), a timed race's clock, and per car the slow figures a row leaves out (`CarExtra`: tyre pressures, flat spots, brake temperatures and wear, tank, coolant, tread shoulders, hybrid, tow, where each body zone was hit); four times a second |
 | 10 | `Ghost` | TCP | tick, a lap's trace as `GhostLap` carries it (lap time, sample rate, track and car ids, a `bin` of 20-byte samples: ms, x, y, z, yaw): a watched hotlap's fastest lap on the server's live stream (`StreamGhost`, each time it is replaced, and in the catch-up), and the record lap in a client-recorded hotlap replay (the recorder writes it when a hotlap's ghost arrives); `apexsim-replay`'s renders carry none |
+| 11 | `ColumnBlock` | file only (version 2) | first and last tick, records, `raw_len` (their framed size), layout, the same records laid out by column, zlib |
 
 **Joining mid-file.** What a frame does not hold is caught up from the
 records already played: a showcase channel sends a newcomer, after the
@@ -70,8 +72,8 @@ counts roster changes within an epoch. The client drops a frame whose epoch or
 revision is not the one it holds (`FApexSpectatorPlayer`).
 
 **Frames are self-contained.** No frame refers to another (there are no delta
-frames: zlib across a block already folds the repetition away, and a delta
-would need acknowledgements on UDP), so a lost datagram costs one frame and a
+frames on the wire: a delta would need acknowledgements on UDP, and a file's
+column blocks take the deltas inside a block only), so a lost datagram costs one frame and a
 viewer can join or a file seek anywhere. A field too
 large for one datagram (more than `MAX_ROWS_PER_PART`, 21 cars) is sent in
 parts of the same tick; the client applies whatever parts arrived once a newer
@@ -124,13 +126,39 @@ next.
 
 **The file** is `"APXS"` + u16 version, then a plain preamble (`Header`,
 `Roster`, `Path`, `TrackSectors` event: what `info` and the client's catalog
-scan read), zlib `Block`s of a second each, a plain `Index`, and a u64 offset
-of the index as the trailer. A live stream is the same records without
-blocks and index. A grid start plus two laps of 16 GT3s is a few MB.
+scan read), the blocks, a plain `Index`, and a u64 offset of the index as the
+trailer. A live stream is the same records without blocks and index.
+
+Version 2 (`FILE_VERSION`, what the server, `apexsim-replay` and the physics
+library write) holds `ColumnBlock`s of `BLOCK_SECONDS` each; version 1 (what
+the client's own recorder writes, and every file from before) plain zlib
+`Block`s of a second. Every reader takes both, and a block of either version
+gives back the same record bodies in the same order, so nothing that plays,
+seeks, catches up or cuts a file knows which it read. A column block holds
+the block's frames rearranged before zlib (layout 1,
+`spectator/columns.rs`): the frame headers as columns, each frame's car
+order, then per row field the values car after car, the pose, speed, rpm,
+lap and station as the difference from the car's row before in the block
+(the block's first from 0, so a block still stands alone), every multi-byte
+column split into byte planes; the other records follow as they are. Only a
+frame of whole `ROW_SIZE` rows whose bytes this build would write for it is
+laid out, anything else is kept verbatim, so the round trip is exact for any
+block (`a_column_block_gives_back_every_body`). It is half the size of the
+plain block: 16 GT3s over 6.4 min of Zandervoort are 3.27 MB in version 2
+and 6.41 MB in version 1, 31 MB against 61 MB for a 16-car hour. The client's
+codec unpacks a column block through the physics library
+(`apx_stream_block_raw`, ABI 6, the server's own code); a client built
+without it still plays version 1 files and names the library for a
+version 2 one. `apexsim-replay repack <in.apxs> --out <out.apxs>` rewrites a
+file of any version as this build writes it and checks it reads back to the
+same records; `info` prints the `file_version` and a `records_crc` over the
+records, the same for one race in either version.
 
 **Golden bytes**: `cargo test spectator_wire_format showcase_wire_format --
 --nocapture` prints them; the client pins them in `ApexSpectatorGoldenBlobs.h`
-(and a `File` copy in `BackdropTests.cpp`). See [protocol](../server/protocol.md)
+(and a `File` copy in `BackdropTests.cpp`): `File` is a version 1 file,
+`FileV2` the same content in version 2 (`ApexSim.Spectator.FileV2` reads both
+to the same records). See [protocol](../server/protocol.md)
 for the workflow.
 
 ## apexsim-replay
@@ -204,7 +232,7 @@ per circuit in a release build (16 s for Zandervoort's 16 GT3s over two
 laps).
 
 **Showcases made in the game.** The physics library renders a showcase too
-(`apx_showcase_render`, ABI 5: the list, the tracks and cars, a name, an
+(`apx_showcase_render`, ABI 5 and on: the list, the tracks and cars, a name, an
 output path and a cancel flag; `apx_showcase_names` lists the entries), with
 the server's own code (`apexsim-protocol`'s `render` and `showcase_list`),
 so its file is the build's byte for byte

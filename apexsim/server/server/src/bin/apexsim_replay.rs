@@ -207,6 +207,13 @@ enum Command {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Rewrite a stream (.apxs) of any file version as this build writes
+    /// it (column blocks): the same records, in fewer bytes.
+    Repack {
+        stream: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Print what a replay (.bin) or a stream (.apxs) holds, as JSON.
     Info {
         replay: PathBuf,
@@ -791,6 +798,19 @@ fn run(args: Args) -> Result<(), String> {
             write_stream(&metadata, &part, rate, track, &cars_dir, &out)?;
             let file = StreamFile::open(&out).map_err(|e| e.to_string())?;
             print_json(&describe_stream(&file)?)
+        }
+        Command::Repack { stream, out } => {
+            let file = StreamFile::open(&stream).map_err(|e| e.to_string())?;
+            file.content()
+                .and_then(|c| c.write_file(&out))
+                .map_err(|e| e.to_string())?;
+            let packed = StreamFile::open(&out).map_err(|e| e.to_string())?;
+            if packed.records().map_err(|e| e.to_string())?
+                != file.records().map_err(|e| e.to_string())?
+            {
+                return Err(format!("{} does not read back as it was", out.display()));
+            }
+            print_json(&describe_stream(&packed)?)
         }
         Command::Info {
             replay,

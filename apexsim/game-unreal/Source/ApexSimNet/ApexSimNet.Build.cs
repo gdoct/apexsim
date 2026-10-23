@@ -17,6 +17,10 @@ public class ApexSimNet : ModuleRules
 		{
 			"Sockets",
 			"Networking",
+			// A version 2 stream file's column blocks are unpacked by the
+			// server's code (apx_stream_block_raw); without the library,
+			// WITH_APEX_PHYSICS 0, version 1 files still play.
+			"ApexPhysics",
 		});
 
 		// TLS on the TCP connection (ApexTlsSession.cpp): the OpenSSL the engine

@@ -36,7 +36,7 @@ use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 5;
+pub const APX_ABI_VERSION: u32 = 6;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -1210,6 +1210,7 @@ mod tests {
             "apx_watch_corners(",
             "apx_watch_free(",
             "apx_car_create_balanced(",
+            "apx_stream_block_raw(",
         ] {
             assert!(header.contains(f), "the header lacks {f}");
         }
@@ -1776,4 +1777,122 @@ pub unsafe extern "C" fn apx_watch_free(watch: *mut ApxWatch) {
     }
     let watch = Box::from_raw(watch);
     let _ = catch_unwind(AssertUnwindSafe(|| watch.watch.keep()));
+}
+
+// ---------------------------------------------------------------------------
+// A stream file's block (ABI 6)
+// ---------------------------------------------------------------------------
+
+/// The records of one block of an `.apxs` file, framed as a plain block
+/// inflates to (`[u32 big-endian length][body]`, back to back): what the
+/// client's codec does not open itself, a version 2 file's column blocks
+/// (`spectator::ColumnBlock`), and a plain block as well. `body` is the
+/// block record's body, without its length. `*written` gets the size; with
+/// a NULL `buf` or a short capacity nothing is copied and
+/// [`APX_ERR_BUFFER`] is returned. Bytes that are not a block, or do not
+/// unpack, are [`APX_ERR_INVALID`].
+///
+/// # Safety
+/// `body` points at `body_len` readable bytes; `buf`, when non-null, at
+/// `capacity` writable ones; `written` is a valid pointer.
+#[no_mangle]
+pub unsafe extern "C" fn apx_stream_block_raw(
+    body: *const u8,
+    body_len: usize,
+    buf: *mut u8,
+    capacity: usize,
+    written: *mut usize,
+) -> ApxStatus {
+    use apexsim_protocol::spectator::{framed, Record, StreamError};
+    guard(|| {
+        non_null(written, "written")?;
+        *written = 0;
+        let body = bytes(body, body_len, "body")?;
+        let invalid = |e: StreamError| Fail::new(APX_ERR_INVALID, format!("block: {e}"));
+        let raw: Vec<u8> = match Record::decode(body).map_err(invalid)? {
+            Record::ColumnBlock(block) => block.raw().map_err(invalid)?,
+            Record::Block(block) => block
+                .bodies()
+                .map_err(invalid)?
+                .iter()
+                .flat_map(|b| framed(b))
+                .collect(),
+            _ => return Err(Fail::new(APX_ERR_INVALID, "not a block record")),
+        };
+        *written = raw.len();
+        if raw.is_empty() {
+            return Ok(());
+        }
+        if buf.is_null() || capacity < raw.len() {
+            return Err(Fail::new(
+                APX_ERR_BUFFER,
+                format!("{} bytes needed", raw.len()),
+            ));
+        }
+        std::ptr::copy_nonoverlapping(raw.as_ptr(), buf, raw.len());
+        Ok(())
+    })
+}
+
+#[cfg(test)]
+mod stream_block_tests {
+    use super::*;
+    use apexsim_protocol::spectator::{encode_frames, framed, CarRow, ColumnBlock};
+    use apexsim_sim::data::SessionState;
+
+    #[test]
+    fn a_column_block_unpacks_to_its_framed_records() {
+        let mut row = CarRow::read(&[0u8; 66]).unwrap();
+        let mut bodies = Vec::new();
+        for tick in 0..30u32 {
+            row.x_mm = tick as i32 * 1234;
+            bodies.extend(encode_frames(
+                1,
+                tick * 14,
+                0,
+                SessionState::Racing,
+                None,
+                &[row],
+            ));
+        }
+        let views: Vec<&[u8]> = bodies.iter().map(Vec::as_slice).collect();
+        let block = ColumnBlock::pack(0, 29 * 14, &views).unwrap().encode();
+        let want: Vec<u8> = bodies.iter().flat_map(|b| framed(b)).collect();
+
+        let mut written = 0usize;
+        let status = unsafe {
+            apx_stream_block_raw(
+                block.as_ptr(),
+                block.len(),
+                std::ptr::null_mut(),
+                0,
+                &mut written,
+            )
+        };
+        assert_eq!((status, written), (APX_ERR_BUFFER, want.len()));
+        let mut buf = vec![0u8; written];
+        let status = unsafe {
+            apx_stream_block_raw(
+                block.as_ptr(),
+                block.len(),
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut written,
+            )
+        };
+        assert_eq!(status, APX_OK);
+        assert_eq!(buf, want);
+
+        let not_a_block = &bodies[0];
+        let status = unsafe {
+            apx_stream_block_raw(
+                not_a_block.as_ptr(),
+                not_a_block.len(),
+                buf.as_mut_ptr(),
+                buf.len(),
+                &mut written,
+            )
+        };
+        assert_eq!(status, APX_ERR_INVALID);
+    }
 }

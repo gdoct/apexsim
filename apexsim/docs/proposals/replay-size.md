@@ -1,6 +1,6 @@
 # Smaller recorded sessions
 
-Status: proposal, not built.
+Status: phase 1 built (column blocks, version 2 files; docs/game/spectator.md); phases 2 to 4 not built.
 
 Every race the server finishes, every session a client is in, every
 showcase and every promo clip is a spectator stream (`.apxs`,

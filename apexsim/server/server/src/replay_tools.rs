@@ -855,8 +855,13 @@ pub struct StreamInfo {
     pub frames: usize,
     pub events: usize,
     pub file_bytes: usize,
+    /// The container's version (1 plain blocks, 2 column blocks).
+    pub file_version: u16,
     /// Bytes of the records once inflated.
     pub raw_bytes: usize,
+    /// CRC-32 of every timed record, framed, in order: two files of the same
+    /// race in any container version show the same.
+    pub records_crc: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -921,7 +926,14 @@ pub fn describe_stream(file: &StreamFile) -> Result<StreamInfo, String> {
         frames: kind(crate::spectator::RECORD_FRAME),
         events: kind(crate::spectator::RECORD_EVENT),
         file_bytes: file.file_len(),
+        file_version: file.file_version(),
         raw_bytes: records.iter().map(|b| b.len() + 4).sum(),
+        records_crc: apexsim_formats::content_crc::crc32(
+            &records
+                .iter()
+                .flat_map(|b| crate::spectator::framed(b))
+                .collect::<Vec<u8>>(),
+        ),
     })
 }
 
