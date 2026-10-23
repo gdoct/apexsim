@@ -572,6 +572,10 @@ pub struct GameSession {
     /// round, against the lap allowance
     /// (`RaceSession::qualifying_lap_allowance`).
     qualifying_laps_run: std::collections::BTreeMap<PlayerId, u8>,
+    /// Each car's tyre sets under the rules that count them
+    /// (`crate::tyre_sets`; `RaceRules::qualifying_tyre_sets`,
+    /// `qualifying_tyre_start`). Empty without them.
+    tyre_sets: std::collections::BTreeMap<PlayerId, crate::tyre_sets::CarTyres>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -996,6 +1000,28 @@ fn fit_tyres(
     start: TyreStart,
     car_setups: &HashMap<PlayerId, CarSetup>,
 ) {
+    fit_tyres_as(
+        state,
+        car_configs,
+        tuned_configs,
+        track,
+        start,
+        car_setups,
+        None,
+    );
+}
+
+/// [`fit_tyres`], of `compound` when one is given (a used set going back
+/// on, `crate::tyre_sets`) rather than the one the setup picks.
+fn fit_tyres_as(
+    state: &mut CarState,
+    car_configs: &HashMap<CarConfigId, CarConfig>,
+    tuned_configs: &HashMap<PlayerId, CarConfig>,
+    track: &TrackConfig,
+    start: TyreStart,
+    car_setups: &HashMap<PlayerId, CarSetup>,
+    compound: Option<u8>,
+) {
     let Some(config) = simulated_config(car_configs, tuned_configs, state) else {
         return;
     };
@@ -1003,15 +1029,17 @@ fn fit_tyres(
     // The compound the driver's setup chose for the next set (the weather's
     // tyre for a stock pick in the rain or on snow, and for the AI), from
     // the car's own list.
-    let compound = car_setups
-        .get(&state.player_id)
-        .copied()
-        .unwrap_or_default()
-        .compound_index_for(
-            tyre,
-            track.track_surface.water,
-            crate::road_state::RoadState::line_snow_of(track),
-        );
+    let compound = compound.unwrap_or_else(|| {
+        car_setups
+            .get(&state.player_id)
+            .copied()
+            .unwrap_or_default()
+            .compound_index_for(
+                tyre,
+                track.track_surface.water,
+                crate::road_state::RoadState::line_snow_of(track),
+            )
+    });
     let surface = &track.track_surface;
     let temperature = match start {
         TyreStart::Garage | TyreStart::FormationGrid => {
@@ -1040,6 +1068,50 @@ fn fit_tyres(
         .start_mode();
 }
 
+/// The set a qualifying car goes out on under the tyre allowance
+/// (`RaceRules::qualifying_tyre_sets`): `fresh` has a new set of the
+/// setup's compound on; while new slick sets are left that one is taken and
+/// counted, past them the least worn used set goes back on in its place
+/// (`tyre_sets::CarTyres::take_used`). A treaded tyre is always new.
+fn take_qualifying_set(
+    fresh: &mut CarState,
+    car: &mut crate::tyre_sets::CarTyres,
+    allowance: u8,
+    car_configs: &HashMap<CarConfigId, CarConfig>,
+    tuned_configs: &HashMap<PlayerId, CarConfig>,
+    track: &TrackConfig,
+    car_setups: &HashMap<PlayerId, CarSetup>,
+) {
+    car.on_car_laps = 0.0;
+    let Some(config) = simulated_config(car_configs, tuned_configs, fresh) else {
+        return;
+    };
+    if !crate::tyre_sets::counted(&config.tire_config, fresh.tyre_compound) {
+        return;
+    }
+    if car.new_in_qualifying < allowance {
+        car.new_in_qualifying += 1;
+        return;
+    }
+    // Nothing kept (no run yet): the new set it has on, uncounted.
+    let Some(used) = car.take_used(fresh.tyre_compound) else {
+        return;
+    };
+    if used.compound != fresh.tyre_compound {
+        fit_tyres_as(
+            fresh,
+            car_configs,
+            tuned_configs,
+            track,
+            TyreStart::Garage,
+            car_setups,
+            Some(used.compound),
+        );
+    }
+    used.wear_onto(fresh);
+    car.on_car_laps = used.laps;
+}
+
 impl GameSession {
     pub fn new(
         session: RaceSession,
@@ -1065,6 +1137,7 @@ impl GameSession {
             shootout: None,
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
+            tyre_sets: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -1153,6 +1226,7 @@ impl GameSession {
             shootout: None,
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
+            tyre_sets: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -1984,6 +2058,8 @@ impl GameSession {
         // session's clock, each of them takes the flag; a timed lap ended
         // counts against the lap allowance and ends a shoot-out run.
         let mut crossed: Vec<(PlayerId, bool)> = Vec::new();
+        let keeps_lap_sets = self.session.game_mode == GameMode::Qualification
+            && self.session.race_rules.qualifying_tyre_start > 0;
 
         for state in self.session.participants.values_mut() {
             if state.in_garage {
@@ -2005,6 +2081,15 @@ impl GameSession {
                         sample_ghost_trace(lap_traces, moved, ghost, current_tick, tick_rate_hz)
                     })
                 {
+                    // The set a lap ends on, for the race to start on when
+                    // the lap places the car (`note_qualifying_lap`).
+                    if keeps_lap_sets && event.lap_time_ms.is_some() {
+                        let car = self.tyre_sets.entry(state.player_id).or_default();
+                        car.lap_end = Some(crate::tyre_sets::TyreSet::of(
+                            state,
+                            car.on_car_laps + laps_run(state, track_length),
+                        ));
+                    }
                     note_lap_event(
                         &mut self.lap_events,
                         &mut self.lap_traces,
@@ -3453,6 +3538,14 @@ impl GameSession {
                 for player_id in humans {
                     let _ = self.hotlap_relocate(&player_id, HotlapDestination::Garage, false);
                 }
+                // A fresh qualifying (a weekend's Q1) starts every car on
+                // its allowance afresh; a weekend's later rounds go on
+                // counting, on the sets the rounds before left.
+                if mode == GameMode::Qualification
+                    && (!self.is_weekend() || self.weekend.round <= 1)
+                {
+                    self.tyre_sets.clear();
+                }
                 if self.hotlap_watch.active {
                     self.send_hotlap_watch_out();
                 }
@@ -3872,11 +3965,27 @@ impl GameSession {
         // run or for this one.
         let car_id = state.car_config_id;
         let fuel = self.start_fuel_liters(player_id, car_id, mode);
+        let counts_sets = self.counts_qualifying_sets();
+        let total_m = crate::laps::track_length_m(&self.track_config);
         let state = self
             .session
             .participants
             .get_mut(player_id)
             .ok_or("No car in this session")?;
+        // A used slick set coming off the car goes back to the garage, for
+        // a run once the new sets are used.
+        if counts_sets && !state.in_garage && state.tyres_fitted {
+            if let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) {
+                let car = self.tyre_sets.entry(*player_id).or_default();
+                let set = crate::tyre_sets::TyreSet::of(
+                    state,
+                    car.on_car_laps + laps_run(state, total_m),
+                );
+                if crate::tyre_sets::counted(&config.tire_config, set.compound) {
+                    car.kept.push(set);
+                }
+            }
+        }
         let slot = GridSlot {
             position: state.grid_position,
             x: pose.0,
@@ -3918,6 +4027,17 @@ impl GameSession {
             },
             &self.car_setups,
         );
+        if counts_sets && !in_garage {
+            take_qualifying_set(
+                &mut fresh,
+                self.tyre_sets.entry(*player_id).or_default(),
+                self.session.race_rules.qualifying_tyre_sets,
+                &self.car_configs,
+                &self.tuned_configs,
+                &self.track_config,
+                &self.car_setups,
+            );
+        }
         // Parked cars wait in neutral; a car put on the run-up is in first.
         fresh.gear = if in_garage { 0 } else { 1 };
         // Out of the box: served already, the pit autopilot drives it to
@@ -4851,6 +4971,9 @@ impl GameSession {
         }
         self.qualifying
             .insert(player_id, (lap_time_ms, self.session.current_tick));
+        if let Some(car) = self.tyre_sets.get_mut(&player_id) {
+            car.qualifying = car.lap_end;
+        }
         // The grid the roster announces follows the classification.
         self.roster_dirty = true;
         Some(self.qualifying_result())
@@ -5030,7 +5153,63 @@ impl GameSession {
             *state = fresh;
         }
         self.held_steering_assist.clear();
+        self.fit_qualifying_sets();
         self.park_non_qualifiers();
+    }
+
+    /// Whether this session counts qualifying's tyre sets now
+    /// (`RaceRules::qualifying_tyre_sets`).
+    fn counts_qualifying_sets(&self) -> bool {
+        self.session.game_mode == GameMode::Qualification
+            && self.session.race_rules.qualifying_tyre_sets > 0
+    }
+
+    /// The front of the qualifying classification starts the race on the
+    /// set that placed it (`RaceRules::qualifying_tyre_start`): its
+    /// compound, worn as it was at the end of that lap, warmed as the rest
+    /// of the grid's. The set's laps count in its stint
+    /// (`PitState::stint_start_laps`), so the AI reads its wear rate right.
+    /// Waived when the race starts wet: the weather's tyre for a stock pick
+    /// is a treaded one.
+    fn fit_qualifying_sets(&mut self) {
+        let n = self.session.race_rules.qualifying_tyre_start;
+        if n == 0 {
+            return;
+        }
+        let grid_tyres = self.grid_tyres();
+        let water = self.track_config.track_surface.water;
+        let snow = crate::road_state::RoadState::line_snow_of(&self.track_config);
+        let front: Vec<PlayerId> = self
+            .classified_laps()
+            .into_iter()
+            .filter(|(_, ms)| *ms > 0)
+            .take(n as usize)
+            .map(|(id, _)| id)
+            .collect();
+        for id in front {
+            let Some(set) = self.tyre_sets.get(&id).and_then(|c| c.qualifying) else {
+                continue;
+            };
+            let Some(state) = self.session.participants.get_mut(&id) else {
+                continue;
+            };
+            let wet = simulated_config(&self.car_configs, &self.tuned_configs, state)
+                .is_none_or(|c| c.tire_config.weather_compound_in(water, snow).is_some());
+            if wet {
+                continue;
+            }
+            fit_tyres_as(
+                state,
+                &self.car_configs,
+                &self.tuned_configs,
+                &self.track_config,
+                grid_tyres,
+                &self.car_setups,
+                Some(set.compound),
+            );
+            set.wear_onto(state);
+            state.pit.stint_start_laps = -set.laps;
+        }
     }
 
     /// The cut-off's non-qualifiers (`non_qualifiers`) do not start: each

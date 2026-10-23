@@ -5844,6 +5844,28 @@ mod tests {
         );
     }
 
+    /// The tyre and stint rules (`RaceRules`): each key on the wire only
+    /// when set, and read back as sent. A client that knows none of them
+    /// skips them (the table is a map).
+    #[test]
+    fn test_tyre_and_stint_rules_wire_format() {
+        let rules = RaceRules {
+            qualifying_tyre_sets: 3,
+            qualifying_tyre_start: 10,
+            ..Default::default()
+        };
+        let bytes = rmp_serde::to_vec_named(&rules).unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("qualifying_tyre_sets") && text.contains("qualifying_tyre_start"));
+        assert_eq!(rmp_serde::from_slice::<RaceRules>(&bytes).unwrap(), rules);
+        let one = rmp_serde::to_vec_named(&RaceRules {
+            qualifying_tyre_sets: 1,
+            ..Default::default()
+        })
+        .unwrap();
+        assert!(!String::from_utf8_lossy(&one).contains("qualifying_tyre_start"));
+    }
+
     /// The safety car on the road: a create asking for it, and a frame
     /// while it is out (`race_phase` 5 and its pose, after a nil clock, sky
     /// and yellows). Printed as `C_CreateSessionFullSafetyCar` /

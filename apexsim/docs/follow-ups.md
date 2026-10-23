@@ -238,6 +238,22 @@ order down the standings.
 
 ## P3: nice to have
 
+### 32. The tyre rules on the client
+
+The race rules' tyre keys run on the server
+([server/sessions.md](server/sessions.md#tyre-sets)) and are echoed in
+`SessionJoined.RaceRules`; the client skips them (`ParseRaceRules` reads
+the keys it knows).
+
+- The create screen has no rows for `qualifying_tyre_sets` and
+  `qualifying_tyre_start` (`FApexRaceRules`, the CreateSession encoder,
+  `RaceRulesToSend`, `FApexRaceRules::Describe`), and the qualifying garage
+  does not say how many new sets are left or which set GO OUT fits.
+
+**Check:** a qualifying session made from the create screen with an
+allowance of 1: the second run goes out on the used set (the HUD's tyre
+wear), and with the start rule pole's race begins on it.
+
 ### 11. Content tooling
 
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an

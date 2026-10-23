@@ -31,6 +31,8 @@ belong to these rules are described briefly beside them.
   `WeekendProgress`; `GameSession::resume_weekend`
 - `server/server/src/events.rs`: events kept across restarts (`Event`,
   `EventStore`, `finished_phase`, `open_session`, `run_once`)
+- `server/sim/src/tyre_sets.rs`: `TyreSet`, `CarTyres` (the tyre rules,
+  "Tyre sets")
 - `server/server/src/server.rs`: `ServerState::create_session` (resolves the
   conditions, clamps the rules, seeds the AI)
 - `server/server/src/game_loop/dispatch.rs`: message handlers; a watch-only kind
@@ -300,7 +302,11 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
   safety car on the road. Its restart procedure is fixed (the leader
   restarts at the line), so it takes no further rule;
 - `reverse_grid` (`u8`, 0 off): the first N slots of the starting order
-  start in reverse (see "Starting order and qualifying").
+  start in reverse (see "Starting order and qualifying");
+- `qualifying_tyre_sets` (`u8`, 0 none): the qualifying tyre allowance,
+  and `qualifying_tyre_start` (`u8`, 0 off, 255 every car with a time): the
+  front of qualifying starts the race on the set that placed it (see
+  "Tyre sets").
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
@@ -323,6 +329,38 @@ each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
 the whole field). The section's line and the create summary name them
 short (`FApexRaceRules::Describe`: "ROLLING START · 2 PENALTIES · VSC ·
 REVERSE GRID").
+
+## Tyre sets
+
+Without a tyre rule every run goes out on a new set: the garage, the grid
+and a stop each fit one. The rules that count sets (`race_rules` keys) keep
+each car's sets on the session (`GameSession::tyre_sets`,
+`tyre_sets::CarTyres`); only slicks are counted, so a treaded tyre
+(intermediate, wet, snow) is always new and rain never strands a car.
+
+- **Qualifying tyre allowance** (`qualifying_tyre_sets` N): in
+  `Qualification` a car may go out on a new slick set N times; every
+  round of a weekend's knockout counts together, a plain session counts
+  afresh each time it enters qualifying (a weekend at Q1). A set coming off
+  the car on any trip to the garage (`relocate`) is kept with its wear,
+  flat spots, pick-up and blistering and the laps it ran
+  (`tyre_sets::TyreSet`). Past the allowance a car goes out on the least
+  worn kept set of the compound its setup picks, else the least worn kept
+  set of any compound (`CarTyres::take_used`), as out of the garage
+  (cold). The AI's runs are counted the same way: an AI sent out again in a
+  later round goes on the set it came in on.
+- **Starting on the qualifying tyres** (`qualifying_tyre_start` N): the
+  set a car is on as it ends each timed lap in qualifying is noted
+  (`CarTyres::lap_end`, in `tick_hotlap`), and the lap that improves its
+  classification keeps it (`note_qualifying_lap`). `line_up_on_grid` fits
+  the first N of the classification (`classified_laps`: a weekend's
+  combined one) with that set (`fit_qualifying_sets`): its compound, worn
+  as it was, warmed as the rest of the grid. The setup's compound and a
+  grid-card change do not move it; the cars behind start on new sets as
+  ever. The set's laps go into the car's stint (`PitState::stint_start_laps`
+  set below zero), so the AI's tyre-wear rate (`pit::tyres_reach_flag`)
+  reads the set's whole life. Waived when the race starts wet (the
+  weather's tyre for a stock pick is a treaded one).
 
 ## The race's grid
 

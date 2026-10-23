@@ -43,6 +43,7 @@ pub mod seeded_race;
 pub mod slipstream;
 pub mod track_bundle;
 pub mod track_loader;
+pub mod tyre_sets;
 pub mod tyre_thermal;
 pub mod walls;
 pub mod weekend;

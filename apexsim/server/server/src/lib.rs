@@ -78,6 +78,7 @@ pub use apexsim_sim::seeded_race;
 pub use apexsim_sim::slipstream;
 pub use apexsim_sim::track_bundle;
 pub use apexsim_sim::track_loader;
+pub use apexsim_sim::tyre_sets;
 pub use apexsim_sim::tyre_thermal;
 pub use apexsim_sim::walls;
 pub use apexsim_sim::weekend;

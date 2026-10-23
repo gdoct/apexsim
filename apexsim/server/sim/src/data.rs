@@ -3878,6 +3878,16 @@ pub struct RaceRules {
     /// (`GameSession::grid_order_ids`).
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub reverse_grid: u8,
+    /// The qualifying tyre allowance: the new slick sets a car may take in
+    /// qualifying (every round of a weekend's together). Past it a car goes
+    /// out on its least worn used set (`crate::tyre_sets`). 0 is none.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub qualifying_tyre_sets: u8,
+    /// The first this many cars of the qualifying classification start the
+    /// race on the set they set their placing lap on, worn as it was (255:
+    /// every car with a time). Waived when the race starts wet. 0 is off.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub qualifying_tyre_start: u8,
 }
 
 fn is_zero_u8(v: &u8) -> bool {

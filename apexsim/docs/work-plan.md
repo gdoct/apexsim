@@ -181,7 +181,6 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** keep the sim path free of persistence reads.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
-- Qualifying tyre allowance and starting on the qualifying tyres.
 - A qualifying HUD (not race standings).
 - Setups and tyre sets carried between sessions (parc fermé).
 - Assists per weekend phase — bundle with B2.

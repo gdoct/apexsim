@@ -37,4 +37,5 @@ mod tls_requirement_test;
 mod track_content_test;
 mod track_evolution_test;
 mod transport_backpressure_test;
+mod tyre_rules_test;
 mod weekend_test;
