@@ -739,7 +739,7 @@ void AApexCockpitRig::PushDash()
 		Phase += FString::Printf(TEXT(" %d"), FMath::RoundToInt(Features.bMetric ? Kph : Kph * 0.621371f));
 	}
 	Widget->SetPhaseLabel(Phase);
-	Widget->SetFlags(YellowAhead, bBlueFlag);
+	Widget->SetFlags(YellowAhead, bBlueFlag, bOverRev, bShiftRefused);
 	Widget->SetValues(Car->GetGear(), ApexRace::MpsToKph(Car->GetSpeedMps()), Features.bMetric,
 		Car->GetEngineRpm() / ObservedMaxRpm, Car->GetCurrentLap(), Car->GetCurrentLapTimeMs(), CountdownMs);
 }

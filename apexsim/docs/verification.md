@@ -365,6 +365,22 @@ all judged good. Left:
 - A multi-class race by hand: the blue flag as an LMP2 closes, the AI
   letting it by, the GT3s' race among themselves.
 
+### R17. Over-rev cues
+
+`b16-over-rev` (the Norisring, the rally car, the stand-in driving; the
+`gear=1:3` debug event forces a missed downshift to 1st at 100 km/h and
+holds it; the engine goes in under a second, so the shots sit on the event): the shift warning banner with the revs past the limit, the rev
+counter and gear digit red, the cockpit dash's light bar flashing red
+([hud-modding](game/hud-modding.md)). `b16-refused` asks the same of the
+Caravan, whose box refuses it: the amber DOWNSHIFT REFUSED banner, the red
+gear digit and the dash's amber blink. Shot 2026-10-23: "OVER-REV · SHIFT
+UP · 145%" with the gear digit red, the engine zone at 95% and the counter
+flashing as the 037 went to 1st at 100 km/h; "DOWNSHIFT REFUSED · TOO FAST
+FOR THE GEAR" in amber with the dash bar amber in the Caravan; both judged
+good. Left:
+
+- The cues at the wheel with paddles, in a real missed downshift.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

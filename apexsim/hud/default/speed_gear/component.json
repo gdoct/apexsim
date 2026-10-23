@@ -12,7 +12,7 @@
     "children": [
       { "type": "text", "valign": "center", "font": "display", "size": 64,
         "text": "=has(car.gear_text) ? car.gear_text : 'N'",
-        "color": "=car.rpm_fraction > 0.95 ? 'error' : 'accent'" },
+        "color": "=car.over_rev || car.downshift_risk || car.rpm_fraction > 0.95 ? 'error' : 'accent'" },
       { "type": "column", "valign": "center", "margin": [18, 0, 0, 0],
         "children": [
           { "type": "text", "font": "display", "size": 40, "text": "=has(car.speed) ? fmt(car.speed) : '0'" },

@@ -71,6 +71,11 @@ pub enum Action {
     AidsOff,
     /// The pit autopilot off: the driver drives the pit lane.
     ManualPits,
+    /// The gearbox put straight into this gear, protection or not, and
+    /// the stand-in asking for it for this many seconds after (the
+    /// session's `stand_in_input`): a missed downshift to order, for the
+    /// over-rev cues, or a refused one on a protected box.
+    Gear(i8, f32),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -173,6 +178,10 @@ pub fn parse_event(text: &str) -> Option<DebugEvent> {
         }
         "brakewear" => Action::BrakeWear(next().parse().ok()?),
         "pit" => Action::Pit,
+        "gear" => {
+            let gear = next().parse().ok()?;
+            Action::Gear(gear, next().parse().unwrap_or(0.0))
+        }
         "boost" => Action::Boost(next().parse().ok()?),
         "aids" if next().eq_ignore_ascii_case("off") => Action::AidsOff,
         "pitlane" if next().eq_ignore_ascii_case("manual") => Action::ManualPits,
@@ -241,6 +250,13 @@ pub fn apply(action: Action, state: &mut CarState) {
             state.traction_control = Some(crate::data::TractionControl::Off);
         }
         Action::ManualPits => state.manual_pits = true,
+        // Held for a while, the stand-in asks for the gear instead (the
+        // box may refuse it, which is the point); at once, it is put in.
+        Action::Gear(gear, seconds) => {
+            if seconds <= 0.0 {
+                state.gear = gear.clamp(-1, 8);
+            }
+        }
     }
 }
 

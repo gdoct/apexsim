@@ -77,6 +77,14 @@ still while serviced) and the gearbox, limiter and DRS flap:
   at the road speed: a request for two gears down stops at the lowest that fits, one with
   none that fits is ignored. The F1, hypercar, LMP2 and GT3 cars have it, as the real cars'
   boxes do; the rally cars do not, and a missed downshift over-revs them.
+  Either way the driver is told: `CarState::over_rev_ratio` (the revs the
+  box forces past the limit, which `engine_rpm` clamps away),
+  `shift_refused_s` (`SHIFT_REFUSED_CUE_S` after the protection stepped in)
+  and `downshift_risk` (the next gear down would over-rev at this speed)
+  go out as telemetry's `engine_flags` and `over_rev_pct`
+  ([protocol](protocol.md)); the HUD's `shift_warning` banner, rev counter
+  and gear digit and the cockpit dash's light bar show them
+  ([hud-modding](../game/hud-modding.md)).
   **Brakes**: demand split by `brake_bias_front`, scaled per wheel by pad friction.
   **Handbrake** (`PlayerInput.handbrake`, held): `HANDBRAKE_SHARE` (0.6) of the car's pedal
   force on the rear axle on top, and ABS off for the rears, so they lock; a locked rear tyre

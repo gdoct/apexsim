@@ -56,7 +56,7 @@ component id. To hide a shipped component, write
 
 Shipped components: `track_info`, `race_state` (with STOPS OWED under a pit
 rule and the BOX badge after a pit request), `status`, `minimap`,
-`standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`,
+`standings`, `timing`, `pedals`, `damage`, `car_state`, `mirror`, `pit_stop`, `shift_warning`,
 `ers` (a hybrid only), `flags` (while race control shows the car a flag),
 `race_phase` (the formation or pace lap, the VSC or the safety car),
 `penalty` (a penalty as it is given, then one owed),
@@ -428,10 +428,13 @@ which are.
 | `car.speed_kph`, `car.speed_mph` | speed |
 | `car.speed` | speed in the player's units |
 | `car.gear`, `car.gear_text` | gear as a number (-1 reverse, 0 neutral) and as shown (`R`, `N`, `1`...) |
-| `car.rpm` | engine speed |
+| `car.rpm` | engine speed; during an over-rev the revs the gearbox forces (the wire's figure clamps at the limit, `car.over_rev_pct` does not) |
 | `car.rpm_max` | the rev counter's scale: the car's rev limiter, or the highest revs seen |
 | `car.rpm_fraction` | `car.rpm / car.rpm_max`, 0 to 1 |
 | `car.redline_rpm` | the redline from car.toml (*null* when unknown) |
+| `car.over_rev`, `car.over_rev_pct` | a missed downshift is forcing the engine past its limit, and how far, percent of the limit (telemetry `engine_flags` / `over_rev_pct`): the `shift_warning` banner, the rev counter and the dash's light bar flash red |
+| `car.downshift_refused` | the box's downshift protection refused a downshift a moment ago (`[transmission] downshift_protection`, 0.6 s): the banner says so in amber |
+| `car.downshift_risk` | the next gear down would over-rev at this speed (refused on a protected box, an over-rev on a rally car): the gear digit goes red |
 | `car.throttle`, `car.brake` | pedals, 0 to 1 |
 | `car.steering` | steering, -1 to 1 |
 | `car.in_garage` | parked in the hotlap garage |

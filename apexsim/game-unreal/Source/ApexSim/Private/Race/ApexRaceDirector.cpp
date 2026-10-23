@@ -1386,6 +1386,9 @@ void AApexRaceDirector::UpdateRaceBleeps(const FApexTelemetryFrame& Frame, EApex
 		if (Rig)
 		{
 			Rig->SetRaceFlags(Yellow, bBlue);
+			// The gearbox's warnings, in or out of a race: a missed downshift
+			// hurts in practice too.
+			Rig->SetShiftWarnings(Car.bOverRev, Car.bDownshiftRefused);
 		}
 		break;
 	}

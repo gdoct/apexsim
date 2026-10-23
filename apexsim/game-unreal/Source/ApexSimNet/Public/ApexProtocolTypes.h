@@ -3034,6 +3034,22 @@ struct APEXSIMNET_API FApexCarTelemetry
 	int32 YellowAhead = 0;
 
 	/**
+	 * The gearbox's warnings (`engine_flags`, `over_rev_pct`): the engine
+	 * is forced past its limit now (a missed downshift; OverRevPct how far,
+	 * percent of the limit, which EngineRpm clamps away), the box refused a
+	 * downshift a moment ago, and the next gear down would over-rev at this
+	 * speed. All clear from a server that predates them.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
+	bool bOverRev = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
+	int32 OverRevPct = 0;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
+	bool bDownshiftRefused = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
+	bool bDownshiftRisk = false;
+
+	/**
 	 * The tyre is sliding hard enough to smoke / is locked (`slide_flags`
 	 * bits 0-3 and 4-7). False from a server that predates them.
 	 */

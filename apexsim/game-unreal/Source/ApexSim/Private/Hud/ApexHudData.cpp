@@ -1104,7 +1104,12 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("car.speed"), In.bImperial ? Mph : Kph);
 		Out.Set(TEXT("car.gear"), Local->Gear);
 		Out.Set(TEXT("car.gear_text"), Local->Gear < 0 ? FString(TEXT("R")) : Local->Gear == 0 ? FString(TEXT("N")) : FString::FromInt(Local->Gear));
-		Out.Set(TEXT("car.rpm"), Local->EngineRpm);
+		// An over-rev: the wire's rpm clamps at the limit, the percent past
+		// it does not, so the counter reads the revs the engine is forced to.
+		const float Rpm = Local->bOverRev && Local->OverRevPct > 0
+			? Local->EngineRpm * (1.0f + Local->OverRevPct / 100.0f)
+			: Local->EngineRpm;
+		Out.Set(TEXT("car.rpm"), Rpm);
 
 		// The scale is the car's rev limiter when its car.toml names one;
 		// otherwise the highest reading so far, which only ever grows and so
@@ -1115,6 +1120,13 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			: Memory.ObservedMaxRpm;
 		Out.Set(TEXT("car.rpm_max"), Ceiling);
 		Out.Set(TEXT("car.rpm_fraction"), FMath::Clamp(Local->EngineRpm / FMath::Max(Ceiling, 1.0f), 0.0f, 1.0f));
+		// The gearbox's warnings: an over-rev under way (and how far, percent
+		// past the limit), a downshift the box refused a moment ago, and a
+		// downshift that would over-rev right now.
+		Out.Set(TEXT("car.over_rev"), Local->bOverRev);
+		Out.Set(TEXT("car.over_rev_pct"), Local->OverRevPct);
+		Out.Set(TEXT("car.downshift_refused"), Local->bDownshiftRefused);
+		Out.Set(TEXT("car.downshift_risk"), Local->bDownshiftRisk);
 
 		Out.Set(TEXT("car.throttle"), FMath::Clamp(Local->Throttle, 0.0f, 1.0f));
 		Out.Set(TEXT("car.brake"), FMath::Clamp(Local->Brake, 0.0f, 1.0f));
@@ -1162,7 +1174,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.drs_open"), TEXT("car.tow"), TEXT("car.x"), TEXT("car.y"), TEXT("car.z"), TEXT("car.yaw_deg"),
 				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
 				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("pit.requested"), TEXT("car.recovering"),
-				 TEXT("car.recover_s"), TEXT("flag.yellow"), TEXT("flag.blue"), TEXT("flag.name")})
+				 TEXT("car.recover_s"), TEXT("flag.yellow"), TEXT("flag.blue"), TEXT("flag.name"), TEXT("car.over_rev"),
+				 TEXT("car.over_rev_pct"), TEXT("car.downshift_refused"), TEXT("car.downshift_risk")})
 		{
 			Out.SetNone(Name);
 		}

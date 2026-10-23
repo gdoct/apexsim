@@ -675,6 +675,9 @@ pub struct GameSession {
     debug_next_event: usize,
     /// Green tick until which a stand-in holds the overtake button.
     debug_boost_until: std::collections::BTreeMap<PlayerId, u64>,
+    /// The gear the stand-in asks for, and the green tick it stops
+    /// (`debug_hooks::Action::Gear`).
+    debug_gear_hold: std::collections::BTreeMap<PlayerId, (i8, u64)>,
     /// The watched hotlap this session is, if it is one.
     hotlap_watch: HotlapWatch,
     /// The track's corners, for the watcher's HUD (`TrackCorners`).
@@ -1103,6 +1106,7 @@ impl GameSession {
             debug_green_ticks: 0,
             debug_next_event: 0,
             debug_boost_until: std::collections::BTreeMap::new(),
+            debug_gear_hold: std::collections::BTreeMap::new(),
             hotlap_watch: HotlapWatch::default(),
             track_corners: Vec::new(),
             own_car_feeds: std::collections::BTreeMap::new(),
@@ -1190,6 +1194,7 @@ impl GameSession {
             debug_green_ticks: 0,
             debug_next_event: 0,
             debug_boost_until: std::collections::BTreeMap::new(),
+            debug_gear_hold: std::collections::BTreeMap::new(),
             hotlap_watch: HotlapWatch::default(),
             track_corners: Vec::new(),
             own_car_feeds: std::collections::BTreeMap::new(),
@@ -5032,6 +5037,7 @@ impl GameSession {
         self.debug_green_ticks = 0;
         self.debug_next_event = 0;
         self.debug_boost_until.clear();
+        self.debug_gear_hold.clear();
     }
 
     /// The debug stand-in driver's input for a human's car, when the hooks
@@ -5052,6 +5058,11 @@ impl GameSession {
             .is_some_and(|until| self.debug_green_ticks < *until)
         {
             input.ers_boost = true;
+        }
+        if let Some((gear, until)) = self.debug_gear_hold.get(player_id) {
+            if self.debug_green_ticks < *until {
+                input.gear = Some(*gear);
+            }
         }
         Some(input)
     }
@@ -5104,6 +5115,11 @@ impl GameSession {
                     let ticks = (seconds.max(0.0) * self.tick_rate_hz as f32) as u64;
                     self.debug_boost_until
                         .insert(id, self.debug_green_ticks + ticks);
+                }
+                if let crate::debug_hooks::Action::Gear(gear, seconds) = event.action {
+                    let ticks = (seconds.max(0.0) * self.tick_rate_hz as f32) as u64;
+                    self.debug_gear_hold
+                        .insert(id, (gear, self.debug_green_ticks + ticks));
                 }
                 if let Some(state) = self.session.participants.get_mut(&id) {
                     tracing::info!(

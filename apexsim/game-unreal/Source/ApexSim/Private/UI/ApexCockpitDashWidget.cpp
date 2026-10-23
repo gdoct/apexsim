@@ -114,14 +114,18 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 	// nothing is written unless the number the driver would read has moved.
 	const int32 Lit = FMath::Clamp(FMath::RoundToInt(FMath::Clamp(RpmFraction, 0.0f, 1.0f) * LightCount), 0, LightCount);
 	// A flag takes the whole row, flashing; the revs come back when it goes.
-	const int32 FlagKind = FlagYellow > 0 ? (FlagYellow > 1 ? 3 : 1) : (bFlagBlue ? 2 : 0);
-	const double FlashHz = FlagKind == 3 ? 4.0 : 2.0;
+	// An over-rev outranks every flag (red, fast); a refused downshift
+	// blinks amber for the moment the server shows it.
+	const int32 FlagKind = bOverRev ? 4 : bShiftRefused ? 5
+		: FlagYellow > 0 ? (FlagYellow > 1 ? 3 : 1) : (bFlagBlue ? 2 : 0);
+	const double FlashHz = FlagKind == 4 ? 8.0 : FlagKind == 3 || FlagKind == 5 ? 4.0 : 2.0;
 	const bool bFlashOn = FMath::Frac(FPlatformTime::Seconds() * FlashHz) < 0.5;
 	const int32 FlagState = FlagKind == 0 ? 0 : FlagKind * 2 + (bFlashOn ? 1 : 0);
 	if (FlagState != ShownFlagState)
 	{
 		ShownFlagState = FlagState;
-		const FLinearColor FlagColour = FlagKind == 2 ? FLinearColor::FromSRGBColor(FColor(0x2F, 0x6B, 0xFF)) : Palette::Accent;
+		const FLinearColor FlagColour = FlagKind == 2 ? FLinearColor::FromSRGBColor(FColor(0x2F, 0x6B, 0xFF))
+			: FlagKind == 4 ? Palette::Error : Palette::Accent;
 		for (int32 Index = 0; Index < RpmLights.Num(); ++Index)
 		{
 			if (RpmLights[Index] && FlagKind != 0)
@@ -183,10 +187,12 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 	}
 }
 
-void UApexCockpitDashWidget::SetFlags(int32 YellowAhead, bool bBlue)
+void UApexCockpitDashWidget::SetFlags(int32 YellowAhead, bool bBlue, bool bInOverRev, bool bInShiftRefused)
 {
 	FlagYellow = FMath::Max(0, YellowAhead);
 	bFlagBlue = bBlue;
+	bOverRev = bInOverRev;
+	bShiftRefused = bInShiftRefused;
 }
 
 void UApexCockpitDashWidget::SetPhaseLabel(const FString& Label)

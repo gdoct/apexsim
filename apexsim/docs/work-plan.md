@@ -33,7 +33,6 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
-| B16 | Over-rev warning and rpm past the limit on the wire, for cars without downshift protection (follow-ups #31) | Bug | P3 | 🟢 | S | — |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
@@ -100,12 +99,6 @@ the centring re-arming; the centring was made safe blind (no re-arm on a
 stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop for 10 s, read the `Wheel
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
-
-#### B16. Over-rev warning for cars without downshift protection — P3 · 🟢 · S
-*Source: follow-ups #31, wheel sitting 2026-10-23.* Downshift protection,
-the limiter's full cut and the retirement view landed; the rally cars keep
-no protection (as the real ones), so warn before a missed downshift hurts
-and carry the rpm past the limit in telemetry and the recording.
 
 #### B13. Tent over the track at Armadillos T15–16 — P2 · 🟡 · S
 *Source: follow-ups #6, wheel sitting 2026-10-23.* Not found in the scene:

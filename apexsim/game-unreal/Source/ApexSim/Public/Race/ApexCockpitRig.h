@@ -98,6 +98,12 @@ public:
 		YellowAhead = InYellowAhead;
 		bBlueFlag = bInBlue;
 	}
+	/** The gearbox's warnings for the car on the wheel (telemetry `engine_flags`): the light bar flashes them. */
+	void SetShiftWarnings(bool bInOverRev, bool bInShiftRefused)
+	{
+		bOverRev = bInOverRev;
+		bShiftRefused = bInShiftRefused;
+	}
 
 	/** The rear view for the HUD, or null while the virtual mirror is off. */
 	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
@@ -229,6 +235,8 @@ private:
 	int32 RacePhase = 0;
 	int32 YellowAhead = 0;
 	bool bBlueFlag = false;
+	bool bOverRev = false;
+	bool bShiftRefused = false;
 	float SpeedCapMps = 0.0f;
 
 	float WheelRollDeg = 0.0f;

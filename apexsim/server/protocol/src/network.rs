@@ -1454,6 +1454,45 @@ pub struct CompactCarState {
     /// older server.
     #[serde(default)]
     pub race_flags: u8,
+    /// The gearbox's warnings (`crate::physics`): bit 0 the engine is
+    /// forced past its limit now ([`ENGINE_FLAG_OVER_REV`],
+    /// `CarState::over_rev_ratio`), bit 1 the box refused a downshift a
+    /// moment ago ([`ENGINE_FLAG_SHIFT_REFUSED`], `shift_refused_s`), bit 2
+    /// the next gear down would over-rev at this speed
+    /// ([`ENGINE_FLAG_DOWNSHIFT_RISK`], `downshift_risk`). Appended after
+    /// `race_flags`; 0 from an older server.
+    #[serde(default)]
+    pub engine_flags: u8,
+    /// How far past its limit the engine is forced, percent of
+    /// `max_engine_rpm` (held to a byte): the revs `engine_rpm` clamps
+    /// away, so a dash can show 118%. Appended after `engine_flags`; 0
+    /// within the limit and from an older server.
+    #[serde(default)]
+    pub over_rev_pct: u8,
+}
+
+/// `engine_flags` bits.
+pub const ENGINE_FLAG_OVER_REV: u8 = 1;
+pub const ENGINE_FLAG_SHIFT_REFUSED: u8 = 2;
+pub const ENGINE_FLAG_DOWNSHIFT_RISK: u8 = 4;
+
+/// The over-rev the flags warn of: the revs the damage starts at
+/// (`damage::OVER_REV_TOLERANCE`), not a car pinned on its limiter.
+pub const OVER_REV_FLAG_RATIO: f32 = crate::damage::OVER_REV_TOLERANCE;
+
+/// The `engine_flags` byte of a car's telemetry.
+pub fn engine_flags_of(state: &CarState) -> u8 {
+    ((state.over_rev_ratio >= OVER_REV_FLAG_RATIO) as u8) * ENGINE_FLAG_OVER_REV
+        | ((state.shift_refused_s > 0.0) as u8) * ENGINE_FLAG_SHIFT_REFUSED
+        | (state.downshift_risk as u8) * ENGINE_FLAG_DOWNSHIFT_RISK
+}
+
+/// The `over_rev_pct` byte: percent past the limit, 0 within it or on it.
+pub fn over_rev_pct_of(state: &CarState) -> u8 {
+    if state.over_rev_ratio < OVER_REV_FLAG_RATIO {
+        return 0;
+    }
+    ((state.over_rev_ratio - 1.0).max(0.0) * 100.0).round().min(255.0) as u8
 }
 
 /// `race_flags` bit 0: the blue flag.
@@ -1920,6 +1959,8 @@ impl CompactCarState {
             },
             stint_energy_pct: state.stint_energy_pct,
             race_flags: race_flags_of(state),
+            engine_flags: engine_flags_of(state),
+            over_rev_pct: over_rev_pct_of(state),
         }
     }
 }
@@ -3798,6 +3839,9 @@ mod tests {
         state.steering_input = -0.5;
         state.gear = 4;
         state.engine_rpm = 11_000.0;
+        state.over_rev_ratio = 1.18;
+        state.shift_refused_s = 0.3;
+        state.downshift_risk = true;
         state.current_lap = 3;
         state.track_progress = 0.75;
         state.current_lap_time_ms = 91_234;
@@ -3921,10 +3965,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 54-field array: 0xDC 0x00 0x36 is the array-16 header.
+        // The car is a 56-field array: 0xDC 0x00 0x38 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x36]),
-            "CompactCarState must stay 54 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x38]),
+            "CompactCarState must stay 56 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -3935,6 +3979,8 @@ mod tests {
                 assert_eq!(car.tyre_c, [84, 92, 103, 255], "rounded, held to a byte");
                 assert_eq!(car.tyre_kpa, [176, 181, 190, 1], "0 is kept for unknown");
                 assert_eq!(car.tow_pct, 17, "a 17% tow");
+                assert_eq!(car.engine_flags, 7, "over-rev, refused and risk bits");
+                assert_eq!(car.over_rev_pct, 18);
                 assert_eq!(car.tyre_wear, [12, 13, 31, 100]);
                 assert_eq!(car.compound, 0, "softs");
                 assert_eq!(car.pit_flags, 7, "in the lane, on the limiter, in service");

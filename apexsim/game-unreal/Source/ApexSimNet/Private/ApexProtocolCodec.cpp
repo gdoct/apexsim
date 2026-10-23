@@ -1998,7 +1998,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 54;
+	constexpr int32 CompactCarFieldCount = 56;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -2745,6 +2745,39 @@ namespace
 				}
 				Out.bBlueFlag = (Raw & 1u) != 0;
 				Out.YellowAhead = FMath::Min<int32>(static_cast<int32>((Raw >> 1) & 3u), 2);
+				return true;
+			});
+		}
+		// The gearbox's warnings, appended after the race flags: bit 0 an
+		// over-rev now, bit 1 a downshift refused, bit 2 the next gear down
+		// would over-rev; then how far past the limit, percent.
+		Out.bOverRev = false;
+		Out.bDownshiftRefused = false;
+		Out.bDownshiftRisk = false;
+		Out.OverRevPct = 0;
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.bOverRev = (Raw & 1u) != 0;
+				Out.bDownshiftRefused = (Raw & 2u) != 0;
+				Out.bDownshiftRisk = (Raw & 4u) != 0;
+				return true;
+			});
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				if (!Reader.ReadUInt64(Raw))
+				{
+					return false;
+				}
+				Out.OverRevPct = static_cast<int32>(FMath::Min<uint64>(Raw, 255));
 				return true;
 			});
 		}

@@ -1769,6 +1769,23 @@ pub struct CarState {
     pub flag_yellow: u8,
     #[serde(default)]
     pub flag_blue: bool,
+    /// The revs the gearbox forces on the engine past its limit (a missed
+    /// downshift), as a ratio of `max_engine_rpm` (`physics::geared_rpm`,
+    /// not in top gear); 0 while it is within the limit. `engine_rpm`
+    /// clamps at the limit, so this is where telemetry reads the over-rev
+    /// (`over_rev_pct`, `ENGINE_FLAG_OVER_REV`).
+    #[serde(default)]
+    pub over_rev_ratio: f32,
+    /// Seconds left of the cue that the box refused a downshift
+    /// (`physics::protected_gear` held the gear or stopped short of the
+    /// one asked for); 0 when none is showing.
+    #[serde(default)]
+    pub shift_refused_s: f32,
+    /// The next gear down would spin the engine past its limit at this
+    /// road speed: the cue not to pull the paddle (on a box without
+    /// protection the shift would over-rev; with it, it would be refused).
+    #[serde(default)]
+    pub downshift_risk: bool,
     /// The pace race control holds the car to, m/s: a formation lap's
     /// (`crate::race_start`) or the virtual safety car's
     /// (`crate::race_control`); 0 for none. The physics holds a car to it as
@@ -2169,6 +2186,9 @@ impl CarState {
             drs_allowed: false,
             flag_yellow: 0,
             flag_blue: false,
+            over_rev_ratio: 0.0,
+            shift_refused_s: 0.0,
+            downshift_risk: false,
             speed_cap_mps: 0.0,
             formation_lane_m: None,
             warm_up: false,

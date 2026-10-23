@@ -1,0 +1,25 @@
+// The gearbox's warnings, as a banner at the top: red while a missed
+// downshift forces the engine past its limit (with how far), amber for
+// the moment after the box refused a downshift. Hidden otherwise, and
+// while watching.
+{
+  "name": "Shift warning",
+  "region": "top",
+  "order": 3,
+  "visible": "=(car.over_rev || car.downshift_refused) && !spectate.active",
+  "root": {
+    "type": "panel",
+    "padding": [14, 6, 14, 6],
+    "radius": 3,
+    "direction": "row",
+    "background": "=car.over_rev ? alpha(rgb(220, 40, 40), floor(hud.time_s * 8) % 2 == 0 ? 0.95 : 0.6) : rgb(255, 160, 0, 0.92)",
+    "children": [
+      { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true,
+        "color": "=car.over_rev ? rgb(255, 255, 255) : rgb(20, 20, 20)",
+        "text": "=car.over_rev ? 'OVER-REV' : 'DOWNSHIFT REFUSED'" },
+      { "type": "text", "margin": [12, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40,
+        "color": "=car.over_rev ? rgb(255, 225, 225) : rgb(40, 40, 40)",
+        "text": "=car.over_rev ? 'SHIFT UP · ' + (100 + car.over_rev_pct) + '%' : 'TOO FAST FOR THE GEAR'" }
+    ]
+  }
+}

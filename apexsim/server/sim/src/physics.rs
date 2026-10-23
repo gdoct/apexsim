@@ -455,6 +455,18 @@ pub fn update_car_3d(
     };
     let over_rev = crate::damage::over_rev_damage(forced, dt) * state.engine_damage_scale();
     state.damage.hurt_engine(over_rev);
+    // What the dash and the HUD warn with: the over-rev itself, and whether
+    // the next gear down would be one.
+    state.over_rev_ratio = if forced > 1.0 { forced } else { 0.0 };
+    state.downshift_risk = state.gear > 1
+        && config
+            .gear_ratios
+            .get(state.gear as usize - 1)
+            .is_some_and(|ratio| {
+                let wheel_rpm = state.speed_mps / (2.0 * PI * config.wheel_radius_m) * 60.0;
+                wheel_rpm * ratio.abs() * config.final_drive_ratio > config.max_engine_rpm
+            });
+    state.shift_refused_s = (state.shift_refused_s - dt).max(0.0);
     // And every revolution wears it a little, the top of the rev range most:
     // wear a pit stop's repair leaves in place.
     let wear = crate::damage::engine_wear(engine_rpm / config.max_engine_rpm.max(1.0), dt)
@@ -1779,7 +1791,12 @@ pub fn update_car_3d(
     if let Some(gear) = input.gear {
         let v_long_now = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
         if gear_engages(state.gear, gear, v_long_now) {
-            state.gear = protected_gear(state, config, gear);
+            let allowed = protected_gear(state, config, gear);
+            if allowed != gear {
+                // The protection stepped in: shown on the dash for a moment.
+                state.shift_refused_s = SHIFT_REFUSED_CUE_S;
+            }
+            state.gear = allowed;
         }
     }
     if let Some(clutch) = input.clutch {
@@ -2075,6 +2092,9 @@ pub fn geared_rpm(state: &CarState, config: &CarConfig) -> f32 {
 /// that would spin the engine past its limit at this road speed: it stops
 /// at the lowest gear on the way that fits, or stays where it is. Any other
 /// request, and every request to a box without it, goes in as asked.
+/// How long the dash shows that a downshift was refused, s.
+pub const SHIFT_REFUSED_CUE_S: f32 = 0.6;
+
 pub fn protected_gear(state: &CarState, config: &CarConfig, requested: i8) -> i8 {
     if !config.transmission.downshift_protection || requested < 1 || requested >= state.gear {
         return requested;
@@ -5452,6 +5472,59 @@ mod tests {
         // Upshifts, neutral and reverse are not its business.
         assert_eq!(protected_gear(&state, &config, 5), 5);
         assert_eq!(protected_gear(&state, &config, 0), 0);
+    }
+
+    /// The cues a missed or refused downshift leaves on the car: the
+    /// over-rev ratio while the box forces the engine past its limit, the
+    /// refusal for a moment after the protection held the gear, and the
+    /// risk while the next gear down would over-rev.
+    #[test]
+    fn a_missed_or_refused_downshift_is_told() {
+        let mut config = create_test_config();
+        config.transmission.downshift_protection = true;
+        let track = TrackConfig::default();
+        let mut state = create_test_car_state();
+        state.gear = 4;
+        // Fast enough that 3rd fits and 2nd would over-rev.
+        let wheel_rpm_per_mps = 60.0 / (2.0 * PI * config.wheel_radius_m);
+        let limit = config.max_engine_rpm;
+        let r2 = config.gear_ratios[2] * config.final_drive_ratio;
+        let r3 = config.gear_ratios[3] * config.final_drive_ratio;
+        let speed = 0.5 * (limit / (r2 * wheel_rpm_per_mps) + limit / (r3 * wheel_rpm_per_mps));
+        state.speed_mps = speed;
+        state.vel_x = speed;
+        let dt = 1.0 / 240.0;
+        let input = PlayerInputData {
+            gear: Some(2),
+            ..Default::default()
+        };
+        update_car_3d(&mut state, &config, &input, &track, dt);
+        assert_eq!(state.gear, 3, "stopped at the gear that fits");
+        assert!(state.shift_refused_s > 0.0, "the refusal is shown");
+        assert_eq!(state.over_rev_ratio, 0.0);
+        // The risk is judged from the gear the car is in at the start of a
+        // tick: the one after the shift sees 3rd, and 2nd under it.
+        update_car_3d(&mut state, &config, &PlayerInputData::default(), &track, dt);
+        assert!(
+            state.downshift_risk,
+            "2nd would over-rev: {}",
+            state.speed_mps
+        );
+        for _ in 0..(SHIFT_REFUSED_CUE_S / dt) as u32 + 2 {
+            update_car_3d(&mut state, &config, &PlayerInputData::default(), &track, dt);
+        }
+        assert_eq!(state.shift_refused_s, 0.0, "and goes after its moment");
+
+        // Without protection the same shift goes in and over-revs.
+        config.transmission.downshift_protection = false;
+        state.speed_mps = speed;
+        state.vel_x = speed;
+        state.gear = 4;
+        update_car_3d(&mut state, &config, &input, &track, dt);
+        assert_eq!(state.gear, 2);
+        update_car_3d(&mut state, &config, &PlayerInputData::default(), &track, dt);
+        assert!(state.over_rev_ratio > 1.0, "{}", state.over_rev_ratio);
+        assert_eq!(state.shift_refused_s, 0.0);
     }
 
     #[test]

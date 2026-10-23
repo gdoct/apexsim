@@ -51,7 +51,7 @@ public:
 	 * does (yellow over blue; a double yellow flashes twice as fast). Takes
 	 * effect with the next SetValues.
 	 */
-	void SetFlags(int32 YellowAhead, bool bBlue);
+	void SetFlags(int32 YellowAhead, bool bBlue, bool bOverRev = false, bool bShiftRefused = false);
 
 private:
 	void BuildTree();
@@ -72,6 +72,9 @@ private:
 	bool bPhaseChanged = false;
 	int32 FlagYellow = 0;
 	bool bFlagBlue = false;
+	/** The gearbox's warnings: the whole bar flashes red over the limit, amber on a refused downshift. */
+	bool bOverRev = false;
+	bool bShiftRefused = false;
 	/** What the light bar last showed for a flag: 0 none, else the flag and its flash phase. */
 	int32 ShownFlagState = 0;
 	int32 LastTimeTenths = INT32_MIN;

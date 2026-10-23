@@ -7057,6 +7057,71 @@ runs:
       - {at: 115, label: "the finish view", checks: "the standings' class places at the flag"}
       - {at: 148, label: "the finish overlay", checks: "each row's class place beside the name (GT3 P1...)"}
 
+  # A missed downshift to 1st at 100 km/h (the gear event, held for 3 s by
+  # the stand-in) in the rally car, which has no downshift protection, on
+  # the Norisring: the shift warning banner and the rev counter
+  # flash red with the revs past the limit, the gear digit goes red, and
+  # the cockpit dash's light bar flashes red; the damage panel's engine zone
+  # takes it.
+  - id: b16-over-rev
+    about: "B16. The over-rev cues: banner, rev counter, gear digit, dash light bar"
+    server:
+      stand_in: true
+      events:
+        - "22:host:gear=1:3"
+        - "40:host:gear=1:3"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=037
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+    # The over-rev lasts only as long as the car takes to slow to the
+    # gear's limiter, a few tenths: the shots sit right on the event (22 s
+    # of green is 27.4 s on the clock here).
+    exec:
+      27.45: ["apexsim.hud.Data car."]
+      27.6: ["apexsim.hud.Data car."]
+      38: ["apexsim.cam.Chase cockpit"]
+    shots:
+      - {at: 27.5, label: "the over-rev from the chase camera", checks: "OVER-REV banner, flashing rev counter, red gear"}
+      - {at: 27.65, label: "a moment later", checks: "the banner's percent past the limit"}
+      - {at: 27.8, label: "and later", checks: "the banner, or the rev counter back on the limiter"}
+      - {at: 45.5, label: "the over-rev from the cockpit", checks: "the dash's light bar flashing red"}
+      - {at: 45.65, label: "the cockpit again", checks: "the other phase of the flash"}
+      - {at: 45.8, label: "the cockpit, later", checks: "the gear digit red: 1st would over-rev"}
+
+  # A downshift to 1st asked of a GT3 at speed, whose box refuses it: the
+  # amber DOWNSHIFT REFUSED banner, the red gear digit (a downshift would
+  # over-rev) and the dash's amber blink.
+  - id: b16-refused
+    about: "B16. A refused downshift's cues on a protected box"
+    server:
+      stand_in: true
+      events:
+        - "22:host:gear=1:3"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+    exec:
+      27.5: ["apexsim.hud.Data car."]
+      28.5: ["apexsim.hud.Data car."]
+    shots:
+      - {at: 27.6, label: "the refused downshift", checks: "DOWNSHIFT REFUSED banner, red gear digit, the dash blinking amber"}
+      - {at: 28, label: "a moment later", checks: "the other phase of the blink"}
+      - {at: 28.6, label: "still refused", checks: "the banner stays while the paddle is held"}
+
   - id: b13-armadillos-t15
     about: "B13. Armadillos T15-T16: what stands over the road"
     # The wheel sitting of 2026-10-23 saw a tent over the track here; the

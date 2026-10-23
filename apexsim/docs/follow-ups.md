@@ -26,7 +26,7 @@ None open.
 
 ## P1: core racing experience
 
-### 31. Wheel forces at a standstill, and over-revving without protection
+### 31. Wheel forces at a standstill
 
 Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, base FF 100%,
 game force 0.50, damping 0.25; paddle shifters, no H-shifter). Run files
@@ -51,16 +51,10 @@ are local, not in git, under `out/sit/2026-10-23/`.
   gone 1 s, `CentreRearmAfterSeconds`) and gives up on a rim that does not
   move under it for 0.4 s (`CentreGiveUpSeconds`: hands). If the rim still
   shakes, the damper is what is left.
-- The rally cars have no downshift protection (as the real ones), so a
-  missed downshift still blows their engine with no warning: a shift light
-  or a cue as the revs pass the limit, and the over-revved rpm in telemetry
-  and the recording, which clamp `engine_rpm` at the limit and so hide it
-  (the GT3's failure at Monza was read from the gear and speed instead).
 
 **Check:** sit on the grid and in the pit box with hands off the rim for
 30 s: the rim stays still or settles, no growing shake (the `Wheel forces
-over 5 s standing:` log line says which force it is). A rally car's
-missed downshift warns before it hurts.
+over 5 s standing:` log line says which force it is).
 
 ## P2: depth
 

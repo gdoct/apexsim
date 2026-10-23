@@ -361,7 +361,7 @@ driver's profile says (`hand_cars_to_stand_in`, each tick); `events = "<s of gre
 fires `wear=P`, `puncture=FL`, `leak=FL:KPA`, `flatspot=FL:S`,
 `heat=FL:C` (a tyre's tread and core at C °C; `front`, `rear` or `all` for
 several),
-`damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `aids=off` or
+`damage=<zone>:P`, `brakewear=P`, `pit`, `boost=S`, `gear=N[:S]` (the box put straight into gear N, protection or not; with S, the stand-in asks for gear N for S seconds instead, so a protected box refuses it: a missed downshift to order, or a refused one), `aids=off` or
 `pitlane=manual` (the pit autopilot off) at a time
 of green. Tests: `server/sim/tests/all/debug_hooks_test.rs`.
 `tick_jitter_seconds = N` (`APEXSIM_DEBUG_TICK_JITTER_SECONDS`) logs one

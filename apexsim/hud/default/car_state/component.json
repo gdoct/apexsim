@@ -50,8 +50,9 @@
       {
         "type": "row", "margin": [0, 8, 0, 0],
         "children": [
+          // Every block flashes red while a missed downshift over-revs the engine.
           { "type": "rect", "repeat": 30, "width": 10, "height": 14, "margin": [0, 0, 2, 0],
-            "color": "=index < round(car.rpm_fraction * 30) ? (index >= 25 ? 'error' : 'accent') : 'border'" }
+            "color": "=car.over_rev ? (floor(hud.time_s * 8) % 2 == 0 ? 'error' : 'border') : index < round(car.rpm_fraction * 30) ? (index >= 25 ? 'error' : 'accent') : 'border'" }
         ]
       },
 
@@ -62,7 +63,9 @@
           { "type": "column", "valign": "bottom", "margin": [0, 10, 0, 0],
             "children": [
               { "type": "label", "text": "Gear" },
-              { "type": "text", "margin": [0, 2, 0, 0], "font": "display", "size": 58, "color": "accent",
+              // Red while the next gear down would over-rev: do not pull the paddle.
+              { "type": "text", "margin": [0, 2, 0, 0], "font": "display", "size": 58,
+                "color": "=car.over_rev || car.downshift_risk ? 'error' : 'accent'",
                 "text": "=has(car.gear_text) ? car.gear_text : 'N'" }
             ] },
           { "type": "spacer", "fill": 1 },

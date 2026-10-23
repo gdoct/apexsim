@@ -55,7 +55,7 @@ pub const OVERHEAT_DAMAGE_PER_C_S: f32 = 0.08;
 /// Engine damage per second per share over the rev limit, percent, above
 /// a small tolerance ([`OVER_REV_TOLERANCE`]).
 const OVER_REV_DAMAGE_PER_S: f32 = 400.0;
-const OVER_REV_TOLERANCE: f32 = 1.02;
+pub const OVER_REV_TOLERANCE: f32 = 1.02;
 /// Engine wear, percent per hour, at the rev limit, and how steeply it
 /// falls with the revs: at 85% of the limit (a race's running) it is a
 /// third of that, about a quarter of the engine over 24 hours; at idle,
