@@ -8,6 +8,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/PlayerController.h"
 #include "UI/ApexNavigation.h"
+#include "UI/ApexPhotoModeWidget.h"
 #include "UI/ApexRootWidget.h"
 #include "Widgets/SViewport.h"
 
@@ -113,6 +114,14 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 		return false;
 	}
 
+	// Photo mode: every key flies the camera or sets the lens, the pause key
+	// and B included (they leave it); none reaches the watch view under it.
+	if (Root->IsPhotoModeActive())
+	{
+		Root->GetPhotoMode()->HandleKeyDown(InKeyEvent);
+		return true;
+	}
+
 	// The track guide: every key is its own (next, previous, camera, pause,
 	// back), and none reaches the menu screen hidden under it or opens the
 	// pause menu. A held arrow does not race through the corners.
@@ -201,6 +210,11 @@ bool FApexMenuInputProcessor::HandleKeyUpEvent(FSlateApplication& SlateApp, cons
 	{
 		HeldDirection.Reset();
 	}
+	if (UApexRootWidget* Root = Owner.Get(); Root && Root->IsPhotoModeActive())
+	{
+		Root->GetPhotoMode()->HandleKeyUp(InKeyEvent);
+		return true;
+	}
 	return false;
 }
 
@@ -258,6 +272,16 @@ bool FApexMenuInputProcessor::HandleAnalogInputEvent(FSlateApplication& SlateApp
 	{
 		return false;
 	}
+	// Photo mode: the sticks and triggers fly the camera, however small.
+	if (Root->IsPhotoModeActive())
+	{
+		if (FMath::Abs(InAnalogInputEvent.GetAnalogValue()) >= AnalogIntentThreshold)
+		{
+			SetGamepadActive(*Root, true);
+		}
+		Root->GetPhotoMode()->HandleAnalog(InAnalogInputEvent.GetKey(), InAnalogInputEvent.GetAnalogValue());
+		return true;
+	}
 	if (IsDriving(*Root))
 	{
 		// Ahead of the filters below: a small steering input is still steering.
@@ -302,6 +326,12 @@ bool FApexMenuInputProcessor::HandleMouseMoveEvent(FSlateApplication& SlateApp, 
 		{
 			SetGamepadActive(*Root, false);
 		}
+		// Photo mode: a held button and the mouse turn the camera.
+		if (Root->IsPhotoModeActive())
+		{
+			Root->GetPhotoMode()->HandleMouseMove(FVector2D(MouseEvent.GetCursorDelta()),
+				MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton) || MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton));
+		}
 	}
 	return false;
 }
@@ -314,10 +344,24 @@ bool FApexMenuInputProcessor::HandleMouseButtonDownEvent(FSlateApplication& Slat
 		// Watching, a click on a timing tower row, the replay's bar or a key
 		// hint is the watch view's (a click elsewhere is nobody's).
 		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && Root->IsWatching() && !Root->IsPaused()
+			&& !Root->IsPhotoModeActive()
 			&& !Root->IsSettingsOpen() && !Root->IsHudEditorOpen() && Root->HandleWatchClick(MouseEvent.GetScreenSpacePosition()))
 		{
 			return true;
 		}
+	}
+	return false;
+}
+
+bool FApexMenuInputProcessor::HandleMouseWheelOrGestureEvent(FSlateApplication& SlateApp, const FPointerEvent& InWheelEvent,
+	const FPointerEvent* InGestureEvent)
+{
+	// Photo mode: the wheel is the zoom.
+	UApexRootWidget* Root = Owner.Get();
+	if (Root && Root->IsPhotoModeActive() && !InGestureEvent)
+	{
+		Root->GetPhotoMode()->HandleMouseWheel(InWheelEvent.GetWheelDelta());
+		return true;
 	}
 	return false;
 }

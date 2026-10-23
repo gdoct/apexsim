@@ -129,6 +129,8 @@ namespace ApexSpectate
 		AirWarmer,
 		WindLighter,
 		WindStronger,
+		/** Photo mode over the race (UApexRootWidget::BeginPhotoMode): P; no pad button (the pause menu's PHOTO MODE). */
+		Photo,
 	};
 
 	struct FCommand

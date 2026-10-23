@@ -133,6 +133,10 @@ from the track YAML's centerline. Conversions are in `ApexRaceCoordinate.h`.
   over `-ApexCamera`), `-ApexCameraFov=Deg` (default 70). Example:
   `-game -ApexAutoRace -ApexTrack=Sudoku -ApexCameraLookAt=... -ApexScreenshotAfter=12`.
 
+Photo mode flies the same camera over a watched race, with a lens of its
+own on the camera's post-process (depth of field, exposure); see
+[spectator.md](spectator.md#photo-mode).
+
 Tests: `ApexSim.Camera.ParseNumberList`, `ApexSim.Camera.ServerFramePose`.
 
 ## TV director (`ApexTv::FDirector`, `Race/ApexTvDirector.h`)

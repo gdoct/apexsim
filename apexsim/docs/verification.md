@@ -435,6 +435,18 @@ then the cockpit dash in each ([hud-modding](game/hud-modding.md#colour-vision))
   contact sheets): the states still tell apart.
 - Settings > Gameplay > Colour vision changes the HUD while paused.
 
+### R21. Photo mode
+
+`n20-photo-hotlap` (a watched hotlap at the Norisring, 17:30) and
+`n20-photo-replay` (the newest saved replay): photo mode on from the
+console, the lens card and chip with the HUD gone and the stream held, the
+free camera lifted and tilted, an orbit round the car, 135 mm at f/2 (the
+background soft), exposure up and down, a 2x and a 4x shot (the toast; the
+PNGs in `game-unreal/Saved/Screenshots/ApexSim` at 3840x2160 and
+7680x4320, with no HUD or card in them), the card hidden, and the watch
+view back with the replay playing on. By hand: the pad's sticks, triggers
+and D-pad, the mouse's held-button look and the wheel's zoom.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

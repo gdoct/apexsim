@@ -52,6 +52,7 @@
 #include "Materials/MaterialParameterCollection.h"
 #include "Race/ApexReplayClip.h"
 #include "Race/ApexShotCamera.h"
+#include "Race/ApexPhotoMode.h"
 #include "Race/ApexStreetLights.h"
 #include "Track/ApexPropLibrary.h"
 #include "Track/ApexTrackContentSubsystem.h"
@@ -3286,6 +3287,133 @@ void AApexRaceDirector::SetShotCameraFov(float Degrees)
 	UE_LOG(LogApexSim, Log, TEXT("Shot camera fov %.1f"), ShotCamera->FieldOfView);
 }
 
+// --- Photo mode ----------------------------------------------------------------------
+
+bool AApexRaceDirector::BeginPhotoMode()
+{
+	// A clip filmed by -ApexReplay and the guide fly the shot camera themselves.
+	if (!bRaceViewActive || bReplayView || bLobbyView)
+	{
+		return false;
+	}
+	if (bPhotoMode)
+	{
+		return true;
+	}
+	if (bGhostReplay)
+	{
+		EndGhostReplay();
+	}
+	FVector Location;
+	FRotator Rotation;
+	float Fov = ReplayShotCameraRestFov;
+	if (!GetViewPose(Location, Rotation, Fov))
+	{
+		return false;
+	}
+	bPhotoMode = true;
+	ShotCamera->SetWorldLocationAndRotation(Location, FRotator(Rotation.Pitch, Rotation.Yaw, 0.0f));
+	ShotCamera->SetFieldOfView(Fov);
+	bShotCameraPose = true;
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Photo mode: on, from %s"), *DescribeView());
+	return true;
+}
+
+void AApexRaceDirector::EndPhotoMode()
+{
+	if (!bPhotoMode)
+	{
+		return;
+	}
+	bPhotoMode = false;
+	ClearPhotoLens();
+	bShotCameraPose = false;
+	ApplyCameraMode();
+	UE_LOG(LogApexSim, Log, TEXT("Photo mode: off, %s view"), *DescribeView());
+}
+
+void AApexRaceDirector::ClearPhotoLens()
+{
+	FPostProcessSettings& Post = ShotCamera->PostProcessSettings;
+	Post.bOverride_DepthOfFieldFocalDistance = false;
+	Post.bOverride_DepthOfFieldFstop = false;
+	Post.bOverride_DepthOfFieldSensorWidth = false;
+	Post.bOverride_AutoExposureBias = false;
+	ShotCamera->SetFieldOfView(ReplayShotCameraRestFov);
+}
+
+void AApexRaceDirector::SetPhotoCamera(const FVector& LocationCm, const FRotator& Rotation, float FovDeg,
+	float FocusDistanceCm, float Fstop, float ExposureEv)
+{
+	if (!bPhotoMode)
+	{
+		return;
+	}
+	ShotCamera->SetWorldLocationAndRotation(LocationCm, Rotation);
+	ShotCamera->SetFieldOfView(FMath::Clamp(FovDeg, 1.0f, 170.0f));
+	// The focal length the depth of field works from is the field of view on
+	// this sensor, the one the panel's focal lengths are for.
+	FPostProcessSettings& Post = ShotCamera->PostProcessSettings;
+	const bool bDof = Fstop > 0.0f && FocusDistanceCm > 0.0f;
+	Post.bOverride_DepthOfFieldFocalDistance = true;
+	Post.DepthOfFieldFocalDistance = bDof ? FocusDistanceCm : 0.0f;
+	Post.bOverride_DepthOfFieldFstop = true;
+	Post.DepthOfFieldFstop = bDof ? Fstop : 22.0f;
+	Post.bOverride_DepthOfFieldSensorWidth = true;
+	Post.DepthOfFieldSensorWidth = ApexPhoto::SensorWidthMm;
+	// On top of the sky's own bias, which this override replaces.
+	Post.bOverride_AutoExposureBias = true;
+	Post.AutoExposureBias = Sky.ExposureBias + ExposureEv;
+}
+
+bool AApexRaceDirector::GetViewPose(FVector& OutLocationCm, FRotator& OutRotation, float& OutFovDeg) const
+{
+	const UCameraComponent* const Cameras[] = { ShotCamera.Get(), TvCamera.Get(), CockpitCamera.Get(), ChaseCamera.Get() };
+	for (const UCameraComponent* Camera : Cameras)
+	{
+		if (Camera && Camera->IsActive())
+		{
+			OutLocationCm = Camera->GetComponentLocation();
+			OutRotation = Camera->GetComponentRotation();
+			OutFovDeg = Camera->FieldOfView;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool AApexRaceDirector::GetPhotoSubject(FVector& OutCm) const
+{
+	if (!FollowedCar)
+	{
+		return false;
+	}
+	const FBox Body = FollowedCar->GetBodyBox();
+	// The box is in the car's frame; its middle, carried into the world.
+	OutCm = Body.IsValid ? FollowedCar->GetActorTransform().TransformPosition(Body.GetCenter())
+		: FollowedCar->GetActorLocation() + FVector(0.0, 0.0, 60.0);
+	return true;
+}
+
+bool AApexRaceDirector::FindGroundBelow(const FVector& AboveCm, double& OutZ) const
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return false;
+	}
+	FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexPhotoGround), /*bTraceComplex*/ true, this);
+	const FCollisionObjectQueryParams Statics(ECC_WorldStatic);
+	const ApexTv::FWorldQueries Queries = MakeCameraQueries(World, Params, Statics);
+	return Queries.GroundZ(AboveCm, OutZ);
+}
+
+FString AApexRaceDirector::GetShotTrackStem() const
+{
+	return bDemoView ? DemoTrackStem : ResolveTrackStem();
+}
+
 void AApexRaceDirector::ApplyShotCameraCommandLine()
 {
 	FString Fov;
@@ -3623,6 +3751,8 @@ void AApexRaceDirector::EndRaceView()
 	LocalLap = 0;
 	ForgetPitBoxMarker();
 	// A shot is for one race; the next one re-reads the command line.
+	bPhotoMode = false;
+	ClearPhotoLens();
 	bShotCameraPose = false;
 	ApplyCameraMode();
 	// Un-hide before dropping the reference, or a car kept for a later race
@@ -4002,6 +4132,8 @@ void AApexRaceDirector::BeginDemoView(const FString& TrackStem, const TArray<FVe
 	bDemoWorldVisible = true;
 	bDemoFadeOut = false;
 	bLoggedFirstTelemetry = false;
+	bPhotoMode = false;
+	ClearPhotoLens();
 	bShotCameraPose = false;
 	DemoTrackStem = TrackStem;
 	DemoOpacity = 0.0f;
@@ -4053,6 +4185,12 @@ void AApexRaceDirector::EndDemoView()
 	bRaceViewActive = false;
 	bTvView = false;
 	bHasTvPose = false;
+	if (bPhotoMode)
+	{
+		bPhotoMode = false;
+		ClearPhotoLens();
+		bShotCameraPose = false;
+	}
 	DemoOpacity = 0.0f;
 	DemoReadyFor = 0.0f;
 	LatestFrameState = EApexSessionState::Lobby;
@@ -4323,6 +4461,8 @@ void AApexRaceDirector::BeginLobbyView()
 	bLobbyView = true;
 	bTvView = true;
 	bHasLobbyPose = false;
+	bPhotoMode = false;
+	ClearPhotoLens();
 	bShotCameraPose = false;
 	LobbyOpacity = 0.0f;
 	LobbyReadyFor = 0.0f;

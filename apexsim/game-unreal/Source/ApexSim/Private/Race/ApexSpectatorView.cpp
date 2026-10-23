@@ -105,6 +105,7 @@ namespace ApexSpectate
 		case EAction::Setup:         return WatchSetup;
 		case EAction::ReplayLap:     return WatchReplayLap;
 		case EAction::Ghost:         return WatchGhost;
+		case EAction::Photo:         return WatchPhoto;
 		default:                     return NAME_None;
 		}
 	}
@@ -118,7 +119,7 @@ namespace ApexSpectate
 		}
 		// What the player has bound, pad and keyboard: the first action
 		// that owns the key (the controls screen warns when two do).
-		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::Ghost); ++Raw)
+		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::Photo); ++Raw)
 		{
 			const EAction Action = static_cast<EAction>(Raw);
 			const FName Id = ActionIdOf(Action);

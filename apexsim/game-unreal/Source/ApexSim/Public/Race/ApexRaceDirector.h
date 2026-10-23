@@ -347,6 +347,39 @@ public:
 	/** Horizontal field of view of the shot camera, in degrees. */
 	void SetShotCameraFov(float Degrees);
 
+	// --- Photo mode (ApexPhotoMode.h, UApexPhotoModeWidget) ----------------------------
+
+	/**
+	 * Hand the view to the photo camera: the shot camera, started where the
+	 * camera on screen is, with its own lens (SetPhotoCamera). Spawns, focus
+	 * changes and the watch camera leave it alone until EndPhotoMode. False
+	 * without a race on screen.
+	 */
+	bool BeginPhotoMode();
+	/** The camera the view had before, the photo lens off the shot camera. */
+	void EndPhotoMode();
+	bool IsPhotoModeActive() const { return bPhotoMode; }
+
+	/**
+	 * Where the photo camera is and its lens: the field of view, the focus
+	 * distance (cm; the depth of field is off at 0 or with no aperture), the
+	 * f-number (0: off) and stops of exposure over the sky's own.
+	 */
+	void SetPhotoCamera(const FVector& LocationCm, const FRotator& Rotation, float FovDeg, float FocusDistanceCm,
+		float Fstop, float ExposureEv);
+
+	/** The camera on screen now: where it is, where it looks and its horizontal field of view. False with none. */
+	bool GetViewPose(FVector& OutLocationCm, FRotator& OutRotation, float& OutFovDeg) const;
+
+	/** The middle of the watched car's body, what photo mode orbits and focuses on. False with no car. */
+	bool GetPhotoSubject(FVector& OutCm) const;
+
+	/** The ground under a point (props aside), for the photo camera's clearance. False off the world. */
+	bool FindGroundBelow(const FVector& AboveCm, double& OutZ) const;
+
+	/** The circuit on screen, by its stem, for a shot's file name; empty when unknown. */
+	FString GetShotTrackStem() const;
+
 	/** The rear view the HUD's virtual mirror shows, or null while it is off. */
 	UTextureRenderTarget2D* GetVirtualMirrorTexture() const;
 
@@ -1022,6 +1055,10 @@ private:
 	TMap<int32, FCarMotion> CarMotion;
 	/** A shot pose is set: the shot camera is the view. */
 	bool bShotCameraPose = false;
+	/** Photo mode has the shot camera (BeginPhotoMode). */
+	bool bPhotoMode = false;
+	/** The shot camera's photo lens off: no depth of field, no exposure of its own, its rest field of view. */
+	void ClearPhotoLens();
 	/** The settings pick the view a race opens in; C swaps at any time. */
 	bool bCockpitView = true;
 	/**

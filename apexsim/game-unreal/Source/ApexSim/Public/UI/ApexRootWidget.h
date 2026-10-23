@@ -18,6 +18,7 @@ class UApexTrackGuideWidget;
 class UApexHudEditorWidget;
 class UApexHudWidget;
 class UApexPauseMenuWidget;
+class UApexPhotoModeWidget;
 class UApexRaceResultsWidget;
 class UApexScreenWidget;
 class UApexSettingsWidget;
@@ -235,6 +236,20 @@ public:
 	/** The same, by action, for the console (`apexsim.watch`). */
 	void RunWatchCommand(const ApexSpectate::FCommand& Command);
 
+	// --- Photo mode -------------------------------------------------------------
+
+	/**
+	 * Photo mode over the race being watched (P, the pause menu's PHOTO MODE,
+	 * `apexsim.photo on`): the free camera and lens of UApexPhotoModeWidget,
+	 * the HUD hidden, a replay or a held-back live stream paused (played
+	 * again on the way out if photo mode paused it), the TV director's
+	 * choice of car held. False, with a toast, when nothing is watched.
+	 */
+	bool BeginPhotoMode();
+	void EndPhotoMode();
+	bool IsPhotoModeActive() const;
+	UApexPhotoModeWidget* GetPhotoMode() const { return PhotoPanel; }
+
 	// --- Watching a hotlap ------------------------------------------------------
 
 	/**
@@ -336,6 +351,14 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexPauseMenuWidget> PauseMenu;
+
+	/** Photo mode's lens card and hints, over the HUD's place. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexPhotoModeWidget> PhotoPanel;
+	/** Photo mode paused the replay, so leaving it plays on. */
+	bool bPhotoHeldReplay = false;
+	/** The TV director was choosing the car when photo mode began. */
+	bool bPhotoRestoreAuto = false;
 
 	/** The chat line (OpenChat) and its frame. */
 	UPROPERTY(Transient)

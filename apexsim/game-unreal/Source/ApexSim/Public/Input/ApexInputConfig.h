@@ -155,6 +155,7 @@ namespace ApexInput
 		inline const FName WatchSetup       = TEXT("WatchSetup");
 		inline const FName WatchReplayLap   = TEXT("WatchReplayLap");
 		inline const FName WatchGhost       = TEXT("WatchGhost");
+		inline const FName WatchPhoto       = TEXT("WatchPhoto");
 	}
 
 	/** True for the Watch* actions: they act only in the watch view. */

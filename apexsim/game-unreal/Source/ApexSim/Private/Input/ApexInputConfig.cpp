@@ -107,6 +107,8 @@ namespace ApexInput
 			{ Actions::WatchReplayLap,   0, TEXT("Replay lap"),   EKeys::Gamepad_DPad_Down,         false, EColumn::Gamepad  },
 			{ Actions::WatchReplayLap,   1, TEXT("Replay lap"),   EKeys::R,                         false, EColumn::Keyboard },
 			{ Actions::WatchGhost,       1, TEXT("Ghost"),        EKeys::G,                         false, EColumn::Keyboard },
+			{ Actions::WatchPhoto,       0, TEXT("Photo mode"),   FKey(),                           false, EColumn::Gamepad  },
+			{ Actions::WatchPhoto,       1, TEXT("Photo mode"),   EKeys::P,                         false, EColumn::Keyboard },
 
 			{ Actions::Steer,        Slot::Wheel,      TEXT("Steering"),    FKey(), false, EColumn::Wheel },
 			{ Actions::Throttle,     Slot::Wheel,      TEXT("Throttle"),    FKey(), false, EColumn::Wheel },

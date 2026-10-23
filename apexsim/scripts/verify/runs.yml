@@ -7574,3 +7574,83 @@ runs:
       - {at: 90, label: "cockpit dash, standard", checks: "N22: the dash's lights green, amber, red, blue", exec: "apexsim.hud.Palette standard"}
       - {at: 98, label: "cockpit dash, red-green", checks: "N22: the dash's lights blue, yellow, vermilion, white", exec: "apexsim.hud.Palette red_green"}
       - {at: 106, label: "cockpit dash, blue-yellow", checks: "N22: the dash's lights green, amber, red, white", exec: "apexsim.hud.Palette blue_yellow"}
+
+  - id: n20-photo-hotlap
+    about: "R19. Photo mode over a watched hotlap (a stream: held while framed)"
+    # No race of our own: the server's watched hotlap, then photo mode over
+    # it from the console (apexsim.photo, docs/game/spectator.md). The
+    # high-resolution shot lands in game-unreal/Saved/Screenshots/ApexSim,
+    # not among the run's grabs: look at it there (3840x2160 at 1080p, 2x).
+    args:
+      - -ApexWatchHotlap
+      - -ApexTrack=Snorisring
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=17:30
+    shots:
+      - at: 36
+        label: "watching the hotlap, before photo mode"
+        checks: "N20: the watch view, its HUD"
+      - at: 43
+        label: "photo mode on: the lens card, the chip, the keys; the HUD gone"
+        checks: "N20: PHOTO MODE · FREE CAMERA · HELD; the car standing still"
+        exec: "apexsim.photo on"
+      - at: 50
+        label: "free camera: up 12 m, tilted down 25 degrees"
+        checks: "N20: the free camera moves and looks; the car still held"
+        exec: ["apexsim.photo move 0 0 1 1.5", "apexsim.photo look 0 -25"]
+        lead: 4
+      - at: 56
+        label: "orbit, a quarter turn round the car"
+        checks: "N20: ORBIT on the chip; the car in the middle, seen from its side"
+        exec: ["apexsim.photo orbit", "apexsim.photo look 90 0"]
+      - at: 62
+        label: "135 mm at f/2, focused on the car"
+        checks: "N20: the car sharp, the background soft; FOCAL LENGTH 135 mm, APERTURE f/2"
+        exec: ["apexsim.photo focal 135", "apexsim.photo aperture 2"]
+      - at: 68
+        label: "+1.7 EV"
+        checks: "N20: exposure compensation brighter than the shot before"
+        exec: "apexsim.photo ev 1.67"
+      - at: 74
+        label: "-1.7 EV"
+        checks: "N20: exposure compensation darker"
+        exec: "apexsim.photo ev -1.67"
+      - at: 80
+        label: "the shot taken: its toast"
+        checks: "N20: the toast names ApexSim_Snorisring_<date>_<time>_2x.png; the file is 3840x2160, no HUD or panel in it"
+        exec: ["apexsim.photo ev 0", "apexsim.photo res 2", "apexsim.photo shot"]
+      - at: 86
+        label: "the panel hidden"
+        checks: "N20: a clean picture, nothing over it"
+        exec: "apexsim.photo hide"
+      - at: 92
+        label: "photo mode off: the watch view again, the lap running on"
+        checks: "N20: the HUD back, the stream playing, the watch camera"
+        exec: "apexsim.photo off"
+
+  - id: n20-photo-replay
+    about: "R19. Photo mode over a saved replay (-ApexWatchReplay=latest)"
+    # Needs a replay in game-unreal/Saved/Replays (any earlier run leaves
+    # one in Recent/). The replay plays at once; photo mode pauses it.
+    args:
+      - -ApexNoDemo
+      - -ApexWatchReplay=latest
+    exec:
+      22: "apexsim.watch seek 40"
+    shots:
+      - at: 30
+        label: "photo mode over the replay, held"
+        checks: "N20: the replay's transport gone with the HUD; HELD on the chip"
+        exec: "apexsim.photo on"
+      - at: 36
+        label: "orbit, a third of the way round, 50 mm f/1.4 focused on the car"
+        checks: "N20: the orbit, a shallow depth of field"
+        exec: ["apexsim.photo orbit", "apexsim.photo look 120 10", "apexsim.photo focal 50", "apexsim.photo aperture 1.4"]
+      - at: 42
+        label: "a 4x shot's toast"
+        checks: "N20: 7680x4320 at 1080p in Saved/Screenshots/ApexSim"
+        exec: ["apexsim.photo res 4", "apexsim.photo shot"]
+      - at: 48
+        label: "out of photo mode: the replay plays again"
+        checks: "N20: the replay running on from where it was held, the transport back"
+        exec: "apexsim.photo off"

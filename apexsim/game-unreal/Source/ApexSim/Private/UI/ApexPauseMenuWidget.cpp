@@ -37,6 +37,7 @@ namespace
 	const FName ActionRecoverTrack = TEXT("RecoverTrack");
 	const FName ActionRecoverPits  = TEXT("RecoverPits");
 	const FName ActionRewind       = TEXT("Rewind");
+	const FName ActionPhoto        = TEXT("Photo");
 	const FName ActionQuit     = TEXT("Quit");
 	const FName ActionPitPlan  = TEXT("PitPlan");
 	const FName ActionPitPlanDone = TEXT("PitPlanDone");
@@ -102,6 +103,9 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// Practice alone: the session goes back, the lap through it struck.
 	RewindRow = AddRow(Actions, TEXT("REWIND 10 S"), TEXT("Practice alone · lap struck"), ActionRewind, false);
 	RewindRow->SetVisibility(ESlateVisibility::Collapsed);
+	// Watching: a free camera over the race held still, and a big shot of it.
+	PhotoRow = AddRow(Actions, TEXT("PHOTO MODE"), TEXT("Free camera · lens · shot"), ActionPhoto, false);
+	PhotoRow->SetVisibility(ESlateVisibility::Collapsed);
 	// Every session is recorded; this keeps it (Saved/Replays) rather than
 	// leaving it among the recent ones that make way for newer sessions.
 	SaveReplayRow = AddRow(Actions, TEXT("SAVE REPLAY"), TEXT("Watch it again later"), ActionPauseSaveReplay, false);
@@ -624,6 +628,10 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	{
 		RecoverPitsRow->SetVisibility(bCanRecover && !bOnTrackInHotlap ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
+	if (PhotoRow)
+	{
+		PhotoRow->SetVisibility(bWatching ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
 	if (RewindRow)
 	{
 		RewindRow->SetVisibility(bCanRewind ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
@@ -736,6 +744,10 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Action == ActionRewind)
 	{
 		OnAction.Broadcast(EApexPauseAction::Rewind);
+	}
+	else if (Action == ActionPhoto)
+	{
+		OnAction.Broadcast(EApexPauseAction::PhotoMode);
 	}
 	else if (Action == ActionPauseSaveReplay)
 	{

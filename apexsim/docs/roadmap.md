@@ -246,13 +246,6 @@ determinism of `render` (same seed, same bytes).
 
 **Check:** session tests per rule; the class calibration unchanged.
 
-### 20. Photo mode
-
-- Pause, free camera, focal length, depth of field, exposure, no HUD, a
-  high-resolution shot.
-
-**Check:** a shot from a paused replay.
-
 ### 21. Benchmark from the menu
 
 - The benchmark (`scripts/benchmark.py`, `-ApexReplayBench`) from the main

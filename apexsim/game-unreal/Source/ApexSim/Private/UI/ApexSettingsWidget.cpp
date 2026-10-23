@@ -1865,6 +1865,7 @@ UWidget* UApexSettingsWidget::BuildBindingsGrid()
 		{ TEXT("Hide overlay"), ApexInput::Actions::WatchOverlay,     0, 1, TEXT("Watching"),      false },
 		{ TEXT("Next race"),    ApexInput::Actions::WatchNextRace,    0, 1, TEXT("Watching"),      false },
 		{ TEXT("Stop watching"), ApexInput::Actions::WatchLeave,      0, 1, TEXT("Watching"),      false },
+		{ TEXT("Photo mode"),   ApexInput::Actions::WatchPhoto,       0, 1, TEXT("Watching"),      false },
 		{ TEXT("Pause replay"), ApexInput::Actions::WatchPlayPause,   0, 1, TEXT("Replay"),        true  },
 		{ TEXT("Back 10 s"),    ApexInput::Actions::WatchSeekBack,    0, 1, TEXT("Replay"),        true  },
 		{ TEXT("On 10 s"),      ApexInput::Actions::WatchSeekForward, 0, 1, TEXT("Replay"),        true  },

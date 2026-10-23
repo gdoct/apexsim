@@ -31,6 +31,8 @@ telemetry, not the stream.
   (backdrop source), `UApexNetSubsystem` (backdrop feed),
   `UApexReplayRecorder`, `UI/ApexReplaysWidget`, `Race/ApexSpectatorView.h`
   (`ApexSpectate`), `UApexReplaySubsystem` (`-ApexReplay=` clips).
+- Photo mode: `Race/ApexPhotoMode.h` (`ApexPhoto`, pure), `UI/ApexPhotoModeWidget`,
+  `AApexRaceDirector::BeginPhotoMode`, `UApexRootWidget::BeginPhotoMode`.
 - `showcase.yml`, `scripts/lib/ApexShowcase.ps1`.
 
 ## The stream format
@@ -393,6 +395,7 @@ row, the left and right arrows and the D-pad's up and down (they also step cars)
 | S, R, G | D-pad up, down | a watched hotlap's setup, its fastest lap again, its ghost ([sessions](../server/sessions.md#watching-a-hotlap)); elsewhere the D-pad's up and down step cars |
 | 4 / 5, 6 / 7 | right stick down / up, left / right | a watched hotlap's air a step cooler / warmer and wind a step lighter / stronger (`EAction::AirCooler` and friends, not rebindable; console `apexsim.watch air- air+ wind- wind+`) |
 | Backspace | B | stop watching |
+| P | (pause menu: PHOTO MODE) | photo mode, below |
 | Esc | Start | the pause menu |
 
 With the mouse: a click on a timing tower row watches that car, on the replay's
@@ -418,6 +421,61 @@ also runs in the watch view, with the TV director off until it ends. Console: `a
 Unattended: `-ApexWatch` (the backdrop), `-ApexWatchSession` (the first race
 on the server), `-ApexWatchReplay=<file|latest>`, with `-ApexWatchCamera=`,
 `-ApexWatchTower=`, `-ApexWatchCar=`, `-ApexWatchHideHud`.
+
+## Photo mode
+
+Over any race in the watch view (a replay, a live stream, a watched hotlap,
+the backdrop, a session joined as a spectator): P, the pause menu's PHOTO
+MODE (the pad's way in) or `apexsim.photo on`. `UApexRootWidget::BeginPhotoMode`
+hides the HUD, pauses a replay or a live stream that can be held back (and
+plays it again on the way out, if it was photo mode that paused it), and
+stops the TV director choosing the car, so the car in the picture stays the
+one. A showcase channel or a racer-telemetry spectator cannot be paused;
+the cars run on under the camera.
+
+The camera is the race director's shot camera (`BeginPhotoMode`: it starts
+where the watch camera was and keeps the view through spawns, focus changes
+and the watch keys until `EndPhotoMode`), flown every frame by
+`UApexPhotoModeWidget` through `ApexPhoto::Advance`:
+
+- **Free**: it flies where it looks (8 m/s, five times that with Shift or L3,
+  a quarter with Ctrl), up and down in the world, turned by the mouse with a
+  button held, the right stick or I/J/K/L.
+- **Orbit** (O / Y): round the middle of the watched car's body, taken from
+  where the camera is; the stick and the mouse turn it round, forward closes
+  in (to 2.5 m), up and down raise and lower it.
+- Never more than 150 m from the car, and kept 25 cm over the ground under
+  it (props aside: `AApexRaceDirector::FindGroundBelow`, the TV camera's
+  trace).
+
+**The lens** (the card on the right; up and down / the D-pad pick a row,
+left and right step it): focal length 12-600 mm on a 36 mm sensor (the field
+of view and the depth of field's sensor width agree; - and = / LB and RB and
+the wheel step it from any row), focus (on the car, measured each frame, or
+1-300 m), aperture (no blur, then f/1.4 to f/22: the shot camera's cinematic
+depth of field), exposure (thirds of a stop, -4 to +4 EV, on top of the
+sky's own bias, which the camera's override replaces) and the shot's size
+(1x, 2x, 4x the screen). The lens starts at the focal length of the view
+it took over. `AApexRaceDirector::SetPhotoCamera` puts it on the shot
+camera's post-process; leaving clears it.
+
+**The shot** (Enter / A): the engine's high-resolution screenshot
+(`FHighResScreenshotConfig`: the scene alone, without the HUD, the card or
+the toast) at the multiple, halved until it fits the GPU's largest texture,
+written as `Saved/Screenshots/ApexSim/ApexSim_<stem>_<yyyymmdd>_<hhmmss>_<n>x.png`
+(a second one in the same second gets `_2`); a toast names the file and its
+size. H / View hides the card and the hints, Space / X pauses or plays the
+replay, R / R3 goes back to where photo mode began, Esc, Backspace, P, B or
+Start leaves. Every key, stick and wheel turn goes to the photo layer from
+the input processor (`FApexMenuInputProcessor`), so nothing takes focus and
+nothing reaches the watch view under it.
+
+Console, for unattended runs (`-ApexExecAfter`): `apexsim.photo
+on|off|shot|orbit|hide|reset|pause|info`, `move <forward> <right> <up>
+<seconds>` (as if the keys were held), `look <yaw> <pitch>` (degrees),
+`focal <mm>`, `focus <m, 0 on the car>`, `aperture <f, 0 off>`, `ev
+<stops>`, `res <1|2|4>`; each logs the camera and the lens. Recipes
+`n20-photo-hotlap` and `n20-photo-replay` in `scripts/verify/runs.yml`.
 
 ## Replays
 
@@ -484,7 +542,9 @@ switch reference: the header of `ApexReplaySubsystem.h` and
   player), `.Player`, `.Protocol`, `.Writer`, `.PitFlags`;
   `ApexSim.Backdrop.ChooseFile`, `.ShowcasesToRender`,
   `.ShowcaseRenderMatchesBuild`; `ApexSim.Replay.Clip.Stream`;
-  `ApexSim.Spectate.*`; `ApexSim.Tv.LockTarget`.
+  `ApexSim.Spectate.*`; `ApexSim.Tv.LockTarget`; `ApexSim.Photo.*` (the
+  lens and its steps, the free and orbit camera, the keys, the shot's size
+  and name).
 
 ## Traps
 

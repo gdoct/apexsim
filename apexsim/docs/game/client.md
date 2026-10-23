@@ -950,7 +950,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 
 ### Console commands by area
 
-- Cameras: `apexsim.cam.Chase|Goto|LookAt|Fov|Release`, `apexsim.tv.View|Shot|Cut|Pace|Debug|DepthOfField`, `apexsim.cockpit.ScreenNits` ([cameras.md](cameras.md)).
+- Cameras: `apexsim.cam.Chase|Goto|LookAt|Fov|Release`, `apexsim.tv.View|Shot|Cut|Pace|Debug|DepthOfField`, `apexsim.cockpit.ScreenNits` ([cameras.md](cameras.md)); `apexsim.photo` (photo mode, [spectator.md](spectator.md#photo-mode)).
 - Demo: `apexsim.demo.Enabled|MaxMinutes|Restart`,
   `apexsim.spectate.Info|Next`.
 - Cars: `apexsim.car.Rescan`, `apexsim.car.Interp*`, `apexsim.car.DamagePreview "F,R,L,Rt,E"`,

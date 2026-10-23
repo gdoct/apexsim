@@ -32,6 +32,8 @@ enum class EApexPauseAction : uint8
 	RecoverToPits,
 	/** Practice driven alone: the session back ten seconds (`Rewind`). */
 	Rewind,
+	/** Watching: photo mode over the race (UApexRootWidget::BeginPhotoMode). */
+	PhotoMode,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPauseAction, EApexPauseAction, Action);
@@ -166,6 +168,10 @@ private:
 	/** Back to the main menu, or out of the race being watched. */
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> LeaveRow;
+
+	/** Photo mode: shown over a race being watched. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> PhotoRow;
 
 	/** Shown while there is a session on record worth a replay. */
 	UPROPERTY(Transient)

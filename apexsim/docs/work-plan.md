@@ -57,7 +57,6 @@ takes it up (— : no step, taken opportunistically).
 | N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each | — |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
-| N20 | Photo mode | Rendering | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
@@ -432,11 +431,6 @@ the other race rules) and balance of performance per car as server.toml
 `[[balance]]` tables (ballast, power, downforce; a server's call, as in
 ACC's bop.json, so no wire). Left: ballast by championship position (needs
 N7), and the create screen's rows (follow-ups #20).
-
-#### N20. Photo mode — P3 · 🟡 · M
-Pause a replay, free camera, focal length, depth of field, exposure, hide
-HUD, save a high-resolution shot. Reuses the replay's cameras; needs the
-replay pause from T2.
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).

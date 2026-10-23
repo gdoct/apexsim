@@ -50,6 +50,7 @@
 #include "UI/ApexMainMenuWidget.h"
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
+#include "UI/ApexPhotoModeWidget.h"
 #include "UI/ApexLeaderboardWidget.h"
 #include "UI/ApexProfileWidget.h"
 #include "UI/ApexSeasonWidget.h"
@@ -349,6 +350,8 @@ void UApexRootWidget::BuildShell()
 	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
 	HotlapPanel->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleHotlapWatch);
 	GuidePanel = WidgetTree->ConstructWidget<UApexTrackGuideWidget>();
+	PhotoPanel = WidgetTree->ConstructWidget<UApexPhotoModeWidget>();
+	PhotoPanel->SetShell(this);
 	RaceResults = WidgetTree->ConstructWidget<UApexRaceResultsWidget>();
 	RaceResults->OnAction.AddDynamic(this, &UApexRootWidget::HandleRaceResultsAction);
 	RaceResults->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleRaceResultsWatch);
@@ -394,6 +397,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* ResultsSlot = Frame->AddChildToOverlay(RaceResults);
 	ResultsSlot->SetHorizontalAlignment(HAlign_Fill);
 	ResultsSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* PhotoSlot = Frame->AddChildToOverlay(PhotoPanel);
+	PhotoSlot->SetHorizontalAlignment(HAlign_Fill);
+	PhotoSlot->SetVerticalAlignment(VAlign_Fill);
 
 	// The chat line: over the race, under the menus.
 	{
@@ -1633,6 +1640,11 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 			Net->RecoverCar(Action == EApexPauseAction::RecoverToPits
 				? EApexRecoverDestination::Pits : EApexRecoverDestination::Track);
 		}
+		break;
+
+	case EApexPauseAction::PhotoMode:
+		SetPaused(false);
+		BeginPhotoMode();
 		break;
 
 	case EApexPauseAction::Rewind:
@@ -2904,6 +2916,7 @@ void UApexRootWidget::StopWatching()
 	{
 		return;
 	}
+	EndPhotoMode();
 	WatchKind = EWatchKind::None;
 	if (UApexDemoModeSubsystem* Watched = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexDemoModeSubsystem>() : nullptr)
 	{
@@ -2983,7 +2996,7 @@ void UApexRootWidget::ApplyWatchLayers()
 	AppliedBackdrop = -1.0f;
 	if (Hud)
 	{
-		Hud->SetShown(!(IsWatching() && bWatchOverlayHidden) && !bGarageOpen);
+		Hud->SetShown(!(IsWatching() && bWatchOverlayHidden) && !bGarageOpen && !IsPhotoModeActive());
 	}
 	ApplyDriveInput();
 }
@@ -3322,9 +3335,93 @@ void UApexRootWidget::RunWatchCommand(const ApexSpectate::FCommand& Command)
 		StopWatching();
 		break;
 
+	case EAction::Photo:
+		BeginPhotoMode();
+		break;
+
 	default:
 		break;
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Photo mode
+// ---------------------------------------------------------------------------
+
+bool UApexRootWidget::IsPhotoModeActive() const
+{
+	return PhotoPanel && PhotoPanel->IsActive();
+}
+
+bool UApexRootWidget::BeginPhotoMode()
+{
+	if (IsPhotoModeActive())
+	{
+		return true;
+	}
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (!PhotoPanel || !IsWatching() || !Director || !Director->IsSpectating())
+	{
+		ShowToast(TEXT("Photo mode is for a race being watched or a replay"), true);
+		return false;
+	}
+	if (bPauseMenuOpen)
+	{
+		SetPaused(false);
+	}
+	// The car stays the one in the picture: the TV director stops choosing.
+	bPhotoRestoreAuto = Director->IsSpectatorAuto();
+	if (bPhotoRestoreAuto)
+	{
+		Director->SetSpectatorAuto(false);
+	}
+	if (!PhotoPanel->Begin())
+	{
+		if (bPhotoRestoreAuto)
+		{
+			Director->SetSpectatorAuto(true);
+			bPhotoRestoreAuto = false;
+		}
+		ShowToast(TEXT("No race on screen yet"), true);
+		return false;
+	}
+	bPhotoHeldReplay = false;
+	UApexSpectatorSubsystem* Spectator = GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>();
+	if (Spectator && !Spectator->IsPaused() && (IsWatchingReplay() || (IsWatchingLiveStream() && Spectator->CanTimeshift())))
+	{
+		Spectator->SetPaused(true);
+		bPhotoHeldReplay = true;
+	}
+	ApplyWatchLayers();
+	ApexUiAudio::Play(this, EApexUiSound::Accept);
+	UE_LOG(LogApexSim, Log, TEXT("Photo mode on%s"), bPhotoHeldReplay ? TEXT(", the replay held") : TEXT(""));
+	return true;
+}
+
+void UApexRootWidget::EndPhotoMode()
+{
+	if (!IsPhotoModeActive())
+	{
+		return;
+	}
+	PhotoPanel->End();
+	UApexSpectatorSubsystem* Spectator = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>() : nullptr;
+	if (bPhotoHeldReplay && Spectator && Spectator->IsPaused())
+	{
+		Spectator->SetPaused(false);
+	}
+	bPhotoHeldReplay = false;
+	if (bPhotoRestoreAuto)
+	{
+		if (AApexRaceDirector* Director = AApexRaceDirector::Find(this))
+		{
+			Director->SetSpectatorAuto(true);
+		}
+		bPhotoRestoreAuto = false;
+	}
+	ApplyWatchLayers();
+	ApexUiAudio::Play(this, EApexUiSound::Back);
+	UE_LOG(LogApexSim, Log, TEXT("Photo mode off"));
 }
 
 void UApexRootWidget::ApplyWatchCommandLine()

@@ -140,9 +140,11 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 				Seen.Add(Def.DefaultKey);
 			}
 		}
-		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::Ghost); ++Raw)
+		for (uint8 Raw = static_cast<uint8>(EAction::PreviousCar); Raw <= static_cast<uint8>(EAction::Photo); ++Raw)
 		{
-			if (Raw == static_cast<uint8>(EAction::Position))
+			// The number row and the right stick have no slot.
+			if (Raw == static_cast<uint8>(EAction::Position)
+				|| (Raw >= static_cast<uint8>(EAction::AirCooler) && Raw <= static_cast<uint8>(EAction::WindStronger)))
 			{
 				continue;
 			}
@@ -154,6 +156,8 @@ bool FApexSpectateKeysTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("the camera key is a driving key too"),
 			(int32)ApexInput::ContextOf(ApexInput::Actions::ToggleCamera), (int32)ApexInput::EContext::Driving);
 	}
+
+	TestEqual(TEXT("P is photo mode"), (int32)CommandFor(EKeys::P).Action, (int32)EAction::Photo);
 
 	const FCommand Third = CommandFor(EKeys::Three);
 	TestTrue(TEXT("3 is P3"), Third.Action == EAction::Position && Third.Position == 3);
