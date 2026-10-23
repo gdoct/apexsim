@@ -226,6 +226,8 @@ private:
 
 	bool bRaceActive = false;
 	bool bShownWanted = true;
+	/** The colour-vision palette the components were loaded in: their fixed colours are read once. */
+	EApexColourVision BuiltPalette = EApexColourVision::Standard;
 	/** Whether the minimaps hold an outline, so it is only handed over once per race. */
 	bool bMinimapOutlineSet = false;
 };

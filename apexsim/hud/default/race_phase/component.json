@@ -13,7 +13,7 @@
     "direction": "row",
     // Yellow under the safety cars, as a marshal's SC / VSC board; green
     // for the formation and pace laps; flashing as either ends.
-    "background": "=race.phase == 'formation' || race.phase == 'pace_lap' ? rgb(20, 130, 70, 0.92) : race.phase == 'vsc_ending' || race.phase == 'sc_in_this_lap' ? alpha(rgb(255, 204, 0), floor(hud.time_s * 2) % 2 == 0 ? 0.95 : 0.6) : rgb(255, 204, 0, 0.92)",
+    "background": "=race.phase == 'formation' || race.phase == 'pace_lap' ? alpha('flag_green', 0.92) : race.phase == 'vsc_ending' || race.phase == 'sc_in_this_lap' ? alpha('flag_yellow', floor(hud.time_s * 2) % 2 == 0 ? 0.95 : 0.6) : alpha('flag_yellow', 0.92)",
     "children": [
       { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true,
         "color": "=race.phase == 'formation' || race.phase == 'pace_lap' ? rgb(255, 255, 255) : rgb(20, 20, 20)",

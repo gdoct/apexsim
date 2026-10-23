@@ -241,12 +241,69 @@ side effects.
 | `rgb(r, g, b)`, `rgb(r, g, b, a)` | a colour from 0-255 sRGB channels, opacity 0 to 1 |
 
 **Colours** are `#RRGGBB` / `#RRGGBBAA` (sRGB) or a palette name:
-`background`, `surface`, `surface_hover`, `border`, `accent`, `on_accent`,
+`background`, `surface`, `surface_hover`, `border`, `on_accent`,
 `text` (also `text_primary`), `text_secondary`, `text_muted`,
-`text_disabled`, `live` (green), `error` (red), `focus`, `white`, `black`,
-`transparent`, and the timing colours `session_best` (purple),
-`personal_best` (green), `tyre_cold` (blue). The names keep a component in
-step with the game's look (`Hud/ApexHudValue.cpp`).
+`text_disabled`, `focus`, `white`, `black`, `transparent`, and the
+**roles** that carry meaning: `accent` (also the warning step between good
+and bad), `live` (good; green), `error` (bad; red), the timing colours
+`session_best` (purple) and `personal_best` (green), the tyre's
+`tyre_cold` (blue) and `tyre_ok` (green, in the window), and the flags'
+`flag_yellow`, `flag_blue`, `flag_green`, `flag_red`. The names keep a
+component in step with the game's look (`Hud/ApexHudValue.cpp`), and the
+roles follow the player's colour-vision palette (below): a component that
+writes a meaning as a hex code stays the same colour in every palette.
+
+### Colour vision
+
+Settings > Gameplay > Colour vision picks the palette the roles come from
+(`EApexColourVision`, saved as `UApexSettingsSave::ColourVision`;
+`apexsim.hud.Palette standard|red_green|blue_yellow` from the console, which
+also takes `deuteranopia`, `protanopia`, `tritanopia`). The table is
+`ApexColourVision::Role` (`UI/ApexColourVision.h`); the cockpit dash's light
+bar and flags and the hotlap sheet's lap list read it too. The HUD rebuilds
+when the palette changes, since a fixed colour is read when its component
+loads.
+
+| Role | Standard | Red-green (deuteranopia, protanopia) | Blue-yellow (tritanopia) |
+|---|---|---|---|
+| `accent` | amber `#D9A300` | yellow `#F0E442` | amber |
+| `live` | green `#3FC46B` | blue `#3D9BF0` | green |
+| `error` | red `#E05A4E` | vermilion `#D55E00` | red |
+| `personal_best` | green | blue | green |
+| `session_best` | purple `#B07CE8` | pale lilac `#F0D8FF` | purple |
+| `tyre_cold` | blue `#5A9BE0` | pale `#E0E8F8` | pale `#E0E8F8` |
+| `tyre_ok` | green `#3BB54A` | blue | green |
+| `flag_yellow`, `flag_blue`, `flag_green` | `#FFCC00`, `#1E6EFF`, `#148246` | the same | the same |
+| `flag_red` | `#DC2828` | vermilion | `#DC2828` |
+| dash shift lights | blue `#4A8CFF` | white | white |
+
+`ApexSim.UI.ColourVision.Separation` simulates each deficiency (Machado
+2009, full severity) and holds every pair a reader has to tell apart on one
+panel (good / warn / bad, cold / in the window, session / personal best,
+the flags, the dash's light groups) 25 CIELAB units apart in the palette
+made for it, and every role light enough for a dark panel.
+
+Colour is never the only cue on the shipped HUD. A component that colours a
+state also says it:
+
+- Sector splits carry a tag under them: `SB` (the session's best), `PB`
+  (the driver's own), `+` (slower than their best).
+- Temperatures (tyres, brakes, water) end in their side of the window: `-`
+  cold, `+` hot, `!` well past; in the window, nothing.
+- A last lap that was not legal ends in `INV`; a best lap that is the
+  session's best ends in `SB` (the hotlap and watching panels, the tower's
+  best-lap column, the results).
+- Fuel ends in `!` when the burn will not reach the flag and `!!` under a
+  lap or empty.
+- The gear's red says why in words beside it (`Gear · hold`, `Gear ·
+  over-rev`; the big gear's `Shift up` / `No downshift` / `Over-rev`).
+- The radar's side bar fills as the gap closes; wear, pedals and the ERS
+  are bars; flags, the race phase and the shift warning are banners with
+  their name; deltas and gaps are signed.
+
+A component of your own does best to do the same: name roles rather than
+hex codes for anything that means something, and put the meaning in a
+sign, a word or a length as well.
 
 ## Data points
 
@@ -736,12 +793,17 @@ class, then everywhere else (Default when unset). The layout manager offers
 - `ApexSim.Hud.Shipped`: the shipped components load with no errors and no
   warnings (a warning is usually a misspelt data point), and the shipped
   layout reads clean and names only shipped components.
+- `ApexSim.UI.ColourVision.Standard`, `.Separation`, `.Names`: the
+  standard palette is the HUD's old look, every palette keeps its
+  confusable pairs apart under the deficiency it is for, and the HUD's
+  colour names follow the palette.
 - `ApexSim.Hud.Data.Build`, `.Sky`, `.Watching`, `.StandingsHold`, `.Ers`,
   `ApexSim.Hud.Expr.*`, `ApexSim.Hud.Component.*`, `ApexSim.Hud.Json.Extras`,
   `ApexSim.Hud.Layout.*` (`Json`, `Pin`, `Snap`, `Bindings`),
   `ApexSim.Hud.Pit.Progress`.
 - Console: `apexsim.hud.Reload`, `apexsim.hud.Data [filter]`,
-  `apexsim.hud.Edit`, `apexsim.hud.EditStep <step>`.
+  `apexsim.hud.Edit`, `apexsim.hud.EditStep <step>`,
+  `apexsim.hud.Palette <palette>`.
 - Unattended editor runs: `-ApexOpenHudEditor=N
   -ApexHudEditorSteps="select standings;move 500 -350;scale 0.25;save"`.
   Steps: `select <id>`, `move <dx> <dy>`, `scale <d>`, `toggle <id>`,

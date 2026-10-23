@@ -82,11 +82,11 @@
           "children": [
             { "type": "row", "children": [
               { "type": "label", "width": 42, "valign": "center", "text": "Last" },
-              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.last_s)",
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.last_s) + (lap.last_invalid ? ' INV' : '')",
                 "color": "=lap.last_invalid ? 'error' : 'text'" } ] },
             { "type": "row", "margin": [0, 8, 0, 0], "children": [
               { "type": "label", "width": 42, "valign": "center", "text": "Best" },
-              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s)",
+              { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s) + (has(lap.best_s) && lap.best_s == timing.session_best_s ? ' SB' : '')",
                 "color": "=has(lap.best_s) && lap.best_s == timing.session_best_s ? 'session_best' : 'text'" } ] }
           ]
         }]

@@ -62,7 +62,7 @@
         "children": [
           { "type": "column", "valign": "bottom", "margin": [0, 10, 0, 0],
             "children": [
-              { "type": "label", "text": "Gear" },
+              { "type": "label", "text": "=car.over_rev ? 'Gear · over-rev' : car.downshift_risk ? 'Gear · hold' : 'Gear'" },
               // Red while the next gear down would over-rev: do not pull the paddle.
               { "type": "text", "margin": [0, 2, 0, 0], "font": "display", "size": 58,
                 "color": "=car.over_rev || car.downshift_risk ? 'error' : 'accent'",
@@ -85,7 +85,7 @@
           { "type": "column", "children": [
             { "type": "label", "text": "Last" },
             { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
-              "text": "=fmt_time(lap.last_s)", "color": "=lap.last_invalid ? 'error' : 'text'" }
+              "text": "=fmt_time(lap.last_s) + (lap.last_invalid ? ' INV' : '')", "color": "=lap.last_invalid ? 'error' : 'text'" }
           ]},
           { "type": "divider", "vertical": true, "width": 1, "height": 34, "margin": [18, 0] },
           { "type": "column", "children": [
@@ -105,7 +105,7 @@
           { "type": "column", "children": [
             { "type": "label", "text": "Fuel" },
             { "type": "text", "margin": [0, 6, 0, 0], "font": "mono", "size": 15,
-              "text": "=has(fuel.liters) ? fmt(fuel.liters, 1) + ' L' : '—'",
+              "text": "=has(fuel.liters) ? fmt(fuel.liters, 1) + ' L' + switch(fuel.state, 'empty', ' !!', 'critical', ' !!', 'short', ' !', '') : '—'",
               "color": "=switch(fuel.state, 'empty', 'error', 'critical', 'error', 'short', 'accent', 'text')" }
           ]}
         ]
@@ -114,8 +114,9 @@
       { "type": "divider", "margin": [0, 12, 0, 10] },
 
       // --- Tyres: each tread against the car's working window (blue cold,
-      // green in it, amber hot, red well past), its pressure and wear, and the
-      // brake behind it; then the coolant. ---
+      // green in it, amber hot, red well past, and a sign for the same: -
+      // cold, + hot, ! well past), its pressure and wear, and the brake
+      // behind it; then the coolant. ---
       {
         "type": "row",
         "children": [
@@ -127,7 +128,7 @@
               { "type": "column", "margin": [0, 0, 10, 0], "children": [
                 { "type": "label", "text": "{item.name}" },
                 { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 15,
-                  "text": "=has(item.temp_c) ? fmt(item.temp_c) + '°' : '—'",
+                  "text": "=has(item.temp_c) ? fmt(item.temp_c) + '°' + switch(item.state, 'cold', '-', 'hot', '+', 'over', '!', '') : '—'",
                   "color": "=switch(item.state, 'cold', 'tyre_cold', 'ok', 'live', 'hot', 'accent', 'over', 'error', 'text_muted')" },
                 // The shoulders, inner then outer, under the mean: a graining
                 // inner edge or a camber too shallow shows as a lopsided pair.
@@ -149,7 +150,7 @@
                   "text": "W {fmt(item.wear_pct)}%",
                   "color": "=item.wear_pct >= 90 ? 'error' : item.wear_pct >= 70 ? 'accent' : 'text_muted'" },
                 { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 11,
-                  "text": "=has(item.brake_c) ? 'B ' + fmt(item.brake_c) + '°' : '—'",
+                  "text": "=has(item.brake_c) ? 'B ' + fmt(item.brake_c) + '°' + switch(item.brake_state, 'cold', '-', 'hot', '+', 'over', '!', '') : '—'",
                   "color": "=switch(item.brake_state, 'over', 'error', 'hot', 'accent', 'cold', 'tyre_cold', 'ok', 'text_secondary', 'text_muted')" },
                 // The pads' wear on its own line, like the tyre's: a figure
                 // beside the brake temperature is what pushed the fourth tyre
@@ -165,7 +166,7 @@
           { "type": "column", "valign": "top", "margin": [6, 0, 0, 0], "children": [
             { "type": "label", "text": "Water" },
             { "type": "text", "margin": [0, 4, 0, 0], "font": "mono", "size": 15,
-              "text": "=has(engine.water_c) ? fmt(engine.water_c) + '°' : '—'",
+              "text": "=has(engine.water_c) ? fmt(engine.water_c) + '°' + switch(engine.water_state, 'cold', '-', 'hot', '+', 'over', '!', '') : '—'",
               "color": "=switch(engine.water_state, 'over', 'error', 'hot', 'accent', 'ok', 'text', 'text_muted')" }
           ]}
         ]

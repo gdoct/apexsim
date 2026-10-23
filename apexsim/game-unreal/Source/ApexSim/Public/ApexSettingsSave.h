@@ -19,6 +19,21 @@ enum class EApexHudDetail : uint8
 	Hidden,
 };
 
+/**
+ * The HUD's colours for the player's colour vision (ApexColourVision::Role).
+ * Saved as its index and a command-line value: append only.
+ */
+UENUM(BlueprintType)
+enum class EApexColourVision : uint8
+{
+	/** The game's own: green good, red bad, purple a session best. */
+	Standard,
+	/** Deuteranopia and protanopia: blue for good, vermilion for bad, yellow between. */
+	RedGreen,
+	/** Tritanopia: green and red stay; cold and other blues go pale. */
+	BlueYellow,
+};
+
 /** Three-step driving aid. */
 UENUM(BlueprintType)
 enum class EApexAssistLevel : uint8
@@ -546,4 +561,10 @@ public:
 	/** The race engineer calls the safety car, the stop, fuel, tyres and the finish. */
 	UPROPERTY()
 	bool bRadioEngineer = true;
+
+	// --- Gameplay, appended ---------------------------------------------------
+
+	/** The HUD's palette (Settings > Gameplay > Colour vision, apexsim.hud.Palette). */
+	UPROPERTY()
+	EApexColourVision ColourVision = EApexColourVision::Standard;
 };

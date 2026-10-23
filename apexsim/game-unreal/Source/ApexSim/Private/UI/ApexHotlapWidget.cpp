@@ -31,6 +31,7 @@
 #include "Misc/Parse.h"
 #include "UObject/UObjectIterator.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexColourVision.h"
 #include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -100,8 +101,6 @@ namespace
 	const FLinearColor RowFill   = Ink.CopyWithNewOpacity(0.04f);
 	const FLinearColor Outline   = Ink.CopyWithNewOpacity(0.14f);
 
-	/** The timing screen's purple: the session's best. */
-	const FLinearColor Purple = FLinearColor::FromSRGBColor(FColor(0xB3, 0x7C, 0xFF));
 
 	struct FTabSpec
 	{
@@ -2188,7 +2187,7 @@ void UApexHotlapWidget::RefreshBoard()
 		BoardName[Index]->SetText(FText::FromString(Row.bYou ? Row.Name + TEXT("  (YOU)") : Row.Name));
 		BoardName[Index]->SetColorAndOpacity(Row.bYou ? Palette::Accent : Ink);
 		BoardBest[Index]->SetText(FText::FromString(FormatMs(Row.BestMs)));
-		BoardBest[Index]->SetColorAndOpacity(Row.Position == 1 ? Purple : Ink);
+		BoardBest[Index]->SetColorAndOpacity(Row.Position == 1 ? ApexColourVision::Role(EApexColourRole::SessionBest) : Ink);
 		BoardGap[Index]->SetText(FText::FromString(Row.Position > 1 ? FormatDelta(Row.GapMs, 0) : FString()));
 		BoardState[Index]->SetText(FText::FromString(Row.bInGarage ? TEXT("GARAGE") : TEXT("ON TRACK")));
 		BoardRowButtons[Index]->SetSelected(Row.CarIndex == WatchedCar);
@@ -2363,7 +2362,7 @@ void UApexHotlapWidget::SetLiveLap(int32 Lap, int32 LapTimeMs, bool bInvalid, in
 	else
 	{
 		SheetLiveLabel->SetText(FText::FromString(bInvalid ? TEXT("LAP INVALID") : FString::Printf(TEXT("LAP %d"), Lap)));
-		SheetLiveLabel->SetColorAndOpacity(bInvalid ? Palette::Error : Palette::Live);
+		SheetLiveLabel->SetColorAndOpacity(ApexColourVision::Role(bInvalid ? EApexColourRole::Bad : EApexColourRole::Good));
 		SheetLiveText->SetText(FText::FromString(FormatMs(LapTimeMs)));
 		SheetLiveText->SetColorAndOpacity(bInvalid ? Palette::TextMuted : Palette::TextPrimary);
 	}
@@ -2424,8 +2423,8 @@ void UApexHotlapWidget::RefreshSheet()
 		const FLapEntry& Entry = Laps[Index];
 		UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 		const FLinearColor Colour = !Entry.bValid ? Palette::TextDisabled
-			: Entry.bSessionBest ? Purple
-			: Entry.bPersonalBest ? Palette::Live
+			: Entry.bSessionBest ? ApexColourVision::Role(EApexColourRole::SessionBest)
+			: Entry.bPersonalBest ? ApexColourVision::Role(EApexColourRole::PersonalBest)
 			: Palette::TextPrimary;
 		AddH(Row, MakeText(*WidgetTree, FString::Printf(TEXT("L%d"), Entry.Lap), Font::Mono(12.0f), Palette::TextMuted),
 			FMargin(), VAlign_Center);
@@ -2436,7 +2435,7 @@ void UApexHotlapWidget::RefreshSheet()
 		if (!Entry.bValid)
 		{
 			Right = TEXT("INVALID");
-			RightColour = Palette::Error;
+			RightColour = ApexColourVision::Role(EApexColourRole::Bad);
 		}
 		else if (BestMs > 0 && Entry.TimeMs != BestMs)
 		{

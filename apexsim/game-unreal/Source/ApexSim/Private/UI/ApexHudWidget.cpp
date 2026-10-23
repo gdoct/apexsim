@@ -27,6 +27,7 @@
 #include "Hud/ApexHudDataSubsystem.h"
 #include "ImageUtils.h"
 #include "Race/ApexRaceDirector.h"
+#include "UI/ApexColourVision.h"
 #include "UI/ApexMinimapWidget.h"
 #include "UI/ApexMirrorWidget.h"
 #include "UI/ApexUIStyle.h"
@@ -174,6 +175,7 @@ void UApexHudWidget::NativeDestruct()
 
 void UApexHudWidget::Reload()
 {
+	BuiltPalette = ApexColourVision::Current();
 	Components.Reset();
 	Report = FApexHudLoadReport();
 	const TArray<FString> Directories = ApexHud::HudDirectories();
@@ -350,6 +352,12 @@ void UApexHudWidget::HandleSettingsChanged(EApexSettingsGroup Group)
 	if (Group == EApexSettingsGroup::Gameplay)
 	{
 		ApplyVisibility();
+		// A component's fixed colours are resolved when it loads, and a
+		// constant colour is applied once: a new palette is a rebuild.
+		if (ApexColourVision::Current() != BuiltPalette)
+		{
+			Reload();
+		}
 	}
 }
 
@@ -643,7 +651,7 @@ int32 UApexHudWidget::BuildElement(const FApexHudElementDef& Def, int32 Copy)
 		UProgressBar* Bar = WidgetTree->ConstructWidget<UProgressBar>();
 		FProgressBarStyle Style = Bar->GetWidgetStyle();
 		Style.SetBackgroundImage(MakeBrush(Palette::Surface));
-		Style.SetFillImage(MakeBrush(Palette::Accent));
+		Style.SetFillImage(MakeBrush(ApexColourVision::Role(EApexColourRole::Accent)));
 		Bar->SetWidgetStyle(Style);
 		Bar->SetBarFillType(HudBarFill(Def.BarDirection));
 		Bar->SetPercent(0.0f);
@@ -952,7 +960,7 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 		{
 			FProgressBarStyle Style = Bar->GetWidgetStyle();
 			Style.SetBackgroundImage(MakeBrush(Node.bHasBackground ? Node.LastBackground : Palette::Surface));
-			Style.SetFillImage(MakeBrush(Node.bHasColour ? Node.LastColour : Palette::Accent));
+			Style.SetFillImage(MakeBrush(Node.bHasColour ? Node.LastColour : ApexColourVision::Role(EApexColourRole::Accent)));
 			Bar->SetWidgetStyle(Style);
 		}
 		break;
@@ -998,7 +1006,7 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 					}
 				}
 				TArray<FApexMinimapBlip> Blips;
-				Hud->MakeMinimapBlips(Blips, Node.bHasColour ? Node.LastColour : Palette::Accent);
+				Hud->MakeMinimapBlips(Blips, Node.bHasColour ? Node.LastColour : ApexColourVision::Role(EApexColourRole::Accent));
 				Minimap->SetBlips(MoveTemp(Blips));
 				TArray<FApexRainCell> Rain;
 				Hud->MakeRainCells(Rain);

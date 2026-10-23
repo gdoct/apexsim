@@ -260,14 +260,12 @@ determinism of `render` (same seed, same bytes).
 
 **Check:** a run from the menu and its numbers on screen.
 
-### 22. Colour-blind HUD
+### 22. Localisation
 
-- Colour-blind palettes through the HUD's colour tokens, and shapes or text
-  wherever colour alone carries meaning (wear, brakes, flags, delta).
 - UI strings moved to string tables as screens are touched; the game stays
   English until there is demand.
 
-**Check:** the HUD under each palette and a colour-blindness simulator.
+**Check:** a screen in a test language with no English left on it.
 
 ### 23. VR
 

@@ -97,6 +97,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetHudDetail(EApexHudDetail Detail);
 
+	/** The HUD's colour-vision palette (Gameplay group; the HUD rebuilds in it). */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetColourVision(EApexColourVision Vision);
+
 	// --- Graphics -------------------------------------------------------------
 
 	/** Moves every quality row to the preset's bucket. Custom leaves them alone. */

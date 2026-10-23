@@ -11,7 +11,7 @@
     "padding": [14, 6, 14, 6],
     "radius": 3,
     "direction": "row",
-    "background": "=flag.yellow >= 2 ? alpha(rgb(255, 204, 0), floor(hud.time_s * 3) % 2 == 0 ? 0.95 : 0.55) : flag.yellow == 1 ? rgb(255, 204, 0, 0.92) : rgb(30, 110, 255, 0.92)",
+    "background": "=flag.yellow >= 2 ? alpha('flag_yellow', floor(hud.time_s * 3) % 2 == 0 ? 0.95 : 0.55) : flag.yellow == 1 ? alpha('flag_yellow', 0.92) : alpha('flag_blue', 0.92)",
     "children": [
       { "type": "text", "font": "mono", "size": 13, "tracking": 80, "bold": true,
         "color": "=flag.yellow >= 1 ? rgb(20, 20, 20) : rgb(255, 255, 255)",

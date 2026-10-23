@@ -9,6 +9,8 @@
 #include "ApexSimInputModule.h"
 #include "AudioDevice.h"
 #include "Engine/Engine.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Framework/Application/NavigationConfig.h"
 #include "Framework/Application/SlateApplication.h"
 #include "GameFramework/GameUserSettings.h"
@@ -18,6 +20,7 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "RHIGlobals.h"
 #include "Race/ApexRaceDirector.h"
+#include "UI/ApexColourVision.h"
 
 namespace
 {
@@ -36,6 +39,34 @@ namespace
 		default:                          return -1;
 		}
 	}
+
+	/** The HUD's palette from the console, as Settings > Gameplay > Colour vision sets it. */
+	FAutoConsoleCommandWithWorldAndArgs HudPaletteCommand(
+		TEXT("apexsim.hud.Palette"),
+		TEXT("standard | red_green | blue_yellow (or deuteranopia, protanopia, tritanopia): the HUD's colour-vision palette. No argument prints it."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			const UGameInstance* GameInstance = World ? World->GetGameInstance() : nullptr;
+			UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+			if (Args.Num() > 0)
+			{
+				EApexColourVision Vision;
+				if (!ApexColourVision::Parse(Args[0], Vision))
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("apexsim.hud.Palette: '%s' is not standard, red_green or blue_yellow"), *Args[0]);
+					return;
+				}
+				if (Settings)
+				{
+					Settings->SetColourVision(Vision);
+				}
+				else
+				{
+					ApexColourVision::SetCurrent(Vision);
+				}
+			}
+			UE_LOG(LogApexSim, Display, TEXT("HUD palette: %s"), ApexColourVision::Name(ApexColourVision::Current()));
+		}));
 }
 
 void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -334,12 +365,23 @@ void UApexSettingsSubsystem::SetHudDetail(EApexHudDetail Detail)
 	Changed(EApexSettingsGroup::Gameplay);
 }
 
+void UApexSettingsSubsystem::SetColourVision(EApexColourVision Vision)
+{
+	if (!Settings || Settings->ColourVision == Vision) { return; }
+	Settings->ColourVision = Vision;
+	Changed(EApexSettingsGroup::Gameplay);
+}
+
 void UApexSettingsSubsystem::ApplyGameplay()
 {
 	if (!Settings)
 	{
 		return;
 	}
+
+	// Before anyone hears of the change: the HUD rebuilds in the palette
+	// current when it is told (UApexHudWidget::HandleSettingsChanged).
+	ApexColourVision::SetCurrent(Settings->ColourVision);
 
 	// The minimap is drawn from TrackConfigSummary.Centerline, which the codec
 	// skips by default because parsing ~14k points twice a minute is not free.
@@ -1419,6 +1461,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->AiSkill = Defaults->AiSkill;
 		Settings->Units = Defaults->Units;
 		Settings->HudDetail = Defaults->HudDetail;
+		Settings->ColourVision = Defaults->ColourVision;
 		Settings->bGhostCar = Defaults->bGhostCar;
 		Settings->bHotlapColdTyres = Defaults->bHotlapColdTyres;
 		break;

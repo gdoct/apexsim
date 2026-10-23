@@ -83,8 +83,11 @@ namespace ApexHudColour
 	/**
 	 * A colour from its name in the menu palette (`accent`, `surface`,
 	 * `text_muted`, …, plus the timing colours `session_best`,
-	 * `personal_best` and `tyre_cold`) or a hex code (`#RRGGBB`,
-	 * `#RRGGBBAA`, sRGB). Case-insensitive.
+	 * `personal_best`, the tyre's `tyre_cold` / `tyre_ok` and the flags'
+	 * `flag_yellow` / `flag_blue` / `flag_green` / `flag_red`) or a hex code
+	 * (`#RRGGBB`, `#RRGGBBAA`, sRGB). Case-insensitive. The names that carry
+	 * meaning resolve through the colour-vision palette
+	 * (ApexColourVision::Role) as it is when they are read.
 	 */
 	APEXSIM_API bool Parse(const FString& Text, FLinearColor& Out);
 

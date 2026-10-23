@@ -30,6 +30,7 @@
 #include "Hud/ApexHudLayout.h"
 #include "Input/ApexInputConfig.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexColourVision.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexSegmentedWidget.h"
 #include "UI/ApexStepperWidget.h"
@@ -150,6 +151,7 @@ namespace
 	}
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
+	const FName SegColourVision = TEXT("ColourVision");
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
 	const FName SegHdr        = TEXT("Hdr");
@@ -665,6 +667,15 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 		TEXT("HUD elements"),
 		TEXT("Minimap and pedal telemetry."),
 		MakeSegment(SegHud, { TEXT("ALL"), TEXT("ESSENTIAL"), TEXT("HIDDEN") }, 0)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// The palette the HUD's meaningful colours come from (ApexColourVision).
+	AddV(Page, MakeRow(
+		TEXT("Colour vision"),
+		TEXT("HUD colours for red-green (deuteranopia, protanopia) or blue-yellow (tritanopia) colour blindness."),
+		MakeSegment(SegColourVision, {
+			ApexColourVision::Label(EApexColourVision::Standard),
+			ApexColourVision::Label(EApexColourVision::RedGreen),
+			ApexColourVision::Label(EApexColourVision::BlueYellow) }, 0)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
 	// The HUD editor: the overlay steps aside while it runs (UApexRootWidget).
 	{
@@ -2101,6 +2112,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	RefreshAssistLocks();
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
+	SetSegment(SegColourVision, static_cast<int32>(Values->ColourVision));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
 	SetSegment(SegHdr, Values->bHdrOutput ? 1 : 0);
@@ -2473,6 +2485,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegRacingLine) { Settings->SetRacingLine(static_cast<EApexRacingLine>(Index)); RefreshAssistPreset(); }
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
+	else if (Id == SegColourVision) { Settings->SetColourVision(static_cast<EApexColourVision>(Index)); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
 	else if (Id == SegHdr)        { Settings->SetHdrOutput(Index == 1); }
 	else if (Id == SegScreens)

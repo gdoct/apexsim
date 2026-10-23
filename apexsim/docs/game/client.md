@@ -958,7 +958,9 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.car.DamageEffects`, `apexsim.car.HeadlightLumens|BrakeLightNits|TailLightNits|WheelMaxDegPerFrame`.
 - Tracks and lighting: `apexsim.track.Rescan|KeepLast|BuildBudgetMs|FlatShadows|HorizonShadows`,
   `apexsim.sky.SunStepDeg`, `apexsim.lights.Max|Range`.
-- HUD: `apexsim.hud.Reload|Data|Edit|EditStep` ([hud-modding.md](hud-modding.md)).
+- HUD: `apexsim.hud.Reload|Data|Edit|EditStep`, `apexsim.hud.Palette
+  standard|red_green|blue_yellow` (the colour-vision palette, as Settings >
+  Gameplay > Colour vision sets it) ([hud-modding.md](hud-modding.md#colour-vision)).
 - Hotlap: `apexsim.hotlap.Out|Garage|Replay|Stop|Tab|Board|Watch`.
 - The race's grid: `apexsim.grid.Ready|Livery|StartNow`.
 - Replays: `apexsim.replay.Save|List`; on a `-ApexReplay` clip

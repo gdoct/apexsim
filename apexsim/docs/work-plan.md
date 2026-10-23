@@ -61,7 +61,7 @@ takes it up (— : no step, taken opportunistically).
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
-| N22 | Localisation and colour-blind-safe HUD | Accessibility | P3 | 🔴 | M | — |
+| N22 | Localisation | Accessibility | P3 | 🔴 | M | — |
 | N23 | VR (OpenXR) | Platform | P3 | 🔴 | L | — |
 | — | Driver rating, shared leaderboards, more screens, public server list (N8), Windows on Arm | — | Parked | — | — | — |
 
@@ -438,10 +438,8 @@ Pause a replay, free camera, focal length, depth of field, exposure, hide
 HUD, save a high-resolution shot. Reuses the replay's cameras; needs the
 replay pause from T2.
 
-#### N22. Localisation and colour-blind-safe HUD — P3 · 🔴 · M
+#### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).
-Colour-blind palettes first: wear, brake state, flags and deltas carry
-meaning in colour alone today — add shapes or text and a palette switch.
 
 #### N23. VR (OpenXR) — P3 · 🔴 · L
 Cockpit view in a headset. Heavy on frame time (two eyes at 90 Hz), the HUD

@@ -16,7 +16,7 @@
       { "type": "column", "valign": "center", "margin": [18, 0, 0, 0],
         "children": [
           { "type": "text", "font": "display", "size": 40, "text": "=has(car.speed) ? fmt(car.speed) : '0'" },
-          { "type": "label", "text": "{hud.speed_unit}" }
+          { "type": "label", "text": "=car.over_rev ? 'Over-rev' : car.downshift_risk ? 'No downshift' : car.rpm_fraction > 0.95 ? 'Shift up' : hud.speed_unit" }
         ] }
     ]
   }

@@ -1,5 +1,6 @@
 #include "Hud/ApexHudValue.h"
 
+#include "UI/ApexColourVision.h"
 #include "UI/ApexUIStyle.h"
 
 namespace
@@ -8,6 +9,17 @@ namespace
 	{
 		const TCHAR* Name;
 		FLinearColor Colour;
+		/** A role of the colour-vision palette: looked up when the name is read, not here. */
+		bool bRole = false;
+		EApexColourRole Role = EApexColourRole::Accent;
+
+		FNamedColour(const TCHAR* InName, const FLinearColor& InColour) : Name(InName), Colour(InColour) {}
+		FNamedColour(const TCHAR* InName, EApexColourRole InRole) : Name(InName), bRole(true), Role(InRole) {}
+
+		FLinearColor Resolve() const
+		{
+			return bRole ? ApexColourVision::Role(Role) : Colour;
+		}
 	};
 
 	/** The palette by name. Built on first use: the palette's own statics must exist first. */
@@ -19,21 +31,27 @@ namespace
 			{TEXT("surface"), Palette::Surface},
 			{TEXT("surface_hover"), Palette::SurfaceHover},
 			{TEXT("border"), Palette::Border},
-			{TEXT("accent"), Palette::Accent},
+			// The colours that carry meaning follow the colour-vision setting.
+			{TEXT("accent"), EApexColourRole::Accent},
 			{TEXT("on_accent"), Palette::OnAccent},
 			{TEXT("text"), Palette::TextPrimary},
 			{TEXT("text_primary"), Palette::TextPrimary},
 			{TEXT("text_secondary"), Palette::TextSecondary},
 			{TEXT("text_muted"), Palette::TextMuted},
 			{TEXT("text_disabled"), Palette::TextDisabled},
-			{TEXT("live"), Palette::Live},
-			{TEXT("error"), Palette::Error},
+			{TEXT("live"), EApexColourRole::Good},
+			{TEXT("error"), EApexColourRole::Bad},
 			{TEXT("focus"), Palette::Focus},
 			// Timing colours: purple for a time nobody in the session has
 			// beaten, green for a driver's own best.
-			{TEXT("session_best"), FLinearColor::FromSRGBColor(FColor(0xB0, 0x7C, 0xE8))},
-			{TEXT("personal_best"), Palette::Live},
-			{TEXT("tyre_cold"), FLinearColor::FromSRGBColor(FColor(0x5A, 0x9B, 0xE0))},
+			{TEXT("session_best"), EApexColourRole::SessionBest},
+			{TEXT("personal_best"), EApexColourRole::PersonalBest},
+			{TEXT("tyre_cold"), EApexColourRole::TyreCold},
+			{TEXT("tyre_ok"), EApexColourRole::TyreOk},
+			{TEXT("flag_yellow"), EApexColourRole::FlagYellow},
+			{TEXT("flag_blue"), EApexColourRole::FlagBlue},
+			{TEXT("flag_green"), EApexColourRole::FlagGreen},
+			{TEXT("flag_red"), EApexColourRole::FlagRed},
 			{TEXT("white"), FLinearColor::White},
 			{TEXT("black"), FLinearColor::Black},
 			{TEXT("transparent"), FLinearColor::Transparent},
@@ -171,7 +189,7 @@ bool ApexHudColour::Parse(const FString& Text, FLinearColor& Out)
 	{
 		if (Trimmed.Equals(Named.Name, ESearchCase::IgnoreCase))
 		{
-			Out = Named.Colour;
+			Out = Named.Resolve();
 			return true;
 		}
 	}

@@ -415,6 +415,26 @@ stand-in driving; car 2's engine killed at 20 s of green, BoxThisLap at
 clear. `n14-radio-settings`: the Audio tab's Radio rows (Radio volume,
 Spotter, Race engineer) laid out like the rows above them.
 
+### R20. Colour-vision palettes
+
+`n22-colour-vision` (the Norisring, the stand-in, five AI cars): the race
+HUD in each palette, switched from the console (`apexsim.hud.Palette`),
+then the cockpit dash in each ([hud-modding](game/hud-modding.md#colour-vision)).
+
+- The HUD rebuilt whole in each palette, no panel missing or left in the
+  old colours; the red-green palette's blue good, vermilion bad, yellow
+  accent and pale lilac session best, the blue-yellow palette's pale cold
+  tyres.
+- The redundant cues on screen: `SB` / `PB` / `+` under the sector splits,
+  `-` / `+` / `!` on the temperatures, the radar's bar filling; the car
+  panel's four tyre columns still fit with the signs on.
+- The dash's light groups in each palette (standard green, amber, red,
+  blue; red-green blue, yellow, vermilion, white; blue-yellow green, amber,
+  red, white).
+- The shots through a colour-blindness simulator (any CVD filter on the
+  contact sheets): the states still tell apart.
+- Settings > Gameplay > Colour vision changes the HUD while paused.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

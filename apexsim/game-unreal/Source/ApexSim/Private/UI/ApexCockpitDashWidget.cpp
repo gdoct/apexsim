@@ -9,19 +9,24 @@
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
+#include "UI/ApexColourVision.h"
 #include "UI/ApexUIStyle.h"
 
 using namespace ApexUI;
 
 namespace
 {
-	/** Lights, left to right: green through amber to red, then the blue shift lights. */
+	/**
+	 * Lights, left to right: green through amber to red, then the blue shift
+	 * lights, in the HUD's colour-vision palette. Where a light sits already
+	 * says what it is; the colours only have to stay apart.
+	 */
 	FLinearColor LightColour(int32 Index)
 	{
-		if (Index < 5)  { return Palette::Live; }
-		if (Index < 10) { return Palette::Accent; }
-		if (Index < 13) { return Palette::Error; }
-		return FLinearColor::FromSRGBColor(FColor(0x4A, 0x8C, 0xFF));
+		if (Index < 5)  { return ApexColourVision::Role(EApexColourRole::Good); }
+		if (Index < 10) { return ApexColourVision::Role(EApexColourRole::Accent); }
+		if (Index < 13) { return ApexColourVision::Role(EApexColourRole::Bad); }
+		return ApexColourVision::Role(EApexColourRole::ShiftLight);
 	}
 
 	FString FormatLapTime(int32 Ms)
@@ -124,8 +129,10 @@ void UApexCockpitDashWidget::SetValues(int32 Gear, float SpeedKph, bool bMetric,
 	if (FlagState != ShownFlagState)
 	{
 		ShownFlagState = FlagState;
-		const FLinearColor FlagColour = FlagKind == 2 ? FLinearColor::FromSRGBColor(FColor(0x2F, 0x6B, 0xFF))
-			: FlagKind == 4 ? Palette::Error : Palette::Accent;
+		// Each kind flashes at its own rate too, so the colour is not all it has.
+		const FLinearColor FlagColour = FlagKind == 2 ? ApexColourVision::Role(EApexColourRole::FlagBlue)
+			: FlagKind == 4 ? ApexColourVision::Role(EApexColourRole::Bad)
+			: ApexColourVision::Role(EApexColourRole::Accent);
 		for (int32 Index = 0; Index < RpmLights.Num(); ++Index)
 		{
 			if (RpmLights[Index] && FlagKind != 0)

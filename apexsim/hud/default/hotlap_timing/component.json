@@ -41,7 +41,11 @@
                     { "type": "label", "valign": "center", "width": 24, "text": "='S' + item.number" },
                     { "type": "text", "font": "mono", "size": 15, "text": "=fmt_split(item.time_s)",
                       "color": "=switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'text_secondary', 'text_muted')" }
-                  ] }
+                  ] },
+                  // The state in letters too: SB, PB, + (slower than their best).
+                  { "type": "text", "margin": [24, 1, 0, 0], "font": "mono", "size": 9, "tracking": 60, "bold": true,
+                    "text": "=switch(item.state, 'session_best', 'SB', 'personal_best', 'PB', 'slower', '+', '')",
+                    "color": "=switch(item.state, 'session_best', 'session_best', 'personal_best', 'personal_best', 'slower', 'text_secondary', 'text_muted')" }
                 ]
               }]
             },
@@ -51,10 +55,10 @@
               "type": "row", "margin": [0, 14, 0, 0],
               "children": [
                 { "type": "label", "valign": "center", "margin": [0, 0, 10, 0], "text": "Last" },
-                { "type": "text", "font": "mono", "size": 15, "margin": [0, 0, 24, 0], "text": "=fmt_time(lap.last_s)",
+                { "type": "text", "font": "mono", "size": 15, "margin": [0, 0, 24, 0], "text": "=fmt_time(lap.last_s) + (lap.last_invalid ? ' INV' : '')",
                   "color": "=lap.last_invalid ? 'error' : 'text'" },
                 { "type": "label", "valign": "center", "margin": [0, 0, 10, 0], "text": "Best" },
-                { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s)",
+                { "type": "text", "font": "mono", "size": 15, "text": "=fmt_time(lap.best_s) + (has(lap.best_s) && lap.best_s == timing.session_best_s ? ' SB' : '')",
                   "color": "=has(lap.best_s) && lap.best_s == timing.session_best_s ? 'session_best' : 'text'" }
               ]
             }
