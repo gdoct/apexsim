@@ -517,9 +517,28 @@ fn step(
         torque_cap
     };
     let mut torque = (share * torque_cap).min(torque_from_power).max(0.0);
+    // A second motor at the crank beside the front one deploys on the same
+    // share, the two together held to what the battery gives.
+    let crank_omega = (engine_rpm / 60.0) * 2.0 * PI;
+    let mut crank_torque = 0.0;
+    if hybrid.has_crank_motor() && state.gear > 0 && crank_omega > 1.0 {
+        crank_torque = (share * hybrid.crank_motor_max_torque_nm)
+            .min(hybrid.crank_motor_max_power_kw * 1000.0 / crank_omega)
+            .max(0.0);
+        let total_w = torque * omega.max(1.0) + crank_torque * crank_omega;
+        let battery_w = hybrid.battery_max_discharge_kw.max(0.0) * 1000.0;
+        if total_w > battery_w {
+            let k = battery_w / total_w;
+            torque *= k;
+            crank_torque *= k;
+        }
+    }
     // Never past the budget, the allowance, the stint or the charge within
     // the tick.
     let mut drawn_kj = torque * omega.max(1.0) * dt / 1000.0;
+    if crank_torque > 0.0 {
+        drawn_kj += crank_torque * crank_omega * dt / 1000.0;
+    }
     let on_override = boost && hybrid.override_kj_per_lap.is_some();
     let budget_left = if on_override {
         override_left_kj(state, config)
@@ -533,7 +552,9 @@ fn step(
         .min(stint_left_kj(state, config))
         .min(state.hybrid_battery_kwh * KJ_PER_KWH);
     if drawn_kj > left_kj {
-        torque *= (left_kj / drawn_kj).max(0.0);
+        let k = (left_kj / drawn_kj).max(0.0);
+        torque *= k;
+        crank_torque *= k;
         drawn_kj = left_kj.max(0.0);
     }
     state.hybrid_battery_kwh = (state.hybrid_battery_kwh - drawn_kj / KJ_PER_KWH).max(0.0);
@@ -546,8 +567,12 @@ fn step(
     if config.fuel.stint_energy_mj.is_some() {
         state.stint_energy_used_mj += drawn_kj / 1000.0;
     }
-    state.ers_deploying = torque > 0.0;
-    MotorOutput::at(hybrid.axle, torque)
+    state.ers_deploying = torque > 0.0 || crank_torque > 0.0;
+    let mut out = MotorOutput::at(hybrid.axle, torque);
+    if crank_torque > 0.0 {
+        out.crank_torque_nm = crank_torque;
+    }
+    out
 }
 
 impl MotorOutput {
@@ -638,10 +663,15 @@ impl MotorPlan {
 
     /// The motor's speed at `speed_mps`, rad/s.
     fn omega(&self, speed_mps: f32) -> f32 {
-        let wheel = speed_mps.max(0.0) / self.wheel_radius_m;
         if self.hybrid.axle == HybridAxle::Front {
-            return wheel;
+            return speed_mps.max(0.0) / self.wheel_radius_m;
         }
+        self.crank_omega(speed_mps)
+    }
+
+    /// The crank's speed at `speed_mps` in the gear the box holds, rad/s.
+    fn crank_omega(&self, speed_mps: f32) -> f32 {
+        let wheel = speed_mps.max(0.0) / self.wheel_radius_m;
         let rpm_per_ratio = wheel * 60.0 / (2.0 * PI);
         let rpm = self
             .gears
@@ -663,7 +693,15 @@ impl MotorPlan {
         }
         let omega = self.omega(speed_mps);
         let torque = share * self.hybrid.torque_at(omega * 60.0 / (2.0 * PI));
-        (torque * omega).clamp(0.0, self.power_limit_w)
+        let power = (torque * omega).clamp(0.0, self.power_limit_w);
+        if !self.hybrid.has_crank_motor() {
+            return power;
+        }
+        // A second motor at the crank, the two held to the battery.
+        let crank = self.crank_omega(speed_mps);
+        let crank_w = (share * self.hybrid.crank_motor_max_torque_nm * crank)
+            .clamp(0.0, self.hybrid.crank_motor_max_power_kw * 1000.0);
+        (power + crank_w).min(self.hybrid.battery_max_discharge_kw.max(0.0) * 1000.0)
     }
 }
 
@@ -974,6 +1012,64 @@ mod tests {
         let out = update(&mut s, &front, &coast, 1000.0, 0.5, DT);
         assert!(out.front_axle_torque_nm < 0.0 && s.ers_harvesting);
         assert_eq!(out.crank_torque_nm, 0.0);
+    }
+
+    /// A second motor at the crank beside the front one deploys with it on
+    /// the same share, the two held to the battery's power, and the plan
+    /// counts both; without its keys the front motor alone is to the bit
+    /// what it was.
+    #[test]
+    fn a_crank_motor_beside_the_front_one_deploys_with_it_within_the_battery() {
+        let mut front = car(None);
+        front.hybrid.axle = HybridAxle::Front;
+        front.wheel_radius_m = 0.35;
+        front.hybrid.motor_max_torque_nm = 2000.0;
+        front.hybrid.motor_max_power_kw = 200.0;
+        front.hybrid.battery_max_discharge_kw = 300.0;
+        let mut both = front.clone();
+        both.hybrid.crank_motor_max_torque_nm = 200.0;
+        both.hybrid.crank_motor_max_power_kw = 150.0;
+        let full = input(1.0, 0.0, ErsMode::Attack, false);
+        let rpm = 9000.0;
+        let crank_omega = rpm / 60.0 * 2.0 * PI;
+
+        let mut s = rolling(&front);
+        let alone = update(&mut s, &front, &full, rpm, 0.5, DT);
+        assert_eq!(alone.crank_torque_nm, 0.0);
+        let mut s0 = rolling(&front);
+        let mut zero = front.clone();
+        zero.hybrid.crank_motor_max_torque_nm = 0.0;
+        let again = update(&mut s0, &zero, &full, rpm, 0.5, DT);
+        assert_eq!(
+            again.front_axle_torque_nm.to_bits(),
+            alone.front_axle_torque_nm.to_bits()
+        );
+        assert_eq!(
+            s0.hybrid_battery_kwh.to_bits(),
+            s.hybrid_battery_kwh.to_bits()
+        );
+
+        let mut s = rolling(&both);
+        let out = update(&mut s, &both, &full, rpm, 0.5, DT);
+        assert!(out.crank_torque_nm > 0.0 && out.front_axle_torque_nm > 0.0);
+        // 200 kW + 150 kW asked of a 300 kW battery: both scaled to it.
+        let total = out.front_axle_torque_nm * 60.0 / 0.35 + out.crank_torque_nm * crank_omega;
+        assert!((total - 300_000.0).abs() < 50.0, "{total} W");
+        assert!(s.ers_deploying);
+        // The crank motor needs a gear.
+        let mut idle = rolling(&both);
+        idle.gear = 0;
+        assert_eq!(
+            update(&mut idle, &both, &full, rpm, 0.5, DT).crank_torque_nm,
+            0.0
+        );
+
+        let (p1, p2) = (
+            MotorPlan::new(&front).unwrap(),
+            MotorPlan::new(&both).unwrap(),
+        );
+        assert!(p2.power_w(60.0, 1.0) > p1.power_w(60.0, 1.0));
+        assert!(p2.power_w(60.0, 1.0) <= 300_000.0 + 1.0);
     }
 
     #[test]

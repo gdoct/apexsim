@@ -459,11 +459,15 @@ importer change.
     at the crank) or `[FRONT_MOTORS]`' (torque at the axle by wheel rpm:
     `axle = "front"`, the torque scaled by driven / front tyre radius so
     the force and power come out as AC's, recovering at its own peak
-    power), whichever is the stronger; with both (the 918, the TS040) the
-    other is dropped with a warning. Curves may be files or inline
-    (`(0=150|...|)`, as the 499P mod writes them); the kept motor's curve
-    is written as `[[hybrid.torque_curve]]` (a front motor's torque
-    scaled as its peak is). The battery is the
+    power). A car with both (the 918, the TS040) drives the fronts with
+    the front motor and the crank with `[KINETIC]`'s as the server's
+    second motor (`crank_motor_max_torque_nm` / `_power_kw`, its curve's
+    peak; its curve's shape and `COAST_CURVE` are warned about, not
+    carried), `battery_max_discharge_kw` the two peaks together (the 918
+    191 + 102 kW, the TS040 177 + 155). Curves may be files or inline
+    (`(0=150|...|)`, as the 499P mod writes them); the front (or only)
+    motor's curve is written as `[[hybrid.torque_curve]]` (a front motor's
+    torque scaled as its peak is). The battery is the front (or only)
     motor's peak power x `DISCHARGE_TIME`, `MAX_KJ_PER_LAP` the
     `deploy_kj_per_lap` budget, `[HEAT] TORQUE_PERC` x the motor power
     `heat_recovery_kw`. Of the delivery profiles, the default one
@@ -606,8 +610,8 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 - AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or
   porpoising: an import gets the defaults (standard pads, brake-by-wire,
   none).
-- AC's older `kers.ini`, a second ERS motor (one motor per car), and the
-  ERS delivery profiles beyond their minimum speed; aero controllers on
+- AC's older `kers.ini`, a second ERS motor's own curve and recovery,
+  and the ERS delivery profiles beyond their minimum speed; aero controllers on
   anything but the speed are read flat out in a straight line, with a
   warning.
 - `--lod B` exists but is untested.

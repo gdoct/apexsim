@@ -501,11 +501,26 @@ pub struct HybridConfig {
     /// speed, up to the power limit.
     #[serde(default)]
     pub torque_curve: Vec<TorqueCurvePoint>,
+    /// A second motor at the crank beside a front-axle one (the 918's and
+    /// the TS040's): its peak torque, Nm, and power, kW, on the same
+    /// battery, budget and deployment as the front motor (`crate::hybrid`).
+    /// 0 (the default) is none; only read with `axle = "front"`.
+    #[serde(default)]
+    pub crank_motor_max_torque_nm: f32,
+    #[serde(default)]
+    pub crank_motor_max_power_kw: f32,
 }
 
 impl HybridConfig {
     /// The torque the motor can give at `rpm`: its curve where it files
     /// one, else its peak.
+    /// Whether a second motor drives the crank beside the front one.
+    pub fn has_crank_motor(&self) -> bool {
+        self.axle == HybridAxle::Front
+            && self.crank_motor_max_power_kw > 0.0
+            && self.crank_motor_max_torque_nm > 0.0
+    }
+
     pub fn torque_at(&self, rpm: f32) -> f32 {
         if self.torque_curve.is_empty() {
             return self.motor_max_torque_nm;
@@ -546,6 +561,8 @@ impl Default for HybridConfig {
             deploy_early: 0.0,
             axle: HybridAxle::Crank,
             torque_curve: Vec::new(),
+            crank_motor_max_torque_nm: 0.0,
+            crank_motor_max_power_kw: 0.0,
         }
     }
 }

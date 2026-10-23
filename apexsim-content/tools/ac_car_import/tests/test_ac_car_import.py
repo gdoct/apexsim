@@ -622,8 +622,9 @@ FRONT_TORQUE_VECTORING_BIAS=0.9
 
 
 class InlineAndTwoMotorErsImportTest(unittest.TestCase):
-    """An inline crank motor curve (as the 499P mod writes it) and a weaker
-    front motor: the crank motor is kept, the front one named as dropped."""
+    """An inline crank motor curve (as the 499P mod writes it) beside a
+    front motor: the front one drives the fronts with its curve, the crank
+    one the crank at its peak, the battery giving both."""
 
     @classmethod
     def setUpClass(cls):
@@ -645,20 +646,41 @@ TORQUE_CURVE=kers_torque.lut
     def tearDownClass(cls):
         cls.tmp.cleanup()
 
-    def test_the_inline_crank_motor_is_read_and_kept(self):
+    def test_both_motors_are_carried(self):
         h = self.toml["hybrid"]
-        self.assertNotIn("axle", h)
-        self.assertEqual(h["motor_max_torque_nm"], 450.0)
-        # 450 Nm at 5000 rpm.
-        self.assertAlmostEqual(h["motor_max_power_kw"], 235.6, delta=0.1)
-        self.assertAlmostEqual(h["regen_max_power_kw"], 47.1, delta=0.1)
+        self.assertEqual(h["axle"], "front")
+        # The front motor: 500 Nm to 1000 rpm, 52.4 kW (equal tyre radii).
+        self.assertEqual(h["motor_max_torque_nm"], 500.0)
+        self.assertAlmostEqual(h["motor_max_power_kw"], 52.4, delta=0.1)
+        # The inline crank motor: 450 Nm at 5000 rpm, 235.6 kW.
+        self.assertEqual(h["crank_motor_max_torque_nm"], 450.0)
+        self.assertAlmostEqual(h["crank_motor_max_power_kw"], 235.6, delta=0.1)
+        self.assertAlmostEqual(h["battery_max_discharge_kw"], 288.0, delta=0.1)
         self.assertNotIn("deploy_kj_per_lap", h)
         self.assertNotIn("deploy_min_speed_kph", h)
-        self.assertTrue(any("front motor ([FRONT_MOTORS]) is dropped" in w for w in self.warnings))
+        self.assertFalse(any("dropped" in w for w in self.warnings))
 
-    def test_the_motor_files_its_torque_curve(self):
+    def test_the_front_motor_files_its_torque_curve(self):
         curve = [(p["rpm"], p["torque_nm"]) for p in self.toml["hybrid"]["torque_curve"]]
-        self.assertEqual(curve, [(0.0, 150.0), (4000.0, 450.0), (5000.0, 450.0), (10000.0, 70.0)])
+        self.assertEqual(curve, [(0.0, 500.0), (1000.0, 500.0), (2000.0, 0.0)])
+
+    def test_a_crank_motor_alone_files_its_inline_curve(self):
+        tmp, toml, _ = _import_with({"ers.ini": """[HEADER]
+VERSION=1
+[KINETIC]
+TORQUE_CURVE=(0=150||4000=450|5000=450|10000=70|)
+COAST_CURVE=(|500=90|5000=90|)
+DISCHARGE_TIME=80000
+"""}, "test_inline_crank_only")
+        try:
+            h = toml["hybrid"]
+            self.assertNotIn("axle", h)
+            self.assertNotIn("crank_motor_max_power_kw", h)
+            self.assertAlmostEqual(h["regen_max_power_kw"], 47.1, delta=0.1)
+            curve = [(p["rpm"], p["torque_nm"]) for p in h["torque_curve"]]
+            self.assertEqual(curve, [(0.0, 150.0), (4000.0, 450.0), (5000.0, 450.0), (10000.0, 70.0)])
+        finally:
+            tmp.cleanup()
 
 
 class SyntheticImportTest(unittest.TestCase):

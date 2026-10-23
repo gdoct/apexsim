@@ -183,6 +183,11 @@ traffic.
 - Find where an imported F1's traffic leaves the road (`SURVEY_EVENTS`,
   `SURVEY_TRACE` on the worst races): a lane or dodge its short lock
   (0.24-0.31 rad against the shipped F1's 0.34) cannot turn.
+- The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
+  fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
+  (sliding 9 m/s after the flick at 80 m/s); an import from before the
+  speed map and the second motor fails both stability tests, so it is the
+  car's own figures, not those keys.
 
 **Check:** `SURVEY_CARS=RssFormulaHybrid2021,KsFerrariSf70h,KsPorsche919Hybrid2016,fugazzi-sf26`
 on seeds 1-3, totals against the commit before.

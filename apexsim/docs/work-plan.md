@@ -261,8 +261,8 @@ rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
 
 #### C4. AC import fidelity — P3 · 🟢 · M
-Aero controllers on brake/throttle/steer and the DRS flap split; two ERS
-motors and delivery profiles; brake pads/porpoising, a compound's own
+Aero controllers on brake/throttle/steer and the DRS flap split; ERS
+delivery profiles and the second motor's curve; brake pads/porpoising, a compound's own
 pressure and load sensitivity.
 
 ### Audio and features

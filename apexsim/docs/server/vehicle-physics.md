@@ -596,6 +596,13 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   Without one the motor gives its peak at every speed up to the power limit. No shipped car
   files one; AC imports do (`ers.ini` `TORQUE_CURVE`). The racing line and the AI's plan
   count it at the revs the motor turns at (`MotorPlan`, above).
+- **A second motor at the crank** (`crank_motor_max_torque_nm`, `crank_motor_max_power_kw`,
+  0 each when absent; read only with `axle = "front"`, `HybridConfig::has_crank_motor`):
+  beside the front one, behind the clutch in gear, at its peak torque up to its power at the
+  crank's speed, on the same deploy share, budget, stint and battery; the two together are
+  held to `battery_max_discharge_kw`. Only the front motor recovers. The plan and the
+  drag-limited top speed count both. No shipped car has one; an AC import with
+  `[FRONT_MOTORS]` and a `[KINETIC]` curve (the 918, the TS040) does.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

@@ -256,7 +256,9 @@ def _motor_curve(lut, scale: float) -> list[tuple[float, float]]:
 def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: float) -> None:
     """ers.ini's motors onto `[hybrid]`: the crank motor ([KINETIC], torque
     by engine rpm) or a front-axle one ([FRONT_MOTORS], torque at the axle
-    by wheel rpm), whichever is the stronger; the store from its
+    by wheel rpm); a car with both drives the fronts with the front one and
+    the crank with the other (`crank_motor_max_torque_nm` / `_power_kw`,
+    the battery giving both). The store from the front (or only) motor's
     DISCHARGE_TIME, the lap budget from MAX_KJ_PER_LAP, the MGU-H share, and
     the default delivery profile's minimum speed."""
     k = ers["KINETIC"]
@@ -268,11 +270,8 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
     if crank_p <= 0.0 and front_p <= 0.0:
         out.warnings.append("ers.ini has no motor curve on either axle: no hybrid")
         return
-    front_motor = front_p > crank_p
-    if crank_p > 0.0 and front_p > 0.0:
-        dropped = "the crank motor ([KINETIC])" if front_motor else "the front motor ([FRONT_MOTORS])"
-        out.warnings.append(f"ers.ini has a crank motor ({crank_p:.0f} kW) and a front motor ({front_p:.0f} kW): "
-                            f"the sim has one motor, so {dropped} is dropped")
+    front_motor = front_p > 0.0
+    second_p = crank_p if front_motor and crank_p > 0.0 else 0.0
     h = "hybrid"
     out.put(h, "enabled", True, "ers.ini [KINETIC]")
     if front_motor:
@@ -292,6 +291,12 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
         if fm.get("FRONT_TORQUE_VECTORING_BIAS") is not None:
             out.warnings.append("ers.ini FRONT_TORQUE_VECTORING_BIAS is not modelled: the front differential "
                                 "splits the motor's torque")
+        if second_p > 0.0:
+            out.put(h, "crank_motor_max_torque_nm", round(crank_t, 1),
+                    "ers.ini [KINETIC] TORQUE_CURVE peak: a second motor, at the crank")
+            out.put(h, "crank_motor_max_power_kw", round(crank_p, 1), "ers.ini [KINETIC] TORQUE_CURVE peak power")
+            out.warnings.append("ers.ini [KINETIC]'s motor drives the crank beside the front one at its peak torque "
+                                "(its curve's shape and its COAST_CURVE are not carried: the front motor recovers)")
     else:
         motor_t, motor_p = crank_t, crank_p
         regen_p = motor_p
@@ -312,7 +317,8 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
     out.put(h, "battery_capacity_kwh", round(store_kj / 3600.0, 3),
             "ers.ini DISCHARGE_TIME x the motor's peak power" if discharge_s > 0.0
             else "ers.ini MAX_KJ_PER_LAP (no DISCHARGE_TIME)")
-    out.put(h, "battery_max_discharge_kw", round(motor_p, 1), "the motor's peak power")
+    out.put(h, "battery_max_discharge_kw", round(motor_p + second_p, 1),
+            "the motors' peak power" if second_p > 0.0 else "the motor's peak power")
     out.put(h, "battery_max_charge_kw", round(regen_p, 1), regen_source)
     out.put(h, "regen_max_power_kw", round(regen_p, 1), regen_source)
     # Road cars file an absurd budget (the P1's 10 000 000 kJ): no limit.

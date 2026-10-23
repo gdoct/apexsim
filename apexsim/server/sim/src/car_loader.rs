@@ -461,7 +461,12 @@ pub fn geared_speed_mps(config: &CarConfig, ratio: f32, rpm: f32) -> f32 {
 /// counts: it is there on the straight where top gear matters.
 pub fn drag_limited_speed_mps(config: &CarConfig) -> f32 {
     let hybrid_w = if config.hybrid.enabled {
-        config.hybrid.motor_max_power_kw * 1000.0
+        let crank = if config.hybrid.has_crank_motor() {
+            config.hybrid.crank_motor_max_power_kw
+        } else {
+            0.0
+        };
+        (config.hybrid.motor_max_power_kw + crank) * 1000.0
     } else {
         0.0
     };
@@ -650,6 +655,12 @@ struct HybridToml {
     /// The motor's torque by its rpm, as `[[engine.torque_curve]]`.
     #[serde(default)]
     torque_curve: Vec<TorqueCurvePointToml>,
+    /// A second motor at the crank beside a front-axle one: its peak
+    /// torque, Nm, and power, kW (none when absent).
+    #[serde(default)]
+    crank_motor_max_torque_nm: Option<f32>,
+    #[serde(default)]
+    crank_motor_max_power_kw: Option<f32>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -945,6 +956,8 @@ impl CarLoader {
                         torque_nm: p.torque_nm,
                     })
                     .collect(),
+                crank_motor_max_torque_nm: hybrid_toml.crank_motor_max_torque_nm.unwrap_or(0.0),
+                crank_motor_max_power_kw: hybrid_toml.crank_motor_max_power_kw.unwrap_or(0.0),
             },
 
             // Braking
@@ -1441,6 +1454,18 @@ impl CarLoader {
         if let Some(kj) = config.hybrid.override_kj_per_lap {
             in_range("hybrid.override_kj_per_lap", kj, 1.0, 1.0e6);
         }
+        in_range(
+            "hybrid.crank_motor_max_torque_nm",
+            config.hybrid.crank_motor_max_torque_nm,
+            0.0,
+            5000.0,
+        );
+        in_range(
+            "hybrid.crank_motor_max_power_kw",
+            config.hybrid.crank_motor_max_power_kw,
+            0.0,
+            1000.0,
+        );
         in_range(
             "engine.radiator_scale",
             config.engine.radiator_scale,
