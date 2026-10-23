@@ -1114,6 +1114,8 @@ private:
 
 	/** The live sky the world was last lit by; not bValid while the session's fixed sky lights it. */
 	FApexSkyNow LitSky;
+	/** The visibility last logged, m (each 100 m step is). */
+	int32 LoggedVisibilityM = -1000;
 	/**
 	 * Every road-family material of the track (the road, the pit lane, the
 	 * rubbered wear bands) with its own roughness and roughness noise as

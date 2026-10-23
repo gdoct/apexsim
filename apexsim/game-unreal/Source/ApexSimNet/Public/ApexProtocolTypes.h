@@ -3245,6 +3245,10 @@ struct APEXSIMNET_API FApexSkyNow
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
 	int32 Next3InS = 0;
 
+	/** How far one sees through fog, m (the server's `visibility_m`); 0 when it did not say. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Sky")
+	int32 VisibilityM = 0;
+
 	bool HasNextChange() const { return NextWeather >= 0 && NextInS > 0; }
 	bool HasNext2Change() const { return HasNextChange() && Next2InS > 0 && Next2Weather < FApexSessionConditions::WeatherCount; }
 	bool HasNext3Change() const { return HasNext2Change() && Next3InS > 0 && Next3Weather < FApexSessionConditions::WeatherCount; }

@@ -337,17 +337,13 @@ the launcher import with the network off.
   altitude in `TrackConfigSummary`) and re-pin
   `ApexSim.UI.CreateSession.SeasonAir` against
   `the_climate_follows_the_circuit`.
-- Fog is not drawn: the server sends the sight through it as
-  `SkyNow.visibility_m` (the twentieth field, which `ParseSkyNow` skips),
-  and the client's height fog is still by weather alone
-  (`ApplyTrackLevelConditions`, `ApexSky::FogLuminance`). Read the field
-  into `FApexSkyNow` (0: not said, keep the weather's fog), thicken the
-  exponential height fog to it (density about 3.9 / visibility) and blend
-  it in `DeriveLive`; carry it in the spectator stream's state record
-  (`StreamState::encode` and `ApexSpectatorWriter` write nineteen fields;
-  both decoders already skip extra ones), with the golden `State` and
-  `File` blobs moved together. The damp dawn road (`RoadState::dew`) is
-  drawn already: it is the road state's water.
+- Fog is drawn live (`FApexSkyNow::VisibilityM`, `ApexSky::FogDensityFor`
+  in `DeriveLive`) but not in a recorded stream: carry the visibility in
+  the spectator stream's state record (`StreamState::encode` and
+  `ApexSpectatorWriter` write nineteen fields; both decoders already skip
+  extra ones), with the golden `State` and `File` blobs moved together.
+  The damp dawn road (`RoadState::dew`) is drawn already: it is the road
+  state's water.
 - The run-off's and the pit lane's glaze (`Cell::verge_ice`,
   `RoadState::lane_ice`) is not on the wire: the client draws a frozen lane
   as packed snow, and a predicting client (`apx_track_road_rows`) grips it

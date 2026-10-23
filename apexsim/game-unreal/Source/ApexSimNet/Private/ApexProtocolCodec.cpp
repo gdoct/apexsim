@@ -2865,6 +2865,14 @@ namespace
 			}
 			Read += 4;
 		}
+		if (Fields >= SkyNowFieldCount + 7)
+		{
+			if (!ReadU(Out.VisibilityM, MAX_uint16))
+			{
+				return false;
+			}
+			Read += 1;
+		}
 		for (int32 Extra = Read; Extra < Fields; ++Extra)
 		{
 			if (!Reader.SkipValue()) { return false; }

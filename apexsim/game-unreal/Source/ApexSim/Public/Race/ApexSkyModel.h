@@ -498,6 +498,20 @@ namespace ApexSky
 	 * fixed sky always drew it, and the sheen goes as the road dries. The
 	 * clock is read to the second (the director re-derives on a minute).
 	 */
+	/**
+	 * The height fog's density for the server's visibility through fog
+	 * (Koschmieder: extinction 3.9 / visibility), never thinner than the
+	 * weather's own haze; 0 (not said) or a clear 10 km keeps the haze.
+	 */
+	inline float FogDensityFor(float WeatherDensity, int32 VisibilityM)
+	{
+		if (VisibilityM <= 0)
+		{
+			return WeatherDensity;
+		}
+		return FMath::Max(WeatherDensity, 3.9f / static_cast<float>(VisibilityM));
+	}
+
 	inline FSkyState DeriveLive(const FApexSessionConditions& Session, const FApexSkyNow& Now, const FSkySite& Site = FSkySite())
 	{
 		FApexSessionConditions C = Now.AsConditions(Session);
@@ -520,6 +534,7 @@ namespace ApexSky
 			W.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);
 			W.bWetRoad = Now.RoadWaterPct >= 5;
 			W.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, W.RoadWetness);
+			W.FogDensity = FogDensityFor(W.FogDensity, Now.VisibilityM);
 			return W;
 		}
 		const float Rung = WeatherLadder(Now.CloudPct / 100.0f, Now.RainPct / 100.0f);
@@ -542,6 +557,8 @@ namespace ApexSky
 		S.RoadWetness = FMath::Clamp(static_cast<float>(Now.RoadWaterPct) / 50.0f, 0.0f, 1.0f);
 		S.bWetRoad = Now.RoadWaterPct >= 5;
 		S.RoadRoughness = FMath::Lerp(DryRoadRoughness, WetRoadRoughness, S.RoadWetness);
+		// Dawn's radiation fog (the server's dew and fog, conditions.md).
+		S.FogDensity = FogDensityFor(S.FogDensity, Now.VisibilityM);
 		return S;
 	}
 

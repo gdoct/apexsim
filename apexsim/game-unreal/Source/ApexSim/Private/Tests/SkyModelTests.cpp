@@ -316,6 +316,22 @@ bool FApexSkyLiveTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("held: same road"), FMath::IsNearlyEqual(Fixed.RoadRoughness, Held.RoadRoughness) && Held.bWetRoad);
 	TestTrue(TEXT("held: same sun"), Fixed.LightRotation.Equals(Held.LightRotation));
 
+	// The server's fog: a 10 km clear morning keeps the haze, 150 m is a
+	// thick fog, and a frame that says nothing keeps the weather's.
+	{
+		const FApexSessionConditions Dawn = At(EApexWeather::Sunny, 6);
+		FApexSkyNow Clear = Now(EApexWeather::Sunny, 6, 0, 0, 0);
+		const float Haze = DeriveLive(Dawn, Clear).FogDensity;
+		Clear.VisibilityM = 10000;
+		TestTrue(TEXT("10 km is the haze"), FMath::IsNearlyEqual(DeriveLive(Dawn, Clear).FogDensity, Haze));
+		FApexSkyNow Foggy = Clear;
+		Foggy.VisibilityM = 150;
+		TestTrue(TEXT("150 m is thick"), FMath::IsNearlyEqual(DeriveLive(Dawn, Foggy).FogDensity, 3.9f / 150.0f));
+		Foggy.VisibilityM = 1700;
+		const float Mist = DeriveLive(Dawn, Foggy).FogDensity;
+		TestTrue(TEXT("1.7 km between"), Mist > Haze && Mist < 3.9f / 150.0f);
+	}
+
 	// Rain arriving: between overcast and light rain, the streaks part way.
 	const FSkyState Arriving = DeriveLive(Session, Now(EApexWeather::LightRain, 14, 20, 88, 4));
 	const FSkyState Overcast = Derive(At(EApexWeather::Overcast, 14));

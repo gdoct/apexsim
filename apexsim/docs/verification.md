@@ -381,6 +381,20 @@ good. Left:
 
 - The cues at the wheel with paddles, in a real missed downshift.
 
+### R18. Dawn fog
+
+`s3-dawn-fog` and `s3-dawn-nofog` (Spa, sunny, 05:30; the second with
+`apexsim.sky.ServerFog 0`): the height fog thickened to the server's
+`SkyNow.visibility_m` (density 3.9 / visibility, never under the weather's
+haze; the client logs `Live sky: visibility N m, fog density D`). Run
+2026-10-24: the auto race's 7 km/h breeze left the air clear (density
+0.0015, the haze), so no fog was on screen, and the second run's GPU hung
+(follow-ups #12). Left:
+
+- A still, clear dawn (no wind) that the server fogs, against the same
+  pose with the switch off: the fog grey and thick in the distance, the
+  near road readable.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

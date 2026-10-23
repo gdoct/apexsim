@@ -7309,3 +7309,59 @@ runs:
         checks: "N11: other cars unchanged"
         lead: 1
         exec: "apexsim.tv.View 0"
+
+  - id: s3-dawn-fog
+    about: "S3. Dawn's radiation fog drawn from the server's visibility"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=05:30
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "Eau Rouge at dawn"
+        checks: "S3 fog: the far side greyed out by the fog, the near road clear"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 16
+        label: "TV at dawn"
+        checks: "S3 fog"
+        lead: 1
+        exec: "apexsim.cam.Release"
+
+  - id: s3-dawn-nofog
+    about: "S3. The same dawn with the server's fog off (apexsim.sky.ServerFog 0), against s3-dawn-fog"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=05:30
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.sky.ServerFog 0"
+    shots:
+      - at: 12
+        label: "Eau Rouge at dawn"
+        checks: "S3 fog: the far side greyed out by the fog, the near road clear"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 16
+        label: "TV at dawn"
+        checks: "S3 fog"
+        lead: 1
+        exec: "apexsim.cam.Release"

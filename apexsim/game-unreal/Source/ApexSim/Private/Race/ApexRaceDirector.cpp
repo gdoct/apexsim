@@ -273,6 +273,9 @@ namespace
 		TEXT("Distance in metres past which a lamp light is never on, however few are lit."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<bool> CVarServerFog(TEXT("apexsim.sky.ServerFog"), true,
+		TEXT("Whether the height fog thickens to the server's visibility (dawn fog); off draws the weather's haze alone."));
+
 	TAutoConsoleVariable<float> CVarSunStepDeg(
 		TEXT("apexsim.sky.SunStepDeg"),
 		0.5f,
@@ -2210,6 +2213,10 @@ ApexSky::FSkyState AApexRaceDirector::DeriveSky(FApexSkyNow& OutLit) const
 	// A replay clip carries its sky once, in its header; the live sky is the
 	// net's newest frame, which a showcase or a replay never fills.
 	OutLit = bReplayView ? ReplaySkyNow : Net ? Net->GetLatestSky() : FApexSkyNow();
+	if (!CVarServerFog.GetValueOnGameThread())
+	{
+		OutLit.VisibilityM = 0;
+	}
 	return OutLit.bValid ? ApexSky::DeriveLive(Conditions, OutLit, Site) : ApexSky::Derive(Conditions, Site);
 }
 
@@ -2839,6 +2846,12 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 	const bool bWasLive = LitSky.bValid;
 	Sky = DeriveSky(LitSky);
 	ApplySkyLighting();
+	// Each 100 m step of the server's fog, for the shots and the log.
+	if (LitSky.VisibilityM / 100 != LoggedVisibilityM / 100)
+	{
+		LoggedVisibilityM = LitSky.VisibilityM;
+		UE_LOG(LogApexSim, Log, TEXT("Live sky: visibility %d m, fog density %.4f"), LitSky.VisibilityM, Sky.FogDensity);
+	}
 	UE_LOG(LogApexSim, Verbose, TEXT("Live sky: %s %s, rain %d%%, cloud %d%%, road water %d%% -> sun %.1f deg, %.0f lux, rain %.2f, road wetness %.2f"),
 		*FApexSessionConditions::WeatherLabel(LitSky.Weather), *LitSky.ClockText(), LitSky.RainPct, LitSky.CloudPct,
 		LitSky.RoadWaterPct, Sky.Sun.ElevationDeg, Sky.LightIntensity, Sky.RainIntensity, Sky.RoadWetness);
