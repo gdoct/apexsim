@@ -46,6 +46,11 @@ are local, not in git, under `out/sit/2026-10-23/`.
   comes back. The `Wheel forces over 5 s standing:` log line (constant,
   rim speed, the loudest vibration and its Hz, damper, centring share,
   arrivals) tells them apart: one stop at the wheel, then read it.
+  Built blind on 2026-10-23 against the second suspect: the centring no
+  longer re-arms on a stale frame or two (only after the feedback has been
+  gone 1 s, `CentreRearmAfterSeconds`) and gives up on a rim that does not
+  move under it for 0.4 s (`CentreGiveUpSeconds`: hands). If the rim still
+  shakes, the damper is what is left.
 - The rally cars have no downshift protection (as the real ones), so a
   missed downshift still blows their engine with no warning: a shift light
   or a cue as the revs pass the limit, and the over-revved rpm in telemetry

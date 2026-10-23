@@ -96,7 +96,8 @@ takes it up (— : no step, taken opportunistically).
 *Source: follow-ups #31, wheel sitting 2026-10-23.* Standing still in the
 GT3 at Monza (off the road after a crash) the rim shook hard. The server's
 signals are clean there; the suspects left are the standstill damper and
-the centring re-arming. Needs the wheel: stop for 10 s, read the `Wheel
+the centring re-arming; the centring was made safe blind (no re-arm on a
+stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop for 10 s, read the `Wheel
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
 
