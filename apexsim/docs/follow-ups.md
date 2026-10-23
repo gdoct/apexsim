@@ -206,6 +206,16 @@ the client does not show all of them yet, and the server leaves a few edges.
   Blind crests make a lift for a car out of sight cost more than it saves;
   a third try would start from line of sight on the Nordschleife
   (`SURVEY_TRACKS=Mordschleife SURVEY_EVENTS=1`).
+- The incident list ([server/sessions.md](server/sessions.md#incidents)) is
+  the server's and the dashboard's only: the game has no view of it (a
+  results or pause-menu page jumping into the client's own replay; the list
+  is not on the wire, the health port could serve the kept files).
+- A steward clears a penalty but cannot give one: that needs an `Offence`
+  of its own, a new `Reason` in `RosterEntry.Penalties` the client names.
+- The dashboard's jump runs `apexsim.watch seek` at a fixed 8 s
+  (`-ApexExecAfter`), which a slow start can reach before the replay plays
+  ("nothing is playing"); a `-ApexWatchReplayAt=<s>` beside
+  `-ApexWatchReplay` would seek once it is loaded.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,

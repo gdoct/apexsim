@@ -1131,6 +1131,169 @@ async fn switched_off_content_is_not_offered() {
         .contains(&car.parse().unwrap()));
 }
 
+/// The roadmap's incident review: a race's contact and penalty are listed
+/// while it runs, a steward clears the penalty, and the list is kept beside
+/// the results with each incident's place in the race's replay.
+#[tokio::test]
+async fn incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay() {
+    let replays = tempfile::tempdir().unwrap();
+    let replay_dir = replays.path().to_string_lossy().into_owned();
+    let d = start_dashboard_with(move |c| c.records.replay_dir = replay_dir, None).await;
+    let (track, car) = some_track_and_car(&d).await;
+    let spec = serde_json::json!({
+        "name": "Stewards", "track_id": track, "car_id": car,
+        "player_slots": 1, "ai_count": 2, "lap_limit": 3,
+        "race_rules": { "jump_start": true },
+    });
+    let opened = post(&d, "/api/sessions", &spec).await;
+    assert_eq!(opened.status, 200, "{}", opened.body);
+    let id = opened.json()["id"].as_str().unwrap().to_string();
+    let sid: SessionId = id.parse().unwrap();
+    let started = post(
+        &d,
+        &format!("/api/sessions/{id}/start"),
+        &serde_json::json!({}),
+    )
+    .await;
+    assert_eq!(started.status, 200, "{}", started.body);
+    for _ in 0..300 {
+        let racing =
+            d.server.state.read().await.sessions[&sid].session.state == SessionState::Racing;
+        if racing {
+            break;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+    sleep(Duration::from_millis(1500)).await;
+
+    // The second car put nose to tail into the first, closing at 6 m/s, and
+    // the first given a drive-through.
+    let (a, b) = {
+        let mut st = d.server.state.write().await;
+        let gs = st.sessions.get_mut(&sid).unwrap();
+        assert_eq!(gs.session.state, SessionState::Racing);
+        let ids: Vec<PlayerId> = gs.session.participants.keys().copied().collect();
+        let (a, b) = (ids[0], ids[1]);
+        let front = gs.session.participants[&a].clone();
+        let back = gs.session.participants.get_mut(&b).unwrap();
+        let (dx, dy) = (front.yaw_rad.cos(), front.yaw_rad.sin());
+        back.pos_x = front.pos_x - 4.2 * dx;
+        back.pos_y = front.pos_y - 4.2 * dy;
+        back.pos_z = front.pos_z;
+        back.yaw_rad = front.yaw_rad;
+        back.vel_x = front.vel_x + 6.0 * dx;
+        back.vel_y = front.vel_y + 6.0 * dy;
+        back.track_progress = front.track_progress;
+        back.nearest_centerline_idx = front.nearest_centerline_idx;
+        gs.penalise(a, apexsim_server::race_control::Offence::JumpStart);
+        (a, b)
+    };
+    let mut live = Value::Null;
+    wait_for(
+        async || {
+            live = get(&d, &format!("/api/sessions/{id}/incidents"))
+                .await
+                .json();
+            live["incidents"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["kind"] == "contact")
+        },
+        "the contact listed",
+    )
+    .await;
+    assert_eq!(live["live"], true);
+    let contact = live["incidents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["kind"] == "contact")
+        .unwrap()
+        .clone();
+    let pair = [
+        contact["car"].as_str().unwrap(),
+        contact["other"].as_str().unwrap(),
+    ];
+    assert!(pair.contains(&a.to_string().as_str()) && pair.contains(&b.to_string().as_str()));
+    assert!(contact["race_s"].as_f64().unwrap() > 1.0);
+    assert!(
+        contact["replay_s"].is_number(),
+        "the race is being recorded"
+    );
+    assert!(live["incidents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|i| i["kind"] == "penalty" && i["car"] == a.to_string().as_str()));
+    let penalties = live["penalties"].as_array().unwrap();
+    assert_eq!(penalties.len(), 1);
+    assert_eq!(penalties[0]["offence"], "jump_start");
+
+    // A steward takes it back.
+    let path = format!("/api/sessions/{id}/penalties/{a}/0/clear");
+    let cleared = post(&d, &path, &serde_json::json!({})).await;
+    assert_eq!(cleared.status, 200, "{}", cleared.body);
+    assert_eq!(post(&d, &path, &serde_json::json!({})).await.status, 409);
+    let live = get(&d, &format!("/api/sessions/{id}/incidents"))
+        .await
+        .json();
+    assert!(live["penalties"].as_array().unwrap().is_empty());
+    assert!(live["incidents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|i| i["kind"] == "penalty_cleared"));
+
+    // Every car out: the race is over, and its list kept with its results
+    // and matched to its replay.
+    {
+        let mut st = d.server.state.write().await;
+        let gs = st.sessions.get_mut(&sid).unwrap();
+        for state in gs.session.participants.values_mut() {
+            state.damage.is_drivable = false;
+        }
+    }
+    let mut reports = Value::Null;
+    wait_for(
+        async || {
+            reports = get(&d, "/api/incidents").await.json();
+            reports["reports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|r| r["session_id"] == id.as_str() && r["replay_file"].is_string())
+        },
+        "the finished race's incidents beside its replay",
+    )
+    .await;
+    let report = reports["reports"][0].clone();
+    assert_eq!(report["session_id"], id.as_str());
+    let kinds: Vec<&str> = report["incidents"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["kind"].as_str().unwrap())
+        .collect();
+    assert!(
+        kinds.contains(&"contact") && kinds.contains(&"penalty_cleared"),
+        "{kinds:?}"
+    );
+    assert_eq!(report["cars"].as_array().unwrap().len(), 2);
+    let results = d.dir.path().join("records").join("results");
+    let kept = std::fs::read_dir(&results)
+        .unwrap()
+        .flatten()
+        .any(|e| e.file_name().to_string_lossy().ends_with(".incidents.json"));
+    assert!(kept, "written beside the results in {results:?}");
+
+    // The replay downloads for the jump; anything else is refused.
+    let file = report["replay_file"].as_str().unwrap();
+    let replay = get(&d, &format!("/api/replays/{file}")).await;
+    assert_eq!(replay.status, 200);
+    assert_eq!(get(&d, "/api/replays/..%2Fbans.json").await.status, 400);
+}
+
 #[tokio::test]
 async fn a_scheduled_session_opens_ahead_and_starts_on_time() {
     let d = start_dashboard().await;

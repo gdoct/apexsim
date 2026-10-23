@@ -17,6 +17,7 @@ mod geometry_test;
 mod grip_probe_test;
 mod imported_car_test;
 mod imported_track_test;
+mod incident_test;
 mod lap_timing_test;
 mod multi_class_test;
 mod pad_driver_probe;

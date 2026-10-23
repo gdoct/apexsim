@@ -59,7 +59,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 | Gap | Effort | Impact |
 |---|---|---|
 | No driver swaps: a stint (`RaceRules::max_stint_laps` / `max_stint_minutes`) is the car's, one driver to the flag. | Med | Low |
-| Penalties cover jump starts, passes under a yellow and red-light pit exits ([server/sessions.md](server/sessions.md#penalties)); there is no collision blame (who caused a contact, penalised by its harm), no track-limit penalty in a race (a struck lap only loses its time), no pit-lane speeding (the limiter is forced), no black flag for a penalty ignored (it becomes time), and no start ghosting. | High | Med |
+| Penalties cover jump starts, passes under a yellow and red-light pit exits ([server/sessions.md](server/sessions.md#penalties)); there is no collision blame (who caused a contact, penalised by its harm), no track-limit penalty in a race (a struck lap only loses its time), no pit-lane speeding (the limiter is forced), no black flag for a penalty ignored (it becomes time), no start ghosting, and no unsafe-rejoin watch (a car back on the road into traffic; the incident list would carry it). | High | Med |
 | The virtual safety car and the safety car on the road exist ([server/sessions.md](server/sessions.md#safety-car)), but no red flag (the race stopped, the field into the pit lane, a restart from the grid), no double-file restart, and no rule that the safety car stays out a minimum number of laps. | High | Med |
 | A retired car jumps to its box after `TOW_AFTER_S`: no recovery vehicle, no marshals. Without a pit lane it stays where it stopped, out of everyone's way. | Med | Low |
 

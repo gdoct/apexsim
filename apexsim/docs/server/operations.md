@@ -221,8 +221,8 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   session), history (recorded sessions from `replays/`, each with its laps,
   fastest lap and every car's best and laps; CSV export), logs (a ring
   buffer of `log_buffer_lines`, fed by `admin::logbuf::LogBufferLayer`;
-  filter, download), performance (1 s samples over 2 minutes), config
-  (below), content (below).
+  filter, download), incidents (below), performance (1 s samples over 2
+  minutes), config (below), content (below).
 - **Hosted sessions** (`hosted.rs`): the Sessions view opens a session the
   server runs, from the same settings a player's create screen has (track,
   the car whose class the AI races in, player slots, AI cars and level,
@@ -272,6 +272,20 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   opens or closes the entry list, `/entries/<driver id>/remove` takes an
   entrant off; `DELETE /api/events/<id>` deletes the event and ends its
   session.
+- **Incidents** (`api.rs`, [sessions](sessions.md#incidents)): a race's
+  incident list for stewards, picked from the races running
+  (`GET /api/sessions/<id>/incidents`, with each car's penalties as they
+  stand) and the finished ones kept beside the results
+  (`GET /api/incidents`, the newest 50, each matched to its replay: the same
+  session's recording begun last before the list was written), filtered by
+  kind. A row opens the jump into the replay: DOWNLOAD REPLAY
+  (`GET /api/replays/<file>`, only the recorder's own `replay_*.apxs`) and
+  the game's command line that plays it from three seconds before
+  (`-ApexWatchReplay=<the downloaded file> "-ApexExecAfter=8=apexsim.watch
+  seek <s>"`, or `apexsim.watch seek <s>` in the console while watching
+  it; [spectator](../game/spectator.md#replays)). In a running race CLEAR
+  takes a penalty back (`POST /api/sessions/<id>/penalties/<car>/<index>/clear`,
+  the index in the order given; 409 when there is none).
 - **Content** (`content.rs`): every car and track can be switched off (kept
   in `[admin] content_file`): the lobby leaves it out, a select or create
   naming it is refused with `Error 403`, and the AI field is never dealt it
@@ -353,6 +367,8 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 `drivers.json` (each driver id's key, the first one seen; delete a line to
 let a driver who lost their install take their id back with a new key),
 `results/*.json` and `*.csv` (a finished race's classification),
+`results/*.incidents.json` (its incident list,
+[sessions](sessions.md#incidents)),
 `events/<id>.json` (each event: its spec, entries, AI field, phase and results),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off

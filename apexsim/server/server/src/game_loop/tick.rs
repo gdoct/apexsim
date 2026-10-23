@@ -104,6 +104,8 @@ pub(crate) async fn tick_sessions(
     let mut replay_stops = Vec::new();
     // Races finished this tick: their classification (`crate::results`).
     let mut race_results: Vec<crate::results::RaceResult> = Vec::new();
+    // And their incident lists, written beside them (`crate::incident_report`).
+    let mut incident_reports: Vec<crate::incident_report::IncidentReport> = Vec::new();
     let results_dir = state
         .config
         .records
@@ -312,6 +314,8 @@ pub(crate) async fn tick_sessions(
                 track_length_m: game_session.track_length_m(),
             };
             state.replay.start(game_session, stream, metadata);
+            // The incident list's place in the replay (`crate::incidents`).
+            game_session.incidents.replay_start_tick = Some(game_session.session.current_tick);
             debug!("Started replay recording for session {}", session_id);
         }
 
@@ -654,6 +658,14 @@ pub(crate) async fn tick_sessions(
             && new_state == SessionState::Finished
         {
             let track = &game_session.track_config;
+            let finished_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs());
+            incident_reports.push(crate::incident_report::IncidentReport::of(
+                game_session,
+                player_names,
+                finished_at,
+            ));
             race_results.push(crate::results::RaceResult {
                 session_id: session_id.to_string(),
                 track_name: track.name.clone(),
@@ -662,9 +674,7 @@ pub(crate) async fn tick_sessions(
                     .as_deref()
                     .and_then(|p| std::path::Path::new(p).file_stem())
                     .map(|s| s.to_string_lossy().into_owned()),
-                finished_at: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .map_or(0, |d| d.as_secs()),
+                finished_at,
                 lap_limit: game_session
                     .session
                     .race_seconds
@@ -713,6 +723,19 @@ pub(crate) async fn tick_sessions(
 
     if let Some(dir) = results_dir {
         let records = &state.config.records;
+        for report in incident_reports {
+            let dir = dir.clone();
+            tokio::task::spawn_blocking(move || match report.write(&dir) {
+                Ok(path) => info!(
+                    "Incidents of session {} written to {:?}",
+                    report.session_id, path
+                ),
+                Err(e) => warn!(
+                    "Failed to write the incidents of {}: {}",
+                    report.session_id, e
+                ),
+            });
+        }
         for result in race_results {
             if !records.webhook_url.is_empty() {
                 let url = records.webhook_url.clone();

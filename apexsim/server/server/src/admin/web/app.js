@@ -131,10 +131,11 @@ const VIEWS = [
   { id: 'schedule', code: '04', title: 'Schedule', sub: 'SESSIONS AT SET TIMES' },
   { id: 'players', code: '05', title: 'Players', sub: 'CONNECTIONS AND BANS' },
   { id: 'history', code: '06', title: 'History', sub: 'RECORDED SESSIONS' },
-  { id: 'logs', code: '07', title: 'Logs', sub: 'SERVER OUTPUT' },
-  { id: 'perf', code: '08', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
-  { id: 'config', code: '09', title: 'Config', sub: 'SERVER.TOML' },
-  { id: 'content', code: '10', title: 'Content', sub: 'TRACKS AND CARS' },
+  { id: 'incidents', code: '07', title: 'Incidents', sub: 'CONTACTS, YELLOWS, TRACK LIMITS, PENALTIES' },
+  { id: 'logs', code: '08', title: 'Logs', sub: 'SERVER OUTPUT' },
+  { id: 'perf', code: '09', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
+  { id: 'config', code: '10', title: 'Config', sub: 'SERVER.TOML' },
+  { id: 'content', code: '11', title: 'Content', sub: 'TRACKS AND CARS' },
 ];
 
 function mountShell() {
@@ -743,6 +744,114 @@ PAGES.history = el => {
     if (r) { open = open === r.dataset.h ? null : r.dataset.h; paint(); }
   });
   api('/api/history').then(r => { rows = r.sessions; paint(); }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
+};
+
+// ---------------------------------------------------------------- incidents
+/* A race's incident list (/api/sessions/<id>/incidents while it runs,
+   /api/incidents once it has finished): a row opens the jump into the
+   race's replay at that moment, and a running race's penalties can be
+   cleared by a steward. */
+PAGES.incidents = el => {
+  el.innerHTML = `<div class="stack">
+    <div class="legend"><span id="inc-pick"></span><span id="inc-kind"></span><span id="inc-sum"></span></div>
+    <div class="panel scroll-x"><div style="min-width:860px" id="inc-list"><div class="empty">Loading…</div></div></div>
+    <div class="panel" id="inc-pen" hidden></div></div>`;
+  const cols = 'grid-template-columns:90px 50px 150px minmax(220px,1.4fr) minmax(200px,1fr) 24px';
+  const KINDS = { contact: 'Contact', yellow_pass: 'Pass under yellow', track_limits: 'Track limits', penalty: 'Penalty', penalty_cleared: 'Penalty cleared' };
+  const words = s => String(s || '').replace(/_/g, ' ');
+  const fmtRace = s => { s = Math.max(0, s || 0); const m = Math.floor(s / 60); return m + ':' + (s - m * 60 < 10 ? '0' : '') + (s - m * 60).toFixed(1); };
+  let live = [], recorded = [], pick = null, kind = '', report = null, open = null;
+  const keyOf = r => r.live ? 'live:' + r.session_id : 'file:' + r.session_id + ':' + r.finished_at;
+  function nameOf(id) { const c = report && report.cars.find(x => x.id === id); return c ? c.name : String(id).slice(0, 8); }
+  function detail(i) {
+    if (i.kind === 'contact') return `<span style="color:${i.severity === 'heavy' ? RED : i.severity === 'light' ? AMBER : 'var(--text-3)'}">${i.severity.toUpperCase()}</span> · ${i.closing_mps.toFixed(1)} m/s`;
+    if (i.kind === 'yellow_pass') return 'passed ' + esc(nameOf(i.passed));
+    if (i.kind === 'track_limits') return i.cut ? 'cut the course' : 'four wheels off';
+    if (i.kind === 'penalty') return esc(words(i.penalty)) + (i.seconds ? ' ' + i.seconds + ' s' : '') + ' · ' + esc(words(i.offence));
+    if (i.kind === 'penalty_cleared') return esc(words(i.penalty)) + ' · ' + esc(words(i.offence)) + ' taken back';
+    return '';
+  }
+  function cars(i) { return esc(nameOf(i.car)) + (i.kind === 'contact' ? ' <span class="muted">and</span> ' + esc(nameOf(i.other)) : ''); }
+  function jump(i) {
+    if (report.live) return `<div class="muted">${fmtRace(i.replay_s != null ? i.replay_s : i.race_s)} into the race's replay. The replay and the jump into it are here once the race has finished.</div>`;
+    if (!report.replay_file || i.replay_s == null) return '<div class="muted">This race has no replay on the server to jump into.</div>';
+    const cmd = `ApexSim.exe -ApexWatchReplay="<folder>\\${report.replay_file}" "-ApexExecAfter=8=apexsim.watch seek ${Math.max(0, i.replay_s - 3).toFixed(1)}"`;
+    return `<div style="display:flex;flex-direction:column;gap:8px">
+      <div><a class="btn sm" href="/api/replays/${encodeURIComponent(report.replay_file)}" download>DOWNLOAD REPLAY</a> <span class="sm-mono">${esc(report.replay_file)}</span> · ${fmtRace(i.replay_s)} into it</div>
+      <div class="sm-mono" style="user-select:all;word-break:break-all">${esc(cmd)}</div>
+      <div class="muted">Three seconds before it, the replay held there in the game. While watching it already: <span class="sm-mono">apexsim.watch seek ${Math.max(0, i.replay_s - 3).toFixed(1)}</span> in the console. <button class="btn sm quiet" data-copy="${esc(cmd)}">COPY COMMAND</button></div></div>`;
+  }
+  function paintPick() {
+    const all = [...live.map(s => ({ key: 'live:' + s.id, label: 'LIVE · ' + s.track + ' · ' + s.mode })),
+      ...recorded.map(r => ({ key: keyOf(r), label: fmtDate(r.finished_at) + ' · ' + r.track_name + ' · ' + r.incidents.length }))];
+    if (!all.find(x => x.key === pick)) pick = all.length ? all[0].key : null;
+    const slot = $('#inc-pick');
+    if (document.activeElement && document.activeElement.id === 'inc-sel') return;
+    slot.innerHTML = all.length ? `<select class="input" id="inc-sel" style="height:36px">${all.map(x => `<option value="${esc(x.key)}" ${x.key === pick ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select>` : '';
+    $('#inc-kind').innerHTML = `<select class="input" id="inc-kind-sel" style="height:36px"><option value="">Everything</option>${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${k === kind ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+  }
+  function paint() {
+    paintPick();
+    const list = $('#inc-list');
+    if (!report) { list.innerHTML = `<div class="empty">${pick ? 'Loading…' : 'No race to review yet. A race lists its incidents as it runs, and keeps them beside its results when it finishes.'}</div>`; $('#inc-pen').hidden = true; return; }
+    const rows = report.incidents.map((i, n) => ({ i, n })).filter(x => !kind || x.i.kind === kind);
+    $('#inc-sum').textContent = report.incidents.length + (report.incidents.length === 1 ? ' INCIDENT' : ' INCIDENTS') + (report.live ? ' · LIVE' : '');
+    list.innerHTML = `<div class="row head" style="${cols}"><span>RACE TIME</span><span>LAP</span><span>WHAT</span><span>CARS</span><span>DETAIL</span><span></span></div>` +
+      (rows.map(({ i, n }) => `<div style="border-bottom:1px solid var(--line-soft);${open === n ? 'background:#0f1214' : ''}">
+        <div class="row click" data-inc="${n}" style="${cols};border-bottom:0">
+          <span>${fmtRace(i.race_s)}</span><span class="muted">${i.lap}</span>
+          <span style="font-family:var(--sans);font-size:17px">${KINDS[i.kind] || esc(i.kind)}</span>
+          <span class="name" style="font-size:17px">${cars(i)}</span><span>${detail(i)}</span>
+          <span class="muted">${open === n ? '▾' : '▸'}</span></div>
+        ${open === n ? `<div style="padding:4px 16px 16px 106px">${jump(i)}</div>` : ''}</div>`).join('')
+      || '<div class="empty">Nothing here. A clean race so far.</div>');
+    const pen = $('#inc-pen');
+    pen.hidden = !report.live;
+    if (report.live) {
+      pen.innerHTML = `<div class="panel-head"><span class="eyebrow">PENALTIES · A STEWARD MAY TAKE ONE BACK</span></div>` +
+        ((report.penalties || []).map(p => `<div class="row" style="grid-template-columns:minmax(160px,1fr) minmax(200px,1.4fr) 60px 90px 110px">
+          <span class="name" style="font-size:17px">${esc(nameOf(p.car))}</span>
+          <span>${esc(words(p.penalty))}${p.seconds ? ' ' + p.seconds + ' s' : ''} · ${esc(words(p.offence))}</span>
+          <span class="muted">L${p.lap}</span><span>${p.status.toUpperCase()}</span>
+          <button class="btn sm danger" style="justify-self:end" data-clear="${p.car}" data-index="${p.index}" data-name="${esc(nameOf(p.car))}">CLEAR</button></div>`).join('')
+        || '<div class="empty">No penalties given.</div>');
+    }
+  }
+  async function load() {
+    const [s, r] = await Promise.all([api('/api/sessions'), api('/api/incidents')]);
+    live = s.sessions.filter(x => x.mode === 'Race');
+    recorded = r.reports;
+    paintPick();
+    if (pick && pick.startsWith('live:')) {
+      try { report = await api('/api/sessions/' + pick.slice(5) + '/incidents'); } catch (e) { if (e instanceof AuthError) throw e; report = null; }
+    } else {
+      report = recorded.find(x => keyOf(x) === pick) || null;
+    }
+    paint();
+  }
+  el.addEventListener('change', e => {
+    if (e.target.id === 'inc-sel') { pick = e.target.value; open = null; report = null; e.target.blur(); load(); }
+    if (e.target.id === 'inc-kind-sel') { kind = e.target.value; paint(); }
+  });
+  el.addEventListener('click', async e => {
+    const copy = e.target.closest('[data-copy]');
+    if (copy) { e.stopPropagation(); try { await navigator.clipboard.writeText(copy.dataset.copy); toast('Copied'); } catch (_) { toast('Select the command and copy it', true); } return; }
+    const clear = e.target.closest('[data-clear]');
+    if (clear) {
+      const r = await modal({ eyebrow: 'CLEAR PENALTY', title: 'Take back ' + clear.dataset.name + "'s penalty?", body: 'It is gone from the car at once: owed, it need not be served; added, its seconds come off the race time.', confirm: 'CLEAR', danger: true });
+      if (!r.ok) return;
+      try {
+        await api(`/api/sessions/${pick.slice(5)}/penalties/${clear.dataset.clear}/${clear.dataset.index}/clear`, { method: 'POST', body: {} });
+        toast('Penalty cleared');
+        load();
+      } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+      return;
+    }
+    if (e.target.closest('a')) return;
+    const row = e.target.closest('[data-inc]');
+    if (row) { const n = +row.dataset.inc; open = open === n ? null : n; paint(); }
+  });
+  every(2000, load);
 };
 
 // ---------------------------------------------------------------- logs

@@ -174,6 +174,22 @@ pub async fn handle(
         (&Method::GET, ["bans"]) => ok(json!({ "bans": ctx.bans.entries() })),
         (&Method::POST, ["bans", "remove"]) => unban(ctx, &body),
         (&Method::GET, ["history"]) => history(ctx).await,
+        (&Method::GET, ["incidents"]) => incidents(ctx).await,
+        (&Method::GET, ["sessions", id, "incidents"]) => match id.parse::<Uuid>() {
+            Ok(id) => session_incidents(ctx, id).await,
+            Err(_) => error(StatusCode::BAD_REQUEST, "bad session id"),
+        },
+        (&Method::POST, ["sessions", id, "penalties", car, index, "clear"]) => {
+            match (
+                id.parse::<Uuid>(),
+                car.parse::<Uuid>(),
+                index.parse::<usize>(),
+            ) {
+                (Ok(id), Ok(car), Ok(index)) => clear_penalty(ctx, id, car, index).await,
+                _ => error(StatusCode::BAD_REQUEST, "bad id"),
+            }
+        }
+        (&Method::GET, ["replays", file]) => replay_download(ctx, file).await,
         (&Method::GET, ["logs"]) => logs(&q),
         (&Method::GET, ["logs", "download"]) => logs_download(&q),
         (&Method::GET, ["perf"]) => perf(ctx).await,
@@ -689,6 +705,144 @@ async fn history(ctx: &AdminContext) -> Resp {
             .await
             .unwrap_or_default();
     ok(json!({ "sessions": rows }))
+}
+
+// ---------------------------------------------------------------------------
+// Incidents
+// ---------------------------------------------------------------------------
+
+/// A report as the page takes it, with the replay of its race (`file`, the
+/// recorder's `.apxs`, when it is still in the replay folder).
+fn report_json(
+    report: &crate::incident_report::IncidentReport,
+    replay_file: Option<&str>,
+) -> Value {
+    let mut v = serde_json::to_value(report).unwrap_or(Value::Null);
+    v["replay_file"] = json!(replay_file);
+    v
+}
+
+/// Every finished race's incident list (`crate::incident_report`), newest
+/// first, each matched to its replay: the same session's recording begun
+/// last before the list was written.
+async fn incidents(ctx: &AdminContext) -> Resp {
+    let (results_dir, replay_dir) = {
+        let st = ctx.state.read().await;
+        (
+            Path::new(&st.config.records.dir).join("results"),
+            st.replay.dir().to_path_buf(),
+        )
+    };
+    let (reports, replays) = tokio::task::spawn_blocking(move || {
+        (
+            crate::incident_report::list(&results_dir),
+            crate::stream_recorder::history(&replay_dir, &Default::default()),
+        )
+    })
+    .await
+    .unwrap_or_default();
+    let list: Vec<Value> = reports
+        .iter()
+        .map(|r| {
+            let id = r.session_id.to_string();
+            let file = replays
+                .iter()
+                .filter(|h| h["id"].as_str() == Some(id.as_str()))
+                .filter(|h| h["recorded_at"].as_u64().unwrap_or(0) <= r.finished_at)
+                .max_by_key(|h| h["recorded_at"].as_u64().unwrap_or(0))
+                .and_then(|h| h["file"].as_str());
+            report_json(r, file)
+        })
+        .collect();
+    ok(json!({ "reports": list }))
+}
+
+/// A running session's incident list, and each car's penalties as they
+/// stand (in the order given: the index a steward clears one by).
+async fn session_incidents(ctx: &AdminContext, id: SessionId) -> Resp {
+    let names: std::collections::HashMap<PlayerId, String> = ctx
+        .transport
+        .read()
+        .await
+        .connection_snapshots()
+        .await
+        .into_iter()
+        .map(|c| (c.player_id, c.name))
+        .collect();
+    let st = ctx.state.read().await;
+    let Some(gs) = st.sessions.get(&id) else {
+        return error(StatusCode::NOT_FOUND, "no such session");
+    };
+    let report = crate::incident_report::IncidentReport::of(gs, &names, 0);
+    let penalties: Vec<Value> = gs
+        .penalties
+        .iter()
+        .flat_map(|(car, list)| {
+            list.iter().enumerate().map(move |(index, p)| {
+                json!({
+                    "car": car,
+                    "index": index,
+                    "offence": crate::incidents::offence_name(p.offence),
+                    "penalty": crate::incidents::penalty_name(p.kind),
+                    "seconds": p.seconds,
+                    "lap": p.lap,
+                    "status": match p.status {
+                        crate::race_control::PenaltyStatus::Owed => "owed",
+                        crate::race_control::PenaltyStatus::Served => "served",
+                        crate::race_control::PenaltyStatus::Added => "added",
+                    },
+                })
+            })
+        })
+        .collect();
+    let mut v = report_json(&report, None);
+    v["live"] = json!(true);
+    v["penalties"] = json!(penalties);
+    ok(v)
+}
+
+/// A steward takes back a car's penalty (`GameSession::clear_penalty`); the
+/// roster goes out again without it.
+async fn clear_penalty(ctx: &AdminContext, id: SessionId, car: PlayerId, index: usize) -> Resp {
+    let mut st = ctx.state.write().await;
+    let Some(gs) = st.sessions.get_mut(&id) else {
+        return error(StatusCode::NOT_FOUND, "no such session");
+    };
+    match gs.clear_penalty(&car, index) {
+        Ok(p) => {
+            drop(st);
+            tracing::info!(
+                "Admin cleared a {:?} penalty ({:?}) in session {}",
+                p.kind,
+                p.offence,
+                id
+            );
+            ok(json!({ "ok": true }))
+        }
+        Err(why) => error(StatusCode::CONFLICT, why),
+    }
+}
+
+/// One of the recorder's replays, to download and watch in the game (the
+/// incident list's jump: `-ApexWatchReplay=<file>` and `apexsim.watch seek`).
+async fn replay_download(ctx: &AdminContext, file: &str) -> Resp {
+    if !crate::stream_recorder::is_served_stream(file) {
+        return error(StatusCode::BAD_REQUEST, "not a replay");
+    }
+    let path = ctx.state.read().await.replay.dir().join(file);
+    match tokio::fs::read(&path).await {
+        Ok(bytes) => Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/octet-stream")
+            .header(
+                header::CONTENT_DISPOSITION,
+                format!("attachment; filename=\"{file}\""),
+            )
+            .header(header::CACHE_CONTROL, "no-store")
+            .body(Full::new(Bytes::from(bytes)))
+            .expect("static response construction cannot fail"),
+        Err(_) => error(StatusCode::NOT_FOUND, "no such replay"),
+    }
 }
 
 // ---------------------------------------------------------------------------

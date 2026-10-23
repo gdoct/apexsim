@@ -446,6 +446,8 @@ The server records the same way: its `stream_recorder` writes every finished
 race as an `.apxs` in `replays/` (see [sessions](../server/sessions.md)), so a
 server's replay and a client's replay are one format and play in the same
 Replays screen. `replay.rs`'s `.bin` is only the offline tools' format.
+The dashboard's incident list gives each incident's second in the server's
+replay, for `apexsim.watch seek` ([sessions](../server/sessions.md#incidents)).
 
 ## Replay clips (`-ApexReplay=`)
 

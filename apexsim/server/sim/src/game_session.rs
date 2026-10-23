@@ -523,6 +523,10 @@ pub struct GameSession {
     /// [`crate::race_control::YELLOW_PASS_HANDBACK_S`] later, forgiven if
     /// it handed the place back before.
     yellow_passed: std::collections::BTreeMap<(PlayerId, PlayerId), u32>,
+    /// The race's incidents for stewards (`crate::incidents`): contacts,
+    /// passes under a yellow, track limits and penalties, from what the
+    /// racing tick already finds. Emptied as the field lines up.
+    pub incidents: crate::incidents::IncidentLog,
     /// How many times a weekend day has baked its own sky
     /// ([`Self::begin_day`]): a racing line planned under an earlier one is
     /// planned again.
@@ -1168,6 +1172,7 @@ impl GameSession {
             race_start: Default::default(),
             penalties: Default::default(),
             yellow_passed: Default::default(),
+            incidents: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -1260,6 +1265,7 @@ impl GameSession {
             race_start: Default::default(),
             penalties: Default::default(),
             yellow_passed: Default::default(),
+            incidents: Default::default(),
             sky_day: 0,
             day_lines_due: false,
             finish_deadline_tick: None,
@@ -2948,8 +2954,16 @@ impl GameSession {
             tick_rate_hz,
         };
         let mut states: Vec<&mut CarState> = self.session.participants.values_mut().collect();
+        // Laps struck this tick, for the incident list: (car, lap, cut).
+        let racing = self.session.state == SessionState::Racing;
+        let limits_ticks =
+            (crate::laps::TRACK_LIMITS_SECONDS * tick_rate_hz as f32).max(1.0) as u16;
+        let mut struck: Vec<(PlayerId, u16, bool)> = Vec::new();
 
         for state in states.iter_mut() {
+            let was_struck = state.laps.invalid;
+            let lap_before = state.current_lap;
+            let off_before = state.laps.off_track_ticks;
             // Get input for this player (default to coasting if missing)
             let input = autopilot
                 .get(&state.player_id)
@@ -2981,13 +2995,43 @@ impl GameSession {
                     );
                 }
             }
+            // Every wheel off for the limit just now, or the lap in hand
+            // struck at the line for a missed checkpoint.
+            if racing && state.finish_position.is_none() {
+                let off = state.laps.off_track_ticks;
+                if off >= limits_ticks && off_before < limits_ticks {
+                    struck.push((state.player_id, state.current_lap, false));
+                } else if !was_struck
+                    && state.laps.invalid
+                    && state.current_lap == lap_before
+                    && off < limits_ticks
+                {
+                    struck.push((state.player_id, state.current_lap, true));
+                }
+            }
         }
 
         // Check collisions in place (BTreeMap iteration order makes the
         // order-dependent solver deterministic; no clone/rebuild needed)
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
-        physics::check_collisions_refs(&mut state_refs, &self.car_configs);
+        let contacts = physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+        if racing {
+            for (car, lap, cut) in struck {
+                self.incidents.push(crate::incidents::Incident {
+                    tick: current_tick,
+                    lap,
+                    car,
+                    kind: crate::incidents::IncidentKind::TrackLimits { cut },
+                });
+            }
+            let gap_ticks = (crate::incidents::CONTACT_GAP_S * tick_rate_hz as f32) as u32;
+            let participants = &self.session.participants;
+            self.incidents
+                .note_contacts(&contacts, current_tick, gap_ticks, |id| {
+                    participants.get(id).map_or(0, |s| s.current_lap)
+                });
+        }
         self.update_flags();
         self.update_penalties();
 
@@ -3185,6 +3229,19 @@ impl GameSession {
                 else {
                     continue;
                 };
+                if !self.yellow_passed.contains_key(&(passer, passed)) {
+                    let lap = self
+                        .session
+                        .participants
+                        .get(&passer)
+                        .map_or(0, |s| s.current_lap);
+                    self.incidents.push(crate::incidents::Incident {
+                        tick: pass.tick,
+                        lap,
+                        car: passer,
+                        kind: crate::incidents::IncidentKind::YellowPass { passed },
+                    });
+                }
                 self.yellow_passed
                     .entry((passer, passed))
                     .or_insert(pass.tick);
@@ -3259,8 +3316,60 @@ impl GameSession {
             "Session {}: car on slot {} penalised for {:?}: {:?} {} s",
             self.session.id, state.grid_position, offence, penalty.kind, penalty.seconds
         );
+        self.incidents.note_penalty(player_id, &penalty);
         self.penalties.entry(player_id).or_default().push(penalty);
         self.roster_dirty = true;
+    }
+
+    /// A steward takes back `player_id`'s penalty at `index` (in the order
+    /// given, as the roster lists them): it is gone from the car's list,
+    /// owed or added, and the incident list says so. Returns the penalty.
+    pub fn clear_penalty(
+        &mut self,
+        player_id: &PlayerId,
+        index: usize,
+    ) -> Result<crate::race_control::Penalty, &'static str> {
+        let list = self
+            .penalties
+            .get_mut(player_id)
+            .ok_or("The car has no penalty")?;
+        if index >= list.len() {
+            return Err("No such penalty");
+        }
+        let penalty = list.remove(index);
+        if list.is_empty() {
+            self.penalties.remove(player_id);
+        }
+        // An AI coming in to serve it plans its stops afresh: in only if it
+        // has another reason to.
+        let owed = penalty.status == crate::race_control::PenaltyStatus::Owed;
+        if owed && self.owed_penalty(player_id).is_none() && self.is_ai_player(player_id) {
+            if let Some(state) = self.session.participants.get_mut(player_id) {
+                if !state.pit.driving && !state.pit.servicing {
+                    state.pit.wants_stop = false;
+                }
+            }
+        }
+        let lap = self
+            .session
+            .participants
+            .get(player_id)
+            .map_or(penalty.lap, |s| s.current_lap);
+        self.incidents.push(crate::incidents::Incident {
+            tick: self.session.current_tick,
+            lap,
+            car: *player_id,
+            kind: crate::incidents::IncidentKind::PenaltyCleared {
+                offence: crate::incidents::offence_name(penalty.offence).to_string(),
+                penalty: crate::incidents::penalty_name(penalty.kind).to_string(),
+            },
+        });
+        self.roster_dirty = true;
+        info!(
+            "Session {}: a steward cleared a {:?} penalty for {:?}",
+            self.session.id, penalty.kind, penalty.offence
+        );
+        Ok(penalty)
     }
 
     /// The first drive-through or stop-go `player_id` still has to serve.
@@ -5156,6 +5265,7 @@ impl GameSession {
             self.roster_dirty = true;
         }
         self.yellow_passed.clear();
+        self.incidents.clear();
         // A fresh race, a fresh timing sheet: the session's bests and every
         // half-recorded ghost lap belong to the race that just ended.
         self.session_best_lap_ms = None;

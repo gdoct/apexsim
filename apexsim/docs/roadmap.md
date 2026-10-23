@@ -275,13 +275,6 @@ determinism of `render` (same seed, same bytes).
 
 **Check:** session tests per rule; the class calibration unchanged.
 
-### 19. Incident review
-
-- An incident list (contacts, passes under yellow, track limits) with a
-  jump to the replay time, for admins.
-
-**Check:** a seeded pile-up's incidents listed and opened.
-
 ### 20. Photo mode
 
 - Pause, free camera, focal length, depth of field, exposure, no HUD, a

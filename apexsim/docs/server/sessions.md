@@ -47,6 +47,9 @@ belong to these rules are described briefly beside them.
   `update_recoveries`: back to track and back to pits
 - `server/sim/src/race_control.rs` (`RaceControl`, `FlagCar`) and
   `GameSession::update_flags` / `yellow_flags`: the race's flags
+- `server/sim/src/incidents.rs` (`IncidentLog`, `Incident`) and
+  `server/server/src/incident_report.rs` (`IncidentReport`): the race's
+  incident list for stewards
 - `server/sim/src/race_start.rs` (`RaceStart`, `Formation`) and
   `GameSession::begin_formation` / `tick_formation` / `hold_cars_on_grid`:
   the formation lap, the rolling start, false starts
@@ -844,6 +847,46 @@ for an offence the rules leave out.
   standings, tower and results, and the results' times with the seconds
   in ([hud-modding](../game/hud-modding.md)).
 - Every penalty goes when the field lines up again (`line_up_on_grid`).
+
+## Incidents
+
+Each race keeps a list for stewards (`GameSession::incidents`,
+`incidents::IncidentLog`), filled while it is racing from what the tick
+already finds; nothing in the simulation reads it, so a race runs the same
+with it.
+
+| Incident (`kind`) | From | Carries |
+|---|---|---|
+| `contact` | the collision pass's touching pairs (`physics::check_collisions_refs` returns them) | `car` and `other` (the lower id first), the hardest `closing_mps` over the contact and its `severity`: `touch` under `damage::IMPACT_THRESHOLD_MPS` (2.5 m/s, no damage), `light` under `CONTACT_HEAVY_MPS` (8 m/s), `heavy` |
+| `yellow_pass` | race control's passes (`take_yellow_passes`), penalised or not | `car` the passer, `passed` |
+| `track_limits` | the lap timing: the tick every wheel has been off for `TRACK_LIMITS_SECONDS`, or the lap struck at the line for a missed checkpoint (`cut`) | `car`, `cut` |
+| `penalty` | `GameSession::penalise` | `offence`, `penalty` (`time`, `drive_through`, `stop_go`), `seconds` |
+| `penalty_cleared` | a steward (`GameSession::clear_penalty`) | `offence`, `penalty` |
+
+Every incident has its session `tick` (a contact: the tick it began) and the
+`lap` of its `car`. A pair apart for `CONTACT_GAP_S` (1 s) and touching again
+is a new contact; less is the same one rubbing on. The list is emptied as
+the field lines up (`line_up_on_grid`), so it is the race's, and a
+weekend's practice and qualifying keep none. Unsafe rejoins are not
+detected, so not listed.
+
+- **Kept**: a race that finishes writes `<records dir>/results/<session
+  id>_<unix time>.incidents.json` beside its results (`[records] results`):
+  the cars (id, name, AI, grid slot) and each incident with `race_s`
+  (seconds since the green) and `replay_s` (seconds into the server's
+  replay of the race: its tick less `IncidentLog::replay_start_tick`, the
+  tick the recording began on).
+- **Stewards**: the dashboard's Incidents view ([operations](operations.md#admin-dashboard))
+  lists a running race's from the live session and a finished one's from
+  the file, opens the replay at an incident, and clears a penalty
+  (`clear_penalty`: gone from the car's list, owed or added; the roster
+  goes out again without it, and an AI coming in only to serve it stays out).
+- Not on the wire: the client shows none of it.
+
+Tests: `server/sim/tests/all/incident_test.rs` (a forced contact, a car put
+off the road, a penalty given and cleared),
+`admin_test::incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay`
+(live, cleared, written, matched to its replay).
 
 ## Timed races
 

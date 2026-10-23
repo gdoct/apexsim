@@ -3928,11 +3928,14 @@ pub fn clear_contact(state: &mut CarState) {
 
 /// Check and resolve collisions on a slice of mutable references — lets the
 /// caller pass `participants.values_mut().collect()` directly, avoiding a
-/// full clone + map rebuild of every CarState per tick.
+/// full clone + map rebuild of every CarState per tick. Returns the pairs
+/// found touching this tick, in the order checked, with how fast they were
+/// closing (`crate::incidents` keeps the race's contacts from them).
 pub fn check_collisions_refs(
     states: &mut [&mut CarState],
     configs: &HashMap<CarConfigId, CarConfig>,
-) {
+) -> Vec<crate::incidents::CarContact> {
+    let mut contacts = Vec::new();
     // Reset collision flags
     for state in states.iter_mut() {
         clear_contact(state);
@@ -3987,6 +3990,11 @@ pub fn check_collisions_refs(
                     let closing_mps = (-rel_vel_normal).max(0.0);
                     states[i].feedback.record_impact(closing_mps);
                     states[j].feedback.record_impact(closing_mps);
+                    contacts.push(crate::incidents::CarContact {
+                        a: states[i].player_id,
+                        b: states[j].player_id,
+                        closing_mps,
+                    });
 
                     if rel_vel_normal < 0.0 {
                         // Collision impulse (elastic coefficient)
@@ -4038,6 +4046,7 @@ pub fn check_collisions_refs(
             }
         }
     }
+    contacts
 }
 
 /// Result of an OBB separating-axis test: the minimum-translation vector.

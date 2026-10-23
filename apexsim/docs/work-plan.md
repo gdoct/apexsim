@@ -60,7 +60,6 @@ takes it up (— : no step, taken opportunistically).
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
-| N19 | Incident review for stewards | Online | P3 | 🟡 | M | — |
 | N20 | Photo mode | Rendering | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
@@ -451,11 +450,6 @@ the other race rules) and balance of performance per car as server.toml
 `[[balance]]` tables (ballast, power, downforce; a server's call, as in
 ACC's bop.json, so no wire). Left: ballast by championship position (needs
 N7), and the create screen's rows (follow-ups #20).
-
-#### N19. Incident review for stewards — P3 · 🟡 · M
-A list of incidents (contacts, yellow-flag passes, track limits) with a jump
-to that time in the replay, for admins in the dashboard or the client. After
-R1a/R2.
 
 #### N20. Photo mode — P3 · 🟡 · M
 Pause a replay, free camera, focal length, depth of field, exposure, hide

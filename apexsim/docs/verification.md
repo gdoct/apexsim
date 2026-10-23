@@ -208,6 +208,12 @@ session while driving (notice, then the menu).
   new process answers, and a player in a race getting the shutdown notice.
   The restart itself has run over HTTP (a saved tick rate in force in the
   new process, same ports, 2026-10-16) and `a_restart_is_asked_from_the_dashboard`.
+- The dashboard's Incidents view in a browser ([server/operations.md](server/operations.md#admin-dashboard)):
+  a running race's list growing, the kind filter, CLEAR on a penalty, a
+  finished race's row opened, DOWNLOAD REPLAY and its command line putting
+  the game's replay at the incident. The API is tested
+  (`admin_test::incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay`);
+  the page has passed a syntax check only.
 - A streamed hotlap watch on a saved setup (S with setups saved for the
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost

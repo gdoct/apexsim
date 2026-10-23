@@ -27,6 +27,7 @@ pub mod grid_order;
 pub mod ground;
 pub mod headlights;
 pub mod hybrid;
+pub mod incidents;
 pub mod laps;
 pub mod own_car;
 pub mod physics;
