@@ -216,6 +216,13 @@ namespace ApexCarToml
 	 */
 	APEXSIM_API bool Parse(const FString& Text, FApexCarToml& Out, FString& OutError);
 
+	/**
+	 * A player's own livery file (`cars/custom/liveries/<car>/<name>/livery.toml`):
+	 * `[[livery]]` tables in the car.toml format and nothing else, checked as
+	 * a car.toml's are. At least one table, or false.
+	 */
+	APEXSIM_API bool ParseLiveryFile(const FString& Text, TArray<FApexCarLiveryToml>& Out, FString& OutError);
+
 	/** The row's wheel figures from the TOML, with no mesh yet; an empty spec when the TOML has none. */
 	APEXSIM_API FApexWheelSpec MakeWheelSpec(const FApexCarToml& Toml);
 

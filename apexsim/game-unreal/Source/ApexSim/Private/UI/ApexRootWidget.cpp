@@ -39,6 +39,7 @@
 #include "Layout/WidgetPath.h"
 #include "TimerManager.h"
 #include "UnrealClient.h"
+#include "Race/ApexCarLivery.h"
 #include "Race/ApexRaceDirector.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "UI/ApexCarSelectWidget.h"
@@ -2041,6 +2042,17 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	}
 	Conditions = Conditions.Clamped();
 
+	// -ApexLivery=N picks the car's livery N (0 works; past the car.toml's
+	// ones, the player's own), as the garage would.
+	int32 AutoLivery = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexLivery="), AutoLivery))
+	{
+		FApexCarCatalogRow LiveryRow;
+		const UApexMenuFlowSubsystem* LiveryFlow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+		const bool bOwn = LiveryFlow && LiveryFlow->GetCarCatalogRow(Car.Id, LiveryRow)
+			&& ApexLivery::ForServer(LiveryRow, AutoLivery) != AutoLivery;
+		Net->SetPendingLivery(AutoLivery, bOwn);
+	}
 	// SelectCar before CreateSession, same order the UI uses.
 	Net->SelectCar(Car.Id);
 	// Room for the AI and the host: the AI are seated first, and a field that

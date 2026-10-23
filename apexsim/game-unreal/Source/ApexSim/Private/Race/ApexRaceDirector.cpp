@@ -692,14 +692,23 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		{
 			CarId = Flow->GetPendingCarId();
 		}
+		// The player's own livery is this client's alone: the server sent
+		// works for it.
+		int32 Livery = Entry.Livery;
+		const UApexNetSubsystem* LiveryNet = GetNet();
+		FApexCarCatalogRow LiveryRow;
+		if (LiveryNet && Flow && Entry.CarIndex == LiveryNet->GetLocalCarIndex() && Flow->GetCarCatalogRow(CarId, LiveryRow))
+		{
+			Livery = ApexLivery::ForLocalCar(LiveryRow, Entry.Livery, LiveryNet->GetPendingLivery());
+		}
 		// Keyed by car and livery: a driver who rejoins in another paint
 		// scheme gets repainted, not left in the old one.
-		const FString ShownKey = FString::Printf(TEXT("%s#%d"), *CarId, Entry.Livery);
+		const FString ShownKey = FString::Printf(TEXT("%s#%d"), *CarId, Livery);
 		const FString* Shown = CarIdShown.Find(Entry.CarIndex);
 		if (!Shown || !Shown->Equals(ShownKey, ESearchCase::IgnoreCase))
 		{
 			CarIdShown.Add(Entry.CarIndex, ShownKey);
-			ApplyCatalogMesh(Car, CarId, Entry.Livery);
+			ApplyCatalogMesh(Car, CarId, Livery);
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);

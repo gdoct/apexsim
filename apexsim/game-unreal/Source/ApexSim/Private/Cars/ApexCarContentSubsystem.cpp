@@ -26,6 +26,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
+#include "Race/ApexCarLivery.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -414,19 +415,23 @@ void UApexCarContentSubsystem::ScanNow()
 					Row.Driver.RuntimeModel = CarFile(CarDir, Toml.Driver.Model, Folder, TEXT("its driver"));
 				}
 				Row.DamageParts = ApexCarToml::MakeDamageParts(Toml);
-				for (const FApexCarLiveryToml& Source : Toml.Liveries)
+				// Paths in a livery are relative to the file that names it: the
+				// car folder for car.toml's, the livery's own folder for the
+				// player's.
+				auto AddLivery = [&Row, &Folder](const FApexCarLiveryToml& Source, const FString& BaseDir, bool bOwn)
 				{
 					FApexCarLivery& Livery = Row.Liveries.AddDefaulted_GetRef();
 					Livery.Name = Source.Name;
+					Livery.bOwn = bOwn;
 					Livery.Paint = Source.Paint;
 					Livery.Accent = Source.Accent;
 					Livery.PaintMetallic = Source.Metallic;
-					Livery.RuntimeLogo = CarFile(CarDir, Source.Logo, Folder, TEXT("a livery logo"));
+					Livery.RuntimeLogo = CarFile(BaseDir, Source.Logo, Folder, TEXT("a livery logo"));
 					// A skin or texture that is not there leaves its slots as authored.
-					Livery.RuntimeSkin = CarFile(CarDir, Source.Skin, Folder, TEXT("a livery skin"));
+					Livery.RuntimeSkin = CarFile(BaseDir, Source.Skin, Folder, TEXT("a livery skin"));
 					for (const TPair<FString, FString>& Texture : Source.Textures)
 					{
-						const FString Path = CarFile(CarDir, Texture.Value, Folder, TEXT("a livery texture"));
+						const FString Path = CarFile(BaseDir, Texture.Value, Folder, TEXT("a livery texture"));
 						if (!Path.IsEmpty())
 						{
 							FApexLiveryTexture& Entry = Livery.RuntimeTextures.AddDefaulted_GetRef();
@@ -434,7 +439,34 @@ void UApexCarContentSubsystem::ScanNow()
 							Entry.RuntimeTexture = Path;
 						}
 					}
-					Livery.RuntimePreview = CarFile(CarDir, Source.Preview, Folder, TEXT("a livery preview"));
+					Livery.RuntimePreview = CarFile(BaseDir, Source.Preview, Folder, TEXT("a livery preview"));
+				};
+				for (const FApexCarLiveryToml& Source : Toml.Liveries)
+				{
+					AddLivery(Source, CarDir, false);
+				}
+				// The player's own, after the car's so the shipped indices (the
+				// server's) never move; folders in name order, and the wire's
+				// byte caps the list.
+				for (const FString& LiveryDir : ApexLivery::OwnLiveryFolders(CarDir))
+				{
+					FString LiveryText;
+					TArray<FApexCarLiveryToml> Own;
+					FString LiveryError;
+					const FString File = FPaths::Combine(LiveryDir, TEXT("livery.toml"));
+					if (!FFileHelper::LoadFileToString(LiveryText, *File) || !ApexCarToml::ParseLiveryFile(LiveryText, Own, LiveryError))
+					{
+						UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: own livery %s skipped: %s"), *File,
+							LiveryError.IsEmpty() ? TEXT("unreadable") : *LiveryError);
+						continue;
+					}
+					for (const FApexCarLiveryToml& Source : Own)
+					{
+						if (Row.Liveries.Num() < 254)
+						{
+							AddLivery(Source, LiveryDir, true);
+						}
+					}
 				}
 
 				const FApexCarCatalogRow* TableRow = TableRows.Find(IdKey);

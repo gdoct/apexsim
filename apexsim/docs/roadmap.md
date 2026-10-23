@@ -98,12 +98,11 @@ and triple screens at each scale; HDR on an HDR display.
 
 ### 11. Own liveries
 
-- Import a texture against an exported UV template into
-  `content/cars/custom`; later an in-game editor (colours, decals,
-  number); online, liveries sent to the other clients, size-capped and
-  cached by hash.
+- An in-game editor (colours, decals, number); online, own liveries sent
+  to the other clients, size-capped and cached by hash. (The import into
+  `cars/custom/liveries` and the template tool are built.)
 
-**Check:** a custom livery on the car in a race and on a second client.
+**Check:** a custom livery on a second client.
 
 ### 24. The simulation in the client: backdrops, showcases, replays
 

@@ -252,13 +252,21 @@ public:
 	/**
 	 * The livery every later `SelectCar` carries: 0 the car as authored, 1..
 	 * its catalog row's `Liveries`. The garage sets it; the server clamps a
-	 * pick the car does not have back to 0.
+	 * pick the car does not have back to 0. A player's own livery (`bOwn`)
+	 * is kept for this client to paint and goes out as 0.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetPendingLivery(int32 Livery) { PendingLivery = FMath::Clamp(Livery, 0, 255); }
+	void SetPendingLivery(int32 Livery, bool bOwn = false)
+	{
+		PendingLivery = FMath::Clamp(Livery, 0, 255);
+		bPendingLiveryOwn = bOwn;
+	}
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	int32 GetPendingLivery() const { return PendingLivery; }
+
+	/** What the server hears of the pick: 0 for the player's own livery. */
+	int32 GetWireLivery() const { return bPendingLiveryOwn ? 0 : PendingLivery; }
 
 	/**
 	 * AllowedAssists: which driving aids the session lets its drivers use
@@ -493,7 +501,7 @@ public:
 	 * pending livery, so the next SelectCar carries it too.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
-	void SetLivery(int32 Livery);
+	void SetLivery(int32 Livery, bool bOwn = false);
 
 	/** The host moves a race weekend on: to its first session from the lobby, then each in turn, then the race. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Weekend")
@@ -900,6 +908,7 @@ public:
 
 private:
 	int32 PendingLivery = 0;
+	bool bPendingLiveryOwn = false;
 
 	/** Server heartbeat timeout is 5000 ms; 2 s leaves generous margin. */
 	static constexpr float HeartbeatIntervalSeconds = 2.0f;

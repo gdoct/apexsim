@@ -7281,3 +7281,31 @@ runs:
         checks: "G4: the road and terrain in the distance-field scene?"
         lead: 1
         exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+
+  - id: n11-own-livery
+    about: "N11. A player's own livery (cars/custom/liveries) on the player's car"
+    # Needs apexsim-content/cars/custom/liveries/lancha-037-rally/<name>/livery.toml:
+    # the livery past the car's own (5) is the first of the player's.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=037
+      - -ApexLivery=6
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=near
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "chase near: the player's car in its own livery"
+        checks: "N11: the own skin on the player's car; the AI in the car's own liveries"
+      - at: 16
+        label: "TV: the field"
+        checks: "N11: other cars unchanged"
+        lead: 1
+        exec: "apexsim.tv.View 0"

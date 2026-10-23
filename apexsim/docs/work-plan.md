@@ -38,7 +38,7 @@ takes it up (— : no step, taken opportunistically).
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
-| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 4 |
+| N11 | Livery editor; own liveries seen online (import built) | Content | P2 | 🟡 | M | 4 |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 4 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
@@ -362,13 +362,14 @@ accept NVIDIA's DLSS SDK terms when the plugin is downloaded), a
 paper-white level for HDR, and the checks in verification.md.
 
 #### N11. Livery editor / own livery import — P2 · 🟡 · M
-**What:** Liveries come only from the catalog and AC skins.
-**Outcome:** Personal cars; identity in online races.
-**Implementation:** Phase 1: import a texture into
-`content/cars/custom/<car>/liveries/` against the car's UV template (export
-the template). Phase 2: an in-game editor (colours, decals, number, name).
-Online: send the livery to other clients (size-capped, cached by hash).
-**Watch out:** `content/cars/custom` is the player's and never ships; the
+**Built 2026-10-24 (phase 1):** the player's own liveries in
+`cars/custom/liveries/<car>/<name>/livery.toml`, the template tool
+(`tools/livery_template.py`: UV sheets and the works textures), listed after
+the car's liveries and painted on the player's own car only (checked in
+`n11-own-livery`). **Left:** phase 2, an in-game editor (colours, decals,
+number, name); online, sending an own livery to the other clients
+(size-capped, cached by hash) so they see it too.
+**Watch out:** `cars/custom` is the player's and never ships; the
 car's material comes from `ApexCarContent::OwnMaterialInstance`; no
 trademarks on screen (decals are user content — say so).
 

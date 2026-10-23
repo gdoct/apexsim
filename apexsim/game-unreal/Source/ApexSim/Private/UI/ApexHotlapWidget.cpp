@@ -2038,7 +2038,10 @@ void UApexHotlapWidget::RefreshGrid()
 		}
 		else
 		{
-			const int32 Livery = Local ? FMath::Clamp(Local->Livery, 0, CarRow.Liveries.Num()) : 0;
+			UGameInstance* LiveryGame = GetGameInstance();
+			const UApexNetSubsystem* LiveryNet = LiveryGame ? LiveryGame->GetSubsystem<UApexNetSubsystem>() : nullptr;
+			const int32 Livery = Local ? FMath::Clamp(ApexLivery::ForLocalCar(CarRow, Local->Livery,
+				LiveryNet ? LiveryNet->GetPendingLivery() : 0), 0, CarRow.Liveries.Num()) : 0;
 			LiveryButton->SetVisibility(ESlateVisibility::Visible);
 			LiveryButton->SetLabel(ApexLivery::DisplayName(CarRow, Livery).ToUpper());
 			LiveryButton->SetBadge(FString::Printf(TEXT("Livery %d / %d"), Livery + 1, CarRow.Liveries.Num() + 1), InkMuted);
@@ -2076,8 +2079,9 @@ void UApexHotlapWidget::CycleLivery(int32 Step)
 		return;
 	}
 	const int32 Count = CarRow.Liveries.Num() + 1;
-	const int32 Current = Local ? Local->Livery : Net->GetPendingLivery();
-	Net->SetLivery(((Current + Step) % Count + Count) % Count);
+	const int32 Current = Local ? ApexLivery::ForLocalCar(CarRow, Local->Livery, Net->GetPendingLivery()) : Net->GetPendingLivery();
+	const int32 Next = ((Current + Step) % Count + Count) % Count;
+	Net->SetLivery(Next, ApexLivery::ForServer(CarRow, Next) != Next);
 }
 
 void UApexHotlapWidget::StartNow()

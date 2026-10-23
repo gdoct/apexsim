@@ -785,7 +785,11 @@ void UApexCarSelectWidget::ConfirmSelection()
 	// a session that has already started.
 	if (UApexNetSubsystem* Net = GetNet())
 	{
-		Net->SetPendingLivery(SelectedLivery);
+		FApexCarCatalogRow Row;
+		const UApexMenuFlowSubsystem* LiveryFlow = GetFlow();
+		const bool bOwn = LiveryFlow && LiveryFlow->GetCarCatalogRow(SelectedCarId, Row)
+			&& ApexLivery::ForServer(Row, SelectedLivery) != SelectedLivery;
+		Net->SetPendingLivery(SelectedLivery, bOwn);
 		Net->SelectCar(SelectedCarId);
 	}
 	if (UApexRootWidget* Root = GetRoot())

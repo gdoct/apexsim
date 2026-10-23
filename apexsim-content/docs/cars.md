@@ -422,6 +422,21 @@ works skin is `textures/skin_works.png`, the GLB's own; the others are
 and `accent` (wing, scoop, mud flaps). `liveries.py` draws them, so it runs
 **before** `build_rally.py`. Every sponsor, event and crew name is invented.
 
+**The player's own liveries** live outside the car, in
+`cars/custom/liveries/<car folder>/<name>/livery.toml` (the player's, never
+shipped): one or more `[[livery]]` tables in the format above, their paths
+relative to that folder. `python tools/livery_template.py <car folder>`
+writes the car's template beside them, in `.../<car folder>/template/`: the
+UV layout of each `car_skin*` and `car_logo` slot as a wireframe PNG, the
+textures the model carries there, and a `livery.toml.example`. A car built
+from colours and a logo (the generated cars) has only a `car_logo` sheet;
+its own liveries set `paint`, `accent` and `logo`. The game lists them after
+the car's own liveries, named "<name> (yours)" (`FApexCarLivery::bOwn`,
+`ApexLivery::OwnLiveryFolders`). They are this client's alone: the pick goes
+to the server as 0, the works livery, and only the player's own car is
+painted with it (`ApexLivery::ForServer`, `ForLocalCar`); other players see
+the works. `-ApexLivery=N` picks livery N for an `-ApexAutoRace`.
+
 The server keeps only the names (`CarConfig::livery_names`); the pick goes
 out as `SelectCar.livery` and comes back to everyone as `RosterEntry.Livery`
 (AI dealt their model's liveries in turn). `ApexLivery::Apply` repaints the

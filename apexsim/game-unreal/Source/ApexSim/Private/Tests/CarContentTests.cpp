@@ -883,4 +883,52 @@ bool FApexCarLiveryTexturesTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarOwnLiveryTest, "ApexSim.Cars.OwnLivery", ApexTestFlags)
+
+bool FApexCarOwnLiveryTest::RunTest(const FString& Parameters)
+{
+	// A livery file is [[livery]] tables and nothing else.
+	TArray<FApexCarLiveryToml> Own;
+	FString Error;
+	TestTrue(TEXT("a livery file parses"), ApexCarToml::ParseLiveryFile(
+		TEXT("[[livery]]\nname = \"Mine\"\npaint = [0.6, 0.05, 0.04]\nskin = \"skin.png\"\n"), Own, Error));
+	TestEqual(TEXT("one table"), Own.Num(), 1);
+	TestEqual(TEXT("its name"), Own.Num() > 0 ? Own[0].Name : FString(), FString(TEXT("Mine")));
+	TestEqual(TEXT("its skin"), Own.Num() > 0 ? Own[0].Skin : FString(), FString(TEXT("skin.png")));
+	TestFalse(TEXT("no table is no livery"), ApexCarToml::ParseLiveryFile(TEXT("# nothing\n"), Own, Error));
+	TestFalse(TEXT("a table without paint, skin or textures is refused"),
+		ApexCarToml::ParseLiveryFile(TEXT("[[livery]]\nname = \"Bare\"\n"), Own, Error));
+
+	// Two of the car's own, then one of the player's: picks 1-2 go to the
+	// server, 3 stays here.
+	FApexCarCatalogRow Row;
+	Row.Liveries.AddDefaulted(3);
+	Row.Liveries[0].Name = TEXT("Blue");
+	Row.Liveries[1].Name = TEXT("Gold");
+	Row.Liveries[2].Name = TEXT("Mine");
+	Row.Liveries[2].bOwn = true;
+	TestEqual(TEXT("shared count"), ApexLivery::SharedCount(Row), 2);
+	TestEqual(TEXT("a shared pick goes out as itself"), ApexLivery::ForServer(Row, 2), 2);
+	TestEqual(TEXT("an own pick goes out as works"), ApexLivery::ForServer(Row, 3), 0);
+	TestEqual(TEXT("own pick painted on the local car"), ApexLivery::ForLocalCar(Row, 0, 3), 3);
+	TestEqual(TEXT("the roster's shared livery wins"), ApexLivery::ForLocalCar(Row, 1, 3), 1);
+	TestEqual(TEXT("a shared pick follows the roster"), ApexLivery::ForLocalCar(Row, 0, 2), 0);
+	TestEqual(TEXT("own named as yours"), ApexLivery::DisplayName(Row, 3), FString(TEXT("Mine (yours)")));
+	TestEqual(TEXT("shared named plainly"), ApexLivery::DisplayName(Row, 1), FString(TEXT("Blue")));
+
+	// The folders: <cars>/custom/liveries/<car>/<name>/livery.toml, template/ skipped.
+	const FString Cars = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("OwnLivery"), TEXT("cars"));
+	IFileManager::Get().DeleteDirectory(*Cars, false, true);
+	const FString CarDir = FPaths::Combine(Cars, TEXT("default"), TEXT("test-car"));
+	const FString Root = FPaths::Combine(Cars, TEXT("custom"), TEXT("liveries"), TEXT("test-car"));
+	FFileHelper::SaveStringToFile(TEXT("[[livery]]\nname = \"B\"\npaint = [1, 0, 0]\n"), *FPaths::Combine(Root, TEXT("b"), TEXT("livery.toml")));
+	FFileHelper::SaveStringToFile(TEXT("[[livery]]\nname = \"A\"\npaint = [0, 1, 0]\n"), *FPaths::Combine(Root, TEXT("a"), TEXT("livery.toml")));
+	FFileHelper::SaveStringToFile(TEXT("x"), *FPaths::Combine(Root, TEXT("template"), TEXT("car_skin_uv.png")));
+	const TArray<FString> Folders = ApexLivery::OwnLiveryFolders(CarDir);
+	TestEqual(TEXT("two livery folders, template skipped"), Folders.Num(), 2);
+	TestTrue(TEXT("in name order"), Folders.Num() == 2 && Folders[0].EndsWith(TEXT("/a")) && Folders[1].EndsWith(TEXT("/b")));
+	IFileManager::Get().DeleteDirectory(*FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("OwnLivery")), false, true);
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

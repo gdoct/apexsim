@@ -377,6 +377,14 @@ struct APEXSIM_API FApexCarLivery
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
 	float PaintMetallic = -1.0f;
 
+	/**
+	 * The player's own (`cars/custom/liveries/<car>/<name>/livery.toml`):
+	 * listed after the car's own, painted on the player's car only, and
+	 * never sent to the server, which knows only car.toml's names.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Livery")
+	bool bOwn = false;
+
 	/** The wordmark on the flanks (`car_logo`); unset keeps the model's. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Livery")
 	TSoftObjectPtr<UTexture2D> Logo;

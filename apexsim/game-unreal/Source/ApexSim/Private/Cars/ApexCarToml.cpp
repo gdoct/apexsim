@@ -278,6 +278,24 @@ TArray<FApexDamagePartSpec> ApexCarToml::MakeDamageParts(const FApexCarToml& Tom
 	return Parts;
 }
 
+bool ApexCarToml::ParseLiveryFile(const FString& Text, TArray<FApexCarLiveryToml>& Out, FString& OutError)
+{
+	// The tables are a car.toml's, so the car.toml scan reads them; the id and
+	// name it insists on are a car's, which a livery file has no use for.
+	FApexCarToml Toml;
+	if (!Parse(TEXT("id = \"livery\"\nname = \"livery\"\n") + Text, Toml, OutError))
+	{
+		return false;
+	}
+	if (Toml.Liveries.IsEmpty())
+	{
+		OutError = TEXT("a livery file needs a [[livery]] table");
+		return false;
+	}
+	Out = MoveTemp(Toml.Liveries);
+	return true;
+}
+
 bool ApexCarToml::Parse(const FString& Text, FApexCarToml& Out, FString& OutError)
 {
 	TArray<FString> Lines;

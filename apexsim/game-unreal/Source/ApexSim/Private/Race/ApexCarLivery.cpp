@@ -5,7 +5,9 @@
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
+#include "HAL/FileManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Misc/Paths.h"
 
 namespace
 {
@@ -184,6 +186,60 @@ namespace ApexLivery
 	FString DisplayName(const FApexCarCatalogRow& Row, int32 Livery)
 	{
 		const FApexCarLivery* Found = Find(Row, Livery);
-		return Found && !Found->Name.IsEmpty() ? Found->Name : FString(TEXT("Works"));
+		if (!Found || Found->Name.IsEmpty())
+		{
+			return FString(TEXT("Works"));
+		}
+		return Found->bOwn ? Found->Name + TEXT(" (yours)") : Found->Name;
+	}
+
+	int32 SharedCount(const FApexCarCatalogRow& Row)
+	{
+		int32 Count = 0;
+		for (const FApexCarLivery& Livery : Row.Liveries)
+		{
+			Count += Livery.bOwn ? 0 : 1;
+		}
+		return Count;
+	}
+
+	int32 ForServer(const FApexCarCatalogRow& Row, int32 Picked)
+	{
+		const FApexCarLivery* Found = Find(Row, Picked);
+		return Found && Found->bOwn ? 0 : Picked;
+	}
+
+	int32 ForLocalCar(const FApexCarCatalogRow& Row, int32 RosterLivery, int32 Picked)
+	{
+		const FApexCarLivery* Found = Find(Row, Picked);
+		return RosterLivery == 0 && Found && Found->bOwn ? Picked : RosterLivery;
+	}
+
+	TArray<FString> OwnLiveryFolders(const FString& CarDir)
+	{
+		// <cars>/default/<car> and <cars>/custom/<car> share <cars>/custom/liveries;
+		// a loose car (an -ApexCarsDir of cars) keeps them beside itself.
+		const FString Parent = FPaths::GetPath(FPaths::ConvertRelativePathToFull(CarDir));
+		const FString ParentLeaf = FPaths::GetCleanFilename(Parent);
+		const FString CarsRoot = ParentLeaf.Equals(TEXT("default"), ESearchCase::IgnoreCase)
+				|| ParentLeaf.Equals(TEXT("custom"), ESearchCase::IgnoreCase)
+			? FPaths::GetPath(Parent)
+			: Parent;
+		const FString Root = FPaths::Combine(CarsRoot, TEXT("custom"), TEXT("liveries"), FPaths::GetCleanFilename(CarDir));
+
+		TArray<FString> Names;
+		IFileManager::Get().FindFiles(Names, *FPaths::Combine(Root, TEXT("*")), /*Files*/ false, /*Directories*/ true);
+		Names.Sort();
+		TArray<FString> Folders;
+		for (const FString& Name : Names)
+		{
+			const FString Folder = FPaths::Combine(Root, Name);
+			// `template/` holds the UV sheets (tools/livery_template.py), no livery.
+			if (IFileManager::Get().FileExists(*FPaths::Combine(Folder, TEXT("livery.toml"))))
+			{
+				Folders.Add(Folder);
+			}
+		}
+		return Folders;
 	}
 }

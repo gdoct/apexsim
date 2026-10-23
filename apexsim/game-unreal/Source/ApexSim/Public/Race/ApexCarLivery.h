@@ -36,6 +36,25 @@ namespace ApexLivery
 	/** A slot a skin paints: `car_skin` or `car_skin_<anything>` (`car_skin_1`), any case. */
 	APEXSIM_API bool IsSkinSlot(FName Slot);
 
-	/** "Works" for 0, else the livery's name; for the garage. */
+	/** "Works" for 0, else the livery's name ("<name> (yours)" for the player's own); for the garage. */
 	APEXSIM_API FString DisplayName(const FApexCarCatalogRow& Row, int32 Livery);
+
+	/** How many of the row's liveries come from car.toml: the ones the server knows. */
+	APEXSIM_API int32 SharedCount(const FApexCarCatalogRow& Row);
+
+	/** The pick as the server should hear it: an own livery goes out as 0, the works. */
+	APEXSIM_API int32 ForServer(const FApexCarCatalogRow& Row, int32 Picked);
+
+	/**
+	 * What the player's own car wears: the roster's livery, unless the roster
+	 * says works and the player picked one of their own, which only this
+	 * client has.
+	 */
+	APEXSIM_API int32 ForLocalCar(const FApexCarCatalogRow& Row, int32 RosterLivery, int32 Picked);
+
+	/**
+	 * The player's own livery folders for the car in `CarDir`, in name order:
+	 * each `<cars>/custom/liveries/<car folder>/<name>/` holding a livery.toml.
+	 */
+	APEXSIM_API TArray<FString> OwnLiveryFolders(const FString& CarDir);
 }

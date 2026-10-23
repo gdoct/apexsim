@@ -495,8 +495,8 @@ bool UApexNetSubsystem::RequestLobbyState()
 
 void UApexNetSubsystem::SelectCar(const FString& CarConfigId)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SelectCar %s livery %d"), *CarConfigId, PendingLivery);
-	SendPayload(ApexProtocol::EncodeSelectCar(CarConfigId, PendingLivery));
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> SelectCar %s livery %d"), *CarConfigId, GetWireLivery());
+	SendPayload(ApexProtocol::EncodeSelectCar(CarConfigId, GetWireLivery()));
 }
 
 void UApexNetSubsystem::CreateSession(
@@ -747,11 +747,11 @@ void UApexNetSubsystem::SetReady(bool bReady)
 	SendPayload(ApexProtocol::EncodeSetReady(bReady));
 }
 
-void UApexNetSubsystem::SetLivery(int32 Livery)
+void UApexNetSubsystem::SetLivery(int32 Livery, bool bOwn)
 {
-	SetPendingLivery(Livery);
-	UE_LOG(LogApexSimNet, Log, TEXT("-> SetLivery %d"), PendingLivery);
-	SendPayload(ApexProtocol::EncodeSetLivery(static_cast<uint8>(PendingLivery)));
+	SetPendingLivery(Livery, bOwn);
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SetLivery %d"), GetWireLivery());
+	SendPayload(ApexProtocol::EncodeSetLivery(static_cast<uint8>(GetWireLivery())));
 }
 
 void UApexNetSubsystem::AdvanceWeekend()
