@@ -409,8 +409,11 @@ and the read check; zip under its `archive` feature), `ats-pack` (a pack
 of one circuit or car from the checkout), `apexsim-server content
 {install,list,verify}` and the launcher's Install pack...
 ([apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md)).
-Phase 1's check, a Spa pack installed into a fresh release package raced
-with no mismatch toast, is in verification.md.
+Phase 1's check passed 2026-10-23: a fresh Development release of the
+starter set took a Snorisring and a Murcetes-AMD GT3 pack (neither in the
+set) by `Server\apexsim-server.exe content install`, `content verify` was
+clean, and the packaged game raced Snorisring in the Murcetes with both
+matching the server's files (no toast).
 **Human:** 🔴 still for creating `apexsim-content` and the signing key. The
 split rewrites history and moves LFS, so it is done once, by hand, with
 you there. What is left of phase 0 needs neither and is 🟢.

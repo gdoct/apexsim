@@ -258,6 +258,12 @@ the launcher import with the network off.
   ... done`) and the local files were scanned again. Not seen in the next
   two runs, one with the render and one without; the render thread touches
   no GPU state. Watch for it in a soak with `-gpucrashdebugging`.
+  Seen again 2026-10-23 in a Development release package
+  (`artifacts/release-n26`, D3D12 device removed, the active breadcrumb
+  `Nanite::DrawGeometry` MainPass) 7 s after Snorisring was built for an
+  auto race; the same run again and a Zandervoort run were clean. The
+  Aftermath dump is `Game/ApexSim/Saved/Logs/D3D12.0.2026.10.23-09.26.51.nv-gpudmp`
+  in that package.
 
 **Check:** the A/B is two screenshots.
 
