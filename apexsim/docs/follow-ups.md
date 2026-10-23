@@ -305,4 +305,13 @@ the same files.
   (`out/verify` shots of 2026-10-21, on the root page and on Garage >
   Tracks).
 
+- `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` and
+  `ApexSim.Guide.MadeMatchesBuild` compare the game's own render with
+  `build/showcase` / `build/guide`, which no stage writes since N28: on a
+  tree that still has the old files they fail as soon as Zandervoort's
+  content moves (seen 2026-10-23, files of 10-20, content of 10-22), and
+  on a fresh one they skip. Render the reference with `apexsim-replay`
+  in the test instead (the server's render is the reference), or drop
+  them for the replay crate's own determinism tests.
+
 **Check:** server and client build and tests.
