@@ -127,6 +127,7 @@ async fn host_session(
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
         classes: Vec::new(),
+        ballast: Vec::new(),
     })
     .await?;
     let joined = host.wait_joined().await?;

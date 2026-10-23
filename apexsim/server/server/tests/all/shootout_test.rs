@@ -269,6 +269,7 @@ async fn a_shootout_is_echoed_and_its_state_sent_over_the_wire() {
             qualifying_lap_allowance: 99,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

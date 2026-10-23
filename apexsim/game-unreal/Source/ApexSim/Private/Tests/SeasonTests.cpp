@@ -78,6 +78,36 @@ bool FApexSeasonStandingsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// Success ballast: none before a round is raced or without a preset, then
+// each scoring driver by place, the player as the host.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSeasonBallastTest, "ApexSim.Season.Ballast", ApexTestFlags)
+
+bool FApexSeasonBallastTest::RunTest(const FString& Parameters)
+{
+	FApexSeason Season = ThreeRounds();
+	Season.Points = EApexPointsPreset::Classic;
+	Season.Ballast = EApexSuccessBallast::Light;
+	TestTrue(TEXT("nothing before round 1"), ApexSeason::Ballast(Season).IsEmpty());
+	ApexSeason::FileRound(Season, 0, { Line(TEXT("Max"), 1), Line(TEXT("Guido"), 2, true), Line(TEXT("Luna"), 3),
+		Line(TEXT("Ada"), 4), Line(TEXT("Bo"), 0) });
+	const TArray<FApexDriverBallast> Ballast = ApexSeason::Ballast(Season);
+	if (TestEqual(TEXT("the top three"), Ballast.Num(), 3))
+	{
+		TestEqual(TEXT("the leader by name"), Ballast[0].Driver, FString(TEXT("Max")));
+		TestEqual(TEXT("30 kg"), Ballast[0].Kg, 30);
+		TestEqual(TEXT("the player as the host"), Ballast[1].Driver, FString(TEXT("@host")));
+		TestEqual(TEXT("20 kg"), Ballast[1].Kg, 20);
+		TestEqual(TEXT("third"), Ballast[2].Kg, 10);
+	}
+	Season.Ballast = EApexSuccessBallast::Heavy;
+	// Four drivers scored (Classic pays six places); the fifth did not finish.
+	TestEqual(TEXT("only the drivers with points"), ApexSeason::Ballast(Season).Num(), 4);
+	TestEqual(TEXT("heavy's leader"), ApexSeason::Ballast(Season)[0].Kg, 75);
+	Season.Ballast = EApexSuccessBallast::None;
+	TestTrue(TEXT("none without a preset"), ApexSeason::Ballast(Season).IsEmpty());
+	return true;
+}
+
 // Dropped rounds: each driver's worst rounds go, a missed round first; the
 // last round is never dropped away to nothing.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSeasonDropsTest, "ApexSim.Season.Drops", ApexTestFlags)

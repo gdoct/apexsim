@@ -657,6 +657,10 @@ pub struct GameSession {
     /// `SetCarSetup` and dropped when the setup is stock or the player
     /// leaves. Looked up by key only, never iterated.
     tuned_configs: HashMap<PlayerId, CarConfig>,
+    /// The ballast each seated driver carries (`RaceSession::ballast`
+    /// resolved against who is here, `apply_ballast`), kg; baked into
+    /// their tuned copy with their setup (`retune`).
+    ballast_kg: std::collections::BTreeMap<PlayerId, u16>,
     /// What each driver asked for, clamped.
     car_setups: HashMap<PlayerId, CarSetup>,
     /// Each driver's orders for their next stop (`SetPitPlan`), clamped;
@@ -1210,6 +1214,7 @@ impl GameSession {
             not_qualified: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
+            ballast_kg: std::collections::BTreeMap::new(),
             liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
@@ -1303,6 +1308,7 @@ impl GameSession {
             not_qualified: std::collections::BTreeSet::new(),
             held_steering_assist: HashMap::new(),
             tuned_configs: HashMap::new(),
+            ballast_kg: std::collections::BTreeMap::new(),
             liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
@@ -2592,6 +2598,100 @@ impl GameSession {
     /// [`crate::data::RaceRules`].
     pub fn set_race_rules(&mut self, rules: crate::data::RaceRules) {
         self.session.race_rules = rules;
+    }
+
+    /// Ballast by driver (`CreateSession.ballast`, a season's success
+    /// ballast by championship position), sanitized
+    /// (`data::sanitize_ballast`) and put on the drivers seated now; a
+    /// driver seated later takes theirs as they are (`apply_ballast`).
+    pub fn set_ballast(&mut self, entries: Vec<crate::data::DriverBallast>) {
+        self.session.ballast = crate::data::sanitize_ballast(entries);
+        self.apply_ballast();
+    }
+
+    /// The ballast a seated driver carries, kg; 0 for none.
+    pub fn ballast_kg(&self, player_id: &PlayerId) -> u16 {
+        self.ballast_kg.get(player_id).copied().unwrap_or(0)
+    }
+
+    /// Resolve the session's ballast list against the drivers seated now
+    /// (`grid_order::resolve_each`: a reference names one driver, the first
+    /// listing of a driver wins) and remake the tuned copy of every car
+    /// whose ballast changed. Nothing to do, and nothing touched, without a
+    /// list.
+    fn apply_ballast(&mut self) {
+        if self.session.ballast.is_empty() && self.ballast_kg.is_empty() {
+            return;
+        }
+        let refs: Vec<String> = self
+            .session
+            .ballast
+            .iter()
+            .map(|b| b.driver.clone())
+            .collect();
+        let ids = crate::grid_order::resolve_each(
+            &self.seated_drivers(),
+            self.session.host_player_id,
+            &self.session.ai_player_ids,
+            &refs,
+        );
+        let mut wanted = std::collections::BTreeMap::new();
+        for (entry, id) in self.session.ballast.iter().zip(ids) {
+            if let Some(id) = id {
+                wanted.entry(id).or_insert(entry.kg);
+            }
+        }
+        let changed: Vec<PlayerId> = self
+            .session
+            .participants
+            .keys()
+            .filter(|id| wanted.get(*id) != self.ballast_kg.get(*id))
+            .copied()
+            .collect();
+        self.ballast_kg = wanted;
+        for id in changed {
+            self.retune(&id);
+        }
+        self.ballast_kg
+            .retain(|id, _| self.session.participants.contains_key(id));
+    }
+
+    /// Remake the copy of the car `player_id` is simulated with: their
+    /// setup baked into the shared config, then their ballast added
+    /// (`balance::CarBalance`'s, at the centre of gravity); no copy when
+    /// neither changes the car.
+    fn retune(&mut self, player_id: &PlayerId) {
+        let Some(car_id) = self
+            .session
+            .participants
+            .get(player_id)
+            .map(|s| s.car_config_id)
+        else {
+            self.tuned_configs.remove(player_id);
+            return;
+        };
+        let Some(base) = self.car_configs.get(&car_id) else {
+            return;
+        };
+        let mut tuned = self
+            .car_setups
+            .get(player_id)
+            .and_then(|setup| setup.simulated_config(base));
+        let kg = self.ballast_kg(player_id);
+        if kg > 0 {
+            let mut car = tuned.unwrap_or_else(|| base.clone());
+            crate::balance::CarBalance {
+                car: car.name.clone(),
+                ballast_kg: kg as f32,
+                ..Default::default()
+            }
+            .apply(&mut car);
+            tuned = Some(car);
+        }
+        match tuned {
+            Some(tuned) => self.tuned_configs.insert(*player_id, tuned),
+            None => self.tuned_configs.remove(player_id),
+        };
     }
 
     /// What the race is doing for telemetry (`CompactTelemetry.race_phase`):
@@ -4700,6 +4800,8 @@ impl GameSession {
             if self.is_weekend() && self.weekend.phase == crate::weekend::WeekendPhase::Qualifying {
                 self.weekend.enter_late(player_id);
             }
+            // The ballast a season gave the newcomer (`@ai:N`, the host).
+            self.apply_ballast();
             self.roster_dirty = true;
             Some(grid_position)
         } else {
@@ -4750,18 +4852,16 @@ impl GameSession {
                 self.session.game_mode,
                 GameMode::Lobby | GameMode::Countdown | GameMode::Grid
             );
-        let base = self.car_configs.get(&car_id)?;
-        match applied.simulated_config(base) {
-            Some(tuned) => self.tuned_configs.insert(*player_id, tuned),
-            None => self.tuned_configs.remove(player_id),
-        };
+        let in_garage = car.in_garage;
+        self.car_configs.get(&car_id)?;
         if applied.is_stock() {
             self.car_setups.remove(player_id);
         } else {
             self.car_setups.insert(*player_id, applied);
         }
+        self.retune(player_id);
         if refuel {
-            let mode = if car.in_garage {
+            let mode = if in_garage {
                 self.session.game_mode
             } else {
                 self.planned_mode()
@@ -4917,6 +5017,7 @@ impl GameSession {
         self.held_steering_assist.remove(player_id);
         self.aid_lines.remove(player_id);
         self.tuned_configs.remove(player_id);
+        self.ballast_kg.remove(player_id);
         self.car_setups.remove(player_id);
         self.pit_plans.remove(player_id);
         self.lap_traces.remove(player_id);
@@ -5056,6 +5157,7 @@ impl GameSession {
     /// Remember a human driver's name, for the start order's references.
     pub fn set_driver_name(&mut self, player_id: PlayerId, name: &str) {
         self.driver_names.insert(player_id, name.to_string());
+        self.apply_ballast();
     }
 
     /// The profile id a seated human sent, or none: replaces what was there.
@@ -5064,6 +5166,7 @@ impl GameSession {
             Some(id) => self.driver_ids.insert(player_id, id),
             None => self.driver_ids.remove(&player_id),
         };
+        self.apply_ballast();
     }
 
     /// The profile id of a seated human who sent one.
@@ -11440,6 +11543,64 @@ mod tests {
             ),
             (1, 2, 3)
         );
+    }
+
+    #[test]
+    fn ballast_by_driver_weighs_their_car_alone() {
+        let (mut game_session, [a, b, c]) = three_drivers();
+        let mass = |gs: &GameSession, id: &PlayerId| gs.simulated_config_for(id).unwrap().mass_kg;
+        let base = mass(&game_session, &a);
+        game_session.set_ballast(vec![
+            crate::data::DriverBallast {
+                driver: "B".into(),
+                kg: 30,
+            },
+            crate::data::DriverBallast {
+                driver: "C".into(),
+                kg: 999,
+            },
+            // A name nobody has, and a driver listed twice: the first wins.
+            crate::data::DriverBallast {
+                driver: "Nobody".into(),
+                kg: 10,
+            },
+            crate::data::DriverBallast {
+                driver: "B".into(),
+                kg: 5,
+            },
+        ]);
+        assert_eq!(mass(&game_session, &a), base);
+        assert_eq!(mass(&game_session, &b), base + 30.0);
+        assert_eq!(game_session.ballast_kg(&b), 30);
+        // Held to the most a driver may carry.
+        assert_eq!(
+            game_session.ballast_kg(&c),
+            crate::data::MAX_DRIVER_BALLAST_KG
+        );
+        // A setup is baked under the ballast, and a stock one keeps it.
+        let setup = CarSetup {
+            spring_front: 2,
+            ..Default::default()
+        };
+        game_session.set_car_setup(&b, setup);
+        assert_eq!(mass(&game_session, &b), base + 30.0);
+        game_session.set_car_setup(&b, CarSetup::default());
+        assert_eq!(mass(&game_session, &b), base + 30.0);
+        // A driver seated later takes theirs as they are named.
+        let d = Uuid::new_v4();
+        let car_id = game_session.session.participants[&a].car_config_id;
+        game_session.set_ballast(vec![crate::data::DriverBallast {
+            driver: "D".into(),
+            kg: 20,
+        }]);
+        assert_eq!(
+            mass(&game_session, &b),
+            base,
+            "B's ballast gone with the list"
+        );
+        game_session.add_player(d, car_id);
+        game_session.set_driver_name(d, "D");
+        assert_eq!(mass(&game_session, &d), base + 20.0);
     }
 
     #[test]

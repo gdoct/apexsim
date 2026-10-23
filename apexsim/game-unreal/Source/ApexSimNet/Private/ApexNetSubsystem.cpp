@@ -535,7 +535,8 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	EApexQualifyingFormat QualifyingFormat,
 	int32 QualifyingLapAllowance,
 	const FApexRaceRules& RaceRules,
-	const TArray<FApexClassEntry>& Classes)
+	const TArray<FApexClassEntry>& Classes,
+	const TArray<FApexDriverBallast>& Ballast)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d classes=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
@@ -566,7 +567,8 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		QualifyingFormat,
 		QualifyingLapAllowance,
 		RaceRules,
-		Classes));
+		Classes,
+		Ballast));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -1351,6 +1353,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentDamage = Message.Damage;
 			CurrentAiSkill = Message.AiSkill;
 			CurrentClasses = Message.Classes;
+			CurrentBallast = Message.Ballast;
 			CurrentRaceSeconds = Message.RaceSeconds;
 			CurrentQualifyingSeconds = Message.QualifyingSeconds;
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
@@ -1395,6 +1398,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentDamage = EApexDamageLevel::Full;
 		CurrentAiSkill = ApexAiSkill::Mixed;
 		CurrentClasses.Reset();
+		CurrentBallast.Reset();
 		CurrentRaceSeconds = 0;
 		CurrentQualifyingSeconds = 0;
 		CurrentQualifyingCutoffPct = 0;

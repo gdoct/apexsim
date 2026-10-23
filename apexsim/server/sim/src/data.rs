@@ -4005,6 +4005,43 @@ impl RaceRules {
     }
 }
 
+/// Ballast a driver carries in a session (`CreateSession.ballast`): a
+/// league's success ballast by championship position. The driver is a
+/// start-order reference (`crate::grid_order`: `@host`, `@ai:N`,
+/// `@driver:UUID` or a name), the mass is added at the car's centre of
+/// gravity, as a `[[balance]]` table's `ballast_kg` is
+/// (`GameSession::set_ballast`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DriverBallast {
+    pub driver: String,
+    pub kg: u16,
+}
+
+/// The heaviest ballast a driver may be given, kg (`balance::BALLAST_KG`'s
+/// top), and the most entries a session keeps.
+pub const MAX_DRIVER_BALLAST_KG: u16 = 300;
+pub const MAX_DRIVER_BALLAST_ENTRIES: usize = 64;
+
+/// A requested ballast list as a session keeps it: blank references and
+/// zero masses dropped, masses held to `MAX_DRIVER_BALLAST_KG`, at most
+/// `MAX_DRIVER_BALLAST_ENTRIES`.
+pub fn sanitize_ballast(entries: Vec<DriverBallast>) -> Vec<DriverBallast> {
+    entries
+        .into_iter()
+        .map(|e| DriverBallast {
+            driver: e
+                .driver
+                .trim()
+                .chars()
+                .take(crate::grid_order::MAX_REF_LEN)
+                .collect(),
+            kg: e.kg.min(MAX_DRIVER_BALLAST_KG),
+        })
+        .filter(|e| !e.driver.is_empty() && e.kg > 0)
+        .take(MAX_DRIVER_BALLAST_ENTRIES)
+        .collect()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceSession {
     pub id: SessionId,
@@ -4086,6 +4123,11 @@ pub struct RaceSession {
     /// penalties. All off by default.
     #[serde(default)]
     pub race_rules: RaceRules,
+    /// Ballast by driver ([`DriverBallast`]): success ballast by
+    /// championship position, as a season hands it to its rounds. Empty
+    /// for none.
+    #[serde(default)]
+    pub ballast: Vec<DriverBallast>,
     pub current_tick: u32,
     pub countdown_ticks_remaining: Option<u16>,
     /// Game mode to transition to when the countdown reaches zero.
@@ -4131,6 +4173,7 @@ impl RaceSession {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: RaceRules::default(),
+            ballast: Vec::new(),
             weekend: None,
             current_tick: 0,
             countdown_ticks_remaining: None,

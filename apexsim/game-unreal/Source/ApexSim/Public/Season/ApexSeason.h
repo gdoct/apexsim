@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ApexProtocolTypes.h"
 
 #include "ApexSeason.generated.h"
 
@@ -14,6 +15,21 @@ enum class EApexPointsPreset : uint8
 	Classic = 1,
 	/** 50 down by fives to 25, then by ones: every finisher of a long field scores. */
 	Deep    = 2,
+};
+
+/**
+ * Success ballast: the drivers' standings' leaders carry weight into the
+ * next round (ApexSeason::BallastTable), handed to the session as
+ * CreateSession's ballast by driver.
+ */
+UENUM()
+enum class EApexSuccessBallast : uint8
+{
+	None  = 0,
+	/** 30, 20, 10 kg for the top three. */
+	Light = 1,
+	/** 75, 57, 48, 39, 30, 21, 15, 9, 3 kg for the top nine, a touring-car series' scale. */
+	Heavy = 2,
 };
 
 /** One car's place in a round of a season. */
@@ -97,6 +113,10 @@ struct APEXSIM_API FApexSeason
 	UPROPERTY()
 	int32 AiSkill = -1;
 
+	/** Ballast by championship position into each round (none in round 1). */
+	UPROPERTY()
+	EApexSuccessBallast Ballast = EApexSuccessBallast::None;
+
 	bool IsActive() const { return Rounds.Num() > 0 && NextRound() != INDEX_NONE; }
 	bool IsFinished() const { return Rounds.Num() > 0 && NextRound() == INDEX_NONE; }
 	/** The first round not yet raced; INDEX_NONE once all are. */
@@ -137,6 +157,11 @@ namespace ApexSeason
 	APEXSIM_API int32 PointsFor(EApexPointsPreset Preset, int32 Position);
 	APEXSIM_API FString PresetName(EApexPointsPreset Preset);
 
+	/** The ballast for the drivers' standings' P1, P2..., kg; empty for none. */
+	APEXSIM_API const TArray<int32>& BallastTable(EApexSuccessBallast Preset);
+	/** "Light: 30-20-10 kg"; empty for none. */
+	APEXSIM_API FString BallastName(EApexSuccessBallast Preset);
+
 	/** One line of a standings table. */
 	struct APEXSIM_API FStanding
 	{
@@ -176,6 +201,16 @@ namespace ApexSeason
 	 * over the list so a short season is not just its first names.
 	 */
 	APEXSIM_API TArray<FString> SpreadCalendar(const TArray<FString>& TrackIds, int32 Count);
+
+	/**
+	 * The success ballast the season's next round hands its session, as
+	 * CreateSession's ballast by driver: each driver with points, by their
+	 * place in the drivers' standings, gets that place's weight (the player
+	 * as `@host`, an AI by the name it raced under; the AI are named by seat,
+	 * so the same field keeps its names). Empty before any round is raced,
+	 * and without a preset.
+	 */
+	APEXSIM_API TArray<FApexDriverBallast> Ballast(const FApexSeason& Season);
 
 	/** The season as the profile keeps it once over. */
 	APEXSIM_API FApexSeasonSummary Summarise(const FApexSeason& Season);

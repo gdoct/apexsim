@@ -307,6 +307,7 @@ async fn start_free_practice(client: &mut ProtocolTestClient) {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await;
     client
@@ -447,6 +448,7 @@ async fn test_udp_handshake_input_and_telemetry_loopback() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await;
     client
@@ -847,6 +849,7 @@ async fn test_the_track_bundle_comes_in_chunks_on_request() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await;
     let physics = match client

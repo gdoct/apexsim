@@ -212,6 +212,12 @@ pub enum ClientMessage {
         /// the host car's class alone.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         classes: Vec<ClassEntry>,
+        /// Ballast by driver (`data::DriverBallast`, keys snake_case: a
+        /// start-order reference and kg), a season's success ballast by
+        /// championship position (`GameSession::set_ballast`). Empty, and
+        /// left off the wire, for none.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        ballast: Vec<DriverBallast>,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -602,6 +608,11 @@ pub struct SessionJoinedData {
     /// class (and absent from a server that predates the field).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub classes: Vec<ClassEntry>,
+    /// The session's ballast by driver (`CreateSession.ballast` as the
+    /// server keeps it, `data::sanitize_ballast`); left off the wire for
+    /// none (and absent from a server that predates the field).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ballast: Vec<DriverBallast>,
 }
 
 /// The session's physics as the client's copy of the car step needs them
@@ -4657,6 +4668,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -4712,6 +4724,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -4778,6 +4791,7 @@ mod tests {
                 ..Default::default()
             }),
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysics: {}", hex(&bytes));
@@ -4830,6 +4844,7 @@ mod tests {
             race_rules: Default::default(),
             physics: Some(physics),
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         print_golden("S_SessionJoinedPhysicsBalance", &bytes);
@@ -4929,6 +4944,7 @@ mod tests {
             race_rules: Default::default(),
             physics: Some(physics),
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysicsBundle: {}", hex(&joined_bytes));
@@ -5058,6 +5074,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -5085,6 +5102,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -5117,6 +5135,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -5189,6 +5208,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(107))).unwrap();
         println!("C_CreateSessionQualifyingCutoff: {}", hex(&create_bytes));
@@ -5224,6 +5244,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -5281,6 +5302,7 @@ mod tests {
                 qualifying_lap_allowance: allowance,
                 race_rules: Default::default(),
                 classes: Vec::new(),
+                ballast: Vec::new(),
             }
         };
         let create_bytes =
@@ -5322,6 +5344,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
@@ -5454,6 +5477,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(2, true)).unwrap();
         println!("C_CreateSessionPitRule: {}", hex(&create_bytes));
@@ -5488,6 +5512,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -5569,6 +5594,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(rules)).unwrap();
         println!("C_CreateSessionRaceRules: {}", hex(&create_bytes));
@@ -5611,6 +5637,7 @@ mod tests {
             race_rules: rules,
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceRules: {}", hex(&joined_bytes));
@@ -5699,6 +5726,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionPenalties: {}", hex(&create_bytes));
@@ -5791,6 +5819,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionSafetyCar: {}", hex(&create_bytes));
@@ -5850,6 +5879,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!(
@@ -5933,6 +5963,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!(
@@ -5945,6 +5976,96 @@ mod tests {
         );
         match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
             ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// Ballast by driver: a create giving the host 30 kg and the first AI
+    /// 15, and the joined echo. Printed as `C_CreateSessionBallast` /
+    /// `S_SessionJoinedBallast` (`cargo test ballast_wire_format --
+    /// --nocapture`).
+    #[test]
+    fn test_ballast_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let ballast = vec![
+            DriverBallast {
+                driver: "@host".into(),
+                kg: 30,
+            },
+            DriverBallast {
+                driver: "@ai:1".into(),
+                kg: 15,
+            },
+        ];
+        let create = |ballast: Vec<DriverBallast>| ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: RaceRules::default(),
+            classes: Vec::new(),
+            ballast,
+        };
+        let bytes = rmp_serde::to_vec_named(&create(ballast.clone())).unwrap();
+        println!("C_CreateSessionBallast: {}", hex(&bytes));
+        // The list is the create's last key, each entry a map.
+        let tail = [&[0xA7][..], b"ballast", &[0x92, 0x82, 0xA6], b"driver"].concat();
+        assert!(bytes.windows(tail.len()).any(|w| w == tail.as_slice()));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::CreateSession { ballast: got, .. } => assert_eq!(got, ballast),
+            _ => panic!("Wrong message type"),
+        }
+        // None is left off the wire.
+        let none = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
+        assert!(!String::from_utf8_lossy(&none).contains("ballast"));
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 1,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: RaceRules::default(),
+            physics: None,
+            classes: Vec::new(),
+            ballast: ballast.clone(),
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedBallast: {}", hex(&joined_bytes));
+        assert!(joined_bytes.windows(7).any(|w| w == b"Ballast"));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.ballast, ballast),
             _ => panic!("Wrong message type"),
         }
     }
@@ -5989,6 +6110,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionFullSafetyCar: {}", hex(&create_bytes));
@@ -6079,6 +6201,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -6110,6 +6233,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -6201,6 +6325,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -6238,6 +6363,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -6329,6 +6455,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -6383,6 +6510,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -6567,6 +6695,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -6594,6 +6723,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -6626,6 +6756,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -6686,6 +6817,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: classes.clone(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionClasses: {}", hex(&create_bytes));
@@ -6713,6 +6845,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: classes.clone(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedClasses: {}", hex(&joined_bytes));
@@ -6744,6 +6877,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let one_bytes = rmp_serde::to_vec_named(&one).unwrap();
         assert!(!one_bytes.windows(7).any(|w| w == b"classes"));
@@ -6846,6 +6980,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -6884,6 +7019,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -6938,6 +7074,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -6970,6 +7107,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -7025,6 +7163,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -7079,6 +7218,7 @@ mod tests {
             race_rules: Default::default(),
             physics: None,
             classes: Vec::new(),
+            ballast: Vec::new(),
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));
@@ -7183,6 +7323,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -7845,6 +7986,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         let setup = CarSetup {
             tyre_pressure_front: -2,

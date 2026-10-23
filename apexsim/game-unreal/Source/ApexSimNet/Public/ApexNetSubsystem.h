@@ -318,7 +318,8 @@ public:
 		EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open,
 		int32 QualifyingLapAllowance = 0,
 		const FApexRaceRules& RaceRules = FApexRaceRules(),
-		const TArray<FApexClassEntry>& Classes = TArray<FApexClassEntry>());
+		const TArray<FApexClassEntry>& Classes = TArray<FApexClassEntry>(),
+		const TArray<FApexDriverBallast>& Ballast = TArray<FApexDriverBallast>());
 
 	/**
 	 * A backdrop is on this connection's race view: a spectator stream fed
@@ -633,6 +634,8 @@ public:
 	 */
 	const TArray<FApexClassEntry>& GetSessionClasses() const { return CurrentClasses; }
 	bool IsMultiClassSession() const { return CurrentClasses.Num() > 1; }
+	/** SessionJoined's ballast by driver (a season's success ballast); empty for none. */
+	const TArray<FApexDriverBallast>& GetSessionBallast() const { return CurrentBallast; }
 
 	/**
 	 * A timed race's length in the session this client is in, from its
@@ -1069,6 +1072,7 @@ private:
 	EApexDamageLevel CurrentDamage = EApexDamageLevel::Full;
 	int32 CurrentAiSkill = ApexAiSkill::Mixed;
 	TArray<FApexClassEntry> CurrentClasses;
+	TArray<FApexDriverBallast> CurrentBallast;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;

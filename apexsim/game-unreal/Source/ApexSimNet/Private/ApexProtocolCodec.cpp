@@ -222,6 +222,33 @@ namespace
 		return true;
 	}
 
+	bool ParseDriverBallast(FMsgPackReader& Reader, FApexDriverBallast& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("driver"))  { bOk = Reader.ReadString(Out.Driver); }
+			else if (Key == TEXT("kg")) { bOk = Reader.ReadUInt64(Raw); Out.Kg = static_cast<int32>(FMath::Min<uint64>(Raw, FApexDriverBallast::MaxKg)); }
+			else                        { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool ParseSessionSummary(FMsgPackReader& Reader, FApexSessionSummary& Out)
 	{
 		int32 FieldCount = 0;
@@ -880,6 +907,7 @@ namespace
 			else if (Key == TEXT("QualifyingLapAllowance")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceRules"))         { bOk = ParseRaceRules(Reader, Out.RaceRules); }
 			else if (Key == TEXT("Classes"))           { bOk = ParseArrayOf(Reader, Out.Classes, &ParseClassEntry); }
+			else if (Key == TEXT("Ballast"))           { bOk = ParseArrayOf(Reader, Out.Ballast, &ParseDriverBallast); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -3726,7 +3754,8 @@ namespace ApexProtocol
 		EApexQualifyingFormat QualifyingFormat,
 		int32 QualifyingLapAllowance,
 		const FApexRaceRules& RaceRules,
-		const TArray<FApexClassEntry>& Classes)
+		const TArray<FApexClassEntry>& Classes,
+		const TArray<FApexDriverBallast>& Ballast)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -3752,11 +3781,23 @@ namespace ApexProtocol
 		const bool bRules = !Rules.IsDefault();
 		// A field of one class is the plain field: its list stays off.
 		const bool bClasses = Classes.Num() >= 2;
+		// Ballast by driver as the server keeps it: no blank reference, no
+		// zero mass, none over the most.
+		TArray<FApexDriverBallast> Weights;
+		for (const FApexDriverBallast& Entry : Ballast)
+		{
+			const FString Driver = Entry.Driver.TrimStartAndEnd();
+			if (!Driver.IsEmpty() && Entry.Kg > 0 && Weights.Num() < FApexDriverBallast::MaxEntries)
+			{
+				Weights.Add({Driver, FMath::Min(Entry.Kg, FApexDriverBallast::MaxKg)});
+			}
+		}
+		const bool bBallast = !Weights.IsEmpty();
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
 			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0)
 			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0) + (bRules ? 1 : 0)
-			+ (bClasses ? 1 : 0));
+			+ (bClasses ? 1 : 0) + (bBallast ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -3981,6 +4022,20 @@ namespace ApexProtocol
 					Writer.WriteString("ai_skill");
 					Writer.WriteUInt(static_cast<uint8>(Level));
 				}
+			}
+		}
+		if (bBallast)
+		{
+			// Ballast by driver, after the classes as the server's struct has it.
+			Writer.WriteString("ballast");
+			Writer.WriteArrayHeader(Weights.Num());
+			for (const FApexDriverBallast& Entry : Weights)
+			{
+				Writer.WriteMapHeader(2);
+				Writer.WriteString("driver");
+				Writer.WriteString(Entry.Driver);
+				Writer.WriteString("kg");
+				Writer.WriteUInt(static_cast<uint32>(Entry.Kg));
 			}
 		}
 		return MoveTemp(Writer.GetBuffer());

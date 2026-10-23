@@ -416,6 +416,17 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("tyre rules described"), Tyres.Describe(),
 			FString(TEXT("3 qualifying sets · top 10 start on qualifying tyres · 8 weekend sets · parc fermé · stints 25 laps or 65 min")));
 		TestEqual(TEXT("minutes alone"), FApexRaceRules::DescribeStints(0, 45), FString(TEXT("stints 45 min")));
+
+		// Ballast by driver: after the classes; a blank or empty entry is
+		// not sent.
+		const TArray<FApexDriverBallast> Ballast = { {TEXT("@host"), 30}, {TEXT(" "), 10}, {TEXT("@ai:1"), 15}, {TEXT("@ai:2"), 0} };
+		CheckBytes(TEXT("CreateSession with ballast by driver"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Practice,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 0, false,
+				EApexQualifyingFormat::Open, 0, FApexRaceRules(), TArray<FApexClassEntry>(), Ballast),
+			ApexGolden::C_CreateSessionBallast);
 	}
 	{
 		// A weekend whose practice and qualifying name their own damage rule.
@@ -854,6 +865,19 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestFalse(TEXT("RaceRules.bPitExitPenalty"), Joined.RaceRules.bPitExitPenalty);
 			TestEqual(TEXT("RaceRules.SafetyCar"), Joined.RaceRules.SafetyCar, EApexSafetyCar::Off);
 			TestEqual(TEXT("RaceRules.ReverseGrid"), static_cast<int32>(Joined.RaceRules.ReverseGrid), 0);
+		}
+	}
+
+	{
+		// Ballast by driver, echoed.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined with ballast"), ApexGolden::S_SessionJoinedBallast, Joined)
+			&& TestEqual(TEXT("two drivers ballasted"), Joined.Ballast.Num(), 2))
+		{
+			TestEqual(TEXT("the host"), Joined.Ballast[0].Driver, FString(TEXT("@host")));
+			TestEqual(TEXT("30 kg"), Joined.Ballast[0].Kg, 30);
+			TestEqual(TEXT("the first AI"), Joined.Ballast[1].Driver, FString(TEXT("@ai:1")));
+			TestEqual(TEXT("15 kg"), Joined.Ballast[1].Kg, 15);
 		}
 	}
 

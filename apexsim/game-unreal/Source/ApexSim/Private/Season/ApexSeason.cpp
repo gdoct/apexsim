@@ -43,6 +43,29 @@ namespace ApexSeason
 		}
 	}
 
+	const TArray<int32>& BallastTable(EApexSuccessBallast Preset)
+	{
+		static const TArray<int32> None;
+		static const TArray<int32> Light = {30, 20, 10};
+		static const TArray<int32> Heavy = {75, 57, 48, 39, 30, 21, 15, 9, 3};
+		switch (Preset)
+		{
+		case EApexSuccessBallast::Light: return Light;
+		case EApexSuccessBallast::Heavy: return Heavy;
+		default:                         return None;
+		}
+	}
+
+	FString BallastName(EApexSuccessBallast Preset)
+	{
+		switch (Preset)
+		{
+		case EApexSuccessBallast::Light: return TEXT("Light ballast: 30-20-10 kg");
+		case EApexSuccessBallast::Heavy: return TEXT("Heavy ballast: 75 kg down to 3");
+		default:                         return FString();
+		}
+	}
+
 	namespace
 	{
 		/** Ahead by points, then wins, seconds, thirds..., then by key. */
@@ -226,5 +249,25 @@ namespace ApexSeason
 			Summary.YourPoints = Standings[Mine].Points;
 		}
 		return Summary;
+	}
+
+	TArray<FApexDriverBallast> Ballast(const FApexSeason& Season)
+	{
+		TArray<FApexDriverBallast> Out;
+		const TArray<int32>& Table = BallastTable(Season.Ballast);
+		if (Table.IsEmpty() || Season.RoundsDone() == 0)
+		{
+			return Out;
+		}
+		const TArray<FStanding> Standings = DriverStandings(Season);
+		for (int32 Place = 0; Place < Standings.Num() && Place < Table.Num(); ++Place)
+		{
+			const FStanding& Driver = Standings[Place];
+			if (Driver.Points > 0)
+			{
+				Out.Add({Driver.bYou ? FString(TEXT("@host")) : Driver.Key, Table[Place]});
+			}
+		}
+		return Out;
 	}
 }

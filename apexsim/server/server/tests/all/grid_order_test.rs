@@ -127,6 +127,7 @@ async fn the_hosts_start_order_grids_the_race() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -240,6 +241,7 @@ async fn a_driver_reference_grids_the_profile() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -350,6 +352,86 @@ async fn stored_qualifying_results_are_listed_per_track() {
         assert_eq!(listed.results.len(), 2);
         assert_eq!(listed.results[0].entries[0].name, "New");
         let _ = std::fs::remove_dir_all(&records_dir);
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}
+
+/// Ballast by driver on create: the host's and the first AI's cars carry
+/// it, the second AI's does not, and `SessionJoined` echoes the list.
+#[tokio::test]
+async fn ballast_by_driver_weighs_the_cars_it_names() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let records_dir =
+            std::env::temp_dir().join(format!("apexsim-grid-{}", uuid::Uuid::new_v4()));
+        let server = common::start_test_server_with_records(&records_dir).await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        let ballast = vec![
+            DriverBallast {
+                driver: "@host".into(),
+                kg: 30,
+            },
+            DriverBallast {
+                driver: "@ai:1".into(),
+                kg: 15,
+            },
+        ];
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 4,
+            ai_count: 2,
+            lap_limit: 3,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            classes: Vec::new(),
+            ballast: ballast.clone(),
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+        assert_eq!(joined.ballast, ballast, "the list echoed");
+
+        let state = server.state.read().await;
+        let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        let mass = |id| {
+            session
+                .simulated_config_for(id)
+                .map(|c| c.mass_kg)
+                .unwrap_or_default()
+        };
+        let base = state.car_configs.get(&car_id).ok_or("no car")?.mass_kg;
+        let ai = &session.session.ai_player_ids;
+        assert_eq!(mass(&session.session.host_player_id), base + 30.0);
+        assert_eq!(session.ballast_kg(&ai[0]), 15);
+        assert_eq!(session.ballast_kg(&ai[1]), 0);
         Ok::<(), Box<dyn std::error::Error>>(())
     })
     .await;

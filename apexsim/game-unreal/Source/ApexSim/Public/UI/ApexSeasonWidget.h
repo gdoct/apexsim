@@ -34,7 +34,7 @@ public:
 	virtual bool WantsLiveBackdrop() const override { return false; }
 
 	/** The setup's laps, field and rounds, as `apexsim.season.Setup` sets them. */
-	void SetSetup(int32 InLaps, int32 InAi, int32 InRounds, const FString& FirstStem = FString());
+	void SetSetup(int32 InLaps, int32 InAi, int32 InRounds, const FString& FirstStem = FString(), int32 InBallast = 0);
 	/** The main button, as `apexsim.season.Race` presses it. */
 	void PressPrimary();
 
@@ -79,6 +79,8 @@ private:
 	int32 AiCount = 11;
 	int32 AiSkill = -1;
 	int32 DropRounds = 0;
+	/** EApexSuccessBallast. */
+	int32 BallastIndex = 0;
 
 	/** Round 1's circuit as `apexsim.season.Setup` named it; empty for the spread's. */
 	FString FirstTrackOverride;

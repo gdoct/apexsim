@@ -54,7 +54,6 @@ takes it up (— : no step, taken opportunistically).
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
-| N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each | — |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
@@ -328,7 +327,6 @@ and car, points preset, drop rounds, drivers' and cars' standings, saved in
 the profile; its screens judged good from the `n7-season` shots).
 **Left:** league seasons online, on R3's persistence (phase 2) and the
 proved driver ids (phase 1, built); a fastest-lap point; per-round rules.
-N17's ballast by championship position can now read the offline standings.
 
 #### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.
@@ -423,13 +421,6 @@ for a seed.
 Short challenges built on the racing line, track guide and corner data:
 brake at a board, take a corner under a target, a clean lap under time.
 Medals unlock nothing at first. 🟡: difficulty needs play-testing.
-
-#### N17. League rules: success ballast — P3 · 🟢 · S each
-Built: the reverse top-N grid (`race_rules.reverse_grid`, server only like
-the other race rules) and balance of performance per car as server.toml
-`[[balance]]` tables (ballast, power, downforce; a server's call, as in
-ACC's bop.json, so no wire). Left: ballast by championship position (needs
-N7), and the create screen's rows (follow-ups #20).
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).

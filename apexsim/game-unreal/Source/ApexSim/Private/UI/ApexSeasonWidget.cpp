@@ -33,6 +33,7 @@ namespace
 	const FName StepAi(TEXT("Season.Ai"));
 	const FName StepLevel(TEXT("Season.Level"));
 	const FName StepDrops(TEXT("Season.Drops"));
+	const FName StepBallast(TEXT("Season.Ballast"));
 
 	constexpr float SeasonCardWidth = 1240.0f;
 	/** The AI level stepper: 0 the mixed field, then ApexAiSkill::Min upwards by this. */
@@ -63,13 +64,13 @@ namespace
 	}
 
 	FAutoConsoleCommandWithWorldAndArgs SeasonSetupCommand(TEXT("apexsim.season.Setup"),
-		TEXT("apexsim.season.Setup <laps> <ai> <rounds> [first track stem]: the Season screen's setup, for unattended runs."),
+		TEXT("apexsim.season.Setup <laps> <ai> <rounds> [first track stem, - for the spread's] [ballast 0-2]: the Season screen's setup, for unattended runs."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
 			if (UApexSeasonWidget* Screen = SeasonScreenOf(World); Screen && Args.Num() >= 3)
 			{
 				Screen->SetSetup(FCString::Atoi(*Args[0]), FCString::Atoi(*Args[1]), FCString::Atoi(*Args[2]),
-					Args.Num() >= 4 ? Args[3] : FString());
+					Args.Num() >= 4 && Args[3] != TEXT("-") ? Args[3] : FString(), Args.Num() >= 5 ? FCString::Atoi(*Args[4]) : 0);
 			}
 		}));
 
@@ -84,8 +85,9 @@ namespace
 		}));
 }
 
-void UApexSeasonWidget::SetSetup(int32 InLaps, int32 InAi, int32 InRounds, const FString& FirstStem)
+void UApexSeasonWidget::SetSetup(int32 InLaps, int32 InAi, int32 InRounds, const FString& FirstStem, int32 InBallast)
 {
+	BallastIndex = FMath::Clamp(InBallast, 0, 2);
 	Laps = FMath::Clamp(InLaps, 2, 40);
 	AiCount = FMath::Clamp(InAi, 1, MaxField);
 	RoundCount = FMath::Max(1, InRounds);
@@ -278,6 +280,7 @@ FApexSeason UApexSeasonWidget::SeasonFromSetup() const
 	Season.AiCount = AiCount;
 	Season.AiSkill = AiSkill;
 	Season.DropRounds = DropRounds;
+	Season.Ballast = static_cast<EApexSuccessBallast>(FMath::Clamp(BallastIndex, 0, 2));
 	for (const FString& Track : ApexSeason::SpreadCalendar(TrackIds, RoundCount))
 	{
 		Season.Rounds.AddDefaulted_GetRef().TrackId = Track;
@@ -361,6 +364,8 @@ void UApexSeasonWidget::RebuildSetup()
 	AddStepper(TEXT("AI level"), StepLevel, 0, IndexOfLevel(ApexAiSkill::Max), IndexOfLevel(AiSkill),
 		[](int32 V) { const int32 L = LevelOf(V); return L < 0 ? FString(TEXT("Mixed")) : FString::Printf(TEXT("%s %d"), ApexAiSkill::Label(L), L); });
 	AddStepper(TEXT("Dropped rounds"), StepDrops, 0, 3, DropRounds, [](int32 V) { return V == 0 ? FString(TEXT("None")) : FString::Printf(TEXT("Worst %d"), V); });
+	AddStepper(TEXT("Success ballast"), StepBallast, 0, 2, BallastIndex,
+		[](int32 V) { return V == 1 ? FString(TEXT("Light")) : V == 2 ? FString(TEXT("Heavy")) : FString(TEXT("None")); });
 
 	// The calendar the steppers make.
 	const FApexSeason Preview = SeasonFromSetup();
@@ -375,6 +380,10 @@ void UApexSeasonWidget::RebuildSetup()
 		AddV(RightColumn, Line, FMargin(0.0f, 3.0f));
 	}
 	AddV(RightColumn, MakeText(*WidgetTree, ApexSeason::PresetName(Preview.Points).ToUpper(), Font::Mono(11.0f), Palette::TextMuted), FMargin(0.0f, 14.0f, 0.0f, 0.0f));
+	if (const FString Ballast = ApexSeason::BallastName(Preview.Ballast); !Ballast.IsEmpty())
+	{
+		AddV(RightColumn, MakeText(*WidgetTree, (Ballast + TEXT(", by the standings into each round")).ToUpper(), Font::Mono(11.0f), Palette::TextMuted), FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+	}
 }
 
 void UApexSeasonWidget::RebuildActive()
@@ -390,7 +399,8 @@ void UApexSeasonWidget::RebuildActive()
 		FMath::Min(Season.RoundsDone() + 1, Season.Rounds.Num()), Season.Rounds.Num(), *Car.DisplayName.ToUpper(), Season.AiCount,
 		*FString(Season.AiSkill < 0 ? TEXT("MIXED") : ApexAiSkill::Label(Season.AiSkill)).ToUpper(), Season.Laps,
 		*ApexSeason::PresetName(Season.Points).ToUpper(),
-		Season.DropRounds > 0 ? *FString::Printf(TEXT("  ·  WORST %d DROPPED"), Season.DropRounds) : TEXT(""))));
+		*(FString(Season.DropRounds > 0 ? *FString::Printf(TEXT("  ·  WORST %d DROPPED"), Season.DropRounds) : TEXT(""))
+			+ (Season.Ballast != EApexSuccessBallast::None ? FString(TEXT("  ·  ")) + ApexSeason::BallastName(Season.Ballast).ToUpper() : FString())))));
 	EndButton->SetVisibility(ESlateVisibility::Visible);
 	EndButton->SetLabel(bEndArmed ? TEXT("Press again to end") : (Season.IsFinished() ? TEXT("Close season") : TEXT("End season")));
 	PrimaryButton->SetIsEnabled(true);
@@ -429,7 +439,9 @@ void UApexSeasonWidget::RebuildActive()
 	}
 
 	// The standings.
-	auto AddTable = [this, Flow](const TCHAR* Title, const TArray<ApexSeason::FStanding>& Lines, int32 MaxLines, bool bCars)
+	// The success ballast the next round hands each driver, by place.
+	const TArray<FApexDriverBallast> Ballast = ApexSeason::Ballast(Season);
+	auto AddTable = [this, Flow, &Ballast](const TCHAR* Title, const TArray<ApexSeason::FStanding>& Lines, int32 MaxLines, bool bCars)
 	{
 		ApexUI::AddV(RightColumn, ApexUI::MakeLabel(*WidgetTree, Title), FMargin(0.0f, bCars ? 18.0f : 0.0f, 0.0f, 8.0f));
 		if (Lines.Num() == 0)
@@ -449,6 +461,11 @@ void UApexSeasonWidget::RebuildActive()
 			UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
 			ApexUI::AddH(Line, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeText(*WidgetTree, FString::FromInt(Index + 1), ApexUI::Font::Mono(13.0f), ApexUI::Palette::TextMuted), 36.0f, -1.0f), FMargin(), VAlign_Center);
 			ApexUI::AddH(Line, ApexUI::MakeText(*WidgetTree, Name.ToUpper(), ApexUI::Font::Body(15.0f), Ink), FMargin(), VAlign_Center, 1.0f);
+			if (!bCars && Ballast.IsValidIndex(Index))
+			{
+				ApexUI::AddH(Line, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeText(*WidgetTree, FString::Printf(TEXT("+%d KG"), Ballast[Index].Kg),
+					ApexUI::Font::Mono(11.0f), ApexUI::Palette::TextSecondary), 64.0f, -1.0f), FMargin(), VAlign_Center);
+			}
 			ApexUI::AddH(Line, ApexUI::MakeSized(*WidgetTree, ApexUI::MakeText(*WidgetTree, S.Wins > 0 ? FString::Printf(TEXT("%d WIN%s"), S.Wins, S.Wins == 1 ? TEXT("") : TEXT("S")) : FString(), ApexUI::Font::Mono(11.0f), ApexUI::Palette::TextSecondary), 80.0f, -1.0f), FMargin(), VAlign_Center);
 			UTextBlock* Points = ApexUI::MakeText(*WidgetTree, FString::FromInt(S.Points), ApexUI::Font::Mono(15.0f), Ink);
 			Points->SetJustification(ETextJustify::Right);
@@ -475,6 +492,7 @@ void UApexSeasonWidget::HandleStepperChanged(UApexStepperWidget* Control, int32 
 	else if (Id == StepAi)     { AiCount = Value; }
 	else if (Id == StepLevel)  { AiSkill = LevelOf(Value); }
 	else if (Id == StepDrops)  { DropRounds = Value; }
+	else if (Id == StepBallast) { BallastIndex = Value; }
 	// The class changes the car list, and everything the calendar: build again,
 	// keeping the pad on the control it was on.
 	const int32 Focused = Steppers.IndexOfByKey(Control);
@@ -508,9 +526,13 @@ void UApexSeasonWidget::RaceNextRound()
 	// The race counts in on join, as the main menu's Start session does.
 	Flow->bAutoStartOnJoin = true;
 	Flow->AutoStartMode = EApexGameMode::Race;
-	UE_LOG(LogApexSim, Log, TEXT("Season round %d: track '%s', %d AI, %d laps"), Round + 1, *Season.Rounds[Round].TrackId, Season.AiCount, Season.Laps);
-	Net->CreateSession(Season.Rounds[Round].TrackId, Season.AiCount + 1, Season.AiCount, Season.Laps, EApexSessionKind::Practice,
-		Flow->CreateAllowedAssists, Flow->CreateConditions, Flow->CreateDamage, Season.AiSkill, 0);
+	// Success ballast by the standings so far, handed to the session.
+	const TArray<FApexDriverBallast> Ballast = ApexSeason::Ballast(Season);
+	UE_LOG(LogApexSim, Log, TEXT("Season round %d: track '%s', %d AI, %d laps, %d driver(s) ballasted"), Round + 1,
+		*Season.Rounds[Round].TrackId, Season.AiCount, Season.Laps, Ballast.Num());
+	Net->CreateSessionWithOrder(Season.Rounds[Round].TrackId, Season.AiCount + 1, Season.AiCount, Season.Laps, EApexSessionKind::Practice,
+		Flow->CreateAllowedAssists, Flow->CreateConditions, Flow->CreateDamage, Season.AiSkill, 0, TArray<FString>(), 0, FApexWeekendFormat(),
+		0, 0, false, EApexQualifyingFormat::Open, 0, FApexRaceRules(), TArray<FApexClassEntry>(), Ballast);
 }
 
 void UApexSeasonWidget::HandleButtonActivated(UApexButtonWidget* Button)

@@ -296,8 +296,10 @@ A season against the AI, saved in the driver profile
   for the season), rounds (spread evenly over the circuits sorted by name,
   `ApexSeason::SpreadCalendar`), points (Modern 25-18-15...1, Classic
   10-6-4-3-2-1, Deep field 50 down to 1), laps, AI drivers, AI level,
-  dropped rounds. The AI are named by seat on the server, so the same field
-  size keeps the same drivers round to round.
+  dropped rounds, success ballast (None; Light 30-20-10 kg; Heavy 75, 57,
+  48, 39, 30, 21, 15, 9, 3 kg: `EApexSuccessBallast`,
+  `ApexSeason::BallastTable`). The AI are named by seat on the server, so
+  the same field size keeps the same drivers round to round.
 - **Under way**: the calendar (each raced round's winner and the player's
   place), the drivers' standings (points after drops, then wins, seconds...,
   the player one driver under any name) and the cars' standings (every
@@ -305,6 +307,11 @@ A season against the AI, saved in the driver profile
   the season's car as pending, creates a Practice-kind race with the
   season's field and laps (the profile's conditions, assists and damage)
   and counts it in on join; the race opens on its grid, as any race does.
+  Under success ballast the session is created with each scoring driver's
+  weight by their place in the drivers' standings so far
+  (`ApexSeason::Ballast`: the player as `@host`, an AI by its name;
+  `CreateSession.ballast`, [sessions.md](../server/sessions.md#session-rules-set-on-create));
+  the drivers' table shows each one's "+30 KG" for the next round.
   End season is pressed twice.
 - **Filing**: `UApexSessionRecorder::FinishRecording` hands a race that
   took the flag on the running round's circuit to
@@ -312,7 +319,8 @@ A season against the AI, saved in the driver profile
   classified, and its car from the roster). A race left before the flag
   files nothing; the round stays next.
 
-Unattended: `apexsim.season.Setup <laps> <ai> <rounds> [first stem]` and
+Unattended: `apexsim.season.Setup <laps> <ai> <rounds> [first stem, - for
+the spread's] [ballast 0-2]` and
 `apexsim.season.Race` drive the screen (`n7-season` in the verify runs).
 Checks: `ApexSim.Season.*`.
 

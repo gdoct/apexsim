@@ -16,7 +16,7 @@ use crate::racing_line;
 use crate::session_wire::SessionWire;
 use crate::transport::{ConnectionInfo, TransportEvent};
 use std::collections::HashMap;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Entry point for one drained transport event.
 pub(crate) async fn handle_event(
@@ -107,6 +107,7 @@ pub(crate) async fn handle_message(
             qualifying_lap_allowance,
             race_rules,
             classes,
+            ballast,
         } => {
             handle_create_session(
                 ctx,
@@ -129,6 +130,7 @@ pub(crate) async fn handle_message(
                 (qualifying_format, qualifying_lap_allowance),
                 race_rules,
                 classes,
+                ballast,
             )
             .await;
         }
@@ -395,6 +397,7 @@ async fn handle_create_session(
     (qualifying_format, qualifying_lap_allowance): (crate::data::QualifyingFormat, u8),
     race_rules: crate::data::RaceRules,
     classes: Vec<ClassEntry>,
+    ballast: Vec<crate::data::DriverBallast>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -496,6 +499,20 @@ async fn handle_create_session(
         game_session.set_qualifying_format(qualifying_format);
         game_session.set_qualifying_lap_allowance(qualifying_lap_allowance);
         game_session.set_race_rules(race_rules);
+        game_session.set_ballast(ballast);
+        if !game_session.session.ballast.is_empty() {
+            info!(
+                "Session {} ballast by driver: {}",
+                session_id,
+                game_session
+                    .session
+                    .ballast
+                    .iter()
+                    .map(|b| format!("{} {} kg", b.driver, b.kg))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
         game_session.set_driver_id(conn_info.player_id, conn_info.driver_id);
     }
@@ -612,6 +629,7 @@ async fn handle_create_session(
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
         let classes = game_session.session.classes.clone();
+        let ballast = game_session.session.ballast.clone();
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
@@ -645,6 +663,7 @@ async fn handle_create_session(
                     race_rules,
                     physics: Some(physics),
                     classes,
+                    ballast,
                 }),
             )
             .await;
@@ -820,6 +839,7 @@ pub(crate) async fn handle_join_session(
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
         let classes = game_session.session.classes.clone();
+        let ballast = game_session.session.ballast.clone();
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
@@ -853,6 +873,7 @@ pub(crate) async fn handle_join_session(
                     race_rules,
                     physics: Some(physics),
                     classes,
+                    ballast,
                 }),
             )
             .await;
@@ -937,6 +958,7 @@ async fn rejoin_session(
                     .as_deref(),
             )
         }),
+        ballast: game_session.session.ballast.clone(),
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());
@@ -1172,7 +1194,7 @@ pub(crate) async fn handle_join_as_spectator(
         (
             qualifying_cutoff_pct,
             pit_rule,
-            (qualifying_format, qualifying_lap_allowance, race_rules, classes),
+            (qualifying_format, qualifying_lap_allowance, race_rules, classes, ballast),
         ),
         phase_states,
         sectors,
@@ -1195,7 +1217,7 @@ pub(crate) async fn handle_join_as_spectator(
             (
                 qualifying_cutoff_pct,
                 pit_rule,
-                (qualifying_format, qualifying_lap_allowance, race_rules, classes),
+                (qualifying_format, qualifying_lap_allowance, race_rules, classes, ballast),
             ),
             phase_states,
             sectors,
@@ -1226,6 +1248,7 @@ pub(crate) async fn handle_join_as_spectator(
                             s.session.qualifying_lap_allowance,
                             s.session.race_rules,
                             s.session.classes.clone(),
+                            s.session.ballast.clone(),
                         ),
                     ),
                     s.phase_state_messages(),
@@ -1256,6 +1279,7 @@ pub(crate) async fn handle_join_as_spectator(
                     qualifying_lap_allowance,
                     race_rules,
                     classes,
+                    ballast,
                 ),
             ),
             phase_states,
@@ -1291,6 +1315,7 @@ pub(crate) async fn handle_join_as_spectator(
                     race_rules,
                     physics: None,
                     classes,
+                    ballast,
                 }),
             )
             .await;

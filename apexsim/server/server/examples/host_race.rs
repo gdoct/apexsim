@@ -115,6 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         },
     )
     .await?;

@@ -351,6 +351,28 @@ STINTS 20 LAPS"). `-ApexAutoRace` takes `-ApexQualifyingTyreSets=N`,
 `-ApexQualifyingTyreStart=N`, `-ApexWeekendTyreSets=N`, `-ApexParcFerme`,
 `-ApexMaxStintLaps=N` and `-ApexMaxStintMinutes=N`.
 
+**Ballast by driver**: `ballast` (`Vec<data::DriverBallast { driver, kg
+}>`, left off the wire when empty; echoed in `SessionJoined.Ballast`): a
+league's success ballast by championship position, as the client's
+offline season hands it to each round. `driver` is a start-order
+reference (`@host`, `@ai:N`, `@driver:UUID` or a name, resolved by
+`grid_order::resolve_each` as the start order's are: each reference one
+driver, the first listing of a driver wins), `kg` the mass added at the
+car's centre of gravity as a `[[balance]]` table's `ballast_kg` is
+(`balance::CarBalance::apply`). `data::sanitize_ballast` drops blank
+references and zero masses and holds a mass to `MAX_DRIVER_BALLAST_KG`
+(300) and the list to 64. `GameSession::set_ballast` keeps the list and
+`apply_ballast` puts it on the drivers seated, again whenever one is
+seated, named or given a profile id (a human joins after create);
+`retune` bakes a driver's setup and then their ballast into their tuned
+copy (`simulated_config_for`), so physics, tyres and fuel see the heavier
+car. The AI's speed plans and the racing line are built on the car as
+loaded, not on its ballast. Without a list nothing runs (the tuned
+copies are as before). `GameSession::ballast_kg` reads it back. A
+server's own balance of performance, by car, is server.toml's
+`[[balance]]` ([operations](operations.md)); this is the host's, by
+driver.
+
 ## Tyre sets
 
 Without a tyre rule every run goes out on a new set: the garage, the grid

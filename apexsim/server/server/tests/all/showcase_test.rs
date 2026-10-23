@@ -335,6 +335,7 @@ async fn a_showcase_is_played_to_everyone_on_one_clock() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await;
     first

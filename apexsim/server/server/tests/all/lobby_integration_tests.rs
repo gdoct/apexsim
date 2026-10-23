@@ -107,6 +107,7 @@ impl LobbyTestClient {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
 
         self.send_message(&msg).await?;

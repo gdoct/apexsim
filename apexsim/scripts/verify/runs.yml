@@ -7760,3 +7760,47 @@ runs:
       - {at: 45, label: "outlaps", checks: "QUALIFYING heads the panel; NO TIME on every row"}
       - {at: 150, label: "first timed laps in", checks: "rows by best lap: pole's time, the others' +gaps, untimed cars last"}
       - {at: 240, label: "later", checks: "the order follows the best laps, not who is ahead on the road; Ahead/Behind gaps in lap time"}
+
+  # An offline season under light success ballast: round 1 raced and filed,
+  # then round 2 made with the standings' top three carrying 30, 20 and 10
+  # kg. Writes the profile's season: back up Saved/SaveGames first.
+  - id: r4c-season-ballast
+    about: "N17. Offline season: success ballast by championship position"
+    server:
+      stand_in: true
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=12
+    exec:
+      3: ["apexsim.season.Setup 2 5 3 Zandervoort 1"]
+      8: ["apexsim.season.Race"]
+      12: ["apexsim.season.Race"]
+      40: ["apexsim.ui.Click Ready"]
+      330: ["apexsim.ui.Texts"]
+    shots:
+      - at: 6
+        label: "Season setup: Success ballast Light"
+        checks: "the Success ballast stepper on Light; LIGHT BALLAST: 30-20-10 KG under the calendar"
+      - at: 320
+        label: "after round 1's flag"
+        checks: "the round filed"
+
+  - id: r4c-season-ballast-round2
+    about: "N17. Offline season: round 2 under the standings' ballast"
+    # Right after r4c-season-ballast, on the profile it wrote. The server
+    # log names the ballast ("ballast by driver: <leader> 30 kg, ...").
+    server:
+      stand_in: true
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=12
+    exec:
+      8: ["apexsim.season.Race"]
+      40: ["apexsim.ui.Click Ready"]
+    shots:
+      - at: 6
+        label: "Season after round 1"
+        checks: "the drivers' table: +30 KG, +20 KG, +10 KG beside the top three; LIGHT BALLAST in the status line"
+      - at: 30
+        label: "Round 2's grid"
+        checks: "the server log's ballast line for this session"

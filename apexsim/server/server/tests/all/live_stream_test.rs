@@ -119,6 +119,7 @@ async fn a_live_session_is_watched_as_a_stream_and_recorded() {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

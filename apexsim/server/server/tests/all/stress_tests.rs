@@ -514,6 +514,7 @@ impl TestClientMinimal {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             classes: Vec::new(),
+            ballast: Vec::new(),
         };
         self.send_message(&msg).await?;
 
@@ -876,6 +877,7 @@ async fn run_multi_client_test(
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
         classes: Vec::new(),
+        ballast: Vec::new(),
     };
     clients[0].send_message(&create_msg).await?;
 

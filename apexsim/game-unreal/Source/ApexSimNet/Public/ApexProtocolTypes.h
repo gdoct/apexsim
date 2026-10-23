@@ -216,6 +216,25 @@ struct APEXSIMNET_API FApexClassEntry
 };
 
 /**
+ * Ballast a driver carries in a session, as CreateSession's `ballast` and
+ * SessionJoined's `Ballast` carry it (data.rs `DriverBallast`): a
+ * start-order reference (`@host`, `@ai:N`, `@driver:UUID` or a name) and
+ * kg added at the car's centre of gravity. The offline season's success
+ * ballast by championship position (ApexSeason::Ballast).
+ */
+struct APEXSIMNET_API FApexDriverBallast
+{
+	FString Driver;
+	int32 Kg = 0;
+
+	/** `MAX_DRIVER_BALLAST_KG`, `MAX_DRIVER_BALLAST_ENTRIES`. */
+	static constexpr int32 MaxKg = 300;
+	static constexpr int32 MaxEntries = 64;
+
+	bool operator==(const FApexDriverBallast& Other) const { return Driver == Other.Driver && Kg == Other.Kg; }
+};
+
+/**
  * A timed race's length, as CreateSession's `race_seconds`, SessionJoined's
  * `RaceSeconds` and SessionSummary's `RaceSeconds` carry it (data.rs
  * `clamp_race_seconds`): seconds from the green light, 0 for a race over
@@ -4085,6 +4104,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexSessionPhysics Physics;
 	/** SessionJoined::Classes, a multi-class field's classes, the quickest first; empty for a field of one class. */
 	TArray<FApexClassEntry> Classes;
+	/** SessionJoined::Ballast, ballast by driver as the server keeps it; empty for none. */
+	TArray<FApexDriverBallast> Ballast;
 	/**
 	 * SessionJoined::Conditions as the server wrote them (MessagePack, named):
 	 * what the physics library's apx_track_load bakes, every field kept,

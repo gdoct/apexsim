@@ -71,45 +71,77 @@ pub fn resolve(
 ) -> Vec<Option<PlayerId>> {
     let mut by_slot: Vec<&Seated> = drivers.iter().collect();
     by_slot.sort_by_key(|d| (d.grid_position, d.id));
-    let seated = |id: &PlayerId| drivers.iter().any(|d| d.id == *id);
     let mut slots: Vec<Option<PlayerId>> = Vec::with_capacity(drivers.len());
     for reference in refs {
-        let claimed = |id: &PlayerId| slots.contains(&Some(*id));
-        // The host and an AI car are one driver each: named twice, the
-        // second is skipped. Not here, their slot stays empty.
-        let one = |id: PlayerId| (!claimed(&id)).then_some(Some(id).filter(seated));
-        let slot = if reference == HOST_REF {
-            one(host)
-        } else if let Some(n) = reference.strip_prefix("@ai:") {
-            // A reference to no car of this session names nobody.
-            n.parse::<usize>()
-                .ok()
-                .and_then(|n| n.checked_sub(1))
-                .and_then(|i| ai_ids.get(i).copied())
-                .and_then(one)
-        } else if let Some(id) = reference.strip_prefix("@driver:") {
-            // A profile that is not here, or no id at all, leaves its slot
-            // empty, as a name nobody has does.
-            let id = DriverId::parse_str(id).ok();
-            Some(
-                by_slot
-                    .iter()
-                    .find(|d| id.is_some() && d.driver == id && !claimed(&d.id))
-                    .map(|d| d.id),
-            )
-        } else {
-            Some(
-                by_slot
-                    .iter()
-                    .find(|d| d.name == *reference && !claimed(&d.id))
-                    .map(|d| d.id),
-            )
-        };
-        if let Some(slot) = slot {
+        if let Some(slot) = lookup(&by_slot, host, ai_ids, reference, &slots) {
             slots.push(slot);
         }
     }
     complete(&by_slot, slots)
+}
+
+/// The driver each of `refs` names, one for one (`None` for a reference to
+/// nobody here, or to a driver an earlier one claimed), by the rules of
+/// [`resolve`]: what a list keyed by driver, such as a season's ballast,
+/// reads its drivers by.
+pub fn resolve_each(
+    drivers: &[Seated],
+    host: PlayerId,
+    ai_ids: &[PlayerId],
+    refs: &[String],
+) -> Vec<Option<PlayerId>> {
+    let mut by_slot: Vec<&Seated> = drivers.iter().collect();
+    by_slot.sort_by_key(|d| (d.grid_position, d.id));
+    let mut claimed: Vec<Option<PlayerId>> = Vec::with_capacity(refs.len());
+    for reference in refs {
+        let slot = lookup(&by_slot, host, ai_ids, reference, &claimed).flatten();
+        claimed.push(slot);
+    }
+    claimed
+}
+
+/// The slot one reference takes: `Some(Some(id))` a driver here,
+/// `Some(None)` a driver who is not here (their slot stays empty), `None` a
+/// reference to no car at all (`@ai:N` past the session's AI: skipped).
+fn lookup(
+    by_slot: &[&Seated],
+    host: PlayerId,
+    ai_ids: &[PlayerId],
+    reference: &str,
+    claimed: &[Option<PlayerId>],
+) -> Option<Option<PlayerId>> {
+    let is_claimed = |id: &PlayerId| claimed.contains(&Some(*id));
+    let seated = |id: &PlayerId| by_slot.iter().any(|d| d.id == *id);
+    // The host and an AI car are one driver each: named twice, the
+    // second is skipped. Not here, their slot stays empty.
+    let one = |id: PlayerId| (!is_claimed(&id)).then_some(Some(id).filter(seated));
+    if reference == HOST_REF {
+        one(host)
+    } else if let Some(n) = reference.strip_prefix("@ai:") {
+        // A reference to no car of this session names nobody.
+        n.parse::<usize>()
+            .ok()
+            .and_then(|n| n.checked_sub(1))
+            .and_then(|i| ai_ids.get(i).copied())
+            .and_then(one)
+    } else if let Some(id) = reference.strip_prefix("@driver:") {
+        // A profile that is not here, or no id at all, leaves its slot
+        // empty, as a name nobody has does.
+        let id = DriverId::parse_str(id).ok();
+        Some(
+            by_slot
+                .iter()
+                .find(|d| id.is_some() && d.driver == id && !is_claimed(&d.id))
+                .map(|d| d.id),
+        )
+    } else {
+        Some(
+            by_slot
+                .iter()
+                .find(|d| d.name == *reference && !is_claimed(&d.id))
+                .map(|d| d.id),
+        )
+    }
 }
 
 /// `first` followed by every other driver in `by_slot` order, with no
@@ -160,6 +192,26 @@ mod tests {
         let all = vec![a.clone(), b.clone(), c.clone(), d.clone()];
         let got = resolve(&all, a.id, &[], &["Cy".into(), "Di".into()]);
         assert_eq!(got, ids(&[c.id, d.id, a.id, b.id]));
+    }
+
+    #[test]
+    fn each_reference_resolves_one_for_one() {
+        let (h, x, y) = (seat("Host", 1), seat("Max", 2), seat("Max", 3));
+        let all = vec![h.clone(), x.clone(), y.clone()];
+        let got = resolve_each(
+            &all,
+            h.id,
+            &[x.id, y.id],
+            &[
+                "@ai:2".into(),
+                "@ai:9".into(),
+                "Max".into(),
+                "@host".into(),
+                "@host".into(),
+            ],
+        );
+        // An AI past the field and a second listing name nobody, in place.
+        assert_eq!(got, vec![Some(y.id), None, Some(x.id), Some(h.id), None]);
     }
 
     #[test]
