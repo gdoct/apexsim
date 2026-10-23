@@ -280,8 +280,6 @@ the launcher import with the network off.
   full dip (`RoadState::bin_depth`) on a 12 m road. Judge the sheets; if
   it is too much, narrow the half-widths in `road_state.rs` (a sim change:
   AI survey).
-- The chase-near camera behind the Bugotti Chiffon showed a dark blur
-  filling the frame once (snow run, 2026-10-15): the camera inside a body.
 - A D3D12 GPU crash (`Error_DMA_PageFault`, Aftermath "MMU Fault") in the
   menu backdrop at Albert Park, 2026-10-20, in the same second as the
   game's own showcase render finished on its thread (`Showcase render:

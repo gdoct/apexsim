@@ -27,6 +27,7 @@
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Race/ApexChaseBoom.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Kismet/GameplayStatics.h"
@@ -71,7 +72,7 @@ AApexRaceDirector::AApexRaceDirector()
 	Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	SetRootComponent(Root);
 
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));
+	CameraBoom = CreateDefaultSubobject<UApexChaseBoom>(TEXT("CameraBoom"));
 	CameraBoom->SetupAttachment(Root);
 	// Length, height, pitch and lag all come from the chase ladder's current
 	// rung (ApplyChaseView); these are the far rung's, so a boom that is never
@@ -1518,6 +1519,11 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	{
 		SetActorLocation(FollowedCar->GetActorLocation());
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
+		CameraBoom->SetBody(FollowedCar->GetActorTransform(), FollowedCar->GetBodyBox());
+	}
+	else
+	{
+		CameraBoom->ClearBody();
 	}
 
 	DropFailedTrack();

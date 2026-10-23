@@ -89,7 +89,16 @@ chase FOV, the spring arm's lag speeds and a lag clamp
   `-ApexCameraCycleAfter=N[,N]` with a matching `-ApexScreenshotAfter` list
   walks the whole ladder in one unattended run.
 
-Tests: `ApexSim.Camera.ChaseLadder`, `ApexSim.Camera.ChaseCycle`.
+The boom is a `UApexChaseBoom` (`Race/ApexChaseBoom.h`): after the spring
+arm has placed the camera, `ApexChase::KeepOutOfBody` lifts it straight up
+to 15 cm over the roof whenever it is within 15 cm of the followed car's
+body box (`AApexRaceCarActor::GetBodyBox`, handed in by the director each
+frame). The lag swings the camera on a sphere round a lagging origin, so a
+car that spins or stops dead could otherwise carry its own body through the
+shot. Every rung at rest is already clear of a hypercar's box.
+
+Tests: `ApexSim.Camera.ChaseLadder`, `ApexSim.Camera.ChaseCycle`,
+`ApexSim.Camera.ChaseKeepOutOfBody`; verify run `b5-chase-chiffon`.
 
 ## Pit box pose (`ApexPitCamera`, `AApexRaceDirector::UpdatePitCamera`)
 

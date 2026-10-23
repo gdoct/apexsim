@@ -35,6 +35,7 @@ class UInstancedStaticMeshComponent;
 class UStaticMeshComponent;
 class UTexture2D;
 class USpringArmComponent;
+class UApexChaseBoom;
 class UTextureRenderTarget2D;
 
 /**
@@ -399,7 +400,7 @@ protected:
 
 	/** Chase camera. Follows the local car, or car 0 if the roster has no local entry. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-	TObjectPtr<USpringArmComponent> CameraBoom;
+	TObjectPtr<UApexChaseBoom> CameraBoom;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCameraComponent> ChaseCamera;

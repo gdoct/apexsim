@@ -92,4 +92,50 @@ bool FApexChaseCycleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexChaseKeepOutOfBodyTest,
+	"ApexSim.Camera.ChaseKeepOutOfBody",
+	ApexTestFlags)
+
+bool FApexChaseKeepOutOfBodyTest::RunTest(const FString& Parameters)
+{
+	// A hypercar-sized box: 4.6 m long, 2 m wide, 1.2 m tall, origin on the ground.
+	const FBox Body(FVector(-230.0, -100.0, 0.0), FVector(230.0, 100.0, 120.0));
+	const float Clear = ApexChase::BodyClearanceCm;
+
+	// Behind the car, as every rung sits when the car drives straight: untouched.
+	const FVector Behind(-560.0, 0.0, 130.0);
+	TestEqual(TEXT("a camera behind the car stays put"), ApexChase::KeepOutOfBody(Behind, Body), Behind);
+
+	// Swung into the cabin by the lag in a spin: lifted over the roof, not moved
+	// sideways or forwards.
+	const FVector Inside(-50.0, 20.0, 80.0);
+	const FVector Lifted = ApexChase::KeepOutOfBody(Inside, Body);
+	TestEqual(TEXT("x kept"), Lifted.X, Inside.X);
+	TestEqual(TEXT("y kept"), Lifted.Y, Inside.Y);
+	TestEqual(TEXT("over the roof by the clearance"), Lifted.Z, 120.0 + Clear);
+
+	// Just outside the bodywork but inside the clearance counts as inside: a
+	// near-plane clip shows the same blur.
+	const FVector Grazing(-230.0 - Clear * 0.5, 0.0, 60.0);
+	TestEqual(TEXT("grazing the tail is lifted"), ApexChase::KeepOutOfBody(Grazing, Body).Z, 120.0 + Clear);
+
+	// No body (a car whose box is unknown) leaves the camera alone.
+	TestEqual(TEXT("no box, no change"), ApexChase::KeepOutOfBody(Inside, FBox(ForceInit)), Inside);
+
+	// Every rung, at rest behind a car this size, is already outside it, so
+	// the push only ever acts on a lagging camera.
+	for (const ApexChase::FView& View : ApexChase::Views())
+	{
+		const float Pitch = FMath::DegreesToRadians(View.PitchDeg);
+		const FVector Rest(-View.ArmLengthCm * FMath::Cos(Pitch), 0.0,
+			View.HeightCm - View.ArmLengthCm * FMath::Sin(Pitch));
+		TestEqual(FString::Printf(TEXT("%s rung at rest is clear"), View.Name),
+			ApexChase::KeepOutOfBody(Rest, Body), Rest);
+	}
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Race/ApexChaseBoom.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Race/ApexPitCamera.h"
 #include "Race/ApexRaceCarActor.h"

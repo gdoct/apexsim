@@ -47,7 +47,6 @@ takes it up (— : no step, taken opportunistically).
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 3 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
-| B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
@@ -105,11 +104,6 @@ forces over 5 s standing:` lines, then tune the one they name. Run files:
 the only prop over the road there is the T16 footbridge, a truss gantry
 with a PIRETTI banner (verify run `b13-armadillos-t15`). Needs the driver
 to point at it again (a shot or a MARK where it stands).
-
-#### B5. Chase camera inside a car body — P3 · 🟡 · S
-*Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
-ladder's offsets against the car's bounds (`game/cameras.md`); reproduce
-with `-ApexScreenshotAfter` on that car.
 
 ### Platform and stability
 

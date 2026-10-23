@@ -94,6 +94,27 @@ namespace ApexChase
 		return Level + 1;
 	}
 
+	/** How far outside the bodywork the chase camera is always kept, cm. */
+	static constexpr float BodyClearanceCm = 15.0f;
+
+	/**
+	 * The camera, in the car's own frame, lifted clear of the bodywork's box.
+	 *
+	 * The boom's lag swings the camera on a sphere round a lagging origin, so
+	 * a car that spins or stops dead can carry its own body through the shot
+	 * (a dark blur filling the frame). A point inside the box grown by the
+	 * clearance goes straight up to just over the roof, which keeps it over
+	 * the car and never sends it into the road; a point outside is unchanged.
+	 */
+	inline FVector KeepOutOfBody(const FVector& LocalPoint, const FBox& Body, float ClearanceCm = BodyClearanceCm)
+	{
+		if (!Body.IsValid || !Body.ExpandBy(ClearanceCm).IsInsideOrOn(LocalPoint))
+		{
+			return LocalPoint;
+		}
+		return FVector(LocalPoint.X, LocalPoint.Y, Body.Max.Z + ClearanceCm);
+	}
+
 	/** "roof", "far", … -> its index; -1 for "cockpit"; nothing for anything else. */
 	inline bool FindByName(const FString& Name, int32& OutLevel)
 	{

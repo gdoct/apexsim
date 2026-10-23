@@ -7148,3 +7148,56 @@ runs:
         label: "Over the T16 footbridge, high"
         checks: "B13: the bridge from above"
         exec: "apexsim.cam.LookAt 500.0 220.0 40.0 526.8 167.0 10.0"
+
+  - id: b5-chase-chiffon
+    about: "B5. The chase camera never inside the car's body (follow-ups #12)"
+    # A puncture at speed on a hypercar in the snow is the closest the stand-in
+    # comes to the spin that put the near camera in the Chiffon's body once.
+    server:
+      stand_in: true
+      events:
+        - "14:host:puncture=RL"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Chiffon
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=snow
+      - -ApexTimeOfDay=13:00
+      - -ApexView=near
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "chase near, on the straight"
+        checks: "B5: the whole car in shot, camera outside the body"
+      - at: 14
+        label: "chase close"
+        checks: "B5"
+        lead: 1
+        exec: "apexsim.cam.Chase close"
+      - at: 16
+        label: "chase roof"
+        checks: "B5"
+        lead: 1
+        exec: "apexsim.cam.Chase roof"
+      - at: 18
+        label: "chase far"
+        checks: "B5"
+        lead: 1
+        exec: "apexsim.cam.Chase far"
+      - at: 21
+        label: "chase near, puncture"
+        checks: "B5: no dark blur while the car slides"
+        lead: 1
+        exec: "apexsim.cam.Chase near"
+      - at: 22
+        label: "chase near, puncture +1 s"
+        checks: "B5"
+      - at: 23
+        label: "chase near, puncture +2 s"
+        checks: "B5"
+      - at: 24
+        label: "chase near, puncture +3 s"
+        checks: "B5"
