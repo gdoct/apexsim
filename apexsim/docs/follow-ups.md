@@ -26,7 +26,101 @@ None open.
 
 ## P1: core racing experience
 
+### 29. Flat spots far too easy
+
+Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, Armadillos).
+
+- One lap at Armadillos in an F1 car, Elite assists (no ABS, no TC, no
+  aids at all), left about 20 flat spots on the car. The flat-spot
+  model (`flatspot` in the tyre code, the `flatspot=` debug event) triggers
+  on far less locking than a real tyre needs, or counts every short lock as
+  a new spot. Find what a wheel-pedal brake does differently from the AI's
+  and the pad's (pedal travel, ABS off, the lock threshold and time).
+  The run's files (local, not in git) are in `out/sit/2026-10-23/cota-f1/`:
+  the client log `ApexSim.log`, the practice replay `practice.apxs` and
+  the three lap traces in `telemetry/` (laps of 4:21.971 invalid, 2:09.880
+  and 2:07.916, with brake, speed and tyre temperatures by distance).
+
+**Check:** a lap of hard braking on the wheel with ABS off, then on; flat
+spots only after a held lock-up. The AI survey for flat-spot counts and lap
+times against the commit before.
+
+### 31. Wheel forces at a standstill, and engines blown on downshifts
+
+Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, base FF 100%,
+game force 0.50, damping 0.25; paddle shifters, no H-shifter). Run files
+are local, not in git, under `out/sit/2026-10-23/`.
+
+- Standing still, the rim starts shaking violently: an oscillation with no
+  driver input, a loop between the rim's angle and the force at zero speed
+  (self-aligning torque, rim correction or stiffness limit with too little
+  damping when the tyres have no rolling speed). The first 15 s force line
+  of the run reads torque |mean| 0.03, constant |mean| 0.02, correction
+  0.011, stiffness limit 0.90: the 15 s means hide it, so a MARK or a
+  frame trace at the grid is needed. Block A, Caravan GT3 at Monzarella;
+  `a-monza-1/` (client log, server recording).
+- Paddle downshifts blow the engine: nothing refuses a downshift that
+  over-revs it. Caravan GT3 at Monzarella (block A, run 3), read from the
+  server's own recording (`a-monza-3/replays/.recording_134f4738-*.blocks`,
+  car 1): braking from 187 km/h into the second chicane (2.0 km) the driver
+  went down to 3rd, whose limit is 159 km/h at 8,700 rpm, so 1.18x the
+  limit, then to 2nd (limit 118 km/h) at 151 km/h, 1.28x. Engine damage
+  went from 12 % to 100 % in 1.5 s (ticks 25032-25648) and the car
+  retired. `damage::over_rev_damage` takes 400 % a second per share past
+  1.02 in every gear but top (`physics.rs`, step 4). Real GT3, F1 and
+  prototype gearboxes refuse such a downshift (or hold it until the speed
+  allows); a rally car with a sequential box may not. Wanted: downshift
+  protection per car (a `car.toml` key, on for the modern classes, off
+  where the real car has none) that refuses or holds the shift with a cue,
+  and a HUD or sound warning before damage. The telemetry and the
+  recording show `engine_rpm` clamped at the limit, so the over-rev cannot
+  be seen in them: record the geared rpm too.
+- Running on the limiter costs engine damage too: on the same lap, flat out
+  in 1st and 2nd off the line and out of the Rettifilo, the geared revs sat
+  at 1.03-1.04x the limit, past the 1.02 tolerance, and took 10 % by
+  1.2 km, before any over-revving downshift. A limiter alone should never hurt the engine.
+- The 037 rally car's engine blew the same way on the Mordschleife
+  (block C, about 2 min in; `c-nordschleife/`, no server recording kept).
+  Both sessions ran at `Damage=2`, Full: `-ApexAutoRace` has no damage
+  switch, so the player's own choice to turn damage off did not reach
+  them. Add `-ApexDamage=` for auto races and the sitting runner.
+- After the engine failed, the client froze on the last picture: the log
+  stops at `Lap trace: lap 1 broken by a jump from 2042 m to 60 m` and
+  shows nothing but the mouse cursor 30 s later. A retired car gets no
+  screen and no way on (`a-monza-3/client.log`).
+
+**Check:** sit on the grid and in the pit box with hands off the rim for
+30 s: the rim stays still or settles, no growing shake. On the wheel, a GT3
+lap with every downshift slammed early leaves the engine whole; a lap on
+the limiter costs nothing; a retired car shows a way on (back to the pits
+or the menu).
+
 ## P2: depth
+
+### 30. Wheel tab at the sitting
+
+Found at the wheel sitting of 2026-10-23 (ClubSport V2.5).
+
+- Wheel rotation steps by 30°, so it cannot match a base's own range: the
+  V2.5's SEN was 910 and the nearest setting was 930, which turns the rim on
+  screen and the steering map about 2% off the hands. Step by 10° (or 1°
+  with a held button), or take the range from the base where it reports one.
+
+- The direction test is too strong on the V2.5 (base FF 100%): it steps to
+  `kWheelTestForce` 0.35 of full scale (about 2.8 Nm) for
+  `kWheelTestSeconds` 0.7 s with no ramp (`ApexPlayerController.cpp`).
+  Ramp it in and lower it, and check whether it should follow the profile's
+  output scale and the Force setting.
+
+- The Wheelbase stepper's value "Auto: Fanatec ClubSport V2.5" is wider
+  than its slot and runs under the − and + buttons; the profile note beside
+  Peak torque ("Belt · forces at 100 % of the ba…") is cut off at the edge
+  in a window about 950 px wide. Seen in a window beside another app, not
+  full screen.
+
+**Check:** set the base's SEN to an odd value (910) and match it on the tab;
+the Wheelbase row readable at a narrow window;
+the direction test on the V2.5 at FF 100% is a clear but gentle push.
 
 ### 5. Hotlap and lap records
 
@@ -43,6 +137,10 @@ watches.
 Prop-kit and `ats-dress` work on circuits and pieces that are built. Laid by
 the same `ApexProps` code.
 
+- Armadillos: a tent stands over the track at turns 15 and 16 (seen at the
+  wheel sitting of 2026-10-23). Find the prop in `Armadillos.ats` and why
+  `ats-dress` did not push it clear of the road. The practice replay
+  `out/sit/2026-10-23/cota-f1/practice.apxs` (local) drives past it.
 - Mandarina Bay: corner names (the dossier has one "corner", the circuit
   itself), the F1 pit building (`building_pit_street`) placed, a quay rail
   along the water, a catch fence pass.
@@ -257,6 +355,14 @@ the launcher import with the network off.
   auto race; the same run again and a Zandervoort run were clean. The
   Aftermath dump is `Game/ApexSim/Saved/Logs/D3D12.0.2026.10.23-09.26.51.nv-gpudmp`
   in that package.
+  Seen a third time 2026-10-23 at the wheel sitting, in the editor build
+  (`UnrealEditor.exe -game`, block A: auto race at Monzarella), 15 s after
+  launch at frame 110 while the race loaded: a compute shader
+  (`compute_02`) MMU fault at VA `0xFFFFFFFFFFFFF000`, then an assert
+  `Distance >= 0` in `D3D12Adapter.cpp`; last breadcrumb `EndDrawingViewport`,
+  frame 108. Run without `-gpucrashdebugging`, so no dump; client log in
+  `out/sit/2026-10-23/a-monza-2/` (local). The run before it, the same
+  block, was clean.
 
 **Check:** the A/B is two screenshots.
 

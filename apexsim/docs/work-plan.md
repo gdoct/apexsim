@@ -32,6 +32,11 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
+| B12 | Flat spots far too easy (follow-ups #29) | Bug | P1 | 🟡 | S | — |
+| B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
+| B16 | Paddle downshifts blow the engine; no downshift protection (follow-ups #31) | Bug | P1 | 🟡 | M | — |
+| B14 | Wheel tab: rotation steps by 30°, direction test too strong (follow-ups #30) | Bug | P2 | 🟡 | S | — |
+| B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
@@ -89,6 +94,45 @@ takes it up (— : no step, taken opportunistically).
 ## 3. Items by type
 
 ### Bugs
+
+#### B12. Flat spots far too easy — P1 · 🟡 · S
+*Source: follow-ups #29, wheel sitting 2026-10-23.* About 20 flat spots
+after one lap at Armadillos on the wheel, F1 car, Elite (no ABS, no
+assists). Find why the wheel's braking locks
+up so readily into spots (threshold, lock time, every short lock counted as
+a new spot); judge with the survey's flat-spot counts and a re-sit lap.
+The run's log, replay and lap traces: `out/sit/2026-10-23/cota-f1/`.
+
+#### B15. Rim shakes violently at a standstill — P1 · 🔴 · S
+*Source: follow-ups #31, wheel sitting 2026-10-23.* Standing still in the
+GT3 at Monza the rim oscillates hard with no input. Find the zero-speed
+loop (SAT, rim correction, stiffness limit vs the damper floor) from a MARK
+at the grid; needs the wheel to confirm. Run files:
+`out/sit/2026-10-23/a-monza-1/`.
+
+#### B16. Paddle downshifts blow the engine — P1 · 🟡 · M
+*Source: follow-ups #31, wheel sitting 2026-10-23.* The server recording
+shows the Caravan GT3 downshifted to 3rd at 187 km/h (1.18x the rev limit)
+and 2nd at 151 km/h (1.28x) braking into Monza's second chicane: engine
+12 % to 100 % in 1.5 s, retired. The 037 blew the same way on the
+Nordschleife. Wanted: downshift protection per car (refuse or hold the
+shift, a cue), no damage from the limiter alone (1.03-1.04x on it took
+10 %), a warning before damage, geared rpm in the recording, an
+`-ApexDamage=` switch for auto races, and a screen for a retired car
+instead of a frozen picture. A sim change: AI survey against the commit
+before. Run files `out/sit/2026-10-23/a-monza-3/`, `c-nordschleife/`.
+
+#### B14. Wheel tab at the sitting — P2 · 🟡 · S
+*Source: follow-ups #30, wheel sitting 2026-10-23.* The Wheel tab's rotation
+stepper cannot reach the base's SEN of 910 (930 nearest): finer steps, or
+read the range from the base. The direction test is too strong on the V2.5
+(0.35 step for 0.7 s, no ramp): ramp it and lower it, judged at the wheel.
+
+#### B13. Tent over the track at Armadillos T15–16 — P2 · 🟡 · S
+*Source: follow-ups #6, wheel sitting 2026-10-23.* A tent prop stands over
+the road at turns 15 and 16. Find it in `Armadillos.ats`, fix the dress
+rule that let it onto the road, re-export, judge from a shot. The run's
+replay: `out/sit/2026-10-23/cota-f1/practice.apxs`.
 
 #### B5. Chase camera inside a car body — P3 · 🟡 · S
 *Source: follow-ups #12.* Seen once on the Bugotti Chiffon. Check the chase
