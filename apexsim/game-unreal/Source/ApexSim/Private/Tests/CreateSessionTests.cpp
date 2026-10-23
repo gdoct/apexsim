@@ -95,6 +95,19 @@ bool FApexCreateSessionStartOrderTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("a host who did not qualify starts behind"),
 		FString::Join(Normalise(OrderFromResult(Result, TEXT("Nobody"), 2), 2, 8), TEXT(",")),
 		FString(TEXT("@ai:1,Guido,@ai:2,Bob,@host")));
+
+	// Drivers with a profile are known by its id: the host by theirs under
+	// any name, the others by `@driver:`, labelled with the name they had.
+	Result.Entries[1].DriverId = TEXT("AAAA-1");
+	Result.Entries[4].DriverId = TEXT("bbbb-2");
+	TestEqual(TEXT("the host by profile, renamed"),
+		FString::Join(OrderFromResult(Result, TEXT("Renamed"), 2, TEXT("aaaa-1")), TEXT(",")),
+		FString(TEXT("@ai:1,@host,@ai:2,@driver:bbbb-2")));
+	const TArray<FString> ByProfile = Normalise(OrderFromResult(Result, TEXT("Guido"), 2, TEXT("cccc-3")), 2, 8);
+	TestEqual(TEXT("a name is not the host's profile"),
+		FString::Join(ByProfile, TEXT(",")), FString(TEXT("@ai:1,@driver:aaaa-1,@ai:2,@driver:bbbb-2,@host")));
+	const TArray<ApexCreateSession::FGridEntry> Named = ApexCreateSession::Entries(ByProfile, ApexCreateSession::DriverNames({ Result }));
+	TestEqual(TEXT("a profile's slot shows its name"), Named[3].Label, FString(TEXT("Bob")));
 	return true;
 }
 

@@ -5,9 +5,13 @@
 //! record and read when a driver joins a session, so the HUD can show the
 //! delta to their own best rather than only to their best *today*.
 //!
-//! **Identity.** A record is keyed by the driver's *name*, not their player
-//! id: the id is minted per connection, so a UUID key would forget every
-//! record the moment a player reconnected. AI drivers are never recorded.
+//! **Identity.** A record is keyed by the driver's profile id
+//! (`Authenticate.driver_id`) when they sent one, else by their *name*; never
+//! by the player id, which is minted per connection and would forget every
+//! record the moment a player reconnected. A driver with a profile id takes
+//! over the name-only record of the same name the first time they are looked
+//! up or set a lap (a record from before profiles). AI drivers are never
+//! recorded.
 //!
 //! **The ghost.** A record carries an optional trace of the lap it was set
 //! on — the car's pose a few dozen times a second, from the line to the line
@@ -16,7 +20,7 @@
 //! Traces live in their own files under `ghosts/`, because a record is a few
 //! hundred bytes and a trace is tens of kilobytes.
 
-use crate::data::{CarConfigId, TrackConfigId};
+use crate::data::{CarConfigId, DriverId, TrackConfigId};
 use crate::laps::SECTOR_COUNT;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -30,6 +34,10 @@ pub use crate::ghost::{GhostLap, GhostSample, GHOST_SAMPLE_HZ};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LapRecord {
     pub player: String,
+    /// The driver's profile id, when they sent one: the record is theirs
+    /// under any name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub driver_id: Option<DriverId>,
     pub track_id: TrackConfigId,
     pub car_config_id: CarConfigId,
     pub lap_time_ms: u32,
@@ -57,6 +65,16 @@ fn qualifying_path(dir: &Path) -> PathBuf {
 }
 
 type RecordKey = (String, TrackConfigId, CarConfigId);
+
+/// Whom a record belongs to in the store's keys: a profile id, else a name.
+/// The two never collide: a name cannot start with the id's prefix and be
+/// an id's text too, and the prefix keeps them apart in the file.
+fn identity(player: &str, driver_id: Option<DriverId>) -> String {
+    match driver_id {
+        Some(id) => format!("id:{}", id.simple()),
+        None => player.to_string(),
+    }
+}
 
 /// How far down its ladder each watched hotlap's driver was last left
 /// (`watch_levels.json`), by [`watch_level_key`].
@@ -344,15 +362,23 @@ impl RecordStore {
         }
     }
 
-    /// This driver's record with this car on this track.
+    /// This driver's record with this car on this track: their profile's,
+    /// else (a driver who has none yet) the name-only record of their name.
     pub fn best(
         &self,
         player: &str,
+        driver_id: Option<DriverId>,
         track_id: TrackConfigId,
         car_config_id: CarConfigId,
     ) -> Option<LapRecord> {
-        let key = (player.to_string(), track_id, car_config_id);
-        self.records.read().ok()?.get(&key).cloned()
+        let records = self.records.read().ok()?;
+        let own = (identity(player, driver_id), track_id, car_config_id);
+        records.get(&own).cloned().or_else(|| {
+            driver_id?;
+            records
+                .get(&(player.to_string(), track_id, car_config_id))
+                .cloned()
+        })
     }
 
     /// The fastest lap anyone has set with this car on this track — the
@@ -404,9 +430,11 @@ impl RecordStore {
     /// Offer a completed legal lap. Returns the new record when it beat the
     /// stored one (or when there was none), and nothing otherwise; the
     /// caller tells the driver either way.
+    #[allow(clippy::too_many_arguments)]
     pub fn submit(
         &self,
         player: &str,
+        driver_id: Option<DriverId>,
         track_id: TrackConfigId,
         car_config_id: CarConfigId,
         lap_time_ms: u32,
@@ -416,24 +444,21 @@ impl RecordStore {
         if player.is_empty() || lap_time_ms == 0 {
             return None;
         }
-        let key = (player.to_string(), track_id, car_config_id);
+        let key = (identity(player, driver_id), track_id, car_config_id);
+        // The record this lap has to beat: the driver's own, or the
+        // name-only one their profile takes over.
+        let previous = self.best(player, driver_id, track_id, car_config_id);
+        if previous
+            .as_ref()
+            .is_some_and(|existing| existing.lap_time_ms <= lap_time_ms)
         {
-            let records = self.records.read().ok()?;
-            if let Some(existing) = records.get(&key) {
-                if existing.lap_time_ms <= lap_time_ms {
-                    return None;
-                }
-            }
+            return None;
         }
-
-        let previous_ghost = self
-            .records
-            .read()
-            .ok()
-            .and_then(|r| r.get(&key).and_then(|rec| rec.ghost_file.clone()));
+        let previous_ghost = previous.as_ref().and_then(|rec| rec.ghost_file.clone());
         let ghost_file = ghost.and_then(|lap| self.write_ghost(&key, &lap));
         let record = LapRecord {
             player: player.to_string(),
+            driver_id,
             track_id,
             car_config_id,
             lap_time_ms,
@@ -441,7 +466,13 @@ impl RecordStore {
             recorded_at: now_rfc3339(),
             ghost_file,
         };
-        self.records.write().ok()?.insert(key, record.clone());
+        {
+            let mut records = self.records.write().ok()?;
+            if let Some(adopted) = previous.as_ref().filter(|p| key_of(p) != key) {
+                records.remove(&key_of(adopted));
+            }
+            records.insert(key, record.clone());
+        }
         self.save();
         // The lap this one beat is gone: so is its trace.
         if let (Some(dir), Some(old)) = (&self.dir, previous_ghost) {
@@ -525,7 +556,11 @@ fn records_path(dir: &Path) -> PathBuf {
 }
 
 fn key_of(record: &LapRecord) -> RecordKey {
-    (record.player.clone(), record.track_id, record.car_config_id)
+    (
+        identity(&record.player, record.driver_id),
+        record.track_id,
+        record.car_config_id,
+    )
 }
 
 /// A stable file name per (driver, track, car): a record replaces its own
@@ -636,16 +671,40 @@ mod tests {
         let store = RecordStore::in_memory();
         let (track, car) = (Uuid::new_v4(), Uuid::new_v4());
         assert!(store
-            .submit("Ayrton", track, car, 82_500, [27_000, 28_000, 27_500], None)
+            .submit(
+                "Ayrton",
+                None,
+                track,
+                car,
+                82_500,
+                [27_000, 28_000, 27_500],
+                None
+            )
             .is_some());
         assert!(store
-            .submit("Ayrton", track, car, 83_000, [27_000, 28_000, 28_000], None)
+            .submit(
+                "Ayrton",
+                None,
+                track,
+                car,
+                83_000,
+                [27_000, 28_000, 28_000],
+                None
+            )
             .is_none());
         assert!(store
-            .submit("Ayrton", track, car, 81_900, [26_800, 27_900, 27_200], None)
+            .submit(
+                "Ayrton",
+                None,
+                track,
+                car,
+                81_900,
+                [26_800, 27_900, 27_200],
+                None
+            )
             .is_some());
         assert_eq!(
-            store.best("Ayrton", track, car).unwrap().lap_time_ms,
+            store.best("Ayrton", None, track, car).unwrap().lap_time_ms,
             81_900
         );
         assert_eq!(store.len(), 1, "one record per driver, track and car");
@@ -656,15 +715,18 @@ mod tests {
         let store = RecordStore::in_memory();
         let (track_a, track_b) = (Uuid::new_v4(), Uuid::new_v4());
         let (car_a, car_b) = (Uuid::new_v4(), Uuid::new_v4());
-        store.submit("Ayrton", track_a, car_a, 82_000, [0; 3], None);
-        store.submit("Ayrton", track_a, car_b, 90_000, [0; 3], None);
-        store.submit("Ayrton", track_b, car_a, 70_000, [0; 3], None);
+        store.submit("Ayrton", None, track_a, car_a, 82_000, [0; 3], None);
+        store.submit("Ayrton", None, track_a, car_b, 90_000, [0; 3], None);
+        store.submit("Ayrton", None, track_b, car_a, 70_000, [0; 3], None);
         assert_eq!(store.len(), 3);
         assert_eq!(
-            store.best("Ayrton", track_a, car_b).unwrap().lap_time_ms,
+            store
+                .best("Ayrton", None, track_a, car_b)
+                .unwrap()
+                .lap_time_ms,
             90_000
         );
-        assert!(store.best("Alain", track_a, car_a).is_none());
+        assert!(store.best("Alain", None, track_a, car_a).is_none());
     }
 
     #[test]
@@ -672,11 +734,11 @@ mod tests {
         let store = RecordStore::in_memory();
         let (track, other_track) = (Uuid::new_v4(), Uuid::new_v4());
         let (car_a, car_b) = (Uuid::new_v4(), Uuid::new_v4());
-        store.submit("Ayrton", track, car_a, 82_000, [0; 3], None);
-        store.submit("Ayrton", track, car_b, 85_000, [0; 3], None);
-        store.submit("Alain", track, car_a, 81_000, [0; 3], None);
-        store.submit("Nigel", track, car_a, 83_000, [0; 3], None);
-        store.submit("Nigel", other_track, car_a, 60_000, [0; 3], None);
+        store.submit("Ayrton", None, track, car_a, 82_000, [0; 3], None);
+        store.submit("Ayrton", None, track, car_b, 85_000, [0; 3], None);
+        store.submit("Alain", None, track, car_a, 81_000, [0; 3], None);
+        store.submit("Nigel", None, track, car_a, 83_000, [0; 3], None);
+        store.submit("Nigel", None, other_track, car_a, 60_000, [0; 3], None);
 
         let all = store.leaderboard(track, None, 10);
         let names: Vec<(&str, u32)> = all
@@ -708,9 +770,9 @@ mod tests {
     fn the_track_best_is_the_fastest_of_everyone() {
         let store = RecordStore::in_memory();
         let (track, car) = (Uuid::new_v4(), Uuid::new_v4());
-        store.submit("Ayrton", track, car, 82_000, [0; 3], None);
-        store.submit("Alain", track, car, 81_000, [0; 3], None);
-        store.submit("Nelson", track, car, 83_000, [0; 3], None);
+        store.submit("Ayrton", None, track, car, 82_000, [0; 3], None);
+        store.submit("Alain", None, track, car, 81_000, [0; 3], None);
+        store.submit("Nelson", None, track, car, 83_000, [0; 3], None);
         assert_eq!(store.track_best(track, car).unwrap().player, "Alain");
     }
 
@@ -722,6 +784,7 @@ mod tests {
             let store = RecordStore::open(&dir);
             store.submit(
                 "Ayrton",
+                None,
                 track,
                 car,
                 82_500,
@@ -730,7 +793,9 @@ mod tests {
             );
         }
         let reopened = RecordStore::open(&dir);
-        let record = reopened.best("Ayrton", track, car).expect("record kept");
+        let record = reopened
+            .best("Ayrton", None, track, car)
+            .expect("record kept");
         assert_eq!(record.lap_time_ms, 82_500);
         assert_eq!(record.splits_ms, [27_000, 28_000, 27_500]);
         let lap = reopened.ghost(&record).expect("ghost kept");
@@ -744,16 +809,65 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("apexsim-records-{}", Uuid::new_v4()));
         let (track, car) = (Uuid::new_v4(), Uuid::new_v4());
         let store = RecordStore::open(&dir);
-        store.submit("Ayrton", track, car, 82_500, [0; 3], Some(ghost(82_500)));
-        store.submit("Ayrton", track, car, 81_000, [0; 3], Some(ghost(81_000)));
+        store.submit(
+            "Ayrton",
+            None,
+            track,
+            car,
+            82_500,
+            [0; 3],
+            Some(ghost(82_500)),
+        );
+        store.submit(
+            "Ayrton",
+            None,
+            track,
+            car,
+            81_000,
+            [0; 3],
+            Some(ghost(81_000)),
+        );
         let ghosts: Vec<_> = std::fs::read_dir(dir.join("ghosts"))
             .unwrap()
             .filter_map(|e| e.ok())
             .collect();
         assert_eq!(ghosts.len(), 1, "one trace per record");
-        let record = store.best("Ayrton", track, car).unwrap();
+        let record = store.best("Ayrton", None, track, car).unwrap();
         assert_eq!(store.ghost(&record).unwrap().lap_time_ms, 81_000);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_profile_keeps_its_record_under_any_name_and_takes_over_its_old_one() {
+        let store = RecordStore::in_memory();
+        let (track, car) = (Uuid::new_v4(), Uuid::new_v4());
+        let me = Some(Uuid::from_u128(42));
+        // A lap from before profiles, under the name only.
+        store.submit("Ayrton", None, track, car, 82_000, [0; 3], None);
+        // The profile finds it, and does not take it with a slower lap...
+        assert_eq!(
+            store.best("Ayrton", me, track, car).unwrap().lap_time_ms,
+            82_000
+        );
+        assert!(store
+            .submit("Ayrton", me, track, car, 83_000, [0; 3], None)
+            .is_none());
+        // ...but a faster one replaces it: one record, now the profile's.
+        let record = store
+            .submit("Ayrton", me, track, car, 81_000, [0; 3], None)
+            .unwrap();
+        assert_eq!(record.driver_id, me);
+        assert_eq!(store.len(), 1);
+        // Renamed, the profile's record follows; another driver with the
+        // old name starts from nothing.
+        assert_eq!(
+            store.best("Senna", me, track, car).unwrap().lap_time_ms,
+            81_000
+        );
+        assert!(store.best("Ayrton", None, track, car).is_none());
+        assert!(store
+            .best("Ayrton", Some(Uuid::from_u128(43)), track, car)
+            .is_none());
     }
 
     #[test]
@@ -766,6 +880,7 @@ mod tests {
         assert!(store
             .submit(
                 "Ayrton",
+                None,
                 Uuid::new_v4(),
                 Uuid::new_v4(),
                 80_000,
@@ -787,6 +902,7 @@ mod tests {
                 .enumerate()
                 .map(|(i, n)| QualifyingEntry {
                     name: n.to_string(),
+                    driver_id: None,
                     car_config_id: Uuid::nil(),
                     lap_time_ms: 90_000 + i as u32,
                     is_ai: false,

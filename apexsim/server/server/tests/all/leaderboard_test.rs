@@ -31,6 +31,7 @@ impl Client {
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: None,
+                driver_id: None,
             })
             .await?;
         match client.recv().await? {
@@ -75,6 +76,7 @@ async fn a_leaderboard_lists_the_stored_laps_best_first() {
             let state = server.state.read().await;
             state.records.submit(
                 "Ayrton",
+                None,
                 track,
                 car_a,
                 82_000,
@@ -83,6 +85,7 @@ async fn a_leaderboard_lists_the_stored_laps_best_first() {
             );
             state.records.submit(
                 "Alain",
+                None,
                 track,
                 car_a,
                 81_000,
@@ -91,6 +94,7 @@ async fn a_leaderboard_lists_the_stored_laps_best_first() {
             );
             state.records.submit(
                 "Ayrton",
+                None,
                 track,
                 car_b,
                 80_000,

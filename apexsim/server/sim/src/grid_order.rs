@@ -8,6 +8,8 @@
 //!
 //! * `@host` — the session's host;
 //! * `@ai:N` — the Nth AI car of the session (1-based, in seating order);
+//! * `@driver:UUID` — the human whose profile has that id
+//!   (`Authenticate.driver_id`), whatever name they race under today;
 //! * anything else — a driver by name, human or AI.
 //!
 //! A driver a reference names who is not here (a name nobody seated has,
@@ -18,7 +20,7 @@
 //! seated. An order with more slots than the track has closes its gaps
 //! up from the back until it fits ([`fit`]).
 
-use crate::data::PlayerId;
+use crate::data::{DriverId, PlayerId};
 
 /// The reference for the host's own car.
 pub const HOST_REF: &str = "@host";
@@ -31,11 +33,18 @@ pub fn ai_ref(n: usize) -> String {
     format!("@ai:{n}")
 }
 
+/// The reference for the driver whose profile has this id.
+pub fn driver_ref(id: DriverId) -> String {
+    format!("@driver:{id}")
+}
+
 /// A seated driver as the ordering sees them.
 #[derive(Debug, Clone)]
 pub struct Seated {
     pub id: PlayerId,
     pub name: String,
+    /// The driver's profile id, for a human who sent one.
+    pub driver: Option<DriverId>,
     /// The slot the driver holds now; breaks ties and orders the unlisted.
     pub grid_position: u8,
 }
@@ -78,6 +87,16 @@ pub fn resolve(
                 .and_then(|n| n.checked_sub(1))
                 .and_then(|i| ai_ids.get(i).copied())
                 .and_then(one)
+        } else if let Some(id) = reference.strip_prefix("@driver:") {
+            // A profile that is not here, or no id at all, leaves its slot
+            // empty, as a name nobody has does.
+            let id = DriverId::parse_str(id).ok();
+            Some(
+                by_slot
+                    .iter()
+                    .find(|d| id.is_some() && d.driver == id && !claimed(&d.id))
+                    .map(|d| d.id),
+            )
         } else {
             Some(
                 by_slot
@@ -130,6 +149,7 @@ mod tests {
         Seated {
             id: Uuid::new_v4(),
             name: name.to_string(),
+            driver: None,
             grid_position: slot,
         }
     }
@@ -204,6 +224,33 @@ mod tests {
             &["@ai:0".into(), "@ai:9".into(), "@ai:x".into()],
         );
         assert_eq!(got, ids(&[h.id, x.id]));
+    }
+
+    #[test]
+    fn a_driver_reference_finds_the_profile_under_any_name() {
+        let (h, mut x, y) = (seat("Host", 1), seat("Max", 2), seat("Max", 3));
+        let profile = Uuid::from_u128(7);
+        x.driver = Some(profile);
+        let all = vec![h.clone(), x.clone(), y.clone()];
+        let got = resolve(&all, h.id, &[], &[driver_ref(profile), "@host".into()]);
+        assert_eq!(got, ids(&[x.id, h.id, y.id]));
+        // An unknown or broken id holds an empty slot, and so does the
+        // profile named a second time, as a name is.
+        let got = resolve(
+            &all,
+            h.id,
+            &[],
+            &[
+                driver_ref(Uuid::from_u128(8)),
+                driver_ref(profile),
+                driver_ref(profile),
+                "@driver:nonsense".into(),
+            ],
+        );
+        assert_eq!(
+            got,
+            vec![None, Some(x.id), None, None, Some(h.id), Some(y.id)]
+        );
     }
 
     #[test]

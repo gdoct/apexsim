@@ -421,6 +421,14 @@ public:
 	/** Pushes the whole of a group at whatever consumes it. */
 	void ApplyGroup(EApexSettingsGroup Group);
 
+	/**
+	 * Switch to a driver profile's settings slot: this one is saved, the
+	 * other read and applied, and every group broadcast. A slot that does
+	 * not exist yet (a new profile) starts as a copy of the settings in use.
+	 */
+	void UseSlot(const FString& Slot);
+	const FString& GetSlot() const { return SlotName; }
+
 private:
 	void Load();
 	/** Applies, counts the change, and broadcasts. Every setter ends here. */
@@ -472,6 +480,9 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexSettingsSave> Settings;
+
+	/** The driver profile's settings slot (ApexProfiles); UApexSettingsSave::SlotName for the first profile. */
+	FString SlotName = UApexSettingsSave::SlotName;
 
 	mutable TArray<FIntPoint> AvailableResolutions;
 

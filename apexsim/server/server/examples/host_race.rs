@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             player_name: "Host".into(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         },
     )
     .await?;

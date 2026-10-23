@@ -28,3 +28,11 @@ neither.
 - [props.md](props.md): the trackside prop kit and its loader.
 - [track-improvements.md](track-improvements.md): bringing every circuit's dressing up to its references: the method, the per-track status table, the kit gaps.
 - [ac-import.md](ac-import.md): importing Assetto Corsa tracks and cars.
+
+`drivers/portraits/face_<n>.png` (1 to 16, 200 x 308 cut-outs on a clear
+background, the drivers' suits in the parody sponsors of
+[naming.md](naming.md)) are the pictures a driver profile picks from. The
+client reads them at runtime, from here in the editor and from
+`Drivers/portraits` beside a packaged game (`apexsim/scripts/build_release.ps1`
+copies them); a new picture is the next number, and the game takes them up
+to the first one missing ([client.md](../../apexsim/docs/game/client.md#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)).

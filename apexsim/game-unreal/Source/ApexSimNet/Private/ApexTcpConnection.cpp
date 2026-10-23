@@ -15,13 +15,15 @@ FApexTcpConnection::FApexTcpConnection(
 	const FString& InToken,
 	const FString& InPlayerName,
 	const FApexTlsOptions& InTls,
-	const FString& InResumeToken)
+	const FString& InResumeToken,
+	const FString& InDriverId)
 	: Host(InHost)
 	, Port(InPort)
 	, Token(InToken)
 	, PlayerName(InPlayerName)
 	, TlsOptions(InTls)
 	, ResumeToken(InResumeToken)
+	, DriverId(InDriverId)
 {
 }
 
@@ -572,7 +574,7 @@ uint32 FApexTcpConnection::Run()
 
 	// Authenticate is sent from this thread the instant the socket is up, so
 	// the handshake never waits on a game-thread tick.
-	TArray<uint8> AuthPayload = ApexProtocol::EncodeAuthenticate(Token, PlayerName, ResumeToken);
+	TArray<uint8> AuthPayload = ApexProtocol::EncodeAuthenticate(Token, PlayerName, ResumeToken, DriverId);
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> Authenticate (protocol_version=%d, resume=%d, %d bytes)"),
 		APEXSIM_PROTOCOL_VERSION, ResumeToken.IsEmpty() ? 0 : 1, AuthPayload.Num());
 	OutboundQueue.Enqueue(MoveTemp(AuthPayload));

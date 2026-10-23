@@ -44,6 +44,8 @@ pub(crate) struct LapTimingOut {
 pub(crate) struct RecordSubmission {
     pub player_id: PlayerId,
     pub player_name: String,
+    /// The driver's profile id, when they sent one: the record's key.
+    pub driver_id: Option<crate::data::DriverId>,
     pub track_id: TrackConfigId,
     pub car_config_id: CarConfigId,
     pub lap_time_ms: u32,
@@ -438,6 +440,7 @@ pub(crate) async fn tick_sessions(
                                 .get(&out.player_id)
                                 .cloned()
                                 .unwrap_or_default(),
+                            driver_id: game_session.driver_id(&out.player_id),
                             track_id,
                             car_config_id: state.car_config_id,
                             lap_time_ms,

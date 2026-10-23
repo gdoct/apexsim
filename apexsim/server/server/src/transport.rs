@@ -174,6 +174,8 @@ type SharedAuth = Arc<std::sync::RwLock<AuthSettings>>;
 pub struct ConnectionInfo {
     pub player_id: PlayerId,
     pub player_name: String,
+    /// The driver profile's id the client sent (`Authenticate.driver_id`).
+    pub driver_id: Option<crate::data::DriverId>,
     pub connected_at: Instant,
     pub last_heartbeat: Instant,
     /// The round trip the client last reported in a `Heartbeat`, ms.
@@ -691,6 +693,7 @@ impl TransportLayer {
                                         player_name,
                                         protocol_version,
                                         resume_token,
+                                        driver_id,
                                     } = &msg
                                     {
                                         if *protocol_version != PROTOCOL_VERSION {
@@ -782,6 +785,7 @@ impl TransportLayer {
                                         let conn_info = ConnectionInfo {
                                             player_id,
                                             player_name: player_name.clone(),
+                                            driver_id: *driver_id,
                                             connected_at: Instant::now(),
                                             last_heartbeat: Instant::now(),
                                             ping_ms: None,
@@ -1533,6 +1537,7 @@ mod tests {
         ConnectionInfo {
             player_id: Uuid::new_v4(),
             player_name: name.to_string(),
+            driver_id: None,
             connected_at: Instant::now(),
             last_heartbeat: Instant::now(),
             ping_ms: None,

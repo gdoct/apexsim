@@ -65,6 +65,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("Authenticate with a resume token"),
 		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player"), TEXT("resume-tok")),
 		ApexGolden::C_AuthenticateResume);
+	// A driver profile sends its id beside the name.
+	CheckBytes(TEXT("Authenticate with a driver profile"),
+		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player"), FString(), TEXT("dddddddd-0000-4000-8000-000000000001")),
+		ApexGolden::C_AuthenticateProfile);
 
 	// The unit variants are the sharpest trap: a one-key map with no "data".
 	// Emitting `"data": {}` fails from_slice on the server, and each parse
@@ -1721,6 +1725,8 @@ bool FApexProtocolLeaderboardTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("first lap"), Message.Leaderboard[0].LapTimeMs, 91234);
 	TestTrue(TEXT("splits"), Message.Leaderboard[0].SplitsMs == TArray<int32>({30100, 31000, 30134}));
 	TestEqual(TEXT("second driver"), Message.Leaderboard[1].PlayerName, FString(TEXT("Guido")));
+	TestTrue(TEXT("an AI's lap has no profile"), Message.Leaderboard[0].DriverId.IsEmpty());
+	TestEqual(TEXT("the profile's lap"), Message.Leaderboard[1].DriverId, FString(TEXT("dddddddd-0000-4000-8000-000000000001")));
 	TestEqual(TEXT("when"), Message.Leaderboard[1].RecordedAt, FString(TEXT("2026-10-07T09:30:00Z")));
 	// A request for every car leaves the car off the wire.
 	const TArray<uint8> All = ApexProtocol::EncodeRequestLeaderboard(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), FString());
@@ -1761,6 +1767,8 @@ bool FApexProtocolQualifyingResultsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("pole is an AI"), Result.Entries[0].bIsAi);
 	TestEqual(TEXT("second"), Result.Entries[1].Name, FString(TEXT("Guido")));
 	TestFalse(TEXT("second is human"), Result.Entries[1].bIsAi);
+	TestTrue(TEXT("the AI has no profile"), Result.Entries[0].DriverId.IsEmpty());
+	TestEqual(TEXT("the human's profile"), Result.Entries[1].DriverId, FString(TEXT("dddddddd-0000-4000-8000-000000000001")));
 	return true;
 }
 

@@ -677,6 +677,14 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	const FString& GetPlayerName() const { return PlayerName; }
+
+	/**
+	 * The driver profile's id sent with Authenticate (a UUID's text; empty
+	 * for none), so the server knows this driver across connections. Takes
+	 * effect on the next Connect; the profile screen reconnects on a switch.
+	 */
+	void SetDriverId(const FString& InDriverId) { DriverId = InDriverId; }
+	const FString& GetDriverId() const { return DriverId; }
 	/** The server's address as connected to (its health port serves the recordings). */
 	const FString& GetServerHost() const { return Host; }
 
@@ -970,6 +978,8 @@ private:
 	FString Host;
 	int32 Port = 9000;
 	FString PlayerName;
+	/** The driver profile's id (SetDriverId). */
+	FString DriverId;
 	/** Kept for reconnects; the server reads it once per connection. */
 	FString Token;
 	/**

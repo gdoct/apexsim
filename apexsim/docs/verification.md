@@ -314,6 +314,21 @@ in the `flags` component and the radar's RIGHT marker at the start.
   until it is served; PEN +5S in the standings and the results.
   `v-r13-phase` runs with penalties on, but the stand-in earned none.
 
+### R14. Driver profiles
+
+`n15-profiles` (the Profile screen: the first driver given picture 3, a
+second driver made, back to the first) then `n15-who-drives` (the launch
+asking "Who is driving?" with two profiles). Both write the save games:
+back up `Saved/SaveGames` first and put it back after. Shot 2026-10-23
+(the layout was fixed from the first shots); a person judges:
+
+- The Profile screen: the list, the picture grid with the picked one
+  outlined, the name field, the stats row and the personal bests.
+- The launch picker, and that pad and keys reach every control
+  (`ApexSim.UI.PadWalk` does not walk this screen yet).
+- Stats after an offline race and a hotlap, and two profiles joining one
+  server, each under its own id (the leaderboard lights each one's laps).
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

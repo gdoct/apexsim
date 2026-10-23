@@ -2831,7 +2831,7 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 		GridHintText->SetText(FText::FromString(Hint));
 	}
 
-	const TArray<ApexCreateSession::FGridEntry> Entries = ApexCreateSession::Entries(CurrentOrder());
+	const TArray<ApexCreateSession::FGridEntry> Entries = ApexCreateSession::Entries(CurrentOrder(), GridDriverNames());
 
 	for (int32 Index = 0; Index < SlotFaces.Num(); ++Index)
 	{
@@ -3351,6 +3351,13 @@ void UApexSessionCreateWidget::RequestQualifying()
 	}
 }
 
+TMap<FString, FString> UApexSessionCreateWidget::GridDriverNames() const
+{
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	return Flow && Net ? ApexCreateSession::DriverNames(Net->GetQualifyingResults(Flow->GetPendingTrackId())) : TMap<FString, FString>();
+}
+
 void UApexSessionCreateWidget::LoadResult(const FApexQualifyingResult& Result)
 {
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
@@ -3362,7 +3369,7 @@ void UApexSessionCreateWidget::LoadResult(const FApexQualifyingResult& Result)
 	const ApexCreateSession::FGrid G = ApexCreateSession::Grid(
 		Flow->CreateSessionKind != EApexSessionKind::Practice, Flow->CreateMaxPlayers, Flow->CreateAiCount, MaxPlayersCeiling);
 	StoreOrder(ApexCreateSession::Normalise(
-		ApexCreateSession::OrderFromResult(Result, Net->GetPlayerName(), G.Ai), G.Ai, G.Field), Result.Id);
+		ApexCreateSession::OrderFromResult(Result, Net->GetPlayerName(), G.Ai, Net->GetDriverId()), G.Ai, G.Field), Result.Id);
 }
 
 void UApexSessionCreateWidget::HandleQualifyingResults(const FString& TrackId)
@@ -3537,7 +3544,7 @@ void UApexSessionCreateWidget::RefreshStartOrder()
 	const int32 Mine = MovingIndex(Order);
 	if (MovingNameText)
 	{
-		const TArray<ApexCreateSession::FGridEntry> Drivers = ApexCreateSession::Entries(Order);
+		const TArray<ApexCreateSession::FGridEntry> Drivers = ApexCreateSession::Entries(Order, GridDriverNames());
 		MovingNameText->SetText(FText::FromString(Drivers.IsValidIndex(Mine) ? Drivers[Mine].Label : FString(TEXT("YOU"))));
 	}
 	if (MovingPrev) { MovingPrev->SetIsEnabled(Order.Num() > 1); }

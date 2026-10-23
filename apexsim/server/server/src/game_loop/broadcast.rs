@@ -181,11 +181,13 @@ pub(crate) async fn deliver_lap_timing(ctx: &GameLoopCtx, events: Vec<LapTimingO
         }
         let store = ctx.state.read().await.records.clone();
         let player_name = submission.player_name.clone();
+        let driver_id = submission.driver_id;
         let player_id = submission.player_id;
         let (track_id, car_id) = (submission.track_id, submission.car_config_id);
         let stood = tokio::task::spawn_blocking(move || {
             let record = store.submit(
                 &submission.player_name,
+                submission.driver_id,
                 submission.track_id,
                 submission.car_config_id,
                 submission.lap_time_ms,
@@ -194,7 +196,7 @@ pub(crate) async fn deliver_lap_timing(ctx: &GameLoopCtx, events: Vec<LapTimingO
             )?;
             Some(super::dispatch::lap_record_message(
                 &store,
-                &player_name,
+                (&player_name, driver_id),
                 track_id,
                 car_id,
                 Some(record),

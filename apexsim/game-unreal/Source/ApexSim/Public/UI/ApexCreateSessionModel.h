@@ -88,6 +88,15 @@ namespace ApexCreateSession
 
 	inline FString AiRef(int32 Number) { return FString::Printf(TEXT("@ai:%d"), Number); }
 
+	/** The driver whose profile has this id (`grid_order::driver_ref`), whatever name they join under. */
+	inline FString DriverRef(const FString& DriverId) { return TEXT("@driver:") + DriverId; }
+
+	/** The profile id a `@driver:` reference names, empty when it is not one. */
+	inline FString DriverIdOf(const FString& Ref)
+	{
+		return Ref.StartsWith(TEXT("@driver:")) ? Ref.Mid(8) : FString();
+	}
+
 	/** The AI number a reference names (1-based), 0 when it is not one. */
 	inline int32 AiNumberOf(const FString& Ref)
 	{
@@ -125,7 +134,8 @@ namespace ApexCreateSession
 		for (const FString& Ref : Order)
 		{
 			const bool bAi = Ref.StartsWith(TEXT("@ai:"));
-			if (bAi ? (AiNumberOf(Ref) >= 1 && AiNumberOf(Ref) <= Ai) : (Ref == HostRef() || !Ref.StartsWith(TEXT("@"))))
+			if (bAi ? (AiNumberOf(Ref) >= 1 && AiNumberOf(Ref) <= Ai)
+				: (Ref == HostRef() || !DriverIdOf(Ref).IsEmpty() || !Ref.StartsWith(TEXT("@"))))
 			{
 				Add(Ref);
 			}
@@ -163,8 +173,12 @@ namespace ApexCreateSession
 		bool bAi = false;
 	};
 
-	/** The occupied slots, first to last, for a normalised order. */
-	inline TArray<FGridEntry> Entries(const TArray<FString>& Normalised)
+	/**
+	 * The occupied slots, first to last, for a normalised order. A `@driver:`
+	 * slot is labelled with the name `DriverNames` (profile id -> name, as
+	 * DriverNames() reads them off the stored results) has for it.
+	 */
+	inline TArray<FGridEntry> Entries(const TArray<FString>& Normalised, const TMap<FString, FString>& DriverNames = TMap<FString, FString>())
 	{
 		TArray<FGridEntry> Out;
 		for (const FString& Ref : Normalised)
@@ -181,6 +195,11 @@ namespace ApexCreateSession
 				Entry.Label = FString::Printf(TEXT("AI %d"), Number);
 				Entry.bAi = true;
 			}
+			else if (const FString Id = DriverIdOf(Ref); !Id.IsEmpty())
+			{
+				const FString* Name = DriverNames.Find(Id.ToLower());
+				Entry.Label = Name ? *Name : FString(TEXT("DRIVER"));
+			}
 			else
 			{
 				Entry.Label = Ref;
@@ -188,6 +207,23 @@ namespace ApexCreateSession
 			Out.Add(Entry);
 		}
 		return Out;
+	}
+
+	/** Profile id (lower case) -> the name it qualified under, newest result first wins. */
+	inline TMap<FString, FString> DriverNames(const TArray<FApexQualifyingResult>& Results)
+	{
+		TMap<FString, FString> Names;
+		for (const FApexQualifyingResult& Result : Results)
+		{
+			for (const FApexQualifyingEntry& Entry : Result.Entries)
+			{
+				if (!Entry.DriverId.IsEmpty() && !Names.Contains(Entry.DriverId.ToLower()))
+				{
+					Names.Add(Entry.DriverId.ToLower(), Entry.Name);
+				}
+			}
+		}
+		return Names;
 	}
 
 	/** Moves the entry at `From` so it sits at `To` (the others shift). False when nothing moved. */
@@ -210,12 +246,15 @@ namespace ApexCreateSession
 
 	/**
 	 * The order a stored qualifying result grids, fastest first: the driver
-	 * named `HostName` is the host, the result's AI take this session's AI
-	 * in the order they qualified (the Nth quickest AI is `@ai:N`; the ones
-	 * past this session's `Ai` are dropped), and any other human is named,
-	 * for the server to find if they join. Normalise it for the field after.
+	 * with the host's profile id (`HostDriverId`), or for a line with no id
+	 * the one named `HostName`, is the host; the result's AI take this
+	 * session's AI in the order they qualified (the Nth quickest AI is
+	 * `@ai:N`; the ones past this session's `Ai` are dropped), and any other
+	 * human is referred to by profile id (`@driver:`), else by name, for the
+	 * server to find if they join. Normalise it for the field after.
 	 */
-	inline TArray<FString> OrderFromResult(const FApexQualifyingResult& Result, const FString& HostName, int32 Ai)
+	inline TArray<FString> OrderFromResult(const FApexQualifyingResult& Result, const FString& HostName, int32 Ai,
+		const FString& HostDriverId = FString())
 	{
 		TArray<FString> Out;
 		int32 NextAi = 1;
@@ -228,9 +267,15 @@ namespace ApexCreateSession
 					Out.Add(AiRef(NextAi++));
 				}
 			}
-			else if (!HostName.IsEmpty() && Entry.Name == HostName)
+			else if (!Entry.DriverId.IsEmpty()
+				? Entry.DriverId.Equals(HostDriverId, ESearchCase::IgnoreCase)
+				: !HostName.IsEmpty() && Entry.Name == HostName)
 			{
 				Out.AddUnique(HostRef());
+			}
+			else if (!Entry.DriverId.IsEmpty())
+			{
+				Out.AddUnique(DriverRef(Entry.DriverId.ToLower()));
 			}
 			else if (!Entry.Name.IsEmpty() && !Entry.Name.StartsWith(TEXT("@")))
 			{

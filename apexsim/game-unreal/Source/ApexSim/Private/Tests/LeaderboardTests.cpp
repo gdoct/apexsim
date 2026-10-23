@@ -39,6 +39,13 @@ bool FApexLeaderboardRowsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("the car's name"), Rows[0].Car, FString(TEXT("GT3 Car")));
 	TestEqual(TEXT("an unknown car"), Rows[2].Car, FString(TEXT("-")));
 	TestTrue(TEXT("the player's laps are theirs, whatever the case"), !Rows[0].bMine && Rows[1].bMine && Rows[2].bMine);
+	// A lap set under a profile is mine by its id, not the name on it.
+	Entries[1].DriverId = TEXT("dddd-1");
+	Entries[2].DriverId = TEXT("eeee-2");
+	const TArray<UApexLeaderboardWidget::FRow> ByProfile = UApexLeaderboardWidget::MakeRows(Entries, TEXT("guido"),
+		[](const FString&) { return FString(); }, TEXT("DDDD-1"));
+	TestTrue(TEXT("my profile's lap"), ByProfile[1].bMine);
+	TestFalse(TEXT("another profile's lap under my name"), ByProfile[2].bMine);
 	TestEqual(TEXT("no laps, no rows"), UApexLeaderboardWidget::MakeRows(TArray<FApexLeaderboardEntry>(), TEXT("guido"),
 		[](const FString&) { return FString(); }).Num(), 0);
 	return true;

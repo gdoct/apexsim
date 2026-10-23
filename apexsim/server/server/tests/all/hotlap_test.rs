@@ -402,6 +402,7 @@ impl Client {
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: None,
+                driver_id: None,
             })
             .await?;
         match client.recv().await? {
@@ -638,6 +639,7 @@ fn generate_ghost_fixture() {
     let record = store
         .submit(
             &player,
+            None,
             track_id,
             car_id,
             lap_time_ms,

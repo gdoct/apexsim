@@ -2,6 +2,7 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexProfiles.h"
 #include "ApexSim.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Engine/GameInstance.h"
@@ -94,6 +95,33 @@ void UApexSessionRecorder::FinishRecording()
 		{
 			PersonalBestDelta = Previous - Local->BestLapSeconds;
 		}
+	}
+
+	// The driver's stats: what they drove here, whatever the mode.
+	if (Flow && Local && (Local->LapsCompleted() > 0 || Local->DistanceM > 0.0f))
+	{
+		FApexSessionStats Session;
+		Session.Mode = RecordedMode;
+		Session.TrackId = TrackId;
+		Session.CarId = Flow->GetPendingCarId();
+		Session.Laps = Local->LapsCompleted();
+		Session.DistanceM = Local->DistanceM;
+		Session.BestLapSeconds = Local->BestLapSeconds;
+		Session.FinishPosition = Local->FinishPosition;
+		Session.FieldSize = Results.Num();
+		// Incidents: race control's penalties and the laps track limits took.
+		Session.Incidents = Local->LapValid.FilterByPredicate([](bool bValid) { return !bValid; }).Num();
+		if (const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+			{
+				if (Entry.PlayerId.Equals(Local->PlayerId, ESearchCase::IgnoreCase))
+				{
+					Session.Incidents += Entry.Penalties.Num();
+				}
+			}
+		}
+		Flow->FileSessionStats(Session);
 	}
 
 	UE_LOG(LogApexSim, Log, TEXT("Session recorded: %d car(s), local best %s"),

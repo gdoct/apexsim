@@ -71,6 +71,17 @@ pub enum ClientMessage {
         /// wire when the client has none.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         resume_token: Option<String>,
+        /// The driver profile's id (`DriverId`), made once when the player
+        /// created the profile: the server knows them by it across
+        /// connections (grid references, qualifying results, lap records).
+        /// Left off the wire by a client without profiles.
+        #[serde(
+            default,
+            skip_serializing_if = "Option::is_none",
+            serialize_with = "serialize_option_uuid_as_string",
+            deserialize_with = "deserialize_option_uuid_from_string"
+        )]
+        driver_id: Option<DriverId>,
     },
     Heartbeat {
         client_tick: u32,
@@ -2314,6 +2325,15 @@ pub struct LapRecordData {
 #[serde(rename_all = "PascalCase")]
 pub struct QualifyingEntryData {
     pub name: String,
+    /// The driver's profile id, for a human who sent one; left off the wire
+    /// otherwise. A client grids them by it (`@driver:`).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_option_uuid_as_string",
+        deserialize_with = "deserialize_option_uuid_from_string"
+    )]
+    pub driver_id: Option<DriverId>,
     #[serde(
         serialize_with = "serialize_uuid_as_string",
         deserialize_with = "deserialize_uuid_from_string"
@@ -2369,6 +2389,7 @@ impl QualifyingResultsData {
                         .into_iter()
                         .map(|e| QualifyingEntryData {
                             name: e.name,
+                            driver_id: e.driver_id,
                             car_config_id: e.car_config_id,
                             lap_time_ms: e.lap_time_ms,
                             is_ai: e.is_ai,
@@ -2385,6 +2406,15 @@ impl QualifyingResultsData {
 #[serde(rename_all = "PascalCase")]
 pub struct LeaderboardEntryData {
     pub player_name: String,
+    /// The driver's profile id, when the lap was set under one; left off
+    /// the wire otherwise. The client lights its own laps by it.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_option_uuid_as_string",
+        deserialize_with = "deserialize_option_uuid_from_string"
+    )]
+    pub driver_id: Option<DriverId>,
     #[serde(
         serialize_with = "serialize_uuid_as_string",
         deserialize_with = "deserialize_uuid_from_string"
@@ -2424,6 +2454,7 @@ impl LeaderboardData {
                 .into_iter()
                 .map(|r| LeaderboardEntryData {
                     player_name: r.player,
+                    driver_id: r.driver_id,
                     car_config_id: r.car_config_id,
                     lap_time_ms: r.lap_time_ms,
                     splits_ms: r.splits_ms.to_vec(),
@@ -2559,6 +2590,7 @@ mod tests {
             player_name: "Player1".to_string(),
             protocol_version: PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -2570,6 +2602,7 @@ mod tests {
                 player_name,
                 protocol_version,
                 resume_token: _,
+                driver_id: _,
             } => {
                 assert_eq!(token, "test_token");
                 assert_eq!(player_name, "Player1");
@@ -6787,6 +6820,7 @@ mod tests {
                 entries: vec![
                     crate::records::QualifyingEntry {
                         name: "Luna Swift".into(),
+                        driver_id: None,
                         car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555")
                             .unwrap(),
                         lap_time_ms: 91_234,
@@ -6794,6 +6828,9 @@ mod tests {
                     },
                     crate::records::QualifyingEntry {
                         name: "Guido".into(),
+                        driver_id: Some(
+                            Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap(),
+                        ),
                         car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555")
                             .unwrap(),
                         lap_time_ms: 91_876,
@@ -6828,6 +6865,7 @@ mod tests {
             vec![
                 crate::records::LapRecord {
                     player: "Luna Swift".into(),
+                    driver_id: None,
                     track_id: track,
                     car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
                     lap_time_ms: 91_234,
@@ -6837,6 +6875,9 @@ mod tests {
                 },
                 crate::records::LapRecord {
                     player: "Guido".into(),
+                    driver_id: Some(
+                        Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap(),
+                    ),
                     track_id: track,
                     car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
                     lap_time_ms: 91_876,
@@ -6916,6 +6957,7 @@ mod tests {
             player_name: "Player".to_string(),
             protocol_version: PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         })
         .unwrap();
         assert!(!String::from_utf8_lossy(&plain).contains("resume_token"));
@@ -6924,9 +6966,27 @@ mod tests {
             player_name: "Player".to_string(),
             protocol_version: PROTOCOL_VERSION,
             resume_token: Some("resume-tok".to_string()),
+            driver_id: None,
         })
         .unwrap();
         println!("C_AuthenticateResume: {}", hex(&resume));
+        // A driver profile's id rides beside the name.
+        let profile = rmp_serde::to_vec_named(&ClientMessage::Authenticate {
+            token: "dev-token".to_string(),
+            player_name: "Player".to_string(),
+            protocol_version: PROTOCOL_VERSION,
+            resume_token: None,
+            driver_id: Some(Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap()),
+        })
+        .unwrap();
+        println!("C_AuthenticateProfile: {}", hex(&profile));
+        match rmp_serde::from_slice::<ClientMessage>(&profile).unwrap() {
+            ClientMessage::Authenticate { driver_id, .. } => assert_eq!(
+                driver_id,
+                Some(Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap())
+            ),
+            other => panic!("Wrong message type: {other:?}"),
+        }
         match rmp_serde::from_slice::<ClientMessage>(&resume).unwrap() {
             ClientMessage::Authenticate { resume_token, .. } => {
                 assert_eq!(resume_token.as_deref(), Some("resume-tok"));

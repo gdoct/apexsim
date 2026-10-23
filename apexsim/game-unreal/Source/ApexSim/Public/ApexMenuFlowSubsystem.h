@@ -4,12 +4,14 @@
 #include "ApexProtocolTypes.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "Catalog/ApexContentCrc.h"
+#include "ApexProfiles.h"
+#include "ApexProfileSave.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexMenuFlowSubsystem.generated.h"
 
 class UApexBootSettingsSubsystem;
-class UApexProfileSave;
+class UApexNetSubsystem;
 class UDataTable;
 
 /** The screens the shell can show, in the order of UApexRootWidget's switcher (append only). */
@@ -30,12 +32,16 @@ enum class EApexScreen : uint8
 	Replays        = 9,
 	/** A circuit's fastest laps on the server (UApexLeaderboardWidget). */
 	Leaderboard    = 10,
+	/** The driver profiles on this machine: pick, create, picture, stats (UApexProfileWidget). */
+	Profile        = 11,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingTrackChanged, const FString&, TrackId);
 /** A track or car about to be used does not match the server's file; Message is player-facing. */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnContentMismatch, const FString&, Message);
+/** Another driver profile is in use, or the one in use was renamed or given another picture. */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FApexOnProfileChanged);
 
 /**
  * Client-side menu state that the protocol has no message for, plus the
@@ -375,11 +381,43 @@ public:
 	// --- Local profile --------------------------------------------------------
 	//
 	// The server has no account model, so the selections and lap times the design
-	// treats as the player's own live in a save slot on this machine.
+	// treats as the player's own live in a save slot on this machine: one per
+	// driver profile (ApexProfiles.h), each with its own settings slot too.
 
 	/** Writes the current selections and connection defaults to the profile slot. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Profile")
 	void SaveProfile();
+
+	UPROPERTY(BlueprintAssignable, Category = "ApexSim|Profile")
+	FApexOnProfileChanged OnProfileChanged;
+
+	/** The driver profiles on this machine, in the order they were made. */
+	const TArray<FApexProfileEntry>& GetProfiles() const;
+	/** The profile in use: its driver id, sent with Authenticate. */
+	FGuid GetProfileId() const { return Profile ? Profile->DriverId : FGuid(); }
+	/** The picture of the profile in use, 1-based; 0 for none. */
+	int32 GetPortrait() const { return Profile ? Profile->Portrait : 0; }
+	void SetPortrait(int32 Portrait);
+	/** Rename the profile in use (ApexProfiles::CleanName). A connected client reconnects under it. */
+	void SetDriverName(const FString& Name);
+	const FApexDriverStats& GetStats() const;
+
+	/** A new profile, started from the settings in use, and switched to; invalid when the machine has MaxProfiles. */
+	FGuid CreateProfile(const FString& Name, int32 Portrait);
+	/** Use another profile: its selections, settings and id; a connected client reconnects as it. */
+	bool SwitchProfile(const FGuid& Id);
+	/** Delete a profile that is not the one in use, with its saves. */
+	bool DeleteProfile(const FGuid& Id);
+
+	/**
+	 * Whether the launch should ask which profile drives: there are several,
+	 * the command line named none, and nothing runs unattended (an -Apex
+	 * flag that drives the game). True once per run; the first call ends it.
+	 */
+	bool ConsumeProfilePrompt();
+
+	/** Add a session the player drove to the profile's stats, and save. */
+	void FileSessionStats(const FApexSessionStats& Session);
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Profile")
 	bool GetBestLapSeconds(const FString& TrackId, float& OutSeconds) const;
@@ -433,8 +471,14 @@ private:
 	const FApexTrackCatalogRow* FindTrackRow(const FString& TrackId) const;
 	class UApexTrackContentSubsystem* GetTrackContent() const;
 
-	/** Reads the profile slot into the fields above; creates one if absent. */
+	/** Reads the chosen profile's slot into the fields above; creates one if absent. */
 	void LoadProfile();
+	/** Reads one profile's slot (its entry in the index) into the fields above. */
+	void LoadProfileEntry(const FApexProfileEntry& Entry);
+	/** The net subsystem sends this profile's id, and a connected client reconnects as it. */
+	void PushIdentityToNet(bool bReconnect);
+	UApexNetSubsystem* GetNet() const;
+	FApexProfileEntry* CurrentEntry();
 
 	UApexBootSettingsSubsystem* GetBoot() const;
 
@@ -446,6 +490,14 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexProfileSave> Profile;
+
+	/** The driver profiles on this machine (ApexProfiles::LoadIndex). */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexProfileIndexSave> ProfileIndex;
+
+	/** The slot Profile is read from and written to. */
+	FString ProfileSlot = UApexProfileSave::SlotName;
+	bool bProfilePromptConsumed = false;
 
 	/**
 	 * The track table, a fallback for a track with no export here; null when

@@ -535,6 +535,10 @@ pub struct GameSession {
     /// The names of the humans seated, set as they join (the AI's are on
     /// their profiles): what the start order's name references match.
     driver_names: std::collections::BTreeMap<PlayerId, String>,
+    /// The profile ids of the humans seated who sent one
+    /// (`Authenticate.driver_id`): what `@driver:` references, the stored
+    /// qualifying results and the lap records match.
+    driver_ids: std::collections::BTreeMap<PlayerId, crate::data::DriverId>,
     /// Each driver's best legal qualifying lap, ms, and the tick it was set
     /// on (the earlier of two equal times starts ahead).
     qualifying: std::collections::BTreeMap<PlayerId, (u32, u32)>,
@@ -1038,6 +1042,7 @@ impl GameSession {
             ai_profiles: std::collections::BTreeMap::new(),
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             driver_names: std::collections::BTreeMap::new(),
+            driver_ids: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
             timed_start_tick: None,
             weekend: Default::default(),
@@ -1124,6 +1129,7 @@ impl GameSession {
             ai_profiles: ai_profiles_map,
             tick_rate_hz: DEFAULT_TICK_RATE_HZ,
             driver_names: std::collections::BTreeMap::new(),
+            driver_ids: std::collections::BTreeMap::new(),
             qualifying: std::collections::BTreeMap::new(),
             timed_start_tick: None,
             weekend: Default::default(),
@@ -4621,6 +4627,19 @@ impl GameSession {
         self.driver_names.insert(player_id, name.to_string());
     }
 
+    /// The profile id a seated human sent, or none: replaces what was there.
+    pub fn set_driver_id(&mut self, player_id: PlayerId, driver: Option<crate::data::DriverId>) {
+        match driver {
+            Some(id) => self.driver_ids.insert(player_id, id),
+            None => self.driver_ids.remove(&player_id),
+        };
+    }
+
+    /// The profile id of a seated human who sent one.
+    pub fn driver_id(&self, player_id: &PlayerId) -> Option<crate::data::DriverId> {
+        self.driver_ids.get(player_id).copied()
+    }
+
     fn driver_name(&self, player_id: &PlayerId) -> String {
         self.ai_profiles
             .get(player_id)
@@ -4643,6 +4662,7 @@ impl GameSession {
             .map(|s| crate::grid_order::Seated {
                 id: s.player_id,
                 name: self.driver_name(&s.player_id),
+                driver: self.driver_id(&s.player_id),
                 grid_position: s.grid_position,
             })
             .collect()
@@ -4824,6 +4844,7 @@ impl GameSession {
                 let state = self.session.participants.get(&id)?;
                 Some(crate::classification::QualifyingEntry {
                     name: self.driver_name(&id),
+                    driver_id: self.driver_id(&id),
                     car_config_id: state.car_config_id,
                     lap_time_ms,
                     is_ai: self.session.ai_player_ids.contains(&id),

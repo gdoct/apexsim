@@ -103,7 +103,14 @@ void UApexContentCardWidget::Setup(const FApexCardSpec& InSpec)
 	FootnoteText = ApexUI::MakeText(*WidgetTree, Spec.Footnote.ToUpper(), ApexUI::Font::Mono(10.0f, 60), Spec.FootnoteColour);
 	ApexUI::AddV(TextBlock, FootnoteText, FMargin(0.0f, 5.0f, 0.0f, 0.0f));
 
-	ApexUI::AddV(Body, ApexUI::MakePanel(*WidgetTree, TextBlock, FMargin(15.0f, 13.0f), ApexUI::MakeBrush(FLinearColor::Transparent)));
+	// A picture-only card (a driver profile's pictures) has no text under it,
+	// and keeps its outline clear of the picture, which would cover it.
+	const bool bPictureOnly = Spec.Title.IsEmpty() && Spec.Meta.IsEmpty() && Spec.Footnote.IsEmpty();
+	if (!bPictureOnly)
+	{
+		ApexUI::AddV(Body, ApexUI::MakePanel(*WidgetTree, TextBlock, FMargin(15.0f, 13.0f), ApexUI::MakeBrush(FLinearColor::Transparent)));
+	}
+	Frame->SetPadding(bPictureOnly ? FMargin(2.0f) : FMargin());
 
 	ApplyState();
 }

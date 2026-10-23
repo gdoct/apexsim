@@ -48,6 +48,7 @@
 #include "UI/ApexMenuInputProcessor.h"
 #include "UI/ApexPauseMenuWidget.h"
 #include "UI/ApexLeaderboardWidget.h"
+#include "UI/ApexProfileWidget.h"
 #include "UI/ApexLoadingScreenWidget.h"
 #include "UI/ApexReplaysWidget.h"
 #include "UI/ApexSessionBrowserWidget.h"
@@ -302,6 +303,9 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 	case EApexScreen::Leaderboard:
 		return UApexLeaderboardWidget::StaticClass();
 
+	case EApexScreen::Profile:
+		return UApexProfileWidget::StaticClass();
+
 	case EApexScreen::SessionBrowser:
 		return UApexSessionBrowserWidget::StaticClass();
 
@@ -322,7 +326,7 @@ void UApexRootWidget::BuildShell()
 	Background = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
 
 	ScreenHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
-	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Leaderboard); ++Index)
+	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Profile); ++Index)
 	{
 		const EApexScreen Screen = static_cast<EApexScreen>(Index);
 		UClass* ScreenClass = ResolveScreenClass(Screen);
@@ -762,6 +766,16 @@ void UApexRootWidget::NativeConstruct()
 	{
 		UE_LOG(LogApexSim, Log, TEXT("apexsim.ui.StartScreen=%d — opening that screen instead of the main menu"), StartOverride);
 		CurrentScreen = static_cast<EApexScreen>(StartOverride);
+	}
+	else if (UApexMenuFlowSubsystem* Flow = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
+		Flow && Flow->ConsumeProfilePrompt())
+	{
+		// Several drivers share this machine: ask who drives before the menu.
+		if (UApexProfileWidget* Profiles = Cast<UApexProfileWidget>(GetScreenWidget(EApexScreen::Profile)))
+		{
+			Profiles->SetPrompt(true);
+			CurrentScreen = EApexScreen::Profile;
+		}
 	}
 
 	ActivateScreen(CurrentScreen);

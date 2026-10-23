@@ -193,6 +193,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ServerText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PingText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> DriverText;
+	UPROPERTY(Transient) TObjectPtr<class UImage> DriverPortrait;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> EyebrowText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> TitleHeadText;

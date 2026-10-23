@@ -36,7 +36,6 @@ takes it up (— : no step, taken opportunistically).
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
 | R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 3, 5 |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 3, 5 |
-| N15 | Driver profiles and stats (local profile with a UUID) | Progression | P2 | 🟡 | M | 3 |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 4 |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 5 |
@@ -80,7 +79,7 @@ takes it up (— : no step, taken opportunistically).
    (follow-ups #20); R8's edges where they touch
    the same files.
 3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
-   local install), N15 (local profiles), R3 phase 1 (a key per install,
+   local install), R3 phase 1 (a key per install,
    held per profile), N7 (an offline season, saved in the profile).
    N26 phase 2 waits on the repository and the signing key.
 4. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
@@ -454,29 +453,6 @@ Voice cues: "car left/right/clear" (from N3), "yellow ahead", "blue flag"
 2026-10-18: a fixed line list generated once with a local TTS model and
 shipped as audio files. 🟡: the result is judged by ear.
 
-#### N15. Driver profiles and stats — P2 · 🟡 · M
-**What:** There is no player profile: one save per install, and a server
-knows a driver only by connection and name.
-**Outcome:** Several people can share one install, each with their own name,
-portrait, settings and stats, and a server can tell the same driver apart
-across sessions.
-**Implementation:** A local profile: a name, a portrait and a UUID made when
-the profile is created, stored on this machine only (no account, no
-service). On launch the game lists the profiles on the machine and asks for
-one, or to create one; the profile screen picks one of 16 AI-generated
-driver portraits. Joining a session sends the profile's UUID with the name,
-so the server keys the driver on it (grid matching in `grid_order::resolve`
-and the records today match by name). Stats on the profile screen: laps,
-distance, races, wins, PBs per track and car, incidents. The base for a
-safety rating later.
-**Watch out:** the portraits sit untracked in `game-unreal/DriverImages`
-(`face_1.png` … `face_16.png`); move them into git, as content under
-`apexsim-content/` (PNGs there go to LFS), and import them into the client
-from there. A UUID is a claim, not a proof: anyone can send another
-driver's; R3 phase 1's keypair, held per profile, makes it one. Each profile
-needs its own save beside `ApexProfile.sav`, and the existing save becomes
-the first profile. A person judges the profile and selection screens.
-
 #### N16. Driving school / licence tests — P3 · 🟡 · M
 Short challenges built on the racing line, track guide and corner data:
 brake at a board, take a corner under a target, a clean lap under time.
@@ -533,7 +509,7 @@ What only you can do, roughly in the order it pays off:
 
 ## 5. Parked / recommended to drop
 
-- **Driver / safety rating** — depends on R3 phase 1 (identity), R2 and N15.
+- **Driver / safety rating** — depends on R3 phase 1 (identity) and R2; the local profiles' stats (N15) are built.
 - **Shared leaderboards** — depends on R3 identity plus a service and trust model.
 - **More screens** (five-wide, telemetry monitor) — no demand signal yet.
 - **Public server list (N8)** — parked 2026-10-18; players join known hosts.

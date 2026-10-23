@@ -54,6 +54,7 @@ async fn test_valid_token_accepted() {
             player_name: "TokenPlayer".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         },
     )
     .await;
@@ -81,6 +82,7 @@ async fn test_invalid_token_rejected() {
             player_name: "Imposter".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         },
     )
     .await;
@@ -121,6 +123,7 @@ async fn test_empty_token_rejected_in_token_mode() {
             player_name: "NoToken".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         },
     )
     .await;
@@ -160,6 +163,7 @@ async fn test_pre_auth_messages_dropped() {
             player_name: "LateAuth".to_string(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         },
     )
     .await;

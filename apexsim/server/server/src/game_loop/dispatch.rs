@@ -490,6 +490,7 @@ async fn handle_create_session(
         game_session.set_qualifying_lap_allowance(qualifying_lap_allowance);
         game_session.set_race_rules(race_rules);
         game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
+        game_session.set_driver_id(conn_info.player_id, conn_info.driver_id);
     }
     // Register session in lobby
     let track_name = state_write
@@ -586,7 +587,7 @@ async fn handle_create_session(
             game_session,
             session_id,
             car_id,
-            &conn_info.player_name,
+            (&conn_info.player_name, conn_info.driver_id),
             &records,
         );
         let road = road_state_full(game_session, session_id);
@@ -744,6 +745,7 @@ pub(crate) async fn handle_join_session(
 
     let game_session_kind = game_session.session.session_kind;
     game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
+    game_session.set_driver_id(conn_info.player_id, conn_info.driver_id);
     if let Some(grid_pos) = game_session.add_player(conn_info.player_id, car_id) {
         game_session.set_livery(conn_info.player_id, livery);
         // A driver joining a hotlap or qualifying session under way starts
@@ -761,7 +763,7 @@ pub(crate) async fn handle_join_session(
             game_session,
             session_id,
             car_id,
-            &conn_info.player_name,
+            (&conn_info.player_name, conn_info.driver_id),
             &records,
         );
         let allowed_assists = game_session.session.allowed_assists;
@@ -858,6 +860,7 @@ async fn rejoin_session(
         return;
     };
     game_session.set_driver_name(conn_info.player_id, &conn_info.player_name);
+    game_session.set_driver_id(conn_info.player_id, conn_info.driver_id);
     debug!(
         "Player {} rejoined session {} (grid position {})",
         conn_info.player_name, session_id, grid_pos
@@ -904,7 +907,7 @@ async fn rejoin_session(
         game_session,
         session_id,
         car_id,
-        &conn_info.player_name,
+        (&conn_info.player_name, conn_info.driver_id),
         &records,
     ));
     messages.extend(road_state_full(game_session, session_id));
@@ -1039,7 +1042,7 @@ fn timing_messages(
     game_session: &GameSession,
     session_id: SessionId,
     car_id: CarConfigId,
-    player_name: &str,
+    driver: (&str, Option<crate::data::DriverId>),
     records: &crate::records::RecordStore,
 ) -> Vec<ServerMessage> {
     let track_id = game_session.track_config.id;
@@ -1049,11 +1052,7 @@ fn timing_messages(
         boundaries_m: game_session.sector_boundaries_m(),
     })];
     out.push(ServerMessage::LapRecord(lap_record_message(
-        records,
-        player_name,
-        track_id,
-        car_id,
-        None,
+        records, driver, track_id, car_id, None,
     )));
     out
 }
@@ -1062,13 +1061,13 @@ fn timing_messages(
 /// then announces a new record), or `None` to report the stored one.
 pub(crate) fn lap_record_message(
     records: &crate::records::RecordStore,
-    player_name: &str,
+    (player_name, driver_id): (&str, Option<crate::data::DriverId>),
     track_id: crate::data::TrackConfigId,
     car_id: CarConfigId,
     record: Option<crate::records::LapRecord>,
 ) -> LapRecordData {
     let is_new = record.is_some();
-    let best = record.or_else(|| records.best(player_name, track_id, car_id));
+    let best = record.or_else(|| records.best(player_name, driver_id, track_id, car_id));
     let track_best = records.track_best(track_id, car_id);
     LapRecordData {
         player_name: player_name.to_string(),
@@ -1903,10 +1902,10 @@ async fn handle_request_ghost(ctx: &GameLoopCtx, connection_id: ConnectionId) {
             state_read.records.clone(),
         )
     };
-    let player_name = conn_info.player_name.clone();
+    let (player_name, driver_id) = (conn_info.player_name.clone(), conn_info.driver_id);
     let data = tokio::task::spawn_blocking(move || {
         store
-            .best(&player_name, track_id, car_id)
+            .best(&player_name, driver_id, track_id, car_id)
             .and_then(|record| store.ghost(&record))
             .map(|lap| GhostLapData::from_lap(track_id, car_id, &lap))
             .unwrap_or_else(|| GhostLapData::empty(track_id, car_id))

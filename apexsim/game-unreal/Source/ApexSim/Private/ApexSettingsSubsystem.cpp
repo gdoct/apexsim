@@ -1,6 +1,7 @@
 #include "ApexSettingsSubsystem.h"
 
 #include "ApexBootSettings.h"
+#include "ApexProfiles.h"
 #include "ApexDirectInputTypes.h"
 #include "ApexMultiViewSubsystem.h"
 #include "ApexPlayerController.h"
@@ -44,6 +45,16 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	// settings.yml is the authority on the display block, so it has to be read
 	// before Load() decides what to apply.
 	Collection.InitializeDependency<UApexBootSettingsSubsystem>();
+
+	// The settings are the driver profile's, and a launch opens the profile
+	// used last (or the one -ApexProfile= names).
+	if (const UApexProfileIndexSave* Index = ApexProfiles::LoadIndex())
+	{
+		if (const FApexProfileEntry* Entry = ApexProfiles::Chosen(*Index, FCommandLine::Get()))
+		{
+			SlotName = Entry->SettingsSlot;
+		}
+	}
 
 	Load();
 
@@ -93,12 +104,43 @@ void UApexSettingsSubsystem::HandleInputDevicesChanged()
 	OnSettingsChanged.Broadcast(EApexSettingsGroup::Wheel);
 }
 
+void UApexSettingsSubsystem::UseSlot(const FString& Slot)
+{
+	if (Slot.IsEmpty() || Slot == SlotName)
+	{
+		return;
+	}
+	Save();
+	SlotName = Slot;
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
+	{
+		Settings = nullptr;
+		Load();
+	}
+	else if (Settings)
+	{
+		// A new profile starts from the settings in use: the same display,
+		// wheel and bindings, then its own from there.
+		UGameplayStatics::SaveGameToSlot(Settings, SlotName, 0);
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Settings: now the '%s' slot"), *SlotName);
+	for (EApexSettingsGroup Group : {EApexSettingsGroup::Gameplay, EApexSettingsGroup::Assists, EApexSettingsGroup::Graphics,
+			EApexSettingsGroup::Camera, EApexSettingsGroup::Controls, EApexSettingsGroup::Wheel, EApexSettingsGroup::Audio,
+			EApexSettingsGroup::CarSetup})
+	{
+		ApplyGroup(Group);
+		OnSettingsChanged.Broadcast(Group);
+	}
+	ClearMenuNavigation();
+	ApplyMenuNavigation();
+}
+
 void UApexSettingsSubsystem::Load()
 {
-	if (UGameplayStatics::DoesSaveGameExist(UApexSettingsSave::SlotName, 0))
+	if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
 	{
 		Settings = Cast<UApexSettingsSave>(
-			UGameplayStatics::LoadGameFromSlot(UApexSettingsSave::SlotName, 0));
+			UGameplayStatics::LoadGameFromSlot(SlotName, 0));
 	}
 
 	if (!Settings)
@@ -136,7 +178,7 @@ void UApexSettingsSubsystem::Load()
 		// existing install keeps the display it was already using rather than
 		// being reset by a file it never had. On a genuine first run the slot
 		// holds its own defaults, and the file already describes this display.
-		if (!UGameplayStatics::DoesSaveGameExist(UApexSettingsSave::SlotName, 0))
+		if (!UGameplayStatics::DoesSaveGameExist(SlotName, 0))
 		{
 			const FApexBootSettings& Values = Boot->Get();
 			Settings->Resolution = Values.Resolution;
@@ -150,7 +192,7 @@ void UApexSettingsSubsystem::Save()
 {
 	if (Settings)
 	{
-		UGameplayStatics::SaveGameToSlot(Settings, UApexSettingsSave::SlotName, 0);
+		UGameplayStatics::SaveGameToSlot(Settings, SlotName, 0);
 		// Same moment, both stores: a display change made in the overlay has to
 		// reach settings.yml, or the next launch would silently undo it.
 		PushToBootSettings();

@@ -888,6 +888,7 @@ namespace
 			bool bOk = true;
 			uint64 Raw = 0;
 			if (Key == TEXT("Name"))             { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("DriverId"))    { bOk = Reader.TryReadNil() || Reader.ReadString(Out.DriverId); }
 			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
 			else if (Key == TEXT("LapTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
 			else if (Key == TEXT("IsAi"))        { bOk = Reader.ReadBool(Out.bIsAi); }
@@ -947,6 +948,7 @@ namespace
 			bool bOk = true;
 			uint64 Raw = 0;
 			if (Key == TEXT("PlayerName"))       { bOk = Reader.ReadString(Out.PlayerName); }
+			else if (Key == TEXT("DriverId"))    { bOk = Reader.TryReadNil() || Reader.ReadString(Out.DriverId); }
 			else if (Key == TEXT("CarConfigId")) { bOk = Reader.ReadString(Out.CarConfigId); }
 			else if (Key == TEXT("LapTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.LapTimeMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
 			else if (Key == TEXT("RecordedAt"))  { bOk = Reader.ReadString(Out.RecordedAt); }
@@ -3413,12 +3415,14 @@ namespace ApexProtocol
 		return CVarParseCenterline.GetValueOnAnyThread() != 0;
 	}
 
-	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken)
+	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken, const FString& DriverId)
 	{
-		// Without a resume token the bytes are those of every earlier client.
+		// Without a resume token or a profile the bytes are those of every
+		// earlier client.
 		const bool bResume = !ResumeToken.IsEmpty();
-		FMsgPackWriter Writer(160);
-		BeginDataVariant(Writer, "Authenticate", bResume ? 4 : 3);
+		const bool bDriver = !DriverId.IsEmpty();
+		FMsgPackWriter Writer(200);
+		BeginDataVariant(Writer, "Authenticate", 3 + (bResume ? 1 : 0) + (bDriver ? 1 : 0));
 		Writer.WriteString("token");
 		Writer.WriteString(Token);
 		Writer.WriteString("player_name");
@@ -3429,6 +3433,11 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("resume_token");
 			Writer.WriteString(ResumeToken);
+		}
+		if (bDriver)
+		{
+			Writer.WriteString("driver_id");
+			Writer.WriteString(DriverId);
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

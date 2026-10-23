@@ -44,6 +44,7 @@
             Game/Cars/          every shipped car as its car.toml, GLBs and livery
                                 logos, built by the game when it is drawn
             Game/Wheels/        the class wheels the cars name
+            Game/Drivers/portraits/  the pictures a driver profile picks from
             Game/Hud/           the HUD's components (default/, and custom/
                                 for the player's own), drawn from files
             Game/showcase.yml   the list the game renders the AI races the
@@ -703,6 +704,12 @@ Write-Detail "$runtimeTrackCount track(s) in $(Join-Path $GameDir 'Tracks')"
 $runtimeCarCount = Copy-ApexRuntimeCars -CarsDir $CarsDir -WheelsDir $WheelsDir -Destination $GameDir `
     -DefaultOnly:(-not $IncludeCustomCars) -Only $StarterCars
 Write-Detail "$runtimeCarCount car(s) in $(Join-Path $GameDir 'Cars')"
+# The pictures a driver profile picks from (UApexPortraitSubsystem reads
+# Drivers\portraits beside the game).
+$PortraitsDir = Join-Path $GameDir 'Drivers\portraits'
+New-Item -ItemType Directory -Force -Path $PortraitsDir | Out-Null
+Copy-Item -Path (Join-Path $ContentRoot 'drivers\portraits\face_*.png') -Destination $PortraitsDir -Force
+Write-Detail "$(@(Get-ChildItem $PortraitsDir -Filter 'face_*.png').Count) driver picture(s) in $PortraitsDir"
 # LICENSE sits at the root above the code and content roots.
 $License = Join-Path $RepoRoot 'LICENSE'
 if (-not (Test-Path -LiteralPath $License)) { $License = Join-Path $RepoRoot '..\LICENSE' }

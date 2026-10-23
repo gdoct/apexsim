@@ -7,12 +7,54 @@
 #include "ApexProfileSave.generated.h"
 
 /**
- * The little the client remembers between runs.
+ * What a driver has done in this game, summed over every session they drove
+ * (filed by UApexSessionRecorder when a session ends; ApexProfiles::FileSession).
+ */
+USTRUCT()
+struct APEXSIM_API FApexDriverStats
+{
+	GENERATED_BODY()
+
+	/** Whole laps driven, out- and in-laps not counted. */
+	UPROPERTY()
+	int32 Laps = 0;
+
+	UPROPERTY()
+	double DistanceM = 0.0;
+
+	/** Sessions driven in, of every kind. */
+	UPROPERTY()
+	int32 Sessions = 0;
+
+	/** Races taken to the flag; Wins and Podiums of those. */
+	UPROPERTY()
+	int32 Races = 0;
+
+	UPROPERTY()
+	int32 Wins = 0;
+
+	UPROPERTY()
+	int32 Podiums = 0;
+
+	/** Penalties race control gave and laps lost to track limits. */
+	UPROPERTY()
+	int32 Incidents = 0;
+
+	/** `<track id>|<car id>` -> the best lap in seconds: the PBs per track and car. */
+	UPROPERTY()
+	TMap<FString, float> CarBests;
+};
+
+/**
+ * One driver profile: what the client remembers between runs for one person.
  *
- * The server keeps no per-player state — it has no account model, and a
- * `LobbyState` describes only what is available right now — so anything the
- * design calls "yours" (the setup you left off with, your best lap on a track)
- * has to be stored locally or not exist at all.
+ * The server keeps no per-player state beyond lap records — it has no
+ * account model, and a `LobbyState` describes only what is available right
+ * now — so anything the design calls "yours" (the setup you left off with,
+ * your best lap on a track, your stats) has to be stored locally or not exist
+ * at all. Several people can share an install: each has a profile of their
+ * own, listed in UApexProfileIndexSave (ApexProfiles.h), and its own settings
+ * slot beside it.
  *
  * Written through UApexMenuFlowSubsystem; nothing else should touch the slot.
  */
@@ -22,10 +64,22 @@ class APEXSIM_API UApexProfileSave : public USaveGame
 	GENERATED_BODY()
 
 public:
+	/** The first profile's slot, and the only one before profiles existed. */
 	static constexpr const TCHAR* SlotName = TEXT("ApexProfile");
 
 	UPROPERTY()
 	FString DriverName = TEXT("Player");
+
+	/** Made once when the profile is created; sent with Authenticate so a server knows this driver across sessions. */
+	UPROPERTY()
+	FGuid DriverId;
+
+	/** The driver picture, 1-based into the portraits (UApexPortraitSubsystem); 0 for none. */
+	UPROPERTY()
+	int32 Portrait = 0;
+
+	UPROPERTY()
+	FApexDriverStats Stats;
 
 	UPROPERTY()
 	FString ServerHost = TEXT("127.0.0.1");

@@ -63,6 +63,7 @@ impl ProtocolTestClient {
             player_name: name.to_string(),
             protocol_version,
             resume_token: None,
+            driver_id: None,
         })
         .await;
         self.recv_until(|m| {

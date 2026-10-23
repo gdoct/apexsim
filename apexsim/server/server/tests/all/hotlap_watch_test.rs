@@ -262,6 +262,7 @@ impl Client {
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: None,
+                driver_id: None,
             })
             .await;
         assert!(matches!(client.recv().await, ServerMessage::AuthSuccess(_)));

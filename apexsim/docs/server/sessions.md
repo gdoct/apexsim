@@ -697,8 +697,9 @@ as it does its own (format: [spectator](../game/spectator.md)).
 A race grids by **driver references**, because at create time only the AI
 are seated. `CreateSession.grid_order` (`Vec<String>`, `grid_order::sanitize`)
 lists drivers first to last as `@host`, `@ai:N` (the Nth AI car, 1-based, in
-seating order) or a name (a human's or an AI's). `line_up_on_grid` calls
-`apply_grid_order` first:
+seating order), `@driver:UUID` (the human whose driver profile has that id,
+`Authenticate.driver_id`, under whatever name they join) or a name (a
+human's or an AI's). `line_up_on_grid` calls `apply_grid_order` first:
 
 - a requested order: listed drivers lead in order (`grid_order::resolve`,
   each claimed once, a name matching the first unclaimed driver of it),
@@ -723,7 +724,13 @@ order stands if even the drivers do not fit. The roster's `GridSlot` shows
 the gaps.
 
 Names come from `GameSession::set_driver_name` (on create and join) and the
-AI profiles.
+AI profiles; profile ids from `set_driver_id` beside it, from the
+connection's `Authenticate.driver_id`. A stored qualifying line carries
+the driver's profile id (`QualifyingEntry.driver_id`, left off the wire
+without one), and the client grids that driver by `@driver:` rather than
+by name ([client.md](../game/client.md#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)). An id is a claim,
+not a proof: anyone can send another driver's (R3 phase 1's keypair makes
+it one).
 
 **Qualifying classifies.** In `Qualification` every legal lap goes through
 `note_qualifying_lap` (from `tick.rs`): each driver's best and the tick it
@@ -1112,7 +1119,11 @@ struck", bit 1 "last lap struck", beside `last_lap_time_ms` and
 
 **Records** (`[records] enabled` / `dir`, default `./records`): each
 driver's best legal lap on a track in a car, in `lap_records.json`, keyed by
-the driver's **name**. The AI never sets one. The driver gets `LapRecord`
+the driver's **profile id** when they sent one (`Authenticate.driver_id`;
+`LapRecord.driver_id`), else by their **name**. A driver with a profile
+takes over the name-only record of their name the first time they are
+looked up or set a faster lap (a record from before profiles); renamed, the
+profile keeps its records. The AI never sets one. The driver gets `LapRecord`
 (theirs, the track record and holder, `HasGhost`) on joining and on beating
 it. A corrupt file is logged and treated as empty; writes run on a blocking
 task from the broadcast phase, never under the state lock.
@@ -1121,10 +1132,11 @@ task from the broadcast phase, never under the state lock.
 answered with `Leaderboard`: the fastest laps on the track, best first (at most
 100), every driver's best in every car or in the one car asked for
 (`RecordStore::leaderboard`; equal times keep the earlier lap first). Each line
-carries the driver, the car, the time, the three splits and the date. The
-client's Leaderboards screen (Garage > Tracks, `UApexLeaderboardWidget`) steps
-through the circuits and filters to the garage's car; the driver's own laps are
-lit. Nothing is shared between servers.
+carries the driver, their profile id (`DriverId`, when the lap was set
+under one), the car, the time, the three splits and the date. The client's
+Leaderboards screen (Garage > Tracks, `UApexLeaderboardWidget`) steps
+through the circuits and filters to the garage's car; the driver's own laps
+are lit (by profile id, or by name for a lap set without one). Nothing is shared between servers.
 
 **Ghost traces**: each human's lap is sampled at `records::GHOST_SAMPLE_HZ`
 (20 Hz); a new personal best stores its trace under `ghosts/`, replacing the

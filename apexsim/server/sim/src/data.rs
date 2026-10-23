@@ -8,6 +8,10 @@ pub type SessionId = Uuid;
 pub type CarConfigId = Uuid;
 pub type TrackConfigId = Uuid;
 pub type ConnectionId = Uuid;
+/// A driver profile's id: made once when the player creates the profile on
+/// their machine and sent with `Authenticate`, so a server knows the same
+/// driver across connections. A claim, not a proof.
+pub type DriverId = Uuid;
 
 // --- Player State ---
 #[derive(Debug, Clone, Serialize, Deserialize)]

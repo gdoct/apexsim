@@ -41,9 +41,13 @@ public:
 		FString When;
 		bool bMine = false;
 	};
-	/** The board's lines, best first, with the gap to the fastest; pure. */
+	/**
+	 * The board's lines, best first, with the gap to the fastest; pure. A lap
+	 * set under a profile is mine when it is my profile's (`MyDriverId`),
+	 * one set without one when it carries my name.
+	 */
 	static TArray<FRow> MakeRows(const TArray<FApexLeaderboardEntry>& Entries, const FString& Me,
-		TFunctionRef<FString(const FString& CarId)> CarName);
+		TFunctionRef<FString(const FString& CarId)> CarName, const FString& MyDriverId = FString());
 
 protected:
 	virtual void NativeOnInitialized() override;

@@ -82,11 +82,12 @@ and widget factories), so layouts are reviewable as diffs.
   `UApexNetSubsystem::OnServerNotice` and shows as `Server: <message>` for
   8 s, in the normal colour with the Notice cue. A later toast replaces it.
 - `UApexMenuFlowSubsystem` holds menu state the protocol has no message for:
-  pending car and track, the create screen's choices (persisted on the profile,
-  `ApexProfileSave.h`), the server address, catalog lookups and the content
-  checksum checks.
-- `UApexSettingsSubsystem` owns `UApexSettingsSave` (the binary slot:
-  assists, graphics, camera, controls, wheel, audio, car setups). The settings
+  pending car and track, the create screen's choices (persisted on the
+  driver profile in use, `ApexProfileSave.h`; [below](#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)),
+  the server address, catalog lookups and the content checksum checks.
+- `UApexSettingsSubsystem` owns `UApexSettingsSave` (the profile's binary
+  slot: assists, graphics, camera, controls, wheel, audio, car setups;
+  `settings.yml` still decides the display block). The settings
   overlay (`UApexSettingsWidget`) has seven tabs, `EApexSettingsTab`: 0
   gameplay, 1 assists, 2 graphics, 3 camera, 4 controls, 5 wheel, 6 audio.
 - Navigation: screens derive from `UApexScreenWidget` /
@@ -185,6 +186,8 @@ the remembered session) and **Change setup** (the create screen). The right
 - **Watch a race**: Live race (the menu's backdrop race full screen,
   `WatchBackdrop`) and Replays (the replays screen, with the count of saved
   files; Back from it lands on this page).
+- **Driver profile**: the Profile screen
+  ([below](#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)).
 - **Settings**: the settings overlay.
 
 While the server holds a seat for the player in a session they lost the
@@ -205,6 +208,58 @@ car select and replays return false from `WantsLiveBackdrop`, so the
 backdrop world is hidden behind them (the car turntable shares the world).
 In a session the lobby and results screens show the session's circuit
 instead of the demo ([cameras.md](cameras.md#lobby-view-beginlobbyview-apexlobbycamfflyover)).
+
+### Driver profiles (`ApexProfiles.h`, `UI/ApexProfileWidget.cpp`)
+
+Several people can share an install. A **profile** is a name, a picture
+and a driver id (an `FGuid` made when the profile is created), with two
+save slots of its own: the profile (`UApexProfileSave`: selections, create
+screen, best laps, stats) and the settings (`UApexSettingsSave`). The list
+is `ApexProfiles.sav` (`UApexProfileIndexSave`: each profile's id, name,
+picture and slots, and the one used last). No account, no service: it
+lives on this machine only.
+
+- **First run on an old install**: `ApexProfiles::LoadIndex` finds no list
+  and makes the existing `ApexProfile` / `ApexSettings` slots the first
+  profile, under its saved name. A new profile gets `ApexProfile_<id8>` /
+  `ApexSettings_<id8>`, its settings copied from the profile in use
+  (`UApexSettingsSubsystem::UseSlot`) and no history; at most 16.
+- **Which one drives**: the one used last, or `-ApexProfile=<name or
+  1-based place>`. With two or more profiles a launch opens the Profile
+  screen as "Who is driving?" first (`ConsumeProfilePrompt`), unless the
+  command line chose one or carries an `-Apex` flag that drives the game
+  (an unattended run); `-ApexScreens=` and `-ApexContent*` do not count.
+- **On the wire**: `Authenticate.driver_id` carries the id
+  (`UApexNetSubsystem::SetDriverId`, set by the flow subsystem before the
+  first connect), so the server knows the driver across connections: grid
+  references (`@driver:`), stored qualifying lines and lap records
+  ([sessions.md](../server/sessions.md#starting-order-and-qualifying)).
+  Switching profiles or renaming one reconnects as the new driver (leaving
+  any session); the resume token is kept per server and profile, so one
+  profile never takes another's held seat. A stored qualifying result
+  grids its humans by `@driver:` (`ApexCreateSession::OrderFromResult`,
+  the host by their own id), labelled with the name they qualified under;
+  the leaderboard lights the profile's own laps by id.
+- **Stats** (`FApexDriverStats`): laps, distance, sessions, races (taken to
+  the flag), wins and podiums (against at least one other car), incidents
+  (penalties plus laps struck for track limits) and the best lap per
+  circuit and car. `UApexSessionRecorder::FinishRecording` files each
+  session the player drove (`ApexProfiles::FileSession`).
+- **The Profile screen** (`EApexScreen::Profile`; main menu > Driver
+  profile): the drivers on this machine (picking one switches to it; New
+  driver makes one with the next unused picture; Delete, or pad Y, twice
+  on another driver removes them and their saves), and the driver in use:
+  their name (typed, committed on Enter or leaving), the 16 pictures, the
+  stats and the personal bests. The main menu's top bar shows the picture
+  beside the name.
+- **Pictures**: `face_<n>.png` from the content's `drivers/portraits`
+  (`UApexPortraitSubsystem`; `apexsim-content/drivers/portraits` in the
+  editor, `Drivers/portraits` beside the packaged game, copied by
+  `build_release.ps1`), read at runtime on first use.
+
+Checks: `ApexSim.Profile.*` (stats filing, the list and `-ApexProfile=`,
+the pictures there), `ApexSim.UI.CreateSession.StartOrder`'s profile
+lines, `ApexSim.Leaderboard.Rows`, `ApexSim.Net.Protocol.*` for the wire.
 
 ### Tracks globe (`UI/ApexTrackGlobePage.cpp`)
 

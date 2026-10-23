@@ -1709,6 +1709,10 @@ struct APEXSIMNET_API FApexQualifyingEntry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
 	FString Name;
 
+	/** The driver profile's id for a human who sent one (`DriverId`); empty otherwise. A race grids them by it (`@driver:`). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
+	FString DriverId;
+
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Qualifying")
 	FString CarConfigId;
 
@@ -1730,6 +1734,10 @@ struct APEXSIMNET_API FApexLeaderboardEntry
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
 	FString PlayerName;
+
+	/** The driver profile's id the lap was set under (`DriverId`); empty for a lap set without one. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
+	FString DriverId;
 
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Leaderboard")
 	FString CarConfigId;

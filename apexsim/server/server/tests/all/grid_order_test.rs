@@ -24,6 +24,15 @@ impl Client {
         name: &str,
         addr: SocketAddr,
     ) -> Result<(Self, LobbyStateData), Box<dyn std::error::Error>> {
+        Self::connect_as(name, None, addr).await
+    }
+
+    /// Connect under a driver profile's id.
+    async fn connect_as(
+        name: &str,
+        driver_id: Option<uuid::Uuid>,
+        addr: SocketAddr,
+    ) -> Result<(Self, LobbyStateData), Box<dyn std::error::Error>> {
         let mut client = Client {
             tcp: TcpStream::connect(addr).await?,
         };
@@ -33,6 +42,7 @@ impl Client {
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: None,
+                driver_id,
             })
             .await?;
         match client.recv().await? {
@@ -184,6 +194,101 @@ async fn the_hosts_start_order_grids_the_race() {
     }
 }
 
+/// A driver who joins under a profile id takes the slot a `@driver:`
+/// reference holds for that id, whatever name they race under.
+#[tokio::test]
+async fn a_driver_reference_grids_the_profile() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let records_dir =
+            std::env::temp_dir().join(format!("apexsim-grid-{}", uuid::Uuid::new_v4()));
+        let server = common::start_test_server_with_records(&records_dir).await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+        let profile = uuid::Uuid::from_u128(0x5eed);
+
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 4,
+            ai_count: 1,
+            lap_limit: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: vec![
+                apexsim_server::grid_order::driver_ref(profile),
+                "@host".into(),
+            ],
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+
+        // Renamed since the order was made: the id still finds them.
+        let (mut guest, _) = Client::connect_as("Renamed", Some(profile), server.tcp_addr).await?;
+        guest
+            .send(&ClientMessage::SelectCar {
+                car_config_id: car_id,
+                livery: 0,
+            })
+            .await?;
+        sleep(Duration::from_millis(50)).await;
+        guest
+            .send(&ClientMessage::JoinSession {
+                session_id: joined.session_id,
+            })
+            .await?;
+        guest.wait_joined().await?;
+        host.send(&ClientMessage::StartCountdown {
+            countdown_seconds: 5,
+            next_mode: GameMode::Race,
+        })
+        .await?;
+        sleep(Duration::from_millis(300)).await;
+
+        let state = server.state.read().await;
+        let session = state.sessions.get(&joined.session_id).ok_or("no session")?;
+        let ai = &session.session.ai_player_ids;
+        let guest_id = *session
+            .session
+            .participants
+            .keys()
+            .find(|id| **id != session.session.host_player_id && !ai.contains(id))
+            .ok_or("no guest")?;
+        assert_eq!(session.driver_id(&guest_id), Some(profile));
+        assert_eq!(session.session.participants[&guest_id].grid_position, 1);
+        assert_eq!(
+            session.session.participants[&session.session.host_player_id].grid_position,
+            2
+        );
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}
+
 /// A track with no qualifying session behind it answers with an empty list,
 /// and the stored results a track has come back newest first.
 #[tokio::test]
@@ -220,6 +325,7 @@ async fn stored_qualifying_results_are_listed_per_track() {
                 recorded_at: String::new(),
                 entries: vec![apexsim_server::records::QualifyingEntry {
                     name: name.into(),
+                    driver_id: None,
                     car_config_id: car_id,
                     lap_time_ms: 90_000,
                     is_ai: false,

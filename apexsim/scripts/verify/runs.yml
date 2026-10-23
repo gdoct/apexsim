@@ -6946,3 +6946,35 @@ runs:
         checks: "C5 Barriers/Boards/People: the rules, the Boards dossier pass, against the maps"
         exec: "apexsim.cam.LookAt -88.3 -451.0 5.0 -271.5 -568.4 4.5"
 
+
+  - id: n15-profiles
+    about: "N15. Driver profiles: the Profile screen, a second driver"
+    # The profile screen over the menu; a second driver made and then left
+    # for the first again. It writes ApexProfiles.sav and a second profile's
+    # slots: back up Saved/SaveGames first. Run n15-who-drives after it.
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=11
+    exec:
+      3: ["apexsim.profile.Picture 3"]
+      8: ["apexsim.profile.New Ana 9"]
+      13: ["apexsim.profile.List", "apexsim.profile.Use 1"]
+    shots:
+      - at: 6
+        label: "Profile screen: the first driver with picture 3"
+        checks: "N15: the profile screen (list, picture, name, stats, PBs)"
+      - at: 11
+        label: "Ana made and driving"
+        checks: "N15: a new driver in the list, picture 9, no stats"
+      - at: 16
+        label: "Back on the first driver"
+        checks: "N15: switching back keeps each driver's own picture and stats"
+
+  - id: n15-who-drives
+    about: "N15. Driver profiles: the launch asks who drives"
+    # Nothing but the runner's own switches, so with two profiles (after
+    # n15-profiles) the launch opens on "Who is driving?".
+    shots:
+      - at: 8
+        label: "Who is driving?"
+        checks: "N15: the launch picker with two drivers"

@@ -12,6 +12,10 @@ use crate::data::{CarConfigId, PlayerId, TrackConfigId};
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct QualifyingEntry {
     pub name: String,
+    /// The driver's profile id, for a human who sent one: a race grids
+    /// them by it (`@driver:`), whatever name they join under.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub driver_id: Option<crate::data::DriverId>,
     pub car_config_id: CarConfigId,
     pub lap_time_ms: u32,
     pub is_ai: bool,

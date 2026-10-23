@@ -145,6 +145,8 @@ private:
 	void StoreOrder(const TArray<FString>& Order, const FString& ResultId);
 	/** Makes a stored qualifying result the working start order. */
 	void LoadResult(const FApexQualifyingResult& Result);
+	/** Profile id -> name for the grid's `@driver:` slots, from the circuit's stored results. */
+	TMap<FString, FString> GridDriverNames() const;
 	/** The slot under a desktop-space point, INDEX_NONE for none. */
 	int32 SlotUnder(const FVector2D& ScreenPosition) const;
 	/** A press and release on one slot: pick the driver up or drop the picked one here. */

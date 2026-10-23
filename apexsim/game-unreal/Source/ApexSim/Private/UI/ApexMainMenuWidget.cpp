@@ -35,6 +35,10 @@
 #include "UI/ApexSettingsWidget.h"
 #include "UI/ApexTrackGlobePage.h"
 #include "UI/ApexUIStyle.h"
+#include "ApexPortraitSubsystem.h"
+#include "Components/Image.h"
+#include "Components/ScaleBox.h"
+#include "Engine/Texture2D.h"
 
 namespace
 {
@@ -69,6 +73,7 @@ namespace
 		const FName Hotlap(TEXT("Hotlap"));
 		const FName QuitBack(TEXT("QuitBack"));
 		const FName QuitExit(TEXT("QuitExit"));
+		const FName Profile(TEXT("Profile"));
 	}
 
 	using ApexUI::SplitTitle;
@@ -433,6 +438,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 		Row(TEXT("Garage"),       Action::GoGarage);
 		Row(TEXT("Drive"),        Action::GoDrive);
 		Row(TEXT("Watch a race"), Action::GoWatch);
+		Row(TEXT("Driver profile"), Action::Profile);
 		Row(TEXT("Settings"),     Action::Settings);
 		break;
 
@@ -514,11 +520,15 @@ UWidget* UApexMainMenuWidget::BuildTopBar()
 	PingText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(11.0f), ApexUI::Palette::TextMuted);
 	ApexUI::AddH(Bar, PingText, FMargin(18.0f, 0.0f, 0.0f, 0.0f));
 
-	// Placeholder for the driver's avatar; there is no account system to fill it.
+	// The driver profile's picture (UApexPortraitSubsystem), its face filling a small square.
+	DriverPortrait = WidgetTree->ConstructWidget<UImage>();
+	UScaleBox* PortraitFill = WidgetTree->ConstructWidget<UScaleBox>();
+	PortraitFill->SetStretch(EStretch::ScaleToFill);
+	PortraitFill->AddChild(DriverPortrait);
 	ApexUI::AddH(Bar,
 		ApexUI::MakeSized(*WidgetTree,
-			ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::SurfaceHover)),
-			22.0f, 22.0f),
+			ApexUI::MakePanel(*WidgetTree, PortraitFill, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::SurfaceHover)),
+			26.0f, 26.0f),
 		FMargin(24.0f, 0.0f, 10.0f, 0.0f));
 
 	DriverText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Body(13.0f), ApexUI::Palette::TextPrimary);
@@ -977,6 +987,16 @@ void UApexMainMenuWidget::RefreshHeader()
 	{
 		DriverText->SetText(FText::FromString(Flow->PlayerName));
 	}
+	if (DriverPortrait)
+	{
+		UApexPortraitSubsystem* Portraits = UApexPortraitSubsystem::Get(this);
+		UTexture2D* Texture = Portraits ? Portraits->GetPortrait(Flow->GetPortrait()) : nullptr;
+		if (Texture)
+		{
+			DriverPortrait->SetBrushFromTexture(Texture, true);
+		}
+		DriverPortrait->SetVisibility(Texture ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 }
 
 void UApexMainMenuWidget::RefreshRejoin()
@@ -1399,6 +1419,10 @@ void UApexMainMenuWidget::RunAction(FName Id, UApexButtonWidget* Button)
 	else if (Id == Action::Leaderboard)
 	{
 		ShowScreen(EApexScreen::Leaderboard);
+	}
+	else if (Id == Action::Profile)
+	{
+		ShowScreen(EApexScreen::Profile);
 	}
 	else if (Id == Action::Watch)
 	{

@@ -13,7 +13,7 @@ class UTexture2D;
 class UVerticalBox;
 class UWidget;
 
-/** What a card shows. Content-agnostic: a track, a car, anything with art and a name. */
+/** What a card shows. Content-agnostic: a track, a car, anything with art and a name; no title, meta or footnote is the picture alone. */
 USTRUCT(BlueprintType)
 struct FApexCardSpec
 {

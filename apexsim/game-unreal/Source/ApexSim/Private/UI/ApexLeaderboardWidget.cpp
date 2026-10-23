@@ -46,7 +46,7 @@ UApexLeaderboardWidget::UApexLeaderboardWidget(const FObjectInitializer& ObjectI
 }
 
 TArray<UApexLeaderboardWidget::FRow> UApexLeaderboardWidget::MakeRows(const TArray<FApexLeaderboardEntry>& Entries,
-	const FString& Me, TFunctionRef<FString(const FString& CarId)> CarName)
+	const FString& Me, TFunctionRef<FString(const FString& CarId)> CarName, const FString& MyDriverId)
 {
 	TArray<FRow> Rows;
 	Rows.Reserve(Entries.Num());
@@ -61,7 +61,9 @@ TArray<UApexLeaderboardWidget::FRow> UApexLeaderboardWidget::MakeRows(const TArr
 		Row.Time = LapText(Entry.LapTimeMs);
 		Row.Gap = Index == 0 ? FString() : FString::Printf(TEXT("+%.3f"), (Entry.LapTimeMs - Best) / 1000.0f);
 		Row.When = DateOf(Entry.RecordedAt);
-		Row.bMine = !Me.IsEmpty() && Entry.PlayerName.Equals(Me, ESearchCase::IgnoreCase);
+		Row.bMine = !Entry.DriverId.IsEmpty()
+			? Entry.DriverId.Equals(MyDriverId, ESearchCase::IgnoreCase)
+			: !Me.IsEmpty() && Entry.PlayerName.Equals(Me, ESearchCase::IgnoreCase);
 	}
 	return Rows;
 }
@@ -311,7 +313,7 @@ void UApexLeaderboardWidget::Rebuild()
 	{
 		FApexCarCatalogRow Row;
 		return Flow->GetCarCatalogRow(Id, Row) && !Row.DisplayName.IsEmpty() ? Row.DisplayName : FString(TEXT("-"));
-	});
+	}, Net->GetDriverId());
 	StatusText->SetText(FText::FromString(!Net->HasLeaderboard(TrackIds[TrackIndex], CarId)
 		? FString(TEXT("ASKING THE SERVER..."))
 		: Rows.Num() == 0

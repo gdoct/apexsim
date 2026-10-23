@@ -17,9 +17,12 @@ namespace
 	/** GameUserSettings section holding one resume token per server. */
 	const TCHAR* ResumeSection = TEXT("ApexSim.Resume");
 
-	FString ResumeKey(const FString& Host, int32 Port)
+	/** A resume token is one driver's on one server: each profile keeps its own seat. */
+	FString ResumeKey(const FString& Host, int32 Port, const FString& DriverId)
 	{
-		return FString::Printf(TEXT("%s_%d"), *Host, Port);
+		return DriverId.IsEmpty()
+			? FString::Printf(TEXT("%s_%d"), *Host, Port)
+			: FString::Printf(TEXT("%s_%d_%s"), *Host, Port, *DriverId);
 	}
 }
 
@@ -219,7 +222,7 @@ void UApexNetSubsystem::Connect(const FString& InHost, int32 InPort, const FStri
 	ResumeToken.Reset();
 	if (GConfig)
 	{
-		GConfig->GetString(ResumeSection, *ResumeKey(Host, Port), ResumeToken, GGameUserSettingsIni);
+		GConfig->GetString(ResumeSection, *ResumeKey(Host, Port, DriverId), ResumeToken, GGameUserSettingsIni);
 	}
 	ClearRejoinOffer();
 	AutoRejoinSessionId.Reset();
@@ -248,7 +251,7 @@ void UApexNetSubsystem::StartConnectionAttempt()
 	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
-	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions, ResumeToken);
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions, ResumeToken, DriverId);
 	if (!Connection->Start())
 	{
 		Connection.Reset();
@@ -1161,7 +1164,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			ResumeToken = Message.AuthSuccess.ResumeToken;
 			if (GConfig)
 			{
-				GConfig->SetString(ResumeSection, *ResumeKey(Host, Port), *ResumeToken, GGameUserSettingsIni);
+				GConfig->SetString(ResumeSection, *ResumeKey(Host, Port, DriverId), *ResumeToken, GGameUserSettingsIni);
 				GConfig->Flush(false, GGameUserSettingsIni);
 			}
 		}

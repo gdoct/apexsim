@@ -43,6 +43,7 @@ impl Client {
                 player_name: name.to_string(),
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: resume.map(str::to_string),
+                driver_id: None,
             },
         )
         .await?;

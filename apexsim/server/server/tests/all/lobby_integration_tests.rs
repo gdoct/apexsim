@@ -41,6 +41,7 @@ impl LobbyTestClient {
             player_name: self.name.clone(),
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
+            driver_id: None,
         };
 
         self.send_message(&auth_msg).await?;
