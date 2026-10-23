@@ -419,6 +419,17 @@ at `-ApexTimeScale=30`.
 
 ### Top view
 - If we use the top view with formula cars, somehow the image looks really cheap and lacks the visual fidelity seen in other camera angles. This needs to be further investigated and fixed.
+- Looked at 2026-10-24 (`g6-top-view`: chase far, helicopter, tracking at
+  Monzarella in the SF-26; `g6-grid-above`: the grid still from 35 and 15 m
+  up, virtual shadow maps against cascades, contact shadows on): the cars
+  are one runtime-built LOD (no LOD switch to blame), their materials hold
+  up from above, and shadows work the same with either shadow method. At
+  13:00 the sun is near overhead, so a formula car's shadow lies under its
+  own floor and from above the car sits on the road with no dark edge: the
+  likeliest "pasted on" look. Nothing was clearly broken in the shots;
+  needs the person who saw it to name the view (a shot or a MARK), then
+  try a contact shadow or AO term under the car (a floor-shadow decal or
+  `bCastContactShadow` with a longer `r.ContactShadows` length).
 
 ## P5: Cleanup
 

@@ -205,8 +205,11 @@ Left: the terrain as a heightfield representation, or hardware ray-traced
 Lumen, judged against the `g4-df-fast` sheet. Lowered to P3: no visible
 fault found in the shots.
 
-#### G6. Top view of formula cars looks cheap — P3
-Investigate LOD selection, shadow and material quality at that distance.
+#### G6. Top view of formula cars looks cheap — P3 · 🟡
+Looked at 2026-10-24 (`g6-top-view`, `g6-grid-above`; follow-ups, Top
+view): one LOD, materials and shadows fine; from above at midday a formula
+car's shadow hides under its floor. Needs the view named by the person who
+saw it, then a contact shadow under the car.
 
 ### Content and circuits
 
