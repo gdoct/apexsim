@@ -255,6 +255,15 @@ namespace
 	constexpr float CentreEndSpeedMps = 3.0f;
 	constexpr float CentreMaxSeconds = 3.0f;
 	/**
+	 * A car "arrives" after the feedback has been gone this long: a session
+	 * start, the garage, the menus. Shorter gaps are a stale frame or two
+	 * (a lost datagram at a standstill), after which the rim is where the
+	 * driver holds it and is left there.
+	 */
+	constexpr float CentreRearmAfterSeconds = 1.0f;
+	/** Pushing a rim that does not move for this long is pushing against hands: give up. */
+	constexpr float CentreGiveUpSeconds = 0.4f;
+	/**
 	 * The push toward the middle: full strength this far off centre, never
 	 * more than the cap. A position loop rather than DirectInput's spring,
 	 * whose force is a share of the base's whole travel: at 30% it put 6% of
@@ -781,11 +790,15 @@ namespace ApexFfb
 		}
 
 		// A car arriving standing still: the start of a session, the garage.
+		// Not the feedback coming back after a stale frame: that is the same
+		// car, and the rim is where the driver holds it.
 		const bool bArriving = Signals.bActive && !State.bWasActive;
-		if (bArriving && Signals.SpeedMps < CentreStartMaxSpeedMps)
+		const bool bBackFromAway = bArriving && State.InactiveSeconds >= CentreRearmAfterSeconds;
+		if (bBackFromAway && Signals.SpeedMps < CentreStartMaxSpeedMps)
 		{
 			RequestCentre(State);
 		}
+		State.InactiveSeconds = Signals.bActive ? 0.0f : State.InactiveSeconds + Dt;
 		State.bWasActive = Signals.bActive;
 
 		if (State.CentreSeconds > 0.0f)
@@ -806,7 +819,21 @@ namespace ApexFfb
 			else
 			{
 				State.CentredFor = 0.0f;
+				// Off centre and not moving while being pushed at full
+				// strength: a hand holds the rim. Fighting it is what a rim
+				// shaking at a standstill feels like; let go.
+				const bool bPushing = State.CentreGain > 0.5f && FMath::Abs(Signals.RimDegrees) >= CentreFullDeg * 0.5f;
+				State.CentreHeldSeconds = bPushing && FMath::Abs(State.RimRate) < CentreDoneRateDegPerS
+					? State.CentreHeldSeconds + Dt : 0.0f;
+				if (State.CentreHeldSeconds >= CentreGiveUpSeconds)
+				{
+					State.CentreSeconds = 0.0f;
+				}
 			}
+		}
+		if (State.CentreSeconds <= 0.0f)
+		{
+			State.CentreHeldSeconds = 0.0f;
 		}
 		State.CentreGain = FMath::Lerp(State.CentreGain, State.CentreSeconds > 0.0f ? 1.0f : 0.0f,
 			1.0f - FMath::Exp(-Dt / CentreEaseSeconds));

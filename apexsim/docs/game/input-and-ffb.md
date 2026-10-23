@@ -314,6 +314,11 @@ Everything else is texture on top.
   brings the rim to the middle and lets go once it has settled, the car rolls or
   3 s pass (`ApexFfb::RequestCentre`). DirectInput's own spring cannot: its force
   is a share of the base's whole travel, a few percent for a rim a quarter turn off.
+  A car arrives only after the feedback has been gone `CentreRearmAfterSeconds`
+  (1 s): a stale frame or two at a standstill (a lost datagram) is the same car,
+  and the rim is left where the driver holds it. A rim that is pushed and does
+  not move for `CentreGiveUpSeconds` (0.4 s) is in the driver's hands: the
+  centring gives up rather than fight them (follow-ups #31).
 - **Settings**: the Wheel tab's Force, Road effects, Damping and Direction
   (`UApexSettingsSave::WheelForce`, `WheelRoadEffects`, `WheelDamping`,
   `bWheelInvertForce`; the Direction test pushes the rim right and asks: 0.2 of full

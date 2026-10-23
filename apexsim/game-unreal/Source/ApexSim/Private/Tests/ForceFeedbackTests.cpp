@@ -616,6 +616,73 @@ bool FApexFfbWheelCentreTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("no centring at speed (%.3f)"), Out.Constant), FMath::Abs(Out.Constant) < 0.01f);
 	}
 
+	// The feedback going stale for a frame and coming back is not a car
+	// arriving: the rim the driver holds off centre is left alone. Only a
+	// real absence (the menus, a second or more) re-centres.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::FSignals Menu;
+		Menu.bHasRim = true;
+		Menu.RimDegrees = 45.0f;
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			ApexFfb::MixWheel(Menu, State, FeedbackTestDt, Designed);
+		}
+		ApexFfb::FSignals Grid = Cruising(0.0f);
+		Grid.bHasRim = true;
+		Grid.RimDegrees = 45.0f;
+		// The centring eases in over a few frames.
+		float Arrived = 0.0f;
+		for (int32 Frame = 0; Frame < 15; ++Frame)
+		{
+			Arrived = ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed).Constant;
+		}
+		TestTrue(FString::Printf(TEXT("after the menus the rim is pushed home (%.3f)"), Arrived), Arrived < -0.05f);
+		// Let the centring run out, then a two-frame gap in the feedback.
+		for (float T = 0.0f; T < 3.5f; T += FeedbackTestDt)
+		{
+			ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed);
+		}
+		for (int32 Frame = 0; Frame < 2; ++Frame)
+		{
+			ApexFfb::MixWheel(Menu, State, FeedbackTestDt, Designed);
+		}
+		float Back = 0.0f;
+		for (int32 Frame = 0; Frame < 30; ++Frame)
+		{
+			Back = ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed).Constant;
+		}
+		TestTrue(FString::Printf(TEXT("a stale flicker does not re-centre a held rim (%.3f)"), Back), FMath::Abs(Back) < 0.01f);
+	}
+
+	// A rim held off centre by the driver's hands: the centring gives up
+	// rather than push against them for three seconds.
+	{
+		ApexFfb::FWheelState State;
+		ApexFfb::FSignals Menu;
+		Menu.bHasRim = true;
+		Menu.RimDegrees = 60.0f;
+		for (int32 Frame = 0; Frame < 120; ++Frame)
+		{
+			ApexFfb::MixWheel(Menu, State, FeedbackTestDt, Designed);
+		}
+		ApexFfb::FSignals Grid = Cruising(0.0f);
+		Grid.bHasRim = true;
+		Grid.RimDegrees = 60.0f;
+		float Push = 0.0f;
+		float GaveUpAt = -1.0f;
+		for (float T = 0.0f; T < 2.0f; T += FeedbackTestDt)
+		{
+			Push = ApexFfb::MixWheel(Grid, State, FeedbackTestDt, Designed).Constant;
+			if (GaveUpAt < 0.0f && T > 0.2f && FMath::Abs(Push) < 0.01f)
+			{
+				GaveUpAt = T;
+			}
+		}
+		TestTrue(FString::Printf(TEXT("a held rim is let go of (%.3f)"), Push), FMath::Abs(Push) < 0.01f);
+		TestTrue(FString::Printf(TEXT("within a second (%.2f s)"), GaveUpAt), GaveUpAt > 0.0f && GaveUpAt < 1.0f);
+	}
+
 	// Rolling away ends it: the car's torque is what the rim should feel.
 	{
 		ApexFfb::FWheelState State;

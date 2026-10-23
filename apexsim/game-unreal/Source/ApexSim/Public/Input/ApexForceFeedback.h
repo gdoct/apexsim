@@ -381,6 +381,16 @@ namespace ApexFfb
 
 		/** A car was being driven last frame: one arriving is what starts the centring. */
 		bool bWasActive = false;
+		/**
+		 * How long no car has been driven, s: a car arrives (and the centring
+		 * starts) only after a real absence, not when the feedback went stale
+		 * for a frame and came back, which re-centred a rim the driver was
+		 * holding at every flicker. A fresh state has never had a car, so
+		 * the first one to arrive is centred.
+		 */
+		float InactiveSeconds = 1.0e6f;
+		/** How long the centring has pushed a rim that is not coming: the driver's hands, which it gives up to. */
+		float CentreHeldSeconds = 0.0f;
 	};
 
 	/**
