@@ -7024,6 +7024,39 @@ runs:
         label: "Season after round 1: calendar with the winner, standings"
         checks: "N7: the drivers' and cars' standings"
 
+  # A two-class race (-ApexClasses): four LMP2s and three GT3s with the
+  # player's Caravan, the stand-in driving. The lobby lists the grid by
+  # class (the LMP2s first), the standings tag each car with its class
+  # place, and the results screen's car column leads with it.
+  - id: n5-multi-class
+    about: "N5. A two-class race: the grid by class, class places in the standings and the results"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexNoStart
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexClasses=LMP2:4,GT3:3
+      - -ApexLaps=1
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+    exec:
+      15: ["apexsim.ui.Texts"]
+      20: ["apexsim.ui.Click Start countdown"]
+      30: ["apexsim.grid.Ready"]
+      60: ["apexsim.hud.Data race."]
+      110: ["apexsim.hud.Data item."]
+      145: ["apexsim.ui.Texts"]
+    shots:
+      - {at: 17, label: "the lobby: GRID list", checks: "the LMP2s on the first four slots, the GT3s behind"}
+      - {at: 36, label: "the grid card", checks: "the field by class"}
+      - {at: 62, label: "the race: standings", checks: "each row's class and class place (LMP2 P1.., GT3 P1..)"}
+      - {at: 95, label: "the race: standings, later", checks: "the class places follow the overall order"}
+      - {at: 115, label: "the finish view", checks: "the standings' class places at the flag"}
+      - {at: 148, label: "the finish overlay", checks: "each row's class place beside the name (GT3 P1...)"}
+
   - id: b13-armadillos-t15
     about: "B13. Armadillos T15-T16: what stands over the road"
     # The wheel sitting of 2026-10-23 saw a tent over the track here; the

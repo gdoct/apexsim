@@ -137,7 +137,18 @@ and widget factories), so layouts are reviewable as diffs.
   [sessions.md](../server/sessions.md#session-rules-set-on-create)). Each
   section's caption line and the summary under the screen name what is
   set. Keys and pad reach every chip through `ApexNav::MoveToward`; a new
-  row only has to be added to `GatherFocusables` while it shows.
+  row only has to be added to `GatherFocusables` while it shows. The Field
+  section's Other classes block (shown while there are AI and the
+  server's cars offer a class besides the pending car's) shares the AI
+  drivers out over classes, one stepper per class
+  (`UApexMenuFlowSubsystem::CreateClassAi`, kept on the profile); the
+  player's own class takes the rest, and `ClassesToSend` is
+  `CreateSession.classes` for a multi-class race
+  ([sessions.md](../server/sessions.md#multi-class-racing)). In such a
+  race the standings tag each car with its class place, the finish
+  overlay carries it beside the name and the results screen's car column
+  leads with it ("GT3 P2 · ..."), and the session browser lists the
+  classes ("Endurance + GT3").
 
 ### Session browser (`UI/ApexSessionBrowserWidget.cpp`)
 
@@ -812,7 +823,8 @@ Note `-ExecCmds` separates commands with commas, so
 
 Creates a session and counts it in with no input (never starts the demo):
 `-ApexTrack=<stem>`, `-ApexCar=<name>` (else the lobby's first),
-`-ApexAiCount=N`, `-ApexLaps=N`, `-ApexCountdown=N`, `-ApexRaceMinutes=N`,
+`-ApexAiCount=N` (or `-ApexClasses=LMP2:6,GT3:4`, a multi-class field with
+that many AI of each class), `-ApexLaps=N`, `-ApexCountdown=N`, `-ApexRaceMinutes=N`,
 `-ApexMode=<EApexGameMode>` (6 qualifying, 7 race, 8 hotlap),
 `-ApexQualifyingMinutes=N` (0 open), `-ApexWeekend=P,R,M` (a race weekend:
 P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is

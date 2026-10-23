@@ -2105,10 +2105,42 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		RaceRules.ReverseGrid = static_cast<uint8>(FMath::Clamp(ReverseGrid, 0, 255));
 	}
-	Net->CreateSessionWithOrder(Track.Id, MaxPlayers, AutoRaceAiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
+	// -ApexClasses=LMP2:6,GT3:4: a multi-class field, each class's AI count
+	// (the counts replace -ApexAiCount; the AI level applies to every class).
+	FString ClassesText;
+	TArray<FApexClassEntry> Classes;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexClasses="), ClassesText, /*bShouldStopOnSeparator*/ false))
+	{
+		TArray<FString> Parts;
+		ClassesText.ParseIntoArray(Parts, TEXT(","));
+		for (const FString& Part : Parts)
+		{
+			FString Class;
+			FString Count;
+			if (Part.Split(TEXT(":"), &Class, &Count) && !Class.TrimStartAndEnd().IsEmpty())
+			{
+				FApexClassEntry Entry;
+				Entry.Class = Class.TrimStartAndEnd();
+				Entry.AiCount = FMath::Clamp(FCString::Atoi(*Count), 0, 255);
+				Classes.Add(Entry);
+			}
+		}
+	}
+	int32 AiCount = AutoRaceAiCount;
+	int32 Players = MaxPlayers;
+	if (Classes.Num() > 1)
+	{
+		AiCount = 0;
+		for (const FApexClassEntry& Entry : Classes)
+		{
+			AiCount += Entry.AiCount;
+		}
+		Players = FMath::Max(Players, AiCount + 1);
+	}
+	Net->CreateSessionWithOrder(Track.Id, Players, AiCount, AutoRaceLaps, EApexSessionKind::Practice, Allowed, Conditions, Damage,
 		AiSkill, Flow->EffectiveRaceSeconds(), GridOrder, Flow->EffectiveQualifyingSeconds(), Flow->WeekendToSend(),
 		ApexQualifyingCutoff::Clamp(Cutoff), ApexMandatoryStops::Clamp(MandatoryStops), bCompoundChange,
-		QualifyingFormat, ApexQualifyingLapAllowance::Clamp(LapAllowance), RaceRules.Normalised());
+		QualifyingFormat, ApexQualifyingLapAllowance::Clamp(LapAllowance), RaceRules.Normalised(), Classes);
 }
 
 void UApexRootWidget::HandleUdpReady()

@@ -211,6 +211,16 @@ void UApexMenuFlowSubsystem::LoadProfileEntry(const FApexProfileEntry& Entry)
 	bCreateCompoundChange = Profile->bCompoundChange;
 	CreateRaceRules = Profile->RaceRules.Normalised();
 	CreateAiSkill = ApexAiSkill::Clamp(Profile->AiSkill);
+	CreateClassAi.Reset();
+	for (const FString& Line : Profile->ClassAi)
+	{
+		FString Class;
+		FString Count;
+		if (Line.Split(TEXT("="), &Class, &Count) && !Class.TrimStartAndEnd().IsEmpty())
+		{
+			CreateClassAi.Add(Class.TrimStartAndEnd(), FMath::Clamp(FCString::Atoi(*Count), 0, 255));
+		}
+	}
 	CreateQualifyingFormat = Profile->QualifyingFormat == EApexQualifyingFormat::Shootout ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open;
 	CreateQualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(Profile->QualifyingLapAllowance);
 	CreateWeekendPracticeDamage = FMath::Clamp(Profile->WeekendPracticeDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
@@ -503,6 +513,68 @@ void UApexMenuFlowSubsystem::FileSessionStats(const FApexSessionStats& Session)
 		Profile->Stats.Laps, Profile->Stats.DistanceM / 1000.0, Profile->Stats.Races, Profile->Stats.Wins, Profile->Stats.Incidents);
 }
 
+FString UApexMenuFlowSubsystem::PendingCarClass() const
+{
+	FApexCarCatalogRow Row;
+	return HasPendingCar() && GetCarCatalogRow(PendingCarId, Row) ? Row.CarClass.TrimStartAndEnd() : FString();
+}
+
+int32 UApexMenuFlowSubsystem::OtherClassAiCount() const
+{
+	const FString Own = PendingCarClass();
+	int32 Others = 0;
+	for (const TPair<FString, int32>& Pair : CreateClassAi)
+	{
+		if (Pair.Value > 0 && !Pair.Key.Equals(Own, ESearchCase::IgnoreCase))
+		{
+			Others += Pair.Value;
+		}
+	}
+	return FMath::Min(Others, FMath::Max(0, CreateAiCount));
+}
+
+TArray<FApexClassEntry> UApexMenuFlowSubsystem::ClassesToSend() const
+{
+	TArray<FApexClassEntry> Out;
+	if (CreateStartingMode == EApexGameMode::Hotlap || CreateAiCount <= 0)
+	{
+		return Out;
+	}
+	const FString Own = PendingCarClass();
+	// By name, so the same choices make the same bytes.
+	TArray<FString> Keys;
+	CreateClassAi.GetKeys(Keys);
+	Keys.Sort([](const FString& A, const FString& B) { return A.Compare(B, ESearchCase::IgnoreCase) < 0; });
+	int32 Others = 0;
+	for (const FString& Key : Keys)
+	{
+		const int32 Count = FMath::Min(CreateClassAi[Key], CreateAiCount - Others);
+		if (Count <= 0 || Key.Equals(Own, ESearchCase::IgnoreCase))
+		{
+			continue;
+		}
+		FApexClassEntry Entry;
+		Entry.Class = Key;
+		Entry.AiCount = Count;
+		Others += Count;
+		Out.Add(Entry);
+	}
+	if (Out.IsEmpty())
+	{
+		return Out;
+	}
+	if (!Own.IsEmpty())
+	{
+		// The player's own class first, with what is left of the field;
+		// the server ranks the list by pace anyway.
+		FApexClassEntry Mine;
+		Mine.Class = Own;
+		Mine.AiCount = CreateAiCount - Others;
+		Out.Insert(Mine, 0);
+	}
+	return Out;
+}
+
 TArray<FString> UApexMenuFlowSubsystem::GridOrderToSend(int32 GridCeiling) const
 {
 	if (CreateStartingMode != EApexGameMode::Race || CreateGridOrder.IsEmpty()
@@ -614,6 +686,14 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->bCompoundChange = bCreateCompoundChange;
 	Profile->RaceRules = CreateRaceRules;
 	Profile->AiSkill = CreateAiSkill;
+	Profile->ClassAi.Reset();
+	for (const TPair<FString, int32>& Pair : CreateClassAi)
+	{
+		if (Pair.Value > 0)
+		{
+			Profile->ClassAi.Add(FString::Printf(TEXT("%s=%d"), *Pair.Key, Pair.Value));
+		}
+	}
 	Profile->QualifyingFormat = CreateQualifyingFormat;
 	Profile->QualifyingLapAllowance = CreateQualifyingLapAllowance;
 	Profile->WeekendPracticeDamage = CreateWeekendPracticeDamage;

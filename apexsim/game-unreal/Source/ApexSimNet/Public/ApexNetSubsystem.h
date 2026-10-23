@@ -308,7 +308,8 @@ public:
 		bool bCompoundChange = false,
 		EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open,
 		int32 QualifyingLapAllowance = 0,
-		const FApexRaceRules& RaceRules = FApexRaceRules());
+		const FApexRaceRules& RaceRules = FApexRaceRules(),
+		const TArray<FApexClassEntry>& Classes = TArray<FApexClassEntry>());
 
 	/**
 	 * A backdrop is on this connection's race view: a spectator stream fed
@@ -595,6 +596,15 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
 	int32 GetSessionAiSkill() const { return CurrentAiSkill; }
+
+	/**
+	 * The classes of the session this client is in, from its SessionJoined,
+	 * the quickest first; empty for a field of one class (and from a server
+	 * that predates the field). Two or more: a multi-class race, each car
+	 * placed in its class as well as overall.
+	 */
+	const TArray<FApexClassEntry>& GetSessionClasses() const { return CurrentClasses; }
+	bool IsMultiClassSession() const { return CurrentClasses.Num() > 1; }
 
 	/**
 	 * A timed race's length in the session this client is in, from its
@@ -1019,6 +1029,7 @@ private:
 	FApexSessionConditions CurrentConditions;
 	EApexDamageLevel CurrentDamage = EApexDamageLevel::Full;
 	int32 CurrentAiSkill = ApexAiSkill::Mixed;
+	TArray<FApexClassEntry> CurrentClasses;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;

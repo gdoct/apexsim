@@ -173,6 +173,7 @@ void UApexHudDataSubsystem::RefreshCarNames()
 	}
 	CarNamesKey = Key;
 	CarNames.Reset();
+	CarClasses.Reset();
 	CarCompounds.Reset();
 	CarHalfSizes.Reset();
 	TMap<FString, FApexCarCatalogRow> ByCarId;
@@ -185,6 +186,7 @@ void UApexHudDataSubsystem::RefreshCarNames()
 			Known = &ByCarId.Add(Entry.CarConfigId, Flow->GetCarCatalogRow(Entry.CarConfigId, Row) ? Row : FApexCarCatalogRow());
 		}
 		CarNames.Add(Entry.CarIndex, Known->DisplayName);
+		CarClasses.Add(Entry.CarIndex, Known->CarClass.TrimStartAndEnd());
 		CarHalfSizes.Add(Entry.CarIndex, ApexHudData::CarHalfSize(Known->Wheels));
 		TArray<FString>& Names = CarCompounds.Add(Entry.CarIndex);
 		for (const FApexCompoundSpec& Compound : Known->Compounds)
@@ -440,6 +442,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.QualifyingLapsLeft = Net->GetQualifyingLapsLeft();
 		RefreshCarNames();
 		In.CarNames = &CarNames;
+		In.CarClasses = &CarClasses;
 		In.CarCompounds = &CarCompounds;
 		In.CarHalfSizes = &CarHalfSizes;
 	}

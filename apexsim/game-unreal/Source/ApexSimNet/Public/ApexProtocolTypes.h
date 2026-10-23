@@ -197,6 +197,25 @@ namespace ApexAiSkill
 }
 
 /**
+ * One class of a multi-class field, as CreateSession's `classes` and
+ * SessionJoined's `Classes` carry it (data.rs `ClassEntry`): a car.toml
+ * class (FApexCarCatalogRow::CarClass), how many AI drive it and the level
+ * they are seated at (ApexAiSkill; Mixed for the session's own level). The
+ * server keeps the list quickest class first.
+ */
+struct APEXSIMNET_API FApexClassEntry
+{
+	FString Class;
+	int32 AiCount = 0;
+	int32 AiSkill = ApexAiSkill::Mixed;
+
+	bool operator==(const FApexClassEntry& Other) const
+	{
+		return Class == Other.Class && AiCount == Other.AiCount && AiSkill == Other.AiSkill;
+	}
+};
+
+/**
  * A timed race's length, as CreateSession's `race_seconds`, SessionJoined's
  * `RaceSeconds` and SessionSummary's `RaceSeconds` carry it (data.rs
  * `clamp_race_seconds`): seconds from the green light, 0 for a race over
@@ -1542,6 +1561,10 @@ struct APEXSIMNET_API FApexSessionSummary
 	/** The race-control rules (`RaceRules`); the defaults from an older server or a plain race. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	FApexRaceRules RaceRules;
+
+	/** A multi-class field's class names (`Classes`), the quickest first; empty for a field of one class. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	TArray<FString> Classes;
 
 	/** A race is being driven: there is something to watch. */
 	bool IsWatchable() const { return State == EApexSessionState::Countdown || State == EApexSessionState::Racing; }
@@ -3912,6 +3935,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexRaceRules RaceRules;
 	/** SessionJoined::Physics: a driver's session's tick rate and road; not bValid when absent. */
 	FApexSessionPhysics Physics;
+	/** SessionJoined::Classes, a multi-class field's classes, the quickest first; empty for a field of one class. */
+	TArray<FApexClassEntry> Classes;
 	/**
 	 * SessionJoined::Conditions as the server wrote them (MessagePack, named):
 	 * what the physics library's apx_track_load bakes, every field kept,

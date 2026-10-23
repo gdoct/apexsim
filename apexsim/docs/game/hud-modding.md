@@ -353,6 +353,8 @@ swap places on screen every frame.
 |---|---|
 | `race.position` | the local car's place, from 1 (*null* without a car) |
 | `race.car_count` | cars in the session |
+| `race.class`, `race.class_position`, `race.class_car_count` | the local car's catalog class as the menus show it, its place among the cars of that class, and how many there are (the overall figures in a field of one class; *null* without a car or, for the class, without a known one) |
+| `race.multi_class` | two or more classes are on the road: a multi-class race ([sessions.md](../server/sessions.md#multi-class-racing)); the default standings then tag each row with its class and class place |
 | `race.leader_lap` | the leader's lap, as `lap.display` (*null* with no cars) |
 | `race.finished` | the session is over (the flag is out and every car is in, or the finish deadline passed) |
 | `race.timed` | the race runs to a clock rather than a lap count; also true in timed qualifying and a weekend's practice |
@@ -537,6 +539,7 @@ the furthest round).
 | `item.car_index` | car index |
 | `item.name` | driver name |
 | `item.car_name` | the car's model (*null* for a car this machine does not have) |
+| `item.class`, `item.class_position` | the car's class as the menus show it (*null* when unknown) and its place among the cars of that class, counted down this order |
 | `item.is_local` | the car the HUD is about: the player's, or the watched car |
 | `item.is_player` | the player's own car (never while watching) |
 | `item.finished`, `item.finish_position` | has taken the flag, and where |

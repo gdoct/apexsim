@@ -327,6 +327,16 @@ void UApexSessionBrowserWidget::ApplyRow(int32 Index, const FApexSessionSummary&
 	{
 		Parts.Add(Rules);
 	}
+	// A multi-class field: its classes, the quickest first.
+	if (Session.Classes.Num() > 1)
+	{
+		TArray<FString> Names;
+		for (const FString& Class : Session.Classes)
+		{
+			Names.Add(ApexCatalog::DisplayClass(Class));
+		}
+		Parts.Add(FString::Join(Names, TEXT(" + ")));
+	}
 	// A server that balances its cars drives them unlike their car.toml.
 	if (const UApexNetSubsystem* Net = GetNet(); Net && Net->GetCachedLobbyState().bBalanced)
 	{

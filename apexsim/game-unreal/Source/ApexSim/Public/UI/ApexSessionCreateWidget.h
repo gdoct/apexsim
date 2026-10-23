@@ -300,6 +300,22 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiSkillMinus;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AiSkillPlus;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> AiSkillValueText;
+	/**
+	 * A multi-class field: one stepper row per catalog class other than the
+	 * pending car's, the AI of that class (UApexMenuFlowSubsystem::
+	 * CreateClassAi), rebuilt when the classes on offer or the car change.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UWidget> ClassesBlock;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> ClassesInfoText;
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> ClassRowsBox;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ClassMinus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ClassPlus;
+	UPROPERTY(Transient) TArray<TObjectPtr<UTextBlock>> ClassValueTexts;
+	/** The catalog class each row is for, in row order; the key the rows were built for. */
+	TArray<FString> ClassRowKeys;
+	FString ClassRowsKey;
+	void RebuildClassRows();
+	void SetClassAi(const FString& CarClass, int32 Count);
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistPresetButtons;
 	/** One toggle per driving aid the session may allow, in EApexAssistChip order. */
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> AssistButtons;

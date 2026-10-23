@@ -191,6 +191,13 @@ public:
 	UPROPERTY()
 	int32 AiSkill = -1;
 
+	/**
+	 * The other classes of a multi-class field this player creates, each
+	 * as `<CarClass>=<AI count>` (UApexMenuFlowSubsystem::CreateClassAi).
+	 */
+	UPROPERTY()
+	TArray<FString> ClassAi;
+
 	/** Qualifying's format on a session this player creates (a weekend's final round). */
 	UPROPERTY()
 	EApexQualifyingFormat QualifyingFormat = EApexQualifyingFormat::Open;

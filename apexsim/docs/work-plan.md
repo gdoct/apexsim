@@ -40,7 +40,6 @@ takes it up (— : no step, taken opportunistically).
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 3 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
-| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 4 |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 4 |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 4 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
@@ -82,9 +81,9 @@ takes it up (— : no step, taken opportunistically).
 3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-4. **Online and depth.** N5 (multi-class) with A3 (its speed differences
-   stress side by side), N11 (liveries), then the rest of R3, and N7
-   online on top of identity.
+4. **Online and depth.** A3 (a two-class field's speed differences stress
+   side by side: `SURVEY_CLASSES` is its target now), N11 (liveries), then
+   the rest of R3, and N7 online on top of identity.
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups wait on T2), P3 on an integrated-GPU machine.
 6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
@@ -136,8 +135,12 @@ Holding the dodge across the road was tried and made contact worse.
 **Implementation:** A lane commitment through the exit (each car owns a
 lateral band until one is a car length clear), built on `racecraft::pass_here`'s
 lane choice rather than an offset on the line.
-**Watch out:** the previous attempt failed — start with the survey's
-contact count on Zandvoort as the target number; human review on R7.
+**Watch out:** two attempts failed (simulation-gaps has the numbers):
+holding the dodge, and room for any car alongside (which did help the
+single-class Monza and Spa races but doubled two-class contact at the
+Norisring). Start with the survey's contact count on Zandvoort and the
+two-class field (`SURVEY_CLASSES=LMP2:6,GT3:6`: Monza 18, Spa 28, Zandvoort 24 car-s
+of contact at `94fc5cbe`) as the target numbers; human review on R7.
 
 #### A7. AI in imported cars — P3 · 🟢 · M
 *Source: follow-ups #19.* Imported F1s and prototypes finish their races
@@ -333,18 +336,6 @@ Planned block by block, with the agent's prep and follow-up, in
 
 Not in any backlog before this plan; each is a package in
 [roadmap.md](roadmap.md).
-
-#### N5. Multi-class racing — P2 · 🟡 · L
-**What:** The AI races in one class per session; no mixed fields (GT3 with
-prototypes).
-**Outcome:** Endurance racing as people know it, with traffic management as
-its main skill.
-**Implementation:** A field definition per class (cars, count, AI level) in
-`CreateSession`; the timing tower and results by class (position in class,
-class colours via `ApexCatalog::DisplayClass`); class-aware blue flags (R1a);
-AI that yields to and passes across classes; grid by class.
-**Watch out:** depends on R1a; the AI's speed difference between classes
-stresses A3 (side-by-side); results and records keyed by class.
 
 #### N6. Lap comparison: the ghost, any two laps, MoTeC — P3 · 🟢 · S
 Built: every whole lap recorded and saved as CSV, any two held laps against

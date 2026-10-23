@@ -345,6 +345,35 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		Start.bJumpStart = true;
 		CheckBytes(TEXT("CreateSession with a rolling start, a formation lap and false starts"), CreateWithRules(Start),
 			ApexGolden::C_CreateSessionRaceRules);
+		{
+			// A multi-class field: each class's AI count and its own level
+			// only when it has one; a field of one class leaves the list off.
+			TArray<FApexClassEntry> Classes;
+			FApexClassEntry Lmp2;
+			Lmp2.Class = TEXT("LMP2");
+			Lmp2.AiCount = 4;
+			Lmp2.AiSkill = 100;
+			FApexClassEntry Gt3;
+			Gt3.Class = TEXT("GT3");
+			Gt3.AiCount = 6;
+			Classes.Add(Lmp2);
+			Classes.Add(Gt3);
+			CheckBytes(TEXT("CreateSession with two classes"),
+				ApexProtocol::EncodeCreateSession(
+					TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 12, 10, 5, EApexSessionKind::Multiplayer,
+					FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+					TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 0, false,
+					EApexQualifyingFormat::Open, 0, FApexRaceRules(), Classes),
+				ApexGolden::C_CreateSessionClasses);
+			const TArray<FApexClassEntry> One = { Gt3 };
+			CheckBytes(TEXT("CreateSession with one class has no classes"),
+				ApexProtocol::EncodeCreateSession(
+					TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+					FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Reduced, ApexAiSkill::Mixed, 0,
+					TArray<FString>(), 0, FApexWeekendFormat(), nullptr, ApexQualifyingCutoff::None, 0, false,
+					EApexQualifyingFormat::Open, 0, FApexRaceRules(), One),
+				ApexGolden::C_CreateSessionDamage);
+		}
 		FApexRaceRules Penalties;
 		Penalties.bYellowPenalty = true;
 		Penalties.bPitExitPenalty = true;
@@ -724,6 +753,29 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("QualifyingFormat (open when absent)"), Message.QualifyingFormat, EApexQualifyingFormat::Open);
 			TestEqual(TEXT("QualifyingLapAllowance (none when absent)"), Message.QualifyingLapAllowance, 0);
 			TestTrue(TEXT("RaceRules (the defaults when absent)"), Message.RaceRules.IsDefault());
+		}
+	}
+
+	{
+		// The classes the server echoes, the quickest first; none for a field of one class.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined with classes"), ApexGolden::S_SessionJoinedClasses, Joined))
+		{
+			TestEqual(TEXT("Classes.Num"), Joined.Classes.Num(), 2);
+			if (Joined.Classes.Num() == 2)
+			{
+				TestEqual(TEXT("Classes[0].Class"), Joined.Classes[0].Class, FString(TEXT("LMP2")));
+				TestEqual(TEXT("Classes[0].AiCount"), Joined.Classes[0].AiCount, 4);
+				TestEqual(TEXT("Classes[0].AiSkill"), Joined.Classes[0].AiSkill, 100);
+				TestEqual(TEXT("Classes[1].Class"), Joined.Classes[1].Class, FString(TEXT("GT3")));
+				TestEqual(TEXT("Classes[1].AiCount"), Joined.Classes[1].AiCount, 6);
+				TestEqual(TEXT("Classes[1].AiSkill"), Joined.Classes[1].AiSkill, ApexAiSkill::Mixed);
+			}
+		}
+		FApexServerMessage Plain;
+		if (Decode(TEXT("SessionJoined, one class"), ApexGolden::S_SessionJoinedAiSkill, Plain))
+		{
+			TestEqual(TEXT("Classes (none when absent)"), Plain.Classes.Num(), 0);
 		}
 	}
 

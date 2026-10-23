@@ -509,8 +509,8 @@ void UApexSessionResultsWidget::RefreshTable()
 
 namespace
 {
-	/** The car a result drove, by its catalog display name; empty when unknown. */
-	FString CarNameOf(const UApexNetSubsystem& Net, UApexMenuFlowSubsystem& Flow, const FApexCarResult& Result)
+	/** The car a result drove, by its catalog row; false when unknown. */
+	bool CarRowOf(const UApexNetSubsystem& Net, UApexMenuFlowSubsystem& Flow, const FApexCarResult& Result, FApexCarCatalogRow& CarRow)
 	{
 		// The roster names every car's model (AI included); a lobby player's
 		// pick stands in for a roster from an older server.
@@ -531,8 +531,21 @@ namespace
 				break;
 			}
 		}
+		return !CarId.IsEmpty() && Flow.GetCarCatalogRow(CarId, CarRow);
+	}
+
+	/** The car a result drove, by its catalog display name; empty when unknown. */
+	FString CarNameOf(const UApexNetSubsystem& Net, UApexMenuFlowSubsystem& Flow, const FApexCarResult& Result)
+	{
 		FApexCarCatalogRow CarRow;
-		return !CarId.IsEmpty() && Flow.GetCarCatalogRow(CarId, CarRow) ? CarRow.DisplayName : FString();
+		return CarRowOf(Net, Flow, Result, CarRow) ? CarRow.DisplayName : FString();
+	}
+
+	/** The car's catalog class (raw); empty when unknown. */
+	FString CarClassOf(const UApexNetSubsystem& Net, UApexMenuFlowSubsystem& Flow, const FApexCarResult& Result)
+	{
+		FApexCarCatalogRow CarRow;
+		return CarRowOf(Net, Flow, Result, CarRow) ? CarRow.CarClass.TrimStartAndEnd() : FString();
 	}
 
 	bool IsLocalResult(const UApexNetSubsystem& Net, const FApexCarResult& Result)
@@ -564,6 +577,18 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 	{
 		GapByCar.Add(Line.CarIndex, Line.Time);
 	}
+	// A multi-class race: each car's place in its class, counted down the
+	// overall order, shown beside the car.
+	TMap<int32, FString> ClassByCar;
+	TMap<int32, int32> ClassPlaceByCar;
+	TMap<FString, int32> ClassCounts;
+	for (const FApexCarResult& Result : Results)
+	{
+		const FString Class = CarClassOf(*Net, *Flow, Result);
+		ClassByCar.Add(Result.CarIndex, Class);
+		ClassPlaceByCar.Add(Result.CarIndex, ++ClassCounts.FindOrAdd(Class.ToLower()));
+	}
+	const bool bMultiClass = ClassCounts.Num() > 1;
 
 	for (int32 Index = 0; Index < Results.Num(); ++Index)
 	{
@@ -598,7 +623,16 @@ void UApexSessionResultsWidget::FillRaceRows(bool bLive)
 		}
 		ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, NameCell, ColDriver, -1.0f));
 
-		ApexUI::AddH(Row, MakeCell(*WidgetTree, CarNameOf(*Net, *Flow, Result).ToUpper(), ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextMuted, ColCar));
+		FString CarText = CarNameOf(*Net, *Flow, Result).ToUpper();
+		if (bMultiClass)
+		{
+			const FString Class = ClassByCar.FindRef(Result.CarIndex);
+			CarText = FString::Printf(TEXT("%s P%d%s%s"),
+				*(Class.IsEmpty() ? FString(TEXT("—")) : ApexCatalog::DisplayClass(Class).ToUpper()),
+				ClassPlaceByCar.FindRef(Result.CarIndex),
+				CarText.IsEmpty() ? TEXT("") : TEXT(" · "), *CarText);
+		}
+		ApexUI::AddH(Row, MakeCell(*WidgetTree, CarText, ApexUI::Font::Mono(10.0f, 60), ApexUI::Palette::TextMuted, ColCar));
 
 		ApexUI::AddH(Row, MakeCell(
 			*WidgetTree,

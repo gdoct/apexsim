@@ -39,14 +39,6 @@ None open.
 
 ## P2: depth
 
-### 5. Multi-class racing
-
-- A field per class (cars, count, AI level) in `CreateSession`; position in
-  class on the tower, results and records by class; class-aware blue
-  flags; the AI yielding and passing across classes.
-
-**Check:** the AI survey with a two-class field; results by class on screen.
-
 ### 6. Telemetry logging and lap comparison
 
 Built: every whole lap recorded and saved as CSV, the pause menu's last

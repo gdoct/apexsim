@@ -193,6 +193,35 @@ namespace
 
 	bool ParseRaceRules(FMsgPackReader& Reader, FApexRaceRules& Out);
 
+	/** `ClassEntry` (data.rs) — snake_case keys, as CreateSession writes it. */
+	bool ParseClassEntry(FMsgPackReader& Reader, FApexClassEntry& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("class"))         { bOk = Reader.ReadString(Out.Class); }
+			else if (Key == TEXT("ai_count")) { bOk = Reader.ReadUInt64(Raw); Out.AiCount = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("ai_skill")) { bOk = Reader.ReadUInt64(Raw); Out.AiSkill = ApexAiSkill::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
+			else                              { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool ParseSessionSummary(FMsgPackReader& Reader, FApexSessionSummary& Out)
 	{
 		int32 FieldCount = 0;
@@ -226,6 +255,17 @@ namespace
 			else if (Key == TEXT("MandatoryStops")) { bOk = Reader.ReadUInt64(Raw); Out.MandatoryStops = ApexMandatoryStops::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("CompoundChange")) { bOk = Reader.ReadBool(Out.bCompoundChange); }
 			else if (Key == TEXT("RaceRules"))  { bOk = ParseRaceRules(Reader, Out.RaceRules); }
+			else if (Key == TEXT("Classes"))
+			{
+				int32 Count = 0;
+				bOk = Reader.ReadArrayHeader(Count);
+				for (int32 c = 0; bOk && c < Count; ++c)
+				{
+					FString Name;
+					bOk = Reader.ReadString(Name);
+					Out.Classes.Add(Name);
+				}
+			}
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -833,6 +873,7 @@ namespace
 			else if (Key == TEXT("QualifyingFormat"))  { bOk = Reader.ReadUInt64(Raw); Out.QualifyingFormat = Raw == 1 ? EApexQualifyingFormat::Shootout : EApexQualifyingFormat::Open; }
 			else if (Key == TEXT("QualifyingLapAllowance")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(static_cast<int32>(FMath::Min<uint64>(Raw, 255))); }
 			else if (Key == TEXT("RaceRules"))         { bOk = ParseRaceRules(Reader, Out.RaceRules); }
+			else if (Key == TEXT("Classes"))           { bOk = ParseArrayOf(Reader, Out.Classes, &ParseClassEntry); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -3603,7 +3644,8 @@ namespace ApexProtocol
 		bool bCompoundChange,
 		EApexQualifyingFormat QualifyingFormat,
 		int32 QualifyingLapAllowance,
-		const FApexRaceRules& RaceRules)
+		const FApexRaceRules& RaceRules,
+		const TArray<FApexClassEntry>& Classes)
 	{
 		// Full damage, the mixed AI field, a race over laps and open
 		// qualifying are left off, as the server does: an older server's
@@ -3627,10 +3669,13 @@ namespace ApexProtocol
 		const bool bAllowance = Allowance != ApexQualifyingLapAllowance::None;
 		const FApexRaceRules Rules = RaceRules.Normalised();
 		const bool bRules = !Rules.IsDefault();
+		// A field of one class is the plain field: its list stays off.
+		const bool bClasses = Classes.Num() >= 2;
 		FMsgPackWriter Writer(320);
 		BeginDataVariant(Writer, "CreateSession", 7 + (bDamage ? 1 : 0) + (bAiSkill ? 1 : 0) + (bTimed ? 1 : 0) + (bGrid ? 1 : 0)
 			+ (bTimedQualifying ? 1 : 0) + (bWeekend ? 1 : 0) + (Watch ? 1 : 0) + (bCutoff ? 1 : 0)
-			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0) + (bRules ? 1 : 0));
+			+ (bStops ? 1 : 0) + (bCompoundChange ? 1 : 0) + (bShootout ? 1 : 0) + (bAllowance ? 1 : 0) + (bRules ? 1 : 0)
+			+ (bClasses ? 1 : 0));
 		Writer.WriteString("track_config_id");
 		Writer.WriteString(TrackConfigId);
 		Writer.WriteString("max_players");
@@ -3803,6 +3848,28 @@ namespace ApexProtocol
 			{
 				Writer.WriteString("reverse_grid");
 				Writer.WriteUInt(Rules.ReverseGrid);
+			}
+		}
+		if (bClasses)
+		{
+			// A multi-class field, last as the server's struct has it: each
+			// class's AI count, and its level only when it has one, as the
+			// server leaves them off.
+			Writer.WriteString("classes");
+			Writer.WriteArrayHeader(Classes.Num());
+			for (const FApexClassEntry& Entry : Classes)
+			{
+				const int32 Level = ApexAiSkill::Clamp(Entry.AiSkill);
+				Writer.WriteMapHeader(2 + (Level != ApexAiSkill::Mixed ? 1 : 0));
+				Writer.WriteString("class");
+				Writer.WriteString(Entry.Class);
+				Writer.WriteString("ai_count");
+				Writer.WriteUInt(static_cast<uint8>(FMath::Clamp(Entry.AiCount, 0, 255)));
+				if (Level != ApexAiSkill::Mixed)
+				{
+					Writer.WriteString("ai_skill");
+					Writer.WriteUInt(static_cast<uint8>(Level));
+				}
 			}
 		}
 		return MoveTemp(Writer.GetBuffer());

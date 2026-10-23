@@ -28,6 +28,10 @@
               "text": "=item.is_player ? 'YOU' : upper(item.name)",
               "bold": "=item.is_local",
               "color": "=item.is_local ? 'on_accent' : item.away ? 'text_muted' : 'text'" },
+            // A multi-class race: the car's class and its place in it.
+            { "type": "text", "margin": [8, 0, 0, 0], "font": "mono", "size": 10, "bold": true,
+              "visible": "=race.multi_class && has(item.class)", "text": "=upper(item.class) + ' P' + item.class_position",
+              "color": "=item.is_local ? 'on_accent' : 'text_secondary'" },
             // A driver who lost their connection: the server drives the car.
             { "type": "text", "margin": [8, 0, 0, 0], "font": "body", "size": 11, "bold": true,
               "visible": "=item.away", "text": "AWAY", "color": "text_muted" },

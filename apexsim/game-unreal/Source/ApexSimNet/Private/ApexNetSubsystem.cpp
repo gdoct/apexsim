@@ -534,11 +534,12 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 	bool bCompoundChange,
 	EApexQualifyingFormat QualifyingFormat,
 	int32 QualifyingLapAllowance,
-	const FApexRaceRules& RaceRules)
+	const FApexRaceRules& RaceRules,
+	const TArray<FApexClassEntry>& Classes)
 {
-	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d"),
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> CreateSession track=%s players=%d ai=%d laps=%d race_seconds=%d qualifying_seconds=%d locked_assists=%d conditions=%s damage=%d ai_skill=%d classes=%d"),
 		*TrackConfigId, MaxPlayers, AiCount, LapLimit, RaceSeconds, QualifyingSeconds, AllowedAssists.CountLocked(), *Conditions.Describe(),
-		static_cast<int32>(Damage), AiSkill);
+		static_cast<int32>(Damage), AiSkill, Classes.Num());
 	// The server takes a showcase viewer off their channel by itself.
 	ResetSpectate();
 	bSessionRequestPending = true;
@@ -564,7 +565,8 @@ void UApexNetSubsystem::CreateSessionWithOrder(
 		bCompoundChange,
 		QualifyingFormat,
 		QualifyingLapAllowance,
-		RaceRules));
+		RaceRules,
+		Classes));
 }
 
 void UApexNetSubsystem::JoinSession(const FString& SessionId)
@@ -1302,6 +1304,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentConditions = Message.Conditions;
 			CurrentDamage = Message.Damage;
 			CurrentAiSkill = Message.AiSkill;
+			CurrentClasses = Message.Classes;
 			CurrentRaceSeconds = Message.RaceSeconds;
 			CurrentQualifyingSeconds = Message.QualifyingSeconds;
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
@@ -1344,6 +1347,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentConditions = FApexSessionConditions();
 		CurrentDamage = EApexDamageLevel::Full;
 		CurrentAiSkill = ApexAiSkill::Mixed;
+		CurrentClasses.Reset();
 		CurrentRaceSeconds = 0;
 		CurrentQualifyingSeconds = 0;
 		CurrentQualifyingCutoffPct = 0;

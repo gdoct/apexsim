@@ -148,6 +148,7 @@ private:
 	int32 HudLapLimit = -1;
 
 	TMap<int32, FString> CarNames;
+	TMap<int32, FString> CarClasses;
 	TMap<int32, TArray<FString>> CarCompounds;
 	TMap<int32, FVector2f> CarHalfSizes;
 	FString CarNamesKey;

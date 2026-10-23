@@ -159,6 +159,13 @@ struct APEXSIM_API FApexHudInputs
 
 	/** Each car's model by car index, from the roster and the car catalog; null when not known. */
 	const TMap<int32, FString>* CarNames = nullptr;
+	/**
+	 * Each car's catalog class by car index (FApexCarCatalogRow::CarClass,
+	 * the raw name; screens show ApexCatalog::DisplayClass); null when not
+	 * known. Two classes on the road make the race multi-class: the
+	 * standings carry each car's place in its class.
+	 */
+	const TMap<int32, FString>* CarClasses = nullptr;
 	/** Each car's own compound names by car index, in the order its telemetry indexes them; empty for the five defaults. */
 	const TMap<int32, TArray<FString>>* CarCompounds = nullptr;
 	/**

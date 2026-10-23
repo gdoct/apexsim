@@ -350,6 +350,21 @@ season cards judged good from the shots the same day. Left:
 - A whole season by hand: three rounds, a DNF, End season and the
   summary on the next season's setup.
 
+### R16. Multi-class racing
+
+`n5-multi-class` (four LMP2s and three GT3s with the player's Caravan at
+the Norisring, the stand-in driving): the lobby's grid by class, the
+standings' class tags and the finish overlay's class places
+([sessions.md](server/sessions.md#multi-class-racing)). Shot 2026-10-23:
+the LMP2s gridded ahead, "LMP2 P4" / "GT3 P1.." on the standings and the
+overlay, the server's results file with `class` and `class_position`,
+all judged good. Left:
+
+- The create screen's Other classes block with a server that offers more
+  than one class (the rows need a connected lobby; shoot by hand).
+- A multi-class race by hand: the blue flag as an LMP2 closes, the AI
+  letting it by, the GT3s' race among themselves.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

@@ -313,6 +313,30 @@ public:
 	int32 CreateAiSkill = -1;
 
 	/**
+	 * A multi-class field: the AI of every class but the player's own, by
+	 * catalog car class (FApexCarCatalogRow::CarClass). The player's class
+	 * (the pending car's) takes the rest of CreateAiCount, which stays the
+	 * whole field's AI count; a class here that is the player's own, or
+	 * with no AI, is not sent. Kept on the profile as `<class>=<count>`.
+	 */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	TMap<FString, int32> CreateClassAi;
+
+	/** The catalog class of the pending car; empty without one. */
+	FString PendingCarClass() const;
+
+	/** The AI CreateClassAi gives the other classes, held to CreateAiCount. */
+	int32 OtherClassAiCount() const;
+
+	/**
+	 * CreateSession's `classes`: the player's class with the AI left over,
+	 * then every other class with some, as the server deals and ranks them.
+	 * Empty (a field of the player's class alone) unless another class has
+	 * AI; always empty for a hotlap.
+	 */
+	TArray<FApexClassEntry> ClassesToSend() const;
+
+	/**
 	 * The race's start order as the create screen edits it: driver references
 	 * (`ApexCreateSession::HostRef`, `AiRef`, or a name) first to last, empty
 	 * for the order cars are seated in. Not kept on the profile: it belongs to

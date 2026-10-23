@@ -327,7 +327,7 @@ const TMap<FName, TArray<FName>>& ApexHudData::ListFields()
 			TEXT("speed_kph"), TEXT("in_pit"), TEXT("on_track"), TEXT("servicing"), TEXT("retired"), TEXT("car_name"),
 			TEXT("compound"), TEXT("tyre_age_laps"), TEXT("tyre_wear_pct"), TEXT("pit_stops"), TEXT("away"), TEXT("dnq"),
 			TEXT("missed_stops"), TEXT("penalty_s"), TEXT("penalty_owed"), TEXT("blue_flag"), TEXT("yellow"),
-			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down")}},
+			TEXT("race_time_s"), TEXT("finish_gap_s"), TEXT("finish_laps_down"), TEXT("class"), TEXT("class_position")}},
 		{TEXT("radar_cars"), {TEXT("car_index"), TEXT("forward_m"), TEXT("left_m"), TEXT("heading_deg"), TEXT("length_m"),
 			TEXT("width_m"), TEXT("alongside")}},
 		{TEXT("sectors"), {TEXT("number"), TEXT("time_s"), TEXT("best_s"), TEXT("session_best_s"), TEXT("state"),
@@ -845,6 +845,22 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	}
 	const bool bWinnerTimed = WinnerHistory && WinnerHistory->bFinished && WinnerHistory->bWholeRace;
 
+	// Each car's place in its class: the order above, counted per catalog
+	// class (a car of no known class is in a class of its own, "").
+	TArray<FString> ClassOfPlace;
+	TArray<int32> ClassPlaceOfPlace;
+	TMap<FString, int32> ClassCounts;
+	ClassOfPlace.Reserve(Order.Num());
+	ClassPlaceOfPlace.Reserve(Order.Num());
+	for (const FHudStanding& Entry : Order)
+	{
+		const FString* Raw = In.CarClasses ? In.CarClasses->Find(Entry.Car->CarIndex) : nullptr;
+		const FString Class = Raw ? Raw->ToLower() : FString();
+		ClassOfPlace.Add(Raw ? *Raw : FString());
+		ClassPlaceOfPlace.Add(++ClassCounts.FindOrAdd(Class));
+	}
+	const bool bMultiClass = ClassCounts.Num() > 1;
+
 	TArray<FApexHudRecord>& Standings = Out.Lists.FindOrAdd(TEXT("standings"));
 	Standings.Reset(Order.Num());
 	for (int32 Place = 0; Place < Order.Num(); ++Place)
@@ -854,6 +870,8 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		const FApexCarTiming* CarTiming = Timing.Find(Car.CarIndex);
 		FApexHudRecord& Row = Standings.AddDefaulted_GetRef();
 		Row.Add(TEXT("position"), FApexHudValue::Of(Place + 1));
+		Row.Add(TEXT("class"), ClassOfPlace[Place].IsEmpty() ? FApexHudValue() : FApexHudValue::Of(ApexCatalog::DisplayClass(ClassOfPlace[Place])));
+		Row.Add(TEXT("class_position"), FApexHudValue::Of(ClassPlaceOfPlace[Place]));
 		Row.Add(TEXT("car_index"), FApexHudValue::Of(Car.CarIndex));
 		Row.Add(TEXT("name"), FApexHudValue::Of(Entry.Name));
 		Row.Add(TEXT("is_local"), FApexHudValue::Of(Entry.bIsLocal));
@@ -922,6 +940,16 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 	Out.Values.FindOrAdd(TEXT("race.position")) = LocalPlace >= 0 ? FApexHudValue::Of(LocalPlace + 1) : FApexHudValue();
 	Out.Set(TEXT("race.car_count"), Order.Num());
+	// The local car's place among the cars of its class, and the class's
+	// size; the overall figures in a field of one class.
+	Out.Values.FindOrAdd(TEXT("race.class_position")) = LocalPlace >= 0 ? FApexHudValue::Of(ClassPlaceOfPlace[LocalPlace]) : FApexHudValue();
+	Out.Values.FindOrAdd(TEXT("race.class_car_count")) = LocalPlace >= 0
+		? FApexHudValue::Of(ClassCounts.FindRef(ClassOfPlace[LocalPlace].ToLower()))
+		: FApexHudValue();
+	Out.Values.FindOrAdd(TEXT("race.class")) = LocalPlace >= 0 && !ClassOfPlace[LocalPlace].IsEmpty()
+		? FApexHudValue::Of(ApexCatalog::DisplayClass(ClassOfPlace[LocalPlace]))
+		: FApexHudValue();
+	Out.Set(TEXT("race.multi_class"), bMultiClass);
 	// The race's lap is the leader's, whoever the HUD is about.
 	Out.Set(TEXT("race.leader_lap"), Order.Num() > 0
 		? FApexHudValue::Of(ApexRace::DisplayLap(Order[0].Car->CurrentLap, In.LapLimit))

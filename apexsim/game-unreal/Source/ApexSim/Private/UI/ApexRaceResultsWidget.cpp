@@ -415,6 +415,31 @@ void UApexRaceResultsWidget::Refresh()
 		}
 	}
 	const TArray<ApexRaceResults::FRow> Rows = ApexRaceResults::BuildRows(Recorder->GetResults(), Net->GetPlayerId(), bLive, NotQualified, MissedStops);
+	// A multi-class race: each car's class (the roster's car, by the
+	// catalog) and its place in it, counted down the table, beside the name.
+	TMap<int32, FString> ClassTag;
+	{
+		TMap<int32, FString> ClassByCar;
+		for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+		{
+			FApexCarCatalogRow CarRow;
+			ClassByCar.Add(Entry.CarIndex, Flow && Flow->GetCarCatalogRow(Entry.CarConfigId, CarRow) ? CarRow.CarClass.TrimStartAndEnd() : FString());
+		}
+		TMap<FString, int32> Counts;
+		for (const ApexRaceResults::FRow& Row : Rows)
+		{
+			const FString Class = ClassByCar.FindRef(Row.CarIndex);
+			const int32 Place = ++Counts.FindOrAdd(Class.ToLower());
+			if (!Class.IsEmpty())
+			{
+				ClassTag.Add(Row.CarIndex, FString::Printf(TEXT("%s P%d"), *ApexCatalog::DisplayClass(Class).ToUpper(), Place));
+			}
+		}
+		if (Counts.Num() < 2)
+		{
+			ClassTag.Reset();
+		}
+	}
 
 	int32 Running = 0;
 	const ApexRaceResults::FRow* You = nullptr;
@@ -488,7 +513,9 @@ void UApexRaceResultsWidget::Refresh()
 		const FLinearColor RowInk = Row.bFinished || bLive ? Palette::TextPrimary : Palette::TextDisabled;
 		RowPos[Index]->SetText(FText::AsNumber(Row.Position));
 		RowPos[Index]->SetColorAndOpacity(FSlateColor(Row.bFinished && Row.Position == 1 ? Palette::Accent : Palette::TextSecondary));
-		RowName[Index]->SetText(FText::FromString(Row.bYou ? Row.Name + TEXT("  (YOU)") : Row.bAi ? TEXT("AI · ") + Row.Name : Row.Name));
+		const FString* Tag = ClassTag.Find(Row.CarIndex);
+		RowName[Index]->SetText(FText::FromString((Row.bYou ? Row.Name + TEXT("  (YOU)") : Row.bAi ? TEXT("AI · ") + Row.Name : Row.Name)
+			+ (Tag ? TEXT("   ") + *Tag : FString())));
 		RowName[Index]->SetColorAndOpacity(FSlateColor(Row.bYou ? Palette::Accent : RowInk));
 		RowLaps[Index]->SetText(FText::AsNumber(Row.Laps));
 		RowTime[Index]->SetText(FText::FromString(Row.Time));

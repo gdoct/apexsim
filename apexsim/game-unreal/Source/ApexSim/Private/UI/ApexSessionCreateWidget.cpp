@@ -388,6 +388,11 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 		Out.Add(AiPlus);
 		Out.Add(AiSkillMinus);
 		Out.Add(AiSkillPlus);
+		if (ClassesBlock && ClassesBlock->GetVisibility() != ESlateVisibility::Collapsed)
+		{
+			AddAll(ClassMinus);
+			AddAll(ClassPlus);
+		}
 		if (const UApexMenuFlowSubsystem* OrderFlow = GetFlow(); OrderFlow && OrderFlow->CreateStartingMode == EApexGameMode::Race && !OrderFlow->IsCreatingWeekend())
 		{
 			Out.Add(MovingPrev);
@@ -1295,6 +1300,19 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		AiSkillMinus = SMinus;
 		AiSkillPlus = SPlus;
 		AiSkillValueText = SValue;
+
+		// A multi-class field: some of the AI drivers in other classes
+		// (the rest race the player's own class). One row per class the
+		// server's cars offer, filled in RebuildClassRows.
+		UVerticalBox* Block = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* ClassesInfo = nullptr;
+		ApexUI::AddV(Block, MakeCaption(TEXT("Other classes"), &ClassesInfo), FMargin(0.0f, 0.0f, 0.0f, 6.0f));
+		ClassesInfoText = ClassesInfo;
+		ClassRowsBox = WidgetTree->ConstructWidget<UVerticalBox>();
+		ApexUI::AddV(Block, ClassRowsBox);
+		ClassesBlock = ApexUI::MakePanel(*WidgetTree, Block, FMargin(16.0f, 10.0f, 6.0f, 10.0f),
+			ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+		ApexUI::AddV(Section, ClassesBlock, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		FieldSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -2447,6 +2465,30 @@ void UApexSessionCreateWidget::RefreshSettings()
 			? FString::Printf(TEXT("%d OPEN FOR PLAYERS"), G.Open)
 			: FString(TEXT("SINGLE PLAYER · AI ONLY"))));
 	}
+	// The other classes' rows: shown while there are AI to share out and
+	// another class to put them in.
+	RebuildClassRows();
+	const int32 Others = Flow->OtherClassAiCount();
+	if (ClassesBlock)
+	{
+		ClassesBlock->SetVisibility(G.Ai > 0 && ClassRowKeys.Num() > 0 ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (ClassesInfoText)
+	{
+		const FString Own = Flow->PendingCarClass();
+		ClassesInfoText->SetText(FText::FromString(Others > 0
+			? FString::Printf(TEXT("MULTI-CLASS · %d %s · %d OTHER"), G.Ai - Others,
+				*(Own.IsEmpty() ? FString(TEXT("YOURS")) : ApexCatalog::DisplayClass(Own).ToUpper()), Others)
+			: FString::Printf(TEXT("ALL %d AI IN %s"), G.Ai,
+				*(Own.IsEmpty() ? FString(TEXT("YOUR CLASS")) : ApexCatalog::DisplayClass(Own).ToUpper()))));
+	}
+	for (int32 Index = 0; Index < ClassRowKeys.Num(); ++Index)
+	{
+		const int32 Count = FMath::Max(0, Flow->CreateClassAi.FindRef(ClassRowKeys[Index]));
+		if (ClassValueTexts.IsValidIndex(Index) && ClassValueTexts[Index]) { ClassValueTexts[Index]->SetText(FText::AsNumber(Count)); }
+		if (ClassMinus.IsValidIndex(Index) && ClassMinus[Index]) { ClassMinus[Index]->SetIsEnabled(Count > 0); }
+		if (ClassPlus.IsValidIndex(Index) && ClassPlus[Index]) { ClassPlus[Index]->SetIsEnabled(Others < G.Ai); }
+	}
 	if (FieldMinus) { FieldMinus->SetIsEnabled(G.Field > 1); }
 	if (FieldPlus)  { FieldPlus->SetIsEnabled(G.Field < MaxPlayersCeiling); }
 	if (AiMinus)    { AiMinus->SetIsEnabled(G.Ai > 0); }
@@ -3049,6 +3091,10 @@ void UApexSessionCreateWidget::RefreshFooter()
 			{
 				Parts.Add(FString::Printf(TEXT("AI %s"), *AiSkillSummary(Flow->CreateAiSkill).ToUpper()));
 			}
+			if (Flow->ClassesToSend().Num() > 1)
+			{
+				Parts.Add(TEXT("MULTI-CLASS"));
+			}
 		}
 		Parts.Add(C.ClockText());
 		Parts.Add(FApexSessionConditions::WeatherLabel(C.Weather).ToUpper());
@@ -3127,6 +3173,66 @@ void UApexSessionCreateWidget::Changed()
 		Flow->SaveProfile();
 	}
 	RefreshSettings();
+}
+
+void UApexSessionCreateWidget::RebuildClassRows()
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Flow || !Net || !ClassRowsBox)
+	{
+		return;
+	}
+	// The classes the server's cars offer, by the catalog, less the
+	// player's own; the rows are rebuilt only when that set changes.
+	const FString Own = Flow->PendingCarClass();
+	TArray<FString> Classes;
+	for (const FApexCarConfigSummary& Car : Net->GetCachedLobbyState().CarConfigs)
+	{
+		FApexCarCatalogRow Row;
+		if (Flow->GetCarCatalogRow(Car.Id, Row) && !Row.CarClass.TrimStartAndEnd().IsEmpty()
+			&& !Row.CarClass.Equals(Own, ESearchCase::IgnoreCase)
+			&& !Classes.ContainsByPredicate([&Row](const FString& C) { return C.Equals(Row.CarClass, ESearchCase::IgnoreCase); }))
+		{
+			Classes.Add(Row.CarClass.TrimStartAndEnd());
+		}
+	}
+	Classes.Sort([](const FString& A, const FString& B) { return ApexCatalog::DisplayClass(A).Compare(ApexCatalog::DisplayClass(B), ESearchCase::IgnoreCase) < 0; });
+	const FString Key = Own + TEXT("|") + FString::Join(Classes, TEXT(","));
+	if (Key == ClassRowsKey)
+	{
+		return;
+	}
+	ClassRowsKey = Key;
+	ClassRowKeys = Classes;
+	ClassRowsBox->ClearChildren();
+	ClassMinus.Reset();
+	ClassPlus.Reset();
+	ClassValueTexts.Reset();
+	for (const FString& CarClass : Classes)
+	{
+		UApexButtonWidget* Minus = nullptr;
+		UApexButtonWidget* Plus = nullptr;
+		UTextBlock* Value = nullptr;
+		ApexUI::AddV(ClassRowsBox, MakeStepperRow(ApexCatalog::DisplayClass(CarClass), Minus, Value, Plus), FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+		ClassMinus.Add(Minus);
+		ClassPlus.Add(Plus);
+		ClassValueTexts.Add(Value);
+	}
+}
+
+void UApexSessionCreateWidget::SetClassAi(const FString& CarClass, int32 Count)
+{
+	UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (!Flow)
+	{
+		return;
+	}
+	// Never more than the field's AI across the other classes.
+	const int32 Others = Flow->OtherClassAiCount() - FMath::Max(0, Flow->CreateClassAi.FindRef(CarClass));
+	const int32 Room = FMath::Max(0, Flow->CreateAiCount - Others);
+	Flow->CreateClassAi.Add(CarClass, FMath::Clamp(Count, 0, Room));
+	Changed();
 }
 
 void UApexSessionCreateWidget::SetGridSize(int32 Size)
@@ -3692,7 +3798,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			Flow->CompoundChangeToSend(),
 			Flow->QualifyingFormatToSend(),
 			Flow->QualifyingLapAllowanceToSend(),
-			Flow->RaceRulesToSend());
+			Flow->RaceRulesToSend(),
+			Flow->ClassesToSend());
 		return;
 	}
 
@@ -3886,6 +3993,16 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		Flow->CreateAiSkill = ApexAiSkill::Step(Flow->CreateAiSkill, Button == AiSkillPlus ? 1 : -1);
 		Changed();
+		return;
+	}
+	if (const int32 Row = ApexNav::IndexOf(ClassMinus, Button); Row != INDEX_NONE && ClassRowKeys.IsValidIndex(Row))
+	{
+		SetClassAi(ClassRowKeys[Row], Flow->CreateClassAi.FindRef(ClassRowKeys[Row]) - 1);
+		return;
+	}
+	if (const int32 Row = ApexNav::IndexOf(ClassPlus, Button); Row != INDEX_NONE && ClassRowKeys.IsValidIndex(Row))
+	{
+		SetClassAi(ClassRowKeys[Row], Flow->CreateClassAi.FindRef(ClassRowKeys[Row]) + 1);
 		return;
 	}
 	if (const int32 Position = ApexNav::IndexOf(SlotButtons, Button); Position != INDEX_NONE)
