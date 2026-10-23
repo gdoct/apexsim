@@ -259,18 +259,24 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
-- Runtime-built track meshes have no mesh distance fields, so software
-  Lumen and DF shadows see the road and terrain less well than the kit
-  props. Neither build path gives them any: on 2026-10-15
-  `ShowFlag.VisualizeMeshDistanceFields 1` at Norisring showed the road and
-  terrain missing after the fast build and after a full
-  `BuildFromMeshDescriptions` alike (in `-game` from the editor; a cooked
-  game cannot build them at all), while an `-ImportLevels` import of the
-  same circuit built them. What is left is the A/B: the race in an imported
-  level against the runtime one, which needs the race director to load
-  `/Game/Tracks/<Track>/L_<Track>` instead of building (the menu game mode
-  takes over a level opened with `-game`). If it shows they matter, the
-  ways out are shipping baked levels or hardware ray-traced Lumen.
+- Runtime-built track meshes stay out of the distance-field scene, so
+  software Lumen and DF shadows see the road and terrain less well than the
+  kit props. The fast build makes no distance field. `-ApexTrackFullBuild`
+  (editor builds only) builds every track mesh with the editor's full build
+  and waits for it: at Spa all 419 got a distance field (the log line
+  `Track full build: <mesh>, distance field yes, radius N m`; road and
+  ground chunks are under 300 m, only the horizon tiles pass the engine's
+  1 km `r.DistanceFields.MaxObjectBoundingRadius`). Yet
+  `ShowFlag.VisualizeMeshDistanceFields` a minute into the race still shows
+  no road or terrain, and the lit shots at Eau Rouge and the grid are alike
+  with and without it (`g4-df-fast` / `g4-df-full`, 2026-10-24). The road
+  and ground are open single-sided sheets, whose distance field is close to
+  empty, so shipping baked levels would not change it either. What is left
+  to try: the terrain as a heightfield Lumen takes in (the engine's
+  `SupportsHeightfieldRepresentation` path, which landscapes use), or
+  hardware ray-traced Lumen, which needs no distance field (a project
+  setting and a long shader rebuild); judge either against `g4-df-fast`'s
+  sheet.
 
 - Puddles cover most of a low cell's width: since 2026-10-17 a puddle is
   drawn from the water over the cell's flat share and reads as standing

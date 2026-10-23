@@ -37,7 +37,6 @@ takes it up (— : no step, taken opportunistically).
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
-| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 3 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 4 |
 | A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 4 |
@@ -45,6 +44,7 @@ takes it up (— : no step, taken opportunistically).
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 3 |
+| G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
@@ -202,11 +202,14 @@ Fold wind/wake and per-stretch grip in when the wet line (A4) exists.
 
 ### Rendering and visuals
 
-#### G4. Runtime track meshes lack distance fields — P2 · 🟡 · M
-*Source: follow-ups #12.* Software Lumen and DF shadows see road and terrain
-poorly. Do the A/B: let the race director load `/Game/Tracks/<Track>/L_<Track>`
-instead of building, then compare two screenshots. If it matters: ship baked
-levels or use hardware RT Lumen.
+#### G4. Road and terrain outside Lumen's distance-field scene — P3 · 🟡 · M
+*Source: follow-ups #12.* The A/B is done (2026-10-24, `g4-df-fast` /
+`g4-df-full`): giving every track mesh a distance field with the editor's
+full build changes nothing on screen, because the flat road and ground
+still stay out of the distance-field scene, so baked levels would not help.
+Left: the terrain as a heightfield representation, or hardware ray-traced
+Lumen, judged against the `g4-df-fast` sheet. Lowered to P3: no visible
+fault found in the shots.
 
 #### G6. Top view of formula cars looks cheap — P3
 Investigate LOD selection, shadow and material quality at that distance.

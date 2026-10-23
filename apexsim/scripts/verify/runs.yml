@@ -7201,3 +7201,83 @@ runs:
       - at: 24
         label: "chase near, puncture +3 s"
         checks: "B5"
+
+  - id: g4-df-fast
+    about: "G4. Distance fields on runtime track meshes, A/B (fast build, as shipped)"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=17:30
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 40
+        label: "Eau Rouge from the bottom"
+        checks: "G4: road and terrain shading, GI, contact shadows"
+        lead: 1
+        exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"
+      - at: 44
+        label: "Eau Rouge from the other side"
+        checks: "G4"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 48
+        label: "the grid from above"
+        checks: "G4: the road under the cars, the pit wall's shade"
+        lead: 1
+        exec: "apexsim.cam.Release"
+      - at: 52
+        label: "mesh distance fields shown"
+        checks: "G4: which meshes have a distance field"
+        lead: 1
+        exec: "ShowFlag.VisualizeMeshDistanceFields 1"
+
+  - id: g4-df-full
+    about: "G4. Distance fields on runtime track meshes, A/B (full build)"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=17:30
+      - -ApexView=tv
+      - -ApexRacingLine=off
+      - -ApexTrackFullBuild
+    shots:
+      - at: 40
+        label: "Eau Rouge from the bottom"
+        checks: "G4: road and terrain shading, GI, contact shadows"
+        lead: 1
+        exec: "apexsim.cam.LookAt 303.3 -29.3 -24.6 303.6 -37.3 -25.4"
+      - at: 44
+        label: "Eau Rouge from the other side"
+        checks: "G4"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 48
+        label: "the grid from above"
+        checks: "G4: the road under the cars, the pit wall's shade"
+        lead: 1
+        exec: "apexsim.cam.Release"
+      - at: 52
+        label: "mesh distance fields shown"
+        checks: "G4: which meshes have a distance field"
+        lead: 1
+        exec: "ShowFlag.VisualizeMeshDistanceFields 1"
+      - at: 110
+        label: "mesh distance fields at Eau Rouge, a minute later"
+        checks: "G4: the road and terrain in the distance-field scene?"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"

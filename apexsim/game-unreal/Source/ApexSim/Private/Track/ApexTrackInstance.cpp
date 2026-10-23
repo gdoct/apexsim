@@ -10,6 +10,12 @@
 #include "HAL/PlatformTime.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
+#if WITH_EDITOR
+#include "DistanceFieldAtlas.h"
+#include "StaticMeshCompiler.h"
+#endif
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshResources.h"
 #include "Track/ApexTrackCollisionComponent.h"
@@ -25,6 +31,23 @@ namespace
 	/** What a runtime track falls back to for the track parent when it was never baked. */
 	const TCHAR* kFallbackMaterial = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 	const TCHAR* kPlaceholderCube = TEXT("/Engine/BasicShapes/Cube.Cube");
+
+	/**
+	 * -ApexTrackFullBuild: build the track's meshes with the editor's full
+	 * build instead of the fast one, which is what gives them distance fields
+	 * (software Lumen, DF shadows and AO see a fast-built mesh not at all).
+	 * Editor builds only, and slow: it is the A/B for follow-ups' distance
+	 * field row, not a way to race.
+	 */
+	bool WantsFullMeshBuild()
+	{
+#if WITH_EDITOR
+		static const bool bFull = FParse::Param(FCommandLine::Get(), TEXT("ApexTrackFullBuild"));
+		return bFull;
+#else
+		return false;
+#endif
+	}
 }	 // namespace
 
 /**
@@ -107,10 +130,40 @@ public:
 			LodParams.bUseFullPrecisionUVs = true;
 			BuildParams.PerLODOverrides.Add(LodParams);
 		}
+#if WITH_EDITOR
+		if (WantsFullMeshBuild())
+		{
+			BuildParams.bFastBuild = false;
+			BuildParams.bCommitMeshDescription = true;
+			BuildParams.PerLODOverrides.Reset();
+			Mesh->SetNumSourceModels(1);
+			FMeshBuildSettings& Settings = Mesh->GetSourceModel(0).BuildSettings;
+			Settings.bRecomputeNormals = false;
+			Settings.bRecomputeTangents = true;
+			Settings.bGenerateLightmapUVs = false;
+			Settings.bUseFullPrecisionUVs = bTrackSurface;
+		}
+#endif
 		if (!Mesh->BuildFromMeshDescriptions({&Description}, BuildParams))
 		{
 			return nullptr;
 		}
+#if WITH_EDITOR
+		if (WantsFullMeshBuild())
+		{
+			// The editor builds meshes and their distance fields on worker
+			// threads; the A/B wants them in place before the race is shot.
+			FStaticMeshCompilingManager::Get().FinishCompilation({Mesh});
+			if (GDistanceFieldAsyncQueue)
+			{
+				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(Mesh, false);
+			}
+			const FStaticMeshRenderData* Data = Mesh->GetRenderData();
+			UE_LOG(LogTemp, Display, TEXT("Track full build: %s, distance field %s, radius %.0f m"), *Name,
+				Data && Data->LODResources.Num() > 0 && Data->LODResources[0].DistanceFieldData ? TEXT("yes") : TEXT("no"),
+				Bounds.IsValid ? Bounds.GetExtent().Size() / 100.0 : -1.0);
+		}
+#endif
 		// The fast build takes its bounds from the description, which the
 		// editor found NaN on a few of Monza's ground patches with perfectly
 		// finite vertices; a NaN-bounded mesh is culled from every view. The
