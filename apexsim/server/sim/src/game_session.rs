@@ -5874,20 +5874,38 @@ impl GameSession {
             .collect();
         let exit_closed = crate::pit::exit_closed(lane, before_the_start, &traffic, total);
 
-        // Every car its own box: dealt the first time it is placed against
-        // the lane, the lowest box nobody holds (BTreeMap order, so the
+        // Every car its own box, dealt the first time it is placed against
+        // the lane, by team (`pit::deal_team_boxes`): team-mates side by
+        // side, the cars dealt in grid order (then BTreeMap order, so the
         // deal is deterministic).
-        let mut taken: Vec<u8> = self
+        if self
             .session
             .participants
             .values()
-            .filter_map(|s| s.pit.box_index)
-            .collect();
-        for state in self.session.participants.values_mut() {
-            if state.pit.box_index.is_none() {
-                let b = crate::pit::deal_box(&taken, lane.boxes.len());
-                state.pit.box_index = Some(b);
-                taken.push(b);
+            .any(|s| s.pit.box_index.is_none())
+        {
+            let teams = self.teams();
+            let team = |id: &PlayerId| teams.get(id).copied().unwrap_or(0);
+            let taken: Vec<(u8, u32)> = self
+                .session
+                .participants
+                .values()
+                .filter_map(|s| s.pit.box_index.map(|b| (b, team(&s.player_id))))
+                .collect();
+            let mut wanting: Vec<(u8, PlayerId)> = self
+                .session
+                .participants
+                .values()
+                .filter(|s| s.pit.box_index.is_none())
+                .map(|s| (s.grid_position, s.player_id))
+                .collect();
+            wanting.sort();
+            let teams_wanting: Vec<u32> = wanting.iter().map(|(_, id)| team(id)).collect();
+            let boxes = crate::pit::deal_team_boxes(&taken, &teams_wanting, lane.boxes.len());
+            for ((_, id), b) in wanting.iter().zip(boxes) {
+                if let Some(state) = self.session.participants.get_mut(id) {
+                    state.pit.box_index = Some(b);
+                }
             }
         }
 
@@ -7380,39 +7398,21 @@ impl GameSession {
         self.roster_dirty = true;
     }
 
-    /// True once per membership change: returns whether a fresh roster needs
-    /// broadcasting and clears the flag.
-    pub fn take_roster_dirty(&mut self) -> bool {
-        std::mem::take(&mut self.roster_dirty)
-    }
-
-    /// The car-index → player mapping for compact telemetry, a row a car
-    /// in `participants` order (the wire's `SessionRoster`). Human player
-    /// names are looked up in `names` (lobby data); AI names come from
-    /// their profiles.
-    pub fn roster_rows(&self, names: &HashMap<PlayerId, String>) -> Vec<RosterRow> {
-        // AI drivers are dealt liveries in grid order, each model's cars
-        // taking the next one of its list, so a field of the same car is not
-        // a row of clones.
-        let mut dealt: HashMap<CarConfigId, u8> = HashMap::new();
-        let slots = self.starting_slots();
+    /// The livery each car wears, within its car's own list: a human's as
+    /// they picked it (stock when it is not in the list), the AI's dealt
+    /// in seating order, each model's cars taking the next one of its
+    /// list, so a field of the same car is not a row of clones.
+    pub fn worn_liveries(&self) -> std::collections::BTreeMap<PlayerId, u8> {
+        let mut dealt: std::collections::BTreeMap<CarConfigId, u8> = Default::default();
         self.session
             .participants
             .iter()
-            .enumerate()
-            .map(|(idx, (player_id, state))| {
+            .map(|(player_id, state)| {
                 let livery_count = self
                     .car_configs
                     .get(&state.car_config_id)
                     .map_or(0, |c| c.livery_names.len().min(u8::MAX as usize - 1) as u8);
-                let is_ai = self.ai_profiles.contains_key(player_id);
-                let player_name = self
-                    .ai_profiles
-                    .get(player_id)
-                    .map(|p| p.name.clone())
-                    .or_else(|| names.get(player_id).cloned())
-                    .unwrap_or_else(|| format!("Player-{}", &player_id.to_string()[..8]));
-                let livery = if is_ai {
+                let livery = if self.ai_profiles.contains_key(player_id) {
                     let next = dealt.entry(state.car_config_id).or_insert(0);
                     let pick = *next % (livery_count + 1);
                     *next = next.wrapping_add(1);
@@ -7425,6 +7425,55 @@ impl GameSession {
                         0
                     }
                 };
+                (*player_id, livery)
+            })
+            .collect()
+    }
+
+    /// Each car's team: the cars of one model in one livery, as they are
+    /// worn (`worn_liveries`), numbered in the order the teams first
+    /// appear among the seated cars. What the pit boxes are dealt by
+    /// (`pit::deal_team_boxes`).
+    pub fn teams(&self) -> std::collections::BTreeMap<PlayerId, u32> {
+        let liveries = self.worn_liveries();
+        let mut numbers: std::collections::BTreeMap<(CarConfigId, u8), u32> = Default::default();
+        self.session
+            .participants
+            .iter()
+            .map(|(id, state)| {
+                let key = (state.car_config_id, liveries.get(id).copied().unwrap_or(0));
+                let next = numbers.len() as u32;
+                (*id, *numbers.entry(key).or_insert(next))
+            })
+            .collect()
+    }
+
+    /// True once per membership change: returns whether a fresh roster needs
+    /// broadcasting and clears the flag.
+    pub fn take_roster_dirty(&mut self) -> bool {
+        std::mem::take(&mut self.roster_dirty)
+    }
+
+    /// The car-index → player mapping for compact telemetry, a row a car
+    /// in `participants` order (the wire's `SessionRoster`). Human player
+    /// names are looked up in `names` (lobby data); AI names come from
+    /// their profiles.
+    pub fn roster_rows(&self, names: &HashMap<PlayerId, String>) -> Vec<RosterRow> {
+        let liveries = self.worn_liveries();
+        let slots = self.starting_slots();
+        self.session
+            .participants
+            .iter()
+            .enumerate()
+            .map(|(idx, (player_id, state))| {
+                let is_ai = self.ai_profiles.contains_key(player_id);
+                let player_name = self
+                    .ai_profiles
+                    .get(player_id)
+                    .map(|p| p.name.clone())
+                    .or_else(|| names.get(player_id).cloned())
+                    .unwrap_or_else(|| format!("Player-{}", &player_id.to_string()[..8]));
+                let livery = liveries.get(player_id).copied().unwrap_or(0);
                 RosterRow {
                     car_index: idx as u8,
                     player_id: *player_id,

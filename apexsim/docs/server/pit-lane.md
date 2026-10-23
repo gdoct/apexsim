@@ -24,7 +24,7 @@ Tyres, compounds, fuel, damage and brakes themselves are in
   garage run), `PitSidecar` / `bake_pit_sidecar`, the pit complex, paint and
   signs, `bake_walls` (garage collision boxes).
 - `server/sim/src/pit.rs` - `PitLane` (the loaded sidecar), `PitState` (per
-  car, on `CarState::pit`), `PitPlan` (a driver's orders), `deal_box`,
+  car, on `CarState::pit`), `PitPlan` (a driver's orders), `deal_box`, `deal_team_boxes`,
   `exit_closed`, `takes_over`, `drive_input`, `run_up_input`,
   `plan_service` / `plan_service_for`, `plan_stop`,
   `tyres_for_the_track`, `recovery_pose`.
@@ -103,10 +103,19 @@ Called inside `update_air` before the physics, and in the countdown.
   dropped for a full search). Farther away the hint is cleared. On the lane
   the car's place on the lap is re-anchored near where the lane's own
   progress puts it (`anchor_on_lap`).
-- **Boxes.** Every car without one is dealt a box at once
-  (`pit::deal_box`: the lowest box nobody holds, in `BTreeMap` order;
-  shared, fewest holders first, only past the box count),
-  `PitState::box_index`.
+- **Boxes.** Every car without one is dealt a box at once, by team
+  (`pit::deal_team_boxes`), `PitState::box_index`. A team is the cars of
+  one model in one livery as worn (`GameSession::teams`, from
+  `worn_liveries`: a human's pick, the AI's dealt in turn from the car's
+  list), so the AI of one car with two liveries form two teams. The cars
+  without a box are dealt in grid order: the first of a team takes the
+  lowest run of free boxes long enough for its team-mates still to come
+  (kept for them), a car whose team-mate has a box takes the free box
+  nearest it (a late joiner beside its team), and with no such run or no
+  free box the car is dealt as `pit::deal_box` deals (the lowest box nobody
+  holds; shared, fewest holders first, only past the box count). A field of
+  one car in one livery is one team: boxes in grid order from the entry
+  end.
 - **Limiter.** Between the limit lines `PitState::limiter` is set and
   `update_car_3d` scales the throttle by `clamp(limit - speed, 0, 1)`: it
   fades out over the last m/s below the limit. A car more than

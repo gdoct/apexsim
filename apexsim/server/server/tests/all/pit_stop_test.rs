@@ -1358,3 +1358,84 @@ fn the_pit_lane_is_a_pit_lane_without_the_road_mesh() {
     }
     assert!(bad.is_empty(), "pit lane read as something else: {bad:?}");
 }
+
+/// The boxes are dealt by team (`pit::deal_team_boxes`): the cars of one
+/// model in one livery stand side by side down the lane, and a driver who
+/// joins later is put in the free box nearest their team-mates.
+#[test]
+fn team_mates_are_given_boxes_side_by_side() {
+    let track = monza();
+    if !track.has_sidecars(&[Sidecar::Pit], "pit_stop_test") {
+        return;
+    }
+    let box_count = track.pit_lane.as_ref().unwrap().boxes.len();
+    assert!(box_count >= 10, "Monza has room for the field");
+    let mut car = gt3();
+    // Two liveries: the AI take them in turn, so teams of three.
+    car.livery_names = vec!["Second".to_string()];
+    let mut car_configs = HashMap::new();
+    car_configs.insert(car.id, car.clone());
+    let profiles: Vec<AiDriverProfile> = (0..6)
+        .map(|i| {
+            let mut p = AiDriverProfile::new(format!("Team AI {}", i + 1), 95);
+            p.id = Uuid::from_u128(5000 + i as u128);
+            p
+        })
+        .collect();
+    let host = Uuid::from_u128(1);
+    let session = RaceSession::new(host, track.id, SessionKind::Multiplayer, 10, 6, 3);
+    let mut gs = GameSession::with_ai_profiles(session, track, car_configs, profiles);
+    gs.spawn_ai_drivers();
+    gs.open_grid(10);
+    gs.tick(&HashMap::new());
+
+    let teams = gs.teams();
+    let mut by_team: HashMap<u32, Vec<u8>> = HashMap::new();
+    for (id, state) in &gs.session.participants {
+        by_team
+            .entry(teams[id])
+            .or_default()
+            .push(state.pit.box_index.expect("a box dealt"));
+    }
+    println!("boxes by team: {by_team:?}");
+    assert_eq!(by_team.len(), 2, "two teams");
+    for list in by_team.values_mut() {
+        list.sort();
+        assert_eq!(list.len(), 3);
+        assert!(
+            list.windows(2).all(|w| w[1] == w[0] + 1),
+            "a team's boxes side by side: {list:?}"
+        );
+    }
+
+    // A driver joining in a team's livery goes in the free box nearest it.
+    let late = Uuid::from_u128(77);
+    gs.set_livery(late, 1);
+    gs.add_player(late, car.id).expect("seat");
+    gs.tick(&HashMap::new());
+    let teams = gs.teams();
+    let mates: Vec<u8> = gs
+        .session
+        .participants
+        .iter()
+        .filter(|(id, _)| **id != late && teams[*id] == teams[&late])
+        .map(|(_, s)| s.pit.box_index.unwrap())
+        .collect();
+    assert_eq!(mates.len(), 3, "the late driver is in a team of three");
+    let mine = gs.session.participants[&late].pit.box_index.unwrap();
+    println!("late driver's box {mine}, team-mates {mates:?}");
+    let held: Vec<u8> = gs
+        .session
+        .participants
+        .iter()
+        .filter(|(id, _)| **id != late)
+        .map(|(_, s)| s.pit.box_index.unwrap())
+        .collect();
+    let distance = |b: u8| mates.iter().map(|m| m.abs_diff(b)).min().unwrap();
+    let best = (0..box_count as u8)
+        .filter(|b| !held.contains(b))
+        .map(distance)
+        .min()
+        .unwrap();
+    assert_eq!(distance(mine), best, "the free box nearest the team");
+}

@@ -1346,6 +1346,59 @@ pub fn deal_box(taken: &[u8], box_count: usize) -> u8 {
     held.iter().position(|&n| n == least).unwrap_or(0) as u8
 }
 
+/// Boxes for the cars `wanting` one, dealt by team: each car's team in the
+/// order they are dealt, against the boxes `taken` already (box, team).
+/// A car whose team-mate holds a box takes the free box nearest it; the
+/// first of a team takes the lowest run of free boxes long enough for all
+/// its team-mates still to be dealt, so they stand side by side down the
+/// lane. With no such run (or no free box) it is dealt as [`deal_box`]
+/// deals. The boxes, in `wanting`'s order.
+pub fn deal_team_boxes(taken: &[(u8, u32)], wanting: &[u32], box_count: usize) -> Vec<u8> {
+    let count = box_count.clamp(1, 255);
+    let mut held: Vec<(u8, u32)> = taken.to_vec();
+    // The run a team's first car took, kept for its team-mates.
+    let mut kept_for: Vec<(usize, u32)> = Vec::new();
+    let mut out = Vec::with_capacity(wanting.len());
+    for (i, &team) in wanting.iter().enumerate() {
+        let is_free = |b: usize, held: &[(u8, u32)], kept_for: &[(usize, u32)]| {
+            held.iter().all(|(h, _)| *h as usize % count != b)
+                && kept_for.iter().all(|(k, t)| *k != b || *t == team)
+        };
+        let mates: Vec<usize> = held
+            .iter()
+            .filter(|(_, t)| *t == team)
+            .map(|(b, _)| *b as usize % count)
+            .collect();
+        let pick = if mates.is_empty() {
+            // The whole team still to come, this car first.
+            let run = 1 + wanting[i + 1..].iter().filter(|&&t| t == team).count();
+            let start = (0..count)
+                .find(|&s| s + run <= count && (s..s + run).all(|b| is_free(b, &held, &kept_for)));
+            if let Some(s) = start {
+                kept_for.extend((s + 1..s + run).map(|b| (b, team)));
+            }
+            start.or_else(|| (0..count).find(|&b| is_free(b, &held, &kept_for)))
+        } else {
+            (0..count)
+                .filter(|&b| is_free(b, &held, &kept_for))
+                .min_by_key(|&b| {
+                    let near = mates.iter().map(|&m| m.abs_diff(b)).min().unwrap_or(0);
+                    (near, b)
+                })
+        };
+        let b = match pick {
+            Some(b) => b as u8,
+            None => {
+                let boxes: Vec<u8> = held.iter().map(|(b, _)| *b).collect();
+                deal_box(&boxes, count)
+            }
+        };
+        held.push((b, team));
+        out.push(b);
+    }
+    out
+}
+
 /// Whether the pit exit light is red: before the start of a race (the
 /// lane is closed while the field lines up), or while a car on the track
 /// is about to pass where the lane rejoins it, so nobody is sent out into
@@ -1694,6 +1747,24 @@ pub(crate) mod tests {
             (lane.box_lateral_m(lane.box_at(0)) + 4.4).abs() < 1e-3,
             "right of the lane"
         );
+    }
+
+    #[test]
+    fn team_mates_are_dealt_boxes_side_by_side() {
+        // Three teams of two, dealt in grid order (A B C A B C).
+        assert_eq!(
+            deal_team_boxes(&[], &[0, 1, 2, 0, 1, 2], 10),
+            vec![0, 2, 4, 1, 3, 5]
+        );
+        // A late team-mate takes the free box nearest its team's.
+        assert_eq!(
+            deal_team_boxes(&[(0, 7), (1, 3), (2, 3)], &[3, 7], 10),
+            vec![3, 4]
+        );
+        // A run too long for the lane: the lowest free box.
+        assert_eq!(deal_team_boxes(&[(1, 5)], &[2, 2, 2], 3), vec![0, 2, 0]);
+        // Every box held: shared, as `deal_box` shares them.
+        assert_eq!(deal_team_boxes(&[(0, 1), (1, 1)], &[4], 2), vec![0]);
     }
 
     #[test]
