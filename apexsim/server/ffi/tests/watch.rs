@@ -51,6 +51,7 @@ fn create_session() -> Vec<u8> {
         qualifying_format: Default::default(),
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
+        classes: Vec::new(),
     };
     rmp_serde::to_vec_named(&message).unwrap()
 }

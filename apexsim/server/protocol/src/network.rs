@@ -1482,9 +1482,9 @@ pub const OVER_REV_FLAG_RATIO: f32 = crate::damage::OVER_REV_TOLERANCE;
 
 /// The `engine_flags` byte of a car's telemetry.
 pub fn engine_flags_of(state: &CarState) -> u8 {
-    ((state.over_rev_ratio >= OVER_REV_FLAG_RATIO) as u8) * ENGINE_FLAG_OVER_REV
-        | ((state.shift_refused_s > 0.0) as u8) * ENGINE_FLAG_SHIFT_REFUSED
-        | (state.downshift_risk as u8) * ENGINE_FLAG_DOWNSHIFT_RISK
+    (((state.over_rev_ratio >= OVER_REV_FLAG_RATIO) as u8) * ENGINE_FLAG_OVER_REV)
+        | (((state.shift_refused_s > 0.0) as u8) * ENGINE_FLAG_SHIFT_REFUSED)
+        | ((state.downshift_risk as u8) * ENGINE_FLAG_DOWNSHIFT_RISK)
 }
 
 /// The `over_rev_pct` byte: percent past the limit, 0 within it or on it.
@@ -1492,7 +1492,9 @@ pub fn over_rev_pct_of(state: &CarState) -> u8 {
     if state.over_rev_ratio < OVER_REV_FLAG_RATIO {
         return 0;
     }
-    ((state.over_rev_ratio - 1.0).max(0.0) * 100.0).round().min(255.0) as u8
+    ((state.over_rev_ratio - 1.0).max(0.0) * 100.0)
+        .round()
+        .min(255.0) as u8
 }
 
 /// `race_flags` bit 0: the blue flag.
