@@ -32,19 +32,18 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
-| R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 5 |
-| N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 5 |
-| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
-| C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 4 |
-| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 5 |
-| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 5 |
-| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 5 |
-| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 6 |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 6 |
-| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 6 |
-| R8 | Race control's edges: formation warmth (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S | 2 |
-| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 4 |
+| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
+| R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
+| N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
+| G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 3 |
+| C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
+| N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 4 |
+| N11 | Livery editor / own livery import | Content | P2 | 🟡 | M | 4 |
+| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 4 |
+| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
+| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
+| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
+| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 3 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
 | B5 | Chase camera inside a car body | Bug | P3 | 🟡 | S | — |
@@ -74,21 +73,18 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **Race control, one pass.** R8's edges (follow-ups #20). A6 is
-   dropped: tried twice more without a gain, and the off-road time it
-   chased is back below its target (follow-ups #20).
-3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
+2. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
    local install).
    N26 phase 2 waits on the repository and the signing key.
-4. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
+3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-5. **Online and depth.** N5 (multi-class) with A3 (its speed differences
+4. **Online and depth.** N5 (multi-class) with A3 (its speed differences
    stress side by side), N11 (liveries), then the rest of R3, and N7
    online on top of identity.
-6. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
+5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups wait on T2), P3 on an integrated-GPU machine.
-7. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -163,10 +159,6 @@ Saturday, race Sunday, same drivers, results kept.
 4. *AI entries* with fixed identities and levels across days.
 5. *Weekend results record*, browsable replays and sheets.
 **Watch out:** keep the sim path free of persistence reads.
-
-#### R8. Race control's edges — P3 · 🟢/🟡 · S each
-*Source: follow-ups #20* (A6 is its own item). The formation lap puts no
-warmth in (`FORMATION_LAP_WARMTH`).
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.

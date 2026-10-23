@@ -463,10 +463,18 @@ back of a long field may still be closing up, most where a chicane comes
 just before the line (Spa's Bus Stop: only the front row forms with 16
 cars, against four rows at the Norisring and seven at Zandvoort).
 
-**Tyres.** A lap at the formation pace holds the grid's tyre warmth but
-does not add to it (the Norisring, GT3: 54.5 -> 54.4 °C over the lap), so
-the grid's tyres are still fitted part-warm (`tyre_thermal::
-FORMATION_LAP_WARMTH`), formation lap or not.
+**Tyres.** A grid with a formation lap (or a rolling start's pace lap) to
+drive is fitted with its tyres as from the garage, its blankets or the air
+(`TyreStart::FormationGrid`; its brakes as on any grid), and the lap warms
+them: on its straights every car still in the lap, more than
+`WARM_UP_UNTIL_M` (300 m) from its slot and not yet forming up, is
+`CarState::warm_up`, and the AI weaves across its line (`WEAVE_M` 2 m each
+side, a weave every `WEAVE_WAVELENGTH_M` 45 m). At the Norisring a GT3
+field goes 22.0 -> 39.2 °C over the lap (35.3 without the weave). A
+driver who neither weaves nor pushes starts on colder tyres. A race
+without a formation lap is fitted part-warm instead
+(`tyre_thermal::FORMATION_LAP_WARMTH`, half way to the optimum: 54.5 °C
+there), for the lap it does not drive.
 
 **False start** (`jump_start`, a standing start). Through the countdown
 that ends in the green (not the one before a formation lap), a driver's car

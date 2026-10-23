@@ -28,6 +28,10 @@ pub const FORMATION_SPEED_MPS: f32 = 30.0;
 /// Over this last stretch to its slot, m, the server drives each car onto
 /// it and stops it there.
 pub const APPROACH_M: f32 = 150.0;
+/// A car on the lap warms its tyres (`CarState::warm_up`: the AI weaves
+/// on the straights) until it is this far from its slot, m, and while a
+/// rolling start's field is not yet forming up.
+pub const WARM_UP_UNTIL_M: f32 = 2.0 * APPROACH_M;
 /// How hard a car slows onto its slot, m/s².
 pub const APPROACH_DECEL_MPS2: f32 = 3.0;
 /// This close to its slot and stopped, m, a car is home and put on it.

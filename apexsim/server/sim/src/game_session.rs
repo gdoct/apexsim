@@ -971,6 +971,9 @@ enum TyreStart {
     /// On a race grid: part of the way from there to the optimum, the
     /// warmth a formation lap would put in (`tyre_thermal::FORMATION_LAP_WARMTH`).
     Grid,
+    /// On the grid of a race with a formation lap: the tyres as out of the
+    /// garage (the lap warms them itself), the brakes as on a grid.
+    FormationGrid,
     /// At the optimum: a hotlap measures the car, not its warm-up.
     Warm,
 }
@@ -1003,7 +1006,9 @@ fn fit_tyres(
         );
     let surface = &track.track_surface;
     let temperature = match start {
-        TyreStart::Garage => tyre_thermal::start_temperature_c(tyre, surface),
+        TyreStart::Garage | TyreStart::FormationGrid => {
+            tyre_thermal::start_temperature_c(tyre, surface)
+        }
         TyreStart::Grid => tyre_thermal::grid_temperature_c(tyre, surface),
         // (A hotlap goes out at the chosen compound's own optimum: a soft
         // works 6 °C cooler than the medium.)
@@ -1013,7 +1018,7 @@ fn fit_tyres(
     let brakes = crate::brakes::start_temperature_c(
         config.brake_material,
         track.track_surface.air_temperature_c,
-        matches!(start, TyreStart::Grid),
+        matches!(start, TyreStart::Grid | TyreStart::FormationGrid),
         matches!(start, TyreStart::Warm),
     );
     crate::brakes::fit(state, brakes);
@@ -1591,6 +1596,7 @@ impl GameSession {
 
         let tick = self.session.current_tick;
         let rate = self.tick_rate_hz;
+        let forming = formation.forming;
         for state in self.session.participants.values_mut() {
             let input = inputs.get(&state.player_id).copied().unwrap_or_default();
             let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state)
@@ -1599,6 +1605,7 @@ impl GameSession {
             };
             let Some(car) = formation.cars.get_mut(&state.player_id).filter(|c| !c.home) else {
                 // Home on its slot (or never part of the lap): held.
+                state.warm_up = false;
                 physics::update_car_on_grid(state, config, &input, dt);
                 continue;
             };
@@ -1610,6 +1617,7 @@ impl GameSession {
                 .unwrap_or(crate::race_start::FORMATION_SPEED_MPS)
                 .max(0.05);
             state.formation_lane_m = car.lane_m();
+            state.warm_up = !forming && car.left_m > crate::race_start::WARM_UP_UNTIL_M;
             // The approach drives on the automatic box, as the pit route
             // does: a car slowed to a stop in a high gear would stall.
             if !rolling && car.left_m <= APPROACH_M && car.own_auto_gearbox.is_none() {
@@ -1671,6 +1679,7 @@ impl GameSession {
                 for state in self.session.participants.values_mut() {
                     state.speed_cap_mps = 0.0;
                     state.formation_lane_m = None;
+                    state.warm_up = false;
                     crate::race_start::reset_laps(state, &self.track_config);
                 }
                 info!("Session {}: rolling start, green", self.session.id);
@@ -3235,6 +3244,7 @@ impl GameSession {
             for state in self.session.participants.values_mut() {
                 state.speed_cap_mps = 0.0;
                 state.formation_lane_m = None;
+                state.warm_up = false;
             }
         }
         // A shoot-out and the lap allowance's count belong to the
@@ -4253,7 +4263,7 @@ impl GameSession {
         let fuel = self.start_fuel_liters(&player_id, car_config_id, self.planned_mode());
         // Seated on the grid for a race: its tyres are what the grid's are.
         let start = if self.planned_mode() == GameMode::Race {
-            TyreStart::Grid
+            self.grid_tyres()
         } else {
             TyreStart::Garage
         };
@@ -4893,9 +4903,21 @@ impl GameSession {
         }
     }
 
+    /// How a race grid's tyres are fitted: warmed as by a formation lap,
+    /// or, when one is to be driven, as out of the garage, for the lap to
+    /// warm.
+    fn grid_tyres(&self) -> TyreStart {
+        if self.session.race_rules.has_formation_lap() {
+            TyreStart::FormationGrid
+        } else {
+            TyreStart::Grid
+        }
+    }
+
     /// Put every car back on its grid slot with a clean race state (laps,
     /// times, finish position, damage), keeping the driver's aids.
     pub fn line_up_on_grid(&mut self) {
+        let grid_tyres = self.grid_tyres();
         self.apply_grid_order();
         self.finish_deadline_tick = None;
         self.race_end = RaceEnd::default();
@@ -4947,7 +4969,7 @@ impl GameSession {
                 &self.car_configs,
                 &self.tuned_configs,
                 &self.track_config,
-                TyreStart::Grid,
+                grid_tyres,
                 &self.car_setups,
             );
             fresh.auto_gearbox = state.auto_gearbox;

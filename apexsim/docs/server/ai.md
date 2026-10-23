@@ -199,7 +199,11 @@ next `Brake` phase, its slowest point, the hand at the apex).
   drives it. On a rolling start's form-up race control also gives it a
   side of the road (`CarState::formation_lane_m`): driven as a racecraft
   lane, with the traffic dodge's aim across the road dropped (it would
-  take the car into the one beside it), its speed limit kept.
+  take the car into the one beside it), its speed limit kept. Warming its
+  tyres on a formation or pace lap (`CarState::warm_up`) it weaves across
+  its line on the straights (`WEAVE_M`, `WEAVE_WAVELENGTH_M`, its phase
+  its own), faded out by the line's curvature and an edge close by, as
+  the wander is.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
   corner as it nears the braking zone). Away from pressure it does too, at

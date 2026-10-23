@@ -95,7 +95,8 @@ fn slot_of(race: &GameSession, state: &CarState) -> GridSlot {
 
 /// A standing start with a formation lap: the field drives a lap at the
 /// formation pace with no pass, comes back to stop on its own slots, and
-/// the lights count down from there; nothing is timed on the lap.
+/// the lights count down from there; nothing is timed on the lap, and the
+/// lap warms tyres fitted cold.
 #[test]
 fn a_formation_lap_brings_the_field_back_to_the_grid() {
     let rules = RaceRules {
@@ -162,6 +163,14 @@ fn a_formation_lap_brings_the_field_back_to_the_grid() {
                 "formation lap: {:.0} s, tyres {start_temp:.1} -> {warm:.1} °C",
                 formation_ticks as f32 / TICK_RATE as f32
             );
+            // The grid went out on garage-cold tyres, and the lap (its
+            // weave on the straights) warmed them.
+            let air = race.track_config.track_surface.air_temperature_c;
+            assert!(
+                (start_temp - air).abs() < 0.5,
+                "fitted at {start_temp:.1} °C, air {air:.1}"
+            );
+            assert!(warm > start_temp + 12.0, "{start_temp:.1} -> {warm:.1} °C");
         }
         if race.session.state == SessionState::Racing {
             break;

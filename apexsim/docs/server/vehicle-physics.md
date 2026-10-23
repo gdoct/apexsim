@@ -212,9 +212,9 @@ thermal model, which is what an unfitted car gets (`CarState::tyres_fitted` fals
 ### Fitting (`game_session::fit_tyres`, `tyre_thermal::fit`)
 
 Fitting zeroes wear, flat spots and punctures and sets the compound. From the garage or a
-practice join: `blanket_temperature_c` or the air. On a race grid: half way to the optimum
-(`FORMATION_LAP_WARMTH`: a formation lap at its pace holds that warmth but puts none in,
-[sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)). A hotlap out: the compound's optimum,
+practice join: `blanket_temperature_c` or the air. On a race grid without a formation lap: half way to the optimum
+(`FORMATION_LAP_WARMTH`, for the lap not driven); with one, as from the garage, the lap
+warming them ([sessions](sessions.md#race-start-formation-lap-rolling-start-false-starts)). A hotlap out: the compound's optimum,
 unless `HotlapRelocate.cold_tyres`. Brakes and the hybrid battery are fitted with them.
 
 ### Compounds

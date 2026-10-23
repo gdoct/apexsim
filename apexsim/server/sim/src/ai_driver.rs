@@ -107,6 +107,13 @@ const WANDER_EDGE_ROOM_M: f32 = 1.5;
 /// and the least.
 const WANDER_PRECISE_M: f32 = 0.05;
 const WANDER_IMPRECISE_M: f32 = 0.5;
+/// Warming its tyres on a formation lap (`CarState::warm_up`), a driver
+/// weaves across its line on the straights: this far to each side, m, a
+/// full weave every this much of the lap, m (two seconds at the formation
+/// pace), its phase its own.
+const WEAVE_M: f32 = 2.0;
+const WEAVE_WAVELENGTH_M: f32 = 45.0;
+const WEAVE_SALT: u64 = 0x5745_4156;
 
 /// Lateral room an AI driver keeps between its flank and a car alongside.
 const TRAFFIC_SIDE_MARGIN_M: f32 = 1.0;
@@ -967,6 +974,17 @@ impl<'a> AiDriverController<'a> {
                 * straightness
                 * self.lap_noise(d_line * WANDER_STRETCH, state.current_lap, WANDER_SALT)
         };
+        // The weave of a formation lap, on the straights.
+        let wander = wander
+            + if state.warm_up {
+                let (hi, lo) = self.profile.id.as_u64_pair();
+                let phase = crate::wind::hash01(hi ^ lo, WEAVE_SALT);
+                WEAVE_M
+                    * straightness
+                    * (std::f32::consts::TAU * (d_line / WEAVE_WAVELENGTH_M + phase)).sin()
+            } else {
+                0.0
+            };
         if racecraft.blend <= 0.0 && wander == 0.0 && racecraft.wide_m == 0.0 {
             return (0.0, 0.0, 0.0);
         }

@@ -1770,6 +1770,10 @@ pub struct CarState {
     /// `None` for none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub formation_lane_m: Option<f32>,
+    /// On a formation or pace lap, free to warm its tyres: the AI weaves on
+    /// the straights (`crate::race_start`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub warm_up: bool,
 
     /// The headlights are on (`crate::headlights`), and the driver is
     /// flashing them. Telemetry carries both as bits 5 and 6 of
@@ -2156,6 +2160,7 @@ impl CarState {
             flag_blue: false,
             speed_cap_mps: 0.0,
             formation_lane_m: None,
+            warm_up: false,
             drs_open: false,
             headlights: false,
             headlight_flash: false,
