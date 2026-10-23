@@ -1251,8 +1251,17 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   (qualifying from Q1): only finished phases are kept. Ending an event's
   session (STOP) ends this sitting; the runner opens it again at its phase.
   RESTART is refused for an event's session.
-- The AI field is dealt again in each session from the spec: `@ai:N` names
-  the Nth AI car seated, whose driver may be another after a restart.
+- **The AI field is the event's** (`Event::ai`, `EventAi { id, name,
+  skill, car_id, class }`): fixed when its first session opens from the
+  field that session was dealt from the spec, each driver given an id of
+  the event's own (`events::ai_id`: a hash of the event's id and the
+  driver's place), and stored. Every session of the event, the first
+  included, replaces its dealt field with these (`EventStore::ai_field`,
+  `GameSession::replace_ai_field`: each profile under its id, name and
+  level, in its car), so the same AI drivers run every phase, seated in the
+  order of their ids. Their result lines carry `ai_id` beside `ai`, and the
+  race grids them by their place in that order (`@ai:N`), as a human by
+  `@driver:`.
 
 ## Lap timing, track limits and records
 

@@ -175,13 +175,14 @@ async fn wait_event(addr: SocketAddr, what: &str, pick: impl Fn(&Value) -> bool)
     panic!("timed out waiting for {what}");
 }
 
-/// Run a timed phase's clock out: with every car in its garage the phase
-/// is over on the loop's next tick.
+/// Run a timed phase's clock out and end it, as its deadline would with
+/// the AI still out: the loop's next tick settles it.
 async fn run_out_the_clock(server: &ServerHandle, session: SessionId) {
     let mut st = server.state.write().await;
     let gs = st.sessions.get_mut(&session).unwrap();
     let length = gs.timed_length_ticks().expect("a timed phase") as u32;
     gs.session.current_tick = gs.timed_start_tick.unwrap() + length - 1;
+    gs.session.state = SessionState::Finished;
 }
 
 fn session_of(event: &Value) -> SessionId {
@@ -218,7 +219,7 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
                 "name": "Autumn Cup",
                 "spec": {
                     "track_id": track, "car_id": car, "player_slots": 3,
-                    "ai_count": 0, "lap_limit": 2,
+                    "ai_count": 2, "ai_skill": 95, "lap_limit": 2,
                     "weekend": { "practice_seconds": 60, "qualifying_seconds": [60] },
                 },
             })),
@@ -267,9 +268,34 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
         run_out_the_clock(&server, session).await;
         let event = wait_event(http, "practice recorded", |e| e["phase"] == "qualifying").await;
         assert_eq!(event["results"][0]["phase"], "practice");
-        assert_eq!(event["results"][0]["lines"].as_array().unwrap().len(), 2);
+        assert_eq!(event["results"][0]["lines"].as_array().unwrap().len(), 4);
+        // The AI field is the event's: its own ids, names and levels.
+        let ai: Vec<(PlayerId, String, u8)> = event["ai"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| {
+                (
+                    a["id"].as_str().unwrap().parse().unwrap(),
+                    a["name"].as_str().unwrap().to_string(),
+                    a["skill"].as_u64().unwrap() as u8,
+                )
+            })
+            .collect();
+        assert_eq!(ai.len(), 2);
+        assert_eq!(ai[0].0, apexsim_server::events::ai_id("autumn-cup", 0));
+        let first_ai = {
+            let st = server.state.read().await;
+            let gs = st.sessions.get(&session).unwrap();
+            let mut seated = gs.session.ai_player_ids.clone();
+            let mut stored: Vec<PlayerId> = ai.iter().map(|a| a.0).collect();
+            seated.sort();
+            stored.sort();
+            assert_eq!(seated, stored, "the session seats the event's AI");
+            gs.session.ai_player_ids[0]
+        };
 
-        // Qualifying: Bea quicker than Ada.
+        // Qualifying: Bea, then an AI, then Ada.
         let (status, q) = api(http, "POST", "/api/events/autumn-cup/advance", None).await;
         assert_eq!(
             (status, q["phase"].as_str()),
@@ -281,13 +307,16 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             let gs = st.sessions.get_mut(&session).unwrap();
             gs.note_qualifying_lap(b.player_id, 80_000);
             gs.note_qualifying_lap(a.player_id, 81_500);
+            gs.note_qualifying_lap(first_ai, 80_500);
         }
         run_out_the_clock(&server, session).await;
         let event = wait_event(http, "qualifying recorded", |e| e["phase"] == "race").await;
         let lines = &event["results"][1]["lines"];
+        assert_eq!(lines.as_array().unwrap().len(), 4);
         assert_eq!(lines[0]["driver_id"], id_b.to_string());
         assert_eq!(lines[0]["best_lap_ms"], 80_000);
-        assert_eq!(lines[1]["driver_id"], id_a.to_string());
+        assert_eq!(lines[1]["ai_id"], first_ai.to_string());
+        assert_eq!(lines[2]["driver_id"], id_a.to_string());
         let entries = event["entries"].as_array().unwrap();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0]["livery"], 1);
@@ -343,9 +372,18 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             let st = server.state.read().await;
             let gs = st.sessions.get(&session).unwrap();
             assert_eq!(gs.session.participants[&a.player_id].car_config_id, car);
-            // Gridded from the stored qualifying: Bea on pole.
+            // The same AI drivers under the same names and levels.
+            for (id, name, skill) in &ai {
+                assert_eq!(&gs.driver_name(id), name);
+                assert_eq!(gs.get_ai_profile(id).map(|p| p.skill_level), Some(*skill));
+            }
+            // Gridded from the stored qualifying: Bea on pole, the AI
+            // driver who qualified second beside her, Ada third.
             let slots = gs.starting_slots();
-            assert_eq!((slots[&b.player_id], slots[&a.player_id]), (1, 2));
+            assert_eq!(
+                (slots[&b.player_id], slots[&first_ai], slots[&a.player_id]),
+                (1, 2, 3)
+            );
         }
 
         // Straight to the race's grid: practice and qualifying are done.
@@ -373,7 +411,13 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             .map(|r| r["phase"].as_str().unwrap())
             .collect();
         assert_eq!(phases, ["practice", "qualifying", "race"]);
-        assert_eq!(event["results"][2]["lines"].as_array().unwrap().len(), 2);
+        let race = event["results"][2]["lines"].as_array().unwrap();
+        assert_eq!(race.len(), 4);
+        assert_eq!(
+            race.iter().filter(|l| l["ai_id"].is_string()).count(),
+            2,
+            "the AI's results kept by their ids"
+        );
         // The file is what the dashboard showed.
         let stored: Value = serde_json::from_slice(
             &std::fs::read(dir.path().join("records/events/autumn-cup.json")).unwrap(),

@@ -7730,6 +7730,20 @@ impl GameSession {
         self.session.classes = keyed.into_iter().map(|(_, i)| classes[i].clone()).collect();
     }
 
+    /// Replace the AI field with `profiles` (each with its own id, name,
+    /// level and `preferred_car_id`), seated in the order of their ids: an
+    /// event's AI entries, the same drivers in every session of it. Call in
+    /// the lobby, before anyone joins.
+    pub fn replace_ai_field(&mut self, profiles: Vec<AiDriverProfile>) {
+        for id in self.session.ai_player_ids.clone() {
+            self.remove_ai(&id);
+        }
+        self.session.ai_count = profiles.len().min(u8::MAX as usize) as u8;
+        self.set_ai_profiles(profiles);
+        self.spawn_ai_drivers();
+        self.roster_dirty = true;
+    }
+
     /// Add AI profiles to the session.
     ///
     /// This should be called when setting up the session in the lobby.

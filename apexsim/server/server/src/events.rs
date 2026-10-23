@@ -62,6 +62,46 @@ pub struct EventEntry {
     pub livery: u8,
 }
 
+/// An AI driver entered in an event: the same id, name, level and car in
+/// every session of it ([`EventStore::ai_field`]).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EventAi {
+    /// From the event's id and the driver's place ([`ai_id`]): the session
+    /// seats the field in the order of these.
+    pub id: PlayerId,
+    pub name: String,
+    /// `AiDriverProfile::skill_level`; the rest of the profile follows it.
+    pub skill: u8,
+    pub car_id: CarConfigId,
+    /// A multi-class field's class; empty for one class.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub class: String,
+}
+
+impl EventAi {
+    fn profile(&self) -> crate::ai_driver::AiDriverProfile {
+        let mut p = crate::ai_driver::AiDriverProfile::new(self.name.clone(), self.skill);
+        p.id = self.id;
+        p.preferred_car_id = Some(self.car_id);
+        p.class = self.class.clone();
+        p
+    }
+}
+
+/// The `n`th AI entry's id in event `event`: an FNV-1a hash of both, so the
+/// same event makes the same ids on every server.
+pub fn ai_id(event: &str, n: usize) -> PlayerId {
+    let hash = |seed: u64| {
+        let mut h = seed;
+        for b in event.bytes().chain(n.to_le_bytes()) {
+            h ^= u64::from(b);
+            h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        h
+    };
+    PlayerId::from_u64_pair(hash(0xcbf2_9ce4_8422_2325), hash(0x8422_2325_cbf2_9ce4))
+}
+
 /// One line of a finished phase's results.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ResultLine {
@@ -76,6 +116,9 @@ pub struct ResultLine {
     /// `@ai:N` names).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai: Option<u8>,
+    /// An AI entry's id (`EventAi::id`), the same in every session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_id: Option<PlayerId>,
     pub car_id: CarConfigId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub best_lap_ms: Option<u32>,
@@ -129,6 +172,9 @@ pub struct Event {
     pub entries_open: bool,
     #[serde(default)]
     pub entries: Vec<EventEntry>,
+    /// The AI field, fixed when its first session opens.
+    #[serde(default)]
+    pub ai: Vec<EventAi>,
     pub phase: EventPhase,
     /// The server keeps a session open for it (and opens one again after a
     /// restart) until it is done or closed.
@@ -158,6 +204,7 @@ impl Event {
             spec,
             entries_open,
             entries: Vec::new(),
+            ai: Vec::new(),
             phase,
             opened: false,
             results: Vec::new(),
@@ -184,10 +231,19 @@ impl Event {
     }
 
     /// The race's start order from the stored qualifying, as grid
-    /// references; empty without one.
+    /// references; empty without one. An AI entry is named by its place in
+    /// the field the session seats (`@ai:N`: the entries in the order of
+    /// their ids).
     pub fn race_grid_refs(&self) -> Vec<String> {
+        let mut seated: Vec<PlayerId> = self.ai.iter().map(|a| a.id).collect();
+        seated.sort();
+        let reference =
+            |l: &ResultLine| match l.ai_id.and_then(|id| seated.iter().position(|s| *s == id)) {
+                Some(n) => crate::grid_order::ai_ref(n + 1),
+                None => l.grid_ref(),
+            };
         self.result(EventPhase::Qualifying)
-            .map(|r| r.lines.iter().map(ResultLine::grid_ref).collect())
+            .map(|r| r.lines.iter().map(reference).collect())
             .unwrap_or_default()
     }
 }
@@ -259,6 +315,7 @@ pub fn finished_phase(gs: &GameSession) -> Option<(EventPhase, Vec<ResultLine>)>
                 .iter()
                 .position(|a| a == id)
                 .map(|i| (i + 1).min(u8::MAX as usize) as u8),
+            ai_id: gs.is_ai_player(id).then_some(*id),
             car_id: state.car_config_id,
             best_lap_ms: state.best_lap_time_ms.filter(|ms| *ms > 0),
             laps: gs.laps_completed(id),
@@ -542,6 +599,37 @@ impl EventStore {
         admission
     }
 
+    /// The event's AI field: as stored, or, the first time, the field the
+    /// session `gs` was dealt from the spec (names, levels, cars, classes in
+    /// seating order) under the event's own ids, stored.
+    pub fn ai_field(&self, id: &str, gs: &GameSession) -> Vec<EventAi> {
+        let Some(event) = self.get(id) else {
+            return Vec::new();
+        };
+        if !event.ai.is_empty() || gs.session.ai_player_ids.is_empty() {
+            return event.ai;
+        }
+        let field: Vec<EventAi> = gs
+            .session
+            .ai_player_ids
+            .iter()
+            .enumerate()
+            .filter_map(|(n, p)| {
+                let profile = gs.get_ai_profile(p)?;
+                Some(EventAi {
+                    id: ai_id(id, n),
+                    name: profile.name.clone(),
+                    skill: profile.skill_level,
+                    car_id: gs.session.participants.get(p)?.car_config_id,
+                    class: profile.class.clone(),
+                })
+            })
+            .collect();
+        self.update(id, |e| e.ai = field.clone());
+        info!("Event {} fixed its AI field ({} drivers)", id, field.len());
+        field
+    }
+
     /// Record the phase `gs` (the session open for an event) has just
     /// finished, when it is the one the event is at: its results kept, the
     /// event on to its next phase. True when something was recorded.
@@ -600,9 +688,12 @@ pub(crate) async fn open_session(
     }
     let session = hosted::open(ctx, hosted, event.spec.clone()).await?;
     // Bound at once: a join is admitted by the event from here on.
+    store.bind_session(id, Some(session));
     {
         let mut st = ctx.state.write().await;
         if let Some(gs) = st.sessions.get_mut(&session) {
+            let field = store.ai_field(id, gs);
+            gs.replace_ai_field(field.iter().map(EventAi::profile).collect());
             match event.phase {
                 EventPhase::Qualifying => gs.resume_weekend(WeekendPhase::Qualifying),
                 EventPhase::Race => {
@@ -616,7 +707,6 @@ pub(crate) async fn open_session(
             }
         }
     }
-    store.bind_session(id, Some(session));
     info!(
         "Event {} open in session {} at its {:?}",
         id, session, event.phase
@@ -790,6 +880,7 @@ mod tests {
             name: "N".into(),
             driver_id,
             ai,
+            ai_id: None,
             car_id: uuid::Uuid::from_u128(2),
             best_lap_ms: None,
             laps: 0,

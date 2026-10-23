@@ -87,7 +87,6 @@ at a set time yet.
 | In qualifying the HUD shows race-style standings by track position, not a qualifying table. | Med | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
 | Assists are the session's for every phase of a weekend (practice and qualifying name their own damage rule, lengths and sky): the client learns `AllowedAssists` only from `SessionJoined`, so a phase's own assists need them sent again (in `WeekendState`, as its `Damage` is) and the client's Assists locks refreshed on it. | Low | Low |
-| AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |
 | Setups and tyre sets do not carry between sessions (no parc fermé, no tyre allocation per weekend). | Med | Low |
 | No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |
 | Replays and the timing board are per session; an event's replays and sheets should be browsable together. | Low | Low |

@@ -353,7 +353,7 @@ ssh from `deploy/deploy.user.psd1` (gitignored; start from
 `drivers.json` (each driver id's key, the first one seen; delete a line to
 let a driver who lost their install take their id back with a new key),
 `results/*.json` and `*.csv` (a finished race's classification),
-`events/<id>.json` (each event: its spec, entries, phase and results),
+`events/<id>.json` (each event: its spec, entries, AI field, phase and results),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated
