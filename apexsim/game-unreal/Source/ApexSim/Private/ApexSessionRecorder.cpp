@@ -63,6 +63,13 @@ void UApexSessionRecorder::BeginRecording()
 		{
 			RaceSeconds = Net->GetSessionRaceSeconds();
 			QualifyingSeconds = Net->GetSessionQualifyingSeconds();
+			// The race's own distance, as the lobby lists it (a season round
+			// is not the create screen's).
+			FApexSessionSummary Summary;
+			if (Net->FindSessionById(Net->GetCurrentSessionId(), Summary) && Summary.LapLimit > 0)
+			{
+				LapLimit = Summary.LapLimit;
+			}
 			if (RaceSeconds > 0)
 			{
 				LapLimit = 0;
@@ -122,6 +129,31 @@ void UApexSessionRecorder::FinishRecording()
 			}
 		}
 		Flow->FileSessionStats(Session);
+	}
+
+	// A season round raced to the flag: the classification is the round's.
+	if (Flow && Local && RecordedMode == EApexGameMode::Race && Flow->GetSeasonRoundRunning() != INDEX_NONE
+		&& Results.ContainsByPredicate([](const FApexCarResult& Result) { return Result.FinishPosition > 0; }))
+	{
+		const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+		TArray<FApexSeasonEntry> Entries;
+		for (const FApexCarResult& Result : Results)
+		{
+			FApexSeasonEntry& Entry = Entries.AddDefaulted_GetRef();
+			Entry.Name = Result.DriverName;
+			Entry.bYou = &Result == Local;
+			Entry.bIsAi = Result.bIsAi;
+			Entry.Position = Result.FinishPosition;
+			if (Net)
+			{
+				if (const FApexRosterEntry* Row = Net->GetSessionRoster().Entries.FindByPredicate(
+						[&Result](const FApexRosterEntry& R) { return R.CarIndex == Result.CarIndex; }))
+				{
+					Entry.CarId = Row->CarConfigId;
+				}
+			}
+		}
+		Flow->FileSeasonRace(TrackId, Entries);
 	}
 
 	UE_LOG(LogApexSim, Log, TEXT("Session recorded: %d car(s), local best %s"),

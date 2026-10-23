@@ -63,13 +63,15 @@ laps against each other in the pause menu.
 
 ### 7. Championships
 
-- Offline first (online leagues later, on the race weekends' persistence
-  and identity): a season of rounds (track and session rules) against an AI
-  field with fixed names and levels, a points preset (F1-style top ten, or
-  points to every finisher), an optional fastest-lap point and drop rounds,
-  driver and team standings, saved in the profile.
+The offline season is built (Main menu > Drive > Season,
+[client.md](game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)). Left:
 
-**Check:** a three-round offline season start to finish.
+- Online leagues on the race weekends' persistence and the proved driver
+  ids (R3): an event's entry list, standings across days.
+- A fastest-lap point; each round's own rules (weather, a weekend with
+  qualifying, a timed race) instead of the season's one race format.
+
+**Check:** a league season with two humans across two server restarts.
 
 ### 8. Public server list
 

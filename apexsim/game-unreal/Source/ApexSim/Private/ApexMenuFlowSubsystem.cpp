@@ -360,6 +360,7 @@ bool UApexMenuFlowSubsystem::SwitchProfile(const FGuid& Id)
 		Settings->UseSlot(Chosen.SettingsSlot);
 	}
 	PushIdentityToNet(true);
+	SeasonRoundRunning = INDEX_NONE;
 	UE_LOG(LogApexSim, Log, TEXT("Profiles: now driving as '%s'"), *PlayerName);
 	OnPendingCarChanged.Broadcast(PendingCarId);
 	OnPendingTrackChanged.Broadcast(PendingTrackId);
@@ -416,6 +417,78 @@ bool UApexMenuFlowSubsystem::ConsumeProfilePrompt()
 		}
 	}
 	return true;
+}
+
+const FApexSeason& UApexMenuFlowSubsystem::GetSeason() const
+{
+	static const FApexSeason None;
+	return Profile ? Profile->Season : None;
+}
+
+const TArray<FApexSeasonSummary>& UApexMenuFlowSubsystem::GetPastSeasons() const
+{
+	static const TArray<FApexSeasonSummary> None;
+	return Profile ? Profile->PastSeasons : None;
+}
+
+void UApexMenuFlowSubsystem::StartSeason(const FApexSeason& Season)
+{
+	if (!Profile || Season.Rounds.Num() == 0)
+	{
+		return;
+	}
+	EndSeason();
+	Profile->Season = Season;
+	SaveProfile();
+	UE_LOG(LogApexSim, Log, TEXT("Season '%s': %d round(s), %s, car %s, %d AI, %d laps"),
+		*Season.Name, Season.Rounds.Num(), *Season.CarClass, *Season.CarId, Season.AiCount, Season.Laps);
+}
+
+void UApexMenuFlowSubsystem::EndSeason()
+{
+	SeasonRoundRunning = INDEX_NONE;
+	if (!Profile || Profile->Season.Rounds.Num() == 0)
+	{
+		return;
+	}
+	// A season ended before any round was raced leaves nothing to remember.
+	if (Profile->Season.RoundsDone() > 0)
+	{
+		Profile->PastSeasons.Add(ApexSeason::Summarise(Profile->Season));
+	}
+	Profile->Season = FApexSeason();
+	SaveProfile();
+}
+
+bool UApexMenuFlowSubsystem::BeginSeasonRound()
+{
+	const int32 Round = Profile ? Profile->Season.NextRound() : INDEX_NONE;
+	if (Round == INDEX_NONE)
+	{
+		return false;
+	}
+	SeasonRoundRunning = Round;
+	SetPendingCar(Profile->Season.CarId);
+	SetPendingTrack(Profile->Season.Rounds[Round].TrackId);
+	return true;
+}
+
+int32 UApexMenuFlowSubsystem::FileSeasonRace(const FString& TrackId, const TArray<FApexSeasonEntry>& Results)
+{
+	const int32 Round = SeasonRoundRunning;
+	if (!Profile || Round == INDEX_NONE || !Profile->Season.Rounds.IsValidIndex(Round)
+		|| !Profile->Season.Rounds[Round].TrackId.Equals(TrackId, ESearchCase::IgnoreCase))
+	{
+		return INDEX_NONE;
+	}
+	if (!ApexSeason::FileRound(Profile->Season, Round, Results))
+	{
+		return INDEX_NONE;
+	}
+	SeasonRoundRunning = INDEX_NONE;
+	SaveProfile();
+	UE_LOG(LogApexSim, Log, TEXT("Season '%s': round %d of %d filed"), *Profile->Season.Name, Round + 1, Profile->Season.Rounds.Num());
+	return Round;
 }
 
 void UApexMenuFlowSubsystem::FileSessionStats(const FApexSessionStats& Session)

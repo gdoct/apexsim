@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
 #include "GameFramework/SaveGame.h"
+#include "Season/ApexSeason.h"
 
 #include "ApexProfileSave.generated.h"
 
@@ -88,6 +89,14 @@ public:
 
 	UPROPERTY()
 	FApexDriverStats Stats;
+
+	/** The offline season under way (or just finished); empty Rounds for none. */
+	UPROPERTY()
+	FApexSeason Season;
+
+	/** Seasons this driver finished or ended, oldest first. */
+	UPROPERTY()
+	TArray<FApexSeasonSummary> PastSeasons;
 
 	UPROPERTY()
 	FString ServerHost = TEXT("127.0.0.1");

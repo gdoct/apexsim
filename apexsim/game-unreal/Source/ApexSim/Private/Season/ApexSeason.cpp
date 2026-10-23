@@ -1,0 +1,230 @@
+#include "Season/ApexSeason.h"
+
+namespace ApexSeason
+{
+	const TArray<int32>& PointsTable(EApexPointsPreset Preset)
+	{
+		static const TArray<int32> Modern = {25, 18, 15, 12, 10, 8, 6, 4, 2, 1};
+		static const TArray<int32> Classic = {10, 6, 4, 3, 2, 1};
+		static const TArray<int32> Deep = []
+		{
+			TArray<int32> Table;
+			for (int32 Points = 50; Points > 25; Points -= 5)
+			{
+				Table.Add(Points);
+			}
+			for (int32 Points = 25; Points >= 1; --Points)
+			{
+				Table.Add(Points);
+			}
+			return Table;
+		}();
+		switch (Preset)
+		{
+		case EApexPointsPreset::Classic: return Classic;
+		case EApexPointsPreset::Deep:    return Deep;
+		default:                         return Modern;
+		}
+	}
+
+	int32 PointsFor(EApexPointsPreset Preset, int32 Position)
+	{
+		const TArray<int32>& Table = PointsTable(Preset);
+		return Position >= 1 && Position <= Table.Num() ? Table[Position - 1] : 0;
+	}
+
+	FString PresetName(EApexPointsPreset Preset)
+	{
+		switch (Preset)
+		{
+		case EApexPointsPreset::Classic: return TEXT("Classic: 10-6-4-3-2-1");
+		case EApexPointsPreset::Deep:    return TEXT("Deep field: 50 down to 1");
+		default:                         return TEXT("Modern: 25-18-15...1");
+		}
+	}
+
+	namespace
+	{
+		/** Ahead by points, then wins, seconds, thirds..., then by key. */
+		bool StandsAhead(const FStanding& A, const FStanding& B)
+		{
+			if (A.Points != B.Points)
+			{
+				return A.Points > B.Points;
+			}
+			const int32 Places = FMath::Max(A.Places.Num(), B.Places.Num());
+			for (int32 Place = 0; Place < Places; ++Place)
+			{
+				const int32 OfA = A.Places.IsValidIndex(Place) ? A.Places[Place] : 0;
+				const int32 OfB = B.Places.IsValidIndex(Place) ? B.Places[Place] : 0;
+				if (OfA != OfB)
+				{
+					return OfA > OfB;
+				}
+			}
+			return A.Key.Compare(B.Key, ESearchCase::IgnoreCase) < 0;
+		}
+
+		void Tally(FStanding& Line, int32 Round, int32 Rounds, int32 Position, int32 Points)
+		{
+			if (Line.RoundPoints.Num() != Rounds)
+			{
+				Line.RoundPoints.Init(-1, Rounds);
+				Line.Dropped.Init(false, Rounds);
+			}
+			Line.RoundPoints[Round] = FMath::Max(Line.RoundPoints[Round], 0) + Points;
+			if (Position >= 1)
+			{
+				if (Line.Places.Num() < Position)
+				{
+					Line.Places.SetNumZeroed(Position);
+				}
+				++Line.Places[Position - 1];
+			}
+		}
+	}
+
+	TArray<FStanding> DriverStandings(const FApexSeason& Season)
+	{
+		const int32 Rounds = Season.Rounds.Num();
+		TArray<FStanding> Lines;
+		auto LineFor = [&Lines](const FApexSeasonEntry& Entry) -> FStanding&
+		{
+			FStanding* Found = Lines.FindByPredicate([&Entry](const FStanding& L)
+			{
+				return Entry.bYou ? L.bYou : (!L.bYou && L.Key == Entry.Name);
+			});
+			if (Found)
+			{
+				if (Entry.bYou)
+				{
+					Found->Key = Entry.Name;
+				}
+				return *Found;
+			}
+			FStanding& Line = Lines.AddDefaulted_GetRef();
+			Line.Key = Entry.Name;
+			Line.bYou = Entry.bYou;
+			Line.bIsAi = Entry.bIsAi;
+			return Line;
+		};
+		for (int32 Round = 0; Round < Rounds; ++Round)
+		{
+			if (!Season.Rounds[Round].bDone)
+			{
+				continue;
+			}
+			for (const FApexSeasonEntry& Entry : Season.Rounds[Round].Results)
+			{
+				Tally(LineFor(Entry), Round, Rounds, Entry.Position, PointsFor(Season.Points, Entry.Position));
+			}
+		}
+		for (FStanding& Line : Lines)
+		{
+			// The worst rounds go first: a round not entered counts as nothing
+			// and is dropped before a scoring one.
+			TArray<int32> Order;
+			for (int32 Round = 0; Round < Rounds; ++Round)
+			{
+				if (Season.Rounds[Round].bDone)
+				{
+					Order.Add(Round);
+				}
+			}
+			Order.StableSort([&Line](int32 A, int32 B) { return FMath::Max(Line.RoundPoints[A], 0) < FMath::Max(Line.RoundPoints[B], 0); });
+			const int32 Drops = FMath::Clamp(Season.DropRounds, 0, FMath::Max(0, Order.Num() - 1));
+			for (int32 Drop = 0; Drop < Drops; ++Drop)
+			{
+				Line.Dropped[Order[Drop]] = true;
+			}
+			Line.Points = 0;
+			for (int32 Round = 0; Round < Rounds; ++Round)
+			{
+				Line.Points += Line.Dropped[Round] ? 0 : FMath::Max(Line.RoundPoints[Round], 0);
+			}
+			Line.Wins = Line.Places.IsValidIndex(0) ? Line.Places[0] : 0;
+		}
+		Lines.Sort(StandsAhead);
+		return Lines;
+	}
+
+	TArray<FStanding> CarStandings(const FApexSeason& Season)
+	{
+		const int32 Rounds = Season.Rounds.Num();
+		TArray<FStanding> Lines;
+		for (int32 Round = 0; Round < Rounds; ++Round)
+		{
+			if (!Season.Rounds[Round].bDone)
+			{
+				continue;
+			}
+			for (const FApexSeasonEntry& Entry : Season.Rounds[Round].Results)
+			{
+				if (Entry.CarId.IsEmpty())
+				{
+					continue;
+				}
+				FStanding* Line = Lines.FindByPredicate([&Entry](const FStanding& L) { return L.Key.Equals(Entry.CarId, ESearchCase::IgnoreCase); });
+				if (!Line)
+				{
+					Line = &Lines.AddDefaulted_GetRef();
+					Line->Key = Entry.CarId;
+				}
+				const int32 Points = PointsFor(Season.Points, Entry.Position);
+				Tally(*Line, Round, Rounds, Entry.Position, Points);
+				Line->Points += Points;
+				Line->bYou |= Entry.bYou;
+			}
+		}
+		for (FStanding& Line : Lines)
+		{
+			Line.Wins = Line.Places.IsValidIndex(0) ? Line.Places[0] : 0;
+		}
+		Lines.Sort(StandsAhead);
+		return Lines;
+	}
+
+	bool FileRound(FApexSeason& Season, int32 Round, const TArray<FApexSeasonEntry>& Results)
+	{
+		if (Round == INDEX_NONE || Round != Season.NextRound() || Results.Num() == 0)
+		{
+			return false;
+		}
+		Season.Rounds[Round].Results = Results;
+		Season.Rounds[Round].bDone = true;
+		return true;
+	}
+
+	TArray<FString> SpreadCalendar(const TArray<FString>& TrackIds, int32 Count)
+	{
+		TArray<FString> Out;
+		const int32 Total = TrackIds.Num();
+		Count = FMath::Clamp(Count, 0, Total);
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			// The middle of each of Count equal slices of the list.
+			Out.Add(TrackIds[FMath::Min(Total - 1, (2 * Index + 1) * Total / (2 * Count))]);
+		}
+		return Out;
+	}
+
+	FApexSeasonSummary Summarise(const FApexSeason& Season)
+	{
+		FApexSeasonSummary Summary;
+		Summary.Name = Season.Name;
+		Summary.CarClass = Season.CarClass;
+		Summary.Rounds = Season.RoundsDone();
+		const TArray<FStanding> Standings = DriverStandings(Season);
+		if (Standings.Num() > 0)
+		{
+			Summary.Champion = Standings[0].Key;
+		}
+		const int32 Mine = Standings.IndexOfByPredicate([](const FStanding& S) { return S.bYou; });
+		if (Mine != INDEX_NONE)
+		{
+			Summary.YourPosition = Mine + 1;
+			Summary.YourPoints = Standings[Mine].Points;
+		}
+		return Summary;
+	}
+}

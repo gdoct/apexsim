@@ -181,7 +181,8 @@ the remembered session) and **Change setup** (the create screen). The right
   page turns the hero into a list of cars with a detail panel.
 - **Drive**: Create session (Quick = the remembered session; Race weekend
   opens the create screen on its Race weekend mode; Custom = the create
-  screen), Hotlap (the create screen on its Hotlap mode), Browse sessions
+  screen), Hotlap (the create screen on its Hotlap mode), Season (the
+  offline season, [below](#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)), Browse sessions
   (live sessions: watch or join), Connect to server.
 - **Watch a race**: Live race (the menu's backdrop race full screen,
   `WatchBackdrop`) and Replays (the replays screen, with the count of saved
@@ -269,6 +270,36 @@ Checks: `ApexSim.Net.DriverKey` (OpenSSL signs the server's own known
 answer), `ApexSim.Profile.*` (stats filing, the list and `-ApexProfile=`,
 the pictures there), `ApexSim.UI.CreateSession.StartOrder`'s profile
 lines, `ApexSim.Leaderboard.Rows`, `ApexSim.Net.Protocol.*` for the wire.
+
+### Offline season (`Season/ApexSeason.h`, `UI/ApexSeasonWidget.cpp`)
+
+A season against the AI, saved in the driver profile
+(`UApexProfileSave::Season`; finished or ended ones leave a summary in
+`PastSeasons`). Main menu > Drive > Season (`EApexScreen::Season`):
+
+- **Setup**: class and car (the server's cars the catalog can name, fixed
+  for the season), rounds (spread evenly over the circuits sorted by name,
+  `ApexSeason::SpreadCalendar`), points (Modern 25-18-15...1, Classic
+  10-6-4-3-2-1, Deep field 50 down to 1), laps, AI drivers, AI level,
+  dropped rounds. The AI are named by seat on the server, so the same field
+  size keeps the same drivers round to round.
+- **Under way**: the calendar (each raced round's winner and the player's
+  place), the drivers' standings (points after drops, then wins, seconds...,
+  the player one driver under any name) and the cars' standings (every
+  result of each car, no drops). Race round N sets the round's circuit and
+  the season's car as pending, creates a Practice-kind race with the
+  season's field and laps (the profile's conditions, assists and damage)
+  and counts it in on join; the race opens on its grid, as any race does.
+  End season is pressed twice.
+- **Filing**: `UApexSessionRecorder::FinishRecording` hands a race that
+  took the flag on the running round's circuit to
+  `UApexMenuFlowSubsystem::FileSeasonRace` (each car's place, 0 for not
+  classified, and its car from the roster). A race left before the flag
+  files nothing; the round stays next.
+
+Unattended: `apexsim.season.Setup <laps> <ai> <rounds> [first stem]` and
+`apexsim.season.Race` drive the screen (`n7-season` in the verify runs).
+Checks: `ApexSim.Season.*`.
 
 ### Tracks globe (`UI/ApexTrackGlobePage.cpp`)
 

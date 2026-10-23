@@ -156,6 +156,8 @@ namespace ApexPadWalkTest
 		Out.Add({ TEXT("Results"), EApexScreen::SessionResults, false });
 		Out.Add({ TEXT("Replays"), EApexScreen::Replays });
 		Out.Add({ TEXT("Leaderboard"), EApexScreen::Leaderboard });
+		Out.Add({ TEXT("Profile"), EApexScreen::Profile });
+		Out.Add({ TEXT("Season"), EApexScreen::Season });
 		Out.Add({ TEXT("Settings"), {}, true,
 			[](UApexRootWidget& Root) { Root.OpenSettings(EApexSettingsTab::Gameplay); },
 			[](UApexRootWidget& Root)

@@ -35,7 +35,7 @@ takes it up (— : no step, taken opportunistically).
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 2 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 5 |
-| N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 3, 5 |
+| N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 5 |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 4 |
 | N5 | Multi-class racing | Race rules + AI | P2 | 🟡 | L | 5 |
@@ -79,7 +79,7 @@ takes it up (— : no step, taken opportunistically).
    (follow-ups #20); R8's edges where they touch
    the same files.
 3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
-   local install), N7 (an offline season, saved in the profile).
+   local install).
    N26 phase 2 waits on the repository and the signing key.
 4. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
@@ -351,14 +351,12 @@ yet opened in i2: verification.md). Left: comparing against the ghost or
 the hotlap record (the server's ghost traces are 20 Hz positions only).
 
 #### N7. Championships and series with points — P2 · 🟡 · M
-**What:** No points table across races; R3 covers one weekend only.
-**Outcome:** Offline career-like play and league seasons.
-**Implementation:** A championship definition (rounds = track + rules,
-points system, drop rounds), standings for drivers and teams, offline first
-(saved in the profile), online on top of R3's persistence and identity.
-**Decided 2026-10-18:** an offline season against the AI first (calendar,
-class, points preset, saved in the profile); online leagues later, on R3.
-**Watch out:** online needs R3 phase 1; a person judges the season screens.
+**Built 2026-10-23:** the offline season against the AI (calendar, class
+and car, points preset, drop rounds, drivers' and cars' standings, saved in
+the profile; `n7-season` shots wait for a person).
+**Left:** league seasons online, on R3's persistence (phase 2) and the
+proved driver ids (phase 1, built); a fastest-lap point; per-round rules.
+N17's ballast by championship position can now read the offline standings.
 
 #### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.

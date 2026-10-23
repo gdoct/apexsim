@@ -34,6 +34,8 @@ enum class EApexScreen : uint8
 	Leaderboard    = 10,
 	/** The driver profiles on this machine: pick, create, picture, stats (UApexProfileWidget). */
 	Profile        = 11,
+	/** An offline season against the AI (UApexSeasonWidget). */
+	Season         = 12,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
@@ -419,6 +421,28 @@ public:
 	/** Add a session the player drove to the profile's stats, and save. */
 	void FileSessionStats(const FApexSessionStats& Session);
 
+	// --- Offline season (Season/ApexSeason.h) ---------------------------------
+
+	const FApexSeason& GetSeason() const;
+	const TArray<FApexSeasonSummary>& GetPastSeasons() const;
+	/** Begin a season; one already under way is ended first (its summary kept). */
+	void StartSeason(const FApexSeason& Season);
+	/** End the season: its summary joins the past seasons, and it is cleared. */
+	void EndSeason();
+	/**
+	 * The next round is being raced: the session the player creates now
+	 * (its circuit and car set as pending) is filed into the season when it
+	 * ends classified. False when there is no round to race.
+	 */
+	bool BeginSeasonRound();
+	/** The round being raced, INDEX_NONE when none. */
+	int32 GetSeasonRoundRunning() const { return SeasonRoundRunning; }
+	/**
+	 * A race just ended on `TrackId`: filed as the running round when it is
+	 * that round's circuit. Returns the round filed, INDEX_NONE otherwise.
+	 */
+	int32 FileSeasonRace(const FString& TrackId, const TArray<FApexSeasonEntry>& Results);
+
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Profile")
 	bool GetBestLapSeconds(const FString& TrackId, float& OutSeconds) const;
 
@@ -498,6 +522,8 @@ private:
 	/** The slot Profile is read from and written to. */
 	FString ProfileSlot = UApexProfileSave::SlotName;
 	bool bProfilePromptConsumed = false;
+	/** The season round the player's next race counts as (BeginSeasonRound); never saved. */
+	int32 SeasonRoundRunning = INDEX_NONE;
 
 	/**
 	 * The track table, a fallback for a track with no export here; null when

@@ -6978,3 +6978,48 @@ runs:
       - at: 8
         label: "Who is driving?"
         checks: "N15: the launch picker with two drivers"
+
+  - id: n7-season
+    about: "N7. Offline season: setup, standings, a round raced and filed"
+    # A three-round season of two-lap races against five AI, round 1 at
+    # Zandervoort, the stand-in driving the player's car. Writes the
+    # profile's season: back up Saved/SaveGames first.
+    server:
+      stand_in: true
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=12
+    exec:
+      3: ["apexsim.season.Setup 2 5 3 Zandervoort"]
+      8: ["apexsim.season.Race"]
+      12: ["apexsim.season.Race"]
+      # The round opens on the race's grid, which waits for Ready.
+      40: ["apexsim.ui.Click Ready"]
+      330: ["apexsim.ui.Texts"]
+    shots:
+      - at: 6
+        label: "Season setup: steppers and the calendar"
+        checks: "N7: the setup card"
+      - at: 10
+        label: "Season started: calendar, empty standings"
+        checks: "N7: the season card before a round"
+      - at: 30
+        label: "Round 1's grid: five AI and the player"
+        checks: "N7: the round is a race with the season's field"
+      - at: 120
+        label: "Round 1 under way"
+        checks: "N7: the race"
+      - at: 320
+        label: "After the flag"
+        checks: "N7: results, the round filed (client log: round 1 of 3 filed)"
+
+  - id: n7-season-standings
+    about: "N7. Offline season: the standings after round 1"
+    # Right after n7-season, on the profile it wrote.
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=12
+    shots:
+      - at: 6
+        label: "Season after round 1: calendar with the winner, standings"
+        checks: "N7: the drivers' and cars' standings"

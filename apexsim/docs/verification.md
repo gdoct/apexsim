@@ -331,6 +331,17 @@ back up `Saved/SaveGames` first and put it back after. Shot 2026-10-23
   The runs' servers bound both profiles' keys (their `records/drivers.json`)
   with no notice; a second machine claiming one of those ids is unseen.
 
+### R15. Offline season
+
+`n7-season` (a three-round season of two-lap races, the stand-in driving,
+round 1 at Zandervoort) then `n7-season-standings` (the Season screen on
+the profile it wrote). Both write the save games: back them up first. Shot
+2026-10-23: round 1 raced and filed, the standings right. A person judges:
+
+- The setup card and the season card (calendar, drivers', cars').
+- A whole season by hand: three rounds, a DNF, End season and the
+  summary on the next season's setup.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
