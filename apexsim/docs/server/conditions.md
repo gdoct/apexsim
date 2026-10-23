@@ -466,6 +466,18 @@ twenty cars an hour pack a driven stretch to about 0.7.
   track is under `FREEZE_C` (-1 °C), the cover is under 0.9 and no snow is
   falling: the line freezes overnight and costs `ICE_GRIP_LOSS` (0.6) of
   its grip until it thaws: a covered bake's ice is a tenth of the dry road.
+- The asphalt nobody races on glazes instead (`road_state::glazes`): the
+  paved run-off's cover (the verge's, `Cell::verge_ice`) and the pit lane's
+  (`RoadState::lane_ice`, a figure a lane cell) freeze at `ICE_FREEZE_RATE`
+  on a track under `FREEZE_C` with no snowfall burying them, once packed or
+  half melted (between `GLAZE_MIN_COVER`, 0.05, and the 0.9 of a fresh
+  cover), and thaw as the line's ice does. The run-off's and the lane's
+  `wet_grip` take it (`snow_grip(cover, paved_ice, ..)`), and a wheel there
+  reads it as its ice (`RoadSample::paved_ice`, the snow tyre's bite): a
+  packed lane at -5 °C after an afternoon's melt loses well over a third of
+  its grip in the hour
+  (`the_packed_lane_and_the_melted_run_off_glaze_on_a_cold_night`). The
+  glaze is not on the wire.
 - The slush is `SNOW_WATER` (0.3) of standing water while it snows (the
   `Weather::Snow.water()` that picks the tyre and that the dry line wipes),
   so `Compound::grip_on` and the AI's crossover choose treaded tyres with no

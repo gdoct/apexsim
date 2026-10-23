@@ -348,6 +348,11 @@ the launcher import with the network off.
   both decoders already skip extra ones), with the golden `State` and
   `File` blobs moved together. The damp dawn road (`RoadState::dew`) is
   drawn already: it is the road state's water.
+- The run-off's and the pit lane's glaze (`Cell::verge_ice`,
+  `RoadState::lane_ice`) is not on the wire: the client draws a frozen lane
+  as packed snow, and a predicting client (`apx_track_road_rows`) grips it
+  as unfrozen until the server corrects it. Send it with `SnowRows` /
+  `LaneSnow` (a byte more a cell) when the client draws ice off the line.
 
 **Check:** `ApexSim.UI.CreateSession.SeasonAir`; a dated create's preview
 against `SessionJoined.Conditions`; `-ApexAutoRace -ApexTimeOfDay=04:30

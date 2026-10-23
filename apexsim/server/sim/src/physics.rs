@@ -640,7 +640,7 @@ pub fn update_car_3d(
                     RoadContact::Curb => (road.grip * road.curb_grip, road.snow, road.ice),
                     RoadContact::Road => (road.grip, road.snow, road.ice),
                     RoadContact::Runoff | RoadContact::PitLane => {
-                        (road.wet_grip, road.paved_snow, 0.0)
+                        (road.wet_grip, road.paved_snow, road.paved_ice)
                     }
                 };
                 WheelContact {
