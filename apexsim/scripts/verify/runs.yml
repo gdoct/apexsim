@@ -4001,8 +4001,12 @@ runs:
     shots:
       - at: 12
         label: "the observation tower in its red veil"
-        checks: "C5 kit: the tower stands inside the T16-T18 carousel, on the ground"
+        checks: "C5 kit: the tower stands inside the T16-T18 carousel, on the ground, its deck toward the track"
         exec: "apexsim.cam.LookAt 250.0 -60.0 25.0 425.5 84.4 45.0"
+      - at: 20
+        label: "the veil's plaza canopy"
+        checks: "C5 kit: the veil runs down the tower's back and out over the plaza on its columns, clear of the road"
+        exec: "apexsim.cam.LookAt 560.0 60.0 40.0 400.0 125.0 25.0"
 
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"

@@ -375,42 +375,71 @@ def stadium_bowl():
 
 # ======================================================== building/veil_tower
 def veil_tower():
-    """A 77 m observation tower (Austin's): a white lift core, a glazed
-    observation deck at 70 m under a white canopy, and the red steel veil,
-    eighteen tubes sweeping from a wide ring on the ground up and in to
-    the deck. Centred."""
+    """Austin's 77 m observation tower: an open white stair tower (corner
+    posts, a landing every 3.5 m, zig-zag flights on its front) under a
+    cantilevered deck at 70 m, and the red veil, a ribbon of steel tubes
+    that arcs over the deck as its canopy, runs down the tower's back and
+    sweeps out level into the long, widening canopy 15 m over the plaza on
+    thin columns. The deck looks over the track (+Y, the road's side as
+    laid); the plaza canopy reaches away from it (-Y). Pivot: the tower's
+    foot."""
     m = mats()
     red = apex.material("veil_red", (0.62, 0.04, 0.04), metallic=0.3, roughness=0.35)
+    white = m["white"]
     b = apex.Builder("veil_tower")
-    S = 48
-    rev = lambda mat, prof, segs=S: revolve(b, mat, prof, segs)
-    # plinth, core, the deck's floor, glazing and canopy
-    rev(m["concrete"], [(9.0, 0.0), (9.0, 0.6), (3.2, 0.6)])
-    rev(m["white"], [(2.4, 0.6), (2.4, 66.0)])
-    rev(m["white"], [(2.4, 66.0), (7.6, 66.0), (7.6, 67.0)])
-    rev(m["glass_blue"], [(7.6, 67.0), (7.9, 70.5)])
-    rev(m["white"], [(7.9, 70.5), (9.5, 70.8), (9.5, 71.4), (0.0, 72.4)])
-    # the mast on the canopy
-    b.cylinder(m["alu"], (0.0, 0.0, 72.4), 0.25, 5.0, segs=8)
-    # the veil: tubes from a 13 m ring at the ground to a 6.5 m ring under
-    # the deck, bowed out (a parabola in radius), each twisting a little.
-    n, steps = 18, 24
-    for k in range(n):
-        a0 = TAU * k / n
+    X0, X1, Y0, Y1, TOP = -4.0, 4.0, -4.0, 3.0, 70.0
+    # plinth, the lift core, corner posts
+    b.box(m["concrete"], (X0 - 1.0, Y0 - 1.0, 0.0), (X1 + 1.0, Y1 + 1.0, 0.5))
+    b.box(white, (-1.3, -2.8, 0.5), (1.3, -0.2, TOP + 2.5))
+    for x in (X0, X1 - 0.5):
+        for y in (Y0, Y1 - 0.5):
+            b.box(white, (x, y, 0.5), (x + 0.5, y + 0.5, TOP))
+    # landings, and the flights on the front face, alternating
+    z, k = 3.5, 0
+    while z < TOP:
+        b.box(white, (X0, Y0, z - 0.25), (X1, Y1, z))
+        x_from, x_to = (X0 + 0.6, X1 - 0.6) if k % 2 == 0 else (X1 - 0.6, X0 + 0.6)
+        b.bar(white, (x_from, Y1 - 0.4, z - 3.5), (x_to, Y1 - 0.4, z - 0.25), 0.18, segs=4)
+        b.bar(m["alu"], (x_from, Y1 + 0.05, z - 2.5), (x_to, Y1 + 0.05, z + 0.75), 0.05, segs=4)
+        z, k = z + 3.5, k + 1
+    # the deck, cantilevered toward the track, with its glass rail
+    b.box(white, (-7.0, Y0, TOP), (7.0, Y1 + 7.0, TOP + 0.5))
+    for (p0, p1) in (((-7.0, Y1 + 7.0), (7.0, Y1 + 7.0)), ((-7.0, Y0), (-7.0, Y1 + 7.0)), ((7.0, Y0), (7.0, Y1 + 7.0))):
+        lo = (min(p0[0], p1[0]) - 0.04, min(p0[1], p1[1]) - 0.04, TOP + 0.5)
+        hi = (max(p0[0], p1[0]) + 0.04, max(p0[1], p1[1]) + 0.04, TOP + 1.6)
+        b.box(m["glass_blue"], lo, hi)
+    # the veil's centre line in (y, z): over the deck, down the back, a
+    # bend, then level out over the plaza
+    path = []
+    for i in range(13):                       # the canopy over the deck
+        t = i / 12
+        path.append((Y1 + 8.0 - (Y1 + 8.0 - (Y0 - 1.5)) * t, TOP + 5.0 + 3.0 * math.sin(math.pi * t) - 1.5 * t))
+    for i in range(1, 25):                    # down the back
+        path.append((Y0 - 1.5, TOP + 3.5 - (TOP + 3.5 - 24.0) * i / 24))
+    for i in range(1, 9):                     # the bend
+        a = math.pi / 2 * i / 8
+        path.append((Y0 - 1.5 - 9.0 * (1 - math.cos(a)), 24.0 - 9.0 * math.sin(a)))
+    L = 70.0
+    for i in range(1, 29):                    # the plaza canopy
+        t = i / 28
+        path.append((Y0 - 10.5 - L * t, 15.0 + 1.5 * t))
+    n, gap = 21, 0.42
+    plaza0 = Y0 - 10.5
+    for j in range(n):
+        u = j - (n - 1) / 2
         pts = []
-        for i in range(steps + 1):
-            t = i / steps
-            r = 6.5 + 6.5 * (1 - t) ** 2
-            a = a0 + 0.35 * t
-            pts.append((r * math.cos(a), r * math.sin(a), 0.6 + 65.0 * t))
+        for (y, zz) in path:
+            fan = 1.0 + 1.6 * max(0.0, (plaza0 - y) / L)   # widening over the plaza
+            pts.append((u * gap * fan, y, zz))
         for p0, p1 in zip(pts, pts[1:]):
-            b.bar(red, p0, p1, 0.32, segs=6)
-    # rings tying the tubes at three heights
-    for t in (0.25, 0.55, 0.85):
-        r, a_off = 6.5 + 6.5 * (1 - t) ** 2, 0.35 * t
-        ring = [(r * math.cos(TAU * k / n + a_off), r * math.sin(TAU * k / n + a_off), 0.6 + 65.0 * t) for k in range(n)]
-        for p0, p1 in zip(ring, ring[1:] + ring[:1]):
-            b.bar(red, p0, p1, 0.18, segs=4)
+            b.bar(red, p0, p1, 0.11, segs=5)
+    # columns under the plaza canopy, a pair every 14 m
+    for i in range(1, 6):
+        t = i / 5.5
+        y = plaza0 - L * t
+        half = (n - 1) / 2 * gap * (1.0 + 1.6 * t)
+        for x in (-half, half):
+            b.cylinder(white, (x, y, 0.0), 0.25, 15.0 + 1.5 * t, segs=8)
     return done(b)
 
 
@@ -712,7 +741,7 @@ BUILD = {
     "stadium_bowl": ("building", stadium_bowl, 500,
                      [((-120, -330, 6), (0, 0, 22), 45), ((-230, -230, 160), (0, 0, 10), 45)]),
     "veil_tower": ("building", veil_tower, 150,
-                   [((-90, -210, 8), (0, 0, 36), 35), ((-90, -90, 70), (0, 0, 36), 45)]),
+                   [((-230, 70, 35), (0, -30, 36), 40), ((24, 40, 72), (0, -6, 72), 60)]),
     "fuel_station_canopy": ("building", fuel_station_canopy, 120,
                             [((-22, -45, 2.0), (0, 12, 3.5), 55), ((-30, -22, 18), (0, 14, 2), 50)]),
 }
