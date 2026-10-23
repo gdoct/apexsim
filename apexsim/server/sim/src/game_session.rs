@@ -487,6 +487,32 @@ pub struct RosterRow {
     pub penalties: Vec<crate::race_control::Penalty>,
 }
 
+/// A session's state at one tick, to rewind to (`GameSession::snapshot`,
+/// `GameSession::restore`). Holds no car configs and no track lines or
+/// sidecars: it restores only onto the session it was taken of.
+pub struct SessionSnapshot {
+    session: Box<GameSession>,
+}
+
+impl SessionSnapshot {
+    /// The session tick it was taken on (the tick the session steps next
+    /// once restored is this one's).
+    pub fn tick(&self) -> u32 {
+        self.session.session.current_tick
+    }
+
+    /// The game mode the session was in.
+    pub fn game_mode(&self) -> GameMode {
+        self.session.session.game_mode
+    }
+
+    /// The cars in it, in order.
+    pub fn participants(&self) -> impl Iterator<Item = &PlayerId> {
+        self.session.session.participants.keys()
+    }
+}
+
+#[derive(Clone)]
 pub struct GameSession {
     pub session: RaceSession,
     pub track_config: TrackConfig,
@@ -2869,6 +2895,65 @@ impl GameSession {
     /// replay for it).
     pub fn take_phase_started(&mut self) -> bool {
         std::mem::take(&mut self.phase_started)
+    }
+
+    /// A copy of the session's whole state as it stands between ticks, to
+    /// rewind to ([`Self::restore`]): everything the tick reads and writes,
+    /// without what it never changes (the shared car configs and the
+    /// track's lines and sidecars, [`TrackStatic`]). The sim is
+    /// deterministic, so a session restored from it and fed the same inputs
+    /// steps the same ticks, to the bit.
+    pub fn snapshot(&mut self) -> SessionSnapshot {
+        let track = self.track_config.take_static();
+        let cars = std::mem::take(&mut self.car_configs);
+        let copy = self.clone();
+        self.track_config.put_static(track);
+        self.car_configs = cars;
+        SessionSnapshot {
+            session: Box::new(copy),
+        }
+    }
+
+    /// Put the session back as it was at `snapshot` (taken of this session
+    /// by [`Self::snapshot`]). What the server and the clients know about
+    /// the session stays as it is now: the drivers' names and profile ids,
+    /// who is away, the held-seat and finish clocks, the dashboard's
+    /// settings, the own-car feeds and what each client was last sent (its
+    /// racing line, its pit box; a weekend or shoot-out state goes out
+    /// again). Nothing is invalidated: the server's rewind does that
+    /// ([`Self::rewind_to`]).
+    pub fn restore(&mut self, snapshot: &SessionSnapshot) {
+        let mut back = (*snapshot.session).clone();
+        back.track_config
+            .put_static(self.track_config.take_static());
+        back.car_configs = std::mem::take(&mut self.car_configs);
+        back.driver_names = std::mem::take(&mut self.driver_names);
+        back.driver_ids = std::mem::take(&mut self.driver_ids);
+        back.away = std::mem::take(&mut self.away);
+        back.finished_since_loop_tick = self.finished_since_loop_tick;
+        back.orphaned_since_loop_tick = self.orphaned_since_loop_tick;
+        back.hosted = self.hosted;
+        back.ai_excluded_cars = std::mem::take(&mut self.ai_excluded_cars);
+        back.own_car_feeds = std::mem::take(&mut self.own_car_feeds);
+        back.aid_lines = std::mem::take(&mut self.aid_lines);
+        back.pit_box_told = std::mem::take(&mut self.pit_box_told);
+        back.listed_state = self.listed_state;
+        back.weekend_sent = None;
+        back.shootout_sent = None;
+        back.roster_dirty = true;
+        back.lap_events.clear();
+        back.pit_events.clear();
+        *self = back;
+    }
+
+    /// A driver's rewind: [`Self::restore`], then every car's lap in
+    /// progress is struck (`LapTiming::invalid`), so no lap driven through
+    /// the point rewound to becomes a best, a record or a qualifying time.
+    pub fn rewind_to(&mut self, snapshot: &SessionSnapshot) {
+        self.restore(snapshot);
+        for car in self.session.participants.values_mut() {
+            car.laps.invalid = true;
+        }
     }
 
     /// The weekend's progress.

@@ -1695,6 +1695,37 @@ namespace
 		return true;
 	}
 
+	/** `RewoundData` (network.rs): PascalCase keys. */
+	bool ParseRewound(FMsgPackReader& Reader, FApexRewound& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexRewound();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Tick"))          { bOk = Reader.ReadUInt64(Raw); Out.Tick = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("FromTick")) { bOk = Reader.ReadUInt64(Raw); Out.FromTick = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("HoldMs"))   { bOk = Reader.ReadUInt64(Raw); Out.HoldMs = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	/** `TrackBundleChunkData` (network.rs): PascalCase keys, the chunk as a bin. */
 	bool ParseTrackBundleChunk(FMsgPackReader& Reader, FApexTrackBundleChunk& Out)
 	{
@@ -3384,6 +3415,7 @@ namespace
 		if (Variant == TEXT("Chat"))               { return EApexServerMessageType::Chat; }
 		if (Variant == TEXT("ShootoutState"))      { return EApexServerMessageType::ShootoutState; }
 		if (Variant == TEXT("TrackBundleChunk"))   { return EApexServerMessageType::TrackBundleChunk; }
+		if (Variant == TEXT("Rewound"))            { return EApexServerMessageType::Rewound; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -3458,6 +3490,8 @@ namespace
 			return ParseChat(Reader, Out.Chat);
 		case EApexServerMessageType::TrackBundleChunk:
 			return ParseTrackBundleChunk(Reader, Out.TrackBundleChunk);
+		case EApexServerMessageType::Rewound:
+			return ParseRewound(Reader, Out.Rewound);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -4129,6 +4163,15 @@ namespace ApexProtocol
 		BeginDataVariant(Writer, "RecoverCar", 1);
 		Writer.WriteString("destination");
 		Writer.WriteUInt(static_cast<uint8>(Destination));
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRewind(uint16 Seconds)
+	{
+		FMsgPackWriter Writer(48);
+		BeginDataVariant(Writer, "Rewind", 1);
+		Writer.WriteString("seconds");
+		Writer.WriteUInt(Seconds);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

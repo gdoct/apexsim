@@ -7,7 +7,7 @@ countdown, race start and finish (over laps or against a clock), starting order 
 one-lap shoot-out, with an optional lap allowance), the race weekend (practice,
 knockout qualifying and the race in one session), events kept across
 server restarts, lap timing and records,
-recovering a stuck car, the hotlap mode with its ghost, and the watched
+recovering a stuck car, rewind in offline practice, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
 belong to these rules are described briefly beside them.
 
@@ -53,6 +53,9 @@ belong to these rules are described briefly beside them.
 - `server/sim/src/race_start.rs` (`RaceStart`, `Formation`) and
   `GameSession::begin_formation` / `tick_formation` / `hold_cars_on_grid`:
   the formation lap, the rolling start, false starts
+- `server/server/src/rewind.rs` (`Rewind`, `sole_driver`,
+  `takes_snapshots`), `GameSession::snapshot` / `restore` / `rewind_to`,
+  `dispatch::handle_rewind`: rewind in offline practice
 - `server/sim/src/laps.rs`, `records.rs`, `grid_order.rs`,
   `track_guide.rs` (`wire_corners`)
 - Client: `UI/ApexRootWidget.cpp`, `UI/ApexSessionCreateWidget.cpp` (model
@@ -67,7 +70,7 @@ belong to these rules are described briefly beside them.
 | Kind | Value | Server behaviour |
 |---|---|---|
 | `Multiplayer` | 0 | A normal, listed session. |
-| `Practice` | 1 | Same as Multiplayer on the server; the client uses it for single-player sessions. |
+| `Practice` | 1 | Same as Multiplayer on the server, but that its one human may rewind it (see "Rewind in offline practice"); the client uses it for single-player sessions. |
 | (none) | 2 | Retired (was `Sandbox`, which had no behaviour); refused, never reused. |
 | `Demo` | 3 | An AI-only race nobody drives: what a showcase is rendered from. Refused by `CreateSession`. |
 | `HotlapWatch` | 4 | One AI car lapping alone (see "Watching a hotlap"), simulated by the game. Refused by `CreateSession`. |
@@ -1543,6 +1546,75 @@ to BACK TO GARAGE in a hotlap or qualifying); a refusal comes back as a
 toast. The HUD's car state badge reads HELD and the seconds left
 (`car.recovering`, `car.recover_s`). Console: `apexsim.recover [track|pits]`.
 
+## Rewind in offline practice
+
+A driver alone can wind the session back and drive on from an earlier
+moment (`crate::rewind`, `GameSession::snapshot` / `restore` /
+`rewind_to`).
+
+**Who.** A session is driven alone when it is of the `Practice` kind (what
+the client creates for single-player) and one human sits in it, AI cars
+beside them or not (`rewind::sole_driver`). Only that driver may rewind;
+anyone else, in any other session, gets `Error 403`.
+
+**The ring.** While such a session races (`SessionState::Racing`) in free
+practice, a hotlap, qualifying, timed practice or a race
+(`rewind::takes_snapshots`), the game loop takes a snapshot after the
+session's tick every `SNAPSHOT_SECONDS` (1 s) of session time (a session
+tick that is a multiple of the rate) and keeps `DEPTH_SECONDS` (60) of them
+in a ring beside the session (`ServerState::rewinds`). The ring starts
+again when the mode or the cars change, and is dropped when the session
+stops racing (a countdown, the flag, the lobby), when a weekend phase
+begins (a day may bake its own sky into the track) and with the session.
+
+**The snapshot** is the session's whole state between ticks
+(`GameSession::snapshot`, a clone of it): the cars, the race, the road, the
+sky, the AI, the timing, the flags. It leaves out what a session never
+changes, so the ring stays small: the shared car configs and the track's
+lines and sidecars (`TrackStatic`: centerline, raceline, ground, curbs,
+walls; the road mesh is shared behind its `Arc`). A restore takes those
+back from the live session. It is taken outside the simulation and never
+read by it; the sim is deterministic, so a restored session fed the same
+inputs steps the same ticks to the bit
+(`determinism_test::a_restored_snapshot_replays_the_same_ticks`, on
+Monza's road mesh and walls, two restores of one snapshot). A snapshot of
+a 6-car session takes about 0.4 ms in a release build.
+
+**A rewind** (`ClientMessage::Rewind { seconds }`): the snapshot whose tick
+is nearest `seconds` before the session's tick (the older of two as near;
+the oldest when asked further back than the ring) is restored, and the
+ring's newer snapshots are dropped, so a second rewind goes further back.
+`Error 409` while the ring is empty (the first second, or straight after
+it was dropped). What the server and the clients know stays as it is now
+(`GameSession::restore`): the drivers' names and profile ids, who is away,
+the session clocks of the loop, the dashboard's settings, the own-car
+feeds, the racing line and pit box each client was last sent. The setup,
+the aids and the pit plan go back with the car. The roster is sent again,
+and a weekend's or shoot-out's state; the road catches up slice by slice.
+
+**Laps.** Every car's lap in progress at the point rewound to is struck
+(`LapTiming::invalid`, as for track limits): it still counts and is timed,
+but cannot be a best, a record, a qualifying time or a purple sector. The
+lap after it starts clean. Laps finished before the rewind and since
+undone were already timed and sent; a record set on one stays.
+
+**The hold.** The cars then stand still for `HOLD_MS` (3 s): the session
+is not ticked (no input is made for it, the AI's included) and not
+recorded, while its telemetry goes on carrying the tick rewound to. Then it
+runs on.
+
+**Recording.** A rewind cuts the recording: the run up to it is written as
+a replay of its own, and when one was running a new one starts with the
+first tick after the hold (`Rewind::restart_recording`); a live stream
+starts again with a catch-up for its viewers. The `.apxs` stream itself
+never goes back in time.
+
+**The wire.** `Rewound(RewoundData { Tick, FromTick, HoldMs })` goes to the
+session's drivers and spectators ([protocol](protocol.md)). A client drops
+what it buffered of the run undone (its interpolation buffers, a
+predicting client's history and replay inputs; the next own-car state blob
+resynchronises it) and expects telemetry of `Tick` for the hold.
+
 ## Hotlap
 
 `GameMode::Hotlap`: time attack, several drivers at once, each with their
@@ -1707,6 +1779,7 @@ cargo test --test all race_start_test::             # formation lap back to the 
 cargo test --test all penalty_test::                # the AI's drive-through and stop-go at the Norisring
 cargo test --test all lap_timing_test::             # sectors and track limits round Monza
 cargo test --test all recovery_test::               # back to track, a taken spot, back to pits, refused moving
+cargo test --test all determinism_test::            # incl. a restored snapshot replaying its ticks, a rewind striking the laps
 cargo test --test all multi_class_test::            # the AI dealt per class and ranked, the grid and the classification by class
 SURVEY_CLASSES=LMP2:6,GT3:6 SURVEY_TRACKS=Snorisring cargo test --release --test all ai_race_start_test::survey -- --ignored --nocapture   # a two-class AI race
 
@@ -1723,6 +1796,7 @@ cargo test --test all grid_order_test::             # start order, stored result
 cargo test --test all ready_grid_test::             # the race's grid: OpenGrid, SetReady, the countdown
 cargo test --test all safety_car_test::             # the VSC out and in; the safety car out of the pit exit, the queue, a lapped car let by, the lane shut and open, the restart
 cargo test --test all reconnect_test::              # held seat, resume, takeover, grace, Disconnect
+cargo test --test all rewind_test::                 # a practice driven alone rewound: the hold, the struck lap, the cut recording; refused online
 cargo test --test all hotlap_test::                 # garage, run-up, queue, cold tyres, qualifying outlap
 cargo test --test all hotlap_watch_test::           # hold, laps, determinism, corners, ghost, setup, a server refusing the kind
 cargo test --release --test all hotlap_watch_test::watch_probe -- --ignored --nocapture   # WATCH_TRACKS/CARS/LAPS
@@ -1735,7 +1809,7 @@ for `assists_wire_format`, `session_damage_wire_format`,
 `qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `pit_rule_wire_format`, `shootout_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,
-`rejoin_wire_format`.
+`rejoin_wire_format`, `rewind_wire_format`.
 
 Client tests: `ApexSim.UI.CreateSession.StartOrder`,
 `ApexSim.Race.QualifyingBoard`, `ApexSim.Race.RaceOrder`,

@@ -26,6 +26,7 @@ mod race_flow_test;
 mod ready_grid_test;
 mod reconnect_test;
 mod recordings_test;
+mod rewind_test;
 mod safety_car_test;
 mod session_conditions_test;
 mod session_state_test;

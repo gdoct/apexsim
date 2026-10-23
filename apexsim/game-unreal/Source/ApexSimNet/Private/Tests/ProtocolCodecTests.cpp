@@ -112,6 +112,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeChat(TEXT("good luck")),
 		ApexGolden::C_Chat);
 
+	CheckBytes(TEXT("Rewind"),
+		ApexProtocol::EncodeRewind(10),
+		ApexGolden::C_Rewind);
+
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
@@ -1123,6 +1127,18 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		if (Decode(TEXT("Chat (session)"), ApexGolden::S_ChatSession, InSession))
 		{
 			TestTrue(TEXT("said in a session"), InSession.Chat.bInSession);
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("Rewound"), ApexGolden::S_Rewound, Message))
+		{
+			TestEqual(TEXT("Rewound type"), Message.Type, EApexServerMessageType::Rewound);
+			TestTrue(TEXT("Rewound decoded"), Message.Rewound.bValid);
+			TestEqual(TEXT("Rewound.Tick"), Message.Rewound.Tick, 4200u);
+			TestEqual(TEXT("Rewound.FromTick"), Message.Rewound.FromTick, 8610u);
+			TestEqual(TEXT("Rewound.HoldMs"), Message.Rewound.HoldMs, 3000u);
 		}
 	}
 

@@ -12,6 +12,7 @@ pub mod metrics;
 pub mod replay;
 pub mod replay_tools;
 pub mod results;
+pub mod rewind;
 pub mod server;
 pub mod showcase;
 pub mod stream_recorder;

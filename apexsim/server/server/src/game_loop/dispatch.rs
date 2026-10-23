@@ -236,6 +236,9 @@ pub(crate) async fn handle_message(
         ClientMessage::Chat { text } => {
             handle_chat(ctx, connection_id, &text).await;
         }
+        ClientMessage::Rewind { seconds } => {
+            handle_rewind(ctx, connection_id, seconds).await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,
@@ -1873,6 +1876,94 @@ async fn handle_hotlap_relocate(
 
 /// A stuck driver's car put back (`GameSession::recover_car`); an `Error`
 /// says why when it cannot be.
+/// A driver alone in a practice session rewinds it (`crate::rewind`): the
+/// recording so far is written as it stands, the session restored, its
+/// stream started again for whoever watches it, and everyone in it told
+/// (`Rewound`) so they drop what they had of the run undone.
+async fn handle_rewind(ctx: &GameLoopCtx, connection_id: ConnectionId, seconds: u16) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let names: HashMap<PlayerId, String> = {
+        let state = ctx.state.read().await;
+        state
+            .lobby
+            .get_lobby_players()
+            .await
+            .into_iter()
+            .map(|p| (p.id, p.name))
+            .collect()
+    };
+    let outcome = {
+        let mut state_write = ctx.state.write().await;
+        let state = &mut *state_write;
+        match state.sessions.get_mut(&session_id) {
+            None => Err((404, "Session not found")),
+            Some(game_session)
+                if crate::rewind::sole_driver(game_session) != Some(conn_info.player_id) =>
+            {
+                Err((403, "Rewind is for a practice session you drive alone"))
+            }
+            Some(game_session) => match state.rewinds.get_mut(&session_id) {
+                Some(rewind) if rewind.can_rewind() => {
+                    // The run up to the rewind is a replay of its own.
+                    let cut = super::tick::finish_recording(
+                        &state.replay,
+                        session_id,
+                        game_session.session.race_start_tick,
+                        game_session.session.game_mode,
+                        super::tick::replay_participants(game_session, &names),
+                    );
+                    match rewind.rewind(game_session, seconds) {
+                        Some(done) => {
+                            if cut {
+                                rewind.restart_recording();
+                            }
+                            state.streams.remove(&session_id);
+                            for viewer in state.live.forget_session(&session_id) {
+                                state.live.join(viewer, session_id);
+                            }
+                            let mut recipients: Vec<PlayerId> = game_session
+                                .session
+                                .participants
+                                .keys()
+                                .filter(|id| !game_session.session.ai_player_ids.contains(id))
+                                .copied()
+                                .collect();
+                            recipients.extend(state.lobby.get_session_spectators(session_id).await);
+                            Ok((done, recipients))
+                        }
+                        None => Err((409, "Nothing to rewind to yet")),
+                    }
+                }
+                _ => Err((409, "Nothing to rewind to yet")),
+            },
+        }
+    };
+    match outcome {
+        Ok((done, recipients)) => {
+            debug!(
+                "Player {} rewound session {} from tick {} to {}",
+                conn_info.player_name, session_id, done.from_tick, done.tick
+            );
+            let msg = ServerMessage::Rewound(crate::network::RewoundData {
+                tick: done.tick,
+                from_tick: done.from_tick,
+                hold_ms: crate::rewind::HOLD_MS,
+            });
+            for player_id in recipients {
+                if let Some(conn_id) = ctx.player_connection(player_id).await {
+                    let _ = ctx.send(conn_id, msg.clone()).await;
+                }
+            }
+        }
+        Err((code, reason)) => ctx.send_error(connection_id, code, reason).await,
+    }
+}
+
 async fn handle_recover_car(
     ctx: &GameLoopCtx,
     connection_id: ConnectionId,

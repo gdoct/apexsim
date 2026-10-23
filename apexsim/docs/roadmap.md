@@ -246,10 +246,12 @@ determinism of `render` (same seed, same bytes).
 
 ### 13. Rewind in offline practice
 
-- Periodic full-state snapshots; rewind N seconds and resume; laps after a
-  rewind invalid for records.
+- The client: a rewind key and a pause-menu entry in a single-player
+  practice session, the hold counted down, the car's buffers dropped on
+  `Rewound` (the server side is built: sessions.md).
 
-**Check:** a rewound run replays deterministically.
+**Check:** rewind in a practice session, see the cars go back and the lap
+struck.
 
 ### 14. Spotter and engineer radio
 

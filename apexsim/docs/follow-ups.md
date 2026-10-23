@@ -248,7 +248,7 @@ order down the standings.
 
 ## P3: nice to have
 
-### 32. The tyre, parc fermé and stint rules on the client
+### 34. The tyre, parc fermé and stint rules on the client
 
 The race rules' tyre, parc fermé and stint keys run on the server
 ([server/sessions.md](server/sessions.md#tyre-sets)) and are echoed in
@@ -388,6 +388,18 @@ the launcher import with the network off.
 against `SessionJoined.Conditions`; `-ApexAutoRace -ApexTimeOfDay=04:30
 -ApexWeather=sunny` with a calm wind shows a mist that lifts after sunrise
 at `-ApexTimeScale=30`.
+
+### 35. Rewind in offline practice
+
+- The ring's memory is not measured: 61 whole-session copies (the AI's
+  speed plans and the drivers' ghost traces among them) for a full AI
+  field on a long track. Measure it with a counting allocator in the
+  determinism test; if it is large, leave the AI's plan caches out of the
+  snapshot as the track's lines are, after proving they are a pure function
+  of the static data (`a_restored_snapshot_replays_the_same_ticks` must
+  still hold).
+
+**Check:** the figure, and the determinism test.
 
 ## P4: Unrefined
 

@@ -109,6 +109,15 @@ mesh backends. Inside the sim path:
 The game loop's own bookkeeping (rate checks, rate limiting, heartbeats) uses
 `Instant`, which is fine because it never feeds the simulation.
 
+A session's whole state between ticks can be copied and put back
+(`GameSession::snapshot` / `restore`, without the shared car configs and
+the track's lines and sidecars): restored and fed the same inputs, it steps
+the same ticks to the bit (`a_restored_snapshot_replays_the_same_ticks`).
+The server's rewind in offline practice is built on it
+([server/sessions.md](server/sessions.md#rewind-in-offline-practice)); a
+new session field that the tick changes is carried by the copy on its own,
+one the server or the clients own is kept live in `restore`.
+
 ### Simulation and runtime modules
 
 The server's code is of three kinds, in three crates. **Simulation** (`server/sim/`,

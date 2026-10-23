@@ -52,6 +52,9 @@ pub struct ServerState {
     /// Race events kept across restarts (`crate::events`), in
     /// `<records>/events`.
     pub events: Arc<crate::events::EventStore>,
+    /// The rewind snapshots of each session driven alone (`crate::rewind`),
+    /// taken by the game loop after its tick.
+    pub rewinds: HashMap<SessionId, crate::rewind::Rewind>,
 }
 
 impl ServerState {
@@ -127,6 +130,7 @@ impl ServerState {
             showcase,
             disabled_content,
             chat: crate::chat::ChatGuard::default(),
+            rewinds: HashMap::new(),
             config,
             car_configs,
             track_configs,

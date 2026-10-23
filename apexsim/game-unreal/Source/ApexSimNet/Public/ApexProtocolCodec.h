@@ -112,6 +112,12 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeHotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres = false);
 	/** A stuck driver asks for their car back: onto the track where it is, or to its box. */
 	APEXSIMNET_API TArray<uint8> EncodeRecoverCar(EApexRecoverDestination Destination);
+	/**
+	 * Rewind the session Seconds (offline practice: a Practice session we drive
+	 * alone): answered with Rewound to the session, or an Error to us (403 not
+	 * driven alone, 409 nothing to rewind to yet).
+	 */
+	APEXSIMNET_API TArray<uint8> EncodeRewind(uint16 Seconds);
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics), answered with TrackBundleChunk. */

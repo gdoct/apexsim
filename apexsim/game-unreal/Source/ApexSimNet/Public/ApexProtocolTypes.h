@@ -3842,6 +3842,22 @@ enum class EApexServerMessageType : uint8
 	Chat,
 	/** A chunk of the track's physics bundle, asked for with RequestTrackBundle (`TrackBundleChunk`). */
 	TrackBundleChunk,
+	/** The session was rewound (`Rewound`, answering our `Rewind`). */
+	Rewound,
+};
+
+/**
+ * `RewoundData` (network.rs): the session was rewound to Tick, from FromTick,
+ * and its cars stand still HoldMs before it runs on. Telemetry of the held
+ * frames carries Tick itself; anything buffered of the run undone (ticks past
+ * Tick, up to FromTick) is stale.
+ */
+struct FApexRewound
+{
+	uint32 Tick = 0;
+	uint32 FromTick = 0;
+	uint32 HoldMs = 0;
+	bool bValid = false;
 };
 
 /**
@@ -3969,6 +3985,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexShootoutState ShootoutState;
 	FApexPitBox PitBox;
 	FApexChatLine Chat;
+	/** Rewound. */
+	FApexRewound Rewound;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

@@ -173,75 +173,84 @@ pub(crate) async fn tick_sessions(
             continue;
         }
 
-        // Build this session's input map: human inputs are looked up by key
-        // (no clone of the global input map), AI inputs are generated.
-        let mut session_inputs: HashMap<PlayerId, PlayerInputData> =
-            HashMap::with_capacity(game_session.session.participants.len());
-        for player_id in game_session.session.participants.keys() {
-            // The debug stand-in (`crate::debug_hooks`, off by default)
-            // drives a human's car in place of its input.
-            // An away driver's car is the server's until they rejoin.
-            let server_input = game_session.stand_in_input(player_id).or_else(|| {
-                game_session
-                    .is_away(player_id)
-                    .then(|| game_session.away_input(player_id))
-            });
-            let input = match server_input {
-                Some(input) => {
-                    // A client that numbers its inputs still gets its car
-                    // while the server drives it (the stand-in): no number
-                    // is applied, which tells it so.
-                    if player_inputs
-                        .get(player_id)
-                        .is_some_and(|h| h.seq.is_some())
-                    {
-                        game_session.own_car_feeds.entry(*player_id).or_default();
-                    }
-                    input
-                }
-                None => match player_inputs.get(player_id) {
-                    Some(held) => {
-                        // The driver's own input drives this tick: its
-                        // number goes back with the car's snapshot. The
-                        // sim never sees it.
-                        if let Some(seq) = held.seq {
-                            game_session
-                                .own_car_feeds
-                                .entry(*player_id)
-                                .or_default()
-                                .applied_seq = Some(seq);
-                        }
-                        held.input
-                    }
-                    // No human input, generate AI input
-                    None => game_session.generate_ai_input(player_id),
-                },
-            };
-            session_inputs.insert(*player_id, input);
-        }
-
         let prev_state = game_session.session.state;
-        // Panic boundary: one session's tick must never take down the
-        // whole server. A panicking session is terminated instead.
-        let tick_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            game_session.tick(&session_inputs)
-        }));
-        if let Err(panic) = tick_result {
-            let panic_msg = panic
-                .downcast_ref::<&str>()
-                .map(|s| s.to_string())
-                .or_else(|| panic.downcast_ref::<String>().cloned())
-                .unwrap_or_else(|| "unknown panic".to_string());
-            error!(
-                "Session {} tick panicked: {} — terminating session",
-                session_id, panic_msg
-            );
-            ctx.metrics
-                .session_tick_panics
-                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            game_session.session.state = SessionState::Finished;
-            sessions_to_remove.push(*session_id);
-            continue;
+        // A session just rewound stands still a moment (`crate::rewind`):
+        // neither stepped (no input is made for it, the AI's included) nor
+        // recorded; its telemetry goes on.
+        let on_hold = state
+            .rewinds
+            .get_mut(session_id)
+            .is_some_and(|rewind| rewind.hold());
+        if !on_hold {
+            // Build this session's input map: human inputs are looked up by key
+            // (no clone of the global input map), AI inputs are generated.
+            let mut session_inputs: HashMap<PlayerId, PlayerInputData> =
+                HashMap::with_capacity(game_session.session.participants.len());
+            for player_id in game_session.session.participants.keys() {
+                // The debug stand-in (`crate::debug_hooks`, off by default)
+                // drives a human's car in place of its input.
+                // An away driver's car is the server's until they rejoin.
+                let server_input = game_session.stand_in_input(player_id).or_else(|| {
+                    game_session
+                        .is_away(player_id)
+                        .then(|| game_session.away_input(player_id))
+                });
+                let input = match server_input {
+                    Some(input) => {
+                        // A client that numbers its inputs still gets its car
+                        // while the server drives it (the stand-in): no number
+                        // is applied, which tells it so.
+                        if player_inputs
+                            .get(player_id)
+                            .is_some_and(|h| h.seq.is_some())
+                        {
+                            game_session.own_car_feeds.entry(*player_id).or_default();
+                        }
+                        input
+                    }
+                    None => match player_inputs.get(player_id) {
+                        Some(held) => {
+                            // The driver's own input drives this tick: its
+                            // number goes back with the car's snapshot. The
+                            // sim never sees it.
+                            if let Some(seq) = held.seq {
+                                game_session
+                                    .own_car_feeds
+                                    .entry(*player_id)
+                                    .or_default()
+                                    .applied_seq = Some(seq);
+                            }
+                            held.input
+                        }
+                        // No human input, generate AI input
+                        None => game_session.generate_ai_input(player_id),
+                    },
+                };
+                session_inputs.insert(*player_id, input);
+            }
+
+            // Panic boundary: one session's tick must never take down the
+            // whole server. A panicking session is terminated instead.
+            let tick_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                game_session.tick(&session_inputs)
+            }));
+            if let Err(panic) = tick_result {
+                let panic_msg = panic
+                    .downcast_ref::<&str>()
+                    .map(|s| s.to_string())
+                    .or_else(|| panic.downcast_ref::<String>().cloned())
+                    .unwrap_or_else(|| "unknown panic".to_string());
+                error!(
+                    "Session {} tick panicked: {} — terminating session",
+                    session_id, panic_msg
+                );
+                ctx.metrics
+                    .session_tick_panics
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                game_session.session.state = SessionState::Finished;
+                sessions_to_remove.push(*session_id);
+                continue;
+            }
         }
         let new_state = game_session.session.state;
         if let Some(listed) = game_session.take_state_change() {
@@ -256,9 +265,21 @@ pub(crate) async fn tick_sessions(
         // A weekend's phase begins between ticks (`AdvanceWeekend`), already
         // racing by the time the tick sees it: each phase is its own replay.
         let phase_started = game_session.take_phase_started();
+        if phase_started {
+            // A weekend day may bake its own sky into the track, which a
+            // snapshot does not carry: no rewind across a phase.
+            state.rewinds.remove(session_id);
+        }
+        // A rewind cut the recording: the run on from it is a new one, from
+        // the first tick it steps.
+        let rewound = !on_hold
+            && state
+                .rewinds
+                .get_mut(session_id)
+                .is_some_and(|rewind| rewind.take_restart_recording());
         let replay_starting = (prev_state != SessionState::Racing
             && new_state == SessionState::Racing)
-            || (phase_started && new_state == SessionState::Racing);
+            || ((phase_started || rewound) && new_state == SessionState::Racing);
         let replay_stopping =
             prev_state == SessionState::Racing && new_state == SessionState::Finished;
         let stream_wanted =
@@ -363,7 +384,7 @@ pub(crate) async fn tick_sessions(
                 ),
             );
         }
-        if let Some(stream) = state.streams.get_mut(session_id) {
+        if let Some(stream) = state.streams.get_mut(session_id).filter(|_| !on_hold) {
             let roster_changed = game_session.roster_is_dirty();
             let out = stream.tick(
                 game_session,
@@ -651,6 +672,21 @@ pub(crate) async fn tick_sessions(
             }
         }
 
+        // The rewind ring of a session driven alone: a snapshot when one is
+        // due, after everything the tick raised has been drained. Any
+        // other session (or one that stopped racing) keeps none.
+        if !on_hold {
+            if crate::rewind::takes_snapshots(game_session) {
+                state
+                    .rewinds
+                    .entry(*session_id)
+                    .or_default()
+                    .after_tick(game_session);
+            } else {
+                state.rewinds.remove(session_id);
+            }
+        }
+
         // A race that finished this tick leaves its classification.
         if results_dir.is_some()
             && game_session.session.game_mode == GameMode::Race
@@ -770,18 +806,15 @@ pub(crate) async fn tick_sessions(
 
     for (session_id, race_start_tick, game_mode, results) in replay_stops {
         state.streams.remove(&session_id);
-        let Some(recording) = state.replay.take(&session_id) else {
+        if !finish_recording(
+            &state.replay,
+            session_id,
+            race_start_tick,
+            game_mode,
+            results,
+        ) {
             warn!("No active recording for session {}", session_id);
-            continue;
-        };
-        let dir = state.replay.dir().to_path_buf();
-        // Written off the loop: a long race is a long file to assemble.
-        tokio::task::spawn_blocking(move || {
-            match recording.finish(&dir, results, race_start_tick, game_mode) {
-                Ok(path) => debug!("Replay saved for session {} to {:?}", session_id, path),
-                Err(e) => warn!("Failed to save replay for session {}: {}", session_id, e),
-            }
-        });
+        }
     }
 
     for (session_id, session_state, weekend_waiting, conditions) in state_changes {
@@ -794,6 +827,7 @@ pub(crate) async fn tick_sessions(
     // Remove empty sessions from the game state and lobby
     for session_id in sessions_to_remove {
         state.sessions.remove(&session_id);
+        state.rewinds.remove(&session_id);
         state.lobby.unregister_session(session_id).await;
         debug!("Removed empty session {}", session_id);
     }
@@ -894,9 +928,31 @@ pub(crate) async fn cleanup_finished_sessions(ctx: &GameLoopCtx, tick_count: u64
 /// Frames a second a server replay is recorded at: the showcases' rate.
 const REPLAY_FRAME_HZ: u16 = 30;
 
+/// Take a session's recording out and write it, off the loop (a long race
+/// is a long file to assemble). False when it had none.
+pub(super) fn finish_recording(
+    replay: &crate::stream_recorder::StreamRecorders,
+    session_id: SessionId,
+    race_start_tick: Option<u32>,
+    game_mode: GameMode,
+    results: Vec<crate::replay::ReplayParticipant>,
+) -> bool {
+    let Some(recording) = replay.take(&session_id) else {
+        return false;
+    };
+    let dir = replay.dir().to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        match recording.finish(&dir, results, race_start_tick, game_mode) {
+            Ok(path) => debug!("Replay saved for session {} to {:?}", session_id, path),
+            Err(e) => warn!("Failed to save replay for session {}: {}", session_id, e),
+        }
+    });
+    true
+}
+
 /// A session's cars as a replay lists them, with the places they have been
 /// classified in so far.
-fn replay_participants(
+pub(super) fn replay_participants(
     session: &crate::game_session::GameSession,
     names: &HashMap<PlayerId, String>,
 ) -> Vec<crate::replay::ReplayParticipant> {

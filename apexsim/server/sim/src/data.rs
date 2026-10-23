@@ -1345,7 +1345,45 @@ impl Sidecar {
     }
 }
 
+/// The parts of a session's track nothing in a session changes, and the
+/// bulk of it: the lines and the baked sidecars. A rewind snapshot
+/// (`GameSession::snapshot`) leaves them out and a restore puts the live
+/// session's back, so a ring of snapshots holds only what moves (the
+/// surface, the road's state and the session itself).
+#[derive(Debug, Default)]
+pub struct TrackStatic {
+    centerline: Vec<TrackPoint>,
+    raceline: Vec<RacelinePoint>,
+    raceline_distances: Vec<f32>,
+    ground: Option<crate::ground::GroundHeightfield>,
+    curbs: Option<crate::curbs::CurbBands>,
+    walls: Option<crate::walls::Walls>,
+}
+
 impl TrackConfig {
+    /// Take the parts a session never changes out ([`TrackStatic`]),
+    /// leaving them empty here.
+    pub fn take_static(&mut self) -> TrackStatic {
+        TrackStatic {
+            centerline: std::mem::take(&mut self.centerline),
+            raceline: std::mem::take(&mut self.raceline),
+            raceline_distances: std::mem::take(&mut self.raceline_distances),
+            ground: self.ground.take(),
+            curbs: self.curbs.take(),
+            walls: self.walls.take(),
+        }
+    }
+
+    /// Put what [`Self::take_static`] took back.
+    pub fn put_static(&mut self, parts: TrackStatic) {
+        self.centerline = parts.centerline;
+        self.raceline = parts.raceline;
+        self.raceline_distances = parts.raceline_distances;
+        self.ground = parts.ground;
+        self.curbs = parts.curbs;
+        self.walls = parts.walls;
+    }
+
     /// Whether the track was loaded with every sidecar of `need`. When it
     /// was not (a checkout that has not baked its tracks, as CI), says so
     /// on stderr with `what` (the test or the part of it that needs them),

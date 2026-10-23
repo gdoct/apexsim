@@ -438,6 +438,15 @@ pub enum ClientMessage {
     Chat {
         text: String,
     },
+
+    // TCP - Rewind the session `seconds` (offline practice: a `Practice`
+    // session its one human drives): the server restores its snapshot
+    // nearest that far back and answers the session with `Rewound`, or this
+    // driver with an `Error` (403 not a session driven alone, 409 nothing
+    // to rewind to now).
+    Rewind {
+        seconds: u16,
+    },
 }
 
 // --- Message Priority ---
@@ -1009,6 +1018,12 @@ pub enum ServerMessage {
     // TCP - One chunk of a track's physics bundle, on request
     // (`RequestTrackBundle`): what a predicting client steps its car on.
     TrackBundleChunk(TrackBundleChunkData),
+
+    // TCP - The session was rewound (`ClientMessage::Rewind`): every car is
+    // back where it was at `tick`, held still for `hold_ms`. Sent to the
+    // session's drivers and spectators, so they drop what they buffered of
+    // the run that was undone.
+    Rewound(RewoundData),
 }
 
 impl ServerMessage {
@@ -1049,6 +1064,7 @@ impl ServerMessage {
             ServerMessage::Chat(_) => MessagePriority::Critical,
             // Asked for once, chunk by chunk, a few in flight.
             ServerMessage::TrackBundleChunk(_) => MessagePriority::Critical,
+            ServerMessage::Rewound(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -2342,6 +2358,22 @@ pub struct ChatData {
     /// Said in a session (to its drivers and watchers), not the lobby.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub in_session: bool,
+}
+
+/// A rewind done (`ServerMessage::Rewound`). Telemetry goes on from `tick`
+/// (the session's tick, as `TelemetryCompact.server_tick` carries it): the
+/// held frames carry `tick` itself, and the session steps on from it once
+/// `hold_ms` has run out.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct RewoundData {
+    /// The session tick rewound to.
+    pub tick: u32,
+    /// The session tick rewound from (telemetry up to it is of the run
+    /// undone).
+    pub from_tick: u32,
+    /// How long the cars stand still before the session runs on, ms.
+    pub hold_ms: u32,
 }
 
 /// A driver's own pit box (`ServerMessage::PitBox`), in the server's
@@ -7504,6 +7536,42 @@ mod tests {
                 assert_eq!(d.player_id, id);
                 assert_eq!(d.from, "Racer");
                 assert!(d.in_session);
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// A rewind both ways, pinned on the client as `ApexGolden::C_Rewind`
+    /// and `S_Rewound`. `cargo test rewind_wire_format -- --nocapture`
+    /// prints them.
+    #[test]
+    fn test_rewind_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let asked = rmp_serde::to_vec_named(&ClientMessage::Rewind { seconds: 10 }).unwrap();
+        println!("C_Rewind: {}", hex(&asked));
+        match rmp_serde::from_slice::<ClientMessage>(&asked).unwrap() {
+            ClientMessage::Rewind { seconds } => assert_eq!(seconds, 10),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        let done = ServerMessage::Rewound(RewoundData {
+            tick: 4200,
+            from_tick: 8610,
+            hold_ms: 3000,
+        });
+        assert_eq!(done.priority(), MessagePriority::Critical);
+        let bytes = rmp_serde::to_vec_named(&done).unwrap();
+        println!("S_Rewound: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::Rewound(d) => {
+                assert_eq!(d.tick, 4200);
+                assert_eq!(d.from_tick, 8610);
+                assert_eq!(d.hold_ms, 3000);
             }
             other => panic!("Wrong message type: {other:?}"),
         }
