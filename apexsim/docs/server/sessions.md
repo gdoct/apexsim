@@ -429,10 +429,39 @@ formation pace plus `FORMATION_SPARE_S` (60 s) is put on its slot.
 A mode set over it (`SetGameMode`, a new countdown or grid) ends it.
 
 **Rolling start** (`start: Rolling`, always with its pace lap). The same
-lap (`race_phase` 2), nobody stops: as the leader (the first car in grid
-order still out) comes back to its slot on the line, the race goes green
-(`transition_from_countdown(Race)`), every car's pace lifted and its lap
-state reset, pole's lap 1 starting as it crosses the line.
+lap (`race_phase` 2), nobody stops and the server drives nobody: a car
+behind its station may run `ROLLING_CATCH_MPS` (4 m/s) over the pace to
+close a gap opened as the field got away. The field forms up two by two
+on the way back (`Formation::update_forming`), from `ROLLING_FORM_M`
+(300 m) before the line, the leader's distance to it, and earlier by the
+field's spread past the grid's own length (`ROLLING_FORM_SPARE` 2.5 times
+what the field closes at the leader's pace):
+
+- The leader slows to `ROLLING_FORM_SPEED_MPS` (22 m/s, 80 km/h), the pace
+  at the green, and every car behind is held to the lap's pace, so the
+  field closes up through the corners too, single file at
+  `ROLLING_FILE_GAP_M` (12 m) behind the car ahead.
+- Within `ROLLING_PAIR_M` (300 m) of its slot, on a straight run to it
+  (the road turning less than `ROLLING_STRAIGHT_RAD`, 0.12 rad, over the
+  rest of the way; `race_start::straight_run`), a car pairs up and stays
+  paired: it holds its slot's side of the road
+  (`CarState::formation_lane_m`, which the AI drives as a racecraft lane,
+  with no traffic dodge across the road), and once more than
+  `ROLLING_BESIDE_M` (2.6 m) across from the car ahead it keeps its slot's
+  distance behind that car and behind the one ahead of that (its own
+  side's), both `ROLLING_ROW_SPREAD` (1.5) times the grid's: 6 m to the
+  car beside, 12 m to the car ahead on its side.
+- Station is kept both ways while forming (`race_start::station_cap_mps`):
+  a car too close is held below the car ahead's speed until the gap opens,
+  since a pace only cuts the throttle.
+
+As the leader (the first car in grid order still out) comes back to its
+slot on the line, the race goes green (`transition_from_countdown(Race)`),
+every car's pace and lane lifted and its lap state reset, pole's lap 1
+starting as it crosses the line. The front rows are formed by then; the
+back of a long field may still be closing up, most where a chicane comes
+just before the line (Spa's Bus Stop: only the front row forms with 16
+cars, against four rows at the Norisring and seven at Zandvoort).
 
 **Tyres.** A lap at the formation pace holds the grid's tyre warmth but
 does not add to it (the Norisring, GT3: 54.5 -> 54.4 °C over the lap), so

@@ -79,6 +79,11 @@ fn tick(race: &mut GameSession, human: impl Fn(&CarState) -> PlayerInputData) {
     race.tick(&inputs);
 }
 
+/// The rows of a rolling start's field that are formed up at the green on
+/// the Norisring (of eight, the circuits checked by hand form one at Spa,
+/// its chicane just before the line, to seven at Zandvoort).
+const FORMED_ROWS: usize = 4;
+
 fn slot_of(race: &GameSession, state: &CarState) -> GridSlot {
     race.track_config
         .start_positions
@@ -183,19 +188,27 @@ fn a_formation_lap_brings_the_field_back_to_the_grid() {
 }
 
 /// A rolling start: the pace lap, then green as the leader comes back to
-/// the line, the field already moving; pole starts lap 1 on the green.
+/// the line, the field already moving and formed up two by two behind it,
+/// with no contact; pole starts lap 1 on the green.
 #[test]
 fn a_rolling_start_goes_green_at_the_line() {
     let rules = RaceRules {
         start: StartType::Rolling,
         ..Default::default()
     };
-    let (mut race, _) = grid("Snorisring", 4, 0, rules);
+    let (mut race, _) = grid("Snorisring", 12, 0, rules);
     let mut saw_pace_lap = false;
+    let mut contact = 0u32;
     for _ in 0..(TICK_RATE as u32 * 200) {
         tick(&mut race, |_| PlayerInputData::default());
         if race.race_phase() == Some(race_start::RacePhase::PaceLap as u8) {
             saw_pace_lap = true;
+            contact += race
+                .session
+                .participants
+                .values()
+                .filter(|s| s.is_colliding)
+                .count() as u32;
         }
         if race.session.state == SessionState::Racing {
             break;
@@ -203,6 +216,42 @@ fn a_rolling_start_goes_green_at_the_line() {
     }
     assert!(saw_pace_lap);
     assert_eq!(race.session.state, SessionState::Racing);
+    assert_eq!(contact, 0, "car-ticks of contact on the pace lap");
+    // Two by two: the front rows roll on their slots' sides of the road,
+    // each car its slot's distance behind the car ahead as the grid stands,
+    // spread by `ROLLING_ROW_SPREAD` (the back of a field may still be
+    // closing up at the green).
+    let mut field: Vec<&CarState> = race.session.participants.values().collect();
+    field.sort_by_key(|s| s.grid_position);
+    let mut ahead: Option<(f32, GridSlot)> = None;
+    for s in field.into_iter().take(FORMED_ROWS * 2) {
+        let slot = slot_of(&race, s);
+        let (heading_x, heading_y) = (slot.yaw_rad.cos(), slot.yaw_rad.sin());
+        let (dx, dy) = (s.pos_x - slot.x, s.pos_y - slot.y);
+        let (along, across) = (
+            dx * heading_x + dy * heading_y,
+            -dx * heading_y + dy * heading_x,
+        );
+        println!(
+            "car {}: {along:+.1} m along, {across:+.1} m across its slot",
+            s.grid_position
+        );
+        if let Some((front, front_slot)) = ahead {
+            let spacing = (front_slot.x - slot.x) * heading_x + (front_slot.y - slot.y) * heading_y;
+            let off = along - front + (race_start::ROLLING_ROW_SPREAD - 1.0) * spacing;
+            assert!(
+                off.abs() < 2.5,
+                "car {} {off:+.1} m off its place behind the car ahead",
+                s.grid_position
+            );
+        }
+        assert!(
+            across.abs() < 0.8,
+            "car {} {across:+.1} m across its slot",
+            s.grid_position
+        );
+        ahead = Some((along, slot));
+    }
     let slowest = race
         .session
         .participants

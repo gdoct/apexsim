@@ -160,7 +160,6 @@ the client does not show all of them yet, and the server leaves a few edges.
 - The formation lap holds the grid's tyre warmth but puts none in (a
   steady 30 m/s): weaving and the warm-up accelerations a driver does would,
   and then `FORMATION_LAP_WARMTH` could go.
-- A rolling start runs single file; real ones line up two by two.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,

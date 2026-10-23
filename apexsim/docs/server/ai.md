@@ -195,7 +195,11 @@ next `Brake` phase, its slowest point, the hand at the apex).
   never above it), no pass is begun unless the car ahead is crawling (a
   lapped car let by under the safety car is held to a pace well above the
   queue's, so it passes it this way); the physics holds the car to the
-  pace, and over the approach to its slot the server drives it.
+  pace, and over the approach to its slot on a standing start the server
+  drives it. On a rolling start's form-up race control also gives it a
+  side of the road (`CarState::formation_lane_m`): driven as a racecraft
+  lane, with the traffic dodge's aim across the road dropped (it would
+  take the car into the one beside it), its speed limit kept.
 - **Mistakes**: with a car within 0.6 s behind, a driver now and then
   gets a corner wrong, by its inconsistency (`MISTAKE_CHANCE`, one roll a
   corner as it nears the braking zone). Away from pressure it does too, at

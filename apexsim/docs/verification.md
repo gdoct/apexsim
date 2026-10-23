@@ -306,6 +306,11 @@ The first `r13-race-control` (2026-10-17) showed YELLOW and DOUBLE YELLOW
 in the `flags` component and the radar's RIGHT marker at the start.
 
 - The AI lifting and holding station past an incident.
+- A rolling start's form-up (`start: Rolling`, [server/sessions.md](server/sessions.md#race-start-formation-lap-rolling-start-false-starts)):
+  the leader slowing to 80 km/h, the field closing up single file and
+  pairing on the run to the line, two by two at the green with no
+  contact; with the stand-in in the field, whose driver is held to the
+  pace but given no side of the road.
 - The `race_phase` banner and the `flags` component up together (a yellow
   under the formation lap or a safety car): seen apart on 2026-10-20
   (`v-r13-phase`, `v-r13-blue`), never side by side.

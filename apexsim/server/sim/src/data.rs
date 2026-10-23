@@ -1764,6 +1764,12 @@ pub struct CarState {
     /// the pit limiter does, and the AI starts no pass under it.
     #[serde(default)]
     pub speed_cap_mps: f32,
+    /// Where across the road race control has the car hold, m left of the
+    /// centerline: its grid slot's side as a rolling start's field forms
+    /// up two by two (`crate::race_start`). The AI drives it as a lane;
+    /// `None` for none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub formation_lane_m: Option<f32>,
 
     /// The headlights are on (`crate::headlights`), and the driver is
     /// flashing them. Telemetry carries both as bits 5 and 6 of
@@ -2149,6 +2155,7 @@ impl CarState {
             flag_yellow: 0,
             flag_blue: false,
             speed_cap_mps: 0.0,
+            formation_lane_m: None,
             drs_open: false,
             headlights: false,
             headlight_flash: false,

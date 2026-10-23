@@ -29,6 +29,18 @@ const AI_DOWNSHIFT_HEADROOM: f32 = 0.85;
 /// at. The profile itself keeps a margin below the grip limit.
 const PROFILE_NOVICE_PACE: f32 = 0.85;
 const PROFILE_ACE_PACE: f32 = 0.98;
+
+/// The racecraft the controller drives: the car's own, or race control's
+/// lane (a rolling start forming up two by two) held as a tactic's lane is.
+fn held_racecraft(state: &CarState) -> crate::racecraft::Racecraft {
+    let mut racecraft = state.racecraft;
+    if let Some(lane) = state.formation_lane_m {
+        racecraft.lane_m = lane;
+        racecraft.blend = 1.0;
+    }
+    racecraft
+}
+
 /// The share of its car's speed profile a driver of `skill_level` runs at.
 pub fn profile_pace(skill_level: u8) -> f32 {
     let skill = (skill_level.clamp(MIN_SKILL_LEVEL, MAX_SKILL_LEVEL) - MIN_SKILL_LEVEL) as f32
@@ -530,7 +542,7 @@ impl<'a> AiDriverController<'a> {
         // Racecraft (`crate::racecraft`): a lane across the road to pass or
         // defend on, eased onto and off, and the driver's own small wander
         // about its line down the straights. Held on the road.
-        let racecraft = state.racecraft;
+        let racecraft = held_racecraft(state);
         let shift = self.lane_shift(
             state,
             &line,
@@ -589,8 +601,12 @@ impl<'a> AiDriverController<'a> {
         if !traffic.is_empty() {
             let (hx, hy) = self.line_heading(&line, d_line);
             let (ax, ay, speed_limit) = self.avoid_traffic(state, traffic, (hx, hy), (tx, ty));
-            tx = ax;
-            ty = ay;
+            // On race control's lane the field is two by two: a dodge
+            // across the road would take the car into the one beside it.
+            if state.formation_lane_m.is_none() {
+                tx = ax;
+                ty = ay;
+            }
             target_speed = target_speed.min(speed_limit);
         }
 
@@ -936,7 +952,7 @@ impl<'a> AiDriverController<'a> {
         (track_length, line_length): (f32, f32),
         (tx, ty): (f32, f32),
     ) -> (f32, f32, f32) {
-        let racecraft = state.racecraft;
+        let racecraft = held_racecraft(state);
         // Wander: up to half a metre for an imprecise driver, a few
         // centimetres for the most precise, and only where the line is
         // nearly straight (a radius over 100 m), so no apex is missed by it.

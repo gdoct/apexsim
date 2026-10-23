@@ -7,8 +7,10 @@
 //!   each car is driven onto its own slot over the last [`APPROACH_M`]
 //!   ([`approach_input`]) and stopped there. With the field home the lights
 //!   count [`LIGHTS_SECONDS`] down to the start.
-//! - **Rolling start** (`StartType::Rolling`): the same lap, and the race goes
-//!   green as the leader comes back to the line, the field rolling.
+//! - **Rolling start** (`StartType::Rolling`): the same lap, the field
+//!   forming up two by two behind a slowed leader on the run to the line
+//!   ([`Formation::update_forming`]), and the race goes green as the leader
+//!   comes back to the line, the field rolling.
 //! - **False start** (`jump_start`): through the countdown a driver's car in
 //!   gear with the throttle open is let go of ([`releases`]), and one that
 //!   has moved [`JUMP_START_M`] off its slot when the lights go out has
@@ -37,6 +39,42 @@ pub const HOME_SPEED_MPS: f32 = 1.0;
 /// order. On its approach it may close up to where its slot is behind
 /// that car's.
 pub const FORMATION_GAP_M: f32 = 14.0;
+/// On a rolling start's pace lap, until the field forms up, a car behind
+/// its station may run this much over the pace to close up, m/s: a gap opened as the field got away
+/// would otherwise never close, and the field would not form up.
+pub const ROLLING_CATCH_MPS: f32 = 4.0;
+/// A rolling start's field forms up from this far before the line, m, the
+/// leader's distance to it, and further by the field's spread to close
+/// (with [`ROLLING_FORM_SPARE`] to spare): the leader slows to
+/// [`ROLLING_FORM_SPEED_MPS`] and the field closes up single file to
+/// [`ROLLING_FILE_GAP_M`], each car pairing up on the straight run to its
+/// slot ([`ROLLING_PAIR_M`]).
+pub const ROLLING_FORM_M: f32 = 300.0;
+pub const ROLLING_FORM_SPARE: f32 = 2.5;
+/// The leader's pace as a rolling start's field forms up, and so at the
+/// green, m/s (80 km/h): slower than the lap's, so the cars behind close
+/// up through the corners too, where they can go no faster than it.
+pub const ROLLING_FORM_SPEED_MPS: f32 = 22.0;
+/// The single file a rolling start's field closes up to, m behind the car
+/// ahead (its middle to the other's): on the racing line with a car's
+/// length and a half between them.
+pub const ROLLING_FILE_GAP_M: f32 = 12.0;
+/// Within this of its slot, m, and on a straight run to it (the road's
+/// heading turning less than [`ROLLING_STRAIGHT_RAD`] over the rest of the
+/// way), a rolling start's car pairs up: it takes its slot's side of the
+/// road and, once beside the car ahead (more than [`ROLLING_BESIDE_M`]
+/// across from it), its slot's place behind it. The field is two by two,
+/// as the grid stands, on the run to the line, not through the corners
+/// before it; a car without that run (a chicane just before the line)
+/// pairs up out of it, and may still be closing up at the green.
+pub const ROLLING_PAIR_M: f32 = 300.0;
+pub const ROLLING_STRAIGHT_RAD: f32 = 0.12;
+pub const ROLLING_BESIDE_M: f32 = 2.6;
+/// A rolling start's rows are this many times the grid's own spacing
+/// apart (on a grid of rows 8 m apart: 12 m to the car ahead on the same
+/// side, 6 m to the one beside): the grid's 3.4 m nose to tail leaves no
+/// room for the field's give and take at speed.
+pub const ROLLING_ROW_SPREAD: f32 = 1.5;
 /// The lights' countdown once the field is back on the grid, s.
 pub const LIGHTS_SECONDS: u16 = 5;
 /// The formation lap is given this many times its length at its pace, s,
@@ -104,10 +142,34 @@ pub struct FormationCar {
     pub slot_left_m: f32,
     /// Back on its slot (a standing start), held there.
     pub home: bool,
+    /// Paired up on a rolling start's run to the line
+    /// ([`Formation::update_forming`]): on its slot's side of the road.
+    pub paired: bool,
     /// The car's own automatic-gearbox setting, kept while the approach
     /// drives it on the automatic box (as the pit route does), given back
     /// on its slot.
     pub own_auto_gearbox: Option<bool>,
+}
+
+impl FormationCar {
+    /// Where across the road race control holds it, m left of the
+    /// centerline: its slot's side once paired up.
+    pub fn lane_m(&self) -> Option<f32> {
+        self.paired.then_some(self.slot_left_m)
+    }
+}
+
+/// A car on the formation lap as [`Formation::paces`] sees it this tick.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct PacedCar {
+    pub speed_mps: f32,
+    /// On the road and drivable: a pace for the cars behind it.
+    pub running: bool,
+    /// Where it is across the road, m left of the centerline.
+    pub left_m: f32,
+    /// The road from it to its slot turns less than
+    /// [`ROLLING_STRAIGHT_RAD`].
+    pub straight_run: bool,
 }
 
 /// A formation lap under way.
@@ -117,6 +179,9 @@ pub struct Formation {
     /// line, nobody stops.
     pub rolling: bool,
     pub started_tick: u32,
+    /// A rolling start's field is forming up two by two
+    /// ([`Formation::update_forming`]).
+    pub forming: bool,
     /// The tick by which every car still out is put on its slot.
     pub deadline_tick: u32,
     pub cars: BTreeMap<PlayerId, FormationCar>,
@@ -154,11 +219,13 @@ impl Formation {
                             last_progress_m: s.track_progress,
                             slot_left_m: across_road(s, track).map_or(0.0, |(left, _)| left),
                             home: false,
+                            paired: false,
                             own_auto_gearbox: None,
                         },
                     )
                 })
                 .collect(),
+            forming: false,
         }
     }
 
@@ -177,6 +244,40 @@ impl Formation {
         car.last_progress_m = state.track_progress;
     }
 
+    /// Whether a rolling start's field forms up this tick: from
+    /// [`ROLLING_FORM_M`] before the line (the leader's lap left), and
+    /// earlier by what the field has to close: its spread past the grid's
+    /// own length, closed at the lap's pace on a leader at
+    /// [`ROLLING_FORM_SPEED_MPS`]. Once it forms it stays formed,
+    /// and each car pairs up on its run to the line ([`ROLLING_PAIR_M`]),
+    /// and stays paired.
+    pub fn update_forming(&mut self, field: &BTreeMap<PlayerId, PacedCar>, total_m: f32) {
+        if !self.rolling {
+            return;
+        }
+        if self.forming {
+            for (id, car) in self.cars.iter_mut() {
+                let straight = field.get(id).is_some_and(|f| f.straight_run);
+                if !car.home && car.left_m <= ROLLING_PAIR_M && straight {
+                    car.paired = true;
+                }
+            }
+            return;
+        }
+        let out = || self.cars.values().filter(|c| !c.home);
+        let (Some(leader), Some(last)) =
+            (out().min_by_key(|c| c.grid), out().max_by_key(|c| c.grid))
+        else {
+            return;
+        };
+        let along = |c: &FormationCar| c.slot_m + total_m - c.left_m.max(0.0);
+        let spread = (along(leader) - along(last)) - (leader.slot_m - last.slot_m);
+        let closing = FORMATION_SPEED_MPS - ROLLING_FORM_SPEED_MPS;
+        let form_m = ROLLING_FORM_M
+            + ROLLING_FORM_SPARE * spread.max(0.0) * ROLLING_FORM_SPEED_MPS / closing;
+        self.forming = leader.left_m <= form_m;
+    }
+
     /// The lap the car leading the field has left: the first in grid
     /// order still out.
     pub fn leader_left_m(&self) -> Option<f32> {
@@ -192,43 +293,77 @@ impl Formation {
     /// and no closer than [`FORMATION_GAP_M`] behind the car starting ahead
     /// of it that is still in the lap (on the road, or home) at that car's
     /// speed: so the field gets away in grid order, one car after another,
-    /// and runs single file. `field` is each car's speed and whether it is
-    /// on the road and drivable.
+    /// and runs single file. Over its approach a car closes up to where its
+    /// slot is behind that car's.
+    ///
+    /// A rolling start's field, once it forms up, follows a leader slowed
+    /// to [`ROLLING_FORM_SPEED_MPS`], every car behind held to the lap's
+    /// pace, so it closes up: single file at
+    /// [`ROLLING_FILE_GAP_M`]; paired up, at its slot's distance behind the
+    /// car ahead once beside it, and behind the car ahead of that (on its
+    /// own side), each [`ROLLING_ROW_SPREAD`] times the grid's. Station is
+    /// kept both ways there ([`station_cap_mps`]).
     pub fn paces(
         &self,
-        field: &BTreeMap<PlayerId, (f32, bool)>,
+        field: &BTreeMap<PlayerId, PacedCar>,
         total_m: f32,
     ) -> BTreeMap<PlayerId, f32> {
         let mut order: Vec<(&PlayerId, &FormationCar)> = self.cars.iter().collect();
         order.sort_by_key(|(_, c)| c.grid);
         let along = |c: &FormationCar| c.slot_m + total_m - c.left_m.max(0.0);
+        let forming = self.rolling && self.forming;
+        let catch = FORMATION_SPEED_MPS + ROLLING_CATCH_MPS;
         let mut paces = BTreeMap::new();
-        let mut ahead: Option<(&FormationCar, f32)> = None;
+        let mut ahead: Option<(&FormationCar, PacedCar)> = None;
+        // The car ahead of that one: the car in front on its side of the
+        // road once a rolling start's field is two by two.
+        let mut side_ahead: Option<(&FormationCar, PacedCar)> = None;
         for (id, car) in order {
-            let (speed, running) = field.get(id).copied().unwrap_or((0.0, false));
+            let me = field.get(id).copied().unwrap_or_default();
             if car.home {
-                ahead = Some((car, 0.0));
+                side_ahead = ahead;
+                ahead = Some((car, PacedCar::default()));
                 continue;
             }
-            let approaching = !self.rolling && car.left_m <= APPROACH_M;
-            let mut pace = if self.rolling {
+            let mut pace = if forming {
+                ROLLING_FORM_SPEED_MPS
+            } else if self.rolling {
                 FORMATION_SPEED_MPS
             } else {
                 formation_cap_mps(car.left_m)
             };
-            if let Some((front, front_speed)) = ahead {
+            if let Some((front, f)) = ahead {
                 let gap = along(front) - along(car);
-                let keep = if approaching {
-                    (front.slot_m - car.slot_m).min(FORMATION_GAP_M)
+                let slot_gap = front.slot_m - car.slot_m;
+                pace = if forming {
+                    let beside = car.paired && (me.left_m - f.left_m).abs() > ROLLING_BESIDE_M;
+                    let keep = if beside {
+                        ROLLING_ROW_SPREAD * slot_gap
+                    } else {
+                        (ROLLING_ROW_SPREAD * slot_gap).max(ROLLING_FILE_GAP_M)
+                    };
+                    FORMATION_SPEED_MPS.min(station_cap_mps(f.speed_mps, gap, keep))
+                } else if self.rolling {
+                    catch.min(follow_cap_mps(f.speed_mps, gap, FORMATION_GAP_M))
                 } else {
-                    FORMATION_GAP_M
+                    let keep = if car.left_m <= APPROACH_M {
+                        slot_gap.min(FORMATION_GAP_M)
+                    } else {
+                        FORMATION_GAP_M
+                    };
+                    pace.min(follow_cap_mps(f.speed_mps, gap, keep))
                 };
-                pace = pace.min(follow_cap_mps(front_speed, gap, keep));
+            }
+            if let Some((front, f)) = side_ahead.filter(|_| forming && car.paired) {
+                let gap = along(front) - along(car);
+                let keep = ROLLING_ROW_SPREAD * (front.slot_m - car.slot_m);
+                pace = pace.min(station_cap_mps(f.speed_mps, gap, keep));
             }
             paces.insert(*id, pace);
             // A car off the road or out of it is no pace for the rest.
-            if running {
-                ahead = Some((car, speed));
+            if me.running {
+                side_ahead = ahead;
+                ahead = Some((car, me));
             }
         }
         paces
@@ -246,6 +381,19 @@ impl Formation {
 /// pace (the formation lap, the safety car's queue).
 pub fn follow_cap_mps(front_speed: f32, gap_m: f32, keep_m: f32) -> f32 {
     front_speed + (2.0 * APPROACH_DECEL_MPS2 * (gap_m - keep_m).max(0.0)).sqrt()
+}
+
+/// [`follow_cap_mps`] for a field closing up tight (a rolling start forming
+/// up): a car closer than `keep_m` is held below the car ahead's speed,
+/// slowing as hard as [`APPROACH_DECEL_MPS2`] would open the gap, so an
+/// overshoot is given back rather than kept (a pace only cuts the
+/// throttle).
+pub fn station_cap_mps(front_speed: f32, gap_m: f32, keep_m: f32) -> f32 {
+    if gap_m >= keep_m {
+        follow_cap_mps(front_speed, gap_m, keep_m)
+    } else {
+        (front_speed - (2.0 * APPROACH_DECEL_MPS2 * (keep_m - gap_m)).sqrt()).max(0.0)
+    }
 }
 
 /// The pace a car on the formation lap with `left_m` to its slot is held
@@ -288,6 +436,38 @@ pub fn approach_input(
         clutch: Some(1.0),
         ..Default::default()
     }
+}
+
+/// Whether the road from the car on for `ahead_m` turns less than
+/// [`ROLLING_STRAIGHT_RAD`] from its heading at the car.
+pub fn straight_run(state: &CarState, track: &TrackConfig, ahead_m: f32) -> bool {
+    let n = track.centerline.len();
+    let Some(start) = state
+        .nearest_centerline_idx
+        .map(|i| i as usize)
+        .filter(|&i| i < n)
+    else {
+        return false;
+    };
+    let heading = track.centerline[start].heading_rad;
+    let mut run = 0.0;
+    let mut i = start;
+    while run < ahead_m {
+        let next = (i + 1) % n;
+        if next == start {
+            break;
+        }
+        let (a, b) = (&track.centerline[i], &track.centerline[next]);
+        run += ((b.x - a.x).powi(2) + (b.y - a.y).powi(2)).sqrt();
+        let turn = (b.heading_rad - heading + std::f32::consts::PI)
+            .rem_euclid(std::f32::consts::TAU)
+            - std::f32::consts::PI;
+        if turn.abs() > ROLLING_STRAIGHT_RAD {
+            return false;
+        }
+        i = next;
+    }
+    true
 }
 
 /// Where a car is across the road, m left of the centerline, and the

@@ -1546,17 +1546,28 @@ impl GameSession {
         };
         let rolling = formation.rolling;
 
-        // Each car's pace (single file, in grid order), and the server
-        // drives each car over its approach to its slot.
-        let field: std::collections::BTreeMap<PlayerId, (f32, bool)> = self
+        // Each car's pace (single file, in grid order; a rolling start's
+        // field pairing up on its run to the line), and the server drives
+        // each car over its approach to its slot.
+        let field: std::collections::BTreeMap<PlayerId, crate::race_start::PacedCar> = self
             .session
             .participants
             .values()
             .map(|s| {
-                let running = s.is_on_track && s.damage.is_drivable && !s.towed && !s.in_garage;
-                (s.player_id, (s.speed_mps, running))
+                let left = formation.cars.get(&s.player_id).map_or(0.0, |c| c.left_m);
+                let paced = crate::race_start::PacedCar {
+                    speed_mps: s.speed_mps,
+                    running: s.is_on_track && s.damage.is_drivable && !s.towed && !s.in_garage,
+                    left_m: crate::race_start::across_road(s, &self.track_config)
+                        .map_or(0.0, |(left, _)| left),
+                    straight_run: rolling
+                        && left <= crate::race_start::ROLLING_PAIR_M
+                        && crate::race_start::straight_run(s, &self.track_config, left),
+                };
+                (s.player_id, paced)
             })
             .collect();
+        formation.update_forming(&field, total);
         let paces = formation.paces(&field, total);
         let mut inputs = inputs.clone();
         if !rolling {
@@ -1598,6 +1609,7 @@ impl GameSession {
                 .copied()
                 .unwrap_or(crate::race_start::FORMATION_SPEED_MPS)
                 .max(0.05);
+            state.formation_lane_m = car.lane_m();
             // The approach drives on the automatic box, as the pit route
             // does: a car slowed to a stop in a high gear would stall.
             if !rolling && car.left_m <= APPROACH_M && car.own_auto_gearbox.is_none() {
@@ -1658,6 +1670,7 @@ impl GameSession {
                 self.race_start.lap_run = true;
                 for state in self.session.participants.values_mut() {
                     state.speed_cap_mps = 0.0;
+                    state.formation_lane_m = None;
                     crate::race_start::reset_laps(state, &self.track_config);
                 }
                 info!("Session {}: rolling start, green", self.session.id);
@@ -3221,6 +3234,7 @@ impl GameSession {
         if mode != GameMode::Countdown && self.race_start.formation.take().is_some() {
             for state in self.session.participants.values_mut() {
                 state.speed_cap_mps = 0.0;
+                state.formation_lane_m = None;
             }
         }
         // A shoot-out and the lap allowance's count belong to the
