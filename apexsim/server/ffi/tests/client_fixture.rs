@@ -195,7 +195,7 @@ fn print_client_prediction_fixture() {
     };
     let conditions = asked
         .at_site(&track)
-        .resolve_at(asked.sky_seed_or(3), track.latitude_deg());
+        .resolve_at(asked.sky_seed_or(3), track.climate_site());
     conditions.apply_to_track(&mut track);
     let car = CarLoader::load_from_file(&toml_path).unwrap();
     let human = Uuid::from_u128(0xC0FFEE);

@@ -83,7 +83,7 @@ impl LocalWatch {
         let session_id = seeded_id(opts.seed, u64::MAX);
         let conditions = conditions.at_site(&track).resolve_at(
             conditions.sky_seed_or(session_id.as_u64_pair().0),
-            track.latitude_deg(),
+            track.climate_site(),
         );
         conditions.apply_to_track(&mut track);
 

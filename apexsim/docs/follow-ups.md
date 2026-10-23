@@ -324,6 +324,23 @@ the launcher import with the network off.
 
 **Check:** the A/B is two screenshots.
 
+### 32. The sky's environment on the client
+
+- The create screen's AUTO air and humidity for a dated session are the
+  old latitude-only season (`ApexCreateSession::SeasonOffsetC`,
+  `AutoAirTempCAt`, a port of `season_air_c`); the server's
+  `resolve_at` now works them out in the circuit's climate
+  (`server/sim/src/climate.rs`: the latitude's mean, the region's swing,
+  the lapse with height, the tropics' wet season), so a dated create at
+  Bahrain or Mexico City previews an air the echo then corrects. Port
+  `climate::climate_offset_c` and `wet_season_pct` (needs the site's
+  altitude in `TrackConfigSummary`) and re-pin
+  `ApexSim.UI.CreateSession.SeasonAir` against
+  `the_climate_follows_the_circuit`.
+
+**Check:** `ApexSim.UI.CreateSession.SeasonAir`; a dated create's preview
+against `SessionJoined.Conditions`.
+
 ## P4: Unrefined
 
 ### 13. Windshield wipers

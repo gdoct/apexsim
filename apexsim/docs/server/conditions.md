@@ -16,10 +16,13 @@ positions, so a session replays the same (`a_changing_sky_is_deterministic`).
   `resolve`, `apply_to_track`, `air_density_ratio`, `headlights_needed`),
   `Weather` (the per-weather grip, water and cloud figures), the sun
   (`sun_elevation_deg`, `solar_gain_c`, `through_cloud`,
-  `DEFAULT_LATITUDE_DEG`), `TrackSurface` (what is baked: grip, `wet`,
+  `DEFAULT_LATITUDE_DEG`), `TrackConfig::climate_site`, `TrackSurface` (what is baked: grip, `wet`,
   `water`, `baked_water`, air and track temperature, `air_density_ratio`,
   `wind_mps`, `wind_now_mps`).
 - `server/sim/src/conditions.rs` - `LiveConditions` (the sky now) and `forecast`.
+- `server/sim/src/climate.rs` - `ClimateSite`, `climate_of` (the regions),
+  `climate_offset_c`, `wet_season_pct`: where a dated session's air and
+  humidity come from.
 - `server/sim/src/road_state.rs` - `RoadState`: rubber, marbles, a dried line,
   water depth; `write_rows` / `write_geometry` pack it for the wire, and
   `read_rows` / `read_snow_rows` / `read_lane_snow` read the bytes back into
@@ -166,24 +169,56 @@ evaporation (`SessionConditions::sun_elevation_at`), the client's
 - **The date** is the host's `day_of_year` (`sun_declination_deg`, Cooper's
   formula: +23.4° at midsummer, -23.4° at midwinter), else the model day,
   25 May, at exactly the old 20° declination.
-- **The season** moves the weather's own air with the date
-  (`SessionConditions::season_offset_c`, from `data::season_air_c`): a
-  cosine over the year, warmest on 19 July (`WARMEST_DAY_OF_YEAR`) north of
-  the equator and half a year on south of it, swinging half the latitude's
-  annual range either way (`SEASON_RANGE_PER_DEG_C` 0.35 °C a degree of
-  latitude, up to 20: none on the equator, 17.5 °C at 50°), taken against
-  the model day's. `resolve_at(seed, latitude)` (the server's create, the
-  replay tools, a weekend day) names the auto air from
-  `auto_air_temperature_c_at` and the humidity from `auto_humidity_pct_at`
-  (`SEASON_HUMIDITY_PER_C`: a degree of seasonal cold is a percent damper,
-  20% at the driest), and the live sky's air follows the same. A sunny
-  15:00 at Silverstone is 9 °C in mid-January, 23 °C on the model day.
-  Snow's own air is the same near freezing in any month; what the season
-  moves is the snow line, how far an overcast sky stands above it
-  (`snow_air_drop_c`: 17 °C on the model day, less in winter), so a January
-  overcast night at 50° N resolves under 1 °C and is a winter sky. With no
-  date (and on the model day named outright) every figure is the late-May
-  one to the bit (`a_date_moves_the_air_with_the_season_and_no_date_is_late_may`).
+- **The climate** moves the weather's own air with the date and the place
+  (`server/sim/src/climate.rs`). The weather's own air is filed at a
+  reference day: late May, 50° N, on the sea (`ClimateSite::REFERENCE`). A
+  dated session is moved from there by `SessionConditions::climate_offset_c`
+  (`climate::climate_offset_c`), the day's mean air at the circuit
+  (`climate::mean_air_c`) less the reference's:
+  - the latitude's sea-level annual mean (`sea_level_mean_c`: 27 °C on the
+    equator, falling with the square of the latitude, 17 °C less at 50°);
+  - the season, a cosine over the year (`data::season_air_c`), warmest on
+    19 July (`WARMEST_DAY_OF_YEAR`) north of the equator and half a year
+    on south of it, swinging half the latitude's annual range either way
+    (`SEASON_RANGE_PER_DEG_C` 0.35 °C a degree of latitude, up to 20);
+  - the region's climate (`climate::climate_of`, a coarse map by latitude
+    and longitude like `legal_clock`'s): the season's range times
+    `range_factor` and the mean moved by `mean_offset_c`. Atlantic Europe
+    0.7 and +1.5 °C (the Gulf Stream), the Mediterranean 1.15, central
+    Europe 1.2, the Gulf 1.8 and +4, Anatolia and the Caspian 1.4 and -2,
+    East Asia 1.8 and -3, Florida 1.15, North America east of the Rockies
+    1.7 and 0.4 °C colder a degree north of 30°, the Pacific coast 0.7 and
+    -2, the interior west 1.8, the rest of the tropics 0.6, the southern
+    mid-latitudes 0.8; a track without a longitude is the reference's;
+  - the lapse with the circuit's `metadata.altitude_m`
+    (`LAPSE_C_PER_KM` 5 °C a kilometre, the surface's: Mexico City is 11 °C
+    under the sea level of its latitude).
+  The monthly means hold the circuits' climate normals within 3.5 °C
+  (`the_climate_follows_the_circuit`: Silverstone, Spa, Monza, Barcelona,
+  the Hungaroring, Bahrain, Suzuka, Shanghai, Austin, Montréal, Melbourne,
+  Singapore, Mexico City, Interlagos). `resolve_at(seed, site)` (the
+  server's create, the replay tools, a weekend day; the site is
+  `TrackConfig::climate_site`, or a bare latitude at sea level) names the
+  auto air from `auto_air_temperature_c_at`, held to the host's -5..45 °C,
+  and the humidity from `auto_humidity_pct_at`: the season's part alone
+  (`season_offset_c`, the cosine by the region's range against the model
+  day there) makes a degree of seasonal cold a percent damper
+  (`SEASON_HUMIDITY_PER_C`, 20% at the driest), and in the tropics the wet
+  season adds to it (`climate::wet_season_pct`: `WET_SEASON_HUMIDITY_PCT`
+  12% from the dry season to the wet, wettest a month after midsummer, none
+  within 3° of the equator, which is wet all year, full from 10° to 22°,
+  none past 30° and none in the Gulf's desert). The live sky's air
+  (`LiveConditions::at`, over the same site) follows the same. A sunny
+  15:00 at Silverstone is 11 °C in mid-January, 21 °C in late May and 24 °C
+  in mid-July. Snow's own air is the same near freezing in any month and
+  place; what the climate moves is the snow line, how far an overcast sky
+  stands above it (`snow_air_drop_c`: 17 °C on the reference day, less in
+  winter or up a mountain), so a January overcast night at 50° N resolves
+  under 1 °C and is a winter sky. With no date every figure is the
+  reference day's to the bit wherever the circuit is, and a dated model day
+  at the reference site is too
+  (`a_date_moves_the_air_with_the_season_and_no_date_is_late_may`): an
+  undated session, the AI survey's and the calibrations', is unmoved.
 - **Solar noon** is `data::solar_noon_minutes(latitude, longitude, day)` for
   a track whose YAML names `longitude_deg`: 12:00 moved by the circuit's
   distance from its zone's meridian, summer time and the equation of time.
@@ -553,8 +588,10 @@ See [protocol.md](protocol.md) for the append-only rules.
   `the_forecast_reference`). Picking a changeable sky gives the create a
   `sky_seed` of its own (`NewSkySeed`); ANOTHER rolls a new one; a sky that
   holds sends none.
-- The AUTO air is the server's `resolve_at` over the pending circuit
-  (`ConditionsAtSite`: its latitude and its solar noon on the picked date):
+- The AUTO air is the server's undated `resolve_at` over the pending circuit
+  (`ConditionsAtSite`: its latitude and its solar noon on the picked date;
+  for a dated create it is the latitude-only season, not the circuit's
+  climate, which the join's echo then names: follow-ups #32):
   `ApexCreateSession::AirTempC(C, Latitude)` from `AutoAirTempCAt` (the
   model day's air peaking two hours after solar noon, moved by
   `SeasonOffsetC`, a port of `season_air_c`; snow's own air unmoved) and

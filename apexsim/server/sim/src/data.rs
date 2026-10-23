@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use uuid::Uuid;
 
+pub use crate::climate::ClimateSite;
+
 // --- Identifiers ---
 pub type PlayerId = Uuid;
 pub type SessionId = Uuid;
@@ -1377,6 +1379,21 @@ impl TrackConfig {
     pub fn site(&self) -> Option<(f32, f32)> {
         let longitude = self.metadata.longitude_deg.filter(|l| l.is_finite())?;
         Some((self.latitude_deg(), longitude))
+    }
+
+    /// Where the circuit is as its weather sees it: its latitude, its
+    /// longitude when the metadata names one, its altitude (sea level when
+    /// it does not say).
+    pub fn climate_site(&self) -> ClimateSite {
+        ClimateSite {
+            latitude_deg: self.latitude_deg(),
+            longitude_deg: self.metadata.longitude_deg.filter(|l| l.is_finite()),
+            altitude_m: self
+                .metadata
+                .altitude_m
+                .filter(|a| a.is_finite())
+                .unwrap_or(0.0),
+        }
     }
 
     /// The circuit's latitude, degrees north, or the sky model's default
@@ -3022,23 +3039,28 @@ impl SessionConditions {
         self.resolve_at(seed, DEFAULT_LATITUDE_DEG)
     }
 
-    /// Every figure named over a circuit `latitude_deg` north: what was
-    /// picked, and the weather's own for the rest, in the season of the
+    /// Every figure named over a circuit at `site` (its latitude, or a
+    /// [`ClimateSite`]: `TrackConfig::climate_site`): what was picked, and
+    /// the weather's own for the rest, in the climate and season of the
     /// date there ([`Self::auto_air_temperature_c_at`],
     /// [`Self::auto_humidity_pct_at`]). `seed` picks an unnamed wind's
     /// direction (the session's id, so it is the same for everyone and for
     /// the life of the session).
-    pub fn resolve_at(self, seed: u64, latitude_deg: f32) -> Self {
+    pub fn resolve_at(self, seed: u64, site: impl Into<ClimateSite>) -> Self {
+        let site = site.into();
         let c = self.clamp();
+        // The weather's own air is held to what a host may pick, so a
+        // resolved session clamps to itself.
+        let (cold, hot) = Self::AIR_TEMP_RANGE_C;
         let named = Self {
             air_temp_c: Some(
-                c.air_temp_c
-                    .unwrap_or(c.auto_air_temperature_c_at(latitude_deg).round() as i8),
+                c.air_temp_c.unwrap_or(
+                    c.auto_air_temperature_c_at(site)
+                        .round()
+                        .clamp(cold as f32, hot as f32) as i8,
+                ),
             ),
-            humidity_pct: Some(
-                c.humidity_pct
-                    .unwrap_or(c.auto_humidity_pct_at(latitude_deg)),
-            ),
+            humidity_pct: Some(c.humidity_pct.unwrap_or(c.auto_humidity_pct_at(site))),
             wind_kph: Some(c.wind_kph.unwrap_or(c.auto_wind_kph())),
             wind_from_deg: Some(
                 c.wind_from_deg
@@ -3072,31 +3094,48 @@ impl SessionConditions {
         }
     }
 
-    /// How much warmer the season of the date makes the air over a circuit
-    /// `latitude_deg` north than the model day's, °C ([`season_air_c`]):
-    /// exactly 0 when no date is named, so a session without one is the
-    /// late-May day it always was.
-    pub fn season_offset_c(&self, latitude_deg: f32) -> f32 {
+    /// How much warmer the season of the date makes the air at a site
+    /// than the model day there, °C ([`crate::climate::season_offset_c`]:
+    /// [`season_air_c`] by its climate's swing): exactly 0 when no date is
+    /// named. What the humidity reads.
+    pub fn season_offset_c(&self, site: impl Into<ClimateSite>) -> f32 {
         match self.day_of_year {
             None => 0.0,
-            Some(_) => {
-                season_air_c(self.day(), latitude_deg)
-                    - season_air_c(MODEL_DAY_OF_YEAR, latitude_deg)
-            }
+            Some(_) => crate::climate::season_offset_c(self.day(), &site.into()),
+        }
+    }
+
+    /// How much warmer the date at a site is than the reference day the
+    /// weather's own air is filed at (late May, 50° N, on the sea), °C
+    /// ([`crate::climate::climate_offset_c`]: the latitude's mean, the
+    /// region's climate, the season, the lapse with height): exactly 0
+    /// when no date is named, so a session without one is the late-May day
+    /// it always was, wherever it is.
+    pub fn climate_offset_c(&self, site: impl Into<ClimateSite>) -> f32 {
+        match self.day_of_year {
+            None => 0.0,
+            Some(_) => crate::climate::climate_offset_c(self.day(), &site.into()),
         }
     }
 
     /// The weather's humidity in the season of the date, percent: a cold
     /// month's air holds less water and stands nearer saturation, so it is
-    /// [`SEASON_HUMIDITY_PER_C`] a degree damper (drier in a hot one). The
-    /// model day's exactly when no date is named; snow's own 85% in any.
-    pub fn auto_humidity_pct_at(&self, latitude_deg: f32) -> u8 {
+    /// [`SEASON_HUMIDITY_PER_C`] a degree damper (drier in a hot one), and
+    /// the tropics' wet season damper again
+    /// ([`crate::climate::wet_season_pct`]). The model day's exactly when
+    /// no date is named; snow's own 85% in any.
+    pub fn auto_humidity_pct_at(&self, site: impl Into<ClimateSite>) -> u8 {
+        let site = site.into();
         let own = self.auto_humidity_pct();
-        let season = self.season_offset_c(latitude_deg);
-        if season == 0.0 || self.weather.is_snow() {
+        let season = self.season_offset_c(site);
+        let wet = match self.day_of_year {
+            None => 0.0,
+            Some(_) => crate::climate::wet_season_pct(self.day(), &site),
+        };
+        if (season == 0.0 && wet == 0.0) || self.weather.is_snow() {
             return own;
         }
-        (own as f32 - SEASON_HUMIDITY_PER_C * season)
+        (own as f32 - SEASON_HUMIDITY_PER_C * season + wet)
             .round()
             .clamp(SEASON_HUMIDITY_MIN_PCT, 100.0) as u8
     }
@@ -3219,27 +3258,27 @@ impl SessionConditions {
         COOLEST_C + SWING_C * (0.5 + (day - 0.5) * swing) + offset
     }
 
-    /// The weather's and the clock's own air temperature, °C, in the
-    /// season of the date over a circuit `latitude_deg` north: the model
-    /// day's ([`Self::auto_air_temperature_c`]) moved by
-    /// [`Self::season_offset_c`]. Snow's own air is the same near freezing
-    /// in any month: what the season moves is how far the sky without it
-    /// stands above it ([`Self::snow_air_drop_c`]).
-    pub fn auto_air_temperature_c_at(&self, latitude_deg: f32) -> f32 {
+    /// The weather's and the clock's own air temperature, °C, on the date
+    /// at a site: the reference day's ([`Self::auto_air_temperature_c`])
+    /// moved by [`Self::climate_offset_c`]. Snow's own air is the same near
+    /// freezing in any month and place: what the climate moves is how far
+    /// the sky without it stands above it ([`Self::snow_air_drop_c`]).
+    pub fn auto_air_temperature_c_at(&self, site: impl Into<ClimateSite>) -> f32 {
         let own = self.auto_air_temperature_c();
         if self.weather.is_snow() {
             own
         } else {
-            own + self.season_offset_c(latitude_deg)
+            own + self.climate_offset_c(site)
         }
     }
 
-    /// How far snow's own air lies under overcast's in the season of the
-    /// date, °C: [`Weather::SNOW_AIR_DROP_C`] on the model day, less in a
-    /// winter month (the overcast sky is nearer freezing, so a winter sky
-    /// is a smaller step away), more in a summer one. The snow line.
-    pub fn snow_air_drop_c(&self, latitude_deg: f32) -> f32 {
-        (Weather::SNOW_AIR_DROP_C + self.season_offset_c(latitude_deg)).max(0.0)
+    /// How far snow's own air lies under overcast's on the date at a site,
+    /// °C: [`Weather::SNOW_AIR_DROP_C`] on the reference day, less in a
+    /// winter month or up a mountain (the overcast sky is nearer freezing,
+    /// so a winter sky is a smaller step away), more in a summer one or in
+    /// the tropics. The snow line.
+    pub fn snow_air_drop_c(&self, site: impl Into<ClimateSite>) -> f32 {
+        (Weather::SNOW_AIR_DROP_C + self.climate_offset_c(site)).max(0.0)
     }
 
     /// The asphalt, °C: the air plus what the sun puts into it through the

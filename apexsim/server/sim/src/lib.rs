@@ -10,6 +10,7 @@ pub mod car_loader;
 pub mod car_setup;
 pub mod car_step;
 pub mod classification;
+pub mod climate;
 pub mod conditions;
 pub mod content_crc;
 pub mod curbs;

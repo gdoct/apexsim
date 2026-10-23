@@ -58,7 +58,7 @@ fn conditions(track: &TrackConfig) -> SessionConditions {
     };
     asked
         .at_site(track)
-        .resolve_at(asked.sky_seed_or(7), track.latitude_deg())
+        .resolve_at(asked.sky_seed_or(7), track.climate_site())
 }
 
 /// Ticks in the recorded trace: about ten seconds.

@@ -172,7 +172,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             ..SessionConditions::DEFAULT
         }
         .at_site(&site)
-        .resolve_at(joined.session_id.as_u64_pair().0, site.latitude_deg());
+        .resolve_at(joined.session_id.as_u64_pair().0, site.climate_site());
         assert_eq!(
             expected.solar_noon_min.is_some(),
             site.metadata.longitude_deg.is_some()
@@ -293,7 +293,7 @@ async fn a_session_created_without_conditions_is_a_sunny_afternoon() {
                 .at_site(&session.track_config)
                 .resolve_at(
                     joined.session_id.as_u64_pair().0,
-                    session.track_config.latitude_deg()
+                    session.track_config.climate_site()
                 ),
             "a sunny 13:00, its air named and its sun placed"
         );

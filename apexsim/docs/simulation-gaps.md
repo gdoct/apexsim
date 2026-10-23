@@ -27,7 +27,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| A circuit's time zone is a coarse map (`data::legal_clock`), not the real zone boundaries; the season's air is one cosine by latitude (`data::season_air_c`), with no continental or maritime climate, no wet or dry season in the tropics and no altitude lapse. | Low | Low |
+| A circuit's time zone is a coarse map (`data::legal_clock`), not the real zone boundaries, and so are its climate's regions (`climate::climate_of`); the tropics' wet season moves the humidity only, not how often a seeded forecast rains. | Low | Low |
 | Rain falls on the whole circuit at once: the weather is one figure eased in time (`conditions.rs`), with no cells moving across the circuit on the wind, so one end cannot be wet while the other is dry, and the minimap's rain radar (`ApexRainRadar`) can only draw cells from the forecast. Rain by place goes into the road state's cells and the baked grip, on the server only. | High | Med |
 | Overnight cooling has no dew or fog; an evening session at a humid circuit is as clear as noon. | Med | Low |
 | Snow: the run-off carries the verge's cover and the pit lane one figure a cell of its own (`RoadState::lane_snow`): neither has ice or a driven track across its width, and the lane's water is still the lap cell's beside it. | Low | Low |

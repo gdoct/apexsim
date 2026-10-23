@@ -157,10 +157,9 @@ fn laps_run(state: &CarState, total_m: f32) -> f32 {
 }
 
 fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::LiveConditions {
-    crate::conditions::LiveConditions::new(
+    crate::conditions::LiveConditions::at(
         session.conditions,
-        track.latitude_deg(),
-        track.metadata.altitude_m.unwrap_or(0.0),
+        track.climate_site(),
         session.conditions.sky_seed_or(session.id.as_u64_pair().0),
     )
 }
@@ -1243,7 +1242,7 @@ impl GameSession {
                 let seed = self.session.id.as_u64_pair().0
                     ^ (phase as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15);
                 day.at_site(&source)
-                    .resolve_at(day.sky_seed_or(seed), source.latitude_deg())
+                    .resolve_at(day.sky_seed_or(seed), source.climate_site())
             }
             None => race_day,
         };

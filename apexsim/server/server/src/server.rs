@@ -384,7 +384,7 @@ impl ServerState {
         // weather's own air follows the sun.
         let conditions = conditions.at_site(&track).resolve_at(
             conditions.sky_seed_or(session.id.as_u64_pair().0),
-            track.latitude_deg(),
+            track.climate_site(),
         );
         // The session's own copy of the track carries the weather's grip,
         // the air's density and the wind: one bake here, no branch in the

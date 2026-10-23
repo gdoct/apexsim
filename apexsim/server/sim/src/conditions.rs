@@ -28,7 +28,7 @@
 //! Telemetry carries the result to every client (`network::SkyNow`), which
 //! lights its world by it.
 
-use crate::data::{air_density, solar_gain_c, SessionConditions, Weather};
+use crate::data::{air_density, solar_gain_c, ClimateSite, SessionConditions, Weather};
 use crate::wind::hash01;
 
 /// The rain builds toward the weather's and eases off over this long, s.
@@ -179,6 +179,9 @@ pub struct LiveConditions {
     pub start: SessionConditions,
     /// The circuit's latitude, degrees north: where the sun is.
     pub latitude_deg: f32,
+    /// Its longitude, degrees east, when the track names one: which climate
+    /// it lies in (`crate::climate::climate_of`).
+    pub longitude_deg: Option<f32>,
     /// Its height above sea level, m: the air's density.
     pub altitude_m: f32,
     pub forecast: Vec<WeatherChange>,
@@ -230,12 +233,33 @@ impl LiveConditions {
     /// over a circuit `latitude_deg` north and `altitude_m` up; `seed` the
     /// session's id, which lays out the forecast.
     pub fn new(start: SessionConditions, latitude_deg: f32, altitude_m: f32, seed: u64) -> Self {
+        Self::at(
+            start,
+            ClimateSite {
+                latitude_deg,
+                longitude_deg: None,
+                altitude_m,
+            },
+            seed,
+        )
+    }
+
+    /// The sky at a session's start over a circuit at `site`
+    /// (`TrackConfig::climate_site`): [`Self::new`] with the site's
+    /// longitude, which places its climate.
+    pub fn at(start: SessionConditions, site: ClimateSite, seed: u64) -> Self {
+        let ClimateSite {
+            latitude_deg,
+            longitude_deg,
+            altitude_m,
+        } = site;
         let air_c = start.air_temperature_c();
         let track_c = start.track_temperature_c_at(latitude_deg);
         let winter = is_winter(&start);
         Self {
             start,
             latitude_deg,
+            longitude_deg,
             altitude_m,
             forecast: forecast(&start, seed),
             clock_min: (start.time_of_day_minutes % SessionConditions::MINUTES_PER_DAY) as f32,
@@ -254,21 +278,30 @@ impl LiveConditions {
             wind_veer_deg: 0.0,
             seed,
             winter,
-            air_offset_c: air_c - Self::auto_air_c(&start, winter, latitude_deg),
+            air_offset_c: air_c - Self::auto_air_c(&start, winter, site),
+        }
+    }
+
+    /// Where the circuit is, as its climate sees it.
+    pub fn site(&self) -> ClimateSite {
+        ClimateSite {
+            latitude_deg: self.latitude_deg,
+            longitude_deg: self.longitude_deg,
+            altitude_m: self.altitude_m,
         }
     }
 
     /// The weather's and the clock's own air, °C, for `conditions` over a
-    /// circuit `latitude_deg` north in the season of its date: a winter sky
-    /// that is not snowing sits as far under its overcast as snow does
+    /// circuit at `site` on its date: a winter sky that is not snowing sits
+    /// as far under its overcast as snow does
     /// (`SessionConditions::snow_air_drop_c`).
-    fn auto_air_c(conditions: &SessionConditions, winter: bool, latitude_deg: f32) -> f32 {
+    fn auto_air_c(conditions: &SessionConditions, winter: bool, site: ClimateSite) -> f32 {
         let drop = if winter && !conditions.weather.is_snow() {
-            conditions.snow_air_drop_c(latitude_deg)
+            conditions.snow_air_drop_c(site)
         } else {
             0.0
         };
-        conditions.auto_air_temperature_c_at(latitude_deg) - drop
+        conditions.auto_air_temperature_c_at(site) - drop
     }
 
     /// The wind's mean the weather `weather` brings, km/h: its own
@@ -450,7 +483,7 @@ impl LiveConditions {
         let day_ease = |value: &mut f32, target: f32, tau: f32| {
             *value += (target - *value) * (dt * scale.max(1.0) / tau).min(1.0);
         };
-        let air = Self::auto_air_c(&self.now(), self.winter, self.latitude_deg) + self.air_offset_c;
+        let air = Self::auto_air_c(&self.now(), self.winter, self.site()) + self.air_offset_c;
         day_ease(&mut self.air_c, air, AIR_EASE_S);
         // Dry asphalt sits over the air by what the sun puts in through the
         // cloud; water on it holds it a degree under the air.
@@ -991,8 +1024,9 @@ mod tests {
     }
 
     /// A date moves the weather's own air and humidity with the season, by
-    /// latitude, the south's turned half a year; no date, and the model
-    /// day named outright, are the late-May figures to the bit.
+    /// latitude, the south's turned half a year; no date is the late-May
+    /// figures to the bit anywhere, and so is the model day named outright
+    /// at the reference site (50° N on the sea, no longitude).
     #[test]
     fn a_date_moves_the_air_with_the_season_and_no_date_is_late_may() {
         use crate::data::MODEL_DAY_OF_YEAR;
@@ -1008,7 +1042,14 @@ mod tests {
                         day_of_year: Some(MODEL_DAY_OF_YEAR),
                         ..undated
                     };
-                    for c in [undated, may] {
+                    let reference = [undated, may];
+                    let checked = if lat == 50.0 {
+                        &reference[..]
+                    } else {
+                        &reference[..1]
+                    };
+                    assert_eq!(may.season_offset_c(lat), 0.0);
+                    for &c in checked {
                         assert_eq!(c.season_offset_c(lat), 0.0);
                         assert_eq!(
                             c.auto_air_temperature_c_at(lat),
@@ -1022,18 +1063,27 @@ mod tests {
                 }
             }
         }
-        let on = |day: u16, lat: f32| {
+        let on = |day: u16, site: ClimateSite| {
             SessionConditions {
                 time_of_day_minutes: 15 * 60,
                 day_of_year: Some(day),
                 ..SessionConditions::DEFAULT
             }
-            .resolve_at(3, lat)
+            .resolve_at(3, site)
         };
         let air = |c: SessionConditions| c.air_temp_c.unwrap();
         // Silverstone: a 15:00 in mid-January near 10 °C, mid-July warmer
         // than late May.
-        let (jan, may, jul) = (on(15, 52.07), on(145, 52.07), on(196, 52.07));
+        let silverstone = ClimateSite {
+            latitude_deg: 52.07,
+            longitude_deg: Some(-1.02),
+            altitude_m: 150.0,
+        };
+        let (jan, may, jul) = (
+            on(15, silverstone),
+            on(145, silverstone),
+            on(196, silverstone),
+        );
         println!(
             "Silverstone 15:00 air: Jan {} May {} Jul {}; humidity {} {} {}",
             air(jan),
@@ -1047,8 +1097,8 @@ mod tests {
         assert!(air(jul) > air(may));
         assert!(jan.humidity_pct > may.humidity_pct && jul.humidity_pct < may.humidity_pct);
         // Melbourne's January is its summer; the equator has no seasons.
-        assert!(air(on(15, -37.85)) > air(on(196, -37.85)) + 5);
-        assert_eq!(air(on(15, 1.29)), air(on(196, 1.29)));
+        assert!(air(on(15, (-37.85).into())) > air(on(196, (-37.85).into())) + 5);
+        assert_eq!(air(on(15, 1.29.into())), air(on(196, 1.29.into())));
         // The snow line: a January overcast night at 50° N resolves under
         // freezing and is a winter sky; the same night in late May is not.
         let night = |day: Option<u16>| {
