@@ -409,8 +409,10 @@ importer change.
     (`SURFACE_TRANSFER`, `PATCH_TRANSFER`, `CORE_TRANSFER`, `COOL_FACTOR`,
     `SURFACE_ROLLING_K`) are against AC's own tyre masses and are not
     mapped, the reference compound heating as the class's shipped tyre
-    does, and `GRAIN_*` / `BLISTER_*` are not read. A compound's pressure
-    and load sensitivity are not per compound;
+    does, and `GRAIN_*` / `BLISTER_*` are not read. Its best pressure is
+    per compound too: `pressure_shift_kpa` its `PRESSURE_IDEAL` less the
+    reference's (the axles' mean; the Abarth 500's street tyre +41 kPa on
+    its semi-slick). Its load sensitivity (`LS_EXPY`, `FZ0`) is not;
   - `[suspension] roll_centre_front_m` / `_rear_m` from the front view of the
     linkage (`roll_centre_m`): the upright's instant centre (the lower arm's
     line met by the upper arm's, or for a strut by the line at right angles

@@ -765,17 +765,22 @@ const ENVELOPE_TRANSFER_PASSES: usize = 4;
 /// 180 kPa optimum (five clicks) costs the axle 4%.
 pub const TYRE_PRESSURE_GRIP_LOSS: f32 = 2.07;
 
+/// [`TireConfig::pressure_grip_factor`] about an optimum of `optimum_kpa`.
+pub fn pressure_grip_factor_about(optimum_kpa: f32, pressure_kpa: f32) -> f32 {
+    let optimum = optimum_kpa.max(1.0);
+    let error = (pressure_kpa - optimum) / optimum;
+    if error == 0.0 {
+        return 1.0;
+    }
+    (1.0 - TYRE_PRESSURE_GRIP_LOSS * error * error).max(0.5)
+}
+
 impl TireConfig {
     /// Grip multiplier for an axle at `pressure_kpa`: exactly 1.0 at the
     /// optimum (so a stock car is bit-identical to before the field), less
     /// either side, never below 0.5.
     pub fn pressure_grip_factor(&self, pressure_kpa: f32) -> f32 {
-        let optimum = self.optimal_pressure_kpa.max(1.0);
-        let error = (pressure_kpa - optimum) / optimum;
-        if error == 0.0 {
-            return 1.0;
-        }
-        (1.0 - TYRE_PRESSURE_GRIP_LOSS * error * error).max(0.5)
+        pressure_grip_factor_about(self.optimal_pressure_kpa, pressure_kpa)
     }
 
     pub fn front_grip_factor(&self) -> f32 {

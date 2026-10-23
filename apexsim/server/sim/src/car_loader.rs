@@ -300,6 +300,10 @@ struct CompoundToml {
     heat_scale: Option<f32>,
     #[serde(default)]
     rolling_heat_scale: Option<f32>,
+    /// Shift of its best pressure from the car's, kPa
+    /// (`tyre_thermal::Compound::pressure_shift_kpa`); 0 when absent.
+    #[serde(default)]
+    pressure_shift_kpa: Option<f32>,
     /// Grip kept on a dry road, in light rain, in heavy rain.
     #[serde(default)]
     water_grip: Option<[f32; 3]>,
@@ -1117,6 +1121,7 @@ impl CarLoader {
                             window_scale: c.window_scale.unwrap_or(1.0),
                             heat_scale: c.heat_scale.unwrap_or(1.0),
                             rolling_heat_scale: c.rolling_heat_scale.unwrap_or(1.0),
+                            pressure_shift_kpa: c.pressure_shift_kpa.unwrap_or(0.0),
                         }
                     })
                     .collect(),
@@ -1548,6 +1553,12 @@ impl CarLoader {
                 c.rolling_heat_scale,
                 0.25,
                 4.0,
+            );
+            in_range(
+                &format!("tires.compound.{}.pressure_shift_kpa", c.name),
+                c.pressure_shift_kpa,
+                -100.0,
+                100.0,
             );
             for (i, w) in c.water_grip.iter().enumerate() {
                 in_range(

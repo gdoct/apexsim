@@ -387,6 +387,7 @@ WEAR_RANGE = (0.2, 5.0)
 SHIFT_RANGE_C = (-80.0, 80.0)
 WINDOW_SCALE_RANGE = (0.25, 4.0)  # tyre_thermal::Compound::window_scale, car_loader's range
 HEAT_SCALE_RANGE = (0.25, 4.0)  # tyre_thermal::Compound::heat_scale / rolling_heat_scale
+PRESSURE_SHIFT_RANGE_KPA = (-100.0, 100.0)  # tyre_thermal::Compound::pressure_shift_kpa
 #: The share of peak grip a worn tyre has left when its life is counted over.
 WORN_GRIP_SHARE = 0.95
 #: The rain tyres an ApexSim car has by default (`tyre_thermal::default_compounds`),
@@ -434,6 +435,13 @@ def tyre_life_km(car: CarData, compound: int) -> float | None:
     return sum(lives) / len(lives) if lives else None
 
 
+def mean_ideal_psi(front: Tyre, rear: Tyre) -> float | None:
+    """The axles' mean `PRESSURE_IDEAL`, psi, or None when either has none."""
+    if not front.pressure_ideal_psi or not rear.pressure_ideal_psi:
+        return None
+    return 0.5 * (front.pressure_ideal_psi + rear.pressure_ideal_psi)
+
+
 def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dict] | None:
     """The car's `[[tires.compound]]` list from tyres.ini's compounds, softest
     slick first (the setup knob's order), the reference (the compound the
@@ -448,6 +456,8 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
     - `heat_scale` / `rolling_heat_scale`: its thermal section's
       `FRICTION_K` / `ROLLING_K` over the reference's (`read_heat_k`), 1
       when either has none: a soft that heats faster for the same work;
+    - `pressure_shift_kpa`: its `PRESSURE_IDEAL` less the reference's (the
+      axles' mean), 0 when either has none;
     - `kind` from the name; a car with no wet or intermediate gets
       ApexSim's (AC has none), so the garage still has rain tyres.
 
@@ -473,6 +483,9 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
         shift = window[0] - ref_window[0] if window and ref_window else 0.0
         scale = window[1] / ref_window[1] if window and ref_window else 1.0
         wear = ref_life / life if life and ref_life else 1.0
+        ideal = mean_ideal_psi(front, rear)
+        ref_ideal = mean_ideal_psi(ref_front, ref_rear)
+        pressure_shift = (ideal - ref_ideal) * PSI_TO_KPA if ideal and ref_ideal else 0.0
         heat = read_heat_k(car, index)
         heat_scale, rolling_scale = (heat[0] / ref_heat[0], heat[1] / ref_heat[1]) \
             if heat and ref_heat else (1.0, 1.0)
@@ -486,6 +499,8 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
             "window_scale": round(min(max(scale, WINDOW_SCALE_RANGE[0]), WINDOW_SCALE_RANGE[1]), 2),
             "heat_scale": round(min(max(heat_scale, HEAT_SCALE_RANGE[0]), HEAT_SCALE_RANGE[1]), 3),
             "rolling_heat_scale": round(min(max(rolling_scale, HEAT_SCALE_RANGE[0]), HEAT_SCALE_RANGE[1]), 3),
+            "pressure_shift_kpa": round(min(max(pressure_shift, PRESSURE_SHIFT_RANGE_KPA[0]),
+                                            PRESSURE_SHIFT_RANGE_KPA[1]), 1),
             "reference": index == reference,
         })
     if len(rows) < 2:

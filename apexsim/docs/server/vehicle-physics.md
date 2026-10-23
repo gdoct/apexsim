@@ -324,7 +324,10 @@ multiplies `temperature_window_c` for that compound, `tyre_thermal::window_c`, w
 window is read: grip, hot wear, blistering, the hysteresis fade and the AI's cold-tyre edge;
 0.25-4), `heat_scale` and `rolling_heat_scale` (1.0 each, 0.25-4: `tyre_thermal::step`
 multiplies the slip power's heat, tread and core, by `heat_scale` and the carcass's rolling
-heat by `rolling_heat_scale`; the wear still goes by the slip's work). `wear_rate` is a
+heat by `rolling_heat_scale`; the wear still goes by the slip's work), `pressure_shift_kpa`
+(0, ±100: the compound grips best at `optimal_pressure_kpa` plus it,
+`tyre_thermal::pressure_grip_factor`; the garage's pressures stay the car's, so a shifted
+compound runs off its optimum until they are set for it). `wear_rate` is a
 
 `TireConfig` field, not a car.toml key. Shipped windows: F1 91 ± 13 °C on 70 °C blankets,
 Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, set where each class runs at AI race pace at

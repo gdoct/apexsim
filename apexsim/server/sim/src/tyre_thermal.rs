@@ -267,10 +267,21 @@ pub struct Compound {
     /// it rolls (an AC import's own `ROLLING_K`). 1.0 changes nothing.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub rolling_heat_scale: f32,
+    /// Shift of the pressure it grips best at, kPa, from the car's
+    /// `optimal_pressure_kpa` (an AC import's own `PRESSURE_IDEAL`): the
+    /// garage's pressures are the car's, so a compound that wants less
+    /// runs a little off its optimum until they are set for it. 0 changes
+    /// nothing.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub pressure_shift_kpa: f32,
 }
 
 fn one() -> f32 {
     1.0
+}
+
+fn is_zero(v: &f32) -> bool {
+    *v == 0.0
 }
 
 fn is_one(v: &f32) -> bool {
@@ -301,6 +312,7 @@ impl Compound {
             window_scale: 1.0,
             heat_scale: 1.0,
             rolling_heat_scale: 1.0,
+            pressure_shift_kpa: 0.0,
         }
     }
 
@@ -802,6 +814,19 @@ pub fn pressure_kpa(tire: &TireConfig, compound: &Compound, set_kpa: f32, core_c
     (set_kpa + ATMOSPHERE_KPA) * ratio - ATMOSPHERE_KPA
 }
 
+/// The grip a tyre of `compound` takes from running at `pressure_kpa`:
+/// the car's pressure factor about the compound's own optimum
+/// (`Compound::pressure_shift_kpa`), exactly the car's without a shift.
+pub fn pressure_grip_factor(tire: &TireConfig, compound: &Compound, pressure_kpa: f32) -> f32 {
+    if compound.pressure_shift_kpa == 0.0 {
+        return tire.pressure_grip_factor(pressure_kpa);
+    }
+    crate::data::pressure_grip_factor_about(
+        tire.optimal_pressure_kpa + compound.pressure_shift_kpa,
+        pressure_kpa,
+    )
+}
+
 /// The multiplier a tyre's grip takes from its compound, its wear, its
 /// temperature and the pressure that puts it at (less what it has leaked),
 /// on a road with this much `water` and the snow `cover` and `ice` under
@@ -823,7 +848,7 @@ pub fn grip_multiplier(
         * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0))
         * (1.0 - PICKUP_GRIP_LOSS * tyre.pickup.clamp(0.0, 1.0));
     if tyre.punctured {
-        return PUNCTURE_GRIP * tire.pressure_grip_factor(set_kpa) * used;
+        return PUNCTURE_GRIP * pressure_grip_factor(tire, compound, set_kpa) * used;
     }
     let even_at_optimum = if tyre.tread_c == [0.0; 3] {
         tyre.temperature_c == optimum
@@ -831,10 +856,12 @@ pub fn grip_multiplier(
         tyre.tread_c.iter().all(|&t| t == optimum)
     };
     if tyre.core_temperature_c == optimum && even_at_optimum && tyre.pressure_loss_kpa == 0.0 {
-        return tire.pressure_grip_factor(set_kpa) * used;
+        return pressure_grip_factor(tire, compound, set_kpa) * used;
     }
     tread_grip_factor(tire, compound, tyre)
-        * tire.pressure_grip_factor(
+        * pressure_grip_factor(
+            tire,
+            compound,
             pressure_kpa(tire, compound, set_kpa, tyre.core_temperature_c) - tyre.pressure_loss_kpa,
         )
         * used
@@ -1311,6 +1338,32 @@ mod tests {
             ..Default::default()
         };
         assert!(at_peak.power_split_w(&t).1.abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_compound_s_pressure_shift_moves_its_best_pressure_and_zero_changes_nothing() {
+        let t = tyre();
+        let m = medium();
+        let opt = t.optimal_pressure_kpa;
+        let soft = Compound {
+            pressure_shift_kpa: -15.0,
+            ..m.clone()
+        };
+        assert_eq!(pressure_grip_factor(&t, &soft, opt - 15.0), 1.0);
+        assert!(pressure_grip_factor(&t, &soft, opt) < 1.0);
+        for kpa in [opt - 30.0, opt, opt + 12.0] {
+            assert_eq!(
+                pressure_grip_factor(&t, &m, kpa).to_bits(),
+                t.pressure_grip_factor(kpa).to_bits()
+            );
+        }
+        // A fitted tyre at its window on the car's pressure: the soft is off
+        // its optimum, the medium on it.
+        let mut data = at(t.optimal_temperature_c, t.optimal_temperature_c);
+        data.tread_c = [t.optimal_temperature_c; 3];
+        let on = grip_multiplier(&t, &m, opt, &data, 0.0, 0.0, 0.0);
+        let off = grip_multiplier(&t, &soft, opt, &data, 0.0, 0.0, 0.0);
+        assert!(off < on, "{off} vs {on}");
     }
 
     #[test]

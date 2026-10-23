@@ -1076,6 +1076,17 @@ PERFORMANCE_CURVE=t_hard.lut
         self.assertEqual((by["Slick Hard"]["heat_scale"], by["Slick Hard"]["rolling_heat_scale"]), (0.8, 1.0))
         self.assertNotIn("heat_scale", by["wet"])
 
+    def test_a_compound_s_own_ideal_pressure_is_a_shift_from_the_reference_s(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        self.assertEqual([r.get("pressure_shift_kpa", 0.0) for r in rows], [0.0] * 5)
+        tyres = self.TYRES.replace("NAME=Slick Soft\n", "NAME=Slick Soft\nPRESSURE_IDEAL=26\n") \
+            .replace("NAME=Slick Medium\n", "NAME=Slick Medium\nPRESSURE_IDEAL=28\n")
+        by = {r["name"]: r for r in physics.map_compounds(self.car(tyres), 1, [])}
+        # Two psi under the medium's on both axles; the hard names none.
+        self.assertAlmostEqual(by["Slick Soft"]["pressure_shift_kpa"], round(-2 * physics.PSI_TO_KPA, 1))
+        self.assertEqual(by["Slick Medium"]["pressure_shift_kpa"], 0.0)
+        self.assertEqual(by["Slick Hard"]["pressure_shift_kpa"], 0.0)
+
     def test_a_car_with_slicks_alone_is_given_the_rain_tyres_apexsim_has(self):
         rows = physics.map_compounds(self.car(), 1, [])
         self.assertEqual([r["kind"] for r in rows], ["slick", "slick", "slick", "intermediate", "wet"])
