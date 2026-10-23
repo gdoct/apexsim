@@ -1439,3 +1439,71 @@ fn team_mates_are_given_boxes_side_by_side() {
         .unwrap();
     assert_eq!(distance(mine), best, "the free box nearest the team");
 }
+
+/// Fixed stint lengths (`RaceRules::max_stint_laps`): over four laps of
+/// Monza with stints of two at most, every AI stops once, in time, and
+/// takes the flag within the rule; without it nobody stops.
+#[test]
+fn the_ai_stops_within_a_fixed_stint_length() {
+    for limit in [2u16, 0] {
+        let track = monza();
+        if !track.has_sidecars(&[Sidecar::Pit], "pit_stop_test") {
+            return;
+        }
+        let car = gt3();
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car.clone());
+        let profiles: Vec<AiDriverProfile> = (0..2)
+            .map(|i| {
+                let mut p = AiDriverProfile::new(format!("Stint AI {}", i + 1), 95);
+                p.id = Uuid::from_u128(6000 + i as u128);
+                p
+            })
+            .collect();
+        let ai: Vec<PlayerId> = profiles.iter().map(|p| p.id).collect();
+        let host = Uuid::from_u128(1);
+        let mut session = RaceSession::new(host, track.id, SessionKind::Multiplayer, 8, 2, 4);
+        session.lap_limit = 4;
+        let mut gs = GameSession::with_ai_profiles(session, track, car_configs, profiles);
+        gs.spawn_ai_drivers();
+        gs.set_race_rules(RaceRules {
+            max_stint_laps: limit,
+            ..Default::default()
+        });
+        gs.line_up_on_grid();
+        gs.set_game_mode(GameMode::Race);
+        let mut ticks = 0usize;
+        while ai
+            .iter()
+            .any(|id| gs.session.participants[id].finish_position.is_none())
+        {
+            ticks += 1;
+            assert!(ticks < HZ * 900, "the race never finished");
+            let inputs: HashMap<PlayerId, PlayerInputData> = ai
+                .iter()
+                .map(|id| (*id, gs.generate_ai_input(id)))
+                .collect();
+            gs.tick(&inputs);
+        }
+        let roster = gs.roster_rows(&HashMap::new());
+        for id in &ai {
+            let state = &gs.session.participants[id];
+            let row = roster.iter().find(|r| r.player_id == *id).unwrap();
+            println!(
+                "limit {limit}: {id} stops {} P{:?} overran {} missed {}",
+                state.pit.stops,
+                state.finish_position,
+                gs.overran_stint(id),
+                row.missed_stops
+            );
+            assert!(state.damage.is_drivable, "finished running");
+            assert!(!gs.overran_stint(id), "no stint past the rule");
+            assert!(!row.missed_stops);
+            if limit > 0 {
+                assert_eq!(state.pit.stops, 1, "one stop splits four laps into two");
+            } else {
+                assert_eq!(state.pit.stops, 0, "four laps on one set");
+            }
+        }
+    }
+}

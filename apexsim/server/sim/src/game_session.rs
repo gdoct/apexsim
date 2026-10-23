@@ -579,6 +579,12 @@ pub struct GameSession {
     /// Under parc fermé (`RaceRules::parc_ferme`), the setup each car is
     /// held at: taken as it first goes out in qualifying, kept to the race.
     parc_ferme: std::collections::BTreeMap<PlayerId, CarSetup>,
+    /// Under fixed stint lengths (`RaceRules::max_stint_laps` /
+    /// `max_stint_minutes`): where each car's stint began, laps run and
+    /// tick, once it has stopped (before that the green light: no laps,
+    /// `race_start_tick`), and the cars that have overrun one.
+    stint_from: std::collections::BTreeMap<PlayerId, (f32, u32)>,
+    stint_overrun: std::collections::BTreeSet<PlayerId>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -1150,6 +1156,8 @@ impl GameSession {
             qualifying_laps_run: Default::default(),
             tyre_sets: Default::default(),
             parc_ferme: Default::default(),
+            stint_from: Default::default(),
+            stint_overrun: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -1240,6 +1248,8 @@ impl GameSession {
             qualifying_laps_run: Default::default(),
             tyre_sets: Default::default(),
             parc_ferme: Default::default(),
+            stint_from: Default::default(),
+            stint_overrun: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -3506,6 +3516,8 @@ impl GameSession {
                 // the start tick for race-time bookkeeping.
                 self.session.state = SessionState::Racing;
                 self.session.race_start_tick = Some(self.session.current_tick);
+                self.stint_from.clear();
+                self.stint_overrun.clear();
                 self.session.demo_lap_progress = None;
                 self.finish_deadline_tick = None;
                 self.race_end = RaceEnd::default();
@@ -5414,9 +5426,85 @@ impl GameSession {
         self.ai_input_for(&profile, state, car_config)
     }
 
+    /// The stint each racing car is on (laps run and seconds since the
+    /// green light or its last stop), under fixed stint lengths.
+    fn stint_of(&self, state: &CarState, total_m: f32) -> (f32, f32) {
+        let start = self.session.race_start_tick.unwrap_or(0);
+        let (laps, tick) = self
+            .stint_from
+            .get(&state.player_id)
+            .copied()
+            .unwrap_or((0.0, start));
+        let seconds =
+            self.session.current_tick.saturating_sub(tick) as f32 / self.tick_rate_hz.max(1) as f32;
+        ((laps_run(state, total_m) - laps).max(0.0), seconds)
+    }
+
+    /// Whether `state`'s stint is past the rule's length
+    /// (`pit::STINT_GRACE_LAPS` over its laps).
+    fn stint_overrun_now(&self, state: &CarState, total_m: f32) -> bool {
+        let rules = &self.session.race_rules;
+        let (laps, seconds) = self.stint_of(state, total_m);
+        (rules.max_stint_laps > 0
+            && laps > rules.max_stint_laps as f32 + crate::pit::STINT_GRACE_LAPS)
+            || (rules.max_stint_minutes > 0 && seconds > rules.max_stint_minutes as f32 * 60.0)
+    }
+
+    /// Fixed stint lengths, each tick of a race under way: a car still
+    /// racing whose stint has run past the rule's length has overrun it
+    /// (`stint_overrun`, kept to the flag). Laps on the pit route or in the
+    /// box count until the service ends.
+    fn update_stints(&mut self) {
+        if !self.session.race_rules.limits_stints()
+            || self.session.game_mode != GameMode::Race
+            || self.session.state != SessionState::Racing
+            || self.race_start.formation.is_some()
+        {
+            return;
+        }
+        let total_m = crate::laps::track_length_m(&self.track_config);
+        let over: Vec<PlayerId> = self
+            .session
+            .participants
+            .values()
+            .filter(|s| {
+                s.finish_position.is_none()
+                    && s.damage.is_drivable
+                    && !self.stint_overrun.contains(&s.player_id)
+                    && self.stint_overrun_now(s, total_m)
+            })
+            .map(|s| s.player_id)
+            .collect();
+        self.stint_overrun.extend(over);
+    }
+
+    /// Whether `player_id` overran a fixed stint length this race.
+    pub fn overran_stint(&self, player_id: &PlayerId) -> bool {
+        self.stint_overrun.contains(player_id)
+    }
+
+    /// The laps left of `state`'s stint under fixed stint lengths, its
+    /// time at the car's own pace; `None` without them.
+    fn stint_left_laps(&self, state: &CarState, total_m: f32) -> Option<f32> {
+        let rules = &self.session.race_rules;
+        if !rules.limits_stints() || self.session.game_mode != GameMode::Race {
+            return None;
+        }
+        let (laps, seconds) = self.stint_of(state, total_m);
+        let by_laps = (rules.max_stint_laps > 0).then_some(rules.max_stint_laps as f32 - laps);
+        let by_time = (rules.max_stint_minutes > 0).then(|| {
+            (rules.max_stint_minutes as f32 * 60.0 - seconds) / self.own_lap_s(state).max(1.0)
+        });
+        match (by_laps, by_time) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        }
+    }
+
     /// What the air does this tick, before the physics: the DRS rule and
     /// every car's wake (`crate::slipstream`).
     fn update_air(&mut self) {
+        self.update_stints();
         self.update_retirements();
         self.update_recoveries();
         self.update_pits();
@@ -6716,6 +6804,7 @@ impl GameSession {
         }
         // A new stint's energy (`crate::hybrid`).
         crate::hybrid::new_stint(state, &config);
+        let stint_from = (laps_run(state, total_m), self.session.current_tick);
         let pit = &mut state.pit;
         let pad_set = pit.service_pad_set.take();
         pit.service_pads = false;
@@ -6729,6 +6818,10 @@ impl GameSession {
         pit.fuel_only = false;
         pit.requested = false;
         pit.stops += 1;
+        // A stop in the race starts the next stint (fixed stint lengths).
+        if self.session.game_mode == GameMode::Race {
+            self.stint_from.insert(*player_id, stint_from);
+        }
         // New pads of another set: the setup's pad knob moves to it, and
         // the car is simulated with it from here.
         if let Some(click) = pad_set {
@@ -7168,6 +7261,7 @@ impl GameSession {
             compound_owed,
             rejoin_traffic: self.rejoins_in_traffic(state, laps_left, lap_fuel_l, total_m),
             neutralised: self.race_control.course != crate::race_control::Course::Green,
+            stint_left_laps: self.stint_left_laps(state, total_m),
             stint_laps: laps_run(state, total_m) - state.pit.stint_start_laps,
             gap_ahead_s,
             rival_behind_stopping,
@@ -7568,6 +7662,7 @@ impl GameSession {
         let winner_was_in = !self.race_end.finishers.is_empty();
         let flag_laps = &self.race_end.flag_laps;
         let rate = self.tick_rate_hz as u32;
+        let total_m_now = crate::laps::track_length_m(&self.track_config);
         let new_finishers: Vec<(PlayerId, Finisher)> = self
             .session
             .participants
@@ -7583,7 +7678,13 @@ impl GameSession {
                     laps: s.current_lap.saturating_sub(1),
                     tick,
                     progress: s.track_progress,
-                    missed_stops: stops_owed > 0 || compound_owed,
+                    // A fixed stint overrun counts as a missed stop,
+                    // the last stint to the flag included.
+                    missed_stops: stops_owed > 0
+                        || compound_owed
+                        || self.stint_overrun.contains(id)
+                        || (self.session.race_rules.limits_stints()
+                            && self.stint_overrun_now(s, total_m_now)),
                     penalty_ticks: self.penalty_seconds(id) * rate,
                 };
                 (*id, finisher)
@@ -9193,6 +9294,68 @@ mod tests {
     /// The pit rule: a car that takes the flag owing its stop, or the second
     /// compound, is classified behind every finisher that met the rule, and
     /// the roster says so; the stops count from the green light.
+    #[test]
+    fn a_car_that_overruns_a_fixed_stint_is_classified_behind_those_that_kept_it() {
+        let mut game_session = create_test_session();
+        game_session.set_race_rules(crate::data::RaceRules {
+            max_stint_laps: 2,
+            ..Default::default()
+        });
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (over, kept) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        for id in [over, kept] {
+            game_session.add_player(id, car_id).unwrap();
+        }
+        game_session.set_game_mode(GameMode::Race);
+        let ticks: HashMap<PlayerId, PlayerInputData> = HashMap::new();
+        let total = crate::laps::track_length_m(&game_session.track_config);
+        // Three laps in: the car that stopped a lap ago is within its
+        // stint, the one that never stopped is past it.
+        for id in [over, kept] {
+            game_session
+                .session
+                .participants
+                .get_mut(&id)
+                .unwrap()
+                .current_lap = 4;
+        }
+        let at = laps_run(&game_session.session.participants[&kept], total);
+        game_session
+            .stint_from
+            .insert(kept, (at - 1.0, game_session.session.current_tick));
+        game_session.tick(&ticks);
+        assert!(game_session.overran_stint(&over));
+        assert!(!game_session.overran_stint(&kept));
+        // The one that overran takes the flag first, and is classified
+        // behind the one that kept the rule.
+        let finish = game_session.session.lap_limit as u16 + 1;
+        let place = |gs: &GameSession, id: &PlayerId| gs.session.participants[id].finish_position;
+        game_session.stint_from.insert(
+            kept,
+            ((finish - 1) as f32 - 1.0, game_session.session.current_tick),
+        );
+        for id in [over, kept] {
+            game_session
+                .session
+                .participants
+                .get_mut(&id)
+                .unwrap()
+                .current_lap = finish;
+            game_session.tick(&ticks);
+        }
+        assert_eq!(place(&game_session, &kept), Some(1));
+        assert_eq!(place(&game_session, &over), Some(2));
+        let roster = game_session.roster_rows(&HashMap::new());
+        let missed = |id: PlayerId| {
+            roster
+                .iter()
+                .find(|e| e.player_id == id)
+                .unwrap()
+                .missed_stops
+        };
+        assert!(missed(over) && !missed(kept));
+    }
+
     #[test]
     fn a_car_that_misses_the_pit_rule_is_classified_behind_those_that_met_it() {
         let mut game_session = create_test_session();

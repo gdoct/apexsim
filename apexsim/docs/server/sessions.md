@@ -309,7 +309,9 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
   `weekend_tyre_sets` (`u8`, 0 none): a weekend's tyre allocation (see
   "Tyre sets");
 - `parc_ferme` (`bool`): a car's setup is held from its first qualifying
-  run to the end of the race (see "Parc fermé").
+  run to the end of the race (see "Parc fermé");
+- `max_stint_laps` / `max_stint_minutes` (`u16`, 0 none): fixed stint
+  lengths (see "Fixed stint lengths").
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
@@ -392,6 +394,30 @@ weekend's Q1) starts it over; any mode but `Qualification`, `Countdown`,
 `Grid` and `Race` releases it. The AI runs stock setups, so it is never
 touched. The applied setup is not sent back (`SetCarSetup` has no reply):
 the client's garage does not yet show which knobs are held.
+
+## Fixed stint lengths
+
+`race_rules.max_stint_laps` and `max_stint_minutes`: no stint of a race
+may run more than so many laps, or so many minutes. A stint runs from the
+green light (no laps, `race_start_tick`) or the end of a stop's service in
+the race (`GameSession::stint_from`: the laps run, `laps_run`, and the
+tick; a splash and a stop-go are stops too, a drive-through is not) to the
+next stop or the flag (`stint_of`). Each tick of a race under way
+(`update_stints`, not on the formation lap) a car still racing whose stint
+is past the rule, by more than `pit::STINT_GRACE_LAPS` (0.15 lap) over its
+laps, has overrun it (`stint_overrun`, kept to the flag;
+`GameSession::overran_stint`); the stint to the flag is checked again as
+the car takes it. A car that overran a stint is classified as one that
+missed the pit rule: behind every finisher that kept the rules, and marked
+`RosterEntry.MissedStops` (the client's PEN). Driver swaps are not
+simulated: the stint is the car's.
+
+The AI plans for it (`StopContext::stint_left_laps`: the laps the stint may
+still run, the minutes at the car's own lap pace, the smaller of the two):
+with less than `pit::AI_STINT_STOP_LAPS` (1 lap) left and the flag further
+away than that, `pit::plan_stop` stops at once, traffic or not; a car that
+reaches the flag within its stint stays out. A driver's own car is theirs
+to bring in (an away driver's is planned as the AI's).
 
 ## The race's grid
 

@@ -238,9 +238,9 @@ order down the standings.
 
 ## P3: nice to have
 
-### 32. The tyre rules and parc fermé on the client
+### 32. The tyre, parc fermé and stint rules on the client
 
-The race rules' tyre keys run on the server
+The race rules' tyre, parc fermé and stint keys run on the server
 ([server/sessions.md](server/sessions.md#tyre-sets)) and are echoed in
 `SessionJoined.RaceRules`; the client skips them (`ParseRaceRules` reads
 the keys it knows).
@@ -250,6 +250,10 @@ the keys it knows).
   (`FApexRaceRules`, the CreateSession encoder, `RaceRulesToSend`,
   `FApexRaceRules::Describe`), and the qualifying garage does not say how
   many new sets are left or which set GO OUT fits.
+- The create screen has no row for `max_stint_laps` /
+  `max_stint_minutes`, and the HUD does not show the laps or minutes left
+  of the stint (a human brings their own car in; an overrun is told only
+  by PEN at the flag).
 - Under parc fermé the garage's setup tabs do not lock the held knobs
   (`CarSetup::under_parc_ferme`), and the server sends no applied setup
   back, so a held knob moved in the garage reads changed but is not.

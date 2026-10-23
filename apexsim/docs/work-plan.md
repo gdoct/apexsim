@@ -183,7 +183,7 @@ Saturday, race Sunday, same drivers, results kept.
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - A qualifying HUD (not race standings).
 - Assists per weekend phase — bundle with B2.
-- Driver swaps / fixed stint lengths.
+- Driver swaps (fixed stint lengths are built).
 - Recovery vehicles and marshals (the safety car is built).
 
 ### Simulation

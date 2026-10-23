@@ -3899,6 +3899,18 @@ pub struct RaceRules {
     /// The race's stops fit new sets. 0 is none.
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub weekend_tyre_sets: u8,
+    /// Fixed stint lengths: no stint (from the green light, or a stop, to
+    /// the next stop or the flag) may run more than this many laps, or
+    /// this many minutes. A car that overruns one is classified behind
+    /// every finisher that kept the rules, as for a missed stop. 0 is none.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub max_stint_laps: u16,
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub max_stint_minutes: u16,
+}
+
+fn is_zero_u16(v: &u16) -> bool {
+    *v == 0
 }
 
 fn is_zero_u8(v: &u8) -> bool {
@@ -3918,6 +3930,12 @@ impl RaceRules {
             Offence::YellowPass => self.yellow_penalty,
             Offence::PitExitRed => self.pit_exit_penalty,
         }
+    }
+
+    /// Whether a stint length is fixed (`max_stint_laps`,
+    /// `max_stint_minutes`).
+    pub fn limits_stints(&self) -> bool {
+        self.max_stint_laps > 0 || self.max_stint_minutes > 0
     }
 
     /// The start drives a lap before the green: a formation lap, or a

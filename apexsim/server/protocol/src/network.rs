@@ -5854,6 +5854,8 @@ mod tests {
             qualifying_tyre_start: 10,
             parc_ferme: true,
             weekend_tyre_sets: 8,
+            max_stint_laps: 25,
+            max_stint_minutes: 65,
             ..Default::default()
         };
         let bytes = rmp_serde::to_vec_named(&rules).unwrap();
@@ -5863,6 +5865,8 @@ mod tests {
             "qualifying_tyre_start",
             "parc_ferme",
             "weekend_tyre_sets",
+            "max_stint_laps",
+            "max_stint_minutes",
         ] {
             assert!(text.contains(key), "{key} on the wire");
         }

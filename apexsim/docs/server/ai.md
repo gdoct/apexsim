@@ -362,7 +362,13 @@ off by `Racecraft::blend`; the controller holds it across the road
   made at the latest with a lap left for each stop still owed; it counts
   as a stop it must make anyway, so a cover or an undercut brings it
   forward, worn tyres that reach the flag do not keep it out, and a car
-  owing one does not save fuel to skip a stop (`saves_to_flag`). Compound:
+  owing one does not save fuel to skip a stop (`saves_to_flag`). Under
+  fixed stint lengths (`RaceRules::max_stint_laps` / `max_stint_minutes`,
+  [sessions](sessions.md#fixed-stint-lengths); `StopContext::stint_left_laps`)
+  a stint with less than `AI_STINT_STOP_LAPS` (1 lap) left short of the
+  flag is a stop at once, traffic or not. A race started on the set a car
+  qualified on ([sessions](sessions.md#tyre-sets)) counts that set's
+  qualifying laps in its stint, so its wear rate is the set's. Compound:
   hard with 15+ laps left in the stint (the laps left over the stops owed),
   the reference with 6+, soft otherwise; in the wet or on a snowy line
   (`pit::snow_tyres`) the weather's tyre; a

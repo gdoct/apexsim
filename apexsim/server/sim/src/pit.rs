@@ -703,6 +703,10 @@ pub struct StopContext {
     /// The race is neutralised (a virtual safety car): the field is slow,
     /// so a stop costs less of the race than at racing pace.
     pub neutralised: bool,
+    /// Under fixed stint lengths (`data::RaceRules::max_stint_laps` /
+    /// `max_stint_minutes`), the laps this stint may still run (its time
+    /// at the car's lap pace). `None` without them.
+    pub stint_left_laps: Option<f32>,
 }
 
 /// A refuelled car short of the flag by no more than this share saves fuel
@@ -743,6 +747,15 @@ pub const AI_REJOIN_WAIT_LAPS: f32 = 2.0;
 /// make anyway (owed, or its tyres this worn, percent, or short of fuel to
 /// the flag), as long as more than [`AI_STAY_OUT_LAPS`] laps are left.
 pub const AI_NEUTRALISED_WEAR: f32 = 30.0;
+/// Under fixed stint lengths a car whose stint has less than this many
+/// laps left stops at its next pass of the lane: a lap more would overrun
+/// it. One that reaches the flag within its stint stays out.
+pub const AI_STINT_STOP_LAPS: f32 = 1.0;
+/// A stint is overrun past its length by more than this share of a lap:
+/// the box is a little way past where the car chose to come in, and a
+/// stint from the grid starts behind the line.
+pub const STINT_GRACE_LAPS: f32 = 0.15;
+
 /// What slowing into the box and pulling away from it cost beyond the
 /// lane at its limit, s.
 pub const BOX_STOP_LOSS_S: f32 = 4.0;
@@ -831,6 +844,10 @@ pub fn tyres_reach_flag(state: &CarState, stint_laps: f32, laps_left: u32) -> bo
 /// brought forward: no undercut onto a busy road, and a car behind that has
 /// stopped is answered by the overcut (staying out) rather than covered.
 ///
+/// Under fixed stint lengths (`ctx.stint_left_laps`) a stint about to run
+/// out ([`AI_STINT_STOP_LAPS`]) short of the flag is a stop now, traffic or
+/// not.
+///
 /// Under a pit rule (`data::PitRule`) the stops it owes split the race into
 /// even stints: an owed stop is due once this stint has run its share of
 /// the laps left, and is made at the latest with a lap left for each stop
@@ -864,6 +881,13 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     .any(|z| *z >= AI_PIT_DAMAGE)
         || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
     if tyre_fault || damaged {
+        return full;
+    }
+    // A fixed stint length about to run out short of the flag: in now.
+    if ctx
+        .stint_left_laps
+        .is_some_and(|left| left < AI_STINT_STOP_LAPS && laps_left as f32 + 0.2 > left)
+    {
         return full;
     }
     let fuel_l = ctx.usable_fuel_l.unwrap_or(state.fuel_liters);
@@ -1747,6 +1771,26 @@ pub(crate) mod tests {
             (lane.box_lateral_m(lane.box_at(0)) + 4.4).abs() < 1e-3,
             "right of the lane"
         );
+    }
+
+    #[test]
+    fn a_stint_about_to_run_out_stops_unless_it_reaches_the_flag() {
+        let state = fresh_car();
+        let ctx = |left: f32, laps_left: u32| StopContext {
+            laps_left,
+            stint_laps: 10.0,
+            stint_left_laps: Some(left),
+            rejoin_traffic: true,
+            ..Default::default()
+        };
+        assert!(plan_stop(&state, &ctx(0.6, 10)).is_some(), "in now");
+        assert!(plan_stop(&state, &ctx(1.3, 10)).is_none(), "next time by");
+        assert!(plan_stop(&state, &ctx(0.6, 0)).is_none(), "the flag first");
+        let free = StopContext {
+            stint_left_laps: None,
+            ..ctx(0.6, 10)
+        };
+        assert!(plan_stop(&state, &free).is_none(), "no stint rule");
     }
 
     #[test]
