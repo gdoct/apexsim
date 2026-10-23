@@ -70,6 +70,10 @@ pub fn discord_message(result: &RaceResult) -> String {
         out.push_str(&format!(" ({distance})"));
     }
     out.push('\n');
+    let multi_class = result
+        .cars
+        .iter()
+        .any(|c| !c.class.eq_ignore_ascii_case(&result.cars[0].class));
     for (i, car) in result.cars.iter().enumerate() {
         let gap = match (car.status, car.race_time_ms, car.gap_ms) {
             ("finished", Some(t), None) if car.position == 1 => race_time(t),
@@ -90,6 +94,10 @@ pub fn discord_message(result: &RaceResult) -> String {
         }
         if car.penalty_s > 0 {
             line.push_str(&format!(" +{} s pen", car.penalty_s));
+        }
+        // A multi-class race: the car's place in its class.
+        if multi_class && !car.class.is_empty() {
+            line.push_str(&format!(" [{} P{}]", car.class, car.class_position));
         }
         line.push('\n');
         let more = format!("... and {} more\n", result.cars.len() - i);
@@ -198,6 +206,8 @@ mod tests {
             laps_down: 0,
             missed_stops: false,
             penalty_s: 0,
+            class: String::new(),
+            class_position: position,
         }
     }
 

@@ -646,6 +646,7 @@ async fn a_live_session_is_listed_with_cars_timing_and_a_track_outline() {
         qualifying_format: QualifyingFormat::Open,
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
+        classes: Vec::new(),
     })
     .await;
     host.until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))
@@ -1519,6 +1520,7 @@ async fn serve_demo_dashboard() {
         qualifying_format: QualifyingFormat::Open,
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
+        classes: Vec::new(),
     })
     .await;
     host.until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))

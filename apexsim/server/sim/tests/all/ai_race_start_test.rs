@@ -121,13 +121,57 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     let car_id = car.id;
     let mut cars = HashMap::new();
     cars.insert(car.id, car);
+    // `SURVEY_CLASSES=LMP2:6,GT3:6` races a multi-class field instead:
+    // every shipped car loaded, that many AI of each class, dealt as a
+    // host's create deals them (`GameSession::set_classes`); `ai_count`
+    // is then the total.
+    let classes: Vec<ClassEntry> = std::env::var("SURVEY_CLASSES")
+        .ok()
+        .map(|spec| {
+            spec.split(',')
+                .filter_map(|part| {
+                    let (class, count) = part.trim().split_once(':')?;
+                    Some(ClassEntry {
+                        class: class.trim().to_string(),
+                        ai_count: count.trim().parse().ok()?,
+                        ai_skill: None,
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if !classes.is_empty() {
+        for entry in std::fs::read_dir(repo("../apexsim-content/cars/default"))
+            .expect("cars dir")
+            .flatten()
+        {
+            let file = entry.path().join("car.toml");
+            if let Ok(other) = CarLoader::load_from_file(&file) {
+                cars.entry(other.id).or_insert(other);
+            }
+        }
+    }
+    let ai_count = if classes.is_empty() {
+        ai_count
+    } else {
+        classes.iter().map(|c| c.ai_count).sum::<u8>()
+    };
 
     // `SURVEY_AI_LEVEL=95` seats the field at that level, as a host's AI
     // level does (spread over 4 points round it); unset, the mixed field.
     let level: Option<u8> = std::env::var("SURVEY_AI_LEVEL")
         .ok()
         .and_then(|s| s.parse().ok());
-    let mut profiles = generate_ai_profiles(ai_count, level);
+    let multi_class = !classes.is_empty();
+    let mut profiles = if multi_class {
+        let spec: Vec<(String, u8, Option<u8>)> = classes
+            .iter()
+            .map(|c| (c.class.clone(), c.ai_count, c.ai_skill))
+            .collect();
+        apexsim_sim::ai_driver::generate_class_profiles(&spec, level)
+    } else {
+        generate_ai_profiles(ai_count, level)
+    };
     // The drivers' ids decide the grid (participants is ordered by id) and
     // seed the AI's noise, so random ids made every run a different race.
     // The Le Mans lap failed on CI about one run in four: in those fields
@@ -141,10 +185,12 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         .and_then(|s| s.parse().ok())
         .unwrap_or(1);
     for (i, profile) in profiles.iter_mut().enumerate() {
-        profile.preferred_car_id = Some(car_id);
+        if !multi_class {
+            profile.preferred_car_id = Some(car_id);
+        }
         profile.id = seeded_id(seed, i as u64);
     }
-    let session = RaceSession::new(
+    let mut session = RaceSession::new(
         seeded_id(seed, u64::MAX),
         track.id,
         SessionKind::Demo,
@@ -152,7 +198,9 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         ai_count,
         3,
     );
+    session.host_car_id = Some(car_id);
     let mut race = GameSession::with_ai_profiles(session, track, cars, profiles);
+    race.set_classes(classes);
     if std::env::var("DBG_NO_ROAD").is_ok() {
         race.track_config.road_state = None;
     }

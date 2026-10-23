@@ -88,7 +88,9 @@ Every section and its keys (defaults from `config.rs`):
   `results` (true): each finished race's classification as
   `results/<session>_<unix>.json` and `.csv` under `dir` (`results.rs`,
   `GameSession::classification`): place, driver, car, status, laps, best
-  lap, race time, the gap or laps down, the pit rule's penalty.
+  lap, race time, the gap or laps down, the pit rule's penalty, the car's
+  class and its place in it (the Discord line carries the class place in
+  a multi-class race).
   `webhook_url` (empty: off) also POSTs each result to an `http://` or
   `https://` endpoint (`webhook.rs`, checked against the built-in Mozilla
   roots, 10 s timeout, never retried); `webhook_format` is `json` (the

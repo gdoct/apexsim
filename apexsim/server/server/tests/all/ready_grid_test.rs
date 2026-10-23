@@ -135,6 +135,7 @@ async fn the_grid_waits_for_every_driver_then_counts_into_the_race() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

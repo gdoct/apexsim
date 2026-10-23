@@ -344,6 +344,7 @@ fn create_hotlap_watch(track: TrackConfigId) -> ClientMessage {
         qualifying_format: QualifyingFormat::Open,
         qualifying_lap_allowance: 0,
         race_rules: Default::default(),
+        classes: Vec::new(),
     }
 }
 

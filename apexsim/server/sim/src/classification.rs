@@ -64,4 +64,12 @@ pub struct ClassifiedCar {
     /// Seconds race control's penalties added to its race time
     /// (`race_control::Penalty::added_s`); counted in `race_time_ms`.
     pub penalty_s: u32,
+    /// The car's class (car.toml `class`), as the session names it; empty
+    /// for a car of none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub class: String,
+    /// Its place among the cars of its class, 1-based, in the overall
+    /// order; the overall place in a field of one class.
+    #[serde(default)]
+    pub class_position: u8,
 }

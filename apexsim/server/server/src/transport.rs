@@ -142,6 +142,9 @@ pub enum TransportError {
 /// Outbound frame for a per-connection writer task. `Message` is serialized
 /// by the writer; `Serialized` carries pre-encoded bytes so a broadcast can
 /// serialize once and fan out cheap `Bytes` clones.
+/// A frame is moved once, into the writer's channel; boxing the message
+/// would cost an allocation per send to spare the smaller variant.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum OutboundFrame {
     Message(ServerMessage),

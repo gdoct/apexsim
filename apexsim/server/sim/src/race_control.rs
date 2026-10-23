@@ -256,6 +256,11 @@ pub struct FlagCar {
     /// Let by under the safety car (`crate::safety_car`): it may pass and
     /// be passed.
     pub free: bool,
+    /// Its class's rank in a multi-class field, 0 the quickest
+    /// (`GameSession::class_rank_of`); 0 for every car of a field of one
+    /// class. A car of a quicker class closing on one of a slower is a
+    /// lapping car to the flags.
+    pub class_rank: u8,
 }
 
 /// One car passing another under a yellow: the tick, the sector and both
@@ -568,13 +573,15 @@ impl RaceControl {
             }
         }
 
-        // Blue: a car a lap or more up within reach behind.
+        // Blue: a car a lap or more up, or of a quicker class, within
+        // reach behind.
         self.blue = cars
             .iter()
             .map(|me| {
                 !me.out_of_it
                     && cars.iter().any(|o| {
-                        if o.out_of_it || o.laps < me.laps + 0.5 {
+                        let up = o.laps >= me.laps + 0.5 || o.class_rank < me.class_rank;
+                        if o.out_of_it || !up {
                             return false;
                         }
                         let behind = (me.progress_m - o.progress_m).rem_euclid(total_m);
@@ -585,7 +592,8 @@ impl RaceControl {
 
         // Passes under a yellow: two cars that swapped order on the road
         // this tick, the passer in a yellow sector, neither out of it nor
-        // a lapping car going by (that is what the blue is for).
+        // a lapping car, or one of another class, going by (that is what
+        // the blue is for).
         if self.last_laps.len() == cars.len() {
             for (a, ca) in cars.iter().enumerate() {
                 if ca.out_of_it || ca.free {
@@ -596,7 +604,12 @@ impl RaceControl {
                     continue;
                 }
                 for (b, cb) in cars.iter().enumerate() {
-                    if a == b || cb.out_of_it || cb.free || (ca.laps - cb.laps).abs() > 0.5 {
+                    if a == b
+                        || cb.out_of_it
+                        || cb.free
+                        || (ca.laps - cb.laps).abs() > 0.5
+                        || ca.class_rank != cb.class_rank
+                    {
                         continue;
                     }
                     // Going by the incident, or a car slowed by it, is
@@ -645,6 +658,7 @@ mod tests {
             reversing: false,
             out_of_it: false,
             free: false,
+            class_rank: 0,
         }
     }
 
@@ -767,6 +781,30 @@ mod tests {
         let same_lap = racing(1.392, 60.0);
         rc.update(&[backmarker, same_lap], LAP, 0.01, 3, false);
         assert!(!rc.blue(0), "racing for position");
+    }
+
+    /// In a multi-class field a car of a quicker class closing on one of a
+    /// slower is a lapping car to the flags, whatever lap each is on; two
+    /// cars of a class race each other as ever.
+    #[test]
+    fn a_quicker_class_closing_shows_the_slower_blue() {
+        let mut rc = RaceControl::default();
+        let mut gt3 = racing(1.4, 50.0);
+        gt3.class_rank = 1;
+        let mut lmp2 = racing(1.392, 70.0); // 40 m behind, same lap
+        lmp2.class_rank = 0;
+        rc.update(&[gt3, lmp2], LAP, 0.01, 1, false);
+        assert!(rc.blue(0), "the GT3 is shown the LMP2 coming");
+        assert!(!rc.blue(1), "the LMP2 is not");
+        // The other way round: a GT3 closing on an LMP2 a lap down is
+        // shown nothing, it is the LMP2 that is lapped.
+        let mut lapped_lmp2 = racing(1.4, 50.0);
+        lapped_lmp2.class_rank = 0;
+        let mut gt3_up = racing(2.392, 60.0);
+        gt3_up.class_rank = 1;
+        rc.update(&[lapped_lmp2, gt3_up], LAP, 0.01, 2, false);
+        assert!(rc.blue(0), "a lap up counts across classes too");
+        assert!(!rc.blue(1));
     }
 
     #[test]

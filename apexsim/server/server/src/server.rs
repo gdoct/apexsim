@@ -345,8 +345,9 @@ impl ServerState {
         conditions: SessionConditions,
         ai_skill: Option<u8>,
         race_seconds: Option<u32>,
+        classes: Vec<crate::data::ClassEntry>,
     ) -> Option<SessionId> {
-        use crate::ai_driver::{clamp_skill, generate_ai_profiles};
+        use crate::ai_driver::{clamp_skill, generate_ai_profiles, generate_class_profiles};
 
         if self.sessions.len() >= self.config.server.max_sessions as usize {
             return None;
@@ -390,21 +391,31 @@ impl ServerState {
         }
         let session_id = session.id;
 
-        // Create AI profiles if AI count is specified
+        let mut game_session = GameSession::new(session, track, self.car_configs.clone());
+        // A multi-class field: the classes as the session keeps them
+        // (`GameSession::set_classes`), an AI count per class, and the AI
+        // count the total. Else the AI count given.
+        game_session.set_classes(classes);
+        let classes = &game_session.session.classes;
         // No preferred cars: the session deals the field from the host car's
-        // class (`class_field`), and the roster tells clients who drives what.
-        let ai_profiles = if ai_count > 0 {
-            generate_ai_profiles(ai_count, session.ai_skill)
+        // class (`class_field`), or each AI's own class, and the roster
+        // tells clients who drives what.
+        let ai_profiles = if classes.len() > 1 {
+            let spec: Vec<(String, u8, Option<u8>)> = classes
+                .iter()
+                .map(|c| (c.class.clone(), c.ai_count, c.ai_skill))
+                .collect();
+            generate_class_profiles(&spec, game_session.session.ai_skill)
+        } else if ai_count > 0 {
+            generate_ai_profiles(ai_count, game_session.session.ai_skill)
         } else {
             Vec::new()
         };
-
-        // Create game session with AI profiles
-        let mut game_session = if !ai_profiles.is_empty() {
-            GameSession::with_ai_profiles(session, track, self.car_configs.clone(), ai_profiles)
-        } else {
-            GameSession::new(session, track, self.car_configs.clone())
-        };
+        if game_session.session.classes.len() > 1 {
+            game_session.session.ai_count = ai_profiles.len().min(u8::MAX as usize) as u8;
+        }
+        let ai_count = game_session.session.ai_count;
+        game_session.set_ai_profiles(ai_profiles);
 
         // Run the session at the configured server tick rate
         game_session.set_tick_rate(self.config.server.tick_rate_hz);
@@ -743,6 +754,7 @@ mod tests {
             SessionConditions::DEFAULT,
             Some(95),
             None,
+            Vec::new(),
         );
 
         let session_id = session_id.expect("session created");
@@ -783,6 +795,7 @@ mod tests {
                 SessionConditions::DEFAULT,
                 None,
                 None,
+                Vec::new(),
             );
             assert!(result.is_some());
         }
@@ -800,6 +813,7 @@ mod tests {
             SessionConditions::DEFAULT,
             None,
             None,
+            Vec::new(),
         );
         assert!(result.is_none());
     }

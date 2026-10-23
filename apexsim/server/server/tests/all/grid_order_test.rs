@@ -126,6 +126,7 @@ async fn the_hosts_start_order_grids_the_race() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -238,6 +239,7 @@ async fn a_driver_reference_grids_the_profile() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

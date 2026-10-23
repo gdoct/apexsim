@@ -3676,6 +3676,63 @@ impl PitRule {
     }
 }
 
+/// The most classes a multi-class field may have
+/// (`CreateSession.classes`).
+pub const MAX_CLASSES: usize = 4;
+
+/// One class of a multi-class field (`CreateSession.classes`,
+/// `RaceSession::classes`): the cars of a car.toml `class`, how many AI
+/// drive them, and the level those AI are seated at. A session with two
+/// or more deals its AI per class, grids the field by class, classifies
+/// each car in its class as well as overall, shows a car the blue flag
+/// for a faster class closing on it, and has the AI yield across classes
+/// (`GameSession::class_rank_of`). The server keeps the list in rank
+/// order, the quickest class first, by each class's planned lap on the
+/// session's track (`GameSession::rank_classes`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClassEntry {
+    /// The car.toml `class` (`GT3`, `LMP2`, ...), matched ignoring case.
+    pub class: String,
+    /// AI cars of the class.
+    #[serde(default)]
+    pub ai_count: u8,
+    /// The level the class's AI are seated at
+    /// (`crate::ai_driver::field_skills`); the session's `ai_skill` when
+    /// absent, and left off the wire then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ai_skill: Option<u8>,
+}
+
+impl ClassEntry {
+    /// The list as a session keeps it: names trimmed, blank ones and
+    /// repeats dropped (the first of a name wins, ignoring case), at most
+    /// [`MAX_CLASSES`], each level clamped.
+    pub fn sanitize(classes: Vec<ClassEntry>) -> Vec<ClassEntry> {
+        let mut out: Vec<ClassEntry> = Vec::new();
+        for mut entry in classes {
+            entry.class = entry.class.trim().to_string();
+            if entry.class.is_empty()
+                || out
+                    .iter()
+                    .any(|c| c.class.eq_ignore_ascii_case(&entry.class))
+            {
+                continue;
+            }
+            entry.ai_skill = entry.ai_skill.map(crate::ai_driver::clamp_skill);
+            out.push(entry);
+            if out.len() >= MAX_CLASSES {
+                break;
+            }
+        }
+        out
+    }
+
+    /// Whether `class` (a car's) is this class.
+    pub fn is(&self, class: &str) -> bool {
+        self.class.eq_ignore_ascii_case(class.trim())
+    }
+}
+
 /// How a race is started (`RaceRules::start`). Encoded as a small integer;
 /// `Standing` (the default) is left off the wire.
 #[repr(u8)]
@@ -3824,6 +3881,10 @@ pub struct RaceSession {
     pub participants: std::collections::BTreeMap<PlayerId, CarState>,
     pub max_players: u8,
     pub ai_count: u8,
+    /// A multi-class field's classes ([`ClassEntry`]), in rank order, the
+    /// quickest first; empty for a field of the host car's class alone.
+    #[serde(default)]
+    pub classes: Vec<ClassEntry>,
     /// The race distance in laps; 0 in a timed race (see `race_seconds`).
     pub lap_limit: u8,
     /// A timed race's length, from the green light
@@ -3901,6 +3962,7 @@ impl RaceSession {
             participants: std::collections::BTreeMap::new(),
             max_players,
             ai_count,
+            classes: Vec::new(),
             lap_limit,
             race_seconds: None,
             qualifying_seconds: None,

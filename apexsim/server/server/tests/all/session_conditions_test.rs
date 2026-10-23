@@ -147,6 +147,7 @@ async fn rainy_night_session_is_echoed_listed_and_baked_into_grip() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -350,6 +351,7 @@ async fn the_hosts_damage_rule_holds_for_every_car() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -435,6 +437,7 @@ async fn the_hosts_ai_level_sets_the_field() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;
@@ -504,6 +507,7 @@ async fn the_hosts_race_time_is_echoed_and_listed() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

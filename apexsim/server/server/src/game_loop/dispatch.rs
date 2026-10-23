@@ -106,6 +106,7 @@ pub(crate) async fn handle_message(
             qualifying_format,
             qualifying_lap_allowance,
             race_rules,
+            classes,
         } => {
             handle_create_session(
                 ctx,
@@ -127,6 +128,7 @@ pub(crate) async fn handle_message(
                 crate::data::PitRule::clamped(mandatory_stops, compound_change),
                 (qualifying_format, qualifying_lap_allowance),
                 race_rules,
+                classes,
             )
             .await;
         }
@@ -389,6 +391,7 @@ async fn handle_create_session(
     pit_rule: crate::data::PitRule,
     (qualifying_format, qualifying_lap_allowance): (crate::data::QualifyingFormat, u8),
     race_rules: crate::data::RaceRules,
+    classes: Vec<ClassEntry>,
 ) {
     let conditions = conditions.clamp();
     let Some(conn_info) = ctx.connection(connection_id).await else {
@@ -452,6 +455,7 @@ async fn handle_create_session(
         conditions,
         ai_skill,
         race_seconds,
+        classes,
     ) else {
         warn!(
             "Failed to create session for player {}: track_id={}",
@@ -507,17 +511,17 @@ async fn handle_create_session(
 
     // Listed as the session simulates it: the air resolved on create, the
     // race's length clamped (and no lap limit when it is timed).
-    let (conditions, lap_limit, race_seconds) =
-        state_write
-            .sessions
-            .get(&session_id)
-            .map_or((conditions, lap_limit, race_seconds), |s| {
-                (
-                    s.session.conditions,
-                    s.session.lap_limit,
-                    s.session.race_seconds,
-                )
-            });
+    let (conditions, lap_limit, race_seconds, classes) = state_write
+        .sessions
+        .get(&session_id)
+        .map_or((conditions, lap_limit, race_seconds, Vec::new()), |s| {
+            (
+                s.session.conditions,
+                s.session.lap_limit,
+                s.session.race_seconds,
+                s.session.classes.iter().map(|c| c.class.clone()).collect(),
+            )
+        });
     let session_info = LobbySessionInfo {
         session_id,
         host_player_id: conn_info.player_id,
@@ -528,6 +532,7 @@ async fn handle_create_session(
         conditions,
         lap_limit,
         race_seconds,
+        classes,
         weekend_waiting: false,
         pit_rule,
         race_rules,
@@ -603,6 +608,7 @@ async fn handle_create_session(
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
+        let classes = game_session.session.classes.clone();
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
@@ -635,6 +641,7 @@ async fn handle_create_session(
                     qualifying_lap_allowance,
                     race_rules,
                     physics: Some(physics),
+                    classes,
                 }),
             )
             .await;
@@ -778,6 +785,7 @@ pub(crate) async fn handle_join_session(
         let qualifying_format = game_session.session.qualifying_format;
         let qualifying_lap_allowance = game_session.session.qualifying_lap_allowance;
         let race_rules = game_session.session.race_rules;
+        let classes = game_session.session.classes.clone();
         let physics = game_session.session_physics();
         let track_id = game_session.track_config.id;
         let phase_states = game_session.phase_state_messages();
@@ -810,6 +818,7 @@ pub(crate) async fn handle_join_session(
                     qualifying_lap_allowance,
                     race_rules,
                     physics: Some(physics),
+                    classes,
                 }),
             )
             .await;
@@ -882,6 +891,7 @@ async fn rejoin_session(
         qualifying_format: game_session.session.qualifying_format,
         qualifying_lap_allowance: game_session.session.qualifying_lap_allowance,
         race_rules: game_session.session.race_rules,
+        classes: game_session.session.classes.clone(),
         physics: Some(crate::network::SessionPhysics {
             balance: game_session
                 .car_configs
@@ -1128,7 +1138,7 @@ pub(crate) async fn handle_join_as_spectator(
         (
             qualifying_cutoff_pct,
             pit_rule,
-            (qualifying_format, qualifying_lap_allowance, race_rules),
+            (qualifying_format, qualifying_lap_allowance, race_rules, classes),
         ),
         phase_states,
         sectors,
@@ -1151,7 +1161,7 @@ pub(crate) async fn handle_join_as_spectator(
             (
                 qualifying_cutoff_pct,
                 pit_rule,
-                (qualifying_format, qualifying_lap_allowance, race_rules),
+                (qualifying_format, qualifying_lap_allowance, race_rules, classes),
             ),
             phase_states,
             sectors,
@@ -1181,6 +1191,7 @@ pub(crate) async fn handle_join_as_spectator(
                             s.session.qualifying_format,
                             s.session.qualifying_lap_allowance,
                             s.session.race_rules,
+                            s.session.classes.clone(),
                         ),
                     ),
                     s.phase_state_messages(),
@@ -1206,7 +1217,12 @@ pub(crate) async fn handle_join_as_spectator(
             (
                 qualifying_cutoff_pct,
                 pit_rule,
-                (qualifying_format, qualifying_lap_allowance, race_rules),
+                (
+                    qualifying_format,
+                    qualifying_lap_allowance,
+                    race_rules,
+                    classes,
+                ),
             ),
             phase_states,
             sectors,
@@ -1240,6 +1256,7 @@ pub(crate) async fn handle_join_as_spectator(
                     qualifying_lap_allowance,
                     race_rules,
                     physics: None,
+                    classes,
                 }),
             )
             .await;

@@ -42,6 +42,9 @@ pub struct LobbySessionInfo {
     /// A race weekend between phases, waiting for its host: listed
     /// `Finished`, it still takes drivers (`SessionSummary::weekend_waiting`).
     pub weekend_waiting: bool,
+    /// A multi-class field's class names, the quickest first, for the
+    /// session browser; empty for a field of one class.
+    pub classes: Vec<String>,
     /// The race's pit-stop rule, for the session browser.
     pub pit_rule: PitRule,
     /// The race-control rules (start, penalties, safety car, reverse
@@ -413,6 +416,7 @@ impl LobbyManager {
                 mandatory_stops: s.pit_rule.mandatory_stops,
                 compound_change: s.pit_rule.compound_change,
                 race_rules: s.race_rules,
+                classes: s.classes.clone(),
             })
             .collect()
     }
@@ -524,6 +528,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            classes: Vec::new(),
             weekend_waiting: false,
             pit_rule: PitRule::default(),
             race_rules: Default::default(),
@@ -590,6 +595,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            classes: Vec::new(),
             weekend_waiting: false,
             pit_rule: PitRule::default(),
             race_rules: Default::default(),
@@ -644,6 +650,7 @@ mod tests {
             damage: DamageLevel::Full,
             lap_limit: 3,
             race_seconds: None,
+            classes: Vec::new(),
             weekend_waiting: false,
             pit_rule: PitRule::default(),
             race_rules: Default::default(),

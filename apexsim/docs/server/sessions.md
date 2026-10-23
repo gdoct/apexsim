@@ -183,6 +183,11 @@ mixed field). `ai_driver::field_skills` spreads the field over
 one; what skill changes is in [AI](ai.md). Client: the "AI level" stepper
 (`CreateAiSkill`, `ApexAiSkill::Label`), `GetSessionAiSkill`.
 
+**Classes**: `classes` (`Vec<ClassEntry { class, ai_count, ai_skill }>`,
+at most `MAX_CLASSES` 4, left off the wire when empty): a multi-class
+field, see "Multi-class racing". Client: the create screen's Classes
+rows, `GetSessionClasses`.
+
 **Length**: `lap_limit`, or `race_seconds` (below). A qualifying session's
 own length is `qualifying_seconds` (`Option<u32>`, clamped by
 `clamp_qualifying_seconds` to `MIN_QUALIFYING_SECONDS` 60 ..
@@ -358,6 +363,47 @@ starts. Console: `apexsim.grid.Ready`, `apexsim.grid.Livery`,
 A race weekend's race goes up on the same grid: the host's advance after
 the final round opens it (see "Race weekend"), so drivers change tyres,
 setup and livery between qualifying and the race.
+
+## Multi-class racing
+
+A session whose `CreateSession.classes` names two or more classes races a
+mixed field: so many AI of each car.toml `class`, each class at its own
+level (`ClassEntry::ai_skill`, else the session's `ai_skill`). The server
+keeps the list on `RaceSession::classes` as `GameSession::set_classes`
+cleans it: names trimmed and deduplicated ignoring case, a class no loaded
+car belongs to dropped, the host car's class added with no AI when the
+host left it out (so a lone GT3 among the LMP2s is still a class), and
+ranked quickest first by each class's planned ideal lap of this track
+(`rank_classes`: `racing_line::lap_time_s` of the empty-tank plan, over the
+class's AI cars, else its first car by id). With fewer than two classes
+left the session is the usual field of the host car's class, and nothing
+below applies: every car then ranks 0 (`class_rank_of`).
+
+- **The field.** `ai_driver::generate_class_profiles` stamps each AI with
+  its class (`AiDriverProfile::class`; names run on across the classes) and
+  `spawn_ai_drivers` deals it a car of that class (`class_pool`: every car
+  of the class by id, from the host's model on), round-robin per class.
+  `ai_count` is the total; a server from before the field ignores
+  `classes` and races that many of the host's class.
+- **Grid.** `grid_order_ids` sorts any start order (the seating order, the
+  host's, qualifying's, a reverse grid's) by class, the quickest class at
+  the front, each class in the order it had, closed up over empty slots.
+- **Classification.** `ClassifiedCar::class` and `class_position` (its
+  place among the cars of its class, in the overall order; set for every
+  race, every car of a field of one class being in one class), in the
+  results JSON, the CSV's last two columns and the Discord line.
+- **Flags.** A car of a quicker class within `BLUE_GAP_S` behind shows the
+  blue as a lapping car does (`FlagCar::class_rank`); a pass across classes
+  under a yellow is not recorded, as a lapping pass is not.
+- **The AI.** A car caught by one of a quicker class yields to it as to a
+  lapping car (`Rival::class_rank`, racecraft `Yield`), and nobody defends
+  against a car of another class; the quicker car is held up behind it as
+  behind any slower car and passes where its plan says.
+- **On the wire.** `SessionJoined.classes` echoes the list in rank order
+  (to spectators too); `SessionSummary.classes` lists the names for the
+  session browser. Each car's class is its car's (`RosterEntry.
+  car_config_id`, the catalog's class): the client places every car in its
+  class from that and the echoed order.
 
 ## Race start and finish
 
@@ -1439,7 +1485,8 @@ starts one at launch; `apexsim.watch setup|replaylap|ghost` work as the keys do.
 cd server/sim                                        # the unit tests of the simulation crate
 cargo test --lib game_session                 # mode ticks, timed race, grid order, qualifying, timed qualifying, weekend
 cargo test --lib weekend                      # knockout sizes, format clamp, round closing
-cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue, a pass under yellow
+cargo test --lib race_control                 # yellows, warnings, hold, own and passed flags, blue (across classes too), a pass under yellow
+cargo test --lib racecraft                    # attack, defend, room, a quicker class let by
 cargo test --lib safety_car                   # the pick-up, the let-by, a pass of the safety car, the restart at the line
 cargo test --lib time_penalty                 # a time penalty reorders the finishers
 cargo test --lib race_start                   # the approach's pace, headway across the line
@@ -1449,6 +1496,8 @@ cargo test --test all race_start_test::             # formation lap back to the 
 cargo test --test all penalty_test::                # the AI's drive-through and stop-go at the Norisring
 cargo test --test all lap_timing_test::             # sectors and track limits round Monza
 cargo test --test all recovery_test::               # back to track, a taken spot, back to pits, refused moving
+cargo test --test all multi_class_test::            # the AI dealt per class and ranked, the grid and the classification by class
+SURVEY_CLASSES=LMP2:6,GT3:6 SURVEY_TRACKS=Snorisring cargo test --release --test all ai_race_start_test::survey -- --ignored --nocapture   # a two-class AI race
 
 cd ../server
 cargo test --test all sim_wire_test::               # the yellows at Monza on telemetry; a weekend day's own sky
@@ -1468,7 +1517,7 @@ cargo test --release --test all hotlap_test::generate_ghost_fixture -- --ignored
 
 Golden bytes ([protocol](protocol.md)): `cargo test <name> -- --nocapture`
 for `assists_wire_format`, `session_damage_wire_format`,
-`session_ai_skill_wire_format`, `race_time_wire_format`,
+`session_ai_skill_wire_format`, `session_classes_wire_format`, `race_time_wire_format`,
 `qualifying_time_wire_format`, `qualifying_cutoff_wire_format`, `pit_rule_wire_format`, `shootout_wire_format`, `weekend_wire_format`, `grid_wire_format`,
 `lap_timing_wire_format`, `telemetry_compact_wire_format`,
 `hotlap_wire_format`, `hotlap_watch_wire_format`, `recover_wire_format`, `track_corners_wire_format`,

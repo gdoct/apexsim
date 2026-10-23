@@ -203,6 +203,15 @@ pub enum ClientMessage {
         /// table left off the wire when nothing is set.
         #[serde(default, skip_serializing_if = "RaceRules::is_default")]
         race_rules: RaceRules,
+        /// A multi-class field (`data::ClassEntry`, at most
+        /// `MAX_CLASSES`): each class's AI count and level. With two or
+        /// more the server deals the AI per class (`ai_count` is then the
+        /// total, which a server from before the field races in the host
+        /// car's class), grids by class, classifies in class, and flags
+        /// and yields across classes. Empty, and left off the wire, for
+        /// the host car's class alone.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        classes: Vec<ClassEntry>,
     },
     /// Asks for a track's fastest laps (`records::RecordStore::leaderboard`):
     /// each driver's best with each car, or in one car (`car_config_id`).
@@ -578,6 +587,12 @@ pub struct SessionJoinedData {
     /// then the client does not predict.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub physics: Option<SessionPhysics>,
+    /// The session's classes (`CreateSession.classes` as the server keeps
+    /// them: sanitized, in rank order, the quickest first), so the client
+    /// places each car in its class; left off the wire for a field of one
+    /// class (and absent from a server that predates the field).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub classes: Vec<ClassEntry>,
 }
 
 /// The session's physics as the client's copy of the car step needs them
@@ -1131,6 +1146,10 @@ pub struct SessionSummary {
     /// browser; left off the wire at their defaults.
     #[serde(default, skip_serializing_if = "RaceRules::is_default")]
     pub race_rules: RaceRules,
+    /// A multi-class field's class names, the quickest first, for the
+    /// session browser; left off the wire for a field of one class.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub classes: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -3208,6 +3227,7 @@ mod tests {
                     mandatory_stops: 0,
                     compound_change: false,
                     race_rules,
+                    classes: Vec::new(),
                 }],
                 car_configs: vec![],
                 track_configs: vec![],
@@ -3314,6 +3334,7 @@ mod tests {
                 mandatory_stops: 0,
                 compound_change: false,
                 race_rules: Default::default(),
+                classes: Vec::new(),
             }],
             car_configs: vec![CarConfigSummary {
                 id: Uuid::nil(),
@@ -4549,6 +4570,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSession: {}", hex(&create_bytes));
@@ -4603,6 +4625,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -4668,6 +4691,7 @@ mod tests {
                 road_contact: 1,
                 ..Default::default()
             }),
+            classes: Vec::new(),
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysics: {}", hex(&bytes));
@@ -4719,6 +4743,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: Some(physics),
+            classes: Vec::new(),
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         print_golden("S_SessionJoinedPhysicsBalance", &bytes);
@@ -4817,6 +4842,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: Some(physics),
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysicsBundle: {}", hex(&joined_bytes));
@@ -4894,6 +4920,7 @@ mod tests {
             mandatory_stops: 0,
             compound_change: false,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let reduced = rmp_serde::to_vec_named(&summary(DamageLevel::Reduced)).unwrap();
         let full = rmp_serde::to_vec_named(&summary(DamageLevel::Full)).unwrap();
@@ -4944,6 +4971,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionDamage: {}", hex(&create_bytes));
@@ -4970,6 +4998,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -5001,6 +5030,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let full_bytes = rmp_serde::to_vec_named(&full).unwrap();
         assert!(!full_bytes.windows(6).any(|w| w == b"damage"));
@@ -5072,6 +5102,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(107))).unwrap();
         println!("C_CreateSessionQualifyingCutoff: {}", hex(&create_bytes));
@@ -5106,6 +5137,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -5162,6 +5194,7 @@ mod tests {
                 qualifying_format: format,
                 qualifying_lap_allowance: allowance,
                 race_rules: Default::default(),
+                classes: Vec::new(),
             }
         };
         let create_bytes =
@@ -5202,6 +5235,7 @@ mod tests {
             qualifying_lap_allowance: 3,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
@@ -5333,6 +5367,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(2, true)).unwrap();
         println!("C_CreateSessionPitRule: {}", hex(&create_bytes));
@@ -5366,6 +5401,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -5446,6 +5482,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules,
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(rules)).unwrap();
         println!("C_CreateSessionRaceRules: {}", hex(&create_bytes));
@@ -5487,6 +5524,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: rules,
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceRules: {}", hex(&joined_bytes));
@@ -5574,6 +5612,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: rules,
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionPenalties: {}", hex(&create_bytes));
@@ -5665,6 +5704,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: rules,
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionSafetyCar: {}", hex(&create_bytes));
@@ -5723,6 +5763,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: rules,
+            classes: Vec::new(),
         };
         let bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!(
@@ -5788,6 +5829,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: rules,
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionFullSafetyCar: {}", hex(&create_bytes));
@@ -5877,6 +5919,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(7200))).unwrap();
         println!("C_CreateSessionRaceTime: {}", hex(&create_bytes));
@@ -5907,6 +5950,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -5997,6 +6041,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(900))).unwrap();
         println!("C_CreateSessionQualifyingTime: {}", hex(&create_bytes));
@@ -6033,6 +6078,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -6123,6 +6169,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(Some(format.clone()))).unwrap();
         println!("C_CreateSessionWeekend: {}", hex(&create_bytes));
@@ -6176,6 +6223,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -6271,6 +6319,7 @@ mod tests {
                 mandatory_stops: 0,
                 compound_change: false,
                 race_rules: Default::default(),
+                classes: Vec::new(),
             }],
             car_configs: vec![],
             track_configs: vec![],
@@ -6358,6 +6407,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAiSkill: {}", hex(&create_bytes));
@@ -6384,6 +6434,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -6415,6 +6466,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let mixed_bytes = rmp_serde::to_vec_named(&mixed).unwrap();
         assert!(!mixed_bytes.windows(8).any(|w| w == b"ai_skill"));
@@ -6425,6 +6477,163 @@ mod tests {
 
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_AI_SKILL);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_AI_SKILL);
+    }
+
+    /// A multi-class field: a create that names its classes and the joined
+    /// echo in rank order. A field of one class leaves `classes` off the
+    /// wire. Pinned on the client as `ApexGolden::C_CreateSessionClasses`
+    /// / `S_SessionJoinedClasses`; `cargo test
+    /// session_classes_wire_format -- --nocapture` prints them.
+    #[test]
+    fn test_session_classes_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let classes = vec![
+            ClassEntry {
+                class: "LMP2".into(),
+                ai_count: 4,
+                ai_skill: Some(100),
+            },
+            ClassEntry {
+                class: "GT3".into(),
+                ai_count: 6,
+                ai_skill: None,
+            },
+        ];
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 12,
+            ai_count: 10,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            classes: classes.clone(),
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionClasses: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { classes: back, .. } => assert_eq!(back, classes),
+            _ => panic!("Wrong message type"),
+        }
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 11,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: None,
+            classes: classes.clone(),
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedClasses: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.classes, classes),
+            _ => panic!("Wrong message type"),
+        }
+
+        // One class stays off the wire.
+        let one = ClientMessage::CreateSession {
+            track_config_id: Uuid::nil(),
+            max_players: 2,
+            ai_count: 1,
+            lap_limit: 1,
+            session_kind: SessionKind::Practice,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            classes: Vec::new(),
+        };
+        let one_bytes = rmp_serde::to_vec_named(&one).unwrap();
+        assert!(!one_bytes.windows(7).any(|w| w == b"classes"));
+
+        // The sanitizer: blanks and repeats dropped, levels clamped, at
+        // most `MAX_CLASSES`.
+        let cleaned = ClassEntry::sanitize(vec![
+            ClassEntry {
+                class: " GT3 ".into(),
+                ai_count: 2,
+                ai_skill: Some(200),
+            },
+            ClassEntry {
+                class: "".into(),
+                ai_count: 2,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "gt3".into(),
+                ai_count: 9,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "LMP2".into(),
+                ai_count: 1,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "F1".into(),
+                ai_count: 1,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "Hypercar".into(),
+                ai_count: 1,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "Rally".into(),
+                ai_count: 1,
+                ai_skill: None,
+            },
+        ]);
+        let names: Vec<&str> = cleaned.iter().map(|c| c.class.as_str()).collect();
+        assert_eq!(names, vec!["GT3", "LMP2", "F1", "Hypercar"]);
+        assert_eq!(cleaned[0].ai_skill, Some(110));
+
+        assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_CLASSES);
+        assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_CLASSES);
     }
 
     /// The session's air named in full: a create that picks every figure
@@ -6477,6 +6686,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
         println!("C_CreateSessionAir: {}", hex(&create_bytes));
@@ -6514,6 +6724,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -6567,6 +6778,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let create_bytes = rmp_serde::to_vec_named(&create(sky)).unwrap();
         println!("C_CreateSessionSky: {}", hex(&create_bytes));
@@ -6598,6 +6810,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -6652,6 +6865,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -6705,6 +6919,7 @@ mod tests {
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
             physics: None,
+            classes: Vec::new(),
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));
@@ -6807,6 +7022,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         // No order: the bytes of every earlier create.
         let plain = rmp_serde::to_vec_named(&create(Vec::new())).unwrap();
@@ -7432,6 +7648,7 @@ mod tests {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         };
         let setup = CarSetup {
             tyre_pressure_front: -2,
@@ -8011,6 +8228,52 @@ mod tests {
         0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F,
         0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03,
         0x0C, 0xA8, 0x61, 0x69, 0x5F, 0x73, 0x6B, 0x69, 0x6C, 0x6C, 0x5F,
+    ];
+    const GOLDEN_C_CREATE_SESSION_CLASSES: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x53, 0x65,
+        0x73, 0x73, 0x69, 0x6F, 0x6E, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x88, 0xAF, 0x74, 0x72, 0x61,
+        0x63, 0x6B, 0x5F, 0x63, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x5F, 0x69, 0x64, 0xD9, 0x24, 0x61,
+        0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x2D, 0x62, 0x62, 0x62, 0x62, 0x2D, 0x63, 0x63,
+        0x63, 0x63, 0x2D, 0x64, 0x64, 0x64, 0x64, 0x2D, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+        0x65, 0x65, 0x65, 0x65, 0x65, 0xAB, 0x6D, 0x61, 0x78, 0x5F, 0x70, 0x6C, 0x61, 0x79, 0x65,
+        0x72, 0x73, 0x0C, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x0A, 0xA9, 0x6C,
+        0x61, 0x70, 0x5F, 0x6C, 0x69, 0x6D, 0x69, 0x74, 0x05, 0xAC, 0x73, 0x65, 0x73, 0x73, 0x69,
+        0x6F, 0x6E, 0x5F, 0x6B, 0x69, 0x6E, 0x64, 0x00, 0xAF, 0x61, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+        0x64, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+        0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72,
+        0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72, 0x62, 0x6F,
+        0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73,
+        0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E,
+        0x65, 0xC3, 0xAA, 0x63, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7,
+        0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3, 0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F,
+        0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03,
+        0x0C, 0xA7, 0x63, 0x6C, 0x61, 0x73, 0x73, 0x65, 0x73, 0x92, 0x83, 0xA5, 0x63, 0x6C, 0x61,
+        0x73, 0x73, 0xA4, 0x4C, 0x4D, 0x50, 0x32, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E,
+        0x74, 0x04, 0xA8, 0x61, 0x69, 0x5F, 0x73, 0x6B, 0x69, 0x6C, 0x6C, 0x64, 0x82, 0xA5, 0x63,
+        0x6C, 0x61, 0x73, 0x73, 0xA3, 0x47, 0x54, 0x33, 0xA8, 0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75,
+        0x6E, 0x74, 0x06,
+    ];
+    const GOLDEN_S_SESSION_JOINED_CLASSES: &[u8] = &[
+        0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,
+        0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53, 0x65, 0x73,
+        0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36,
+        0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
+        0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xB0,
+        0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
+        0x6E, 0x0B, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x00,
+        0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65, 0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73,
+        0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3, 0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E,
+        0x5F, 0x63, 0x6F, 0x6E, 0x74, 0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F,
+        0x67, 0x65, 0x61, 0x72, 0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69,
+        0x6E, 0x67, 0x5F, 0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69,
+        0x6E, 0x67, 0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74,
+        0x69, 0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+        0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69, 0x6E,
+        0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xA7, 0x43, 0x6C, 0x61, 0x73, 0x73, 0x65, 0x73,
+        0x92, 0x83, 0xA5, 0x63, 0x6C, 0x61, 0x73, 0x73, 0xA4, 0x4C, 0x4D, 0x50, 0x32, 0xA8, 0x61,
+        0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x04, 0xA8, 0x61, 0x69, 0x5F, 0x73, 0x6B, 0x69,
+        0x6C, 0x6C, 0x64, 0x82, 0xA5, 0x63, 0x6C, 0x61, 0x73, 0x73, 0xA3, 0x47, 0x54, 0x33, 0xA8,
+        0x61, 0x69, 0x5F, 0x63, 0x6F, 0x75, 0x6E, 0x74, 0x06,
     ];
     const GOLDEN_S_SESSION_JOINED_AI_SKILL: &[u8] = &[
         0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x4A,

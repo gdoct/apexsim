@@ -2908,6 +2908,7 @@ impl GameSession {
                 reversing: s.gear < 0 && s.speed_mps > 0.5,
                 out_of_it: out_of_it(s),
                 free: false,
+                class_rank: self.class_rank_of(s.car_config_id),
             })
             .collect();
         let mut cars = cars;
@@ -4720,7 +4721,7 @@ impl GameSession {
                 &by_slot,
                 self.qualifying_order().into_iter().map(here).collect(),
             )
-        } else if self.session.race_rules.reverse_grid > 1 {
+        } else if self.session.race_rules.reverse_grid > 1 || self.session.classes.len() > 1 {
             by_slot.iter().map(|d| Some(d.id)).collect()
         } else {
             return None;
@@ -4728,6 +4729,15 @@ impl GameSession {
         // A reverse grid turns the front of the order round.
         let reverse = (self.session.race_rules.reverse_grid as usize).min(order.len());
         order[..reverse].reverse();
+        // A multi-class grid is by class, the quickest at the front, each
+        // class in the order above, closed up over any empty slot.
+        if self.session.classes.len() > 1 {
+            order.retain(|slot| slot.is_some());
+            order.sort_by_key(|slot| {
+                slot.and_then(|id| self.session.participants.get(&id))
+                    .map_or(u8::MAX, |s| self.class_rank_of(s.car_config_id))
+            });
+        }
         // The cut-off's non-qualifiers take no slot: the grid closes up
         // over them (they did not qualify, they are not no-shows), and they
         // are seated behind it, parked out of the race by the line-up.
@@ -5198,6 +5208,7 @@ impl GameSession {
         // defends against it.
         let safety_car = self.safety_car_body().map(|body| crate::racecraft::Rival {
             race_m: f32::MIN,
+            class_rank: u8::MAX,
             ..crate::racecraft::Rival::of(
                 &body,
                 crate::safety_car::SC_LENGTH_M + crate::safety_car::SC_ROOM_M,
@@ -5213,6 +5224,7 @@ impl GameSession {
                 let config = self.car_configs.get(&state.car_config_id)?;
                 Some(crate::racecraft::Rival {
                     human: !self.ai_profiles.contains_key(&state.player_id),
+                    class_rank: self.class_rank_of(state.car_config_id),
                     ..crate::racecraft::Rival::of(state, config.length_m, config.width_m, total)
                 })
             })
@@ -6034,7 +6046,7 @@ impl GameSession {
         let winner = order
             .first()
             .and_then(|(id, _)| self.race_end.finishers.get(*id).copied());
-        order
+        let mut cars: Vec<crate::classification::ClassifiedCar> = order
             .iter()
             .enumerate()
             .map(|(i, (id, state))| {
@@ -6080,9 +6092,37 @@ impl GameSession {
                     laps_down,
                     missed_stops: finisher.is_some_and(|f| f.missed_stops),
                     penalty_s: self.penalty_seconds(id),
+                    class: String::new(),
+                    class_position: 0,
                 }
             })
-            .collect()
+            .collect();
+        // Each car's place in its class: the overall order, counted per
+        // class (every car of a field of one class is in one class).
+        let mut seen: Vec<(String, u8)> = Vec::new();
+        for car in &mut cars {
+            let class = self
+                .car_configs
+                .get(&car.car_config_id)
+                .map(|c| c.class.trim().to_string())
+                .unwrap_or_default();
+            let place = match seen
+                .iter_mut()
+                .find(|(c, _)| c.eq_ignore_ascii_case(&class))
+            {
+                Some((_, n)) => {
+                    *n = n.saturating_add(1);
+                    *n
+                }
+                None => {
+                    seen.push((class.clone(), 1));
+                    1
+                }
+            };
+            car.class = class;
+            car.class_position = place;
+        }
+        cars
     }
 
     pub fn laps_completed(&self, player_id: &PlayerId) -> u16 {
@@ -7444,7 +7484,11 @@ impl GameSession {
     /// Spawn AI drivers using the provided profiles.
     ///
     /// AI drivers will be added to the session up to the configured ai_count.
-    /// Each AI uses their preferred car (if set) or the default car.
+    /// Each AI uses their preferred car (if set), else a car of the class
+    /// its profile names (a multi-class field, `RaceSession::classes`:
+    /// every car of that class, dealt round-robin from the host car's
+    /// model on, as [`class_field`] deals the host class), else one of the
+    /// host car's class.
     pub fn spawn_ai_drivers(&mut self) {
         let current_ai_count = self.session.ai_player_ids.len() as u8;
         let ai_to_spawn = self.session.ai_count.saturating_sub(current_ai_count);
@@ -7454,12 +7498,12 @@ impl GameSession {
         }
 
         // Collect profile data we need before mutating self
-        let profiles_to_spawn: Vec<(PlayerId, Option<CarConfigId>)> = self
+        let profiles_to_spawn: Vec<(PlayerId, Option<CarConfigId>, String)> = self
             .ai_profiles
             .values()
             .filter(|p| !self.session.ai_player_ids.contains(&p.id))
             .take(ai_to_spawn as usize)
-            .map(|p| (p.id, p.preferred_car_id))
+            .map(|p| (p.id, p.preferred_car_id, p.class.clone()))
             .collect();
 
         // The field races in the host car's class; without a host car, the
@@ -7478,23 +7522,170 @@ impl GameSession {
         // Carry on the rotation from the AI already on the grid, so a later
         // spawn does not stack the same car again.
         let mut next_car = self.session.ai_player_ids.len();
+        // A multi-class field: a pool per class, its rotation carried on
+        // from the class's AI already seated.
+        let mut pools: Vec<(String, Vec<CarConfigId>, usize)> = Vec::new();
 
-        for (ai_id, preferred_car) in profiles_to_spawn {
+        for (ai_id, preferred_car, class) in profiles_to_spawn {
             if self.session.participants.len() >= self.session.max_players as usize {
                 break;
             }
 
-            let car_id = preferred_car.unwrap_or_else(|| {
-                let car = field[next_car % field.len()];
-                next_car += 1;
-                car
-            });
+            let car_id = match preferred_car {
+                Some(car) => car,
+                None if !class.is_empty() => {
+                    let at = match pools
+                        .iter()
+                        .position(|(c, _, _)| c.eq_ignore_ascii_case(&class))
+                    {
+                        Some(at) => at,
+                        None => {
+                            let mut pool = class_pool(&self.car_configs, &class, anchor);
+                            pool.retain(|id| *id == anchor || !self.ai_excluded_cars.contains(id));
+                            let seated = self
+                                .session
+                                .ai_player_ids
+                                .iter()
+                                .filter(|id| {
+                                    self.ai_profiles
+                                        .get(*id)
+                                        .is_some_and(|p| p.class.eq_ignore_ascii_case(&class))
+                                })
+                                .count();
+                            pools.push((class.clone(), pool, seated));
+                            pools.len() - 1
+                        }
+                    };
+                    let (_, pool, next) = &mut pools[at];
+                    if pool.is_empty() {
+                        // No car of the class is loaded: the host's class.
+                        let car = field[next_car % field.len()];
+                        next_car += 1;
+                        car
+                    } else {
+                        let car = pool[*next % pool.len()];
+                        *next += 1;
+                        car
+                    }
+                }
+                None => {
+                    let car = field[next_car % field.len()];
+                    next_car += 1;
+                    car
+                }
+            };
 
             if self.add_player(ai_id, car_id).is_some() {
                 self.session.ai_player_ids.push(ai_id);
                 self.plan_ai_speeds(car_id);
             }
         }
+        self.rank_classes();
+    }
+
+    /// The classes of a multi-class field (`CreateSession.classes`), as
+    /// the session keeps them: sanitized (`ClassEntry::sanitize`), a class
+    /// no loaded car belongs to dropped, the host car's class added with
+    /// no AI when the list leaves it out, and ranked (`rank_classes`).
+    /// Fewer than two leaves the session a field of one class, the host
+    /// car's.
+    pub fn set_classes(&mut self, classes: Vec<ClassEntry>) {
+        let mut classes: Vec<ClassEntry> = ClassEntry::sanitize(classes)
+            .into_iter()
+            .filter(|entry| self.car_configs.values().any(|car| entry.is(&car.class)))
+            .collect();
+        let host_class = self
+            .session
+            .host_car_id
+            .and_then(|id| self.car_configs.get(&id))
+            .map(|car| car.class.trim().to_string())
+            .filter(|class| !class.is_empty());
+        if let Some(host_class) = host_class {
+            if !classes.iter().any(|c| c.is(&host_class)) && classes.len() < MAX_CLASSES {
+                classes.push(ClassEntry {
+                    class: host_class,
+                    ai_count: 0,
+                    ai_skill: None,
+                });
+            }
+        }
+        self.session.classes = classes;
+        self.rank_classes();
+    }
+
+    /// A car's class's rank in a multi-class field, 0 the quickest (the
+    /// order of `RaceSession::classes`); a car of a class the field does
+    /// not list ranks behind them all. 0 for every car of a field of one
+    /// class, so nothing below branches on the field.
+    pub fn class_rank_of(&self, car_config_id: CarConfigId) -> u8 {
+        let classes = &self.session.classes;
+        if classes.len() < 2 {
+            return 0;
+        }
+        let class = self
+            .car_configs
+            .get(&car_config_id)
+            .map_or("", |car| car.class.as_str());
+        classes
+            .iter()
+            .position(|c| c.is(class))
+            .unwrap_or(classes.len()) as u8
+    }
+
+    /// Orders the session's classes quickest first, by each class's
+    /// planned lap of this track: the best ideal lap
+    /// (`racing_line::lap_time_s`, the empty-tank plan) over the class's
+    /// cars already planned (the AI's, `plan_ai_speeds`), else its first
+    /// car by id, planned now. Ties keep the order given. Nothing for a
+    /// field of one class.
+    fn rank_classes(&mut self) {
+        if self.session.classes.len() < 2 {
+            return;
+        }
+        let samples: Vec<Vec<CarConfigId>> = self
+            .session
+            .classes
+            .iter()
+            .map(|entry| {
+                let mut cars: Vec<CarConfigId> = self
+                    .car_configs
+                    .values()
+                    .filter(|car| entry.is(&car.class))
+                    .map(|car| car.id)
+                    .collect();
+                cars.sort();
+                let planned: Vec<CarConfigId> = cars
+                    .iter()
+                    .filter(|id| self.ai_speed_profiles.contains_key(id))
+                    .copied()
+                    .collect();
+                if planned.is_empty() {
+                    cars.into_iter().take(1).collect()
+                } else {
+                    planned
+                }
+            })
+            .collect();
+        for id in samples.iter().flatten() {
+            self.plan_ai_speeds(*id);
+        }
+        let mut keyed: Vec<(f32, usize)> = samples
+            .iter()
+            .enumerate()
+            .map(|(i, cars)| {
+                let best = cars
+                    .iter()
+                    .filter_map(|id| self.ai_speed_profiles.get(id))
+                    .filter_map(|plans| plans.first())
+                    .map(racing_line::lap_time_s)
+                    .filter(|t| *t > 0.0)
+                    .fold(f32::INFINITY, f32::min);
+                (best, i)
+            })
+            .collect();
+        keyed.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+        let classes = std::mem::take(&mut self.session.classes);
+        self.session.classes = keyed.into_iter().map(|(_, i)| classes[i].clone()).collect();
     }
 
     /// Add AI profiles to the session.
@@ -7534,6 +7725,29 @@ pub fn class_field(
     let at = pool.iter().position(|id| *id == anchor).unwrap_or(0);
     let len = pool.len();
     pool.rotate_left((at + 1) % len);
+    pool
+}
+
+/// The cars of `class` an AI of that class is dealt from, in dealing
+/// order: every car of the class by id, starting just after `anchor` (the
+/// host car) when it is one of them, so the host's model comes round last.
+/// Empty when no loaded car is of the class.
+pub fn class_pool(
+    car_configs: &HashMap<CarConfigId, CarConfig>,
+    class: &str,
+    anchor: CarConfigId,
+) -> Vec<CarConfigId> {
+    let class = class.trim();
+    let mut pool: Vec<CarConfigId> = car_configs
+        .values()
+        .filter(|car| !class.is_empty() && car.class.trim().eq_ignore_ascii_case(class))
+        .map(|car| car.id)
+        .collect();
+    pool.sort();
+    if let Some(at) = pool.iter().position(|id| *id == anchor) {
+        let len = pool.len();
+        pool.rotate_left((at + 1) % len);
+    }
     pool
 }
 
@@ -10257,6 +10471,78 @@ mod tests {
                 game_session.session.participants[&entry.player_id].car_config_id
             );
         }
+    }
+
+    /// A multi-class field: each AI is dealt a car of its profile's class,
+    /// dealt round-robin from the host's model on; a class no loaded car
+    /// belongs to is dropped, and the host's class is listed even when
+    /// the host gave it no AI. On a track with no line to plan, the
+    /// classes keep the order given.
+    #[test]
+    fn a_multi_class_field_is_dealt_per_class() {
+        let cars = [
+            classed_car("GT3", 1),
+            classed_car("GT3", 2),
+            classed_car("LMP2", 3),
+            classed_car("GT3", 4),
+            classed_car("LMP2", 5),
+        ];
+        let car_configs: HashMap<CarConfigId, CarConfig> =
+            cars.iter().map(|c| (c.id, c.clone())).collect();
+        let track = TrackConfig::default();
+        let mut session =
+            RaceSession::new(Uuid::new_v4(), track.id, SessionKind::Multiplayer, 8, 0, 3);
+        session.host_car_id = Some(Uuid::from_u128(2));
+        let mut game_session = GameSession::new(session, track, car_configs);
+        game_session.set_classes(vec![
+            ClassEntry {
+                class: "lmp2".into(),
+                ai_count: 3,
+                ai_skill: None,
+            },
+            ClassEntry {
+                class: "Formula E".into(),
+                ai_count: 2,
+                ai_skill: None,
+            },
+        ]);
+        let classes: Vec<(&str, u8)> = game_session
+            .session
+            .classes
+            .iter()
+            .map(|c| (c.class.as_str(), c.ai_count))
+            .collect();
+        assert_eq!(classes, vec![("lmp2", 3), ("GT3", 0)]);
+        let spec: Vec<(String, u8, Option<u8>)> = game_session
+            .session
+            .classes
+            .iter()
+            .map(|c| (c.class.clone(), c.ai_count, c.ai_skill))
+            .collect();
+        let profiles = crate::ai_driver::generate_class_profiles(&spec, None);
+        game_session.session.ai_count = profiles.len() as u8;
+        game_session.set_ai_profiles(profiles);
+        game_session.spawn_ai_drivers();
+
+        let mut driven: Vec<u128> = game_session
+            .session
+            .ai_player_ids
+            .iter()
+            .map(|id| {
+                game_session.session.participants[id]
+                    .car_config_id
+                    .as_u128()
+            })
+            .collect();
+        driven.sort();
+        assert_eq!(driven, vec![3, 3, 5], "three LMP2s, dealt round-robin");
+        assert_eq!(game_session.class_rank_of(Uuid::from_u128(3)), 0);
+        assert_eq!(game_session.class_rank_of(Uuid::from_u128(2)), 1);
+        assert_eq!(
+            game_session.class_rank_of(Uuid::from_u128(99)),
+            2,
+            "a car of no listed class ranks behind them all"
+        );
     }
 
     #[test]

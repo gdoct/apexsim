@@ -113,6 +113,7 @@ async fn a_spectator_joining_mid_race_gets_the_roster_and_the_sectors() {
             qualifying_format: QualifyingFormat::Open,
             qualifying_lap_allowance: 0,
             race_rules: Default::default(),
+            classes: Vec::new(),
         })
         .await?;
         let joined = host.wait_joined().await?;

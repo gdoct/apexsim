@@ -34,14 +34,14 @@ impl RaceResult {
     /// The classification as CSV: a header line, then one line a car.
     pub fn csv(&self) -> String {
         let mut out = String::from(
-            "position,name,ai,status,laps,best_lap_ms,race_time_ms,gap_ms,laps_down,missed_stops,penalty_s\n",
+            "position,name,ai,status,laps,best_lap_ms,race_time_ms,gap_ms,laps_down,missed_stops,penalty_s,class,class_position\n",
         );
         let opt = |v: Option<u32>| v.map_or(String::new(), |v| v.to_string());
         for car in &self.cars {
             // A name is quoted, its own quotes doubled.
             let name = format!("\"{}\"", car.name.replace('"', "\"\""));
             out.push_str(&format!(
-                "{},{},{},{},{},{},{},{},{},{},{}\n",
+                "{},{},{},{},{},{},{},{},{},{},{},{},{}\n",
                 car.position,
                 name,
                 car.is_ai,
@@ -52,7 +52,9 @@ impl RaceResult {
                 opt(car.gap_ms),
                 car.laps_down,
                 car.missed_stops,
-                car.penalty_s
+                car.penalty_s,
+                car.class,
+                car.class_position
             ));
         }
         out
@@ -90,6 +92,8 @@ mod tests {
             laps_down: 0,
             missed_stops: false,
             penalty_s: 0,
+            class: "GT3".to_string(),
+            class_position: position,
         }
     }
 
@@ -113,11 +117,11 @@ mod tests {
         assert_eq!(lines.len(), 4);
         assert_eq!(
             lines[1],
-            "1,\"Rex \"\"T\"\" Thunder\",true,finished,5,80000,400001,,0,false,0"
+            "1,\"Rex \"\"T\"\" Thunder\",true,finished,5,80000,400001,,0,false,0,GT3,1"
         );
         assert_eq!(
             lines[3],
-            "3,\"Max Voltage\",true,retired,2,80000,,,0,false,0"
+            "3,\"Max Voltage\",true,retired,2,80000,,,0,false,0,GT3,3"
         );
         let dir = std::env::temp_dir().join(format!("apexsim_results_{}", std::process::id()));
         let path = result.write(&dir).unwrap();

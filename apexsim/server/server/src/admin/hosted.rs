@@ -159,6 +159,7 @@ pub(crate) async fn open(
         conditions,
         spec.ai_skill,
         spec.race_seconds,
+        Vec::new(),
     ) else {
         return Err(
             if st.sessions.len() >= st.config.server.max_sessions as usize {
@@ -197,6 +198,7 @@ pub(crate) async fn open(
         damage: spec.damage,
         lap_limit,
         race_seconds,
+        classes: Vec::new(),
         weekend_waiting: false,
         pit_rule,
         race_rules,

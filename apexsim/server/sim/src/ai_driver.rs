@@ -195,6 +195,13 @@ pub struct AiDriverProfile {
     /// of it that leaves the road is simply driven again.
     #[serde(default)]
     pub exact_line: bool,
+
+    /// The class this driver is seated in, of a multi-class field
+    /// (`generate_class_profiles`; `RaceSession::classes`): the session
+    /// deals it a car of that class. Empty for a field of one class, dealt
+    /// from the host car's.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub class: String,
 }
 
 impl AiDriverProfile {
@@ -224,6 +231,7 @@ impl AiDriverProfile {
             consistency: (normalized_skill * 0.5 + 0.4).clamp(0.0, 1.0),
             preferred_car_id: None,
             exact_line: false,
+            class: String::new(),
         }
     }
 
@@ -251,6 +259,7 @@ impl AiDriverProfile {
             consistency: consistency.clamp(0.0, 1.0),
             preferred_car_id: None,
             exact_line: false,
+            class: String::new(),
         }
     }
 
@@ -1766,6 +1775,36 @@ pub fn field_skills(count: u8, level: Option<u8>) -> Vec<u8> {
 /// Generate `count` AI driver profiles at the skills [`field_skills`] gives
 /// for `level` (`None`: the mixed field).
 pub fn generate_ai_profiles(count: u8, level: Option<u8>) -> Vec<AiDriverProfile> {
+    field_skills(count, level)
+        .into_iter()
+        .enumerate()
+        .map(|(i, skill)| AiDriverProfile::new(ai_name(i), skill))
+        .collect()
+}
+
+/// The profiles of a multi-class field: `classes` names each class with
+/// its AI count and its own level (the field's `level` when it has none),
+/// and every driver is stamped with the class it is seated in
+/// (`AiDriverProfile::class`), its skills spread as `field_skills` spreads
+/// a field of that count. Names run on across the classes, so no two
+/// drivers share one.
+pub fn generate_class_profiles(
+    classes: &[(String, u8, Option<u8>)],
+    level: Option<u8>,
+) -> Vec<AiDriverProfile> {
+    let mut out = Vec::new();
+    for (class, count, class_level) in classes {
+        for skill in field_skills(*count, class_level.or(level)) {
+            let mut profile = AiDriverProfile::new(ai_name(out.len()), skill);
+            profile.class = class.clone();
+            out.push(profile);
+        }
+    }
+    out
+}
+
+/// The `i`th AI driver's name.
+fn ai_name(i: usize) -> &'static str {
     // List of AI driver names
     const AI_NAMES: &[&str] = &[
         "Max Voltage",
@@ -1785,15 +1824,7 @@ pub fn generate_ai_profiles(count: u8, level: Option<u8>) -> Vec<AiDriverProfile
         "Felix Turbo",
         "Gwen Apex",
     ];
-
-    field_skills(count, level)
-        .into_iter()
-        .enumerate()
-        .map(|(i, skill)| {
-            let name = AI_NAMES.get(i).unwrap_or(&"AI Driver");
-            AiDriverProfile::new(*name, skill)
-        })
-        .collect()
+    AI_NAMES.get(i).copied().unwrap_or("AI Driver")
 }
 
 /// Generate a set of default AI driver profiles with varying skill levels:

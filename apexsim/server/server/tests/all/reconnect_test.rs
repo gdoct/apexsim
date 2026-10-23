@@ -169,6 +169,7 @@ async fn seat(
                     qualifying_format: QualifyingFormat::Open,
                     qualifying_lap_allowance: 0,
                     race_rules: Default::default(),
+                    classes: Vec::new(),
                 })
                 .await?
         }

@@ -29,8 +29,10 @@
 //!   the lane beside it and holds it, rather than turning in on it. A
 //!   player's car has no tactic to read: it is given room by where it is,
 //!   half a car alongside on the inside into a corner.
-//! - **Yield**: about to be lapped, the driver moves off the line toward
-//!   the outside of the next corner and lifts a little.
+//! - **Yield**: about to be lapped, or caught by a car of a quicker class
+//!   in a multi-class field ([`Rival::class_rank`]), the driver moves off
+//!   the line toward the outside of the next corner and lifts a little.
+//!   Nobody defends against a car of another class.
 //! - **Recovery**: stuck against a wall or off the road at a crawl, the
 //!   driver backs out in reverse, swinging the nose toward the road, and
 //!   drives on, steering for the leg of the road it left (followed through
@@ -411,6 +413,12 @@ pub struct Rival {
     /// from where it is ([`Rival::of`] leaves it false; the session sets
     /// it for every car without an AI profile).
     pub human: bool,
+    /// Its class's rank in a multi-class field, 0 the quickest
+    /// (`GameSession::class_rank_of`; [`Rival::of`] leaves it 0, as every
+    /// car of a field of one class is). A car of a quicker class is let by
+    /// as a lapping car is, and nobody defends against one of another
+    /// class.
+    pub class_rank: u8,
 }
 
 impl Rival {
@@ -430,6 +438,7 @@ impl Rival {
             lane_m: state.racecraft.lane_m,
             blend: state.racecraft.blend,
             human: false,
+            class_rank: 0,
         }
     }
 }
@@ -1058,12 +1067,11 @@ fn start_tactic(
         return Some(fresh(Tactic::Room, o.id, clamp_lane(lane)));
     }
 
-    // About to be lapped: let it by.
+    // About to be lapped, or caught by a quicker class: let it by.
     if ctx.race {
         if let Some((o, rel)) = behind {
-            if o.race_m > me.race_m + 0.5 * ctx.total_m
-                && -rel - reach(o) < 1.0 * speed + CLOSE_EXTRA_M
-            {
+            let up = o.race_m > me.race_m + 0.5 * ctx.total_m || o.class_rank < me.class_rank;
+            if up && -rel - reach(o) < 1.0 * speed + CLOSE_EXTRA_M {
                 let outside = if corner.inside != 0.0 {
                     -corner.inside
                 } else {
@@ -1103,7 +1111,8 @@ fn start_tactic(
                 && closing > TOW_COVER_CLOSING_MPS
                 && gap > closing * TOW_COVER_LEAD_S
                 && gap < TOW_COVER_GAP_S * speed + CLOSE_EXTRA_M;
-            let same_lap = (o.race_m - me.race_m).abs() < 0.5 * ctx.total_m;
+            let same_lap =
+                (o.race_m - me.race_m).abs() < 0.5 * ctx.total_m && o.class_rank == me.class_rank;
             if gap > 0.5
                 && ((gap < DEFEND_GAP_S * speed + CLOSE_EXTRA_M && coming && window)
                     || (tow_cover && reaches))
@@ -1679,6 +1688,46 @@ mod tests {
         };
         let rc = decide_on_square(&state, &[behind], true);
         assert_ne!(rc.tactic, Tactic::Room, "{rc:?}");
+    }
+
+    /// A car of a quicker class closing from behind is let by as a lapping
+    /// car is, on the same lap; one of the same class racing for position
+    /// is not.
+    #[test]
+    fn a_quicker_class_closing_is_let_by() {
+        let state = on_the_square(8, 150.0);
+        let track = TrackConfig::default();
+        let ctx = Context {
+            track: &track,
+            total_m: 1600.0,
+            race: true,
+            dt: 0.01,
+        };
+        let bold = AiDriverProfile::with_attributes("Bold", 100, 1.0, 0.8, 100, 0.8, 0.2, 0.9);
+        let speeds = square_profile();
+        let me = Rival {
+            class_rank: 1,
+            ..Rival::of(&state, 4.5, 2.0, ctx.total_m)
+        };
+        let decide_with = |rank: u8| {
+            let coming = Rival {
+                class_rank: rank,
+                ..chaser(&me, 30.0, 12.0, 0.0)
+            };
+            decide(
+                &state,
+                &me,
+                &bold,
+                Some(&speeds),
+                &[me, coming],
+                &MistakeRisk::default(),
+                &ctx,
+            )
+        };
+        let rc = decide_with(0);
+        assert_eq!(rc.tactic, Tactic::Yield, "{rc:?}");
+        let rc = decide_with(1);
+        assert_ne!(rc.tactic, Tactic::Yield, "the same class races: {rc:?}");
     }
 
     #[test]

@@ -45,7 +45,14 @@ same ([architecture.md](../architecture.md), determinism).
   `class_field` takes every car of that class, sorted by id and rotated to
   start after the host's, and `spawn_ai_drivers` deals them round-robin. A
   car with no class races only against itself. The roster's `CarConfigId`
-  tells the client which mesh each car is.
+  tells the client which mesh each car is. A multi-class session
+  (`CreateSession.classes`, [sessions.md](sessions.md) "Multi-class
+  racing") seats so many AI per class at the class's own level
+  (`generate_class_profiles`, `AiDriverProfile::class`), each dealt from
+  its class's cars (`class_pool`); in traffic a car yields to one of a
+  quicker class as to a lapping car and defends against none of another
+  class (`racecraft::Rival::class_rank`). `SURVEY_CLASSES=LMP2:6,GT3:6`
+  runs the survey on such a field.
 - **Plans.** When a car model is seated, `plan_ai_speeds` builds
   `AI_FUEL_PLAN_STEPS + 1` (11) speed profiles with
   `racing_line::build_laden`, one per tenth of its tank; a car drives the
