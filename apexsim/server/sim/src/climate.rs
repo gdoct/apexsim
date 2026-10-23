@@ -217,9 +217,107 @@ pub fn wet_season_pct(day: u16, site: &ClimateSite) -> f32 {
     swing(day) - swing(MODEL_DAY_OF_YEAR)
 }
 
+/// The dew point of air at `air_c` holding `humidity` (0..1) of what it
+/// can, °C (Magnus, over water).
+pub fn dew_point_c(air_c: f32, humidity: f32) -> f32 {
+    const A: f32 = 17.62;
+    const B: f32 = 243.12;
+    let gamma = humidity.clamp(0.01, 1.0).ln() + A * air_c / (B + air_c);
+    B * gamma / (A - gamma)
+}
+
+/// How far a clear, calm night's asphalt radiates under the air, °C.
+pub const SKY_COOLING_C: f32 = 4.0;
+/// How far the asphalt lies under the dew point at full dew, °C.
+pub const DEW_SPREAD_C: f32 = 3.0;
+/// How near the air comes to its dew point before a fog stands, °C: none
+/// from this spread, thickest at none.
+pub const FOG_SPREAD_C: f32 = 2.0;
+/// The sight through clear air, m: what [`visibility_m`] reads without fog.
+pub const CLEAR_VISIBILITY_M: f32 = 10_000.0;
+/// The sight through the thickest radiation fog, m.
+pub const FOG_VISIBILITY_M: f32 = 150.0;
+
+/// The night's share of the sky's cooling: all of it with the sun under
+/// the horizon, none from 8° up.
+pub fn night_share(sun_elevation_deg: f32) -> f32 {
+    ((8.0 - sun_elevation_deg) / 8.0).clamp(0.0, 1.0)
+}
+
+/// The calm's share: a breeze stirs the cold air off the ground, so dew and
+/// fog want still air. All of it under 6 km/h, none from 20.
+pub fn calm_share(wind_kph: f32) -> f32 {
+    (1.0 - (wind_kph - 6.0) / 14.0).clamp(0.0, 1.0)
+}
+
+/// What the night sky takes off the asphalt under the air, °C: a clear,
+/// still night's [`SKY_COOLING_C`], less under cloud and in a breeze, none
+/// by day.
+pub fn sky_cooling_c(sun_elevation_deg: f32, cloud: f32, wind_kph: f32) -> f32 {
+    SKY_COOLING_C
+        * (1.0 - cloud).clamp(0.0, 1.0)
+        * night_share(sun_elevation_deg)
+        * calm_share(wind_kph)
+}
+
+/// How hard dew is forming, 0..1: the asphalt the night has cooled
+/// (`track_c` less [`sky_cooling_c`]) under the dew point, full
+/// [`DEW_SPREAD_C`] under it. None while rain or snow falls (the road is
+/// wet or white already). Exactly 0 on a dry day.
+pub fn dew_strength(
+    track_c: f32,
+    dew_point_c: f32,
+    sun_elevation_deg: f32,
+    cloud: f32,
+    wind_kph: f32,
+    falling: f32,
+) -> f32 {
+    if falling > 0.0 {
+        return 0.0;
+    }
+    let surface = track_c - sky_cooling_c(sun_elevation_deg, cloud, wind_kph);
+    ((dew_point_c - surface) / DEW_SPREAD_C).clamp(0.0, 1.0)
+}
+
+/// How thick a radiation fog stands, 0..1: the air cooled to within
+/// [`FOG_SPREAD_C`] of its dew point, in still air, burnt off as the sun
+/// climbs past 15°.
+pub fn fog_share(air_c: f32, dew_point_c: f32, sun_elevation_deg: f32, wind_kph: f32) -> f32 {
+    let near = ((FOG_SPREAD_C - (air_c - dew_point_c)) / FOG_SPREAD_C).clamp(0.0, 1.0);
+    let low_sun = ((15.0 - sun_elevation_deg) / 15.0).clamp(0.0, 1.0);
+    near * low_sun * calm_share(wind_kph)
+}
+
+/// The sight through a fog of `fog` (0..1), m: [`CLEAR_VISIBILITY_M`] in
+/// clear air down to [`FOG_VISIBILITY_M`], evenly on a log scale.
+pub fn visibility_m(fog: f32) -> f32 {
+    CLEAR_VISIBILITY_M * (FOG_VISIBILITY_M / CLEAR_VISIBILITY_M).powf(fog.clamp(0.0, 1.0))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The dew point against the tables; dew on a still clear night and
+    /// none by day or in a breeze; fog only near saturation.
+    #[test]
+    fn dew_and_fog_come_with_the_cold_still_night() {
+        assert!((dew_point_c(20.0, 0.5) - 9.3).abs() < 0.2);
+        assert!((dew_point_c(10.0, 1.0) - 10.0).abs() < 0.01);
+        assert!((dew_point_c(30.0, 0.7) - 23.9).abs() < 0.3);
+        let td = dew_point_c(23.0, 0.5);
+        // A clear still night at 13 °C after a 23 °C afternoon at 50%: dew.
+        assert!(dew_strength(13.0, td, -5.0, 0.0, 5.0, 0.0) > 0.5);
+        // The same at noon, in a gale, in the rain, under overcast: none.
+        assert_eq!(dew_strength(40.0, td, 60.0, 0.0, 5.0, 0.0), 0.0);
+        assert_eq!(dew_strength(13.0, td, -5.0, 0.0, 25.0, 0.0), 0.0);
+        assert_eq!(dew_strength(13.0, td, -5.0, 0.0, 5.0, 0.5), 0.0);
+        assert_eq!(dew_strength(13.0, td, -5.0, 1.0, 5.0, 0.0), 0.0);
+        assert_eq!(fog_share(22.0, td, 60.0, 5.0), 0.0);
+        assert_eq!(visibility_m(0.0), CLEAR_VISIBILITY_M);
+        assert!(fog_share(12.5, td, -2.0, 3.0) > 0.7);
+        assert!(visibility_m(1.0) - FOG_VISIBILITY_M < 1.0);
+    }
 
     fn site(lat: f32, lon: f32, alt: f32) -> ClimateSite {
         ClimateSite {

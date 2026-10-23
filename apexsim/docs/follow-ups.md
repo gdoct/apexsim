@@ -337,9 +337,22 @@ the launcher import with the network off.
   altitude in `TrackConfigSummary`) and re-pin
   `ApexSim.UI.CreateSession.SeasonAir` against
   `the_climate_follows_the_circuit`.
+- Fog is not drawn: the server sends the sight through it as
+  `SkyNow.visibility_m` (the twentieth field, which `ParseSkyNow` skips),
+  and the client's height fog is still by weather alone
+  (`ApplyTrackLevelConditions`, `ApexSky::FogLuminance`). Read the field
+  into `FApexSkyNow` (0: not said, keep the weather's fog), thicken the
+  exponential height fog to it (density about 3.9 / visibility) and blend
+  it in `DeriveLive`; carry it in the spectator stream's state record
+  (`StreamState::encode` and `ApexSpectatorWriter` write nineteen fields;
+  both decoders already skip extra ones), with the golden `State` and
+  `File` blobs moved together. The damp dawn road (`RoadState::dew`) is
+  drawn already: it is the road state's water.
 
 **Check:** `ApexSim.UI.CreateSession.SeasonAir`; a dated create's preview
-against `SessionJoined.Conditions`.
+against `SessionJoined.Conditions`; `-ApexAutoRace -ApexTimeOfDay=04:30
+-ApexWeather=sunny` with a calm wind shows a mist that lifts after sunrise
+at `-ApexTimeScale=30`.
 
 ## P4: Unrefined
 

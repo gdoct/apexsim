@@ -1738,7 +1738,7 @@ impl Serialize for CompactTelemetry {
 /// `[clock_s, weather, rain_pct, cloud_pct, road_water_pct, air_c,
 /// track_c, wind_kph, wind_to_deg, line_rubber_pct, time_scale,
 /// next_weather, next_in_s, line_snow_pct, snowfall_pct, next2_weather,
-/// next2_in_s, next3_weather, next3_in_s]`.
+/// next2_in_s, next3_weather, next3_in_s, visibility_m]`.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SkyNow {
     /// The day's clock, seconds after midnight.
@@ -1786,6 +1786,11 @@ pub struct SkyNow {
     pub next3_weather: u8,
     #[serde(default)]
     pub next3_in_s: u32,
+    /// How far one sees through the fog, m (`LiveConditions::visibility_m`:
+    /// 10 000 in clear air, down to 150 in the thickest radiation fog); 0
+    /// from a sender that does not say (an old server or stream).
+    #[serde(default)]
+    pub visibility_m: u16,
 }
 
 impl SkyNow {
@@ -1842,6 +1847,7 @@ impl SkyNow {
             next2_in_s,
             next3_weather,
             next3_in_s,
+            visibility_m: live.visibility_m().round().clamp(0.0, u16::MAX as f32) as u16,
         }
     }
 }
@@ -6990,6 +6996,7 @@ mod tests {
             next2_in_s: 2400,
             next3_weather: Weather::Cloudy as u8,
             next3_in_s: 4200,
+            visibility_m: 850,
         };
         let frame = ServerMessage::TelemetryCompact(CompactTelemetry {
             server_tick: 123_456,

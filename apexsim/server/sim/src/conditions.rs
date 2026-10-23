@@ -433,6 +433,53 @@ impl LiveConditions {
         self.sun_elevation_deg() < 6.0 || self.rain > 0.1 || self.snowfall > 0.1
     }
 
+    /// The dew point of the day's air, °C: the session's humidity read as
+    /// the afternoon's, at the day's warmest air
+    /// (`data::WARMEST_AFTER_NOON_H` after solar noon, the host's offset
+    /// kept). The same water in the night's cooler air stands nearer
+    /// saturation, which is what lays the dew and stands the fog.
+    pub fn dew_point_c(&self) -> f32 {
+        let warmest_min = ((self.start.solar_noon_hours() + crate::data::WARMEST_AFTER_NOON_H)
+            * 60.0)
+            .rem_euclid(SessionConditions::MINUTES_PER_DAY as f32);
+        let afternoon = SessionConditions {
+            time_of_day_minutes: warmest_min as u16,
+            ..self.now()
+        };
+        let air = Self::auto_air_c(&afternoon, self.winter, self.site()) + self.air_offset_c;
+        crate::climate::dew_point_c(air.max(self.air_c), self.humidity)
+    }
+
+    /// How hard dew is forming on the road now, 0..1
+    /// (`climate::dew_strength`): a still, clear night has cooled the
+    /// asphalt under the day's dew point. 0 by day, under cloud, in a
+    /// breeze and while rain or snow falls.
+    pub fn dew(&self) -> f32 {
+        crate::climate::dew_strength(
+            self.track_c,
+            self.dew_point_c(),
+            self.sun_elevation_deg(),
+            self.cloud,
+            self.wind_kph,
+            self.rain + self.snowfall,
+        )
+    }
+
+    /// How thick a radiation fog stands now, 0..1 (`climate::fog_share`).
+    pub fn fog(&self) -> f32 {
+        crate::climate::fog_share(
+            self.air_c,
+            self.dew_point_c(),
+            self.sun_elevation_deg(),
+            self.wind_kph,
+        )
+    }
+
+    /// The sight through it, m (`climate::visibility_m`): 10 km clear.
+    pub fn visibility_m(&self) -> f32 {
+        crate::climate::visibility_m(self.fog())
+    }
+
     /// How fast the road dries against a mild sky: more under a high sun
     /// through a clear sky, on warm asphalt, in a breeze; slower at night.
     pub fn evaporation(&self) -> f32 {
@@ -1139,6 +1186,53 @@ mod tests {
             "{start_air} -> {}",
             live.air_c
         );
+    }
+
+    /// A still, clear night after a sunny day lays dew and stands a mist by
+    /// dawn; the morning sun lifts both; the afternoon and a breezy or
+    /// cloudy night have neither.
+    #[test]
+    fn a_still_clear_night_brings_dew_and_fog_and_the_sun_lifts_them() {
+        let at = |hh: u16, weather: Weather, wind: u8| {
+            SessionConditions {
+                weather,
+                time_of_day_minutes: hh * 60,
+                time_scale: Some(1),
+                wind_kph: Some(wind),
+                ..SessionConditions::DEFAULT
+            }
+            .resolve(7)
+        };
+        let dawn = LiveConditions::new(at(4, Weather::Sunny, 3), 50.0, 0.0, 3);
+        println!(
+            "04:00 sunny, 3 km/h: air {:.1}, dew point {:.1}, dew {:.2}, fog {:.2}, {:.0} m",
+            dawn.air_c,
+            dawn.dew_point_c(),
+            dawn.dew(),
+            dawn.fog(),
+            dawn.visibility_m()
+        );
+        assert!(dawn.dew() > 0.5);
+        assert!(dawn.visibility_m() < 3000.0);
+        for (hh, weather, wind) in [
+            (4, Weather::Sunny, 25),
+            (4, Weather::Overcast, 3),
+            (4, Weather::LightRain, 3),
+            (13, Weather::Sunny, 3),
+        ] {
+            let sky = LiveConditions::new(at(hh, weather, wind), 50.0, 0.0, 3);
+            assert_eq!(sky.dew(), 0.0, "{hh} {weather:?} {wind}");
+        }
+        let noon = LiveConditions::new(SessionConditions::DEFAULT.resolve(7), 50.0, 0.0, 3);
+        assert_eq!(noon.dew(), 0.0);
+        assert_eq!(noon.visibility_m(), crate::climate::CLEAR_VISIBILITY_M);
+        // Six hours on, at 10:00, the sun has burnt it off.
+        let mut morning = dawn.clone();
+        for s in 1..=6 * 3600 {
+            morning.step(s as f32, 1.0, 0.0);
+        }
+        assert_eq!(morning.dew(), 0.0);
+        assert_eq!(morning.visibility_m(), crate::climate::CLEAR_VISIBILITY_M);
     }
 
     /// The server names solar noon from the track on create; a track that

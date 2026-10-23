@@ -1775,6 +1775,8 @@ impl StreamState {
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
+                // The first nineteen of `SkyNow`'s fields: the fog's
+                // `visibility_m` stays off the stream (0 read back).
                 wr::array(&mut out, 19);
                 wr::uint(&mut out, s.clock_s as u64);
                 wr::uint(&mut out, s.weather as u64);
@@ -3188,6 +3190,8 @@ mod tests {
                 next2_in_s: 2400,
                 next3_weather: 0,
                 next3_in_s: 5400,
+                // Streams carry the sky's first nineteen fields only.
+                visibility_m: 0,
             }),
             race_clock: Some(crate::network::RaceClock {
                 left_ms: 754_300,

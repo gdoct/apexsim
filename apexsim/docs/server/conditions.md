@@ -297,8 +297,33 @@ resolved conditions, the track's latitude and altitude and the session id.
   (`LiveConditions::snowfall`; `rain` is 0 under snow), and the lights come
   on as in rain.
 
+- **Dew and fog** come with the overnight cooling (`climate.rs`). The
+  session's humidity is read as the afternoon's: `LiveConditions::dew_point_c`
+  is the dew point (`climate::dew_point_c`, Magnus) of the day's warmest air
+  (`WARMEST_AFTER_NOON_H` after solar noon, the host's offset kept) at the
+  humidity now, so the same water in the night's cooler air stands nearer
+  saturation. A clear, still night takes the asphalt under the air
+  (`sky_cooling_c`: `SKY_COOLING_C` 4 °C, times the clear share of the sky,
+  the night's share, all of it with the sun under the horizon and none from
+  8° up, and the calm's, all of it under 6 km/h and none from 20), and dew
+  forms as far as that cooled asphalt lies under the dew point
+  (`LiveConditions::dew`, `climate::dew_strength`: full `DEW_SPREAD_C` 3 °C
+  under it; none while rain or snow falls). The road takes it
+  (`RoadState::dew`, below). A radiation fog stands as the air itself comes
+  within `FOG_SPREAD_C` (2 °C) of the dew point in still air, burnt off as
+  the sun climbs past 15° (`LiveConditions::fog`, 0..1), and
+  `LiveConditions::visibility_m` is the sight through it: 10 km clear
+  (`CLEAR_VISIBILITY_M`) down to 150 m (`FOG_VISIBILITY_M`), evenly on a log
+  scale. A sunny 04:00 on the model day at 50° N in a 3 km/h breeze, after
+  a 23 °C afternoon at 50%, has its dew point at 12 °C under 13 °C air: full
+  dew and a mist of some 1.7 km, both gone by 10:00
+  (`a_still_clear_night_brings_dew_and_fog_and_the_sun_lifts_them`). The
+  fog is a figure in the conditions and on the wire (`SkyNow.visibility_m`);
+  nothing in the physics or the AI reads it.
+
 A session whose clock and sky both hold (`is_static`) bakes nothing after
-creation: it is the static bake above, plus the road state.
+creation: it is the static bake above, plus the road state (and the dew
+the held sky keeps laying on it).
 
 A race weekend may give practice and qualifying a sky of their own: each
 such day bakes its conditions into a fresh copy of the track and starts
@@ -370,6 +395,22 @@ crown (`apexsim_formats::road_profile`, `TrackConfig::road_profile`) counts
 as a bank of its 2% grade for `edge_low`, fading out as the road's banking
 takes over, so every crowned cell holds a strip of water along an edge in
 the rain.
+
+**Dew** (`RoadState::dew`, 0..1, set each second by `update_sky` from
+`LiveConditions::dew`, a held sky too): each cell fills toward `DEW_FILM`
+(0.04 of the weather's water, a damp road under `WET_FROM_WATER`'s 0.05 and
+the least water that freezes, so the slicks stay on and nothing reads the
+track as wet) times it, at `DEW_RATE` (half an hour to most of it), flat
+across the road (no puddle gain), and the line's dried bins rewet with it.
+Once it stops, it drains as the rain's water does, by the sky's
+evaporation; the cars wipe their line of it as they wipe the rain. Full dew
+costs the road a little over 1% of its grip and a slick some more on its
+own water curve (`dew_dampens_the_road_and_the_line_and_the_sun_dry_it`). A
+session that starts before solar noon finds the night's dew already lying
+(`with_road`: `RoadState::lay_dew` at the start's dew), so a still, clear
+dawn starts damp (`a_dawn_session_starts_on_the_nights_dew`); an evening
+start lays it as the night comes. A road without dew is untouched by it to
+the bit.
 
 ### Snow on the road
 
@@ -549,13 +590,16 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   `S_SessionJoinedSun` (the echo naming `solar_noon_min` last) /
   `C_CreateSessionForecast` and `S_SessionJoinedForecast` (the host's
   `forecast`, last of all: an array of `[at_min, weather]` pairs).
-- `CompactTelemetry.sky` (`network::SkyNow`, 19 positional fields: clock,
+- `CompactTelemetry.sky` (`network::SkyNow`, 20 positional fields: clock,
   weather, rain, cloud, road water, air, track, the wind now and where it
   blows toward, line rubber, time scale, next weather and when, then the
   snow on the line and the snowfall, both percent, then the second and
-  third changes ahead with their ETAs), appended
+  third changes ahead with their ETAs, then `visibility_m`, the sight
+  through the fog in metres, 0 from a sender that does not say), appended
   after `race_clock` (nil then when there is no race clock); every frame.
-  Golden: `ApexUdpGolden::S_TelemetryCompactSky`.
+  Golden: `ApexUdpGolden::S_TelemetryCompactSky` (the client skips the
+  twentieth field). A spectator stream's state record keeps the first
+  nineteen (`StreamState::encode`), so a stream reads `visibility_m` 0.
 - `PlayerInput.headlights` / `flash`: `cargo test
   player_input_headlights_wire_format -- --nocapture` ->
   `ApexUdpGolden::C_PlayerInput`.

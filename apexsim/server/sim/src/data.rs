@@ -3241,8 +3241,6 @@ impl SessionConditions {
     pub fn auto_air_temperature_c(&self) -> f32 {
         const COOLEST_C: f32 = 13.0;
         const SWING_C: f32 = 10.0;
-        // Two hours after solar noon: 15:00 where noon is 13:00.
-        const WARMEST_AFTER_NOON_H: f32 = 2.0;
         let warmest = self.solar_noon_hours() + WARMEST_AFTER_NOON_H;
         let hours = (self.time_of_day_minutes % Self::MINUTES_PER_DAY) as f32 / 60.0;
         let day = 0.5 + 0.5 * ((hours - warmest) / 24.0 * std::f32::consts::TAU).cos();
@@ -3319,6 +3317,10 @@ pub fn wind_onto_track(track: &TrackConfig, [wx, wy]: [f32; 2]) -> [f32; 2] {
     let (c, sn) = (heading.cos(), heading.sin());
     [wx * c - wy * sn, wx * sn + wy * c]
 }
+
+/// How long after solar noon the day's air is warmest, hours: 15:00 where
+/// noon is 13:00.
+pub const WARMEST_AFTER_NOON_H: f32 = 2.0;
 
 /// The day of the year the air is warmest north of the equator (19 July;
 /// six months on south of it), about a month after midsummer.

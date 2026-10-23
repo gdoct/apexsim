@@ -174,6 +174,14 @@ pub const WET_RUBBER_GRIP: f32 = 0.06;
 pub const START_LINE_HALF_M: f32 = 2.0;
 const START_LINE_FADE_M: f32 = 1.5;
 
+/// The film full dew lays on the road, in the weather's units: a damp road,
+/// under the depth that makes it wet (`conditions::WET_FROM_WATER`) and the
+/// least water that freezes, so the slicks stay on.
+pub const DEW_FILM: f32 = 0.04;
+/// Share of the gap to the dew's film it closes per second: half an hour
+/// to lay most of it.
+pub const DEW_RATE: f32 = 0.0012;
+
 /// The water a snow sky keeps on the road, in the weather's units: the slush
 /// under the flakes (`Weather::Snow.water()`), which the treaded tyre's
 /// territory is read off.
@@ -384,6 +392,11 @@ pub struct RoadState {
     /// session like `rain`).
     #[serde(default)]
     pub snowfall: f32,
+    /// How hard dew is forming, 0..1 (`LiveConditions::dew`): each cell
+    /// fills toward [`DEW_FILM`] times it, and the line's bins rewet with
+    /// it. Set by the session.
+    #[serde(default)]
+    pub dew: f32,
     /// The asphalt now, °C: it melts the snow and thaws the ice, and below
     /// [`FREEZE_C`] it freezes the water on it. Set by the session.
     #[serde(default)]
@@ -549,6 +562,7 @@ impl RoadState {
         Self {
             rain,
             snowfall: baked_snow,
+            dew: 0.0,
             track_c: track.track_surface.track_temperature_c,
             baked_water: track.track_surface.baked_water,
             baked_snow,
@@ -1022,6 +1036,18 @@ impl RoadState {
         }
     }
 
+    /// The dew a night has already laid at a session's start: every cell
+    /// holds at least [`DEW_FILM`] times `dew` (0..1), and dew goes on
+    /// forming at it ([`RoadState::dew`]).
+    pub fn lay_dew(&mut self, dew: f32) {
+        let dew = dew.clamp(0.0, 1.0);
+        self.dew = dew;
+        let film = DEW_FILM * dew;
+        for cell in &mut self.cells {
+            cell.depth = cell.depth.max(film);
+        }
+    }
+
     /// Advance the road by `dt` seconds (the ticks since the last step):
     /// the rain, the drainage (`evaporation` scales it: 1 under a mild
     /// sky, more under a high sun on warm asphalt), the passes' drying,
@@ -1032,6 +1058,10 @@ impl RoadState {
         // Water falls as rain, or as the slush under the snow.
         let falling = rain + SNOW_WATER * snowfall;
         let ceiling = line_dry_ceiling(falling);
+        // Dew condenses toward a film of its own, flat over the road (it
+        // does not run into the dips), and wets the dried line again.
+        let dew = DEW_FILM * self.dew.clamp(0.0, 1.0);
+        let wetting = falling + dew;
         let drain = DRAIN_RATE * evaporation.max(0.0);
         let freezing = self.track_c < FREEZE_C;
         let warm = self.track_c.max(0.0);
@@ -1040,13 +1070,14 @@ impl RoadState {
         let settle = (SNOWFALL_RATE * snowfall * dt).min(1.0);
         let mut any_snow = false;
         for (i, cell) in self.cells.iter_mut().enumerate() {
-            let target = Self::standing_depth(falling, cell.low);
+            let target = Self::standing_depth(falling, cell.low).max(dew);
             // The rain fills toward the standing depth; the drainage takes
             // what stands above it (everything, once the rain has gone),
             // slowly in a dip. In steady rain a cell holds its standing
             // depth exactly, which is what the road's grip was baked for.
             if cell.depth < target {
-                cell.depth += (target - cell.depth) * (RAIN_RATE * dt).min(1.0);
+                let rate = if falling > 0.0 { RAIN_RATE } else { DEW_RATE };
+                cell.depth += (target - cell.depth) * (rate * dt).min(1.0);
             }
             let excess = (cell.depth - target).max(0.0);
             cell.depth -= excess * (drain * (1.0 - 0.7 * cell.low) * dt).min(1.0);
@@ -1078,7 +1109,7 @@ impl RoadState {
                 // The passes wipe the water; the rain wets it again.
                 let dry = &mut self.dry[k];
                 *dry += (1.0 - *dry) * (DRY_PER_PASS * passes).min(1.0);
-                *dry -= *dry * REWET_RATE * falling * dt;
+                *dry -= *dry * REWET_RATE * wetting * dt;
                 *dry = dry.clamp(0.0, ceiling);
                 // Snow settles, the passes pack it down to a driven line,
                 // a warm track melts it; the water on a cleared bin freezes
@@ -1944,6 +1975,65 @@ mod tests {
         let b = bin_of(3.0).unwrap();
         assert_eq!(road.dry[i * BINS + b], 0.0, "the car's own cell");
         assert!(road.dry[(i + 1) * BINS + b] > 0.3, "the patch's");
+    }
+
+    /// Dew lays a damp film over the whole road, flat (no puddle in the
+    /// dip), costs the road a little grip, the cars wipe their line of it,
+    /// and with the dew gone the sun dries the rest.
+    #[test]
+    fn dew_dampens_the_road_and_the_line_and_the_sun_dry_it() {
+        let mut road = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        let dry_grip = road.sample(400.0, 2.0).grip;
+        road.dew = 1.0;
+        for _ in 0..3600 {
+            road.step(1.0, 0.3);
+        }
+        let flat = road.water_at(400.0, 2.0);
+        let dip = road.water_at(1000.0, 2.0);
+        let damp_grip = road.sample(400.0, 2.0).grip;
+        println!("dew: flat {flat:.3}, dip {dip:.3}, grip {dry_grip:.3} -> {damp_grip:.3}");
+        assert!(flat > 0.9 * DEW_FILM && flat <= DEW_FILM + 1e-6);
+        assert!(dip <= flat + 1e-3, "dew does not pool");
+        assert!(damp_grip < dry_grip && damp_grip > 0.98 * dry_grip);
+        assert!(road.mean_water() < crate::conditions::WET_FROM_WATER);
+        // The cars wipe their line while the dew still forms.
+        drive(&mut road, -4.0, 30, 600.0);
+        assert!(road.water_at(400.0, -4.0) < 0.6 * road.water_at(400.0, 4.0));
+        // The sun up, the dew stops forming and the road dries.
+        road.dew = 0.0;
+        for _ in 0..1200 {
+            road.step(1.0, 1.5);
+        }
+        assert!(road.water_at(400.0, 4.0) < 0.1 * DEW_FILM);
+        // A road without dew is untouched by it.
+        let mut plain = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        plain.step(10.0, 1.0);
+        assert_eq!(plain.mean_water(), 0.0);
+    }
+
+    /// A session that starts on a still, clear dawn finds the night's dew
+    /// on its road; an evening start and the default afternoon start dry.
+    #[test]
+    fn a_dawn_session_starts_on_the_nights_dew() {
+        let start = |hh: u16| {
+            let conditions = crate::data::SessionConditions {
+                time_of_day_minutes: hh * 60,
+                wind_kph: Some(3),
+                ..crate::data::SessionConditions::DEFAULT
+            }
+            .resolve(7);
+            let track = crate::game_session::session_track(dipped_track(0.0), &conditions);
+            track.road_state.unwrap()
+        };
+        let dawn = start(5);
+        println!("05:00 start: road water {:.3}", dawn.mean_water());
+        assert!(dawn.dew > 0.0 && dawn.mean_water() > 0.5 * DEW_FILM);
+        assert_eq!(start(21).mean_water(), 0.0);
+        let default = crate::game_session::session_track(
+            dipped_track(0.0),
+            &crate::data::SessionConditions::DEFAULT.resolve(7),
+        );
+        assert_eq!(default.road_state.unwrap().mean_water(), 0.0);
     }
 
     #[test]

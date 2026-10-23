@@ -121,10 +121,16 @@ fn slow_leak(seed: u64, range: (f32, f32)) -> Option<f32> {
 /// water the baked weather leaves, the start's rubber on the line.
 fn with_road(mut track: TrackConfig, conditions: &SessionConditions) -> TrackConfig {
     if track.road_state.is_none() {
-        track.road_state = Some(crate::road_state::RoadState::new(
-            &track,
-            conditions.track_rubber(),
-        ));
+        let mut road = crate::road_state::RoadState::new(&track, conditions.track_rubber());
+        // A morning start finds the dew the night has laid.
+        let sky = crate::conditions::LiveConditions::at(*conditions, track.climate_site(), 0);
+        if sky.clock_min < sky.start.solar_noon_hours() * 60.0 {
+            let dew = sky.dew();
+            if dew > 0.0 {
+                road.lay_dew(dew);
+            }
+        }
+        track.road_state = Some(road);
     }
     track
 }
@@ -5368,6 +5374,11 @@ impl GameSession {
         self.sky.line_rubber = rubber;
         self.sky.line_snow = snow;
         self.sky.step(session_s, 1.0, water);
+        // Dew forms on a still, clear night under a sky that holds too.
+        let dew = self.sky.dew();
+        if let Some(road) = self.track_config.road_state.as_mut() {
+            road.dew = dew;
+        }
         if self.sky.is_static() {
             return;
         }
