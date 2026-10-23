@@ -52,7 +52,6 @@ takes it up (— : no step, taken opportunistically).
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
 | C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
-| S3 | Environment: climate, dew, fog, snow detail | Simulation | P3 | 🟢 | M | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
@@ -196,12 +195,6 @@ Saturday, race Sunday, same drivers, results kept.
 Roll-centre migration and jacking; kerb steps as vertical body
 acceleration (unsprung mass); porpoising with real heave. All Low impact —
 only if a car class needs them.
-
-#### S3. Environment — P3 · 🟢 · M
-Real time-zone boundaries and a better climate model (continental/maritime,
-tropical seasons, altitude lapse); dew and fog after overnight cooling;
-snow on run-off and in the pit lane with ice and a driven track; sleet and
-hail.
 
 #### Racing-line aid (player) — P3 · 🟢 · M
 Replanned only at lap end, in still air, on one grip share for the lap.
