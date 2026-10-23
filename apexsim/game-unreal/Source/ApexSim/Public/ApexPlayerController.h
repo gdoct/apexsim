@@ -88,6 +88,27 @@ struct FApexWheelForceStats
 };
 
 /**
+ * The same, for a car standing still (where the driving line counts
+ * nothing): what the mixer sends a rim that has no road to push against,
+ * so a shake there can be read off the log.
+ */
+struct FApexWheelStandStats
+{
+	double Seconds = 0.0;
+	double SumConstant = 0.0;
+	double SumRimRate = 0.0;
+	double SumVibration = 0.0;
+	double SumDamper = 0.0;
+	double CentringSeconds = 0.0;
+	float PeakConstant = 0.0f;
+	float PeakRimRate = 0.0f;
+	float PeakVibration = 0.0f;
+	float PeakVibrationHz = 0.0f;
+	/** Times the car's feedback went stale and came back (each one re-arms the centring). */
+	int32 Arrivals = 0;
+};
+
+/**
  * Owns the driving controls.
  *
  * The menu shell has no pawn, so the controller is where input lives. It
@@ -284,6 +305,8 @@ private:
 	float WheelTestSeconds = 0.0f;
 
 	FApexWheelForceStats WheelStats;
+	FApexWheelStandStats WheelStandStats;
+	bool bWheelStatsWasActive = false;
 
 	/** Every driving frame's feel, for marks. */
 	ApexFfbMarks::FRecorder MarkRecorder;
@@ -294,4 +317,5 @@ private:
 	float LastRimDegrees = 0.0f;
 	void RecordMarkSample(const ApexFfb::FSignals& Signals, const ApexFfb::FRumble& Rumble);
 	void AccumulateWheelStats(const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds);
+	void AccumulateWheelStandStats(const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds);
 };

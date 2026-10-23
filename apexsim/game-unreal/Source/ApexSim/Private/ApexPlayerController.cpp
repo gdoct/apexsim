@@ -56,6 +56,8 @@ namespace
 
 	/** Driving seconds summed into each line of the wheel's force log. */
 	constexpr double kWheelStatsWindowSeconds = 15.0;
+	/** Standing still is usually short (a grid, a box): a shorter window. */
+	constexpr double kWheelStandStatsWindowSeconds = 5.0;
 	/** A constant force this near the base's peak is at its limit. */
 	constexpr float kWheelSaturated = 0.95f;
 
@@ -469,6 +471,7 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 void AApexPlayerController::AccumulateWheelStats(
 	const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds)
 {
+	AccumulateWheelStandStats(Signals, Effects, DeltaSeconds);
 	if (!Signals.bActive || Signals.SpeedMps < 5.0f || DeltaSeconds <= 0.0f)
 	{
 		return;
@@ -503,6 +506,46 @@ void AApexPlayerController::AccumulateWheelStats(
 			Profile.Profile->Id, Profile.bChosen ? TEXT(" (chosen)") : TEXT(""), Profile.PeakTorqueNm,
 			Profile.bPeakGiven ? TEXT(" (given)") : TEXT(""), ApexWheelProfiles::OutputScale(Profile.PeakTorqueNm));
 		S = FApexWheelForceStats();
+	}
+}
+
+void AApexPlayerController::AccumulateWheelStandStats(
+	const ApexFfb::FSignals& Signals, const FApexWheelEffects& Effects, float DeltaSeconds)
+{
+	FApexWheelStandStats& S = WheelStandStats;
+	if (Signals.bActive && !bWheelStatsWasActive)
+	{
+		++S.Arrivals;
+	}
+	bWheelStatsWasActive = Signals.bActive;
+	if (!Signals.bActive || Signals.SpeedMps >= 1.0f || DeltaSeconds <= 0.0f)
+	{
+		return;
+	}
+	const double Dt = DeltaSeconds;
+	const float RimRate = FMath::Abs(WheelState.RimRate);
+	S.Seconds += Dt;
+	S.SumConstant += FMath::Abs(Effects.Constant) * Dt;
+	S.SumRimRate += RimRate * Dt;
+	S.SumVibration += Effects.VibrationAmplitude * Dt;
+	S.SumDamper += Effects.Damper * Dt;
+	S.CentringSeconds += WheelState.CentreGain > 0.5f ? Dt : 0.0;
+	S.PeakConstant = FMath::Max(S.PeakConstant, FMath::Abs(Effects.Constant));
+	S.PeakRimRate = FMath::Max(S.PeakRimRate, RimRate);
+	if (Effects.VibrationAmplitude > S.PeakVibration)
+	{
+		S.PeakVibration = Effects.VibrationAmplitude;
+		S.PeakVibrationHz = Effects.VibrationHz;
+	}
+	if (S.Seconds >= kWheelStandStatsWindowSeconds)
+	{
+		UE_LOG(LogApexSim, Log,
+			TEXT("Wheel forces over %.0f s standing: constant |mean| %.3f peak %.2f, rim rate |mean| %.0f deg/s peak %.0f, ")
+			TEXT("vibration mean %.3f peak %.2f at %.0f Hz, damper mean %.2f, centring %.0f%% of the time, %d arrival(s)"),
+			S.Seconds, S.SumConstant / S.Seconds, S.PeakConstant, S.SumRimRate / S.Seconds, S.PeakRimRate,
+			S.SumVibration / S.Seconds, S.PeakVibration, S.PeakVibrationHz, S.SumDamper / S.Seconds,
+			100.0 * S.CentringSeconds / S.Seconds, S.Arrivals);
+		S = FApexWheelStandStats();
 	}
 }
 

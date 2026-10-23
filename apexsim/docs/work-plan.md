@@ -95,9 +95,10 @@ takes it up (— : no step, taken opportunistically).
 
 #### B15. Rim shakes violently at a standstill — P1 · 🔴 · S
 *Source: follow-ups #31, wheel sitting 2026-10-23.* Standing still in the
-GT3 at Monza the rim oscillates hard with no input. Find the zero-speed
-loop (SAT, rim correction, stiffness limit vs the damper floor) from a MARK
-at the grid; needs the wheel to confirm. Run files:
+GT3 at Monza (off the road after a crash) the rim shook hard. The server's
+signals are clean there; the suspects left are the standstill damper and
+the centring re-arming. Needs the wheel: stop for 10 s, read the `Wheel
+forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
 
 #### B16. Over-rev warning for cars without downshift protection — P3 · 🟢 · S

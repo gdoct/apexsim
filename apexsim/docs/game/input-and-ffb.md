@@ -433,7 +433,12 @@ hardware.
   writes the frames to `Saved/Marks/<run>-<n>-<word>.csv`.
 - Log: a `Wheel forces over 15 s driving:` line (torque in, constant force out,
   time at the base's limit, correction, road, vibration, settings). Read it
-  against a "feels weak" report before changing any gain.
+  against a "feels weak" report before changing any gain. Under 1 m/s a
+  `Wheel forces over 5 s standing:` line instead (constant force, the rim's
+  own speed, the loudest vibration and its Hz, damper, share of time
+  centring, and how often the feedback went stale and came back, each of
+  which re-arms the centring): what to read against a rim that shakes with
+  the car stopped.
 
 ## Traps
 

@@ -32,14 +32,20 @@ Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, base FF 100%,
 game force 0.50, damping 0.25; paddle shifters, no H-shifter). Run files
 are local, not in git, under `out/sit/2026-10-23/`.
 
-- Standing still, the rim starts shaking violently: an oscillation with no
-  driver input, a loop between the rim's angle and the force at zero speed
-  (self-aligning torque, rim correction or stiffness limit with too little
-  damping when the tyres have no rolling speed). The first 15 s force line
-  of the run reads torque |mean| 0.03, constant |mean| 0.02, correction
-  0.011, stiffness limit 0.90: the 15 s means hide it, so a MARK or a
-  frame trace at the grid is needed. Block A, Caravan GT3 at Monzarella;
-  `a-monza-1/` (client log, server recording).
+- Standing still, the rim starts shaking violently. Block A, Caravan GT3
+  at Monzarella, after a crash at the first chicane: the server recording
+  (`a-monza-1/replays/.recording_3139369d-*.blocks`, car 10) has the car
+  standing off the road at 952 m for 46 s, front 57 %, engine 20 %, every
+  wheel's slip 0. Ruled out: the server's signals at a standstill are
+  clean (a car at rest sends a steady jacking torque, -0.023 at 0.1 input,
+  no lock-up or wheelspin), the torque is held down by the stiffness limit,
+  the rim correction is off under 3 m/s, and the engine shake at 20 % is
+  0.02. Left: the DirectInput damper, 0.3 of the base at a standstill (a
+  belt base can buzz under a strong damper with nothing loading the rim),
+  and the centring spring re-armed each time the feedback goes stale and
+  comes back. The `Wheel forces over 5 s standing:` log line (constant,
+  rim speed, the loudest vibration and its Hz, damper, centring share,
+  arrivals) tells them apart: one stop at the wheel, then read it.
 - The rally cars have no downshift protection (as the real ones), so a
   missed downshift still blows their engine with no warning: a shift light
   or a cue as the revs pass the limit, and the over-revved rpm in telemetry
