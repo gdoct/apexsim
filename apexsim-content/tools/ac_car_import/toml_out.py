@@ -76,6 +76,8 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
             w(f"grip = {fmt(float(r['grip']))}")
             w(f"wear = {fmt(float(r['wear']))}")
             w(f"window_shift_c = {fmt(float(r['window_shift_c']))}")
+            if r.get("window_scale", 1.0) != 1.0:
+                w(f"window_scale = {fmt(float(r['window_scale']))}")
             if r["reference"]:
                 w("reference = true   # the compound this import is calibrated on")
 

@@ -397,9 +397,11 @@ importer change.
     from the name (`wet`, `rain`, `inter`; AC ships no rain tyre). A car whose
     compounds are all slicks gets ApexSim's `intermediate` and `wet` appended
     (named as such in the car.toml) so the garage keeps its rain tyres; a car
-    with one compound has no list and keeps the server's default five. Only
-    the grip level, the wear and the window's place are per compound: a
-    compound's own window width, pressure and load sensitivity are not;
+    with one compound has no list and keeps the server's default five. The
+    grip level, the wear, the window's place and its width (`window_scale`,
+    the compound's plateau over the reference's, written only when it is
+    not 1: the 919's soft is 2) are per compound; its pressure and load
+    sensitivity are not;
   - `[suspension] roll_centre_front_m` / `_rear_m` from the front view of the
     linkage (`roll_centre_m`): the upright's instant centre (the lower arm's
     line met by the upper arm's, or for a strut by the line at right angles

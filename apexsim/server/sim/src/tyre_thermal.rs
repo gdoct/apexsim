@@ -154,8 +154,7 @@ const MAX_HYSTERESIS_FADE: f32 = 0.6;
 /// What is left of a layer's hysteresis heat at `temperature_c` (1.0 up to
 /// [`HYSTERESIS_FADE_FROM_C`] over the window).
 fn hysteresis_share(tire: &TireConfig, compound: &Compound, temperature_c: f32) -> f32 {
-    let from =
-        optimum_c(tire, compound) + tire.temperature_window_c.max(0.0) + HYSTERESIS_FADE_FROM_C;
+    let from = optimum_c(tire, compound) + window_c(tire, compound) + HYSTERESIS_FADE_FROM_C;
     1.0 - (HYSTERESIS_FADE_PER_C * (temperature_c - from).max(0.0)).min(MAX_HYSTERESIS_FADE)
 }
 
@@ -252,6 +251,12 @@ pub struct Compound {
     /// last on snow. 1.0 changes nothing.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub bare_wear: f32,
+    /// Multiplier on the width of its working window (the tyre's
+    /// `temperature_window_c` either side of the optimum): a compound whose
+    /// grip holds over a wider spread of temperatures than the car's tyre
+    /// (an AC import's own curve). 1.0 changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub window_scale: f32,
 }
 
 fn one() -> f32 {
@@ -283,6 +288,7 @@ impl Compound {
             snow_grip: 1.0,
             ice_grip: 1.0,
             bare_wear: 1.0,
+            window_scale: 1.0,
         }
     }
 
@@ -710,7 +716,7 @@ pub fn thermal_grip_factor(
 ) -> f32 {
     let t = TREAD_GRIP_SHARE * tread_c + (1.0 - TREAD_GRIP_SHARE) * core_c;
     let from_optimum = t - optimum_c(tire, compound);
-    let off = from_optimum.abs() - tire.temperature_window_c.max(0.0);
+    let off = from_optimum.abs() - window_c(tire, compound);
     if off <= 0.0 {
         return 1.0;
     }
@@ -765,6 +771,12 @@ pub fn tread_grip_factor(tire: &TireConfig, compound: &Compound, tyre: &TireData
 /// The middle of a compound's window on this car's tyre, °C.
 pub fn optimum_c(tire: &TireConfig, compound: &Compound) -> f32 {
     tire.optimal_temperature_c + compound.optimal_shift_c
+}
+
+/// The half-width of a compound's window on this car's tyre, °C: the
+/// tyre's `temperature_window_c` scaled by the compound's `window_scale`.
+pub fn window_c(tire: &TireConfig, compound: &Compound) -> f32 {
+    tire.temperature_window_c.max(0.0) * compound.window_scale
 }
 
 /// Gauge pressure, kPa, of a tyre set to `set_kpa` at its optimum whose gas
@@ -1025,7 +1037,9 @@ pub fn step(
     tyre.core_temperature_c = core + (core_in + across_total) * dt / CORE_HEAT_CAPACITY;
 
     let tread = tyre.temperature_c;
-    let over = (tread - optimum_c(tire, compound) - tire.temperature_window_c).max(0.0);
+    let over =
+        (tread - optimum_c(tire, compound) - tire.temperature_window_c * compound.window_scale)
+            .max(0.0);
     let wear = WEAR_PERCENT_PER_MJ
         * slide
         * dt
@@ -1061,7 +1075,7 @@ pub fn step(
     let picked = PICKUP_PER_S * marbles * rolling * (1.0 - tyre.pickup)
         - tyre.pickup * (PICKUP_SHED_PER_S + PICKUP_WASH_PER_S * wet);
     tyre.pickup = (tyre.pickup + picked * dt).clamp(0.0, 1.0);
-    let windows_over = over / tire.temperature_window_c.max(1.0);
+    let windows_over = over / (tire.temperature_window_c * compound.window_scale).max(1.0);
     tyre.blister = (tyre.blister + windows_over * dt / BLISTER_SECONDS).clamp(0.0, 1.0);
     // A slow puncture lets the air out as it rolls: faster hot and full,
     // slower as the pressure behind the hole falls.
@@ -1131,6 +1145,32 @@ mod tests {
             tread_c: [tread; 3],
             core_temperature_c: core,
             ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_compound_s_window_scale_widens_its_plateau_and_one_changes_nothing() {
+        let t = tyre();
+        let m = medium();
+        let opt = t.optimal_temperature_c;
+        let wide = Compound {
+            window_scale: 2.0,
+            ..m.clone()
+        };
+        let same = Compound {
+            window_scale: 1.0,
+            ..m.clone()
+        };
+        assert_eq!(window_c(&t, &wide), 2.0 * t.temperature_window_c);
+        // Past the car's window, inside the doubled one: full grip.
+        let d = 1.5 * t.temperature_window_c;
+        assert!(thermal_grip_factor(&t, &m, opt + d, opt + d) < 1.0);
+        assert_eq!(thermal_grip_factor(&t, &wide, opt + d, opt + d), 1.0);
+        for d in [-40.0, -12.0, 15.0, 33.0] {
+            assert_eq!(
+                thermal_grip_factor(&t, &same, opt + d, opt + d).to_bits(),
+                thermal_grip_factor(&t, &m, opt + d, opt + d).to_bits()
+            );
         }
     }
 

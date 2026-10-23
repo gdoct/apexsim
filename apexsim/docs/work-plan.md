@@ -268,7 +268,8 @@ new kit family plus client instancing and waits on nothing.
 
 #### C4. AC import fidelity — P3 · 🟢 · M
 AC's tyre heat model; dynamic aero controllers and DRS split; two ERS
-motors and delivery profiles; brake pads/porpoising/compound details.
+motors and delivery profiles; brake pads/porpoising, a compound's own
+pressure and load sensitivity.
 
 ### Audio and features
 

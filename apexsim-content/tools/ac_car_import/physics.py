@@ -358,6 +358,7 @@ def pad_material(car: CarData) -> tuple[str, dict[str, float]] | None:
 GRIP_RANGE = (0.5, 1.5)
 WEAR_RANGE = (0.2, 5.0)
 SHIFT_RANGE_C = (-80.0, 80.0)
+WINDOW_SCALE_RANGE = (0.25, 4.0)  # tyre_thermal::Compound::window_scale, car_loader's range
 #: The share of peak grip a worn tyre has left when its life is counted over.
 WORN_GRIP_SHARE = 0.95
 #: The rain tyres an ApexSim car has by default (`tyre_thermal::default_compounds`),
@@ -414,6 +415,8 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
       reference's;
     - `wear`: the reference's life over its own (`tyre_life_km`);
     - `window_shift_c`: its thermal window's middle less the reference's;
+    - `window_scale`: its window's half-width over the reference's (the
+      plateau of its own `PERFORMANCE_CURVE`), 1 when either has no curve;
     - `kind` from the name; a car with no wet or intermediate gets
       ApexSim's (AC has none), so the garage still has rain tyres.
 
@@ -436,6 +439,7 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
         life = tyre_life_km(car, index)
         grip = mean_grip(front, rear) / ref_grip
         shift = window[0] - ref_window[0] if window and ref_window else 0.0
+        scale = window[1] / ref_window[1] if window and ref_window else 1.0
         wear = ref_life / life if life and ref_life else 1.0
         rows.append({
             "index": index,
@@ -444,6 +448,7 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
             "grip": round(min(max(grip, GRIP_RANGE[0]), GRIP_RANGE[1]), 3),
             "wear": round(min(max(wear, WEAR_RANGE[0]), WEAR_RANGE[1]), 2),
             "window_shift_c": round(min(max(shift, SHIFT_RANGE_C[0]), SHIFT_RANGE_C[1]), 1),
+            "window_scale": round(min(max(scale, WINDOW_SCALE_RANGE[0]), WINDOW_SCALE_RANGE[1]), 2),
             "reference": index == reference,
         })
     if len(rows) < 2:

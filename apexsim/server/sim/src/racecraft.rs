@@ -479,8 +479,8 @@ impl MistakeRisk {
     ) -> Self {
         let cold = if state.tyres_fitted {
             let compound = tire.compound(state.tyre_compound);
-            let edge =
-                crate::tyre_thermal::optimum_c(tire, compound) - tire.temperature_window_c.max(0.0);
+            let edge = crate::tyre_thermal::optimum_c(tire, compound)
+                - crate::tyre_thermal::window_c(tire, compound);
             let share = crate::tyre_thermal::TREAD_GRIP_SHARE;
             let at = |t: &crate::data::TireData| {
                 share * t.temperature_c + (1.0 - share) * t.core_temperature_c

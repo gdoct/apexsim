@@ -1001,6 +1001,9 @@ PERFORMANCE_CURVE=t_hard.lut
         "t_soft__lut": "0|0.7\n60|1.0\n80|1.0\n120|0.7\n",
         "t_medium__lut": "0|0.7\n70|1.0\n90|1.0\n120|0.7\n",
         "t_hard__lut": "0|0.7\n80|1.0\n100|1.0\n120|0.7\n",
+        # A plateau twice another's: 70-90 against 75-85.
+        "t_wide__lut": "0|0.7\n70|1.0\n90|1.0\n120|0.7\n",
+        "t_narrow__lut": "0|0.7\n75|1.0\n85|1.0\n120|0.7\n",
     }
 
     def car(self, tyres: str | None = None) -> data.CarData:
@@ -1022,6 +1025,17 @@ PERFORMANCE_CURVE=t_hard.lut
         # Windows centred on 70, 80 and 90 degrees.
         self.assertEqual([r["window_shift_c"] for r in slicks], [-10.0, 0.0, 10.0])
         self.assertFalse(soft["reference"] or hard["reference"])
+
+    def test_a_compound_s_own_window_width_is_carried_against_the_reference(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        # Equal plateaus: 1, and the TOML leaves the key out.
+        self.assertEqual([r.get("window_scale", 1.0) for r in rows], [1.0] * 5)
+        tyres = self.TYRES.replace("PERFORMANCE_CURVE=t_soft.lut", "PERFORMANCE_CURVE=t_wide.lut") \
+            .replace("PERFORMANCE_CURVE=t_medium.lut", "PERFORMANCE_CURVE=t_narrow.lut")
+        rows = physics.map_compounds(self.car(tyres), 1, [])
+        soft = next(r for r in rows if r["name"] == "Slick Soft")
+        medium = next(r for r in rows if r["name"] == "Slick Medium")
+        self.assertEqual((soft["window_scale"], medium["window_scale"]), (2.0, 1.0))
 
     def test_a_car_with_slicks_alone_is_given_the_rain_tyres_apexsim_has(self):
         rows = physics.map_compounds(self.car(), 1, [])

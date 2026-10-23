@@ -285,6 +285,10 @@ struct CompoundToml {
     wear: Option<f32>,
     #[serde(default)]
     window_shift_c: Option<f32>,
+    /// Multiplier on the window's width (`tyre_thermal::Compound::window_scale`);
+    /// 1.0 when absent.
+    #[serde(default)]
+    window_scale: Option<f32>,
     /// Grip kept on a dry road, in light rain, in heavy rain.
     #[serde(default)]
     water_grip: Option<[f32; 3]>,
@@ -1086,6 +1090,7 @@ impl CarLoader {
                             snow_grip: c.snow_grip.unwrap_or(1.0),
                             ice_grip: c.ice_grip.unwrap_or(1.0),
                             bare_wear: c.bare_wear.unwrap_or(1.0),
+                            window_scale: c.window_scale.unwrap_or(1.0),
                         }
                     })
                     .collect(),
@@ -1468,6 +1473,12 @@ impl CarLoader {
                 c.optimal_shift_c,
                 -80.0,
                 80.0,
+            );
+            in_range(
+                &format!("tires.compound.{}.window_scale", c.name),
+                c.window_scale,
+                0.25,
+                4.0,
             );
             for (i, w) in c.water_grip.iter().enumerate() {
                 in_range(
