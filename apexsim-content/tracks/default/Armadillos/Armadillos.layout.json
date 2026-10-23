@@ -2318,7 +2318,7 @@
    "pit_roof": true
   },
   {
-   "kind": "observation_tower",
+   "kind": "veil_tower",
    "name": null,
    "station_m": 4654.7,
    "side": "right",

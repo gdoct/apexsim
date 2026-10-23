@@ -373,6 +373,47 @@ def stadium_bowl():
     return done(b)
 
 
+# ======================================================== building/veil_tower
+def veil_tower():
+    """A 77 m observation tower (Austin's): a white lift core, a glazed
+    observation deck at 70 m under a white canopy, and the red steel veil,
+    eighteen tubes sweeping from a wide ring on the ground up and in to
+    the deck. Centred."""
+    m = mats()
+    red = apex.material("veil_red", (0.62, 0.04, 0.04), metallic=0.3, roughness=0.35)
+    b = apex.Builder("veil_tower")
+    S = 48
+    rev = lambda mat, prof, segs=S: revolve(b, mat, prof, segs)
+    # plinth, core, the deck's floor, glazing and canopy
+    rev(m["concrete"], [(9.0, 0.0), (9.0, 0.6), (3.2, 0.6)])
+    rev(m["white"], [(2.4, 0.6), (2.4, 66.0)])
+    rev(m["white"], [(2.4, 66.0), (7.6, 66.0), (7.6, 67.0)])
+    rev(m["glass_blue"], [(7.6, 67.0), (7.9, 70.5)])
+    rev(m["white"], [(7.9, 70.5), (9.5, 70.8), (9.5, 71.4), (0.0, 72.4)])
+    # the mast on the canopy
+    b.cylinder(m["alu"], (0.0, 0.0, 72.4), 0.25, 5.0, segs=8)
+    # the veil: tubes from a 13 m ring at the ground to a 6.5 m ring under
+    # the deck, bowed out (a parabola in radius), each twisting a little.
+    n, steps = 18, 24
+    for k in range(n):
+        a0 = TAU * k / n
+        pts = []
+        for i in range(steps + 1):
+            t = i / steps
+            r = 6.5 + 6.5 * (1 - t) ** 2
+            a = a0 + 0.35 * t
+            pts.append((r * math.cos(a), r * math.sin(a), 0.6 + 65.0 * t))
+        for p0, p1 in zip(pts, pts[1:]):
+            b.bar(red, p0, p1, 0.32, segs=6)
+    # rings tying the tubes at three heights
+    for t in (0.25, 0.55, 0.85):
+        r, a_off = 6.5 + 6.5 * (1 - t) ** 2, 0.35 * t
+        ring = [(r * math.cos(TAU * k / n + a_off), r * math.sin(TAU * k / n + a_off), 0.6 + 65.0 * t) for k in range(n)]
+        for p0, p1 in zip(ring, ring[1:] + ring[:1]):
+            b.bar(red, p0, p1, 0.18, segs=4)
+    return done(b)
+
+
 # ======================================================== misc/cauldron
 CAULDRON_H = 48.0
 
@@ -670,6 +711,8 @@ BUILD = {
                       [((-60, -230, 4), (0, 0, 30), 40), ((-110, -110, 70), (0, 0, 25), 50)]),
     "stadium_bowl": ("building", stadium_bowl, 500,
                      [((-120, -330, 6), (0, 0, 22), 45), ((-230, -230, 160), (0, 0, 10), 45)]),
+    "veil_tower": ("building", veil_tower, 150,
+                   [((-90, -210, 8), (0, 0, 36), 35), ((-90, -90, 70), (0, 0, 36), 45)]),
     "fuel_station_canopy": ("building", fuel_station_canopy, 120,
                             [((-22, -45, 2.0), (0, 12, 3.5), 55), ((-30, -22, 18), (0, 14, 2), 50)]),
 }

@@ -3983,6 +3983,27 @@ runs:
         checks: "24h: Anbindung zum GP Kurs: the road continuous, barriers along it, nothing on it"
         exec: "apexsim.cam.LookAt 470.0 440.0 30.0 412.6 386.6 0.0"
 
+  - id: c5-kit-armadillos
+    about: "C5. Kit pieces placed: Armadillos"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the observation tower in its red veil"
+        checks: "C5 kit: the tower stands inside the T16-T18 carousel, on the ground"
+        exec: "apexsim.cam.LookAt 250.0 -60.0 25.0 425.5 84.4 45.0"
+
   - id: c5-lm-armadillos
     about: "C5. Landmarks: Armadillos"
     server:

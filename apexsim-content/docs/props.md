@@ -138,7 +138,8 @@ depth x height, metres). By family:
   and chapel, `castle_ruin`, `stone_lookout_tower`, the `skyline_*` city
   backdrop, the Marina Bay landmarks, and the venue landmarks
   `wing_media_centre` (a 40 m module tiled over the garages),
-  `round_glass_tower`, `arena_dome`, `stadium_bowl` (a 260 x 208 m football
+  `round_glass_tower`, `veil_tower` (a 77 m observation tower in a red
+  steel veil, Austin's), `arena_dome`, `stadium_bowl` (a 260 x 208 m football
   stadium under a white shell roof, the Fisht), `banked_oval_10m` (a
   straight module of an old banked oval, tiled along its mapped line),
   `expo_pavilion`, `geodesic_dome`,

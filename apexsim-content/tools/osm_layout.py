@@ -1696,7 +1696,8 @@ LANDMARK_KINDS: dict[str, dict[str, str]] = {
     # The COTA Observation Tower (dossier "Landmarks": 77 m, platform at 70
     # m, inside the T16-T18 carousel), OSM's `man_made=tower` at 4654.7
     # right: a viewing tower, not race control (R11).
-    "Armadillos": {"tower": "observation_tower"},
+    # (The first pass mapped it to `observation_tower`; that name maps on.)
+    "Armadillos": {"tower": "veil_tower", "observation_tower": "veil_tower"},
     # OSM node 3705411753 at 1457.3 right, 53 m past the edge, tagged only
     # man_made=tower (no type, name or height). Race control is the TÜV
     # tower in the pit complex; a scaffold camera tower is the least wrong
