@@ -81,11 +81,9 @@ one session, advanced by the host (see
 | Gap | Effort | Impact |
 |---|---|---|
 | No event across days: a race weekend is one session with phases, live only while someone is in it. Nothing groups sessions on one track and car class with a name, an entry list and a schedule (start time per session, in real days). | Med | High |
-| Sessions are not persisted: an event, its entry list, each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
-| Entries are not stable drivers: a player is a per-connection id and records key on the name, so the same driver must be recognised across days (an account or token identity, with car and livery fixed for the event). | Med | High |
+| Sessions are not persisted: an event, its entry list (drivers by their proved driver id, car and livery fixed for the event), each session's state and its results must survive server restarts and empty hours (stored beside `records/`, deterministic ids). | Med | High |
 | Qualifying has no tyre allowance: a car may fit fresh sets for every run, and nothing makes the top cars start the race on the tyres they qualified on. | Low | Low |
 | In qualifying the HUD shows race-style standings by track position, not a qualifying table. | Med | Low |
-| The start order matches drivers by name (`grid_order::resolve`): a stored result's humans are found again only under the same name. | Low | Low |
 | No schedule: a session opening, counting in and starting at its time whether or not everyone is there, with a late joiner going out from the pit lane. Needs a lobby view of upcoming sessions and a countdown. | Med | Med |
 | Assists are the session's for every phase of a weekend (practice and qualifying name their own damage rule, lengths and sky): the client learns `AllowedAssists` only from `SessionJoined`, so a phase's own assists need them sent again (in `WeekendState`, as its `Damage` is) and the client's Assists locks refreshed on it. | Low | Low |
 | AI entries in an event need fixed identities and levels across the days, a qualifying run of their own, and their results kept like a human's. | Med | Med |

@@ -1,6 +1,7 @@
 #include "ApexMenuFlowSubsystem.h"
 
 #include "ApexBootSettings.h"
+#include "ApexDriverKey.h"
 #include "ApexNetSubsystem.h"
 #include "ApexProfileSave.h"
 #include "ApexSettingsSubsystem.h"
@@ -242,7 +243,13 @@ void UApexMenuFlowSubsystem::PushIdentityToNet(bool bReconnect)
 	{
 		return;
 	}
+	// A profile from before keys gets its key the first time it is used.
+	if (Profile->DriverKeySeed.Num() != ApexDriverKey::KeyBytes && ApexDriverKey::Generate(Profile->DriverKeySeed))
+	{
+		SaveProfile();
+	}
 	Net->SetDriverId(ApexProfiles::WireId(Profile->DriverId));
+	Net->SetDriverKey(Profile->DriverKeySeed);
 	// The server reads the name and the id once per connection: a client
 	// that is talking to one says hello again as the driver now in use.
 	if (bReconnect && Net->GetConnectionState() != EApexConnectionState::Disconnected)
@@ -313,6 +320,7 @@ FGuid UApexMenuFlowSubsystem::CreateProfile(const FString& Name, int32 Portrait)
 	Fresh->DriverName = Entry.Name;
 	Fresh->DriverId = Entry.Id;
 	Fresh->Portrait = Entry.Portrait;
+	ApexDriverKey::Generate(Fresh->DriverKeySeed);
 	Fresh->ServerHost = ServerHost;
 	Fresh->ServerPort = ServerPort;
 	if (!UGameplayStatics::SaveGameToSlot(Fresh, Entry.ProfileSlot, 0))

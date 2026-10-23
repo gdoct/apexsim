@@ -60,6 +60,7 @@ impl TestClient {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         };
 
         self.send_tcp_message(&auth_msg).await?;

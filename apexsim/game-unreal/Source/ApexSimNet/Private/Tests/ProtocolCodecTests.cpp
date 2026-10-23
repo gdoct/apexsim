@@ -1,5 +1,6 @@
 #include "Misc/AutomationTest.h"
 
+#include "ApexDriverKey.h"
 #include "ApexProtocolCodec.h"
 #include "ApexProtocolTypes.h"
 #include "HAL/IConsoleManager.h"
@@ -69,6 +70,14 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 	CheckBytes(TEXT("Authenticate with a driver profile"),
 		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player"), FString(), TEXT("dddddddd-0000-4000-8000-000000000001")),
 		ApexGolden::C_AuthenticateProfile);
+	// A profile with a key sends its public half too, and proves it.
+	CheckBytes(TEXT("Authenticate with a driver key"),
+		ApexProtocol::EncodeAuthenticate(TEXT("dev-token"), TEXT("Player"), FString(), TEXT("dddddddd-0000-4000-8000-000000000001"),
+			FString::ChrN(32, 'a').Replace(TEXT("a"), TEXT("ab"))),
+		ApexGolden::C_AuthenticateKey);
+	CheckBytes(TEXT("ProveDriverKey"),
+		ApexProtocol::EncodeProveDriverKey(FString::ChrN(64, 'c').Replace(TEXT("c"), TEXT("cd"))),
+		ApexGolden::C_ProveDriverKey);
 
 	// The unit variants are the sharpest trap: a one-key map with no "data".
 	// Emitting `"data": {}` fails from_slice on the server, and each parse
@@ -535,6 +544,15 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("AuthSuccess.ResumeToken"), Message.AuthSuccess.ResumeToken, FString(TEXT("resume-tok")));
 			TestEqual(TEXT("AuthSuccess.UdpPort (resume)"), Message.AuthSuccess.UdpPort, 9001);
+			TestTrue(TEXT("no key, no challenge"), Message.AuthSuccess.KeyChallenge.IsEmpty());
+		}
+	}
+
+	{
+		FApexServerMessage Message;
+		if (Decode(TEXT("AuthSuccess with a key challenge"), ApexGolden::S_AuthSuccessChallenge, Message))
+		{
+			TestEqual(TEXT("AuthSuccess.KeyChallenge"), Message.AuthSuccess.KeyChallenge, FString::ChrN(32, 'e').Replace(TEXT("e"), TEXT("ef")));
 		}
 	}
 
@@ -1699,6 +1717,32 @@ bool FApexTimingBoardTest::RunTest(const FString& Parameters)
 // -----------------------------------------------------------------------------
 // Stored qualifying results, asked for per track.
 // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// The driver key: OpenSSL's Ed25519 makes the server's own known answer
+// (driver_keys.rs, a_known_seed_signs_a_known_proof), and a fresh seed signs.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexDriverKeyTest,
+	"ApexSim.Net.DriverKey",
+	ApexTestFlags)
+
+bool FApexDriverKeyTest::RunTest(const FString& Parameters)
+{
+	TArray<uint8> Seed;
+	Seed.Init(3, ApexDriverKey::KeyBytes);
+	TestEqual(TEXT("the public key"), ApexDriverKey::PublicKeyHex(Seed), FString(TEXT("ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1")));
+	const TArray<uint8> Message = ApexDriverKey::ProofMessage(TEXT("abcd"), TEXT("00000000-0000-0000-0000-000000000007"));
+	TestEqual(TEXT("the signature the server checks"), ApexDriverKey::SignHex(Seed, Message),
+		FString(TEXT("d1d7215720771c6c9167b0b43456f67e3c1a0f153d1b031d0ced996beb0bcc6132bca87bbeb7dc859a69a70e34785e08d38dbaac09b880890ceeae6a28fdf707")));
+	TArray<uint8> Fresh;
+	TestTrue(TEXT("a seed is made"), ApexDriverKey::Generate(Fresh) && Fresh.Num() == ApexDriverKey::KeyBytes);
+	TestEqual(TEXT("its public key"), ApexDriverKey::PublicKeyHex(Fresh).Len(), 64);
+	TestEqual(TEXT("its signature"), ApexDriverKey::SignHex(Fresh, Message).Len(), 128);
+	TestTrue(TEXT("no seed, no key"), ApexDriverKey::PublicKeyHex(TArray<uint8>()).IsEmpty());
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FApexProtocolLeaderboardTest,

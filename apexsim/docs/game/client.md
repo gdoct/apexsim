@@ -229,9 +229,17 @@ lives on this machine only.
   screen as "Who is driving?" first (`ConsumeProfilePrompt`), unless the
   command line chose one or carries an `-Apex` flag that drives the game
   (an unattended run); `-ApexScreens=` and `-ApexContent*` do not count.
+- **The driver key**: each profile holds an Ed25519 private seed
+  (`UApexProfileSave::DriverKeySeed`, made with the profile or the first
+  time an older one is used; never sent), so a backup of the save keeps
+  the driver and a lost install is a new one. `ApexDriverKey`
+  (ApexSimNet, OpenSSL) gives its public key and signs; the net subsystem
+  sends the public key with the id and answers the server's challenge
+  with `ProveDriverKey` before anything else
+  ([protocol.md](../server/protocol.md#connection-flow)).
 - **On the wire**: `Authenticate.driver_id` carries the id
-  (`UApexNetSubsystem::SetDriverId`, set by the flow subsystem before the
-  first connect), so the server knows the driver across connections: grid
+  (`UApexNetSubsystem::SetDriverId` / `SetDriverKey`, set by the flow
+  subsystem before the first connect), so the server knows the driver across connections: grid
   references (`@driver:`), stored qualifying lines and lap records
   ([sessions.md](../server/sessions.md#starting-order-and-qualifying)).
   Switching profiles or renaming one reconnects as the new driver (leaving
@@ -257,7 +265,8 @@ lives on this machine only.
   editor, `Drivers/portraits` beside the packaged game, copied by
   `build_release.ps1`), read at runtime on first use.
 
-Checks: `ApexSim.Profile.*` (stats filing, the list and `-ApexProfile=`,
+Checks: `ApexSim.Net.DriverKey` (OpenSSL signs the server's own known
+answer), `ApexSim.Profile.*` (stats filing, the list and `-ApexProfile=`,
 the pictures there), `ApexSim.UI.CreateSession.StartOrder`'s profile
 lines, `ApexSim.Leaderboard.Rows`, `ApexSim.Net.Protocol.*` for the wire.
 

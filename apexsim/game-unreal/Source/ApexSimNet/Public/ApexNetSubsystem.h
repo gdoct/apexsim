@@ -685,6 +685,13 @@ public:
 	 */
 	void SetDriverId(const FString& InDriverId) { DriverId = InDriverId; }
 	const FString& GetDriverId() const { return DriverId; }
+
+	/**
+	 * The profile's driver key (ApexDriverKey: the 32-byte private seed, kept
+	 * in memory only): its public half goes with the id, and it signs the
+	 * server's challenge, so the id is proved. Empty: the id goes alone.
+	 */
+	void SetDriverKey(const TArray<uint8>& InSeed) { DriverKeySeed = InSeed; }
 	/** The server's address as connected to (its health port serves the recordings). */
 	const FString& GetServerHost() const { return Host; }
 
@@ -978,8 +985,9 @@ private:
 	FString Host;
 	int32 Port = 9000;
 	FString PlayerName;
-	/** The driver profile's id (SetDriverId). */
+	/** The driver profile's id (SetDriverId) and key (SetDriverKey). */
 	FString DriverId;
+	TArray<uint8> DriverKeySeed;
 	/** Kept for reconnects; the server reads it once per connection. */
 	FString Token;
 	/**

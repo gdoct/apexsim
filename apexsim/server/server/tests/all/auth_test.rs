@@ -55,6 +55,7 @@ async fn test_valid_token_accepted() {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         },
     )
     .await;
@@ -83,6 +84,7 @@ async fn test_invalid_token_rejected() {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         },
     )
     .await;
@@ -124,6 +126,7 @@ async fn test_empty_token_rejected_in_token_mode() {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         },
     )
     .await;
@@ -164,6 +167,7 @@ async fn test_pre_auth_messages_dropped() {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         },
     )
     .await;

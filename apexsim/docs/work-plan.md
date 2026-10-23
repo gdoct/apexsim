@@ -34,7 +34,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | A6 | AI lifts for trouble it sees ahead (tried 2026-10-20, not landed) | AI | P2 | 🟢 | M | 2 |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 3 |
-| R3 | Race events across days (identity, persistence, schedule) | Race rules (epic) | P2 | 🟡 | L | 3, 5 |
+| R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 5 |
 | N7 | Championships and series with points (offline first) | Game mode | P2 | 🟡 | M | 3, 5 |
 | G4 | Runtime track meshes lack distance fields (A/B) | Rendering | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 4 |
@@ -79,8 +79,7 @@ takes it up (— : no step, taken opportunistically).
    (follow-ups #20); R8's edges where they touch
    the same files.
 3. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
-   local install), R3 phase 1 (a key per install,
-   held per profile), N7 (an offline season, saved in the profile).
+   local install), N7 (an offline season, saved in the profile).
    N26 phase 2 waits on the repository and the signing key.
 4. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
@@ -161,24 +160,20 @@ Bundle by module, each judged by the survey:
 *Source: simulation-gaps, race weekends.*
 
 **What:** A weekend lives only as one in-memory session. No event entity, no
-persistence across restarts, players identified per connection / by name, no
-schedule, no AI identities, no combined results record.
+persistence across restarts, no schedule, no AI identities, no combined
+results record. Drivers are known across connections (built 2026-10-23:
+each profile's id, proved by its Ed25519 key, `driver_keys.rs`).
 **Outcome:** Real league-style weekends: practice Friday, qualifying
 Saturday, race Sunday, same drivers, results kept.
 **Implementation, in phases:**
-1. *Stable driver identity*: a keypair made once per install; the server
-   knows a driver by public key and a chosen name (decided 2026-10-18: no
-   accounts, no service; a lost install is a new driver). Car and livery
-   fixed per event. Also fixes grid matching by name (`grid_order::resolve`) and is
-   the base for leaderboards and ratings.
-2. *Event entity + persistence* beside `records/` with deterministic ids.
+1. *Stable driver identity*: built (a key per profile, trust on first use
+   per server).
+2. *Event entity + persistence*, car and livery fixed per event beside `records/` with deterministic ids.
 3. *Schedule*: sessions open and start on time, lobby view and countdown,
    late joiners from the pit lane.
 4. *AI entries* with fixed identities and levels across days.
 5. *Weekend results record*, browsable replays and sheets.
-**Watch out:** the key signs a challenge at join and never leaves the
-machine; keep it beside `ApexProfile.sav` and back it up with it. Keep the
-sim path free of persistence reads.
+**Watch out:** keep the sim path free of persistence reads.
 
 #### R8. Race control's edges — P3 · 🟢/🟡 · S each
 *Source: follow-ups #20* (A6 is its own item). The safety car drives

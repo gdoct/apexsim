@@ -328,6 +328,8 @@ back up `Saved/SaveGames` first and put it back after. Shot 2026-10-23
   (`ApexSim.UI.PadWalk` does not walk this screen yet).
 - Stats after an offline race and a hotlap, and two profiles joining one
   server, each under its own id (the leaderboard lights each one's laps).
+  The runs' servers bound both profiles' keys (their `records/drivers.json`)
+  with no notice; a second machine claiming one of those ids is unseen.
 
 ## 2. Needs a human: hands, ears and hardware
 

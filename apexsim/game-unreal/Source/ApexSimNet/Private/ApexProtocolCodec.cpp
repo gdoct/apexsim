@@ -414,6 +414,7 @@ namespace
 			else if (Key == TEXT("UdpPort"))         { bOk = Reader.ReadUInt64(Raw); Out.UdpPort = static_cast<int32>(Raw); }
 			else if (Key == TEXT("UdpKey"))          { bOk = Reader.ReadString(Out.UdpKey); }
 			else if (Key == TEXT("ResumeToken"))     { bOk = Reader.ReadString(Out.ResumeToken); }
+			else if (Key == TEXT("KeyChallenge"))    { bOk = Reader.ReadString(Out.KeyChallenge); }
 			else                                     { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -3415,14 +3416,16 @@ namespace ApexProtocol
 		return CVarParseCenterline.GetValueOnAnyThread() != 0;
 	}
 
-	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken, const FString& DriverId)
+	TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken, const FString& DriverId,
+		const FString& DriverKey)
 	{
 		// Without a resume token or a profile the bytes are those of every
 		// earlier client.
 		const bool bResume = !ResumeToken.IsEmpty();
 		const bool bDriver = !DriverId.IsEmpty();
-		FMsgPackWriter Writer(200);
-		BeginDataVariant(Writer, "Authenticate", 3 + (bResume ? 1 : 0) + (bDriver ? 1 : 0));
+		const bool bKey = !DriverKey.IsEmpty();
+		FMsgPackWriter Writer(280);
+		BeginDataVariant(Writer, "Authenticate", 3 + (bResume ? 1 : 0) + (bDriver ? 1 : 0) + (bKey ? 1 : 0));
 		Writer.WriteString("token");
 		Writer.WriteString(Token);
 		Writer.WriteString("player_name");
@@ -3439,6 +3442,20 @@ namespace ApexProtocol
 			Writer.WriteString("driver_id");
 			Writer.WriteString(DriverId);
 		}
+		if (bKey)
+		{
+			Writer.WriteString("driver_key");
+			Writer.WriteString(DriverKey);
+		}
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeProveDriverKey(const FString& Signature)
+	{
+		FMsgPackWriter Writer(200);
+		BeginDataVariant(Writer, "ProveDriverKey", 1);
+		Writer.WriteString("signature");
+		Writer.WriteString(Signature);
 		return MoveTemp(Writer.GetBuffer());
 	}
 

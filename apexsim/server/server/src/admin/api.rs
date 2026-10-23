@@ -578,6 +578,7 @@ async fn players(ctx: &AdminContext) -> Resp {
             "ping_ms": c.ping_ms,
             "udp": c.udp_bound,
             "muted": st.chat.is_muted(&c.player_id),
+            "driver_id": c.driver_id,
         }));
     }
     for gs in st.sessions.values() {

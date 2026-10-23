@@ -55,6 +55,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             protocol_version: apexsim_server::network::PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         },
     )
     .await?;

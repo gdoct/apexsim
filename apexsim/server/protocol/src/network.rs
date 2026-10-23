@@ -82,6 +82,19 @@ pub enum ClientMessage {
             deserialize_with = "deserialize_option_uuid_from_string"
         )]
         driver_id: Option<DriverId>,
+        /// The profile's Ed25519 public key, hex (32 bytes). With it the
+        /// server answers `AuthSuccess.key_challenge`, and the id counts
+        /// only once `ProveDriverKey` has signed it. Left off the wire
+        /// without one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        driver_key: Option<String>,
+    },
+    /// The signature, hex (64 bytes), of the profile's key over
+    /// `apexsim driver key v1:<key_challenge>:<driver_id>`: the driver id
+    /// is this connection's from then on (`driver_keys.rs`). Sent once,
+    /// right after `AuthSuccess`.
+    ProveDriverKey {
+        signature: String,
     },
     Heartbeat {
         client_tick: u32,
@@ -461,6 +474,11 @@ pub struct AuthSuccessData {
     /// they hold in a session). Left off the wire when empty.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub resume_token: String,
+    /// A random challenge, hex, for the client to sign with its driver key
+    /// (`ProveDriverKey`); left off the wire when `Authenticate` carried no
+    /// key.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub key_challenge: String,
 }
 
 /// A seat the player still holds in a session they lost the connection to:
@@ -2591,6 +2609,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         };
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -2603,6 +2622,7 @@ mod tests {
                 protocol_version,
                 resume_token: _,
                 driver_id: _,
+                driver_key: _,
             } => {
                 assert_eq!(token, "test_token");
                 assert_eq!(player_name, "Player1");
@@ -2741,6 +2761,7 @@ mod tests {
             udp_port: 9001,
             udp_key: "udp-key".to_string(),
             resume_token: String::new(),
+            key_challenge: String::new(),
         });
 
         let serialized = rmp_serde::to_vec_named(&msg).unwrap();
@@ -6958,6 +6979,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         })
         .unwrap();
         assert!(!String::from_utf8_lossy(&plain).contains("resume_token"));
@@ -6967,6 +6989,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
             resume_token: Some("resume-tok".to_string()),
             driver_id: None,
+            driver_key: None,
         })
         .unwrap();
         println!("C_AuthenticateResume: {}", hex(&resume));
@@ -6977,6 +7000,7 @@ mod tests {
             protocol_version: PROTOCOL_VERSION,
             resume_token: None,
             driver_id: Some(Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap()),
+            driver_key: None,
         })
         .unwrap();
         println!("C_AuthenticateProfile: {}", hex(&profile));
@@ -6987,6 +7011,30 @@ mod tests {
             ),
             other => panic!("Wrong message type: {other:?}"),
         }
+        // A profile's key beside its id, the server's challenge, the proof.
+        let keyed = rmp_serde::to_vec_named(&ClientMessage::Authenticate {
+            token: "dev-token".to_string(),
+            player_name: "Player".to_string(),
+            protocol_version: PROTOCOL_VERSION,
+            resume_token: None,
+            driver_id: Some(Uuid::parse_str("dddddddd-0000-4000-8000-000000000001").unwrap()),
+            driver_key: Some("ab".repeat(32)),
+        })
+        .unwrap();
+        println!("C_AuthenticateKey: {}", hex(&keyed));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&keyed).unwrap(),
+            ClientMessage::Authenticate { driver_key: Some(k), .. } if k.len() == 64
+        ));
+        let prove = rmp_serde::to_vec_named(&ClientMessage::ProveDriverKey {
+            signature: "cd".repeat(64),
+        })
+        .unwrap();
+        println!("C_ProveDriverKey: {}", hex(&prove));
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&prove).unwrap(),
+            ClientMessage::ProveDriverKey { signature } if signature.len() == 128
+        ));
         match rmp_serde::from_slice::<ClientMessage>(&resume).unwrap() {
             ClientMessage::Authenticate { resume_token, .. } => {
                 assert_eq!(resume_token.as_deref(), Some("resume-tok"));
@@ -7004,10 +7052,28 @@ mod tests {
                 udp_port: 9001,
                 udp_key: String::new(),
                 resume_token: resume_token.to_string(),
+                key_challenge: String::new(),
             })
         };
         let plain = rmp_serde::to_vec_named(&auth("")).unwrap();
         assert!(!String::from_utf8_lossy(&plain).contains("ResumeToken"));
+        assert!(!String::from_utf8_lossy(&plain).contains("KeyChallenge"));
+        let challenged = rmp_serde::to_vec_named(&ServerMessage::AuthSuccess(AuthSuccessData {
+            player_id,
+            server_version: 1,
+            protocol_version: PROTOCOL_VERSION,
+            udp_token: "udp-tok".to_string(),
+            udp_port: 9001,
+            udp_key: String::new(),
+            resume_token: String::new(),
+            key_challenge: "ef".repeat(32),
+        }))
+        .unwrap();
+        println!("S_AuthSuccessChallenge: {}", hex(&challenged));
+        match rmp_serde::from_slice::<ServerMessage>(&challenged).unwrap() {
+            ServerMessage::AuthSuccess(data) => assert_eq!(data.key_challenge, "ef".repeat(32)),
+            other => panic!("Wrong message type: {other:?}"),
+        }
         let with_token = rmp_serde::to_vec_named(&auth("resume-tok")).unwrap();
         println!("S_AuthSuccessResume: {}", hex(&with_token));
         match rmp_serde::from_slice::<ServerMessage>(&with_token).unwrap() {

@@ -214,7 +214,7 @@ proptest! {
         steering in -1.0f32..=1.0,
     ) {
         let messages = vec![
-            ClientMessage::Authenticate { token, player_name, protocol_version: 2, resume_token: None, driver_id: None },
+            ClientMessage::Authenticate { token, player_name, protocol_version: 2, resume_token: None, driver_id: None, driver_key: None },
             ClientMessage::Heartbeat { client_tick, ping_ms: None },
             ClientMessage::PlayerInput {
                 server_tick_ack,
@@ -261,6 +261,7 @@ proptest! {
                 udp_port: 9001,
                 udp_key: "prop-udp-key".to_string(),
                 resume_token: String::new(),
+                key_challenge: String::new(),
             }),
             ServerMessage::Error { code, message },
             ServerMessage::HeartbeatAck { server_tick },

@@ -70,13 +70,24 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 ## Connection flow
 
 1. Client opens TCP and sends `Authenticate { token, player_name,
-   protocol_version, resume_token?, driver_id? }`. Anything else before it
-   is dropped and counted as a violation. `driver_id` is the driver
-   profile's id (a UUID made when the player created the profile on their
-   machine): the server knows the driver by it across connections, in grid
-   references, stored qualifying lines and lap records
-   ([sessions.md](sessions.md#starting-order-and-qualifying)). It is a
-   claim, not a proof.
+   protocol_version, resume_token?, driver_id?, driver_key? }`. Anything
+   else before it is dropped and counted as a violation. `driver_id` is the
+   driver profile's id (a UUID made when the player created the profile on
+   their machine): the server knows the driver by it across connections, in
+   grid references, stored qualifying lines and lap records
+   ([sessions.md](sessions.md#starting-order-and-qualifying)).
+   `driver_key` is the profile's Ed25519 public key (hex); with it,
+   `AuthSuccess.KeyChallenge` carries 32 random bytes (hex) and the client
+   answers at once with `ProveDriverKey { signature }` over
+   `apexsim driver key v1:<challenge>:<driver_id>`
+   (`server/server/src/driver_keys.rs`). The connection drives under the id
+   only once that checks out, and only if the id is that key's: the first
+   key a server sees for an id keeps it (`drivers.json` beside the records).
+   An id sent with another key, a bad proof, or no key for an id a key has
+   drives without it, with a `ServerNotice` saying so; an id no key has yet
+   is still taken on its word (a client without keys). The handshake is
+   checked in the transport, in order, so a join sent after it is seated
+   under the id.
 2. Server checks the version (a mismatch, or an old client without the field,
    gets an `AuthFailure` naming both) and the token (`[auth]`), checks the ban
    list, and answers `AuthSuccess` with the `PlayerId`, a one-time
@@ -316,7 +327,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend` with and without a day's sky (`C_CreateSessionWeekendDays`, sent by the codec), `SessionJoined.Weekend`, `WeekendState`, a late entry (`S_WeekendStateLate`), a lobby listing a weekend between phases (`S_LobbyStateWeekendWaiting`), `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `qualifying_cutoff_wire_format` (`CreateSession.qualifying_cutoff_pct`, `SessionJoined.QualifyingCutoffPct`), `pit_rule_wire_format` (`CreateSession.mandatory_stops` / `compound_change`, `SessionJoined.MandatoryStops` / `CompoundChange`, `RosterEntry.MissedStops`), `shootout_wire_format` (`CreateSession.qualifying_format` / `qualifying_lap_allowance`, `SessionJoined.QualifyingFormat` / `QualifyingLapAllowance`, `ShootoutState`, a weekend's `practice_damage` / `qualifying_damage`, `WeekendState.Damage`, a day's sky in `WeekendState.Conditions` (`S_WeekendStateConditions`)), `race_rules_wire_format` (`CreateSession.race_rules`, `SessionJoined.RaceRules`, a pace-lap frame's `race_phase`, `S_TelemetryCompactPaceLap`: the field after `yellow_flags`), `penalties_wire_format` (`race_rules.yellow_penalty` / `pit_exit_penalty`, `RosterEntry.Penalties`), `safety_car_wire_format` (`race_rules.safety_car`, a frame's `race_phase` 3), `reverse_grid_wire_format` (`race_rules.reverse_grid`, `C_CreateSessionReverseGrid`), `full_safety_car_wire_format` (`race_rules.safety_car` 2, `C_CreateSessionFullSafetyCar`; a frame with `race_phase` 5 and the safety car's pose, `S_TelemetryCompactSafetyCar`), `lobby_race_rules_wire_format` (a listed session's `RaceRules` and the lobby's `Balanced`, `S_LobbyStateRaceRules`), `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Prediction | `session_joined_physics_wire_format`, `track_bundle_wire_format` (`SessionJoined.Physics` naming the bundle, `RequestTrackBundle`, `TrackBundleChunk` with and without its chunk), `session_joined_balance_wire_format` (`S_SessionJoinedPhysicsBalance`: `Physics.balance`, a balanced car's figures) |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `pit_plan_wire_format` (`SetPitPlan`, full and empty), `hotlap_wire_format`, `hotlap_watch_wire_format` (`CreateSession.watch`), `recover_wire_format` |
-| Reconnect, profiles | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`; `C_AuthenticateProfile`: `Authenticate.driver_id`) |
+| Reconnect, profiles | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`; `C_AuthenticateProfile`: `Authenticate.driver_id`; `C_AuthenticateKey`, `S_AuthSuccessChallenge`, `C_ProveDriverKey`: the key handshake) |
 | Records | `grid_wire_format` also prints `S_QualifyingResults` and `S_Leaderboard`, each with a line carrying its `DriverId` |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`, `RosterEntry.Dnq`, `RosterEntry.QualifyingLaps`) |
 | The race's grid | `ready_grid_wire_format` (`OpenGrid`, `SetReady`, `SetLivery`, `GameModeChanged { Grid }`, `RosterEntry.Ready`) |

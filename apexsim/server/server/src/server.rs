@@ -530,6 +530,12 @@ pub async fn run_server_from(
         }
     });
 
+    // Driver keys live beside the lap records they guard.
+    if config.records.enabled {
+        transport
+            .driver_keys()
+            .open(std::path::Path::new(&config.records.dir).join("drivers.json"));
+    }
     transport.start().await;
     let tcp_addr = transport.tcp_local_addr();
     let udp_addr = transport.udp_local_addr();

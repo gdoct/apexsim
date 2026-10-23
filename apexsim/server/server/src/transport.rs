@@ -116,6 +116,9 @@ pub struct ConnectionSnapshot {
     /// The client's own measure of its round trip; `None` from a client
     /// that does not report one, and before its first.
     pub ping_ms: Option<u32>,
+    /// The driver profile's id the connection drives under: sent, and
+    /// proved by its key where it has one (`crate::driver_keys`).
+    pub driver_id: Option<DriverId>,
 }
 
 #[derive(Debug, Error)]
@@ -219,6 +222,8 @@ struct ConnRegistry {
     resume_tokens: Arc<RwLock<HashMap<String, PlayerId>>>,
     /// Addresses and names refused at `Authenticate` (`crate::admin::bans`).
     bans: crate::admin::bans::BanList,
+    /// Each driver id's key (`crate::driver_keys`).
+    driver_keys: crate::driver_keys::DriverKeys,
     /// The game loop's tick count (wrapping), stored by the loop every tick
     /// and echoed in `HeartbeatAck`.
     server_tick: Arc<std::sync::atomic::AtomicU32>,
@@ -234,6 +239,7 @@ impl ConnRegistry {
             udp_addr_to_connection: Arc::new(RwLock::new(HashMap::new())),
             resume_tokens: Arc::new(RwLock::new(HashMap::new())),
             bans: crate::admin::bans::BanList::default(),
+            driver_keys: crate::driver_keys::DriverKeys::default(),
             server_tick: Arc::new(std::sync::atomic::AtomicU32::new(0)),
         }
     }
@@ -619,6 +625,9 @@ impl TransportLayer {
 
         let kick = Arc::new(tokio::sync::Notify::new());
         let release_seat = Arc::new(AtomicBool::new(false));
+        // A driver id sent with a key, waiting for `ProveDriverKey`: the id,
+        // the key and the challenge it has to sign.
+        let mut pending_key: Option<(crate::data::DriverId, String, String)> = None;
         loop {
             // Read length prefix (or stop when the admin kicks this client)
             let read = tokio::select! {
@@ -694,6 +703,7 @@ impl TransportLayer {
                                         protocol_version,
                                         resume_token,
                                         driver_id,
+                                        driver_key,
                                     } = &msg
                                     {
                                         if *protocol_version != PROTOCOL_VERSION {
@@ -782,10 +792,34 @@ impl TransportLayer {
                                             .insert(resume_token.clone(), player_id);
                                         let udp_token = Uuid::new_v4().to_string();
                                         let udp_key = udp_seal::generate_key();
+                                        // A driver id with a key counts once
+                                        // its proof arrives; one without a
+                                        // key only while no key has it here.
+                                        let (driver_id, key_challenge) = match (
+                                            *driver_id, driver_key,
+                                        ) {
+                                            (Some(id), Some(key)) => {
+                                                let challenge = crate::driver_keys::challenge();
+                                                pending_key =
+                                                    Some((id, key.clone(), challenge.clone()));
+                                                (None, challenge)
+                                            }
+                                            (Some(id), None)
+                                                if registry.driver_keys.key_of(id).is_some() =>
+                                            {
+                                                let _ = conn_tx.try_send(OutboundFrame::Message(
+                                                    ServerMessage::ServerNotice {
+                                                        message: "This driver's records here belong to its key, which your client did not send: racing without them".to_string(),
+                                                    },
+                                                ));
+                                                (None, String::new())
+                                            }
+                                            (id, _) => (id, String::new()),
+                                        };
                                         let conn_info = ConnectionInfo {
                                             player_id,
                                             player_name: player_name.clone(),
-                                            driver_id: *driver_id,
+                                            driver_id,
                                             connected_at: Instant::now(),
                                             last_heartbeat: Instant::now(),
                                             ping_ms: None,
@@ -846,6 +880,7 @@ impl TransportLayer {
                                                 udp_port,
                                                 udp_key,
                                                 resume_token,
+                                                key_challenge,
                                             });
                                         // Critical message - if queue full, client is too slow
                                         if conn_tx
@@ -856,6 +891,42 @@ impl TransportLayer {
                                             warn!("Failed to send AuthSuccess to slow client {}, disconnecting", addr);
                                             break;
                                         }
+                                    } else if let ClientMessage::ProveDriverKey { signature } = &msg
+                                    {
+                                        // Checked here, in order: a join sent
+                                        // after it sees the id.
+                                        let notice = match pending_key.take() {
+                                            Some((id, key, challenge))
+                                                if crate::driver_keys::verify(&key, &challenge, id, signature) =>
+                                            {
+                                                match registry.driver_keys.bind(id, &key) {
+                                                    crate::driver_keys::Binding::Taken => Some("This driver id belongs to another key on this server: racing without it"),
+                                                    _ => {
+                                                        if let Some(conn) = registry
+                                                            .connections
+                                                            .write()
+                                                            .await
+                                                            .get_mut(&connection_id)
+                                                        {
+                                                            conn.driver_id = Some(id);
+                                                        }
+                                                        debug!("Driver {} proved its key ({})", id, addr);
+                                                        None
+                                                    }
+                                                }
+                                            }
+                                            Some(_) => Some("Your driver key's proof did not check out: racing without your driver id"),
+                                            None => None,
+                                        };
+                                        if let Some(message) = notice {
+                                            warn!("{}: {}", addr, message);
+                                            let _ = conn_tx.try_send(OutboundFrame::Message(
+                                                ServerMessage::ServerNotice {
+                                                    message: message.to_string(),
+                                                },
+                                            ));
+                                        }
+                                        continue;
                                     } else if let ClientMessage::Heartbeat { ping_ms, .. } = &msg {
                                         // Update last heartbeat time
                                         if let Some(conn) = registry
@@ -1253,6 +1324,11 @@ impl TransportLayer {
         self.registry.bans.clone()
     }
 
+    /// The driver keys the authentication step binds and checks.
+    pub fn driver_keys(&self) -> crate::driver_keys::DriverKeys {
+        self.registry.driver_keys.clone()
+    }
+
     /// Everyone connected, for the admin dashboard.
     pub async fn connection_snapshots(&self) -> Vec<ConnectionSnapshot> {
         let now = Instant::now();
@@ -1270,6 +1346,7 @@ impl TransportLayer {
                 in_session: c.in_session,
                 udp_bound: c.udp_addr.is_some(),
                 ping_ms: c.ping_ms,
+                driver_id: c.driver_id,
             })
             .collect()
     }

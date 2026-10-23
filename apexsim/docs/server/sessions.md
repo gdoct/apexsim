@@ -725,12 +725,12 @@ the gaps.
 
 Names come from `GameSession::set_driver_name` (on create and join) and the
 AI profiles; profile ids from `set_driver_id` beside it, from the
-connection's `Authenticate.driver_id`. A stored qualifying line carries
-the driver's profile id (`QualifyingEntry.driver_id`, left off the wire
-without one), and the client grids that driver by `@driver:` rather than
-by name ([client.md](../game/client.md#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)). An id is a claim,
-not a proof: anyone can send another driver's (R3 phase 1's keypair makes
-it one).
+connection's `Authenticate.driver_id`, proved by the profile's key where
+the client sent one ([protocol.md](protocol.md#connection-flow)). A
+stored qualifying line carries the driver's profile id
+(`QualifyingEntry.driver_id`, left off the wire without one), and the
+client grids that driver by `@driver:` rather than by name
+([client.md](../game/client.md#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)).
 
 **Qualifying classifies.** In `Qualification` every legal lap goes through
 `note_qualifying_lap` (from `tick.rs`): each driver's best and the tick it

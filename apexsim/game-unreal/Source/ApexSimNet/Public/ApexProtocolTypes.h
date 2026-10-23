@@ -1848,6 +1848,10 @@ struct APEXSIMNET_API FApexAuthSuccess
 	 *  (and take back a seat held in a session); empty from an older server. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
 	FString ResumeToken;
+
+	/** What the driver key signs in `ProveDriverKey` (hex); empty when no key was sent, or from an older server. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Auth")
+	FString KeyChallenge;
 };
 
 /**

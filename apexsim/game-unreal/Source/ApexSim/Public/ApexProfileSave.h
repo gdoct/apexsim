@@ -74,6 +74,14 @@ public:
 	UPROPERTY()
 	FGuid DriverId;
 
+	/**
+	 * The profile's driver key: an Ed25519 private seed (ApexDriverKey) made
+	 * with the profile and never sent; it proves DriverId to a server. Kept
+	 * in this save so a backup of the save keeps the driver.
+	 */
+	UPROPERTY()
+	TArray<uint8> DriverKeySeed;
+
 	/** The driver picture, 1-based into the portraits (UApexPortraitSubsystem); 0 for none. */
 	UPROPERTY()
 	int32 Portrait = 0;

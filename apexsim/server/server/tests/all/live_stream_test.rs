@@ -38,6 +38,7 @@ impl Client {
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: None,
                 driver_id: None,
+                driver_key: None,
             })
             .await?;
         match client.recv().await? {

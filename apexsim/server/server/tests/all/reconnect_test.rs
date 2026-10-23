@@ -44,6 +44,7 @@ impl Client {
                 protocol_version: apexsim_server::network::PROTOCOL_VERSION,
                 resume_token: resume.map(str::to_string),
                 driver_id: None,
+                driver_key: None,
             },
         )
         .await?;

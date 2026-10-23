@@ -64,6 +64,7 @@ impl ProtocolTestClient {
             protocol_version,
             resume_token: None,
             driver_id: None,
+            driver_key: None,
         })
         .await;
         self.recv_until(|m| {

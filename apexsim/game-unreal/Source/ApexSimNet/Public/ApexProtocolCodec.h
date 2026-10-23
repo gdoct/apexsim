@@ -23,9 +23,14 @@ namespace ApexProtocol
 	// Each returns a complete MessagePack payload for one message.
 
 	/** `ResumeToken`: an earlier AuthSuccess's, to be that player again; empty for a new one. */
-	/** DriverId: the driver profile's id (a UUID's text), left off the wire when empty. */
+	/**
+	 * DriverId: the driver profile's id (a UUID's text); DriverKey: its
+	 * public key (hex, ApexDriverKey). Each is left off the wire when empty.
+	 */
 	APEXSIMNET_API TArray<uint8> EncodeAuthenticate(const FString& Token, const FString& PlayerName, const FString& ResumeToken = FString(),
-		const FString& DriverId = FString());
+		const FString& DriverId = FString(), const FString& DriverKey = FString());
+	/** The driver key's signature over the server's challenge (ApexDriverKey::SignHex). */
+	APEXSIMNET_API TArray<uint8> EncodeProveDriverKey(const FString& Signature);
 	/** `PingMs`: the last measured round trip, sent as `ping_ms` for the operator dashboard; negative (not yet measured) leaves it off. */
 	APEXSIMNET_API TArray<uint8> EncodeHeartbeat(uint32 ClientTick, int32 PingMs = -1);
 	/** `Livery`: 0 the car as authored, 1.. the car's `[[livery]]` tables. */

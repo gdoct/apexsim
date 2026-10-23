@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod chat;
 pub mod config;
+pub mod driver_keys;
 pub mod game_loop;
 pub mod health;
 pub mod lobby;

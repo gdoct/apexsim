@@ -1,5 +1,7 @@
 #include "ApexNetSubsystem.h"
 
+#include "ApexDriverKey.h"
+
 #include "ApexProtocolCodec.h"
 #include "ApexSimNetModule.h"
 #include "ApexTcpConnection.h"
@@ -251,7 +253,8 @@ void UApexNetSubsystem::StartConnectionAttempt()
 	PingMs = -1;
 	bWarnedEmptyCatalog = false;
 
-	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions, ResumeToken, DriverId);
+	Connection = MakeUnique<FApexTcpConnection>(Host, Port, Token, PlayerName, TlsOptions, ResumeToken, DriverId,
+		DriverId.IsEmpty() ? FString() : ApexDriverKey::PublicKeyHex(DriverKeySeed));
 	if (!Connection->Start())
 	{
 		Connection.Reset();
@@ -1159,6 +1162,17 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			*PlayerId, Message.AuthSuccess.ServerVersion, Message.AuthSuccess.ProtocolVersion, Message.AuthSuccess.UdpPort);
 
 		ReconnectAttempt = 0;
+		// The proof goes before anything else this connection sends, so a
+		// join after it is seated under the profile's id.
+		if (!Message.AuthSuccess.KeyChallenge.IsEmpty() && !DriverId.IsEmpty())
+		{
+			const FString Signature = ApexDriverKey::SignHex(DriverKeySeed, ApexDriverKey::ProofMessage(Message.AuthSuccess.KeyChallenge, DriverId));
+			if (!Signature.IsEmpty())
+			{
+				UE_LOG(LogApexSimNet, Log, TEXT("-> ProveDriverKey"));
+				SendPayload(ApexProtocol::EncodeProveDriverKey(Signature));
+			}
+		}
 		if (!Message.AuthSuccess.ResumeToken.IsEmpty() && Message.AuthSuccess.ResumeToken != ResumeToken)
 		{
 			ResumeToken = Message.AuthSuccess.ResumeToken;
