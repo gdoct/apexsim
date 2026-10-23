@@ -272,7 +272,7 @@ target-scratch/*
 # Deployment settings (scripts/deploy_server.ps1)
 apexsim/deploy/deploy.user.psd1
 /apexsim/records/*
-apexsim/out/verify/
+apexsim/out/*
 # scripts/clean_workspace.ps1: what each run removed
 apexsim/out/clean_workspace.log
 
