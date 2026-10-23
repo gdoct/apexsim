@@ -1779,7 +1779,7 @@ pub fn update_car_3d(
     if let Some(gear) = input.gear {
         let v_long_now = state.vel_x * cos_yaw + state.vel_y * sin_yaw;
         if gear_engages(state.gear, gear, v_long_now) {
-            state.gear = gear;
+            state.gear = protected_gear(state, config, gear);
         }
     }
     if let Some(clutch) = input.clutch {
@@ -2070,6 +2070,30 @@ pub fn geared_rpm(state: &CarState, config: &CarConfig) -> f32 {
     wheel_rpm * ratio.abs() * config.final_drive_ratio
 }
 
+/// The gear a requested shift ends in. A box with downshift protection
+/// (`TransmissionConfig::downshift_protection`) will not drop into a gear
+/// that would spin the engine past its limit at this road speed: it stops
+/// at the lowest gear on the way that fits, or stays where it is. Any other
+/// request, and every request to a box without it, goes in as asked.
+pub fn protected_gear(state: &CarState, config: &CarConfig, requested: i8) -> i8 {
+    if !config.transmission.downshift_protection || requested < 1 || requested >= state.gear {
+        return requested;
+    }
+    let wheel_rpm = state.speed_mps / (2.0 * PI * config.wheel_radius_m) * 60.0;
+    let fits = |g: i8| {
+        let ratio = config
+            .gear_ratios
+            .get(g as usize)
+            .copied()
+            .unwrap_or(0.0)
+            .abs();
+        wheel_rpm * ratio * config.final_drive_ratio <= config.max_engine_rpm
+    };
+    (requested..state.gear)
+        .find(|&g| fits(g))
+        .unwrap_or(state.gear)
+}
+
 /// Calculate engine output torque and RPM
 /// The engine this tick: the net torque at the crank (negative when it
 /// brakes the car), its revs, and the part of the torque the fuel made,
@@ -2098,6 +2122,11 @@ fn calculate_engine_output(
         config.gear_ratios[0] // Reverse
     };
 
+    // The wheels turning the engine at or past its limit: the limiter has
+    // cut the fuel, so the engine cannot drive the car any faster in this
+    // gear (and over-rev itself on the limiter alone).
+    let past_limit = gear_ratio.abs() > 0.001
+        && wheel_rpm * gear_ratio.abs() * config.final_drive_ratio >= config.max_engine_rpm;
     let engine_rpm = if gear_ratio.abs() > 0.001 {
         let geared_rpm = (wheel_rpm * gear_ratio.abs() * config.final_drive_ratio)
             .clamp(config.idle_rpm, config.max_engine_rpm);
@@ -2125,7 +2154,9 @@ fn calculate_engine_output(
 
     // Rev limiter torque cut
     let limiter_rpm = config.engine.rev_limiter_rpm.max(config.redline_rpm);
-    let limiter_cut = if engine_rpm >= limiter_rpm {
+    let limiter_cut = if past_limit {
+        0.0
+    } else if engine_rpm >= limiter_rpm {
         // Hard cut near limiter
         0.2
     } else {
@@ -5390,6 +5421,76 @@ mod tests {
         let backstop = config.redline_rpm * AUTO_UPSHIFT_CEILING_FRAC;
         assert_eq!(auto_upshift_rpm(&config, 1), Some(backstop));
         assert_eq!(auto_upshift_rpm(&config, 4), None, "no gear above top");
+    }
+
+    #[test]
+    fn downshift_protection_refuses_a_shift_that_would_over_rev() {
+        let mut config = create_test_config();
+        let mut state = create_test_car_state();
+        state.gear = 4;
+        // The road speed at which each gear reaches the limit.
+        let limit_mps = |g: usize| {
+            config.max_engine_rpm / (config.gear_ratios[g] * config.final_drive_ratio) / 60.0
+                * 2.0
+                * PI
+                * config.wheel_radius_m
+        };
+        // Too fast for 2nd but slow enough for 3rd.
+        state.speed_mps = 0.5 * (limit_mps(2) + limit_mps(3));
+        assert!(state.speed_mps < limit_mps(3) && state.speed_mps > limit_mps(2));
+        // Without protection the box goes where it is told.
+        assert_eq!(protected_gear(&state, &config, 2), 2);
+        config.transmission.downshift_protection = true;
+        assert_eq!(protected_gear(&state, &config, 3), 3);
+        assert_eq!(
+            protected_gear(&state, &config, 2),
+            3,
+            "stops at the lowest gear that fits"
+        );
+        state.speed_mps = 1.1 * limit_mps(3);
+        assert_eq!(protected_gear(&state, &config, 3), 4, "refused outright");
+        // Upshifts, neutral and reverse are not its business.
+        assert_eq!(protected_gear(&state, &config, 5), 5);
+        assert_eq!(protected_gear(&state, &config, 0), 0);
+    }
+
+    #[test]
+    fn running_on_the_limiter_does_not_over_rev_the_engine() {
+        let mut state = create_test_car_state();
+        state.gear = 1;
+        state.vel_x = 5.0;
+        state.speed_mps = 5.0;
+        let config = create_test_config();
+        let track = create_straight_test_track();
+        let input = PlayerInputData {
+            throttle: 1.0,
+            brake: 0.0,
+            steering: 0.0,
+            gear: None,
+            clutch: None,
+            drs: false,
+            headlights: None,
+            flash: false,
+            ers_mode: None,
+            ers_boost: false,
+            handbrake: false,
+        };
+        let rate = crate::game_session::DEFAULT_TICK_RATE_HZ as usize;
+        let dt = 1.0 / rate as f32;
+        for _ in 0..rate * 10 {
+            update_car_3d(&mut state, &config, &input, &track, dt);
+        }
+        assert_eq!(state.gear, 1);
+        let forced = geared_rpm(&state, &config) / config.max_engine_rpm;
+        assert!(
+            forced < 1.02,
+            "the limiter let the car run to {forced:.3}x the limit"
+        );
+        let over_rev = state.damage.engine_damage_percent - state.damage.engine_wear_percent;
+        assert!(
+            over_rev < 1e-3,
+            "{over_rev:.3} % of over-rev damage on the limiter alone"
+        );
     }
 
     #[test]

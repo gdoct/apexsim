@@ -141,6 +141,8 @@ final_drive_ratio = 3.95
 # Shift timing and drivetrain efficiency
 shift_time_s = 0.08
 efficiency = 0.93
+# Refuses a downshift that would over-rev the engine, as the real car's box does.
+downshift_protection = true
 
 # 6 forward gears: a long first (72 km/h at the 9000 rpm limiter) for getting
 # off the line, closing up to 321 km/h in sixth.

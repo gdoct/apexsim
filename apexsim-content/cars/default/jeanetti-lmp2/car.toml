@@ -131,6 +131,8 @@ transmission_type = "Sequential"
 final_drive_ratio = 3.5
 shift_time_s = 0.06
 efficiency = 0.95
+# Refuses a downshift that would over-rev the engine, as the real car's box does.
+downshift_protection = true
 
 # 6 forward gears on 0.35 m wheels: 100 km/h in first at the limiter,
 # 335 km/h in sixth — a Le Mans set-up; the car drags itself to ~325.

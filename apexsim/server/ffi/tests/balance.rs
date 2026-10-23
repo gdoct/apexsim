@@ -58,9 +58,11 @@ fn create(track: *mut ApxTrack, balance: Option<ApxBalance>) -> (ApxStatus, *mut
     (status, car)
 }
 
-/// Full throttle for four seconds from the grid: the speed reached.
+/// Full throttle for twelve seconds from the grid, a gear up every second and a
+/// half from first: the speed reached. In one gear the limiter would cap
+/// both cars at the same speed.
 fn launch(track: *mut ApxTrack, car: *mut ApxCar) -> f32 {
-    let input = ApxInput {
+    let mut input = ApxInput {
         throttle: 1.0,
         brake: 0.0,
         steering: 0.0,
@@ -75,7 +77,10 @@ fn launch(track: *mut ApxTrack, car: *mut ApxCar) -> f32 {
         ers_boost: 0,
         handbrake: 0,
     };
-    for tick in 0..(HZ as u32 * 4) {
+    for tick in 0..(HZ as u32 * 12) {
+        let gear = 1 + (tick * 2 / (HZ as u32 * 3)) as i32;
+        input.has_gear = u8::from(gear != input.gear as i32) as _;
+        input.gear = gear as _;
         assert_eq!(
             unsafe { apx_car_step(car, track, &input, tick, HZ) },
             APX_OK

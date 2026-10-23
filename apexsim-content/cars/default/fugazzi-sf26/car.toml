@@ -153,6 +153,8 @@ transmission_type = "Sequential"
 final_drive_ratio = 3.15
 shift_time_s = 0.04
 efficiency = 0.96
+# Refuses a downshift that would over-rev the engine, as the real car's box does.
+downshift_protection = true
 
 # 8 forward gears on the sim's 0.33 m rolling radius: 120 km/h in first and
 # ~345 in eighth at 15,000; the car drags itself to ~330 with the battery full.

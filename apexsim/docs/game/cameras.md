@@ -159,9 +159,14 @@ trouble, a blocked view, trackside placement, lock target).
 
 ## Finish view (`ApexFinishCam::FMove`)
 
-After the local car takes the flag (`AApexRaceDirector::BeginFinishView`,
-asked for by the root widget; [sessions](../server/sessions.md#race-start-and-finish))
-the director spectates its own race: the TV camera is flown by
+After the local car takes the flag, or retires from a race with a damage zone
+at 100% (`UApexRootWidget::ShowResultsAfterRetirement`: a "Retired" toast;
+not under `VisualOnly` damage, where the car races on), the root widget asks
+for it (`AApexRaceDirector::BeginFinishView`;
+[sessions](../server/sessions.md#race-start-and-finish)) and the director
+spectates its own race. The server tows a retired car to its pit box 10 s
+later, so the panorama follows it there; the results let the driver pick a car
+still racing: the TV camera is flown by
 `Race/ApexFinishCamera.h`, a pure move from whichever camera was on screen.
 It pulls straight back and up behind the car (3 s, 22 m back, 8 m up,
 following the car's eased heading), then climbs into a slow orbit in the

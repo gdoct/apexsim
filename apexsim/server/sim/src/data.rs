@@ -279,6 +279,12 @@ pub struct TransmissionConfig {
     pub shift_time_s: f32,
     /// Drivetrain efficiency multiplier (0-1). Applied to wheel torque.
     pub efficiency: f32,
+    /// The gearbox refuses a downshift that would spin the engine past its
+    /// limit, as a modern racing car's does: the shift drops to the lowest
+    /// gear that fits, or not at all (`physics::protected_gear`). Off, a
+    /// driver can over-rev the engine with a downshift.
+    #[serde(default)]
+    pub downshift_protection: bool,
 }
 
 impl Default for TransmissionConfig {
@@ -287,6 +293,7 @@ impl Default for TransmissionConfig {
             transmission_type: TransmissionType::Sequential,
             shift_time_s: 0.12,
             efficiency: 0.92,
+            downshift_protection: false,
         }
     }
 }

@@ -377,6 +377,8 @@ struct TransmissionToml {
     shift_time_s: Option<f32>,
     #[serde(default)]
     efficiency: Option<f32>,
+    #[serde(default)]
+    downshift_protection: Option<bool>,
 }
 
 /// A gearbox described by its two end ratios and the shape of the
@@ -864,6 +866,7 @@ impl CarLoader {
                 },
                 shift_time_s: transmission_toml.shift_time_s.unwrap_or(0.12),
                 efficiency: transmission_toml.efficiency.unwrap_or(0.92),
+                downshift_protection: transmission_toml.downshift_protection.unwrap_or(false),
             },
             differential: DifferentialConfig {
                 differential_type: match differential_toml.differential_type.as_deref() {

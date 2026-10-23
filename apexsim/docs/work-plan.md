@@ -33,7 +33,7 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
-| B16 | Paddle downshifts blow the engine; no downshift protection (follow-ups #31) | Bug | P1 | 🟡 | M | — |
+| B16 | Over-rev warning and rpm past the limit on the wire, for cars without downshift protection (follow-ups #31) | Bug | P3 | 🟢 | S | — |
 | B14 | Wheel tab: rotation steps by 30°, direction test too strong (follow-ups #30) | Bug | P2 | 🟡 | S | — |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
@@ -101,17 +101,11 @@ loop (SAT, rim correction, stiffness limit vs the damper floor) from a MARK
 at the grid; needs the wheel to confirm. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
 
-#### B16. Paddle downshifts blow the engine — P1 · 🟡 · M
-*Source: follow-ups #31, wheel sitting 2026-10-23.* The server recording
-shows the Caravan GT3 downshifted to 3rd at 187 km/h (1.18x the rev limit)
-and 2nd at 151 km/h (1.28x) braking into Monza's second chicane: engine
-12 % to 100 % in 1.5 s, retired. The 037 blew the same way on the
-Nordschleife. Wanted: downshift protection per car (refuse or hold the
-shift, a cue), no damage from the limiter alone (1.03-1.04x on it took
-10 %), a warning before damage, geared rpm in the recording, an
-`-ApexDamage=` switch for auto races, and a screen for a retired car
-instead of a frozen picture. A sim change: AI survey against the commit
-before. Run files `out/sit/2026-10-23/a-monza-3/`, `c-nordschleife/`.
+#### B16. Over-rev warning for cars without downshift protection — P3 · 🟢 · S
+*Source: follow-ups #31, wheel sitting 2026-10-23.* Downshift protection,
+the limiter's full cut and the retirement view landed; the rally cars keep
+no protection (as the real ones), so warn before a missed downshift hurts
+and carry the rpm past the limit in telemetry and the recording.
 
 #### B14. Wheel tab at the sitting — P2 · 🟡 · S
 *Source: follow-ups #30, wheel sitting 2026-10-23.* The Wheel tab's rotation

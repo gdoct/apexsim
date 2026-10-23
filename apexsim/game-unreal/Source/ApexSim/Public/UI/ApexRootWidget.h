@@ -435,6 +435,15 @@ private:
 	 */
 	void ShowResultsAfterFinish(int32 Position);
 
+	/**
+	 * The local car is out of the race (a zone at 100%): the same finish view
+	 * and results, so the driver is not left looking at a parked car.
+	 */
+	void ShowResultsAfterRetirement();
+
+	/** The finish view a beat after the flag or a retirement, the results after it. */
+	void FollowWithFinishView();
+
 	/** The finish view on: drive input off, HUD away, the director's panorama. */
 	void BeginFinishView();
 	/** And off again (the next race, leaving the race view); closes the results. */
@@ -580,7 +589,7 @@ private:
 	bool bGridSession = false;
 	/** The winner's flag has been announced for this race. */
 	bool bWinnerAnnounced = false;
-	/** The local car has taken the flag in this race. */
+	/** The local car has taken the flag in this race, or retired from it. */
 	bool bLocalFinished = false;
 	/** The finish view is on (BeginFinishView). */
 	bool bFinishView = false;

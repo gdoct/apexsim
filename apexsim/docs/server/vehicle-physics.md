@@ -68,6 +68,15 @@ still while serviced) and the gearbox, limiter and DRS flap:
   airflow, a side force on the flank).
 - **Engine**: torque curve, turbo spool, limiter, `engine_density_factor`, coolant and
   damage factors; the hybrid motor; drive torques through the drivetrain and differential.
+  Once the wheels turn the engine at or past `max_engine_rpm` in its gear, the limiter cuts
+  all of its torque, so a car on the limiter cannot drive itself faster than the gear allows
+  (`running_on_the_limiter_does_not_over_rev_the_engine`).
+- **Gearbox**: a driver's shift engages at the end of the tick (`gear_engages`: no change
+  of direction while rolling the other way). `[transmission] downshift_protection = true`
+  (`protected_gear`) refuses a downshift that would spin the engine past `max_engine_rpm`
+  at the road speed: a request for two gears down stops at the lowest that fits, one with
+  none that fits is ignored. The F1, hypercar, LMP2 and GT3 cars have it, as the real cars'
+  boxes do; the rally cars do not, and a missed downshift over-revs them.
   **Brakes**: demand split by `brake_bias_front`, scaled per wheel by pad friction.
   **Handbrake** (`PlayerInput.handbrake`, held): `HANDBRAKE_SHARE` (0.6) of the car's pedal
   force on the rear axle on top, and ABS off for the rears, so they lock; a locked rear tyre
@@ -447,7 +456,8 @@ Five percentages: front, rear, left, right, engine.
   2.5 m/s, ~40% at 30), to the hit's zone; a nose hit puts `NOSE_TO_ENGINE` (0.3) on the
   engine.
 - **Engine**: overheating (`OVERHEAT_DAMAGE_PER_C_S`), over-revving past 1.02x
-  `max_engine_rpm` (`over_rev_damage` on `geared_rpm`, not in top gear), and wear
+  `max_engine_rpm` (`over_rev_damage` on `geared_rpm`, not in top gear: 400% a second per
+  share past it, so 1.25x finishes an engine in about a second), and wear
   (`engine_wear`: ~3% an hour at the limiter, sixth power of the revs). Wear is kept apart
   (`engine_wear_percent`): a repair (`DamageState::repaired`) takes the engine back to its
   wear, not to zero.

@@ -2,6 +2,8 @@
 
 #include "UI/ApexCreateSessionModel.h"
 
+#include "Algo/AnyOf.h"
+
 #include "ApexDemoModeSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
@@ -2452,7 +2454,27 @@ void UApexRootWidget::HandleTelemetryForFinish(const FApexTelemetryFrame& Frame)
 	{
 		bLocalFinished = true;
 		ShowResultsAfterFinish(Local->FinishPosition);
+		return;
 	}
+
+	// Out of the race: any zone at 100% (DamageState::refresh on the
+	// server). The server tows the car to its box 10 s later; without this
+	// the driver's camera follows it there and the race looks frozen. Under
+	// VisualOnly a zone at 100% costs nothing, so the car races on.
+	const bool bRetired = Local && Local->HasDamage() && Net->GetSessionDamage() != EApexDamageLevel::VisualOnly
+		&& Algo::AnyOf(Local->DamagePct, [](float Pct) { return Pct >= 100.0f; });
+	if (bRetired && !bLocalFinished)
+	{
+		bLocalFinished = true;
+		ShowResultsAfterRetirement();
+	}
+}
+
+void UApexRootWidget::ShowResultsAfterRetirement()
+{
+	UE_LOG(LogApexSim, Log, TEXT("Local car retired; the finish view follows"));
+	ShowToast(TEXT("Retired — your race is over"));
+	FollowWithFinishView();
 }
 
 void UApexRootWidget::ShowResultsAfterFinish(int32 Position)
@@ -2461,7 +2483,11 @@ void UApexRootWidget::ShowResultsAfterFinish(int32 Position)
 	ShowToast(Position == 1
 		? FString(TEXT("Chequered flag — you win!"))
 		: FString::Printf(TEXT("Chequered flag — you finished P%d"), Position));
+	FollowWithFinishView();
+}
 
+void UApexRootWidget::FollowWithFinishView()
+{
 	// A beat on the driving camera to see the line go by, then the camera
 	// pulls back from the car (the server's cool-down driver has it now) and,
 	// once it is up and out, the results come over the race.

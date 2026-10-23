@@ -26,7 +26,7 @@ None open.
 
 ## P1: core racing experience
 
-### 31. Wheel forces at a standstill, and engines blown on downshifts
+### 31. Wheel forces at a standstill, and over-revving without protection
 
 Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, base FF 100%,
 game force 0.50, damping 0.25; paddle shifters, no H-shifter). Run files
@@ -40,41 +40,16 @@ are local, not in git, under `out/sit/2026-10-23/`.
   0.011, stiffness limit 0.90: the 15 s means hide it, so a MARK or a
   frame trace at the grid is needed. Block A, Caravan GT3 at Monzarella;
   `a-monza-1/` (client log, server recording).
-- Paddle downshifts blow the engine: nothing refuses a downshift that
-  over-revs it. Caravan GT3 at Monzarella (block A, run 3), read from the
-  server's own recording (`a-monza-3/replays/.recording_134f4738-*.blocks`,
-  car 1): braking from 187 km/h into the second chicane (2.0 km) the driver
-  went down to 3rd, whose limit is 159 km/h at 8,700 rpm, so 1.18x the
-  limit, then to 2nd (limit 118 km/h) at 151 km/h, 1.28x. Engine damage
-  went from 12 % to 100 % in 1.5 s (ticks 25032-25648) and the car
-  retired. `damage::over_rev_damage` takes 400 % a second per share past
-  1.02 in every gear but top (`physics.rs`, step 4). Real GT3, F1 and
-  prototype gearboxes refuse such a downshift (or hold it until the speed
-  allows); a rally car with a sequential box may not. Wanted: downshift
-  protection per car (a `car.toml` key, on for the modern classes, off
-  where the real car has none) that refuses or holds the shift with a cue,
-  and a HUD or sound warning before damage. The telemetry and the
-  recording show `engine_rpm` clamped at the limit, so the over-rev cannot
-  be seen in them: record the geared rpm too.
-- Running on the limiter costs engine damage too: on the same lap, flat out
-  in 1st and 2nd off the line and out of the Rettifilo, the geared revs sat
-  at 1.03-1.04x the limit, past the 1.02 tolerance, and took 10 % by
-  1.2 km, before any over-revving downshift. A limiter alone should never hurt the engine.
-- The 037 rally car's engine blew the same way on the Mordschleife
-  (block C, about 2 min in; `c-nordschleife/`, no server recording kept).
-  Both sessions ran at `Damage=2`, Full: `-ApexAutoRace` has no damage
-  switch, so the player's own choice to turn damage off did not reach
-  them. Add `-ApexDamage=` for auto races and the sitting runner.
-- After the engine failed, the client froze on the last picture: the log
-  stops at `Lap trace: lap 1 broken by a jump from 2042 m to 60 m` and
-  shows nothing but the mouse cursor 30 s later. A retired car gets no
-  screen and no way on (`a-monza-3/client.log`).
+- The rally cars have no downshift protection (as the real ones), so a
+  missed downshift still blows their engine with no warning: a shift light
+  or a cue as the revs pass the limit, and the over-revved rpm in telemetry
+  and the recording, which clamp `engine_rpm` at the limit and so hide it
+  (the GT3's failure at Monza was read from the gear and speed instead).
 
 **Check:** sit on the grid and in the pit box with hands off the rim for
-30 s: the rim stays still or settles, no growing shake. On the wheel, a GT3
-lap with every downshift slammed early leaves the engine whole; a lap on
-the limiter costs nothing; a retired car shows a way on (back to the pits
-or the menu).
+30 s: the rim stays still or settles, no growing shake (the `Wheel forces
+over 5 s standing:` log line says which force it is). A rally car's
+missed downshift warns before it hurts.
 
 ## P2: depth
 
