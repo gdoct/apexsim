@@ -26,6 +26,7 @@ apexsim-content/**/*.blend filter=lfs diff=lfs merge=lfs -text
 apexsim-content/**/*.glb filter=lfs diff=lfs merge=lfs -text
 apexsim-content/**/*.msgpack filter=lfs diff=lfs merge=lfs -text
 apexsim-content/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+apexsim-content/**/*.wav filter=lfs diff=lfs merge=lfs -text
 apexsim/game-unreal/**/*.uasset filter=lfs diff=lfs merge=lfs -text
 apexsim/game-unreal/**/*.umap filter=lfs diff=lfs merge=lfs -text
 apexsim/game-unreal/**/*.bmp filter=lfs diff=lfs merge=lfs -text

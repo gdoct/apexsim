@@ -1,11 +1,12 @@
 # Audio
 
-Every sound in the client is synthesised in code: there are no sound assets in
-the project. Three synthesisers exist: the menu and race cues, the engine (a
-simulated crank and exhaust driven by telemetry), and the local car's tyres,
-kerbs, road and wind (driven by the server's `DriverFeedback`). Each renders on
-the audio thread through a procedural `USoundWave` at the device's own sample
-rate.
+Every sound in the client but the radio is synthesised in code: there are no
+sound assets in the project. Three synthesisers exist: the menu and race cues,
+the engine (a simulated crank and exhaust driven by telemetry), and the local
+car's tyres, kerbs, road and wind (driven by the server's `DriverFeedback`).
+The radio (the spotter and the race engineer) plays voice lines the content
+ships as WAV files. Each renders on the audio thread through a procedural
+`USoundWave` at the device's own sample rate.
 
 ## Code
 
@@ -17,6 +18,8 @@ All paths under `game-unreal/Source/ApexSim/`.
 - `Public/Audio/ApexEngineSoundWave.h`: `UApexEngineSoundWave`, `FApexEngineLiveState`, `ApexEngineAudio::MakeSpec`.
 - `Public/Audio/ApexListenerSpace.h`: `ApexSpace` (the driver's seat: shelf, bulkhead, reverb).
 - `Public/Audio/ApexRoadSound.h`, `Public/Audio/ApexRoadSoundWave.h`: `ApexRoadSynth`, `UApexRoadSoundWave`.
+- `Public/Audio/ApexRadio.h`, `Private/Audio/ApexRadio.cpp`: the radio's triggers (`FApexRadioTriggers`), queue (`FApexRadioQueue`), line table (`ApexRadio::SpecOf`) and WAV reader; pure logic.
+- `Public/Audio/ApexRadioSubsystem.h`: `UApexRadioSubsystem` (game instance) and `UApexRadioSoundWave`.
 - `Private/Audio/ApexAudioPreview.cpp`: the `apexsim.audio.RenderCars` console command.
 - `Private/Race/ApexRaceCarActor.cpp`: each car's engine, own-car engine and road audio components.
 - `Private/Race/ApexRaceDirector.cpp`: `UpdateCarAudio`, `UpdateRaceBleeps`, `ApplyAudioSettings`.
@@ -140,6 +143,60 @@ the predicted feel too.
   `OtherCarsVolume`, `RoadVolume`) go through
   `AApexRaceDirector::ApplyAudioSettings` to `AApexRaceCarActor::SetMixVolumes`,
   multiplied with the demo's `SetEngineVolume` scale.
+- **The radio**: "Radio volume" (`RadioVolume`, default 0.8) scales each line
+  as it is played; "Spotter" and "Race engineer" (`bRadioSpotter`,
+  `bRadioEngineer`) switch each voice off, its lines dropped before they are
+  queued.
+
+## Radio
+
+The spotter and the race engineer talk to the driver in a race, practice or
+qualifying (never in the demo, a replay, a watched race or a ghost's lap).
+The lines are fixed: `apexsim-content/audio/radio/<id>.wav`, rendered once
+from `lines.yml` beside them with the local Windows voices through a radio
+band ([content README](../../../apexsim-content/docs/README.md)); a package
+carries them as `Audio/radio` beside ApexSim.exe (`scripts/build_release.ps1`).
+The spotter is one voice, the engineer the other.
+
+`AApexRaceDirector::Tick` calls `UApexRadioSubsystem::Update` on every frame
+the player drives. It reads the HUD's data points (the whole of what the radio
+knows, [hud-modding.md](hud-modding.md)) into `FApexRadioInputs`
+(`ApexRadio::InputsFromHud`) and steps `FApexRadioTriggers`:
+
+| Who | Line | When |
+|---|---|---|
+| spotter | `car_left`, `car_right`, `three_wide` | `radar.left` / `radar.right` held 0.15 s, at 40 km/h or more, out of the pit lane |
+| spotter | `clear_left`, `clear_right`, `clear` | that side empty for 0.6 s (`clear`: both at once) |
+| spotter | `yellow_ahead`, `double_yellow` | `flag.yellow` goes up |
+| spotter | `yellow_clear` | the yellow gone for 1.5 s |
+| spotter | `blue_flag` | `flag.blue` comes on |
+| engineer | `safety_car`, `vsc`, `sc_in` | `race.phase` turns `safety_car`, `vsc`, `sc_in_this_lap` (a race) |
+| engineer | `green_green` | a safety car or VSC phase ends |
+| engineer | `box_confirmed` | `pit.requested` comes on (the BoxThisLap key or the pit plan) |
+| engineer | `box_this_lap` | at the line with 3 or 2 laps left, a stop still owed (`pit.stops_owed`) and none asked for |
+| engineer | `fuel_laps_<n>` (1 to 5) | at the line, `fuel.state` `short` (or no race distance and 3 laps or fewer of `fuel.laps`) |
+| engineer | `fuel_critical` | `fuel.state` turns `critical` |
+| engineer | `tyres_worn` | `tyre.wear_max_pct` past 70, once a set (under 30 re-arms it) |
+| engineer | `last_lap` | `lap.final` comes on in a race |
+| engineer | `chequered`, `position_<n>` (1 to 24) | `car.finish_position` set in a race |
+
+The first frame after a gap (a menu, a replay, a new race) only takes stock:
+a yellow already out or a car already alongside is not news.
+
+`FApexRadioQueue` is one radio for both voices. A line waits there and goes
+out alone, the most urgent first (`ApexRadio::SpecOf`: the spotter's side
+calls, then flags, the safety car, the stop, fuel, the finish, tyres), with a
+quarter second between lines. A queued line of the same group is replaced by
+the newer one (the side calls are one group: only the latest is true); one
+that waited past its limit is dropped (a side call after 1 s, a flag after
+4 s); a flag or a phase call is not repeated within its cool-down. While a car
+is alongside the engineer waits, and a side call cuts an engineer line short
+(the playing component is stopped). Each line said is logged as
+`Radio: <id> (<channel>)`, whether or not a sound device plays it.
+
+The clip is read on first use (`ApexRadio::ParseWav`: 16-bit PCM, channels
+averaged) and played by `UApexRadioSoundWave`, whose generator resamples it
+linearly to the device's rate, as a 2D sound in the Voice group.
 
 ## Tyres, kerbs, road and wind
 
@@ -205,6 +262,13 @@ hits are the same signals the pad and wheel get.
     gravel's stones and sand's hiss against grass, the
     kerb's rib rate, hit thresholds.
   - `ApexSim.Cars.TomlSound`: the `[sound]` scan.
+  - `ApexSim.Audio.Radio.*` (Spotter, Flags, Engineer, Queue, FromHud, Wav,
+    Lines): the triggers over scripted inputs (holds, flicker, priming,
+    practice against a race), the queue's order, replacement, expiry,
+    cool-downs, hold and cut-in, the WAV reader, and every line in
+    `lines.yml` on its channel with a WAV that reads.
+- The radio cannot be judged by a test: the verify run `n14-radio` lists the
+  lines said in its client notes; the voices are judged by ear.
 - `ApexEngineSound`, `ApexRoadSound` and `ApexListenerSpace` include only
   `CoreMinimal.h` and use only `FMath`. That keeps them buildable outside the
   engine against a small shim header (not checked in) for fast tuning with a WAV

@@ -455,7 +455,7 @@ def log_findings(work: Path) -> list[str]:
         log("  no client log")
         return []
     keys = ("Fatal error", "DEVICE_HUNG", "LogApexSim: Error", "LogApexSimNet: Error", "Disconnected",
-            "AutoRace", "-ApexExecAfter", "Unknown command", "Bounds watch")
+            "AutoRace", "-ApexExecAfter", "Unknown command", "Bounds watch", "Radio:")
     hits = [line.rstrip() for line in client_log.read_text(encoding="utf-8", errors="replace").splitlines()
             if any(k in line for k in keys)]
     (work / "client_notes.log").write_text("\n".join(hits) + "\n", encoding="utf-8")

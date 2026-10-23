@@ -532,4 +532,18 @@ public:
 	/** The saved setup last loaded or saved (what the garage's header names); invalid for none. */
 	UPROPERTY()
 	FGuid LoadedSetupId;
+
+	// --- Audio: the radio -----------------------------------------------------
+
+	/** 0..1. The spotter's and the engineer's voices (UApexRadioSubsystem), on top of the master volume. */
+	UPROPERTY()
+	float RadioVolume = 0.8f;
+
+	/** The spotter calls cars alongside and race control's flags. */
+	UPROPERTY()
+	bool bRadioSpotter = true;
+
+	/** The race engineer calls the safety car, the stop, fuel, tyres and the finish. */
+	UPROPERTY()
+	bool bRadioEngineer = true;
 };

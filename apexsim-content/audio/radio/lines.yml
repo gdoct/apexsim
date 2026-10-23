@@ -1,0 +1,77 @@
+# The radio's voice lines: what the spotter and the race engineer can say.
+#
+# Each line is rendered once to `<id>.wav` beside this file by
+# tools/generators/radio/build_radio_lines.py (the local Windows voice,
+# through a radio band, docs/audio.md). The client plays a line by its id; the
+# ids are what apexsim/game-unreal's ApexRadio triggers name, so renaming one
+# here renames it there too.
+#
+#   channel  spotter or engineer: which voice reads it, and which on/off
+#            switch in the Audio settings silences it
+#   text     what is said, spelled for the speech engine
+
+voices:
+  spotter: Microsoft David Desktop
+  engineer: Microsoft Zira Desktop
+
+lines:
+  # --- The spotter: cars alongside (the radar's left/right, N3) ---------------
+  car_left:      { channel: spotter, text: "Car left." }
+  car_right:     { channel: spotter, text: "Car right." }
+  three_wide:    { channel: spotter, text: "Three wide! You're in the middle." }
+  clear_left:    { channel: spotter, text: "Clear left." }
+  clear_right:   { channel: spotter, text: "Clear right." }
+  clear:         { channel: spotter, text: "Clear all round." }
+
+  # --- The spotter: race control's flags ---------------------------------------
+  yellow_ahead:  { channel: spotter, text: "Yellow flag ahead. No overtaking." }
+  double_yellow: { channel: spotter, text: "Double yellow! Slow down, be ready to stop." }
+  yellow_clear:  { channel: spotter, text: "Track's clear. Green flag." }
+  blue_flag:     { channel: spotter, text: "Blue flag. Leaders behind, let them through." }
+
+  # --- The engineer: race phases -----------------------------------------------
+  safety_car:    { channel: engineer, text: "Safety car, safety car. Hold your position." }
+  vsc:           { channel: engineer, text: "Virtual safety car deployed. Keep to the delta." }
+  sc_in:         { channel: engineer, text: "Safety car in this lap. Get ready for the restart." }
+  green_green:   { channel: engineer, text: "Green, green, green. Racing resumes." }
+
+  # --- The engineer: the pit stop ----------------------------------------------
+  box_this_lap:  { channel: engineer, text: "Box this lap, box this lap. You still owe a stop." }
+  box_confirmed: { channel: engineer, text: "Copy. Box this lap, we're ready for you." }
+
+  # --- The engineer: fuel and tyres --------------------------------------------
+  fuel_laps_1:   { channel: engineer, text: "Fuel for one more lap." }
+  fuel_laps_2:   { channel: engineer, text: "Fuel for two laps." }
+  fuel_laps_3:   { channel: engineer, text: "Fuel for three laps." }
+  fuel_laps_4:   { channel: engineer, text: "Fuel for four laps." }
+  fuel_laps_5:   { channel: engineer, text: "Fuel for five laps." }
+  fuel_critical: { channel: engineer, text: "Fuel is critical. Lift and coast, or box now." }
+  tyres_worn:    { channel: engineer, text: "Tyres are going off. Look after them." }
+
+  # --- The engineer: the end of the race ---------------------------------------
+  last_lap:      { channel: engineer, text: "Last lap. Bring it home." }
+  chequered:     { channel: engineer, text: "Chequered flag! That's the race." }
+  position_1:    { channel: engineer, text: "P1. You won it!" }
+  position_2:    { channel: engineer, text: "P2." }
+  position_3:    { channel: engineer, text: "P3. On the podium." }
+  position_4:    { channel: engineer, text: "P4." }
+  position_5:    { channel: engineer, text: "P5." }
+  position_6:    { channel: engineer, text: "P6." }
+  position_7:    { channel: engineer, text: "P7." }
+  position_8:    { channel: engineer, text: "P8." }
+  position_9:    { channel: engineer, text: "P9." }
+  position_10:   { channel: engineer, text: "P10." }
+  position_11:   { channel: engineer, text: "P11." }
+  position_12:   { channel: engineer, text: "P12." }
+  position_13:   { channel: engineer, text: "P13." }
+  position_14:   { channel: engineer, text: "P14." }
+  position_15:   { channel: engineer, text: "P15." }
+  position_16:   { channel: engineer, text: "P16." }
+  position_17:   { channel: engineer, text: "P17." }
+  position_18:   { channel: engineer, text: "P18." }
+  position_19:   { channel: engineer, text: "P19." }
+  position_20:   { channel: engineer, text: "P20." }
+  position_21:   { channel: engineer, text: "P21." }
+  position_22:   { channel: engineer, text: "P22." }
+  position_23:   { channel: engineer, text: "P23." }
+  position_24:   { channel: engineer, text: "P24." }

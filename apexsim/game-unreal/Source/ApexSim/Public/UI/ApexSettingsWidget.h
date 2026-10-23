@@ -140,6 +140,7 @@ protected:
 	UFUNCTION() void HandleUiVolumeChanged(float Value);
 	UFUNCTION() void HandleEngineVolumeChanged(float Value);
 	UFUNCTION() void HandleRoadVolumeChanged(float Value);
+	UFUNCTION() void HandleRadioVolumeChanged(float Value);
 	UFUNCTION() void HandleOtherCarsVolumeChanged(float Value);
 
 	UFUNCTION() void HandleDisplayModeChanged(FString Item, ESelectInfo::Type SelectType);
@@ -377,6 +378,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> RoadVolumeSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> RoadVolumeFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RoadVolumeValue;
+
+	UPROPERTY(Transient) TObjectPtr<USlider> RadioVolumeSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> RadioVolumeFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> RadioVolumeValue;
 
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> DisplayModeBox;
 	UPROPERTY(Transient) TObjectPtr<UComboBoxString> ResolutionBox;

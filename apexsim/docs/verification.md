@@ -401,6 +401,20 @@ haze; the client logs `Live sky: visibility N m, fog density D`). Run
   pose with the switch off: the fog grey and thick in the distance, the
   near road readable.
 
+### R19. The radio
+
+`n14-radio` (the Norisring, seven AI, three laps, the safety car on, the
+stand-in driving; car 2's engine killed at 20 s of green, BoxThisLap at
+60 s): read from the client log, not the shots. Every line said is a
+`Radio: <id> (<channel>)` line in `client_notes.log`
+([game/audio.md](game/audio.md#radio)): side calls from the start
+(`car_left` / `car_right` and a `clear_*` after each), `yellow_ahead` or
+`double_yellow` and `yellow_clear`, `safety_car`, `sc_in` and
+`green_green`, `box_confirmed` after 60 s, `last_lap`, `chequered` and
+`position_<n>`; no line twice back to back, no side call left without its
+clear. `n14-radio-settings`: the Audio tab's Radio rows (Radio volume,
+Spotter, Race engineer) laid out like the rows above them.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
@@ -512,6 +526,12 @@ Mandarina Bay.
   the light bar seen flashing yellow at 27 s), never listened to; the blue
   and the light bar's blue flash in `v-r13-blue`, neither yet seen or
   heard.
+- The radio by ear in a race against the AI ([game/audio.md](game/audio.md#radio)):
+  whether the two Windows voices read clearly through the radio band
+  (`apexsim-content/audio/radio/*.wav`), whether the side calls come early
+  enough to be of use (0.15 s hold) and the clears not too late (0.6 s),
+  whether the engineer talks too much or too little, and the radio's level
+  against the engine at the default 80%.
 - A promo clip's sound by ear ([marketing-site.md](marketing-site.md)):
   measured on one 5 s onboard cut at Spa (the note follows the car's rpm
   within two frames, 5.00 s of sound for 5.00 s of frames), never listened

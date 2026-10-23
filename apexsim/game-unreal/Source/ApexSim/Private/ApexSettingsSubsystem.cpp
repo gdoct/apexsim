@@ -1356,6 +1356,28 @@ void UApexSettingsSubsystem::SetRoadVolume(float Value01)
 	Changed(EApexSettingsGroup::Audio);
 }
 
+void UApexSettingsSubsystem::SetRadioVolume(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->RadioVolume, Clamped)) { return; }
+	Settings->RadioVolume = Clamped;
+	Changed(EApexSettingsGroup::Audio);
+}
+
+void UApexSettingsSubsystem::SetRadioSpotter(bool bOn)
+{
+	if (!Settings || Settings->bRadioSpotter == bOn) { return; }
+	Settings->bRadioSpotter = bOn;
+	Changed(EApexSettingsGroup::Audio);
+}
+
+void UApexSettingsSubsystem::SetRadioEngineer(bool bOn)
+{
+	if (!Settings || Settings->bRadioEngineer == bOn) { return; }
+	Settings->bRadioEngineer = bOn;
+	Changed(EApexSettingsGroup::Audio);
+}
+
 void UApexSettingsSubsystem::ApplyAudio()
 {
 	if (!Settings || !GEngine)
@@ -1478,6 +1500,9 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->EngineVolume = Defaults->EngineVolume;
 		Settings->OtherCarsVolume = Defaults->OtherCarsVolume;
 		Settings->RoadVolume = Defaults->RoadVolume;
+		Settings->RadioVolume = Defaults->RadioVolume;
+		Settings->bRadioSpotter = Defaults->bRadioSpotter;
+		Settings->bRadioEngineer = Defaults->bRadioEngineer;
 		break;
 
 	case EApexSettingsGroup::CarSetup:

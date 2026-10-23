@@ -7493,3 +7493,55 @@ runs:
         checks: "G6"
         lead: 2
         exec: ["r.Shadow.Virtual.Enable 1", "r.ContactShadows 1"]
+
+  # N14 (2026-10-24): the spotter and the race engineer. Sound is judged by
+  # ear, so this run is read from the client log: every line said is a
+  # `Radio: <id> (<channel>)` line (listed in client_notes.log). A field of
+  # seven on the short Snorisring gives cars alongside (car_left / car_right
+  # / clear_*); car 2's engine killed at 20 s of green brings a yellow
+  # (yellow_ahead / double_yellow, then yellow_clear) and the safety car
+  # (safety_car, sc_in, green_green); BoxThisLap at 60 s is box_confirmed;
+  # three laps end in last_lap, chequered and position_<n>.
+  - id: n14-radio
+    about: "N14. The radio: spotter and engineer lines in the client log"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=7
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexSafetyCar=on
+    server:
+      stand_in: true
+      events:
+        - "20:2:damage=engine:100"
+    exec:
+      60: ["apexsim.ui.Key P"]
+      62: ["apexsim.hud.Data pit.requested"]
+    shots:
+      - {at: 15, label: "the start", checks: "N14 Radio: car_left / car_right / clear lines from the start in the log"}
+      - {at: 45, label: "the yellow", checks: "N14 Radio: yellow_ahead or double_yellow, safety_car"}
+      - {at: 120, label: "", checks: "N14 Radio: box_confirmed after 60 s; sc_in, green_green"}
+      - {at: 300, label: "", checks: "N14 Radio: last_lap"}
+      - {at: 420, label: "the finish", checks: "N14 Radio: chequered, position_<n>; no line repeated back to back"}
+
+  # N14: the Audio tab's Radio rows.
+  - id: n14-radio-settings
+    about: "N14. Settings > Audio: radio volume, spotter and engineer switches"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexOpenSettings=20
+      - -ApexSettingsTab=6
+    shots:
+      - {at: 24, label: "Settings > Audio", checks: "N14 the Radio section: Radio volume 80 %, Spotter ON, Race engineer ON, nothing clipped"}

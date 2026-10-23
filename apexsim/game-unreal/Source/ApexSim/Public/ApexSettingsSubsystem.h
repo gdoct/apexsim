@@ -396,6 +396,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetRoadVolume(float Value01);
 
+	/** The radio's voices (UApexRadioSubsystem): their volume, and each voice on or off. */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetRadioVolume(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetRadioSpotter(bool bOn);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetRadioEngineer(bool bOn);
+
 	/**
 	 * Applies the shaped steering curve — deadzone, then sensitivity — to a raw
 	 * axis reading. Called on the input the controller collects, so a wheel and

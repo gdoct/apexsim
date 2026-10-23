@@ -56,7 +56,6 @@ takes it up (— : no step, taken opportunistically).
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each | — |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
-| N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
 | N20 | Photo mode | Rendering | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
@@ -422,12 +421,6 @@ from coarser wheel slip has to be heard.
 datagrams); version 1 files must still play; `render` stays byte-identical
 for a seed.
 
-#### N14. Spotter and engineer radio — P3 · 🟡 · M
-Voice cues: "car left/right/clear" (from N3), "yellow ahead", "blue flag"
-(R1a), fuel and tyre calls, "box this lap" confirmation. Decided
-2026-10-18: a fixed line list generated once with a local TTS model and
-shipped as audio files. 🟡: the result is judged by ear.
-
 #### N16. Driving school / licence tests — P3 · 🟡 · M
 Short challenges built on the racing line, track guide and corner data:
 brake at a board, take a corner under a target, a clean lap under time.
@@ -473,8 +466,8 @@ What only you can do, roughly in the order it pays off:
    unattended verification runs (V2, V3).
 5. **Confirm the agent's judgement** on the 🟡 items' screenshots.
 6. **Source data, art or people** — DGM1 terrain and marshal-post list
-   (Nordschleife), wiper models, integrated-GPU hardware, radio voice lines
-   (N14), translators (N22).
+   (Nordschleife), wiper models, integrated-GPU hardware, translators
+   (N22).
 7. **Scope** the parked ideas.
 
 ## 5. Parked / recommended to drop

@@ -45,6 +45,7 @@
                                 logos, built by the game when it is drawn
             Game/Wheels/        the class wheels the cars name
             Game/Drivers/portraits/  the pictures a driver profile picks from
+            Game/Audio/radio/   the spotter's and the engineer's voice lines
             Game/Hud/           the HUD's components (default/, and custom/
                                 for the player's own), drawn from files
             Game/showcase.yml   the list the game renders the AI races the
@@ -710,6 +711,12 @@ $PortraitsDir = Join-Path $GameDir 'Drivers\portraits'
 New-Item -ItemType Directory -Force -Path $PortraitsDir | Out-Null
 Copy-Item -Path (Join-Path $ContentRoot 'drivers\portraits\face_*.png') -Destination $PortraitsDir -Force
 Write-Detail "$(@(Get-ChildItem $PortraitsDir -Filter 'face_*.png').Count) driver picture(s) in $PortraitsDir"
+# The radio's voice lines (UApexRadioSubsystem reads Audioadio beside the
+# game; apexsim-content/tools/generators/radio renders them).
+$RadioDir = Join-Path $GameDir 'Audioadio'
+New-Item -ItemType Directory -Force -Path $RadioDir | Out-Null
+Copy-Item -Path (Join-Path $ContentRoot 'audioadio\*.wav') -Destination $RadioDir -Force
+Write-Detail "$(@(Get-ChildItem $RadioDir -Filter '*.wav').Count) radio line(s) in $RadioDir"
 # LICENSE sits at the root above the code and content roots.
 $License = Join-Path $RepoRoot 'LICENSE'
 if (-not (Test-Path -LiteralPath $License)) { $License = Join-Path $RepoRoot '..\LICENSE' }

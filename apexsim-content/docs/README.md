@@ -37,3 +37,13 @@ client reads them at runtime, from here in the editor and from
 `Drivers/portraits` beside a packaged game (`apexsim/scripts/build_release.ps1`
 copies them); a new picture is the next number, and the game takes them up
 to the first one missing ([client.md](../../apexsim/docs/game/client.md#driver-profiles-apexprofilesh-uiapexprofilewidgetcpp)).
+
+`audio/radio/<id>.wav` are the spotter's and the race engineer's voice
+lines, rendered from `audio/radio/lines.yml` (the id, the channel and the
+words) by `python tools/generators/radio/build_radio_lines.py [ids]` with the
+local Windows voices (System.Speech, offline), through a radio band, a
+compressor, a faint hiss and a squelch at each end; 16 kHz mono, the same
+bytes every run. A new line is a row in `lines.yml`, a render, and the
+client trigger that says it. The client reads them from here in the editor
+and from `Audio/radio` beside a packaged game
+([audio.md](../../apexsim/docs/game/audio.md#radio)).

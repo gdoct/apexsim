@@ -162,6 +162,8 @@ namespace
 	const FName SegVirtualMirror  = TEXT("VirtualMirror");
 	const FName SegMirrorQuality  = TEXT("MirrorQuality");
 	const FName SegWheelDirection = TEXT("WheelDirection");
+	const FName SegRadioSpotter   = TEXT("RadioSpotter");
+	const FName SegRadioEngineer  = TEXT("RadioEngineer");
 	const FName ActionWheelTest   = TEXT("WheelTest");
 
 	/** How far an axis has to travel from where it started before it is a binding. */
@@ -1779,6 +1781,23 @@ UWidget* UApexSettingsWidget::BuildAudioPage()
 		TEXT("Tyre squeal, kerbs, grass and gravel, bumps, contact and the wind. Turn it up to hear the grip go."),
 		RoadCell), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
+	AddV(Page, MakeSectionLabel(TEXT("Radio")), FMargin(0.0f, 26.0f, 0.0f, 14.0f));
+
+	UWidget* RadioCell = MakeVolumeCell(RadioVolumeSlider, RadioVolumeFill, RadioVolumeValue);
+	RadioVolumeSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleRadioVolumeChanged);
+	AddV(Page, MakeRow(
+		TEXT("Radio volume"),
+		TEXT("The spotter's and the race engineer's voices."),
+		RadioCell));
+	AddV(Page, MakeRow(
+		TEXT("Spotter"),
+		TEXT("Calls the cars alongside, left and right, and the yellow and blue flags."),
+		MakeSegment(SegRadioSpotter, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	AddV(Page, MakeRow(
+		TEXT("Race engineer"),
+		TEXT("The safety car, your pit stop, fuel and tyres, the last lap and where you finished."),
+		MakeSegment(SegRadioEngineer, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
 	AddV(Page, WidgetTree->ConstructWidget<UVerticalBox>(), FMargin(), HAlign_Fill, 1.0f);
 	return Page;
 }
@@ -2156,6 +2175,10 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->OtherCarsVolume * 100.0f)));
 	SetSlider(RoadVolumeSlider, RoadVolumeFill, RoadVolumeValue, Values->RoadVolume, 0.0f, 1.0f,
 		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->RoadVolume * 100.0f)));
+	SetSlider(RadioVolumeSlider, RadioVolumeFill, RadioVolumeValue, Values->RadioVolume, 0.0f, 1.0f,
+		FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Values->RadioVolume * 100.0f)));
+	SetSegment(SegRadioSpotter, Values->bRadioSpotter ? 1 : 0);
+	SetSegment(SegRadioEngineer, Values->bRadioEngineer ? 1 : 0);
 
 	SetSegment(SegScreens, Values->Screens == 3 ? 1 : 0);
 	SetSlider(TripleWidthSlider, TripleWidthFill, TripleWidthValue, Values->TripleScreenWidthCm,
@@ -2470,6 +2493,8 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
 	else if (Id == SegVirtualMirror)  { Settings->SetVirtualMirror(Index == 1); }
 	else if (Id == SegMirrorQuality)  { Settings->SetMirrorQuality(Index); }
+	else if (Id == SegRadioSpotter)   { Settings->SetRadioSpotter(Index == 1); }
+	else if (Id == SegRadioEngineer)  { Settings->SetRadioEngineer(Index == 1); }
 	else if (Id == SegWheelDirection)
 	{
 		Settings->SetWheelInvertForce(Index == 1);
@@ -2794,6 +2819,15 @@ void UApexSettingsWidget::HandleOtherCarsVolumeChanged(float Value)
 	if (OtherCarsVolumeFill) { OtherCarsVolumeFill->SetPercent(Value); }
 	if (OtherCarsVolumeValue) { OtherCarsVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetOtherCarsVolume(Value); }
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandleRadioVolumeChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (RadioVolumeFill) { RadioVolumeFill->SetPercent(Value); }
+	if (RadioVolumeValue) { RadioVolumeValue->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), FMath::RoundToInt(Value * 100.0f)))); }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetRadioVolume(Value); }
 	RefreshFooter();
 }
 

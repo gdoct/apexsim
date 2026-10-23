@@ -33,6 +33,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/StaticMeshComponent.h"
+#include "Audio/ApexRadioSubsystem.h"
 #include "Audio/ApexRoadSound.h"
 #include "Audio/ApexUiAudioSubsystem.h"
 #include "Input/ApexForceFeedback.h"
@@ -1624,6 +1625,12 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	UpdateCockpitCamera();
 	UpdatePitCamera();
 	UpdateCarAudio();
+	// The spotter and the engineer talk to the driver, not to a ghost's lap.
+	if (UApexRadioSubsystem* Radio = UApexRadioSubsystem::Get(this))
+	{
+		const UApexNetSubsystem* Net = GetNet();
+		Radio->Update(!bGhostReplay && Net && Net->GetLocalCarIndex() >= 0);
+	}
 	if (bGhostReplay)
 	{
 		UpdateGhostReplay(DeltaSeconds);

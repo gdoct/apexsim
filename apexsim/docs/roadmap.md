@@ -230,14 +230,6 @@ the version 1 one in `ApexSpectatorGoldenBlobs.h` / `BackdropTests.cpp`,
 determinism of `render` (same seed, same bytes).
 
 
-### 14. Spotter and engineer radio
-
-- Voice cues for car left / right / clear, yellow, blue, fuel, tyres and
-  the box call: a line list rendered offline with a neural TTS and shipped
-  as audio files, a client cue queue with priorities and cool-downs.
-
-**Check:** a race with the radio on, by ear.
-
 ### 16. Driving school
 
 - Challenges on the racing line and corner data: brake at a board, a corner
