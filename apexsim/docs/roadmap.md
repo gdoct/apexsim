@@ -266,12 +266,17 @@ determinism of `render` (same seed, same bytes).
 
 **Check:** a race with the radio on, by ear.
 
-### 15. Driver profile and stats
+### 15. Driver profiles and stats
 
+- Local profiles: a name, one of 16 AI-generated portraits and a UUID made
+  on creation, stored on this machine only. The game lists the profiles on
+  launch and asks for one or a new one; joining a session sends the
+  profile's UUID, and the server keys the driver on it.
 - Laps, distance, races, wins and personal bests per track and car on a
-  profile screen; online keyed on the weekend identity.
+  profile screen.
 
-**Check:** stats after an offline race and a hotlap.
+**Check:** two profiles on one install, each joining a session under its own
+UUID; stats after an offline race and a hotlap.
 
 ### 16. Driving school
 

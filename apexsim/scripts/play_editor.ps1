@@ -93,8 +93,8 @@ function Confirm-Step([string]$Question, [bool]$Default) {
 
 $RepoRoot  = Split-Path $PSScriptRoot -Parent
 $Uproject  = Join-Path $RepoRoot 'game-unreal\ApexSim.uproject'
-$ServerDir = Join-Path $RepoRoot 'server'
-$ServerExe = Join-Path $ServerDir 'target\release\apexsim-server.exe'
+$ServerDir = Join-Path $RepoRoot 'server\server'
+$ServerExe = Join-Path $RepoRoot 'server\server\target\release\apexsim-server.exe'
 $Settings  = Join-Path $RepoRoot 'game-unreal\settings.yml'
 
 $Engine = Resolve-ApexEngineRoot -Uproject $Uproject -Explicit $EngineRoot `
@@ -190,7 +190,7 @@ if (-not $NoServer -and $isLocal) {
     $listener = Get-Listener $serverPort
 
     if ($listener -and -not $RestartServer) {
-        $newest = Get-NewestWrite @((Join-Path $ServerDir 'src'), (Join-Path $RepoRoot 'server\sim\src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
+        $newest = Get-NewestWrite @((Join-Path $RepoRoot 'server\sim\src'), (Join-Path $RepoRoot 'server\server\src'), (Join-Path $RepoRoot '..\apexsim-content\cars'), (Join-Path $RepoRoot '..\apexsim-content\tracks'))
         if ($newest -and $listener.StartTime -lt $newest) {
             $message = "The server on port $serverPort was started $($listener.StartTime), before the latest server or content change."
             if ($Interactive) {
