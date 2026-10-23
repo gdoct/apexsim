@@ -102,6 +102,12 @@ namespace ApexPhoto
 	inline constexpr float MaxRangeCm = 15000.0f;
 	/** The orbit's nearest. */
 	inline constexpr float MinOrbitCm = 250.0f;
+	/**
+	 * The farthest an orbit starts: one taken up from a wide TV shot comes in
+	 * along the same line to this, or it sweeps the scenery (a tree line)
+	 * round a car eighty metres off. The wheel zooms it out again.
+	 */
+	inline constexpr float MaxOrbitStartCm = 1200.0f;
 	/** Clearance kept over the ground under the camera. */
 	inline constexpr float GroundClearanceCm = 25.0f;
 	inline constexpr float MaxPitchDeg = 89.0f;

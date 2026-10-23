@@ -110,6 +110,14 @@ bool FApexPhotoCameraTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("held at the range"), FMath::IsNearlyEqual((Camera.LocationCm - Pivot).Size(), (double)MaxRangeCm, 0.5));
 	}
 
+	// Orbit taken from a wide shot: it comes in along its line to the start radius.
+	{
+		FCamera Camera = FreeAt(FVector(-8000.0, 0.0, 500.0), FRotator(0.0, 0.0, 0.0));
+		SetOrbit(Camera, true, Pivot);
+		TestTrue(TEXT("a far orbit starts close"),
+			FMath::IsNearlyEqual((Camera.LocationCm - Pivot).Size(), (double)MaxOrbitStartCm, 0.5));
+	}
+
 	// Orbit: taken from where it is, it keeps the distance and looks at the car.
 	{
 		FCamera Camera = FreeAt(FVector(-800.0, 0.0, 50.0), FRotator(0.0, 30.0, 0.0));

@@ -205,7 +205,7 @@ namespace ApexPhoto
 			return;
 		}
 		const FVector Out = Camera.LocationCm - PivotCm;
-		Camera.OrbitDistanceCm = FMath::Clamp(static_cast<float>(Out.Size()), MinOrbitCm, MaxRangeCm);
+		Camera.OrbitDistanceCm = FMath::Clamp(static_cast<float>(Out.Size()), MinOrbitCm, MaxOrbitStartCm);
 		const FRotator Angles = Out.IsNearlyZero() ? FRotator(10.0f, Camera.YawDeg + 180.0f, 0.0f) : Out.Rotation();
 		Camera.OrbitYawDeg = FRotator::NormalizeAxis(Angles.Yaw);
 		Camera.OrbitPitchDeg = FMath::Clamp(FRotator::NormalizeAxis(Angles.Pitch), -MaxPitchDeg, MaxPitchDeg);

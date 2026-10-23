@@ -435,6 +435,12 @@ then the cockpit dash in each ([hud-modding](game/hud-modding.md#colour-vision))
   contact sheets): the states still tell apart.
 - Settings > Gameplay > Colour vision changes the HUD while paused.
 
+Shot 2026-10-24: the HUD rebuilt in all three palettes (red-green's blue
+bars and yellow accent, the `PB` tags under the splits, the temperature
+signs fitting their columns) and the cockpit dash in each. Left: the
+shots through a CVD simulator, the radar fill with a car alongside, and
+the settings row's BLUE-YELLOW pill width.
+
 ### R21. Photo mode
 
 `n20-photo-hotlap` (a watched hotlap at the Norisring, 17:30) and
@@ -444,8 +450,14 @@ free camera lifted and tilted, an orbit round the car, 135 mm at f/2 (the
 background soft), exposure up and down, a 2x and a 4x shot (the toast; the
 PNGs in `game-unreal/Saved/Screenshots/ApexSim` at 3840x2160 and
 7680x4320, with no HUD or card in them), the card hidden, and the watch
-view back with the replay playing on. By hand: the pad's sticks, triggers
-and D-pad, the mouse's held-button look and the wheel's zoom.
+view back with the replay playing on. Shot 2026-10-24 (`n20-photo-hotlap`):
+the card, chip and key strip with the HUD gone, the free camera's lift,
+the 135 mm f/2 close-up, +/-1.7 EV and the 3840x2160 toast all as meant;
+the first run's orbit kept the TV shot's 80 m and swung into a tree line,
+so an orbit now starts at most 12 m out (`MaxOrbitStartCm`). Left: the
+replay recipe (`n20-photo-replay`, needs a saved replay), the PNGs opened,
+and by hand: the pad's sticks, triggers and D-pad, the mouse's
+held-button look and the wheel's zoom.
 
 ## 2. Needs a human: hands, ears and hardware
 
