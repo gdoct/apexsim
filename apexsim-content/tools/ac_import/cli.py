@@ -19,7 +19,7 @@ from pathlib import Path
 
 import numpy as np
 
-from . import TOOL_VERSION, ai, centerline, ini, kn5, physics, pit, scene, sidecars, textures, validate
+from . import TOOL_VERSION, ai, centerline, ini, kn5, physics, pit, scene, sidecars, site, textures, validate
 from .export import source_crc, ue_location, ue_yaw_deg, write_export
 from .prompt import StemTaken, retry_with_new_stem
 from .sidecars import CONTACT_NAMES
@@ -63,6 +63,9 @@ class Options:
     out_dir: Path = EXPORT_DIR
     custom_dir: Path = CUSTOM_DIR
     default_dir: Path = DEFAULT_DIR  # shipped circuits: a stem here is refused
+    #: The Copernicus height for geotagged mods (`site.dem_height`): "fetch",
+    #: "cache" (cached tiles only) or "off". The command line fetches.
+    dem: str = "off"
 
 
 @dataclass
@@ -284,11 +287,13 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         "category": "Imported",
         "environment_type": "plains",
     }
-    if ui.latitude_deg is not None:
-        # ui_track.json's geotags, when a mod fills them in: the server's sun,
-        # track temperature and headlights are worked out at this latitude.
-        metadata["latitude_deg"] = ui.latitude_deg
-        metadata["longitude_deg"] = ui.longitude_deg
+    # Where the circuit is (`site.py`): the server thins the air by the
+    # height and works the sun out at the latitude; the client's sky takes
+    # north from the manifest.
+    location, site_report, site_warnings = site.resolve(layout.track_dir.name, ui.latitude_deg, ui.longitude_deg,
+                                                        frame.heading, opts.dem)
+    warnings.extend(site_warnings)
+    metadata.update(location)
     doc = centerline.track_yaml(spine, measured, raceline, name=name, display_name=display_name, track_id=track_id,
                                 sectors=sectors, spawn_xy=spawn_xy, drs_zones=drs_zones, metadata=metadata)
     yaml_text = centerline.dump_yaml(doc)
@@ -384,6 +389,7 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
         "files": files_read,
         "frame": {"origin_world": [round(float(v), 3) for v in frame.origin], "heading_rad": round(frame.heading, 6)},
         "lap_m": round(float(spine.lap_m), 2),
+        "site": site_report,
         "physics": {
             "meshes": world.physics_meshes, "wall_meshes": world.wall_meshes,
             "triangles": int(world.triangles.shape[0]), "wall_segments": int(world.wall_segments.shape[0]),
@@ -488,8 +494,10 @@ def import_layout(layout: ini.Layout, opts: Options, system_surfaces: Path | Non
                     "box_count": len(pit_result.payload["boxes"]), "speed_limit_kmh": PIT_SPEED_LIMIT_KMH}
     manifest_metadata = {"country": ui.country or None, "city": ui.city or None, "category": "Imported",
                          "environment_type": "plains", "description": metadata["description"]}
-    if ui.latitude_deg is not None:
-        manifest_metadata["latitude_deg"] = ui.latitude_deg
+    if "latitude_deg" in location:
+        manifest_metadata["latitude_deg"] = location["latitude_deg"]
+        manifest_metadata["longitude_deg"] = location["longitude_deg"]
+    manifest_metadata["north_yaw_deg"] = site_report["north_yaw_deg"]
     write_export(out_dir, stem, track_id=track_id, track_name=name, display_name=display_name,
                  source_track=yaml_path.name, source_crc_value=crc, closed_loop=True, length_m=spine.lap_m,
                  metadata=manifest_metadata, materials=[s.manifest_entry() for s in material_rows],
@@ -567,6 +575,8 @@ def _rebuild_command(layout: ini.Layout, opts: Options, stem: str) -> str:
         parts += ["--textures", opts.textures]
     if opts.max_texture != 2048:
         parts += ["--max-texture", str(opts.max_texture)]
+    if opts.dem != "fetch":
+        parts += ["--dem", opts.dem]
     parts.append("--force")
     return " ".join(parts)
 
@@ -651,6 +661,9 @@ def main(argv: list[str] | None = None) -> int:
                          "ac: AC's textures everywhere; flat: average colours, no textures")
     ap.add_argument("--max-texture", type=int, default=2048, help="downscale textures larger than N pixels (default 2048)")
     ap.add_argument("--force", action="store_true", help="replace an existing import of this stem")
+    ap.add_argument("--dem", choices=("fetch", "cache", "off"), default="fetch",
+                    help="the height of a geotagged track from the Copernicus DEM: fetch its tile (default), "
+                         "use cached tiles only, or leave the height out")
     ap.add_argument("--dry-run", action="store_true", help="read and report; write nothing")
     ap.add_argument("--out", type=Path, default=EXPORT_DIR, help=argparse.SUPPRESS)
     ap.add_argument("--custom-dir", type=Path, default=CUSTOM_DIR, help=argparse.SUPPRESS)
@@ -671,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
 
     opts = Options(layout=args.layout, stem=args.stem, display_name=args.display_name, textures=args.textures,
                    max_texture=max(64, args.max_texture), force=args.force, dry_run=args.dry_run,
-                   out_dir=args.out, custom_dir=args.custom_dir, default_dir=args.default_dir)
+                   out_dir=args.out, custom_dir=args.custom_dir, default_dir=args.default_dir, dem=args.dem)
 
     if args.list:
         list_layouts(Path(args.track or args.all))

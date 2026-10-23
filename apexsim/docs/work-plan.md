@@ -267,9 +267,8 @@ rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
 
 #### C4. AC import fidelity — P3 · 🟢 · M
-Altitude, north and geotags for imported tracks (Med impact: sea-level air,
-wrong sun); AC's tyre heat model; dynamic aero controllers and DRS split;
-two ERS motors and delivery profiles; brake pads/porpoising/compound details.
+AC's tyre heat model; dynamic aero controllers and DRS split; two ERS
+motors and delivery profiles; brake pads/porpoising/compound details.
 
 ### Audio and features
 

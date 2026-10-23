@@ -722,7 +722,9 @@ Copy-Item -LiteralPath $LauncherExe -Destination (Join-Path $ReleaseDir 'launche
 # Python 3.11+ and says what to install when there is none).
 $ImporterDir = Join-Path $ReleaseDir 'Tools\importer'
 New-Item -ItemType Directory -Force -Path $ImporterDir | Out-Null
-foreach ($f in 'ac_import.py', 'ac_car_import.py', 'track_dirs.py', 'generate_track_previews.py', 'importer-requirements.txt') {
+# dem_fetch.py (and the osm_layout.py it imports) give a geotagged track its height.
+foreach ($f in 'ac_import.py', 'ac_car_import.py', 'track_dirs.py', 'generate_track_previews.py', 'dem_fetch.py',
+             'osm_layout.py', 'importer-requirements.txt') {
     Copy-Item -LiteralPath (Join-Path $ToolsDir $f) -Destination $ImporterDir -Force
 }
 # The car importer finds each body's damage parts with the shipped cars' tool

@@ -152,10 +152,11 @@ are written by `python tools/track_location.py --all` (in `apexsim-content/`) fr
 datum offset), with a `MANUAL` table for circuits without a DEM. The track
 editor's `TrackMetadata` carries the keys through its rewrites
 (`the_location_survives_a_rewrite_as_written`). Editing a YAML changes its
-content checksum: re-run `ats-export --all` after. An AC import gets
-`latitude_deg` and `longitude_deg` from `ui_track.json`'s geotags when the mod
-filled them in ([apexsim-content/docs/ac-import.md](../../../apexsim-content/docs/ac-import.md)); AC carries
-no altitude or north.
+content checksum: re-run `ats-export --all` after. An AC import gets all
+three for AC's own circuits from the importer's table, and for a mod with
+real geotags their position and the Copernicus height there; its manifest
+carries `north_yaw_deg` by AC's -z convention or a measured figure
+([apexsim-content/docs/ac-import.md](../../../apexsim-content/docs/ac-import.md), "Where the circuit is").
 
 The server works the sun out at `TrackConfig::latitude_deg()` (50° N when
 the YAML has none) for the track temperature, the headlights and the

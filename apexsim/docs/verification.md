@@ -538,6 +538,12 @@ Mandarina Bay.
   The sidecar's lane, limit lines and boxes are checked only by the server's
   surveys (`PIT_CUSTOM=1 pit_stop_test`); AC's scenery draws the garages and
   boards, the exit light is not drawn.
+- An AC import's sun from its `north_yaw_deg` (`ac_import/site.py`):
+  re-import Laguna Seca (north by AC's -z convention, 212° in its frame) and
+  Silverstone or Spa (measured north), and see the sun's bearing against the
+  real circuit's at a known hour. The server side (altitude, latitude) is
+  the same keys the shipped circuits use; the client side has only the
+  importer test behind it.
 
 **Telemetry output.** ([game/telemetry-output.md](game/telemetry-output.md))
 

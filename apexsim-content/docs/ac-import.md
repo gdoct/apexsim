@@ -37,7 +37,8 @@ both for a player who has no checkout.
   `frame.py`, `trigrid.py` (triangle index), `physics.py` (physics world,
   contact classes, walls, ground), `centerline.py` (spine, cross-sections,
   YAML), `scene.py` (mesh selection, material classification, merging),
-  `textures.py` (DDS conversion), `export.py` (export manifest and blob),
+  `site.py` (height, place and north), `textures.py` (DDS conversion),
+  `export.py` (export manifest and blob),
   `sidecars.py` (msgpack sidecars), `pit.py` (the pit sidecar),
   `validate.py` (checks), `prompt.py` (asking for a new name), `cli.py`.
 - `tools/ac_car_import.py` -> `tools/ac_car_import/`: `acd.py`
@@ -60,7 +61,7 @@ python tools/ac_import.py <folder> --list                 # the layouts, their d
 python tools/ac_import.py <folder> --layout layout_gp     # one layout ("." = the folder's own models.ini)
 python tools/ac_import.py --all <ac>\content\tracks       # every importable layout, one summary line each
 #   --stem NAME, --display-name TEXT, --textures kit|ac|flat, --max-texture N (2048),
-#   --force, --dry-run, --root <ApexSim install>
+#   --force, --dry-run, --root <ApexSim install>, --dem fetch|cache|off
 # then restart the server, and restart the game or run apexsim.track.Rescan
 ```
 
@@ -73,10 +74,9 @@ Server, in `tracks/custom/<Stem>/`:
 
 - `<Stem>.yaml`: 5 m nodes (widths, z, banking), `raceline`, `sectors`,
   `spawn_points`, `drs_zones`, a fixed `track_id`, `name` /
-  `display_name`, `metadata` (`category: Imported`, and `latitude_deg` /
-  `longitude_deg` when `ui_track.json`'s `geotags` hold real coordinates: most
-  AC tracks keep the placeholder `["lat", "lon"]` and get none, so the sun
-  stands at the server's 50 N; AC carries no altitude and no north).
+  `display_name`, `metadata` (`category: Imported`, and `altitude_m`,
+  `latitude_deg` and `longitude_deg` where the place is known: see "Where
+  the circuit is").
 - `<Stem>.road.msgpack`, `.walls.msgpack`, `.ground.msgpack`,
   `.curbs.msgpack`: four sidecars, written by the importer, and
   `<Stem>.pit.msgpack` (see "The pit lane") when the layout has an
@@ -238,6 +238,39 @@ when the car parents are not baked), honours `ground_set`
 and skips the collision component where a mesh has `collision: false`.
 Kerbs keep AC's textures on purpose: their stripes are authored into the
 texture and the kit's would need an along-kerb UV the kn5 lacks.
+
+## Where the circuit is (`site.py`)
+
+AC stores no height, and most tracks (Kunos' own too) keep `geotags` at the
+placeholder `["lat", "lon"]`; `data/lighting.ini`'s `SUN_HEADING_ANGLE` is
+where AC's fixed sun path stands, not a compass (Silverstone's 45 and
+Monza's -150 are both on north-up models). The importer takes the place,
+in order, from:
+
+1. `KNOWN_SITES`, AC's own circuits (and a few mods of shipped ones) by
+   folder name: the shipped circuit's `altitude_m` / `latitude_deg` /
+   `longitude_deg`, or for a circuit ApexSim does not ship (Laguna Seca,
+   Vallelunga, Mugello, Imola, Magione) its position and the Copernicus
+   height at its start line.
+2. `geotags` with real coordinates: the latitude and longitude, and the
+   Copernicus height there through `tools/dem_fetch.py` (the tile is
+   downloaded into `.cache/dem`, 30-80 MB, unless `--dem cache` (cached
+   tiles only) or `--dem off`; a failed lookup warns and leaves the height
+   out).
+3. Nothing: no keys, so the server's sea-level air and 50 N.
+
+The server thins the air by `altitude_m` and puts the sun at the latitude
+([conditions](../../apexsim/docs/server/conditions.md)). North goes to the
+client as the manifest's `north_yaw_deg` (true north in the track frame, as
+`ats-export` writes it): AC's own convention, -z towards north, yawed by
+the start-line frame, unless the table holds a measured figure. Measured by
+fitting `ai/fast_lane.ai` onto the shipped centerline (whose DEM
+georeference knows north; rms 4-12 m), Silverstone, Monza, Spa, the Red
+Bull Ring, Barcelona, Brands Hatch, the Nordschleife and the Le Mans mod
+are within 3 degrees of the convention; Zandvoort (292), the Nurburgring GP
+(135) and the Interlagos, Suzuka and Bahrain mods are not and carry their
+own. A mod outside the table gets the convention, which may be wrong for
+it. The report's `site` names each figure's source.
 
 ## The `imported` marker
 
@@ -538,8 +571,8 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 - Tracks without `fast_lane.ai`; point-to-point stages (refused).
 - Pit stops where a layout has no `pit_lane.ai` or `AC_PIT` markers; the
   pit exit light and speed-limit boards (AC's scenery draws its own).
-- Altitude and north: AC carries neither, so an import races at sea-level air
-  density with the sun's compass at the default.
+- The height and north of a mod outside `KNOWN_SITES`: the height only
+  with real `geotags` (and the DEM), north by AC's convention.
 - Kit props in place of AC scenery; night lighting from AC's lights; AC's
   normal, `txMaps` and detail maps (diffuse only).
 - A DRS flap split off a car's body: a DRS car gets the drag and downforce

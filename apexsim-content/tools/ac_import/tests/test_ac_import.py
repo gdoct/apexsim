@@ -21,7 +21,7 @@ import numpy as np
 SCRIPTS = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(SCRIPTS))
 
-from ac_import import ai, centerline, cli, export, frame, ini, kn5, physics, scene, textures, trigrid  # noqa: E402
+from ac_import import ai, centerline, cli, export, frame, ini, kn5, physics, scene, site, textures, trigrid  # noqa: E402
 from ac_import.sidecars import CONTACT_CURB, CONTACT_OFF, CONTACT_ROAD  # noqa: E402
 
 
@@ -375,6 +375,27 @@ class ReaderTests(unittest.TestCase):
                 got = None if ui.latitude_deg is None else (ui.latitude_deg, ui.longitude_deg)
                 self.assertEqual(got, want, text)
 
+    def test_a_known_ac_circuit_has_its_height_place_and_north(self):
+        keys, report, warnings = site.resolve("ks_silverstone", None, None, np.radians(30.0), "off")
+        self.assertEqual(keys, {"altitude_m": 144.2, "latitude_deg": 52.08446, "longitude_deg": -1.02032})
+        self.assertEqual(report["north_source"], "measured")
+        self.assertAlmostEqual(report["north_yaw_deg"], 61.0)  # 91 in the world, the frame yawed 30
+        self.assertEqual(warnings, [])
+        # The folder name is matched without case, and an unmeasured one takes AC's -z.
+        _, report, _ = site.resolve("KS_Laguna_Seca", None, None, np.radians(120.0), "off")
+        self.assertEqual(report["altitude_m"], 229.5)
+        self.assertAlmostEqual(report["north_yaw_deg"], 330.0)
+
+    def test_a_geotagged_mod_has_its_place_and_an_unknown_one_none(self):
+        keys, report, warnings = site.resolve("some_mod", 45.5, 25.5, 0.0, "off")
+        self.assertEqual(keys, {"latitude_deg": 45.5, "longitude_deg": 25.5})
+        self.assertEqual(report["altitude_source"], "off")
+        self.assertEqual(len(warnings), 1)
+        keys, report, warnings = site.resolve("some_mod", None, None, 0.0, "off")
+        self.assertEqual(keys, {})
+        self.assertEqual(report["north_yaw_deg"], 90.0)
+        self.assertEqual(len(warnings), 1)
+
     def test_a_folder_without_models_ini_is_its_own_kn5(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d) / "oldtrack"
@@ -645,7 +666,12 @@ class ImportTests(unittest.TestCase):
             self.assertAlmostEqual(doc["metadata"]["longitude_deg"], 16 + 47.855 / 60, places=4)
             manifest = json.loads((out / "SynthOval.uescene.json").read_text(encoding="utf-8"))
             self.assertAlmostEqual(manifest["metadata"]["latitude_deg"], 52 + 25.054 / 60, places=4)
-            self.assertNotIn("north_yaw_deg", manifest["metadata"], "AC carries no north")
+            self.assertAlmostEqual(manifest["metadata"]["longitude_deg"], 16 + 47.855 / 60, places=4)
+            # No DEM in a test: no height. North is AC's -z, yawed into the track frame.
+            self.assertNotIn("altitude_m", doc["metadata"])
+            self.assertEqual(report_site := json.loads((custom / "SynthOval.import.json").read_text(
+                encoding="utf-8"))["site"]["north_source"], "AC convention (-z)", report_site)
+            self.assertIn("north_yaw_deg", manifest["metadata"])
             # Counter-clockwise from above: the left edge (inside) is at +y.
             i = len(nodes) // 4
             self.assertGreater(nodes[i]["x"] * 0 + nodes[i]["y"], 0)
