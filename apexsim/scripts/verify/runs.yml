@@ -7576,7 +7576,7 @@ runs:
       - {at: 106, label: "cockpit dash, blue-yellow", checks: "N22: the dash's lights green, amber, red, white", exec: "apexsim.hud.Palette blue_yellow"}
 
   - id: n20-photo-hotlap
-    about: "R19. Photo mode over a watched hotlap (a stream: held while framed)"
+    about: "R21. Photo mode over a watched hotlap (a stream: held while framed)"
     # No race of our own: the server's watched hotlap, then photo mode over
     # it from the console (apexsim.photo, docs/game/spectator.md). The
     # high-resolution shot lands in game-unreal/Saved/Screenshots/ApexSim,
@@ -7629,7 +7629,7 @@ runs:
         exec: "apexsim.photo off"
 
   - id: n20-photo-replay
-    about: "R19. Photo mode over a saved replay (-ApexWatchReplay=latest)"
+    about: "R21. Photo mode over a saved replay (-ApexWatchReplay=latest)"
     # Needs a replay in game-unreal/Saved/Replays (any earlier run leaves
     # one in Recent/). The replay plays at once; photo mode pauses it.
     args:
