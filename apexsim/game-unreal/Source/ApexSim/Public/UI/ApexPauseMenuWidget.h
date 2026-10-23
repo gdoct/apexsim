@@ -30,6 +30,8 @@ enum class EApexPauseAction : uint8
 	RecoverToTrack,
 	/** A stuck car towed to its pit box, serviced and driven out. */
 	RecoverToPits,
+	/** Practice driven alone: the session back ten seconds (`Rewind`). */
+	Rewind,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPauseAction, EApexPauseAction, Action);
@@ -156,6 +158,10 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> RecoverPitsRow;
+
+	/** Back ten seconds: a practice session the player drives alone (`CanRewind`). */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> RewindRow;
 
 	/** Back to the main menu, or out of the race being watched. */
 	UPROPERTY(Transient)

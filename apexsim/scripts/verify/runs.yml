@@ -7365,3 +7365,31 @@ runs:
         checks: "S3 fog"
         lead: 1
         exec: "apexsim.cam.Release"
+
+  - id: n13-rewind
+    about: "N13. Rewind in a practice session driven alone"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=near
+      - -ApexRacingLine=off
+    exec:
+      22: "apexsim.rewind 5"
+    shots:
+      - at: 21.5
+        label: "just before the rewind"
+        checks: "N13: where the car is"
+      - at: 23.5
+        label: "held after the rewind"
+        checks: "N13: the car back where it was 5 s ago, still; the toast; no car smeared across the jump"
+      - at: 28
+        label: "running on"
+        checks: "N13: the cars moving again, smoothly"

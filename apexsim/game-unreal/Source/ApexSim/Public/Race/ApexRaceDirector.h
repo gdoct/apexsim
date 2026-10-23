@@ -935,7 +935,7 @@ private:
 	 */
 	void ApplyReplayCamera();
 	/** After a jump in a replay's clock: stop every camera easing across it. */
-	void SnapCameras();
+	void SnapCameras(int32 LagOffFrames = 2);
 
 	/** The guide sets ReplayTime (SetGuideClock); the director's own clock stands still. */
 	bool bGuideClock = false;
@@ -1148,6 +1148,8 @@ private:
 	 * when the session is left or another source begins.
 	 */
 	void HandleRoadState(const FApexRoadState& Slice);
+	/** The session went back in time (`Rewound`): every car's buffered motion is of the run undone. */
+	void HandleRewound(const FApexRewound& Rewound);
 	void HandleDemoSessionChanged(bool bJoined);
 	/** Once a frame: make and fill the textures, hand them to the road's materials, lay the debris. */
 	void UpdateRoadState();
@@ -1170,6 +1172,7 @@ private:
 	/** Who the map came from: the live session's id, or empty for a stream. */
 	FString RoadSource;
 	FDelegateHandle RoadStateHandle;
+	FDelegateHandle RewoundHandle;
 	FDelegateHandle DemoSessionHandle;
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> RoadStateTexture;

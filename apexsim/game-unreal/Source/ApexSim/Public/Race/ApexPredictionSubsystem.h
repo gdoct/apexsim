@@ -161,6 +161,8 @@ private:
 	void StartBundleLoad(TArray<uint8> Bundle);
 	void CreateCar();
 	void HandleRoadState(const FApexRoadState& Road);
+	/** A rewind: the predicted car starts over from the server's next state. */
+	void HandleRewound(const FApexRewound& Rewound);
 	void ApplyRoadState(const FApexRoadState& Road);
 	void HandleTrackBundleChunk(const FApexTrackBundleChunk& Chunk);
 	/** The feel and revs the frame brought, and how far they lead the server's (the log window's figures). */
@@ -169,6 +171,7 @@ private:
 
 	FTSTicker::FDelegateHandle TickerHandle;
 	FDelegateHandle RoadStateHandle;
+	FDelegateHandle RewoundHandle;
 	FDelegateHandle TrackBundleHandle;
 
 	/** What a track load gives back: the track, or that the bundle has to be fetched first. */

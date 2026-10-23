@@ -1663,3 +1663,8 @@ void AApexRaceCarActor::UpdateDamage(float DeltaSeconds)
 		EmitSparks(ScrapeZone, Scrape);
 	}
 }
+
+void AApexRaceCarActor::ResetMotion()
+{
+	Motion.Reset();
+}

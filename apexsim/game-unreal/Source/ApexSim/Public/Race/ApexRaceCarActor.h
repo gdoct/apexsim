@@ -75,6 +75,9 @@ public:
 	 */
 	void SetLivery(const struct FApexCarLivery* Livery);
 
+	/** Drop the samples still to be shown: the session was rewound under them. */
+	void ResetMotion();
+
 	/**
 	 * The wheels to draw on the body (the catalog row's `Wheels`); an
 	 * unusable spec draws none, which is what a body with its own baked-in

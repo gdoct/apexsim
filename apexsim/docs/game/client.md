@@ -737,6 +737,21 @@ checksum or a damaged byte is refused) and `BundleDownload` (pacing,
 order, another bundle's chunks ignored, a missing bundle or a stall
 fails). Without the library they pass with a warning.
 
+## Rewind (`UApexNetSubsystem::Rewind`)
+
+In a `Practice` session the player drives alone (`CanRewind`: the session
+kind from `SessionJoined` and one human on the roster) the pause menu shows
+REWIND 10 S, and `apexsim.rewind [seconds]` asks for any span. The server
+answers `Rewound` (sessions.md, "Rewind in offline practice") or an Error
+(403 not driven alone, 409 nothing to go back to yet; a toast). On
+`Rewound` the net subsystem drops telemetry past the tick gone back to until
+the held frames arrive, every car's motion buffer is emptied
+(`AApexRaceCarActor::ResetMotion`), the boom's lag is off for 30 frames so
+the camera does not swing across the jump, a predicting client starts its
+car over from the server's next state
+(`UApexPredictionSubsystem::HandleRewound`), and a toast counts the hold.
+The lap through the rewind shows LAP INVALID. Verify run `n13-rewind`.
+
 ## Lap traces (`Race/ApexLapTrace.h`, `UApexLapTraceSubsystem`)
 
 Every whole lap the player drives is recorded from their own car's

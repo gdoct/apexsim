@@ -784,6 +784,27 @@ void UApexNetSubsystem::RecoverCar(EApexRecoverDestination Destination)
 	SendPayload(ApexProtocol::EncodeRecoverCar(Destination));
 }
 
+void UApexNetSubsystem::Rewind(int32 Seconds)
+{
+	const uint16 Clamped = static_cast<uint16>(FMath::Clamp(Seconds, 1, 60));
+	UE_LOG(LogApexSimNet, Log, TEXT("-> Rewind %d s"), Clamped);
+	SendPayload(ApexProtocol::EncodeRewind(Clamped));
+}
+
+bool UApexNetSubsystem::CanRewind() const
+{
+	if (CurrentSessionId.IsEmpty() || bSessionSpectator || CurrentSessionKind != EApexSessionKind::Practice)
+	{
+		return false;
+	}
+	int32 Humans = 0;
+	for (const FApexRosterEntry& Entry : CachedRoster.Entries)
+	{
+		Humans += Entry.bIsAi ? 0 : 1;
+	}
+	return Humans == 1;
+}
+
 void UApexNetSubsystem::HotlapRelocate(EApexHotlapDestination Destination, bool bColdTyres)
 {
 	UE_LOG(LogApexSimNet, Log, TEXT("-> HotlapRelocate %s%s"),
@@ -1103,6 +1124,16 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 		FApexTelemetryFrame Frame;
 		while (UdpConnection->PopTelemetry(Frame))
 		{
+			// After a rewind, frames of the run undone (past the tick gone
+			// back to) may still be in flight: wait for the held ones.
+			if (bAwaitingRewoundTick)
+			{
+				if (Frame.ServerTick > static_cast<int64>(RewoundTick))
+				{
+					continue;
+				}
+				bAwaitingRewoundTick = false;
+			}
 			LatestTelemetry = Frame;
 
 			if (!FrameFitsRoster(Frame))
@@ -1300,6 +1331,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			ClearRacingLine();
 			ClearLapTiming();
 			CurrentSessionId = Message.SessionId;
+			CurrentSessionKind = Message.SessionKind;
+			bAwaitingRewoundTick = false;
 			CurrentAllowedAssists = Message.AllowedAssists;
 			CurrentConditions = Message.Conditions;
 			CurrentDamage = Message.Damage;
@@ -1573,6 +1606,14 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- PitBox %d at (%.1f, %.1f)m, %.1f m off the lane's middle, %s"),
 			OwnPitBox.PitBox + 1, OwnPitBox.Position.X, OwnPitBox.Position.Y, OwnPitBox.LateralM,
 			OwnPitBox.bManual ? TEXT("manual pit lane") : TEXT("pit autopilot"));
+		break;
+
+	case EApexServerMessageType::Rewound:
+		RewoundTick = Message.Rewound.Tick;
+		bAwaitingRewoundTick = true;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- Rewound to tick %u from %u, held %u ms"),
+			Message.Rewound.Tick, Message.Rewound.FromTick, Message.Rewound.HoldMs);
+		OnRewound.Broadcast(Message.Rewound);
 		break;
 
 	case EApexServerMessageType::PitService:

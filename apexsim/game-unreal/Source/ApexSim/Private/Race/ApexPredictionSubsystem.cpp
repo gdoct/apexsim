@@ -92,6 +92,7 @@ void UApexPredictionSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	if (UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>())
 	{
 		RoadStateHandle = Net->OnRoadState.AddUObject(this, &UApexPredictionSubsystem::HandleRoadState);
+		RewoundHandle = Net->OnRewound.AddUObject(this, &UApexPredictionSubsystem::HandleRewound);
 		TrackBundleHandle = Net->OnTrackBundleChunk.AddUObject(this, &UApexPredictionSubsystem::HandleTrackBundleChunk);
 	}
 	TickerHandle = FTSTicker::GetCoreTicker().AddTicker(
@@ -108,6 +109,7 @@ void UApexPredictionSubsystem::Deinitialize()
 	if (UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>())
 	{
 		Net->OnRoadState.Remove(RoadStateHandle);
+		Net->OnRewound.Remove(RewoundHandle);
 		Net->OnTrackBundleChunk.Remove(TrackBundleHandle);
 	}
 	Teardown(FString());
@@ -359,6 +361,17 @@ bool UApexPredictionSubsystem::StartLoad(const FString& Key, const FString& Trac
 	SetStatus(FString::Printf(TEXT("loading %s (%s, %d Hz) for %s"), *Stem,
 		RoadContact == 1 ? TEXT("road mesh") : TEXT("centerline"), TickRateHz, *CarName), false);
 	return true;
+}
+
+void UApexPredictionSubsystem::HandleRewound(const FApexRewound& Rewound)
+{
+	// Its history and buffered inputs are of the run undone; a fresh car
+	// waits for the server's state, as one does at the start.
+	if (Predictor.IsRunning() && Track)
+	{
+		Predictor.End();
+		CreateCar();
+	}
 }
 
 void UApexPredictionSubsystem::CreateCar()

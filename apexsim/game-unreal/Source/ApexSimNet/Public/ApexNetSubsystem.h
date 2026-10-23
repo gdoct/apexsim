@@ -46,6 +46,7 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FApexOnSpectatorJoined, const FString& /*St
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const uint8>);
 /** A slice of the session's road state (`RoadState`, or a stream's `Road` record on the backdrop feed). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRewound, const FApexRewound&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
 
 /**
@@ -388,6 +389,13 @@ public:
 	FApexOnRoadState OnRoadState;
 
 	/**
+	 * The session was rewound (`Rewound`): what the client buffered of the
+	 * run undone is stale. Telemetry past the rewound tick is dropped here
+	 * until the held frames arrive.
+	 */
+	FApexOnRewound OnRewound;
+
+	/**
 	 * Every chunk of a track's physics bundle as it arrives, answering
 	 * RequestTrackBundleChunk (the prediction subsystem asks and assembles,
 	 * docs/game/client.md).
@@ -552,6 +560,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void RecoverCar(EApexRecoverDestination Destination);
+
+	/**
+	 * Back `Seconds` in a practice session driven alone (`CanRewind`): the
+	 * server answers `Rewound` to the session, or an Error (403 not driven
+	 * alone, 409 nothing to go back to yet).
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
+	void Rewind(int32 Seconds);
+
+	/** In a practice session as its only human driver: what the server lets rewind. */
+	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
+	bool CanRewind() const;
 
 	/** Ask for the record lap's trace; OnGhostLap answers, empty when there is none. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
@@ -1019,6 +1039,11 @@ private:
 	FString RejoinSessionId;
 	FString RejoinTrackId;
 	EApexSessionKind RejoinSessionKind = EApexSessionKind::Multiplayer;
+	/** The joined session's kind (SessionJoined). */
+	EApexSessionKind CurrentSessionKind = EApexSessionKind::Multiplayer;
+	/** After a `Rewound`: the tick rewound to, and whether frames past it are still the run undone. */
+	uint32 RewoundTick = 0;
+	bool bAwaitingRewoundTick = false;
 	void SetRejoinOffer(const FString& SessionId, const FString& TrackId, EApexSessionKind Kind);
 	void ClearRejoinOffer();
 	/** The session we were driving in when the connection dropped, and until when an offer of it is taken up unasked. */

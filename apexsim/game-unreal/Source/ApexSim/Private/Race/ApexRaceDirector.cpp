@@ -224,6 +224,17 @@ namespace
 				Net->RecoverCar(bPits ? EApexRecoverDestination::Pits : EApexRecoverDestination::Track);
 			}
 		}));
+	FAutoConsoleCommandWithWorldAndArgs RewindCommand(
+		TEXT("apexsim.rewind"),
+		TEXT("apexsim.rewind [seconds]: a practice session driven alone back that far (default 10); the pause menu's REWIND."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UApexNetSubsystem* Net = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+			if (Net)
+			{
+				Net->Rewind(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 10);
+			}
+		}));
 	FAutoConsoleCommandWithWorld HotlapGarageCommand(
 		TEXT("apexsim.hotlap.Garage"),
 		TEXT("Hotlap: back into the garage."),
@@ -503,6 +514,7 @@ void AApexRaceDirector::BeginPlay()
 		Net->OnRacingLineUpdated.AddDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
 		Net->OnGhostLap.AddDynamic(this, &AApexRaceDirector::HandleGhostLap);
 		RoadStateHandle = Net->OnRoadState.AddUObject(this, &AApexRaceDirector::HandleRoadState);
+		RewoundHandle = Net->OnRewound.AddUObject(this, &AApexRaceDirector::HandleRewound);
 		DemoSessionHandle = Net->OnDemoSessionChanged.AddUObject(this, &AApexRaceDirector::HandleDemoSessionChanged);
 	}
 }
@@ -517,6 +529,7 @@ void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleLobbyStateUpdated);
 		Net->OnRacingLineUpdated.RemoveDynamic(this, &AApexRaceDirector::HandleRacingLineUpdated);
 		Net->OnRoadState.Remove(RoadStateHandle);
+		Net->OnRewound.Remove(RewoundHandle);
 		Net->OnDemoSessionChanged.Remove(DemoSessionHandle);
 	}
 	DestroyAllCars();
@@ -822,6 +835,21 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 	}
 	Car->SetDamageParts(DamageParts, DamagePartMeshes);
 	Car->SetLivery(bRowBody ? ApexLivery::Find(Row, Livery) : nullptr);
+}
+
+void AApexRaceDirector::HandleRewound(const FApexRewound& Rewound)
+{
+	for (const TPair<int32, TObjectPtr<AApexRaceCarActor>>& Pair : Cars)
+	{
+		if (AApexRaceCarActor* Car = Pair.Value.Get())
+		{
+			Car->ResetMotion();
+		}
+	}
+	// The cars jump back when the held frames arrive, a round trip from now:
+	// the boom's lag stays off long enough to cover it.
+	SnapCameras(/*LagOffFrames*/ 30);
+	UE_LOG(LogApexSim, Log, TEXT("Rewound to tick %u: the cars' motion dropped"), Rewound.Tick);
 }
 
 void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
@@ -4802,7 +4830,7 @@ void AApexRaceDirector::ApplyReplayCamera()
 	SnapCameras();
 }
 
-void AApexRaceDirector::SnapCameras()
+void AApexRaceDirector::SnapCameras(int32 LagOffFrames)
 {
 	CarMotion.Reset();
 	bReplayPanValid = false;
@@ -4816,7 +4844,7 @@ void AApexRaceDirector::SnapCameras()
 	// or two, it settles where the car now is.
 	CameraBoom->bEnableCameraLag = false;
 	CameraBoom->bEnableCameraRotationLag = false;
-	BoomSnapFrames = 2;
+	BoomSnapFrames = LagOffFrames;
 }
 
 void AApexRaceDirector::BeginGuideView(TSharedPtr<const FApexReplayClip> Clip, const FApexSessionConditions& Conditions)

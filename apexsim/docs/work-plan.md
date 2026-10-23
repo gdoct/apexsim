@@ -56,7 +56,6 @@ takes it up (— : no step, taken opportunistically).
 | A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | N17 | League rules: success ballast (reverse grid, BoP built) | Race rules | P3 | 🟢 | S each | — |
-| N13 | Rewind in offline practice: the client (server and wire built) | Driver tools | P3 | 🟢 | S | — |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N14 | Spotter and engineer radio | Audio | P3 | 🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
@@ -427,15 +426,6 @@ from coarser wheel slip has to be heard.
 **Watch out:** the wire stays as it is (frames stay self-contained
 datagrams); version 1 files must still play; `render` stays byte-identical
 for a seed.
-
-#### N13. Rewind in offline practice: the client — P3 · 🟢 · S
-The server keeps a ring of snapshots of a `Practice` session driven alone
-and answers `Rewind { seconds }` with `Rewound` (sessions.md, "Rewind in
-offline practice"; the codec's `EncodeRewind` / `FApexRewound` are written,
-not yet compiled). Left: `UApexNetSubsystem` sends it and handles
-`Rewound` (drop the interpolation buffers and a predicting client's
-history, a countdown over the hold), a key and a pause-menu entry shown
-only in a single-player practice session.
 
 #### N14. Spotter and engineer radio — P3 · 🟡 · M
 Voice cues: "car left/right/clear" (from N3), "yellow ahead", "blue flag"

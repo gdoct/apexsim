@@ -36,6 +36,7 @@ namespace
 	const FName ActionGarage   = TEXT("Garage");
 	const FName ActionRecoverTrack = TEXT("RecoverTrack");
 	const FName ActionRecoverPits  = TEXT("RecoverPits");
+	const FName ActionRewind       = TEXT("Rewind");
 	const FName ActionQuit     = TEXT("Quit");
 	const FName ActionPitPlan  = TEXT("PitPlan");
 	const FName ActionPitPlanDone = TEXT("PitPlanDone");
@@ -98,6 +99,9 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	RecoverTrackRow->SetVisibility(ESlateVisibility::Collapsed);
 	RecoverPitsRow = AddRow(Actions, TEXT("BACK TO PITS"), TEXT("Towed 30 s · serviced"), ActionRecoverPits, false);
 	RecoverPitsRow->SetVisibility(ESlateVisibility::Collapsed);
+	// Practice alone: the session goes back, the lap through it struck.
+	RewindRow = AddRow(Actions, TEXT("REWIND 10 S"), TEXT("Practice alone · lap struck"), ActionRewind, false);
+	RewindRow->SetVisibility(ESlateVisibility::Collapsed);
 	// Every session is recorded; this keeps it (Saved/Replays) rather than
 	// leaving it among the recent ones that make way for newer sessions.
 	SaveReplayRow = AddRow(Actions, TEXT("SAVE REPLAY"), TEXT("Watch it again later"), ActionPauseSaveReplay, false);
@@ -572,6 +576,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	const int32 LocalIndex = Net->GetLocalCarIndex();
 	bool bOnTrackInHotlap = false;
 	bool bCanRecover = false;
+	bool bCanRewind = false;
 	if (const FApexCarTelemetry* Local = Net->GetLatestTelemetry().Cars.FindByPredicate(
 			[LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; }))
 	{
@@ -596,6 +601,7 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 			|| (Mode == EApexGameMode::Race && Net->GetSessionState() == EApexSessionState::Racing);
 		bCanRecover = !bWatching && bRunning && !Local->bInGarage && Local->FinishPosition <= 0
 			&& !Local->IsRecovering() && !Local->bPitAutopilot && !Local->bPitServicing;
+		bCanRewind = !bWatching && Net->CanRewind() && Net->GetSessionState() == EApexSessionState::Racing;
 	}
 	if (RecoverTrackRow)
 	{
@@ -604,6 +610,10 @@ void UApexPauseMenuWidget::RefreshStatusStrip()
 	if (RecoverPitsRow)
 	{
 		RecoverPitsRow->SetVisibility(bCanRecover && !bOnTrackInHotlap ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (RewindRow)
+	{
+		RewindRow->SetVisibility(bCanRewind ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	}
 	if (GarageRow)
 	{
@@ -709,6 +719,10 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Action == ActionRecoverPits)
 	{
 		OnAction.Broadcast(EApexPauseAction::RecoverToPits);
+	}
+	else if (Action == ActionRewind)
+	{
+		OnAction.Broadcast(EApexPauseAction::Rewind);
 	}
 	else if (Action == ActionPauseSaveReplay)
 	{

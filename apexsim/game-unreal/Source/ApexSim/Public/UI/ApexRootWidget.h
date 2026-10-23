@@ -383,6 +383,8 @@ private:
 
 	UFUNCTION()
 	void HandleServerError(int32 Code, const FString& Message);
+	void HandleRewound(const FApexRewound& Rewound);
+	FDelegateHandle RewoundHandle;
 
 	/** An operator's message (dashboard broadcast, admin ending the session): a long toast, over the menus and the race HUD alike. */
 	UFUNCTION()

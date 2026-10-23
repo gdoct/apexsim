@@ -442,6 +442,7 @@ void UApexRootWidget::NativeConstruct()
 		Net->OnUdpReady.AddDynamic(this, &UApexRootWidget::HandleUdpReady);
 		Net->OnDisconnected.AddDynamic(this, &UApexRootWidget::HandleDisconnected);
 		Net->OnServerError.AddDynamic(this, &UApexRootWidget::HandleServerError);
+		RewoundHandle = Net->OnRewound.AddUObject(this, &UApexRootWidget::HandleRewound);
 		Net->OnServerNotice.AddDynamic(this, &UApexRootWidget::HandleServerNotice);
 		Net->OnSessionJoined.AddDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.AddDynamic(this, &UApexRootWidget::HandleSessionLeft);
@@ -806,6 +807,7 @@ void UApexRootWidget::NativeDestruct()
 		Net->OnUdpReady.RemoveDynamic(this, &UApexRootWidget::HandleUdpReady);
 		Net->OnDisconnected.RemoveDynamic(this, &UApexRootWidget::HandleDisconnected);
 		Net->OnServerError.RemoveDynamic(this, &UApexRootWidget::HandleServerError);
+		Net->OnRewound.Remove(RewoundHandle);
 		Net->OnServerNotice.RemoveDynamic(this, &UApexRootWidget::HandleServerNotice);
 		Net->OnSessionJoined.RemoveDynamic(this, &UApexRootWidget::HandleSessionJoined);
 		Net->OnSessionLeft.RemoveDynamic(this, &UApexRootWidget::HandleSessionLeft);
@@ -1633,6 +1635,14 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 		}
 		break;
 
+	case EApexPauseAction::Rewind:
+		SetPaused(false);
+		if (UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr)
+		{
+			Net->Rewind(10);
+		}
+		break;
+
 	case EApexPauseAction::LeaveSession:
 		SetPaused(false);
 		if (IsWatching())
@@ -1784,6 +1794,21 @@ void UApexRootWidget::HandleDisconnected(const FString& Reason)
 void UApexRootWidget::HandleServerError(int32 Code, const FString& Message)
 {
 	ShowToast(FString::Printf(TEXT("Server error %d: %s"), Code, *Message), true);
+}
+
+void UApexRootWidget::HandleRewound(const FApexRewound& Rewound)
+{
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	// The tick rate is the session's (SessionJoined.Physics); a spectator has none.
+	const int32 Rate = Net ? Net->GetSessionPhysics().TickRateHz : 0;
+	const FString Back = Rate > 0
+		? FString::Printf(TEXT(" %.0f s"), static_cast<float>(Rewound.FromTick - FMath::Min(Rewound.FromTick, Rewound.Tick)) / Rate)
+		: FString();
+	if (ToastPanel)
+	{
+		ToastPanel->ShowFor(FString::Printf(TEXT("Rewound%s: the lap is struck; going again in %.0f s"),
+			*Back, Rewound.HoldMs / 1000.0f), false, Rewound.HoldMs / 1000.0f + 1.0f);
+	}
 }
 
 void UApexRootWidget::HandleServerNotice(const FString& Message)
