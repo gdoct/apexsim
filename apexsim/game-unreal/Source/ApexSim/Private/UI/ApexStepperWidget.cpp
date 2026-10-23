@@ -3,6 +3,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -83,7 +84,13 @@ void UApexStepperWidget::Setup(int32 InMin, int32 InMax, int32 InValue, float Re
 	DeltaText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f), ApexUI::Palette::Accent);
 	DeltaText->SetJustification(ETextJustify::Center);
 	ApexUI::AddV(Lines, DeltaText, FMargin(0.0f, 1.0f, 0.0f, 0.0f), HAlign_Center);
-	UBorder* Well = ApexUI::MakePanel(*WidgetTree, Lines, FMargin(4.0f, 0.0f), ApexUI::MakeBrush(WellColour));
+	// A readout wider than its well (a long wheelbase name) shrinks to fit
+	// rather than running under the pills.
+	UScaleBox* Fit = WidgetTree->ConstructWidget<UScaleBox>();
+	Fit->SetStretch(EStretch::ScaleToFit);
+	Fit->SetStretchDirection(EStretchDirection::DownOnly);
+	Fit->AddChild(Lines);
+	UBorder* Well = ApexUI::MakePanel(*WidgetTree, Fit, FMargin(4.0f, 0.0f), ApexUI::MakeBrush(WellColour));
 	Well->SetHorizontalAlignment(HAlign_Center);
 	Well->SetVerticalAlignment(VAlign_Center);
 	ApexUI::AddH(Row, ApexUI::MakeSized(*WidgetTree, Well, TextWidth, StepperPillHeight), FMargin(StepperPillGap, 0.0f), VAlign_Center);

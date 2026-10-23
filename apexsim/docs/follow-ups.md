@@ -53,31 +53,6 @@ missed downshift warns before it hurts.
 
 ## P2: depth
 
-### 30. Wheel tab at the sitting
-
-Found at the wheel sitting of 2026-10-23 (ClubSport V2.5).
-
-- Wheel rotation steps by 30°, so it cannot match a base's own range: the
-  V2.5's SEN was 910 and the nearest setting was 930, which turns the rim on
-  screen and the steering map about 2% off the hands. Step by 10° (or 1°
-  with a held button), or take the range from the base where it reports one.
-
-- The direction test is too strong on the V2.5 (base FF 100%): it steps to
-  `kWheelTestForce` 0.35 of full scale (about 2.8 Nm) for
-  `kWheelTestSeconds` 0.7 s with no ramp (`ApexPlayerController.cpp`).
-  Ramp it in and lower it, and check whether it should follow the profile's
-  output scale and the Force setting.
-
-- The Wheelbase stepper's value "Auto: Fanatec ClubSport V2.5" is wider
-  than its slot and runs under the − and + buttons; the profile note beside
-  Peak torque ("Belt · forces at 100 % of the ba…") is cut off at the edge
-  in a window about 950 px wide. Seen in a window beside another app, not
-  full screen.
-
-**Check:** set the base's SEN to an odd value (910) and match it on the tab;
-the Wheelbase row readable at a narrow window;
-the direction test on the V2.5 at FF 100% is a clear but gentle push.
-
 ### 5. Hotlap and lap records
 
 The ghost, the hotlap replay and watch.

@@ -137,8 +137,8 @@ steering is bound to (`ApexInput::FindForceFeedbackDevice`).
 ### Steering lock
 
 The Wheel tab's "Wheel rotation" (what the base's own driver is set to,
-`WheelRotationDeg`, default 900: DirectInput only reports where the rim is
-between its ends) and "Steering lock" (rim degrees lock to lock for the car's
+`WheelRotationDeg`, default 900, in 10° steps so it matches a base's own figure:
+DirectInput only reports where the rim is between its ends) and "Steering lock" (rim degrees lock to lock for the car's
 full lock, `WheelSteeringLockDeg`, default 480) make a gain,
 `ApexInput::WheelSteeringScale` (rotation / lock, never under 1), applied by
 `UApexInputModifierWheelSteering`.
@@ -316,7 +316,9 @@ Everything else is texture on top.
   is a share of the base's whole travel, a few percent for a rim a quarter turn off.
 - **Settings**: the Wheel tab's Force, Road effects, Damping and Direction
   (`UApexSettingsSave::WheelForce`, `WheelRoadEffects`, `WheelDamping`,
-  `bWheelInvertForce`; the Direction test pushes the rim right and asks).
+  `bWheelInvertForce`; the Direction test pushes the rim right and asks: 0.2 of full
+  scale times the wheelbase profile's output scale, about 1.6 Nm on an 8 Nm base, eased
+  in and out over 0.2 s, not the Force setting).
 
 ### Wheelbase profiles
 

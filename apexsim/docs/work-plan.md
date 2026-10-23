@@ -34,7 +34,6 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B16 | Over-rev warning and rpm past the limit on the wire, for cars without downshift protection (follow-ups #31) | Bug | P3 | 🟢 | S | — |
-| B14 | Wheel tab: rotation steps by 30°, direction test too strong (follow-ups #30) | Bug | P2 | 🟡 | S | — |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
 | R3 | Race events across days (persistence, schedule; identity built) | Race rules (epic) | P2 | 🟡 | L | 4 |
@@ -106,12 +105,6 @@ at the grid; needs the wheel to confirm. Run files:
 the limiter's full cut and the retirement view landed; the rally cars keep
 no protection (as the real ones), so warn before a missed downshift hurts
 and carry the rpm past the limit in telemetry and the recording.
-
-#### B14. Wheel tab at the sitting — P2 · 🟡 · S
-*Source: follow-ups #30, wheel sitting 2026-10-23.* The Wheel tab's rotation
-stepper cannot reach the base's SEN of 910 (930 nearest): finer steps, or
-read the range from the base. The direction test is too strong on the V2.5
-(0.35 step for 0.7 s, no ramp): ramp it and lower it, judged at the wheel.
 
 #### B13. Tent over the track at Armadillos T15–16 — P2 · 🟡 · S
 *Source: follow-ups #6, wheel sitting 2026-10-23.* A tent prop stands over

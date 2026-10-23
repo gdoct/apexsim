@@ -42,9 +42,14 @@ namespace
 	/** How long the settings slider's preview rumble lasts after each change. */
 	constexpr float kPreviewSeconds = 0.25f;
 
-	/** How long the wheel's direction test pushes, and how hard. */
-	constexpr float kWheelTestSeconds = 0.7f;
-	constexpr float kWheelTestForce = 0.35f;
+	/**
+	 * How long the wheel's direction test pushes, how hard (about 1.6 Nm on an
+	 * 8 Nm base, scaled by the wheelbase profile like every force), and how
+	 * long it takes to come on and to let go: a step would kick the rim.
+	 */
+	constexpr float kWheelTestSeconds = 0.8f;
+	constexpr float kWheelTestForce = 0.2f;
+	constexpr float kWheelTestRampSeconds = 0.2f;
 
 	/** The shortest headlight flash: a tap still shows for this long. */
 	constexpr double kMinFlashSeconds = 0.2;
@@ -447,8 +452,11 @@ void AApexPlayerController::TickWheelFeedback(const ApexFfb::FSignals& Signals, 
 		WheelTestSeconds -= DeltaSeconds;
 		// Deliberately not the player's strength: the test has to be felt even
 		// with the force slider down, and it is what tells them which way
-		// "positive" turns their rim.
-		const float Push = Values->bWheelInvertForce ? -kWheelTestForce : kWheelTestForce;
+		// "positive" turns their rim. The base's profile scales it, so it is
+		// the same Nm in the hands on a strong direct drive.
+		const float Elapsed = kWheelTestSeconds - WheelTestSeconds;
+		const float Envelope = FMath::Clamp(FMath::Min(Elapsed, WheelTestSeconds) / kWheelTestRampSeconds, 0.0f, 1.0f);
+		const float Push = (Values->bWheelInvertForce ? -kWheelTestForce : kWheelTestForce) * Envelope * Tuning.OutputScale;
 		Effects.Constant = FMath::Clamp(Effects.Constant + Push, -1.0f, 1.0f);
 		Effects.Spring = 0.0f;
 	}

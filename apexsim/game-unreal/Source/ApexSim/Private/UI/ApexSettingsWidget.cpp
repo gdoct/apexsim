@@ -182,8 +182,9 @@ namespace
 	constexpr float SeatHeightRange = 15.0f;
 	constexpr float ViewPitchRange = 10.0f;
 
-	// Wheel steering slider steps, in degrees.
-	constexpr float WheelRotationStepDeg = 30.0f;
+	// Wheel steering slider steps, in degrees: rotation fine enough to match a
+	// base's own range (a Fanatec SEN of 910, a Logitech's 900).
+	constexpr float WheelRotationStepDeg = 10.0f;
 	constexpr float SteeringLockStepDeg = 20.0f;
 
 	/** A 0..1 slider position as degrees on a range, snapped to its step. */
@@ -1348,7 +1349,7 @@ UWidget* UApexSettingsWidget::BuildWheelPage()
 		};
 
 		UVerticalBox* NoteCell = WidgetTree->ConstructWidget<UVerticalBox>();
-		WheelProfileNote = MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 40), Palette::TextSecondary);
+		WheelProfileNote = Wrapped(MakeText(*WidgetTree, FString(), Font::Mono(12.0f, 40), Palette::TextSecondary));
 		AddV(NoteCell, WheelProfileNote);
 		AddV(NoteCell, Wrapped(MakeText(*WidgetTree,
 			TEXT("Turned the base down in its own software? Give the peak it is set to."),
