@@ -133,7 +133,11 @@ and widget factories), so layouts are reviewable as diffs.
   and, in a race or a qualifying session, Pit stops and Race control
   (Start Standing / Formation lap / Rolling, Penalise False starts /
   Yellow passes / Pit exit light as toggles, Safety car Off / Virtual / On
-  the road, Reverse grid Off / 6 / 8 / 10 / All;
+  the road, Reverse grid Off / 6 / 8 / 10 / All) and Tyres and stints
+  (Qualifying sets Free / 1-4, Race on them Off / Top 10 / All and Parc
+  fermé Off / On where the session qualifies, Weekend sets Free / 6 / 8 /
+  10 / 13 in a weekend, Stint laps Free / 10 / 15 / 20 / 30 and Stint
+  time Free / 20 / 30 / 45 / 60 min;
   [sessions.md](../server/sessions.md#session-rules-set-on-create)). Each
   section's caption line and the summary under the screen name what is
   set. Keys and pad reach every chip through `ApexNav::MoveToward`; a new

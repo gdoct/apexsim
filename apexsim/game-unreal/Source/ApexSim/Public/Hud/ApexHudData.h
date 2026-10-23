@@ -84,6 +84,11 @@ struct APEXSIM_API FApexHudInputs
 	bool bCompoundChange = false;
 	/** The timed laps the local car may still start under qualifying's lap allowance (UApexNetSubsystem::GetQualifyingLapsLeft); -1 for none. */
 	int32 QualifyingLapsLeft = -1;
+	/** The race's fixed stint lengths (SessionJoined.RaceRules): laps and minutes, 0 for none. */
+	int32 MaxStintLaps = 0;
+	int32 MaxStintMinutes = 0;
+	/** The session's tick rate (SessionJoined.Physics), for a stint's minutes from the frames' ticks; 0 unknown. */
+	int32 TickRateHz = 0;
 
 	/** The local car's catalog row: its tyres' working window and its rev range (0 when unknown). */
 	float TyreOptimalC = 90.0f;
@@ -296,6 +301,14 @@ struct APEXSIM_API FApexHudMemory
 		bool bWholeRace = false;
 		/** Took the flag: the cool-down lap after it is not timed. */
 		bool bFinished = false;
+		/**
+		 * Where the car's stint began, as the server counts one: the green
+		 * light, or the end of a stop's service. Laps run then (the lap
+		 * counter less one plus the share of the lap) and the frame's tick;
+		 * StintFromTick < 0 before the green.
+		 */
+		float StintFromLaps = 0.0f;
+		int64 StintFromTick = -1;
 	};
 	TMap<int32, FCarHistory> Cars;
 
@@ -328,7 +341,7 @@ struct APEXSIM_API FApexHudMemory
 	}
 
 	/** Note this frame's pit stops and tyre changes, car by car. */
-	void SampleField(const FApexTelemetryFrame& Frame);
+	void SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM = 0.0f);
 
 	/**
 	 * Feed one telemetry frame's local car into the delta's reference. Driven
@@ -377,6 +390,9 @@ namespace ApexHudData
 
 	/** Every scalar name, from a build with no game state: the catalogue. */
 	APEXSIM_API TArray<FName> ScalarNames();
+
+	/** The laps a car has run, as the server's stints count them: the lap counter less one, plus the share of the lap (none without a length). */
+	APEXSIM_API float LapsRun(int32 CurrentLap, float TrackProgressM, float TrackLengthM);
 
 	/**
 	 * A stop's progress from its plan and the seconds of service left. The

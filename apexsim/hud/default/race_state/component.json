@@ -91,6 +91,23 @@
           ]
         }]
       },
+      // Fixed stint lengths: the laps (or the time) the stint may still run,
+      // lit under a lap or two minutes, red once past it.
+      {
+        "type": "panel", "visible": "=has(stint.laps_left) || has(stint.time_left_s)",
+        "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9],
+        "background": "=(has(stint.laps_left) && stint.laps_left < 0) || (has(stint.time_left_s) && stint.time_left_s < 0) ? 'error' : ((has(stint.laps_left) && stint.laps_left < 1) || (has(stint.time_left_s) && stint.time_left_s < 120) ? 'accent' : 'surface')",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "Stint left" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34,
+              "text": "=has(stint.laps_left) ? fmt(max(stint.laps_left, 0), 1) : fmt_clock(max(stint.time_left_s, 0))" },
+            { "type": "text", "halign": "center", "visible": "=has(stint.laps_left) && has(stint.time_left_s)",
+              "font": "mono", "size": 12, "color": "text_secondary", "text": "=fmt_clock(max(stint.time_left_s, 0))" }
+          ]
+        }]
+      },
       // The driver has asked to box this lap: lit until the stop is made.
       {
         "type": "panel", "visible": "=pit.requested",

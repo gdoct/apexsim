@@ -1165,6 +1165,19 @@ bool UApexNetSubsystem::Tick(float DeltaSeconds)
 					static_cast<int32>(CurrentGameMode));
 				OnGameModeChanged.Broadcast(CurrentGameMode);
 			}
+			{
+				// Parc fermé holds the car from its first run in qualifying.
+				const int32 LocalIndex = GetLocalCarIndex();
+				const FApexCarTelemetry* Local = LocalIndex >= 0
+					? Frame.Cars.FindByPredicate([LocalIndex](const FApexCarTelemetry& Car) { return Car.CarIndex == LocalIndex; })
+					: nullptr;
+				const bool bWasHeld = ParcFerme.bHeld;
+				ParcFerme.Update(CurrentRaceRules.bParcFerme, Frame.GameMode, Local && !Local->bInGarage, LastSentSetup);
+				if (ParcFerme.bHeld != bWasHeld)
+				{
+					UE_LOG(LogApexSimNet, Log, TEXT("Parc ferme %s"), ParcFerme.bHeld ? TEXT("holds the car") : TEXT("released"));
+				}
+			}
 
 			OnTelemetry.Broadcast(LatestTelemetry);
 		}
@@ -1346,6 +1359,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentQualifyingFormat = Message.QualifyingFormat;
 			CurrentQualifyingLapAllowance = Message.QualifyingLapAllowance;
 			CurrentRaceRules = Message.RaceRules;
+			ParcFerme.Reset();
 			CurrentWeekend = Message.Weekend;
 			CurrentPhysics = Message.Physics;
 			CurrentConditionsBytes = Message.ConditionsBytes;
@@ -1389,6 +1403,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentQualifyingFormat = EApexQualifyingFormat::Open;
 		CurrentQualifyingLapAllowance = 0;
 		CurrentRaceRules = FApexRaceRules();
+		ParcFerme.Reset();
 		CurrentWeekend = FApexWeekendFormat();
 		CurrentWeekendState = FApexWeekendState();
 		CurrentShootoutState = FApexShootoutState();

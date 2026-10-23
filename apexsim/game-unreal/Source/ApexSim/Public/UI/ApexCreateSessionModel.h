@@ -1121,6 +1121,47 @@ namespace ApexCreateSession
 		return static_cast<int32>(UE_ARRAY_COUNT(ReverseGridChoices)) - 1;
 	}
 
+	// --- Tyres, parc fermé and stints --------------------------------------------
+
+	/** Qualifying sets: none, or 1 to 4 new sets. */
+	inline constexpr int32 QualifyingTyreSetChoices[] = { 0, 1, 2, 3, 4 };
+	/** Race on qualifying tyres: off, the top 10, every car with a time. */
+	inline constexpr int32 QualifyingTyreStartChoices[] = { 0, 10, FApexRaceRules::QualifyingTyreStartAll };
+	/** A weekend's sets: none, or 6 to 13 for practice and qualifying together. */
+	inline constexpr int32 WeekendTyreSetChoices[] = { 0, 6, 8, 10, 13 };
+	/** Stint lengths: none, or so many laps; none, or so many minutes. */
+	inline constexpr int32 StintLapChoices[] = { 0, 10, 15, 20, 30 };
+	inline constexpr int32 StintMinuteChoices[] = { 0, 20, 30, 45, 60 };
+
+	/**
+	 * The chip a value shows on in a row of choices whose first is "none"
+	 * (0): 0 on the first, else the first choice at least the value, a value
+	 * past the last on the last.
+	 */
+	template <int32 N>
+	inline int32 ChoiceChip(const int32 (&Choices)[N], int32 Value)
+	{
+		if (Value <= 0)
+		{
+			return 0;
+		}
+		for (int32 Chip = 1; Chip < N; ++Chip)
+		{
+			if (Value <= Choices[Chip])
+			{
+				return Chip;
+			}
+		}
+		return N - 1;
+	}
+
+	/** The choice under a chip, the last for one past the end. */
+	template <int32 N>
+	inline int32 ChoiceOfChip(const int32 (&Choices)[N], int32 Chip)
+	{
+		return Choices[FMath::Clamp(Chip, 0, N - 1)];
+	}
+
 	// --- Assists --------------------------------------------------------------
 
 	enum class EAssistPreset : uint8

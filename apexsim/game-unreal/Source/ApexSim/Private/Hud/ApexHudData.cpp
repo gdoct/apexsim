@@ -242,8 +242,19 @@ void FApexHudMemory::SampleLap(const FApexCarTelemetry& Local, float TrackLength
 	}
 }
 
-void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame)
+float ApexHudData::LapsRun(int32 CurrentLap, float TrackProgressM, float TrackLengthM)
 {
+	const float Share = TrackLengthM > 0.0f ? FMath::Clamp(TrackProgressM / TrackLengthM, 0.0f, 1.0f) : 0.0f;
+	return static_cast<float>(FMath::Max(CurrentLap, 1) - 1) + Share;
+}
+
+void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM)
+{
+	// A race under way past its formation or pace lap: where the server's
+	// stints are counted from.
+	const bool bRaceGreen = Frame.GameMode == EApexGameMode::Race && Frame.SessionState == EApexSessionState::Racing
+		&& Frame.RacePhase != ApexRacePhase::Formation && Frame.RacePhase != ApexRacePhase::PaceLap;
+	const bool bRace = Frame.GameMode == EApexGameMode::Race;
 	for (const FApexCarTelemetry& Car : Frame.Cars)
 	{
 		FCarHistory* History = Cars.Find(Car.CarIndex);
@@ -278,6 +289,24 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame)
 		if ((!Car.bPitServicing && History->bWasServicing) || (Car.Compound >= 0 && History->Compound >= 0 && Car.Compound != History->Compound))
 		{
 			History->TyresFromLap = FMath::Max(1, Car.CurrentLap);
+		}
+		// A stint runs from the green light, or from the end of a stop's
+		// service (a drive-through is no stop), to the next stop or the flag.
+		if (!bRace)
+		{
+			History->StintFromTick = -1;
+		}
+		else if (bRaceGreen && History->StintFromTick < 0)
+		{
+			// The first stint is the server's from no laps at all, wherever
+			// the grid stands from the line.
+			History->StintFromLaps = 0.0f;
+			History->StintFromTick = Frame.ServerTick;
+		}
+		else if (bRaceGreen && !Car.bPitServicing && History->bWasServicing)
+		{
+			History->StintFromLaps = ApexHudData::LapsRun(Car.CurrentLap, Car.TrackProgress, TrackLengthM);
+			History->StintFromTick = Frame.ServerTick;
 		}
 		History->bWasServicing = Car.bPitServicing;
 		if (Car.Compound >= 0)
@@ -742,7 +771,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 	// --- Standings ----------------------------------------------------------
 
-	Memory.SampleField(Frame);
+	Memory.SampleField(Frame, In.TrackLengthM);
 
 	// Without a catalog length the stations still order cars within a lap; the
 	// nominal length only has to dwarf any real station so a completed lap
@@ -1087,6 +1116,24 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		Out.Set(TEXT("pit.stops_owed"), bPitRule
 			? FApexHudValue::Of(ApexMandatoryStops::Owed(In.MandatoryStops, History->PitStops)) : FApexHudValue());
 		Out.Set(TEXT("pit.compound_owed"), bPitRule && In.bCompoundChange && !History->bCompoundChanged);
+		// The stint under way, from the green light or the last stop's end as
+		// this HUD saw them, against the race's fixed stint lengths (the
+		// server's own count decides at the flag).
+		const bool bStint = Local && History && In.GameMode == EApexGameMode::Race && History->StintFromTick >= 0
+			&& Local->FinishPosition <= 0;
+		const float StintLaps = bStint
+			? FMath::Max(0.0f, ApexHudData::LapsRun(Local->CurrentLap, Local->TrackProgress, In.TrackLengthM) - History->StintFromLaps)
+			: 0.0f;
+		const bool bStintTime = bStint && In.TickRateHz > 0;
+		const double StintSeconds = bStintTime
+			? FMath::Max<int64>(0, Frame.ServerTick - History->StintFromTick) / static_cast<double>(In.TickRateHz)
+			: 0.0;
+		Out.Set(TEXT("stint.laps"), bStint && In.TrackLengthM > 0.0f ? FApexHudValue::Of(StintLaps) : FApexHudValue());
+		Out.Set(TEXT("stint.time_s"), bStintTime ? FApexHudValue::Of(StintSeconds) : FApexHudValue());
+		Out.Set(TEXT("stint.laps_left"), bStint && In.MaxStintLaps > 0 && In.TrackLengthM > 0.0f
+			? FApexHudValue::Of(In.MaxStintLaps - StintLaps) : FApexHudValue());
+		Out.Set(TEXT("stint.time_left_s"), bStintTime && In.MaxStintMinutes > 0
+			? FApexHudValue::Of(In.MaxStintMinutes * 60.0 - StintSeconds) : FApexHudValue());
 		Out.Set(TEXT("car.retired"), Local && HudRetired(*Local));
 		Out.Set(TEXT("tyre.age_laps"), History && Local && Local->Compound >= 0
 			? FApexHudValue::Of(FMath::Max(0, Local->CurrentLap - History->TyresFromLap))

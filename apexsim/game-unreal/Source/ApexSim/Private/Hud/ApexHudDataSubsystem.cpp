@@ -440,6 +440,10 @@ void UApexHudDataSubsystem::Refresh()
 		In.MandatoryStops = Net->GetSessionMandatoryStops();
 		In.bCompoundChange = Net->GetSessionCompoundChange();
 		In.QualifyingLapsLeft = Net->GetQualifyingLapsLeft();
+		// The race's fixed stint lengths, counted against the frames' ticks.
+		In.MaxStintLaps = Net->GetSessionRaceRules().MaxStintLaps;
+		In.MaxStintMinutes = Net->GetSessionRaceRules().MaxStintMinutes;
+		In.TickRateHz = Net->GetSessionPhysics().TickRateHz;
 		RefreshCarNames();
 		In.CarNames = &CarNames;
 		In.CarClasses = &CarClasses;

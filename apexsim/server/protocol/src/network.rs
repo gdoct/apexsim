@@ -5909,6 +5909,44 @@ mod tests {
         })
         .unwrap();
         assert!(!String::from_utf8_lossy(&one).contains("qualifying_tyre_start"));
+        // A create carrying them all, printed as `C_CreateSessionTyreStintRules`
+        // (`cargo test tyre_and_stint_rules_wire_format -- --nocapture`).
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+            classes: Vec::new(),
+        };
+        let bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!(
+            "C_CreateSessionTyreStintRules: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::CreateSession { race_rules, .. } => assert_eq!(race_rules, rules),
+            _ => panic!("Wrong message type"),
+        }
     }
 
     /// The safety car on the road: a create asking for it, and a frame

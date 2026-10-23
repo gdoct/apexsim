@@ -252,6 +252,24 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> PenaltyButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> SafetyCarButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ReverseGridButtons;
+	/**
+	 * The tyre, parc fermé and stint rules, with the pit rule's sessions:
+	 * Qualifying sets, Race on them (Off, Top 10, All), Parc fermé (where
+	 * the session qualifies), Weekend sets (a weekend), Stint laps and
+	 * Stint time.
+	 */
+	UPROPERTY(Transient) TObjectPtr<UWidget> TyreRulesSection;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> TyreRulesInfoText;
+	UPROPERTY(Transient) TObjectPtr<UWidget> QualifyingTyreSetsRow;
+	UPROPERTY(Transient) TObjectPtr<UWidget> QualifyingTyreStartRow;
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendTyreSetsRow;
+	UPROPERTY(Transient) TObjectPtr<UWidget> ParcFermeRow;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingTyreSetsButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> QualifyingTyreStartButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendTyreSetsButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ParcFermeButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StintLapButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StintMinuteButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
 	/** Each weekend day's sky (0 practice, 1 qualifying): a weather stepper, an hour stepper and its forecast. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendDayRows[2];

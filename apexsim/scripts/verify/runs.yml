@@ -7654,3 +7654,85 @@ runs:
         label: "out of photo mode: the replay plays again"
         checks: "N20: the replay running on from where it was held, the transport back"
         exec: "apexsim.photo off"
+
+  # The create screen's Tyres and stints rows in a qualifying session (the
+  # weekend's sets show only in a weekend). Saved to the profile as they
+  # change: keep a copy of ApexProfile.sav and put it back after.
+  - id: r4c-create-tyre-rules
+    about: "Follow-ups #34. The create screen's Tyres and stints rows"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=6
+    exec:
+      10: ["apexsim.ui.Texts"]
+      11: ["apexsim.ui.Click Laps"]
+      12: ["apexsim.ui.Key Down Down Down Down Down Down Down Down Down Down Down Down"]
+      16: ["apexsim.ui.Texts"]
+      17: ["apexsim.ui.Click Top 10"]
+      17.5: ["apexsim.ui.Click 45 min"]
+      18: ["apexsim.ui.Click On"]
+      23: ["apexsim.ui.Click Weekend"]
+    shots:
+      - at: 15
+        label: "Race tab scrolled to Tyres and stints (qualifying)"
+        checks: "Qualifying sets, Race on them, Parc fermé, Stint laps, Stint time rows; no Weekend sets row"
+      - at: 21
+        label: "Top 10 on qualifying tyres, 45 min stints, parc fermé on"
+        checks: "the chips lit, the section's line (A NEW SET EVERY RUN · TOP 10 START ON QUALIFYING TYRES · PARC FERMÉ · STINTS 45 MIN) and the summary"
+      - at: 26
+        label: "a weekend: the Weekend sets row too"
+        checks: "Weekend sets row shown"
+
+  # Fixed stints of two laps or three minutes: the race state's Stint left
+  # panel counting down, lit near the end, starting again after the stand-in
+  # (an AI, which stops for the rule) has stopped.
+  - id: r4c-stint-hud
+    about: "Follow-ups #34. The stint's laps and minutes left on the HUD"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=6
+      - -ApexCountdown=5
+      - -ApexMaxStintLaps=2
+      - -ApexMaxStintMinutes=3
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+    exec:
+      20: ["apexsim.hud.Data stint."]
+      60: ["apexsim.hud.Data stint."]
+      110: ["apexsim.hud.Data stint."]
+      170: ["apexsim.hud.Data stint."]
+    shots:
+      - {at: 20, label: "just after the green", checks: "Stint left 2.0 and 3:00 under it"}
+      - {at: 60, label: "on the first lap", checks: "the laps and the clock counting down"}
+      - {at: 110, label: "the stint nearly run", checks: "the panel lit under a lap"}
+      - {at: 170, label: "after the stop", checks: "a new stint: 2.0 again (or red past it, had the car stayed out)"}
+
+  # Parc fermé with a lap allowance of one: once the stand-in's run is done
+  # the garage's Suspension tab has its knobs held and greyed, the setup line
+  # saying so; the Tyres tab's pressures still free.
+  - id: r4c-parc-ferme-garage
+    about: "Follow-ups #34. Parc fermé: the held knobs locked in the garage"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=2
+      - -ApexMode=6
+      - -ApexLapAllowance=1
+      - -ApexParcFerme
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexHotlapOutAfter=15
+    shots:
+      - {at: 12, label: "garage before the run", checks: "every stepper live, no PARC FERMÉ"}
+      - {at: 230, label: "back in after the run: Suspension", checks: "springs, dampers, bars greyed; PARC FERMÉ: SETUP HELD", exec: "apexsim.hotlap.Tab 1"}
+      - {at: 236, label: "the Tyres tab", checks: "pressures and compound still live", exec: "apexsim.hotlap.Tab 0"}

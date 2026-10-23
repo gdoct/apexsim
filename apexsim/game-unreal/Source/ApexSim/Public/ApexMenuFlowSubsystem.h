@@ -228,13 +228,22 @@ public:
 
 	/**
 	 * The race-control rules (FApexRaceRules): the start, the penalties, the
-	 * safety car and a reverse grid. A session with a race in it sends them,
-	 * as the pit rule (RaceRulesToSend).
+	 * safety car, a reverse grid, the tyre sets, parc fermé and stint
+	 * lengths. A session with a race in it sends them, as the pit rule
+	 * (RaceRulesToSend).
 	 */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	FApexRaceRules CreateRaceRules;
 
-	/** What CreateSession carries: the defaults in a session without a race; no formation lap flag under a rolling start, which has its pace lap anyway. */
+	/** The session runs qualifying before its race: a qualifying session or a weekend (the qualifying tyre rules and parc fermé apply). */
+	bool QualifiesBeforeRace() const { return CreateStartingMode == EApexGameMode::Qualification || IsCreatingWeekend(); }
+
+	/**
+	 * What CreateSession carries: the defaults in a session without a race;
+	 * no formation lap flag under a rolling start, which has its pace lap
+	 * anyway; the qualifying tyre rules and parc fermé only where the
+	 * session qualifies, and a weekend's allocation only in a weekend.
+	 */
 	FApexRaceRules RaceRulesToSend() const
 	{
 		if (!PitRuleApplies())
@@ -245,6 +254,16 @@ public:
 		if (Rules.Start == EApexStartType::Rolling)
 		{
 			Rules.bFormationLap = false;
+		}
+		if (!QualifiesBeforeRace())
+		{
+			Rules.QualifyingTyreSets = 0;
+			Rules.QualifyingTyreStart = 0;
+			Rules.bParcFerme = false;
+		}
+		if (!IsCreatingWeekend())
+		{
+			Rules.WeekendTyreSets = 0;
 		}
 		return Rules;
 	}

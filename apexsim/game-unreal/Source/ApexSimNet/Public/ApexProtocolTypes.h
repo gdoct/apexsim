@@ -429,6 +429,33 @@ struct APEXSIMNET_API FApexRaceRules
 
 	static constexpr uint8 ReverseWholeField = 255;
 
+	/** The qualifying tyre allowance: the new slick sets a car may take in qualifying (a weekend's rounds together); 0 none. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 QualifyingTyreSets = 0;
+
+	/** The first this many of qualifying start the race on the set that placed them (QualifyingTyreStartAll: every car with a time); 0 off. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 QualifyingTyreStart = 0;
+
+	static constexpr uint8 QualifyingTyreStartAll = 255;
+
+	/** Parc fermé: a car's setup is held from its first qualifying run to the end of the race, but for the knobs CarSetup::under_parc_ferme leaves free. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bParcFerme = false;
+
+	/** A weekend's tyre allocation: the new slick sets a car may take in its practice and qualifying together; 0 none. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 WeekendTyreSets = 0;
+
+	/** Fixed stint lengths: no stint may run more than this many laps, or minutes; 0 none. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 MaxStintLaps = 0;
+
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 MaxStintMinutes = 0;
+
+	bool LimitsStints() const { return MaxStintLaps > 0 || MaxStintMinutes > 0; }
+
 	/** The fields as the server keeps them: an unknown start or safety car is the default, a reverse of one is none. */
 	FApexRaceRules Normalised() const
 	{
@@ -445,6 +472,9 @@ struct APEXSIMNET_API FApexRaceRules
 		{
 			Out.ReverseGrid = 0;
 		}
+		// The server's u16s.
+		Out.MaxStintLaps = FMath::Clamp(Out.MaxStintLaps, 0, 65535);
+		Out.MaxStintMinutes = FMath::Clamp(Out.MaxStintMinutes, 0, 65535);
 		return Out;
 	}
 
@@ -453,7 +483,9 @@ struct APEXSIMNET_API FApexRaceRules
 	{
 		return (Start != EApexStartType::Standing ? 1 : 0) + (bFormationLap ? 1 : 0) + (bJumpStart ? 1 : 0)
 			+ (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
-			+ (ReverseGrid != 0 ? 1 : 0);
+			+ (ReverseGrid != 0 ? 1 : 0) + (QualifyingTyreSets != 0 ? 1 : 0) + (QualifyingTyreStart != 0 ? 1 : 0)
+			+ (bParcFerme ? 1 : 0) + (WeekendTyreSets != 0 ? 1 : 0) + (MaxStintLaps != 0 ? 1 : 0)
+			+ (MaxStintMinutes != 0 ? 1 : 0);
 	}
 
 	bool IsDefault() const { return CountSet() == 0; }
@@ -506,14 +538,63 @@ struct APEXSIMNET_API FApexRaceRules
 		{
 			Parts.Add(Reverse);
 		}
+		if (const FString Tyres = DescribeTyres(); !Tyres.IsEmpty())
+		{
+			Parts.Add(Tyres);
+		}
+		if (bParcFerme)
+		{
+			Parts.Add(TEXT("parc fermé"));
+		}
+		if (const FString Stints = DescribeStints(MaxStintLaps, MaxStintMinutes); !Stints.IsEmpty())
+		{
+			Parts.Add(Stints);
+		}
 		return FString::Join(Parts, TEXT(" · "));
+	}
+
+	/** The tyre rules, short: "2 qualifying sets · top 10 start on them · 8 weekend sets"; empty for none. */
+	FString DescribeTyres() const
+	{
+		TArray<FString> Parts;
+		if (QualifyingTyreSets > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d qualifying set%s"), QualifyingTyreSets, QualifyingTyreSets == 1 ? TEXT("") : TEXT("s")));
+		}
+		if (QualifyingTyreStart > 0)
+		{
+			Parts.Add(QualifyingTyreStart >= QualifyingTyreStartAll ? FString(TEXT("start on qualifying tyres"))
+				: FString::Printf(TEXT("top %d start on qualifying tyres"), QualifyingTyreStart));
+		}
+		if (WeekendTyreSets > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d weekend set%s"), WeekendTyreSets, WeekendTyreSets == 1 ? TEXT("") : TEXT("s")));
+		}
+		return FString::Join(Parts, TEXT(" · "));
+	}
+
+	/** "stints 20 laps", "stints 45 min", "stints 20 laps or 45 min"; empty for none. */
+	static FString DescribeStints(int32 Laps, int32 Minutes)
+	{
+		if (Laps > 0 && Minutes > 0)
+		{
+			return FString::Printf(TEXT("stints %d laps or %d min"), Laps, Minutes);
+		}
+		if (Laps > 0)
+		{
+			return FString::Printf(TEXT("stints %d lap%s"), Laps, Laps == 1 ? TEXT("") : TEXT("s"));
+		}
+		return Minutes > 0 ? FString::Printf(TEXT("stints %d min"), Minutes) : FString();
 	}
 
 	bool operator==(const FApexRaceRules& Other) const
 	{
 		return Start == Other.Start && bFormationLap == Other.bFormationLap && bJumpStart == Other.bJumpStart
 			&& bYellowPenalty == Other.bYellowPenalty && bPitExitPenalty == Other.bPitExitPenalty
-			&& SafetyCar == Other.SafetyCar && ReverseGrid == Other.ReverseGrid;
+			&& SafetyCar == Other.SafetyCar && ReverseGrid == Other.ReverseGrid
+			&& QualifyingTyreSets == Other.QualifyingTyreSets && QualifyingTyreStart == Other.QualifyingTyreStart
+			&& bParcFerme == Other.bParcFerme && WeekendTyreSets == Other.WeekendTyreSets
+			&& MaxStintLaps == Other.MaxStintLaps && MaxStintMinutes == Other.MaxStintMinutes;
 	}
 	bool operator!=(const FApexRaceRules& Other) const { return !(*this == Other); }
 };
@@ -642,6 +723,9 @@ struct APEXSIMNET_API FApexCarSetup
 	/** How many knobs are away from the file's value. */
 	int32 CountChanged() const;
 
+	/** This setup as parc fermé applies it (car_setup.rs `under_parc_ferme`): the free knobs this one's, every other `Held`'s. */
+	FApexCarSetup UnderParcFerme(const FApexCarSetup& Held) const;
+
 	bool operator==(const FApexCarSetup& Other) const { return Clicks == Other.Clicks; }
 	bool operator!=(const FApexCarSetup& Other) const { return !(*this == Other); }
 };
@@ -666,6 +750,14 @@ namespace ApexCarSetup
 
 	/** The read-out for a knob at a click count, e.g. "+2  (+8%)" or "0". */
 	APEXSIMNET_API FString Describe(int32 Index, int32 Clicks);
+
+	/**
+	 * A knob a driver may still change under parc fermé (car_setup.rs
+	 * `under_parc_ferme`): the tyre pressures and compound, engine braking,
+	 * the torque map, brake bias, the fuel load, the front wing and the
+	 * hybrid's start mode and deploy map.
+	 */
+	APEXSIMNET_API bool FreeUnderParcFerme(int32 Knob);
 
 	enum EKnob : int32
 	{
@@ -1416,6 +1508,26 @@ inline bool ApexIsGarageMode(EApexGameMode Mode)
 {
 	return Mode == EApexGameMode::Hotlap || Mode == EApexGameMode::Qualification || Mode == EApexGameMode::Practice;
 }
+
+/**
+ * Parc fermé as the client follows it (sessions.md "Parc fermé"; the server
+ * sends no applied setup back): under `race_rules.parc_ferme` the car is
+ * held from its first run in qualifying, at the setup last sent then, to
+ * the end of the race. Any mode but Qualification, Countdown, Grid and Race
+ * releases it, and so does a fresh qualifying (Qualification entered from
+ * another mode). Held, only the knobs ApexCarSetup::FreeUnderParcFerme
+ * names still change (FApexCarSetup::UnderParcFerme).
+ */
+struct APEXSIMNET_API FApexParcFerme
+{
+	bool bHeld = false;
+	FApexCarSetup Held;
+	EApexGameMode LastMode = EApexGameMode::Lobby;
+
+	/** A frame: the rule, the session's mode, whether the local car is out of its garage, and the setup last sent. */
+	void Update(bool bRule, EApexGameMode Mode, bool bLocalOut, const FApexCarSetup& Sent);
+	void Reset() { *this = FApexParcFerme(); }
+};
 
 /** The timed garage sessions, which go out from the pit exit on an outlap: qualifying and a weekend's practice. */
 inline bool ApexIsOutlapMode(EApexGameMode Mode)

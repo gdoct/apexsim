@@ -1139,6 +1139,76 @@ bool FApexHudDataPitRuleTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataStintTest, "ApexSim.Hud.Data.Stint", ApexTestFlags)
+
+bool FApexHudDataStintTest::RunTest(const FString& Parameters)
+{
+	// A 1000 m lap, fixed stints of 10 laps or 30 minutes, 100 Hz.
+	FApexTelemetryFrame Frame;
+	Frame.GameMode = EApexGameMode::Race;
+	Frame.SessionState = EApexSessionState::Racing;
+	Frame.RacePhase = ApexRacePhase::Formation;
+	Frame.ServerTick = 1000;
+	Frame.Cars.Add(HudCar(0, 1, 950.0f, 30.0f));
+	FApexCarTelemetry& Car = Frame.Cars[0];
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	In.TrackLengthM = 1000.0f;
+	In.TickRateHz = 100;
+	In.MaxStintLaps = 10;
+	In.MaxStintMinutes = 30;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("the formation lap is no stint"), HudValue(Data, TEXT("stint.laps_left")).IsNone());
+	TestTrue(TEXT("nor time"), HudValue(Data, TEXT("stint.time_left_s")).IsNone());
+
+	// The green: the stint starts from no laps, wherever the grid stands.
+	Frame.RacePhase = ApexRacePhase::None;
+	Car.CurrentLap = 1;
+	Car.TrackProgress = 0.0f;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("ten laps left at the green"), HudValue(Data, TEXT("stint.laps_left")).AsNumber(), 10.0, 0.001);
+	TestEqual(TEXT("thirty minutes"), HudValue(Data, TEXT("stint.time_left_s")).AsNumber(), 1800.0, 0.001);
+
+	// Three and a half laps and ten minutes on.
+	Car.CurrentLap = 4;
+	Car.TrackProgress = 500.0f;
+	Frame.ServerTick = 1000 + 600 * 100;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the stint's laps"), HudValue(Data, TEXT("stint.laps")).AsNumber(), 3.5, 0.001);
+	TestEqual(TEXT("six and a half laps left"), HudValue(Data, TEXT("stint.laps_left")).AsNumber(), 6.5, 0.001);
+	TestEqual(TEXT("twenty minutes left"), HudValue(Data, TEXT("stint.time_left_s")).AsNumber(), 1200.0, 0.001);
+
+	// A stop: the stint starts again as the service ends.
+	Car.bPitServicing = true;
+	ApexHudData::Build(In, Memory, Data);
+	Car.bPitServicing = false;
+	Car.CurrentLap = 5;
+	Car.TrackProgress = 100.0f;
+	Frame.ServerTick += 3000;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("a new stint"), HudValue(Data, TEXT("stint.laps_left")).AsNumber(), 10.0, 0.001);
+	TestEqual(TEXT("its whole time"), HudValue(Data, TEXT("stint.time_left_s")).AsNumber(), 1800.0, 0.001);
+
+	// Without the rule nothing is left to count; the stint itself still is.
+	In.MaxStintLaps = 0;
+	In.MaxStintMinutes = 0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("no rule"), HudValue(Data, TEXT("stint.laps_left")).IsNone());
+	TestFalse(TEXT("the stint's laps"), HudValue(Data, TEXT("stint.laps")).IsNone());
+
+	// Without the tick rate (a spectator) no minutes.
+	In.MaxStintMinutes = 30;
+	In.TickRateHz = 0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("no tick rate, no time"), HudValue(Data, TEXT("stint.time_left_s")).IsNone());
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataRadarTest, "ApexSim.Hud.Data.Radar", ApexTestFlags)
 
 bool FApexHudDataRadarTest::RunTest(const FString& Parameters)

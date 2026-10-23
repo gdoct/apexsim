@@ -141,3 +141,57 @@ int32 FApexCarSetup::CountChanged() const
 	}
 	return Count;
 }
+
+bool ApexCarSetup::FreeUnderParcFerme(int32 Knob)
+{
+	// car_setup.rs `CarSetup::under_parc_ferme`: what a driver may still
+	// change once the car is held.
+	switch (Knob)
+	{
+	case TyrePressureFront:
+	case TyrePressureRear:
+	case EngineBraking:
+	case TorqueMap:
+	case BrakeBias:
+	case FuelLoad:
+	case FrontWing:
+	case TyreCompound:
+	case ErsStartMode:
+	case ErsDeployMap:
+		return true;
+	default:
+		return false;
+	}
+}
+
+FApexCarSetup FApexCarSetup::UnderParcFerme(const FApexCarSetup& Held) const
+{
+	FApexCarSetup Out = Held;
+	for (int32 Knob = 0; Knob < KnobCount; ++Knob)
+	{
+		if (ApexCarSetup::FreeUnderParcFerme(Knob))
+		{
+			Out.Clicks[Knob] = GetClick(Knob);
+		}
+	}
+	return Out;
+}
+
+void FApexParcFerme::Update(bool bRule, EApexGameMode Mode, bool bLocalOut, const FApexCarSetup& Sent)
+{
+	const bool bHeldMode = Mode == EApexGameMode::Qualification || Mode == EApexGameMode::Countdown
+		|| Mode == EApexGameMode::Grid || Mode == EApexGameMode::Race;
+	// Any other mode releases the car, and so does a fresh qualifying (coming
+	// into it from anything but itself).
+	if (!bRule || !bHeldMode || (Mode == EApexGameMode::Qualification && LastMode != EApexGameMode::Qualification))
+	{
+		bHeld = false;
+	}
+	// Held from the car's first run in qualifying, at the setup it went out on.
+	if (bRule && !bHeld && Mode == EApexGameMode::Qualification && bLocalOut)
+	{
+		bHeld = true;
+		Held = Sent;
+	}
+	LastMode = Mode;
+}

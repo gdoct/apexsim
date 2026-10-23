@@ -524,6 +524,8 @@ which are.
 | `pit.requested` | the driver has asked to box this lap (the `BoxThisLap` key or the pit plan): on until the stop is made |
 | `pit.stops_owed` | stops the race's pit rule still asks of the car: the session's mandatory stops less the stops this HUD has seen it make (*null* without a rule, outside a race, or without a car; the server's own count decides at the flag) |
 | `pit.compound_owed` | the rule asks for a second compound and the HUD has not seen another set on the car |
+| `stint.laps`, `stint.time_s` | the laps and seconds of the stint under way: from the green light (no laps) or the end of the last stop's service as this HUD saw them, as the server counts a stint ([sessions.md](../server/sessions.md#fixed-stint-lengths)); seconds from the frames' server ticks over the session's tick rate (*null* outside a race, before the green, at the flag, without a car, laps without the circuit's length, seconds without the tick rate, as for a spectator) |
+| `stint.laps_left`, `stint.time_left_s` | what the race's fixed stint lengths (`max_stint_laps`, `max_stint_minutes`) leave of it, negative once past (*null* without that rule, and as above; the server's own count decides at the flag) |
 | `pit.box` | the car's box, from 1: the driver's own once the server deals it, another car's as its last stop named it (*null* until then) |
 | `pit.box_ahead_m` | metres along the lane to the driver's own box's stop spot, negative once past it (*null* until the box is dealt, and for another car) |
 | `fuel.liters` | fuel in the tank |

@@ -916,6 +916,11 @@ public:
 	/** The setup last sent with SetCarSetup (stock until one is): what the server simulates our car with. */
 	const FApexCarSetup& GetLastSentCarSetup() const { return LastSentSetup; }
 
+	/** Parc fermé holds the local car (FApexParcFerme): only the free knobs of its setup change until the race is over. */
+	bool IsUnderParcFerme() const { return ParcFerme.bHeld; }
+	/** The setup the car is held at under parc fermé (stock when not held). */
+	const FApexCarSetup& GetParcFermeSetup() const { return ParcFerme.Held; }
+
 	/** The car index assigned to this player, or -1 if the roster has no entry yet. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	int32 GetLocalCarIndex() const;
@@ -1079,6 +1084,7 @@ private:
 	TArray<uint8> CurrentConditionsBytes;
 	int32 CurrentGridPosition = 0;
 	FApexCarSetup LastSentSetup;
+	FApexParcFerme ParcFerme;
 
 	// --- Session bookkeeping -----------------------------------------------------
 

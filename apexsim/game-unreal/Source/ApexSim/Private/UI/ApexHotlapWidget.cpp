@@ -2509,19 +2509,27 @@ void UApexHotlapWidget::RefreshSetup()
 	{
 		return;
 	}
+	// Under parc fermé the car is held at the setup it first went out on in
+	// qualifying: the held knobs read as held and do not move (the server
+	// keeps them whatever is sent), the free ones as set.
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexNetSubsystem* Net = GameInstance ? GameInstance->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	const bool bParcFerme = !bMenuMode && Net && Net->IsUnderParcFerme();
+	const FApexCarSetup Shown = bParcFerme ? Setup->UnderParcFerme(Net->GetParcFermeSetup()) : *Setup;
 	bRefreshing = true;
 	for (const TPair<int32, TObjectPtr<UApexStepperWidget>>& Entry : SetupSteppers)
 	{
 		if (Entry.Value)
 		{
-			Entry.Value->SetValue(Setup->GetClick(Entry.Key));
+			Entry.Value->SetValue(Shown.GetClick(Entry.Key));
+			Entry.Value->SetIsEnabled(!bParcFerme || ApexCarSetup::FreeUnderParcFerme(Entry.Key));
 			// The value may be the same click with a new sheet under it.
 			Entry.Value->RefreshReadout();
 		}
 	}
 	bRefreshing = false;
 
-	const int32 Changed = Setup->CountChanged();
+	const int32 Changed = Shown.CountChanged();
 	if (ResetButton)
 	{
 		ResetButton->SetBadge(Changed == 0 ? TEXT("Stock") : FString::Printf(TEXT("%d changed"), Changed),
@@ -2529,8 +2537,9 @@ void UApexHotlapWidget::RefreshSetup()
 	}
 	if (SetupChangesText)
 	{
-		SetupChangesText->SetText(FText::FromString(Changed == 0 ? TEXT("STOCK")
-			: FString::Printf(TEXT("%d CHANGE%s FROM STOCK"), Changed, Changed == 1 ? TEXT("") : TEXT("S"))));
+		const FString Changes = Changed == 0 ? FString(TEXT("STOCK"))
+			: FString::Printf(TEXT("%d CHANGE%s FROM STOCK"), Changed, Changed == 1 ? TEXT("") : TEXT("S"));
+		SetupChangesText->SetText(FText::FromString(bParcFerme ? Changes + TEXT(" · PARC FERMÉ: SETUP HELD") : Changes));
 	}
 	if (SetupNameText)
 	{

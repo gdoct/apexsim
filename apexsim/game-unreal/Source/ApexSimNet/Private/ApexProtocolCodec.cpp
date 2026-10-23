@@ -625,6 +625,12 @@ namespace
 			else if (Key == TEXT("pit_exit_penalty")) { bOk = Reader.ReadBool(Out.bPitExitPenalty); }
 			else if (Key == TEXT("safety_car"))       { bOk = Reader.ReadUInt64(Raw); Out.SafetyCar = Raw <= 2 ? static_cast<EApexSafetyCar>(Raw) : EApexSafetyCar::Off; }
 			else if (Key == TEXT("reverse_grid"))     { bOk = Reader.ReadUInt64(Raw); Out.ReverseGrid = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("qualifying_tyre_sets"))  { bOk = Reader.ReadUInt64(Raw); Out.QualifyingTyreSets = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("qualifying_tyre_start")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingTyreStart = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("parc_ferme"))            { bOk = Reader.ReadBool(Out.bParcFerme); }
+			else if (Key == TEXT("weekend_tyre_sets"))     { bOk = Reader.ReadUInt64(Raw); Out.WeekendTyreSets = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("max_stint_laps"))        { bOk = Reader.ReadUInt64(Raw); Out.MaxStintLaps = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
+			else if (Key == TEXT("max_stint_minutes"))     { bOk = Reader.ReadUInt64(Raw); Out.MaxStintMinutes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else                                      { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -3923,6 +3929,36 @@ namespace ApexProtocol
 			{
 				Writer.WriteString("reverse_grid");
 				Writer.WriteUInt(Rules.ReverseGrid);
+			}
+			if (Rules.QualifyingTyreSets != 0)
+			{
+				Writer.WriteString("qualifying_tyre_sets");
+				Writer.WriteUInt(Rules.QualifyingTyreSets);
+			}
+			if (Rules.QualifyingTyreStart != 0)
+			{
+				Writer.WriteString("qualifying_tyre_start");
+				Writer.WriteUInt(Rules.QualifyingTyreStart);
+			}
+			if (Rules.bParcFerme)
+			{
+				Writer.WriteString("parc_ferme");
+				Writer.WriteBool(true);
+			}
+			if (Rules.WeekendTyreSets != 0)
+			{
+				Writer.WriteString("weekend_tyre_sets");
+				Writer.WriteUInt(Rules.WeekendTyreSets);
+			}
+			if (Rules.MaxStintLaps != 0)
+			{
+				Writer.WriteString("max_stint_laps");
+				Writer.WriteUInt(static_cast<uint32>(Rules.MaxStintLaps));
+			}
+			if (Rules.MaxStintMinutes != 0)
+			{
+				Writer.WriteString("max_stint_minutes");
+				Writer.WriteUInt(static_cast<uint32>(Rules.MaxStintMinutes));
 			}
 		}
 		if (bClasses)

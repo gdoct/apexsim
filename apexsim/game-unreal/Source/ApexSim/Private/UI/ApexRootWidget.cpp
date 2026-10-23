@@ -2154,6 +2154,18 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		RaceRules.ReverseGrid = static_cast<uint8>(FMath::Clamp(ReverseGrid, 0, 255));
 	}
+	// The tyre, parc fermé and stint rules: -ApexQualifyingTyreSets=N,
+	// -ApexQualifyingTyreStart=N, -ApexWeekendTyreSets=N, -ApexParcFerme,
+	// -ApexMaxStintLaps=N, -ApexMaxStintMinutes=N.
+	{
+		int32 Value = 0;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingTyreSets="), Value)) { RaceRules.QualifyingTyreSets = static_cast<uint8>(FMath::Clamp(Value, 0, 255)); }
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexQualifyingTyreStart="), Value)) { RaceRules.QualifyingTyreStart = static_cast<uint8>(FMath::Clamp(Value, 0, 255)); }
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexWeekendTyreSets="), Value)) { RaceRules.WeekendTyreSets = static_cast<uint8>(FMath::Clamp(Value, 0, 255)); }
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexMaxStintLaps="), Value)) { RaceRules.MaxStintLaps = FMath::Clamp(Value, 0, 65535); }
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexMaxStintMinutes="), Value)) { RaceRules.MaxStintMinutes = FMath::Clamp(Value, 0, 65535); }
+		RaceRules.bParcFerme = FParse::Param(FCommandLine::Get(), TEXT("ApexParcFerme"));
+	}
 	// -ApexClasses=LMP2:6,GT3:4: a multi-class field, each class's AI count
 	// (the counts replace -ApexAiCount; the AI level applies to every class).
 	FString ClassesText;

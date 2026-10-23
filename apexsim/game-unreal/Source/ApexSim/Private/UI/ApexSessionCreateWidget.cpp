@@ -352,6 +352,21 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 			AddAll(PenaltyButtons);
 			AddAll(SafetyCarButtons);
 			AddAll(ReverseGridButtons);
+			if (Flow->QualifiesBeforeRace())
+			{
+				AddAll(QualifyingTyreSetsButtons);
+				AddAll(QualifyingTyreStartButtons);
+			}
+			if (Flow->IsCreatingWeekend())
+			{
+				AddAll(WeekendTyreSetsButtons);
+			}
+			if (Flow->QualifiesBeforeRace())
+			{
+				AddAll(ParcFermeButtons);
+			}
+			AddAll(StintLapButtons);
+			AddAll(StintMinuteButtons);
 		}
 		if (Flow && Flow->IsCreatingWeekend())
 		{
@@ -1246,6 +1261,41 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		}
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Reverse grid"), Reverse, ReverseGridButtons), FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		RaceControlSection = Section;
+		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
+	}
+
+	// --- Tyres and stints -----------------------------------------------------------
+	// The sets a car may take and when its setup is held (where the session
+	// qualifies), and how long a stint may run (any race).
+	{
+		UVerticalBox* Section = WidgetTree->ConstructWidget<UVerticalBox>();
+		UTextBlock* Info = nullptr;
+		ApexUI::AddV(Section, MakeCaption(TEXT("Tyres and stints"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+		TyreRulesInfoText = Info;
+		auto Chips = [](const auto& Choices, const TCHAR* None, const TCHAR* Unit)
+		{
+			TArray<FString> Out;
+			for (const int32 Value : Choices)
+			{
+				Out.Add(Value == 0 ? FString(None) : FString::Printf(TEXT("%d%s"), Value, Unit));
+			}
+			return Out;
+		};
+		QualifyingTyreSetsRow = MakeChipRow(TEXT("Qualifying sets"), Chips(ApexCreateSession::QualifyingTyreSetChoices, TEXT("Free"), TEXT("")),
+			QualifyingTyreSetsButtons);
+		ApexUI::AddV(Section, QualifyingTyreSetsRow);
+		QualifyingTyreStartRow = MakeChipRow(TEXT("Race on them"), { TEXT("Off"), TEXT("Top 10"), TEXT("All") }, QualifyingTyreStartButtons);
+		ApexUI::AddV(Section, QualifyingTyreStartRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		WeekendTyreSetsRow = MakeChipRow(TEXT("Weekend sets"), Chips(ApexCreateSession::WeekendTyreSetChoices, TEXT("Free"), TEXT("")),
+			WeekendTyreSetsButtons);
+		ApexUI::AddV(Section, WeekendTyreSetsRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ParcFermeRow = MakeChipRow(TEXT("Parc fermé"), { TEXT("Off"), TEXT("On") }, ParcFermeButtons);
+		ApexUI::AddV(Section, ParcFermeRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Stint laps"), Chips(ApexCreateSession::StintLapChoices, TEXT("Free"), TEXT("")), StintLapButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Stint time"), Chips(ApexCreateSession::StintMinuteChoices, TEXT("Free"), TEXT(" min")), StintMinuteButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		TyreRulesSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
 
@@ -2425,6 +2475,10 @@ void UApexSessionCreateWidget::RefreshSettings()
 			Rest.Start = EApexStartType::Standing;
 			Rest.bFormationLap = false;
 			Rest.bJumpStart = Rest.bYellowPenalty = Rest.bPitExitPenalty = false;
+			// The tyre and stint rules have their own section's line.
+			Rest.QualifyingTyreSets = Rest.QualifyingTyreStart = Rest.WeekendTyreSets = 0;
+			Rest.bParcFerme = false;
+			Rest.MaxStintLaps = Rest.MaxStintMinutes = 0;
 			TArray<FString> Parts;
 			Parts.Add(Sent.Start == EApexStartType::Rolling ? TEXT("rolling start")
 				: Sent.bFormationLap ? TEXT("formation lap") : TEXT("standing start"));
@@ -2436,6 +2490,55 @@ void UApexSessionCreateWidget::RefreshSettings()
 				Parts.Add(Others);
 			}
 			RaceControlInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · ")).ToUpper()));
+		}
+	}
+
+	// The tyre, parc fermé and stint rules: the qualifying rows only where the
+	// session qualifies, the weekend's allocation only in a weekend.
+	{
+		const bool bQualifies = Flow->QualifiesBeforeRace();
+		const auto Show = [](UWidget* Widget, bool bShown)
+		{
+			if (Widget)
+			{
+				Widget->SetVisibility(bShown ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+			}
+		};
+		Show(TyreRulesSection, Flow->PitRuleApplies());
+		Show(QualifyingTyreSetsRow, bQualifies);
+		Show(QualifyingTyreStartRow, bQualifies);
+		Show(ParcFermeRow, bQualifies);
+		Show(WeekendTyreSetsRow, Flow->IsCreatingWeekend());
+		const FApexRaceRules& Rules = Flow->CreateRaceRules;
+		const auto Select = [](const TArray<TObjectPtr<UApexButtonWidget>>& Buttons, int32 Chip)
+		{
+			for (int32 Index = 0; Index < Buttons.Num(); ++Index)
+			{
+				if (Buttons[Index])
+				{
+					Buttons[Index]->SetSelected(Index == Chip);
+				}
+			}
+		};
+		Select(QualifyingTyreSetsButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::QualifyingTyreSetChoices, Rules.QualifyingTyreSets));
+		Select(QualifyingTyreStartButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::QualifyingTyreStartChoices, Rules.QualifyingTyreStart));
+		Select(WeekendTyreSetsButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::WeekendTyreSetChoices, Rules.WeekendTyreSets));
+		Select(ParcFermeButtons, Rules.bParcFerme ? 1 : 0);
+		Select(StintLapButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::StintLapChoices, Rules.MaxStintLaps));
+		Select(StintMinuteButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::StintMinuteChoices, Rules.MaxStintMinutes));
+		if (TyreRulesInfoText)
+		{
+			const FApexRaceRules Sent = Flow->RaceRulesToSend();
+			TArray<FString> Parts;
+			const FString Tyres = Sent.DescribeTyres();
+			Parts.Add(Tyres.IsEmpty() ? FString(TEXT("a new set every run")) : Tyres);
+			if (Sent.bParcFerme)
+			{
+				Parts.Add(TEXT("parc fermé"));
+			}
+			const FString Stints = FApexRaceRules::DescribeStints(Sent.MaxStintLaps, Sent.MaxStintMinutes);
+			Parts.Add(Stints.IsEmpty() ? FString(TEXT("stints free")) : Stints);
+			TyreRulesInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · ")).ToUpper()));
 		}
 	}
 
@@ -3925,6 +4028,42 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Reverse = ApexNav::IndexOf(ReverseGridButtons, Button); Reverse != INDEX_NONE)
 	{
 		Flow->CreateRaceRules.ReverseGrid = static_cast<uint8>(ApexCreateSession::ReverseGridChoices[FMath::Clamp(Reverse, 0, static_cast<int32>(UE_ARRAY_COUNT(ApexCreateSession::ReverseGridChoices)) - 1)]);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(QualifyingTyreSetsButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.QualifyingTyreSets = static_cast<uint8>(ApexCreateSession::ChoiceOfChip(ApexCreateSession::QualifyingTyreSetChoices, Chip));
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(QualifyingTyreStartButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.QualifyingTyreStart = static_cast<uint8>(ApexCreateSession::ChoiceOfChip(ApexCreateSession::QualifyingTyreStartChoices, Chip));
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(WeekendTyreSetsButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.WeekendTyreSets = static_cast<uint8>(ApexCreateSession::ChoiceOfChip(ApexCreateSession::WeekendTyreSetChoices, Chip));
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(ParcFermeButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.bParcFerme = Chip == 1;
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(StintLapButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.MaxStintLaps = ApexCreateSession::ChoiceOfChip(ApexCreateSession::StintLapChoices, Chip);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(StintMinuteButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.MaxStintMinutes = ApexCreateSession::ChoiceOfChip(ApexCreateSession::StintMinuteChoices, Chip);
 		Changed();
 		return;
 	}

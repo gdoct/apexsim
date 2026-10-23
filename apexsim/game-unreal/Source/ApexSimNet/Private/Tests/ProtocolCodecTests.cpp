@@ -401,6 +401,21 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		FApexRaceRules One;
 		One.ReverseGrid = 1;
 		TestTrue(TEXT("a reverse of one changes nothing"), One.Normalised().IsDefault());
+
+		// The tyre, parc fermé and stint rules: each key after the others,
+		// in the server's order.
+		FApexRaceRules Tyres;
+		Tyres.QualifyingTyreSets = 3;
+		Tyres.QualifyingTyreStart = 10;
+		Tyres.bParcFerme = true;
+		Tyres.WeekendTyreSets = 8;
+		Tyres.MaxStintLaps = 25;
+		Tyres.MaxStintMinutes = 65;
+		CheckBytes(TEXT("CreateSession with the tyre, parc ferme and stint rules"), CreateWithRules(Tyres),
+			ApexGolden::C_CreateSessionTyreStintRules);
+		TestEqual(TEXT("tyre rules described"), Tyres.Describe(),
+			FString(TEXT("3 qualifying sets · top 10 start on qualifying tyres · 8 weekend sets · parc fermé · stints 25 laps or 65 min")));
+		TestEqual(TEXT("minutes alone"), FApexRaceRules::DescribeStints(0, 45), FString(TEXT("stints 45 min")));
 	}
 	{
 		// A weekend whose practice and qualifying name their own damage rule.
@@ -466,6 +481,49 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 // -----------------------------------------------------------------------------
 // The setup's clicks: ranges, one-sided knobs, and the read-out.
 // -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCarSetupParcFermeTest,
+	"ApexSim.Net.CarSetup.ParcFerme",
+	ApexTestFlags)
+
+bool FApexCarSetupParcFermeTest::RunTest(const FString& Parameters)
+{
+	// The knobs the server leaves free (car_setup.rs under_parc_ferme).
+	TestTrue(TEXT("brake bias is free"), ApexCarSetup::FreeUnderParcFerme(ApexCarSetup::BrakeBias));
+	TestTrue(TEXT("the front wing is free"), ApexCarSetup::FreeUnderParcFerme(ApexCarSetup::FrontWing));
+	TestFalse(TEXT("the rear wing is held"), ApexCarSetup::FreeUnderParcFerme(ApexCarSetup::RearWing));
+	TestFalse(TEXT("a spring is held"), ApexCarSetup::FreeUnderParcFerme(ApexCarSetup::SpringFront));
+	FApexCarSetup Held;
+	Held.SetClick(ApexCarSetup::SpringFront, 2);
+	Held.SetClick(ApexCarSetup::BrakeBias, 1);
+	FApexCarSetup Asked;
+	Asked.SetClick(ApexCarSetup::SpringFront, -3);
+	Asked.SetClick(ApexCarSetup::BrakeBias, -2);
+	const FApexCarSetup Applied = Asked.UnderParcFerme(Held);
+	TestEqual(TEXT("the spring stays held"), Applied.GetClick(ApexCarSetup::SpringFront), 2);
+	TestEqual(TEXT("the bias is the driver's"), Applied.GetClick(ApexCarSetup::BrakeBias), -2);
+
+	// Held from the first run in qualifying to the end of the race.
+	FApexParcFerme Rule;
+	Rule.Update(true, EApexGameMode::Qualification, false, Held);
+	TestFalse(TEXT("not held in the garage"), Rule.bHeld);
+	Rule.Update(true, EApexGameMode::Qualification, true, Held);
+	TestTrue(TEXT("held once out"), Rule.bHeld);
+	Rule.Update(true, EApexGameMode::Qualification, false, Asked);
+	TestEqual(TEXT("at the setup it went out on"), Rule.Held.GetClick(ApexCarSetup::SpringFront), 2);
+	Rule.Update(true, EApexGameMode::Grid, false, Asked);
+	Rule.Update(true, EApexGameMode::Countdown, false, Asked);
+	Rule.Update(true, EApexGameMode::Race, true, Asked);
+	TestTrue(TEXT("held through the race"), Rule.bHeld);
+	Rule.Update(true, EApexGameMode::Lobby, false, Asked);
+	TestFalse(TEXT("released after it"), Rule.bHeld);
+	Rule.Update(true, EApexGameMode::Race, true, Asked);
+	TestFalse(TEXT("a race without qualifying holds nothing"), Rule.bHeld);
+	Rule.Update(false, EApexGameMode::Qualification, true, Asked);
+	TestFalse(TEXT("no rule, no hold"), Rule.bHeld);
+	return true;
+}
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
 	FApexCarSetupClicksTest,

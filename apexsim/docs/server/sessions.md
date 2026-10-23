@@ -337,9 +337,19 @@ start's, a rolling start always drives its pace lap and sends no
 `formation_lap`), Penalise (False starts, Yellow passes, Pit exit light,
 each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
 (Off / 6 / 8 / 10 / All, All sending 255, which `grid_order_ids` takes as
-the whole field). The section's line and the create summary name them
-short (`FApexRaceRules::Describe`: "ROLLING START · 2 PENALTIES · VSC ·
-REVERSE GRID").
+the whole field). A Tyres and stints section beside it carries the tyre,
+parc fermé and stint keys: Qualifying sets (Free, 1-4), Race on them (Off,
+Top 10, All: `qualifying_tyre_start` 10 or 255) and Parc fermé where the
+session qualifies (a qualifying session or a weekend), Weekend sets (Free,
+6, 8, 10, 13) in a weekend, Stint laps (Free, 10, 15, 20, 30) and Stint
+time (Free, 20, 30, 45, 60 min) in any race; `RaceRulesToSend` leaves the
+qualifying keys off where the session does not qualify and the weekend's
+sets off outside a weekend (`QualifiesBeforeRace`). The sections' lines and
+the create summary name them short (`FApexRaceRules::Describe`: "ROLLING
+START · 2 PENALTIES · VSC · REVERSE GRID · 2 QUALIFYING SETS · PARC FERMÉ ·
+STINTS 20 LAPS"). `-ApexAutoRace` takes `-ApexQualifyingTyreSets=N`,
+`-ApexQualifyingTyreStart=N`, `-ApexWeekendTyreSets=N`, `-ApexParcFerme`,
+`-ApexMaxStintLaps=N` and `-ApexMaxStintMinutes=N`.
 
 ## Tyre sets
 
@@ -398,8 +408,15 @@ out in qualifying (knocked out before it ran, a late entry) is not held. A
 fresh qualifying (a plain session entering `Qualification` again, a
 weekend's Q1) starts it over; any mode but `Qualification`, `Countdown`,
 `Grid` and `Race` releases it. The AI runs stock setups, so it is never
-touched. The applied setup is not sent back (`SetCarSetup` has no reply):
-the client's garage does not yet show which knobs are held.
+touched. The applied setup is not sent back (`SetCarSetup` has no reply),
+so the client follows the rule itself (`FApexParcFerme`, kept by
+`UApexNetSubsystem` from telemetry: held at the setup last sent when the
+local car first leaves its garage in `Qualification`, released as the
+server releases it, `IsUnderParcFerme` / `GetParcFermeSetup`). Held, the
+garage's setup tabs show the held knobs at their held clicks and disable
+their steppers (`ApexCarSetup::FreeUnderParcFerme` names the free ones,
+`FApexCarSetup::UnderParcFerme` mirrors `under_parc_ferme`), and the
+setup line reads "PARC FERMÉ: SETUP HELD".
 
 ## Fixed stint lengths
 
@@ -423,7 +440,14 @@ still run, the minutes at the car's own lap pace, the smaller of the two):
 with less than `pit::AI_STINT_STOP_LAPS` (1 lap) left and the flag further
 away than that, `pit::plan_stop` stops at once, traffic or not; a car that
 reaches the flag within its stint stays out. A driver's own car is theirs
-to bring in (an away driver's is planned as the AI's).
+to bring in (an away driver's is planned as the AI's): the HUD counts the
+stint as the server does, from the green (no laps) or the end of a stop's
+service as it saw them (`FApexHudMemory::FCarHistory::StintFromLaps` /
+`StintFromTick`, minutes from the frames' ticks over the session's tick
+rate), and publishes `stint.laps`, `stint.time_s`, `stint.laps_left` and
+`stint.time_left_s` ([hud-modding.md](../game/hud-modding.md)); the
+default race state shows a Stint left panel, lit under a lap or two
+minutes, red once past.
 
 ## The race's grid
 

@@ -960,6 +960,41 @@ bool FApexCreateSessionRaceControlTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("a hotlap sends none"), Flow->RaceRulesToSend().IsDefault());
 	Flow->CreateStartingMode = EApexGameMode::FreePractice;
 	TestTrue(TEXT("practice sends none"), Flow->RaceRulesToSend().IsDefault());
+
+	// The tyre, parc fermé and stint rules: the qualifying ones only where
+	// the session qualifies, the weekend's sets only in a weekend.
+	TestEqual(TEXT("no sets"), ChoiceChip(QualifyingTyreSetChoices, 0), 0);
+	TestEqual(TEXT("two sets"), ChoiceChip(QualifyingTyreSetChoices, 2), 2);
+	TestEqual(TEXT("an unoffered 12 shows on 13"), ChoiceChip(WeekendTyreSetChoices, 12), 4);
+	TestEqual(TEXT("every car on its set"), ChoiceChip(QualifyingTyreStartChoices, FApexRaceRules::QualifyingTyreStartAll), 2);
+	TestEqual(TEXT("past the last"), ChoiceOfChip(StintMinuteChoices, 9), 60);
+	FApexRaceRules& Rules = Flow->CreateRaceRules;
+	Rules = FApexRaceRules();
+	Rules.QualifyingTyreSets = 2;
+	Rules.QualifyingTyreStart = 10;
+	Rules.bParcFerme = true;
+	Rules.WeekendTyreSets = 8;
+	Rules.MaxStintLaps = 20;
+	Rules.MaxStintMinutes = 45;
+	Flow->bCreateWeekend = false;
+	Flow->CreateStartingMode = EApexGameMode::Race;
+	const FApexRaceRules RaceOnly = Flow->RaceRulesToSend();
+	TestEqual(TEXT("a race without qualifying: no qualifying sets"), static_cast<int32>(RaceOnly.QualifyingTyreSets), 0);
+	TestEqual(TEXT("nor the start on them"), static_cast<int32>(RaceOnly.QualifyingTyreStart), 0);
+	TestFalse(TEXT("nor parc ferme"), RaceOnly.bParcFerme);
+	TestEqual(TEXT("nor a weekend's sets"), static_cast<int32>(RaceOnly.WeekendTyreSets), 0);
+	TestEqual(TEXT("but its stint laps"), RaceOnly.MaxStintLaps, 20);
+	TestEqual(TEXT("and minutes"), RaceOnly.MaxStintMinutes, 45);
+	Flow->CreateStartingMode = EApexGameMode::Qualification;
+	const FApexRaceRules Qualifying = Flow->RaceRulesToSend();
+	TestEqual(TEXT("qualifying sends its sets"), static_cast<int32>(Qualifying.QualifyingTyreSets), 2);
+	TestTrue(TEXT("and parc ferme"), Qualifying.bParcFerme);
+	TestEqual(TEXT("but no weekend's sets"), static_cast<int32>(Qualifying.WeekendTyreSets), 0);
+	Flow->CreateStartingMode = EApexGameMode::Race;
+	Flow->bCreateWeekend = true;
+	const FApexRaceRules Weekend = Flow->RaceRulesToSend();
+	TestEqual(TEXT("a weekend sends its allocation"), static_cast<int32>(Weekend.WeekendTyreSets), 8);
+	TestEqual(TEXT("and the start on qualifying sets"), static_cast<int32>(Weekend.QualifyingTyreStart), 10);
 	return true;
 }
 
