@@ -568,6 +568,12 @@ pub const LOCK_SLIP_RATIO: f32 = 0.9;
 const FLAT_SPOT_PER_MJ: f32 = 1.5;
 /// Below this the wheel is crawling, m/s: nothing to grind.
 const FLAT_SPOT_MIN_SPEED_MPS: f32 = 3.0;
+/// A lock-up grinds nothing for its first [`FLAT_SPOT_DWELL_S`] and its
+/// full rate from [`FLAT_SPOT_FULL_S`] on: a brake on the edge of locking
+/// stops the wheel for a few hundredths at a time and the patch it slides
+/// on moves on between them, where a held lock-up scrubs one patch.
+const FLAT_SPOT_DWELL_S: f32 = 0.1;
+const FLAT_SPOT_FULL_S: f32 = 0.3;
 /// Grip the deepest flat spot costs: the patch is not round any more and
 /// rides off the road once a turn.
 const FLAT_SPOT_GRIP_LOSS: f32 = 0.04;
@@ -1037,9 +1043,14 @@ pub fn step(
     // ... and a locked wheel grinds one patch of its tread flat (softer
     // rubber faster).
     if work.slip_ratio <= -LOCK_SLIP_RATIO && v > FLAT_SPOT_MIN_SPEED_MPS {
-        let grind = work.fx.abs() * work.slip_ratio.abs().min(1.0) * v;
+        tyre.lock_s += dt;
+        let held = ((tyre.lock_s - FLAT_SPOT_DWELL_S) / (FLAT_SPOT_FULL_S - FLAT_SPOT_DWELL_S))
+            .clamp(0.0, 1.0);
+        let grind = work.fx.abs() * work.slip_ratio.abs().min(1.0) * v * held;
         tyre.flat_spot =
             (tyre.flat_spot + FLAT_SPOT_PER_MJ * grind * dt * 1e-6 * compound.wear_scale).min(1.0);
+    } else {
+        tyre.lock_s = 0.0;
     }
     // The marbles under the tyre stick to its tread (and cost it grip,
     // `grip_multiplier`) and are flung off over a lap, faster on a wet
@@ -1795,6 +1806,49 @@ mod tests {
         assert!(!car.tires.front_left.punctured);
         assert_eq!(car.tires.front_left.flat_spot, 0.0);
         assert_eq!(car.tires.front_left.tread_c, [opt; 3]);
+    }
+
+    #[test]
+    fn short_lock_ups_grind_no_flat_spot() {
+        let t = tyre();
+        let m = medium();
+        let surface = TrackSurface::default();
+        let opt = t.optimal_temperature_c;
+        let mut data = at(opt, opt);
+        let rate = crate::game_session::DEFAULT_TICK_RATE_HZ as usize;
+        let dt = 1.0 / rate as f32;
+        let braking = TyreWork {
+            fx: -9_000.0,
+            slip_ratio: -t.optimal_slip_ratio,
+            load_n: 9_000.0,
+            speed_mps: 70.0,
+            air_mps: 70.0,
+            ..Default::default()
+        };
+        let locked = TyreWork {
+            slip_ratio: -1.0,
+            ..braking
+        };
+        // Twenty blips of 60 ms, a brake on the edge of locking, from 70 m/s
+        // on a loaded front: the patch moves on between them.
+        for _ in 0..20 {
+            for _ in 0..rate * 6 / 100 {
+                step(&mut data, &locked, &t, &m, 180.0, &surface, dt);
+            }
+            for _ in 0..rate / 5 {
+                step(&mut data, &braking, &t, &m, 180.0, &surface, dt);
+            }
+        }
+        assert_eq!(data.flat_spot, 0.0, "blips ground {:.3}", data.flat_spot);
+        // Held, the same lock-up grinds a spot.
+        for _ in 0..rate / 2 {
+            step(&mut data, &locked, &t, &m, 180.0, &surface, dt);
+        }
+        assert!(
+            data.flat_spot > 0.05,
+            "half a second held: {:.3}",
+            data.flat_spot
+        );
     }
 
     #[test]

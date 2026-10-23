@@ -258,7 +258,10 @@ compound without them, and off a snow session every cover and ice is 0.
   `TireConfig::wear_rate`, 4% more per degree over the window). `wear_grip_factor`: 6% over
   the life plus a quadratic 24% cliff from 70% worn.
 - **Flat spots**: braking past `LOCK_SLIP_RATIO` above 3 m/s grows `TireData::flat_spot`
-  (0..1) by the locked patch's energy; up to 4% grip; wears round with the tread
+  (0..1) by the locked patch's energy once the lock-up holds: nothing for its first
+  `FLAT_SPOT_DWELL_S` (0.1 s, `TireData::lock_s`), the full rate from `FLAT_SPOT_FULL_S`
+  (0.3 s), so a brake on the edge of locking blips without spotting the tyre
+  (`short_lock_ups_grind_no_flat_spot`); up to 4% grip; wears round with the tread
   (`FLAT_SPOT_ROUNDING_PER_PERCENT`). Sent as `DriverFeedback.flat_spot` (wheel, pad and
   road sound play it) and, for every car, telemetry's `flat_spot` (drawn on the tyre,
   [cars](../../../apexsim-content/docs/cars.md#wheels)).

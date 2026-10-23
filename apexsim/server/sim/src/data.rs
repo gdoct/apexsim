@@ -1488,6 +1488,10 @@ pub struct TireData {
     /// (`crate::tyre_thermal`): a little grip, and a shake once a turn.
     #[serde(default)]
     pub flat_spot: f32,
+    /// How long the wheel has been locked without a break, s: a flat spot
+    /// is only ground once a lock-up holds (`crate::tyre_thermal`).
+    #[serde(default)]
+    pub lock_s: f32,
     /// Worn through, or holed: the tyre is down to its carcass and has let
     /// go of its air.
     #[serde(default)]

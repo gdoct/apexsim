@@ -32,7 +32,6 @@ takes it up (— : no step, taken opportunistically).
 | ID | Item | Type | Pri | Human | Effort | Step |
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
-| B12 | Flat spots far too easy (follow-ups #29) | Bug | P1 | 🟡 | S | — |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B16 | Paddle downshifts blow the engine; no downshift protection (follow-ups #31) | Bug | P1 | 🟡 | M | — |
 | B14 | Wheel tab: rotation steps by 30°, direction test too strong (follow-ups #30) | Bug | P2 | 🟡 | S | — |
@@ -94,14 +93,6 @@ takes it up (— : no step, taken opportunistically).
 ## 3. Items by type
 
 ### Bugs
-
-#### B12. Flat spots far too easy — P1 · 🟡 · S
-*Source: follow-ups #29, wheel sitting 2026-10-23.* About 20 flat spots
-after one lap at Armadillos on the wheel, F1 car, Elite (no ABS, no
-assists). Find why the wheel's braking locks
-up so readily into spots (threshold, lock time, every short lock counted as
-a new spot); judge with the survey's flat-spot counts and a re-sit lap.
-The run's log, replay and lap traces: `out/sit/2026-10-23/cota-f1/`.
 
 #### B15. Rim shakes violently at a standstill — P1 · 🔴 · S
 *Source: follow-ups #31, wheel sitting 2026-10-23.* Standing still in the

@@ -26,25 +26,6 @@ None open.
 
 ## P1: core racing experience
 
-### 29. Flat spots far too easy
-
-Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, Armadillos).
-
-- One lap at Armadillos in an F1 car, Elite assists (no ABS, no TC, no
-  aids at all), left about 20 flat spots on the car. The flat-spot
-  model (`flatspot` in the tyre code, the `flatspot=` debug event) triggers
-  on far less locking than a real tyre needs, or counts every short lock as
-  a new spot. Find what a wheel-pedal brake does differently from the AI's
-  and the pad's (pedal travel, ABS off, the lock threshold and time).
-  The run's files (local, not in git) are in `out/sit/2026-10-23/cota-f1/`:
-  the client log `ApexSim.log`, the practice replay `practice.apxs` and
-  the three lap traces in `telemetry/` (laps of 4:21.971 invalid, 2:09.880
-  and 2:07.916, with brake, speed and tyre temperatures by distance).
-
-**Check:** a lap of hard braking on the wheel with ABS off, then on; flat
-spots only after a held lock-up. The AI survey for flat-spot counts and lap
-times against the commit before.
-
 ### 31. Wheel forces at a standstill, and engines blown on downshifts
 
 Found at the wheel sitting of 2026-10-23 (ClubSport V2.5, base FF 100%,
