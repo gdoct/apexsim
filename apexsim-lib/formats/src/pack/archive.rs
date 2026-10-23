@@ -43,6 +43,9 @@ impl From<zip::result::ZipError> for PackError {
     }
 }
 
+/// A pack's files: each path in the pack with its bytes.
+pub type PackFiles = Vec<(String, Vec<u8>)>;
+
 /// `sha256:<hex>` of some bytes, as the manifest names its files.
 pub fn sha256(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
@@ -110,7 +113,7 @@ pub fn read_manifest(path: &Path) -> Result<PackManifest, PackError> {
 /// A pack's manifest and every file, each checked against the manifest's
 /// hash and against where a pack of its kind may write. Nothing else is
 /// in the zip, and nothing the manifest names is missing.
-pub fn read(path: &Path) -> Result<(PackManifest, Vec<(String, Vec<u8>)>), PackError> {
+pub fn read(path: &Path) -> Result<(PackManifest, PackFiles), PackError> {
     let mut zip = zip::ZipArchive::new(std::fs::File::open(path)?)?;
     let manifest = manifest_of(&mut zip)?;
     let mut files = Vec::new();
