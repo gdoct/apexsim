@@ -1057,7 +1057,7 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
 
 // ---- Manage content
 
-enum { IdTab = 100, IdList, IdInfo, IdImport, IdOpen };
+enum { IdTab = 100, IdList, IdInfo, IdImport, IdOpen, IdPack };
 static HFONT gContentFont;
 static HANDLE gImport;  // a running import, so the list refreshes when it ends
 
@@ -1086,6 +1086,61 @@ static fs::path PickFolder(HWND owner, const wchar_t* title)
         d->Release();
     }
     return result;
+}
+
+// A content pack (.apxpack) to install, or empty.
+static fs::path PickPack(HWND owner)
+{
+    static bool com = false;
+    if (!com) { CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); com = true; }
+    fs::path result;
+    IFileOpenDialog* d = nullptr;
+    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&d))))
+    {
+        COMDLG_FILTERSPEC filter[] = { { L"ApexSim content pack", L"*.apxpack" } };
+        d->SetFileTypes(1, filter);
+        d->SetTitle(L"Install a content pack");
+        if (SUCCEEDED(d->Show(owner)))
+        {
+            IShellItem* it = nullptr;
+            if (SUCCEEDED(d->GetResult(&it)))
+            {
+                PWSTR p = nullptr;
+                if (SUCCEEDED(it->GetDisplayName(SIGDN_FILESYSPATH, &p))) { result = p; CoTaskMemFree(p); }
+                it->Release();
+            }
+        }
+        d->Release();
+    }
+    return result;
+}
+
+static bool RunCapture(const std::wstring& line, std::string& out, DWORD timeoutMs);
+static void PopulateList(HWND hw);
+
+// Install a pack with the server's own installer (apexsim-server content install,
+// Server\CMDLINE: it checks the pack whole before it writes), and say what it did.
+static void InstallPack(HWND hw)
+{
+    if (!g.env.release || !Exists(g.env.serverExe))
+    {
+        MessageBoxW(hw, L"Content packs install into a release package (its Server and Game folders).",
+                    L"Install a content pack", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    fs::path pack = PickPack(hw);
+    if (pack.empty()) return;
+    std::wstring line = L"\"" + g.env.serverExe.wstring() + L"\" content install \"" + pack.wstring() + L"\"";
+    std::string out;
+    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    bool ran = RunCapture(line, out, 120000);
+    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+    std::wstring text = Widen(Trim(out));
+    bool ok = ran && text.find(L"apexsim-server:") == std::wstring::npos && text.find(L"\"version\"") != std::wstring::npos;
+    std::wstring m = ok ? L"Installed " + pack.filename().wstring() + L". Restart the game and the server to use it."
+                        : L"Could not install " + pack.filename().wstring() + L":\n\n" + (ran ? text : L"the server's installer did not start");
+    MessageBoxW(hw, m.c_str(), L"Install a content pack", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
+    PopulateList(hw);
 }
 
 static void PopulateList(HWND hw)
@@ -1324,6 +1379,7 @@ static void LayoutContent(HWND hw)
     int by = c.bottom - S(44), bh = S(32);
     SetWindowPos(GetDlgItem(hw, IdImport), nullptr, m, by, S(190), bh, SWP_NOZORDER);
     SetWindowPos(GetDlgItem(hw, IdOpen), nullptr, m + S(200), by, S(120), bh, SWP_NOZORDER);
+    SetWindowPos(GetDlgItem(hw, IdPack), nullptr, m + S(330), by, S(150), bh, SWP_NOZORDER);
     SetWindowPos(GetDlgItem(hw, IDCANCEL), nullptr, c.right - m - S(100), by, S(100), bh, SWP_NOZORDER);
 }
 
@@ -1357,6 +1413,7 @@ static LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         Ctl(hw, L"STATIC", L"", 0, 0, 0, 10, 10, IdInfo, dpi);
         Ctl(hw, L"BUTTON", L"Import from Assetto Corsa...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdImport, dpi);
         Ctl(hw, L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdOpen, dpi);
+        Ctl(hw, L"BUTTON", L"Install pack...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdPack, dpi);
         Ctl(hw, L"BUTTON", L"Close", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IDCANCEL, dpi);
         SetFontAll(hw, gContentFont);
         LayoutContent(hw);
@@ -1374,6 +1431,7 @@ static LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         {
         case IDCANCEL: CloseDialogWindow(hw); return 0;
         case IdImport: StartImport(hw); return 0;
+        case IdPack: InstallPack(hw); return 0;
         case IdOpen:
         {
             fs::path p = TabFolder(g.env, TabCtrl_GetCurSel(GetDlgItem(hw, IdTab)));

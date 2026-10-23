@@ -28,6 +28,7 @@ neither.
 - [props.md](props.md): the trackside prop kit and its loader.
 - [track-improvements.md](track-improvements.md): bringing every circuit's dressing up to its references: the method, the per-track status table, the kit gaps.
 - [ac-import.md](ac-import.md): importing Assetto Corsa tracks and cars.
+- [packs.md](packs.md): content packs: one circuit or car in one file, built with `ats-pack`, installed into a release.
 
 `drivers/portraits/face_<n>.png` (1 to 16, 200 x 308 cut-outs on a clear
 background, the drivers' suits in the parody sponsors of

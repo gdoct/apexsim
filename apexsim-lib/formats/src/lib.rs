@@ -13,6 +13,8 @@
 //! - [`content_crc`]: the checksum both sides put on a source file.
 //! - [`road_profile`]: the road's crown and bumps, which the content's road
 //!   mesh and the simulation's centerline backend both stand on.
+//! - [`pack`]: a content pack's manifest, an install's `installed.json`,
+//!   and the format levels a pack states and a reader takes.
 //!
 //! Serde attributes are load-bearing: the tools rewrite YAMLs through
 //! [`track::TrackFile`], so a changed attribute changes the bytes of every
@@ -21,6 +23,7 @@
 pub mod content_crc;
 pub mod curbs;
 pub mod ground;
+pub mod pack;
 pub mod pit;
 pub mod road_mesh;
 pub mod road_profile;
@@ -44,6 +47,13 @@ pub const TRACK_YAML_LEVEL: u32 = 1;
 /// pit lane). Each file also carries its own `version` (the `*_VERSION`
 /// constants), which its reader checks.
 pub const SIDECARS_LEVEL: u32 = 1;
+
+/// Level of the game's track export (`<Stem>.uescene.json` and `.uemesh`,
+/// track-core's `ue_export`).
+pub const SCENE_LEVEL: u32 = 1;
+
+/// Level of a car's `car.toml`.
+pub const CAR_TOML_LEVEL: u32 = 1;
 
 /// `version` of [`ground::GroundHeightfield`].
 pub const GROUND_VERSION: u32 = ground::GROUND_SIDECAR_VERSION;

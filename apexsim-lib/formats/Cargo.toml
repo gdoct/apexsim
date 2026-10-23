@@ -9,6 +9,14 @@ publish = false
 # code (the server) both build against this crate, never the other way round.
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+# Feature `archive`: a content pack's zip (`pack::archive`), for the pack
+# builder and the installer; the readers of the formats need none of it.
+zip = { version = "2.4", default-features = false, features = ["deflate"], optional = true }
+sha2 = { version = "0.10", optional = true }
+serde_json = { version = "1", optional = true }
+
+[features]
+archive = ["dep:zip", "dep:sha2", "dep:serde_json"]
 
 [dev-dependencies]
 serde_yaml = "0.9"

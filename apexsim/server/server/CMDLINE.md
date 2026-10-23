@@ -33,6 +33,29 @@ directory.
 | `-h`, `--help` | | Print the options and exit. |
 | `-V`, `--version` | | Print the version and exit. |
 
+## content
+
+Content packs in a release install
+([apexsim-content/docs/packs.md](../../../apexsim-content/docs/packs.md)).
+The server does not start; the result is JSON on stdout, an error is
+`apexsim-server: <message>` on stderr with exit code 1.
+
+```
+apexsim-server content install <PACK> [--root <INSTALL>]
+apexsim-server content list [--root <INSTALL>]
+apexsim-server content verify [--root <INSTALL>]
+```
+
+| Command | What it does |
+|---|---|
+| `install` | Read the `.apxpack` whole (every file against its hash, every path inside the item, the format levels against what this build reads), empty the item's own folders, write `server/...` under `Server/content/` and `game/...` under `Game/`, keep the pack in `Content/packs/` and record it in `Content/installed.json`. Prints the recorded entry. |
+| `list` | Print `Content/installed.json`. |
+| `verify` | Check every installed pack's files on disk against the pack kept for it; exit 1 when one is missing or changed. |
+
+`--root` is the install folder (holding `Server` and `Game`); by default
+the one the server binary sits in. The launcher's Manage content > Install
+pack... runs `install`. A running server keeps what it loaded: restart it.
+
 ### Which log level wins
 
 1. `RUST_LOG`, when it is set and valid, overrides everything else.

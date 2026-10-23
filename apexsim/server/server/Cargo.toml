@@ -32,7 +32,7 @@ bytes = "1"
 webpki-roots = "1"
 rcgen = { version = "0.14.10", default-features = false, features = ["ring", "pem"] }
 # The formats the content writes and the server reads (track YAML, sidecars, content_crc).
-apexsim-formats = { path = "../../../apexsim-lib/formats" }
+apexsim-formats = { path = "../../../apexsim-lib/formats", features = ["archive"] }
 # The deterministic simulation (car, track, race, session tick).
 apexsim-sim = { path = "../sim" }
 # The wire, the spectator stream, the records and the render of a seeded race.

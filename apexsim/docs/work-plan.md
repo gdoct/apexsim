@@ -414,6 +414,14 @@ written in, never a code version; the code states the levels it reads.
 assets of `apexsim-content` (the index URL stays a setting); the starter set is one
 car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
 Zandvoort, Monza).
+**Built 2026-10-23 (phase 1):** the pack format and a local install:
+`apexsim_formats::pack` (manifest, `installed.json`, the format levels
+and the read check; zip under its `archive` feature), `ats-pack` (a pack
+of one circuit or car from the checkout), `apexsim-server content
+{install,list,verify}` and the launcher's Install pack...
+([apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md)).
+Phase 1's check, a Spa pack installed into a fresh release package raced
+with no mismatch toast, is in verification.md.
 **Human:** 🔴 still for creating `apexsim-content` and the signing key. The
 split rewrites history and moves LFS, so it is done once, by hand, with
 you there. What is left of phase 0 needs neither and is 🟢.

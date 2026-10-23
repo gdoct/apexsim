@@ -578,7 +578,8 @@ fn ghost_file_name(key: &RecordKey) -> String {
     )
 }
 
-fn now_rfc3339() -> String {
+/// Now, as RFC 3339 (UTC, seconds). Display only.
+pub fn now_rfc3339() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

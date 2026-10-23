@@ -1,6 +1,6 @@
 use apexsim_server::config::ServerConfig;
 use apexsim_server::server::run_server_from;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use tracing::info;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -15,6 +15,91 @@ struct Args {
     /// Override log level (trace|debug|info|warn|error)
     #[arg(short, long)]
     log_level: Option<String>,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(Subcommand, Debug)]
+enum Command {
+    /// Content packs in a release install (CMDLINE.md, "content")
+    #[command(subcommand)]
+    Content(ContentCommand),
+}
+
+#[derive(Subcommand, Debug)]
+enum ContentCommand {
+    /// Install a pack (.apxpack): checked whole, then written where the
+    /// server and the game look, and recorded in Content/installed.json
+    Install {
+        pack: std::path::PathBuf,
+        /// The install folder (holding Server and Game); default: the one
+        /// this server sits in
+        #[arg(long)]
+        root: Option<std::path::PathBuf>,
+    },
+    /// List the installed packs
+    List {
+        #[arg(long)]
+        root: Option<std::path::PathBuf>,
+    },
+    /// Check every installed pack's files against the pack it came from
+    Verify {
+        #[arg(long)]
+        root: Option<std::path::PathBuf>,
+    },
+}
+
+/// `apexsim-server content ...`: prints JSON on stdout, exits 1 on an
+/// error with `apexsim-server: <message>` on stderr.
+fn run_content(command: ContentCommand) -> std::process::ExitCode {
+    use apexsim_server::content_pack;
+    let result = (|| -> Result<serde_json::Value, String> {
+        match command {
+            ContentCommand::Install { pack, root } => {
+                let root = content_pack::install_root(root)?;
+                let entry = content_pack::install(&root, &pack)?;
+                serde_json::to_value(entry).map_err(|e| e.to_string())
+            }
+            ContentCommand::List { root } => {
+                let root = content_pack::install_root(root)?;
+                serde_json::to_value(content_pack::read_installed(&root)?)
+                    .map_err(|e| e.to_string())
+            }
+            ContentCommand::Verify { root } => {
+                let root = content_pack::install_root(root)?;
+                let report = content_pack::verify(&root)?;
+                let broken = report.iter().any(|(_, problems)| !problems.is_empty());
+                let rows: Vec<serde_json::Value> = report
+                    .into_iter()
+                    .map(|(entry, problems)| {
+                        serde_json::json!({ "folder": entry.folder, "version": entry.version, "problems": problems })
+                    })
+                    .collect();
+                if broken {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&rows).unwrap_or_default()
+                    );
+                    return Err("some installed files are not their pack's".into());
+                }
+                Ok(serde_json::Value::Array(rows))
+            }
+        }
+    })();
+    match result {
+        Ok(value) => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&value).unwrap_or_default()
+            );
+            std::process::ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("apexsim-server: {e}");
+            std::process::ExitCode::FAILURE
+        }
+    }
 }
 
 /// Initialize tracing: console output plus optional JSON-lines file output
@@ -142,10 +227,22 @@ fn respawn() -> std::io::Result<u32> {
     Ok(child.id())
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> std::process::ExitCode {
     let args = Args::parse();
+    if let Some(Command::Content(command)) = args.command {
+        return run_content(command);
+    }
+    match serve(args) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("apexsim-server: {e}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
 
+#[tokio::main]
+async fn serve(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     // Load configuration first so logging settings can shape the subscriber
     let config = ServerConfig::load_or_default(&args.config);
     let _log_guard = init_tracing(&config, args.log_level.as_deref());
