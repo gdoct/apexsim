@@ -400,8 +400,17 @@ importer change.
     with one compound has no list and keeps the server's default five. The
     grip level, the wear, the window's place and its width (`window_scale`,
     the compound's plateau over the reference's, written only when it is
-    not 1: the 919's soft is 2) are per compound; its pressure and load
-    sensitivity are not;
+    not 1: the 919's soft is 2) are per compound, and so is how fast it
+    heats: `heat_scale` its thermal section's `FRICTION_K` over the
+    reference's, `rolling_heat_scale` its `ROLLING_K` over the reference's
+    (`read_heat_k`, the axles averaged; written only when not 1: the 919's
+    soft 1.153 / 1.118, its hard 0.847 / 0.882). AC's heat model is carried
+    only as that ratio between compounds: its absolute rates
+    (`SURFACE_TRANSFER`, `PATCH_TRANSFER`, `CORE_TRANSFER`, `COOL_FACTOR`,
+    `SURFACE_ROLLING_K`) are against AC's own tyre masses and are not
+    mapped, the reference compound heating as the class's shipped tyre
+    does, and `GRAIN_*` / `BLISTER_*` are not read. A compound's pressure
+    and load sensitivity are not per compound;
   - `[suspension] roll_centre_front_m` / `_rear_m` from the front view of the
     linkage (`roll_centre_m`): the upright's instant centre (the lower arm's
     line met by the upper arm's, or for a strut by the line at right angles

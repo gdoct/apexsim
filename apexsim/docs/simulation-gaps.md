@@ -93,7 +93,7 @@ at a set time yet.
 | Gap | Effort | Impact |
 |---|---|---|
 | An imported mod outside the importer's `KNOWN_SITES` table and without real `geotags` has no height or place (sea-level air, 50 N), and its north is AC's -z convention, which the fits show wrong for some mods (Interlagos 16°, Suzuka 40°, Bahrain 88° off). | Low | Low |
-| AC's own tyre heat model is not carried, only its temperature window (`ac_car_import/physics.py` `thermal_window`). | Med | Low |
+| AC's tyre heat model is carried only as each compound's heating against the reference's (`FRICTION_K`, `ROLLING_K` ratios): its absolute heat and cooling rates (`*_TRANSFER`, `COOL_FACTOR`) are against AC's own tyre masses and not mapped, and `GRAIN_*` / `BLISTER_*` are not read, so the reference compound heats as the class's shipped tyre. | Med | Low |
 | AC's dynamic aero controllers (`aero.ini` `DYNAMIC_CONTROLLER`) are not modelled, and a DRS flap is not split off an imported body (the importer warns). | Med | Low |
 | An AC car with two ERS motors (`[KINETIC]` and `[FRONT_MOTORS]` both driving, the 918, the TS040) imports with the stronger only: the sim has one motor per car. AC's delivery profiles (`ctrl_ers_*.ini`) give only the default profile's minimum speed; their throttle maps, speed caps, oversteer / slip cuts, gear masks and the choice between profiles are not carried. | Low | Med |
 | AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or porpoising, so an imported car has the defaults for them; a compound's own pressure and load sensitivity are not carried either (only its grip level, wear and window place and width). | Low | Low |

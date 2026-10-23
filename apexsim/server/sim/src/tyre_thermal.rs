@@ -257,6 +257,16 @@ pub struct Compound {
     /// (an AC import's own curve). 1.0 changes nothing.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub window_scale: f32,
+    /// Multiplier on the heat its slip puts into it (the gripping and the
+    /// sliding power's share that heats the tyre, tread and core): a
+    /// compound that heats up faster or slower than the car's tyre for the
+    /// same work (an AC import's own `FRICTION_K`). 1.0 changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub heat_scale: f32,
+    /// Multiplier on the heat its carcass's flexing puts into the core as
+    /// it rolls (an AC import's own `ROLLING_K`). 1.0 changes nothing.
+    #[serde(default = "one", skip_serializing_if = "is_one")]
+    pub rolling_heat_scale: f32,
 }
 
 fn one() -> f32 {
@@ -289,6 +299,8 @@ impl Compound {
             ice_grip: 1.0,
             bare_wear: 1.0,
             window_scale: 1.0,
+            heat_scale: 1.0,
+            rolling_heat_scale: 1.0,
         }
     }
 
@@ -969,7 +981,17 @@ pub fn step(
     let v = work.speed_mps.abs();
     let (gripping, sliding) = work.power_split_w(tire);
     let slide = gripping + sliding;
-    let rolling = tire.rolling_resistance.max(0.0) * work.load_n.max(0.0) * v * CARCASS_HEAT_SHARE;
+    let rolling = tire.rolling_resistance.max(0.0)
+        * work.load_n.max(0.0)
+        * v
+        * CARCASS_HEAT_SHARE
+        * compound.rolling_heat_scale;
+    // What of the slip's power heats this compound (the wear goes by the
+    // work itself, `slide`).
+    let (gripping, sliding) = (
+        gripping * compound.heat_scale,
+        sliding * compound.heat_scale,
+    );
 
     let air = surface.air_temperature_c;
     let road = surface.track_temperature_c;
@@ -1289,6 +1311,55 @@ mod tests {
             ..Default::default()
         };
         assert!(at_peak.power_split_w(&t).1.abs() < 1e-3);
+    }
+
+    #[test]
+    fn a_compound_s_heat_scales_heat_it_faster_and_one_changes_nothing() {
+        let t = tyre();
+        let m = medium();
+        let surface = TrackSurface::default();
+        let slide = TyreWork {
+            fy: 6_000.0,
+            slip_angle_rad: 0.25,
+            load_n: 5_000.0,
+            speed_mps: 40.0,
+            air_mps: 40.0,
+            ..Default::default()
+        };
+        let run = |c: &Compound| {
+            let mut data = at(60.0, 60.0);
+            for _ in 0..240 {
+                step(&mut data, &slide, &t, c, 180.0, &surface, 1.0 / 240.0);
+            }
+            data
+        };
+        let base = run(&m);
+        let same = run(&Compound {
+            heat_scale: 1.0,
+            rolling_heat_scale: 1.0,
+            ..m.clone()
+        });
+        assert_eq!(base.temperature_c.to_bits(), same.temperature_c.to_bits());
+        assert_eq!(
+            base.core_temperature_c.to_bits(),
+            same.core_temperature_c.to_bits()
+        );
+        assert_eq!(base.wear_percent.to_bits(), same.wear_percent.to_bits());
+        let hot = run(&Compound {
+            heat_scale: 1.5,
+            ..m.clone()
+        });
+        assert!(
+            hot.temperature_c > base.temperature_c + 2.0,
+            "{base:?} {hot:?}"
+        );
+        // The wear goes by the work, not the heat (both under the window).
+        assert_eq!(hot.wear_percent.to_bits(), base.wear_percent.to_bits());
+        let rolling = run(&Compound {
+            rolling_heat_scale: 2.0,
+            ..m.clone()
+        });
+        assert!(rolling.core_temperature_c > base.core_temperature_c);
     }
 
     #[test]

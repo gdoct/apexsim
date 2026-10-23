@@ -166,6 +166,24 @@ def read_thermal_window(car: CarData, compound: int) -> tuple[float, float, floa
     return thermal_window(curve) if curve is not None else None
 
 
+def read_heat_k(car: CarData, compound: int) -> tuple[float, float] | None:
+    """``(FRICTION_K, ROLLING_K)`` of ``compound``'s thermal sections, the
+    axles averaged: how much of its slip's work and of its rolling heats it.
+    ``None`` when tyres.ini has neither for it."""
+    t = car.ini("tyres.ini")
+    friction, rolling = [], []
+    for axle in ("FRONT", "REAR"):
+        section = t.get(f"THERMAL_{axle}" if compound == 0 else f"THERMAL_{axle}_{compound}", {})
+        f, r = number(section.get("FRICTION_K")), number(section.get("ROLLING_K"))
+        if f is not None and f > 0.0:
+            friction.append(f)
+        if r is not None and r > 0.0:
+            rolling.append(r)
+    if not friction or not rolling:
+        return None
+    return sum(friction) / len(friction), sum(rolling) / len(rolling)
+
+
 def speed_factor(t: Tyre) -> float:
     """AC's speed sensitivity at the reference speed, as a grip multiplier."""
     return max(1.0 - t.speed_sensitivity * REFERENCE_SPEED_MPS, 0.5)
@@ -359,6 +377,7 @@ GRIP_RANGE = (0.5, 1.5)
 WEAR_RANGE = (0.2, 5.0)
 SHIFT_RANGE_C = (-80.0, 80.0)
 WINDOW_SCALE_RANGE = (0.25, 4.0)  # tyre_thermal::Compound::window_scale, car_loader's range
+HEAT_SCALE_RANGE = (0.25, 4.0)  # tyre_thermal::Compound::heat_scale / rolling_heat_scale
 #: The share of peak grip a worn tyre has left when its life is counted over.
 WORN_GRIP_SHARE = 0.95
 #: The rain tyres an ApexSim car has by default (`tyre_thermal::default_compounds`),
@@ -417,6 +436,9 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
     - `window_shift_c`: its thermal window's middle less the reference's;
     - `window_scale`: its window's half-width over the reference's (the
       plateau of its own `PERFORMANCE_CURVE`), 1 when either has no curve;
+    - `heat_scale` / `rolling_heat_scale`: its thermal section's
+      `FRICTION_K` / `ROLLING_K` over the reference's (`read_heat_k`), 1
+      when either has none: a soft that heats faster for the same work;
     - `kind` from the name; a car with no wet or intermediate gets
       ApexSim's (AC has none), so the garage still has rain tyres.
 
@@ -428,6 +450,7 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
     ref_grip = mean_grip(ref_front, ref_rear)
     ref_window = read_thermal_window(car, reference)
     ref_life = tyre_life_km(car, reference)
+    ref_heat = read_heat_k(car, reference)
     rows = []
     for index, name in compounds:
         try:
@@ -441,6 +464,9 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
         shift = window[0] - ref_window[0] if window and ref_window else 0.0
         scale = window[1] / ref_window[1] if window and ref_window else 1.0
         wear = ref_life / life if life and ref_life else 1.0
+        heat = read_heat_k(car, index)
+        heat_scale, rolling_scale = (heat[0] / ref_heat[0], heat[1] / ref_heat[1]) \
+            if heat and ref_heat else (1.0, 1.0)
         rows.append({
             "index": index,
             "name": name,
@@ -449,6 +475,8 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
             "wear": round(min(max(wear, WEAR_RANGE[0]), WEAR_RANGE[1]), 2),
             "window_shift_c": round(min(max(shift, SHIFT_RANGE_C[0]), SHIFT_RANGE_C[1]), 1),
             "window_scale": round(min(max(scale, WINDOW_SCALE_RANGE[0]), WINDOW_SCALE_RANGE[1]), 2),
+            "heat_scale": round(min(max(heat_scale, HEAT_SCALE_RANGE[0]), HEAT_SCALE_RANGE[1]), 3),
+            "rolling_heat_scale": round(min(max(rolling_scale, HEAT_SCALE_RANGE[0]), HEAT_SCALE_RANGE[1]), 3),
             "reference": index == reference,
         })
     if len(rows) < 2:

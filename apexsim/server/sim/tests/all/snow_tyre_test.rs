@@ -92,6 +92,8 @@ fn a_snow_tyre_corners_harder_on_a_covered_road() {
         ice_grip: 1.0,
         bare_wear: 1.0,
         window_scale: 1.0,
+        heat_scale: 1.0,
+        rolling_heat_scale: 1.0,
     });
     let studs = list.len() as u8 - 1;
     studded.tire_config.compounds = list;

@@ -322,7 +322,9 @@ player's racing line is planned on warm tyres.
 `reference`, `snow_grip`, `ice_grip`, `bare_wear`, `window_scale` (1.0 each; `window_scale`
 multiplies `temperature_window_c` for that compound, `tyre_thermal::window_c`, wherever the
 window is read: grip, hot wear, blistering, the hysteresis fade and the AI's cold-tyre edge;
-0.25-4). `wear_rate` is a
+0.25-4), `heat_scale` and `rolling_heat_scale` (1.0 each, 0.25-4: `tyre_thermal::step`
+multiplies the slip power's heat, tread and core, by `heat_scale` and the carcass's rolling
+heat by `rolling_heat_scale`; the wear still goes by the slip's work). `wear_rate` is a
 
 `TireConfig` field, not a car.toml key. Shipped windows: F1 91 ± 13 °C on 70 °C blankets,
 Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, set where each class runs at AI race pace at

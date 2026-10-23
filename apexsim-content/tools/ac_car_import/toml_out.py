@@ -78,6 +78,9 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
             w(f"window_shift_c = {fmt(float(r['window_shift_c']))}")
             if r.get("window_scale", 1.0) != 1.0:
                 w(f"window_scale = {fmt(float(r['window_scale']))}")
+            for key, ac_key in (("heat_scale", "FRICTION_K"), ("rolling_heat_scale", "ROLLING_K")):
+                if r.get(key, 1.0) != 1.0:
+                    w(f"{key} = {fmt(float(r[key]))}   # tyres.ini THERMAL_* {ac_key} over the reference's")
             if r["reference"]:
                 w("reference = true   # the compound this import is calibrated on")
 

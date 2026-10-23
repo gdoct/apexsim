@@ -289,6 +289,13 @@ struct CompoundToml {
     /// 1.0 when absent.
     #[serde(default)]
     window_scale: Option<f32>,
+    /// Multipliers on the heat its slip and its rolling put into it
+    /// (`tyre_thermal::Compound::heat_scale` / `rolling_heat_scale`); 1.0
+    /// each when absent.
+    #[serde(default)]
+    heat_scale: Option<f32>,
+    #[serde(default)]
+    rolling_heat_scale: Option<f32>,
     /// Grip kept on a dry road, in light rain, in heavy rain.
     #[serde(default)]
     water_grip: Option<[f32; 3]>,
@@ -1091,6 +1098,8 @@ impl CarLoader {
                             ice_grip: c.ice_grip.unwrap_or(1.0),
                             bare_wear: c.bare_wear.unwrap_or(1.0),
                             window_scale: c.window_scale.unwrap_or(1.0),
+                            heat_scale: c.heat_scale.unwrap_or(1.0),
+                            rolling_heat_scale: c.rolling_heat_scale.unwrap_or(1.0),
                         }
                     })
                     .collect(),
@@ -1477,6 +1486,18 @@ impl CarLoader {
             in_range(
                 &format!("tires.compound.{}.window_scale", c.name),
                 c.window_scale,
+                0.25,
+                4.0,
+            );
+            in_range(
+                &format!("tires.compound.{}.heat_scale", c.name),
+                c.heat_scale,
+                0.25,
+                4.0,
+            );
+            in_range(
+                &format!("tires.compound.{}.rolling_heat_scale", c.name),
+                c.rolling_heat_scale,
                 0.25,
                 4.0,
             );

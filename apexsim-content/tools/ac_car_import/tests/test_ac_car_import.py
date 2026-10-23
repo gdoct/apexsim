@@ -1037,6 +1037,23 @@ PERFORMANCE_CURVE=t_hard.lut
         medium = next(r for r in rows if r["name"] == "Slick Medium")
         self.assertEqual((soft["window_scale"], medium["window_scale"]), (2.0, 1.0))
 
+    def test_a_compound_s_own_heating_is_carried_against_the_reference(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        # No FRICTION_K / ROLLING_K: 1, and the TOML leaves the keys out.
+        self.assertEqual([r.get("heat_scale", 1.0) for r in rows], [1.0] * 5)
+        heat = {"t_soft.lut": "FRICTION_K=0.06\nROLLING_K=0.18\n",
+                "t_medium.lut": "FRICTION_K=0.05\nROLLING_K=0.15\n",
+                "t_hard.lut": "FRICTION_K=0.04\nROLLING_K=0.15\n"}
+        tyres = self.TYRES
+        for curve, keys in heat.items():
+            tyres = tyres.replace(f"PERFORMANCE_CURVE={curve}\n", f"PERFORMANCE_CURVE={curve}\n{keys}")
+        rows = physics.map_compounds(self.car(tyres), 1, [])
+        by = {r["name"]: r for r in rows}
+        self.assertEqual((by["Slick Soft"]["heat_scale"], by["Slick Soft"]["rolling_heat_scale"]), (1.2, 1.2))
+        self.assertEqual((by["Slick Medium"]["heat_scale"], by["Slick Medium"]["rolling_heat_scale"]), (1.0, 1.0))
+        self.assertEqual((by["Slick Hard"]["heat_scale"], by["Slick Hard"]["rolling_heat_scale"]), (0.8, 1.0))
+        self.assertNotIn("heat_scale", by["wet"])
+
     def test_a_car_with_slicks_alone_is_given_the_rain_tyres_apexsim_has(self):
         rows = physics.map_compounds(self.car(), 1, [])
         self.assertEqual([r["kind"] for r in rows], ["slick", "slick", "slick", "intermediate", "wet"])
