@@ -182,7 +182,6 @@ Saturday, race Sunday, same drivers, results kept.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - A qualifying HUD (not race standings).
-- Setups and tyre sets carried between sessions (parc fermé).
 - Assists per weekend phase — bundle with B2.
 - Boxes dealt by team (`pit::deal_box`).
 - Driver swaps / fixed stint lengths.

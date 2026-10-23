@@ -1,12 +1,15 @@
 //! The rules that count a car's tyre sets (`RaceRules`,
 //! `apexsim_server::tyre_sets`), driven through `GameSession` at the
 //! Norisring: the qualifying tyre allowance sends a car out on a used set
-//! once its new ones are spent, and the front of the qualifying
-//! classification starts the race on the set that placed it.
+//! once its new ones are spent, the front of the qualifying classification
+//! starts the race on the set that placed it, and a weekend's allocation
+//! carries its sets from practice into qualifying; and parc fermé holds a
+//! car's setup from its first qualifying run to the race.
 
 use std::collections::HashMap;
 
 use apexsim_server::ai_driver::AiDriverProfile;
+use apexsim_server::car_setup::CarSetup;
 use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::track_loader::TrackLoader;
@@ -209,4 +212,114 @@ fn without_the_rule_the_race_starts_on_new_tyres() {
         gs.session.participants[&ai_ids[0]].pit.stint_start_laps,
         0.0
     );
+}
+
+#[test]
+fn a_weekends_allocation_carries_its_sets_from_practice_into_qualifying() {
+    let rules = RaceRules {
+        weekend_tyre_sets: 2,
+        ..Default::default()
+    };
+    let (mut gs, host, _) = session(0, rules);
+    gs.set_weekend(Some(apexsim_server::weekend::WeekendFormat {
+        practice_seconds: 600,
+        qualifying_seconds: vec![600, 600],
+        ..Default::default()
+    }));
+    gs.advance_weekend().expect("practice");
+    assert_eq!(gs.session.game_mode, GameMode::Practice);
+    // Practice takes both new sets.
+    for worn in [25.0, 10.0] {
+        gs.hotlap_relocate(&host, HotlapDestination::Track, false)
+            .unwrap();
+        assert_eq!(wear(&gs, &host), [0.0; 4], "a new set");
+        wear_to(&mut gs, &host, worn);
+        gs.hotlap_relocate(&host, HotlapDestination::Garage, false)
+            .unwrap();
+    }
+    gs.session.state = SessionState::Finished;
+    gs.advance_weekend().expect("Q1");
+    assert_eq!(gs.session.game_mode, GameMode::Qualification);
+    // Q1 goes out on what practice left: the least worn set.
+    gs.hotlap_relocate(&host, HotlapDestination::Track, false)
+        .unwrap();
+    assert_eq!(wear(&gs, &host), [10.0; 4], "practice's set carried");
+    wear_to(&mut gs, &host, 18.0);
+    gs.hotlap_relocate(&host, HotlapDestination::Garage, false)
+        .unwrap();
+    gs.session.state = SessionState::Finished;
+    gs.advance_weekend().expect("Q2");
+    gs.hotlap_relocate(&host, HotlapDestination::Track, false)
+        .unwrap();
+    assert_eq!(wear(&gs, &host), [18.0; 4], "Q1's set carried into Q2");
+}
+
+#[test]
+fn parc_ferme_holds_the_setup_from_the_first_qualifying_run_to_the_race() {
+    let rules = RaceRules {
+        parc_ferme: true,
+        ..Default::default()
+    };
+    let (mut gs, host, _) = session(0, rules);
+    gs.set_game_mode(GameMode::Qualification);
+    let tuned = CarSetup {
+        spring_front: 2,
+        rear_wing: 1,
+        brake_bias: 1,
+        ..Default::default()
+    };
+    // In the garage before the first run the setup is free.
+    assert_eq!(gs.set_car_setup(&host, tuned), Some(tuned));
+    gs.hotlap_relocate(&host, HotlapDestination::Track, false)
+        .unwrap();
+
+    let asked = CarSetup {
+        spring_front: -3,
+        rear_wing: -2,
+        brake_bias: -2,
+        fuel_load: 1,
+        ..Default::default()
+    };
+    let held = CarSetup {
+        spring_front: 2,
+        rear_wing: 1,
+        brake_bias: -2,
+        fuel_load: 1,
+        ..Default::default()
+    };
+    assert_eq!(
+        gs.set_car_setup(&host, asked),
+        Some(held),
+        "springs and wing held, the brake bias and the fuel the driver's"
+    );
+    gs.hotlap_relocate(&host, HotlapDestination::Garage, false)
+        .unwrap();
+    assert_eq!(
+        gs.set_car_setup(&host, asked),
+        Some(held),
+        "in the garage too"
+    );
+
+    // Through the race's grid and the race.
+    gs.open_grid(10);
+    assert_eq!(gs.set_car_setup(&host, asked), Some(held), "on the grid");
+    gs.set_game_mode(GameMode::Race);
+    assert_eq!(gs.set_car_setup(&host, asked), Some(held), "in the race");
+
+    // Practice after it releases the car.
+    gs.set_game_mode(GameMode::FreePractice);
+    assert_eq!(gs.set_car_setup(&host, asked), Some(asked));
+}
+
+#[test]
+fn without_parc_ferme_the_setup_is_free_in_qualifying() {
+    let (mut gs, host, _) = session(0, RaceRules::default());
+    gs.set_game_mode(GameMode::Qualification);
+    gs.hotlap_relocate(&host, HotlapDestination::Track, false)
+        .unwrap();
+    let asked = CarSetup {
+        spring_front: -3,
+        ..Default::default()
+    };
+    assert_eq!(gs.set_car_setup(&host, asked), Some(asked));
 }

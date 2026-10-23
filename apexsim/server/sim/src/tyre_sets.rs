@@ -1,6 +1,6 @@
 //! A car's sets of tyres across a session's runs, for the rules that count
-//! them (`data::RaceRules`): the qualifying tyre allowance and starting the
-//! race on the set a car qualified on.
+//! them (`data::RaceRules`): the qualifying tyre allowance, a weekend's
+//! tyre allocation and starting the race on the set a car qualified on.
 //!
 //! Without those rules every run goes out on a new set, as it always has,
 //! and nothing here is kept.
@@ -66,6 +66,8 @@ pub struct CarTyres {
     pub kept: Vec<TyreSet>,
     /// New slick sets taken in this qualifying (every round of a weekend's).
     pub new_in_qualifying: u8,
+    /// New slick sets taken in a weekend's practice and qualifying.
+    pub new_in_weekend: u8,
     /// The laps the set on the car had run before it went on this run.
     pub on_car_laps: f32,
     /// The set on the car as it ended its last timed lap.

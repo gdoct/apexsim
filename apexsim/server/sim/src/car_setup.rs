@@ -445,6 +445,27 @@ impl CarSetup {
         Self::from_clicks(clicks)
     }
 
+    /// `self` (a setup asked for) under parc fermé, the car held at
+    /// `frozen`: the driver keeps what a real one may change there (the
+    /// cockpit's brake bias, engine braking, torque map and hybrid modes,
+    /// the tyre pressures and compound, the fuel and the front wing);
+    /// every other knob stays as frozen.
+    pub fn under_parc_ferme(self, frozen: CarSetup) -> CarSetup {
+        CarSetup {
+            tyre_pressure_front: self.tyre_pressure_front,
+            tyre_pressure_rear: self.tyre_pressure_rear,
+            engine_braking: self.engine_braking,
+            torque_map: self.torque_map,
+            brake_bias: self.brake_bias,
+            fuel_load: self.fuel_load,
+            front_wing: self.front_wing,
+            tyre_compound: self.tyre_compound,
+            ers_start_mode: self.ers_start_mode,
+            ers_deploy_map: self.ers_deploy_map,
+            ..frozen
+        }
+    }
+
     /// True when every knob is at the file's value.
     pub fn is_stock(&self) -> bool {
         self.clicks().iter().all(|&c| c == 0)

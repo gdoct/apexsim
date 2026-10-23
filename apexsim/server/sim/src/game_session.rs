@@ -576,6 +576,9 @@ pub struct GameSession {
     /// (`crate::tyre_sets`; `RaceRules::qualifying_tyre_sets`,
     /// `qualifying_tyre_start`). Empty without them.
     tyre_sets: std::collections::BTreeMap<PlayerId, crate::tyre_sets::CarTyres>,
+    /// Under parc fermé (`RaceRules::parc_ferme`), the setup each car is
+    /// held at: taken as it first goes out in qualifying, kept to the race.
+    parc_ferme: std::collections::BTreeMap<PlayerId, CarSetup>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -1068,15 +1071,16 @@ fn fit_tyres_as(
         .start_mode();
 }
 
-/// The set a qualifying car goes out on under the tyre allowance
-/// (`RaceRules::qualifying_tyre_sets`): `fresh` has a new set of the
-/// setup's compound on; while new slick sets are left that one is taken and
-/// counted, past them the least worn used set goes back on in its place
+/// The set a car goes out on under the rules that count sets
+/// (`GameSession::set_limits`: the qualifying allowance, a weekend's
+/// allocation): `fresh` has a new set of the setup's compound on; while
+/// every limit leaves a new slick set that one is taken and counted, past
+/// one the least worn used set goes back on in its place
 /// (`tyre_sets::CarTyres::take_used`). A treaded tyre is always new.
-fn take_qualifying_set(
+fn take_counted_set(
     fresh: &mut CarState,
     car: &mut crate::tyre_sets::CarTyres,
-    allowance: u8,
+    (qualifying, weekend): (Option<u8>, Option<u8>),
     car_configs: &HashMap<CarConfigId, CarConfig>,
     tuned_configs: &HashMap<PlayerId, CarConfig>,
     track: &TrackConfig,
@@ -1089,8 +1093,15 @@ fn take_qualifying_set(
     if !crate::tyre_sets::counted(&config.tire_config, fresh.tyre_compound) {
         return;
     }
-    if car.new_in_qualifying < allowance {
-        car.new_in_qualifying += 1;
+    let new_left = qualifying.is_none_or(|n| car.new_in_qualifying < n)
+        && weekend.is_none_or(|n| car.new_in_weekend < n);
+    if new_left {
+        if qualifying.is_some() {
+            car.new_in_qualifying += 1;
+        }
+        if weekend.is_some() {
+            car.new_in_weekend += 1;
+        }
         return;
     }
     // Nothing kept (no run yet): the new set it has on, uncounted.
@@ -1138,6 +1149,7 @@ impl GameSession {
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
             tyre_sets: Default::default(),
+            parc_ferme: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -1227,6 +1239,7 @@ impl GameSession {
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
             tyre_sets: Default::default(),
+            parc_ferme: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -3367,6 +3380,14 @@ impl GameSession {
                 state.warm_up = false;
             }
         }
+        // Parc fermé holds from qualifying through the race's grid and
+        // countdown to its end; any other session releases it.
+        if !matches!(
+            mode,
+            GameMode::Qualification | GameMode::Countdown | GameMode::Grid | GameMode::Race
+        ) {
+            self.parc_ferme.clear();
+        }
         // A shoot-out and the lap allowance's count belong to the
         // qualifying they were run in.
         self.shootout = None;
@@ -3540,11 +3561,22 @@ impl GameSession {
                 }
                 // A fresh qualifying (a weekend's Q1) starts every car on
                 // its allowance afresh; a weekend's later rounds go on
-                // counting, on the sets the rounds before left.
-                if mode == GameMode::Qualification
-                    && (!self.is_weekend() || self.weekend.round <= 1)
-                {
+                // counting, on the sets the rounds before left. A weekend's
+                // sets carry from its practice into qualifying; its practice
+                // starts them.
+                let fresh_qualifying = mode == GameMode::Qualification
+                    && (!self.is_weekend() || self.weekend.round <= 1);
+                if (fresh_qualifying && !self.is_weekend()) || mode == GameMode::Practice {
                     self.tyre_sets.clear();
+                } else if fresh_qualifying {
+                    for car in self.tyre_sets.values_mut() {
+                        car.new_in_qualifying = 0;
+                        car.qualifying = None;
+                    }
+                }
+                // Parc fermé begins afresh with a fresh qualifying.
+                if fresh_qualifying {
+                    self.parc_ferme.clear();
                 }
                 if self.hotlap_watch.active {
                     self.send_hotlap_watch_out();
@@ -3965,7 +3997,17 @@ impl GameSession {
         // run or for this one.
         let car_id = state.car_config_id;
         let fuel = self.start_fuel_liters(player_id, car_id, mode);
-        let counts_sets = self.counts_qualifying_sets();
+        let limits = self.set_limits();
+        let counts_sets = limits != (None, None);
+        // Parc fermé closes on a car as it first goes out in qualifying.
+        if destination == HotlapDestination::Track
+            && mode == GameMode::Qualification
+            && self.session.race_rules.parc_ferme
+            && !self.parc_ferme.contains_key(player_id)
+        {
+            self.parc_ferme
+                .insert(*player_id, self.car_setup(player_id));
+        }
         let total_m = crate::laps::track_length_m(&self.track_config);
         let state = self
             .session
@@ -4028,10 +4070,10 @@ impl GameSession {
             &self.car_setups,
         );
         if counts_sets && !in_garage {
-            take_qualifying_set(
+            take_counted_set(
                 &mut fresh,
                 self.tyre_sets.entry(*player_id).or_default(),
-                self.session.race_rules.qualifying_tyre_sets,
+                limits,
                 &self.car_configs,
                 &self.tuned_configs,
                 &self.track_config,
@@ -4490,7 +4532,11 @@ impl GameSession {
     /// before the start (in the lobby or the countdown). Anywhere else it
     /// waits for the next time the car is put out.
     pub fn set_car_setup(&mut self, player_id: &PlayerId, asked: CarSetup) -> Option<CarSetup> {
-        let applied = asked.clamp();
+        let mut applied = asked.clamp();
+        // Under parc fermé the car is held at its setup from qualifying.
+        if let Some(frozen) = self.parc_ferme.get(player_id) {
+            applied = applied.under_parc_ferme(*frozen);
+        }
         let car = self.session.participants.get(player_id)?;
         let car_id = car.car_config_id;
         let refuel = car.in_garage
@@ -5157,11 +5203,20 @@ impl GameSession {
         self.park_non_qualifiers();
     }
 
-    /// Whether this session counts qualifying's tyre sets now
-    /// (`RaceRules::qualifying_tyre_sets`).
-    fn counts_qualifying_sets(&self) -> bool {
-        self.session.game_mode == GameMode::Qualification
-            && self.session.race_rules.qualifying_tyre_sets > 0
+    /// The limits on new tyre sets that hold now: the qualifying allowance
+    /// in qualifying (`RaceRules::qualifying_tyre_sets`), a weekend's
+    /// allocation in its practice and qualifying
+    /// (`RaceRules::weekend_tyre_sets`). `(None, None)`: every run is new.
+    fn set_limits(&self) -> (Option<u8>, Option<u8>) {
+        let rules = &self.session.race_rules;
+        let mode = self.session.game_mode;
+        let qualifying = (mode == GameMode::Qualification && rules.qualifying_tyre_sets > 0)
+            .then_some(rules.qualifying_tyre_sets);
+        let weekend = (self.is_weekend()
+            && matches!(mode, GameMode::Practice | GameMode::Qualification)
+            && rules.weekend_tyre_sets > 0)
+            .then_some(rules.weekend_tyre_sets);
+        (qualifying, weekend)
     }
 
     /// The front of the qualifying classification starts the race on the

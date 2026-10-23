@@ -305,8 +305,11 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
   start in reverse (see "Starting order and qualifying");
 - `qualifying_tyre_sets` (`u8`, 0 none): the qualifying tyre allowance,
   and `qualifying_tyre_start` (`u8`, 0 off, 255 every car with a time): the
-  front of qualifying starts the race on the set that placed it (see
-  "Tyre sets").
+  front of qualifying starts the race on the set that placed it, and
+  `weekend_tyre_sets` (`u8`, 0 none): a weekend's tyre allocation (see
+  "Tyre sets");
+- `parc_ferme` (`bool`): a car's setup is held from its first qualifying
+  run to the end of the race (see "Parc fermé").
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
@@ -361,6 +364,34 @@ each car's sets on the session (`GameSession::tyre_sets`,
   set below zero), so the AI's tyre-wear rate (`pit::tyres_reach_flag`)
   reads the set's whole life. Waived when the race starts wet (the
   weather's tyre for a stock pick is a treaded one).
+- **A weekend's allocation** (`weekend_tyre_sets` N): in a weekend's
+  practice and qualifying together a car may take N new slick sets
+  (`CarTyres::new_in_weekend`; `GameSession::set_limits` gives the limits
+  that hold now, and a new set must be left under each). The sets carry:
+  practice starts the count, Q1 goes on with the sets practice left (only
+  the qualifying allowance's own count starts again), and past the
+  allocation a car goes out on its least worn kept set as above. The
+  race's stops always fit new sets: its sets are not counted.
+
+A car's setup carries through a weekend as it is: one session, one
+`car_setups` entry per driver, whatever phase it is sent in.
+
+## Parc fermé
+
+`race_rules.parc_ferme`: a car's setup is held from the moment it first
+goes out in qualifying (`relocate` to `Track` in `Qualification`, which
+keeps the setup it has then in `GameSession::parc_ferme`) to the end of
+the race. Every `SetCarSetup` after that is applied as
+`CarSetup::under_parc_ferme`: the driver keeps what a real one may still
+change there (brake bias, engine braking, torque map, the hybrid's start
+mode and deploy map, the tyre pressures and compound, the fuel load and
+the front wing) and every other knob stays as held. A car that never went
+out in qualifying (knocked out before it ran, a late entry) is not held. A
+fresh qualifying (a plain session entering `Qualification` again, a
+weekend's Q1) starts it over; any mode but `Qualification`, `Countdown`,
+`Grid` and `Race` releases it. The AI runs stock setups, so it is never
+touched. The applied setup is not sent back (`SetCarSetup` has no reply):
+the client's garage does not yet show which knobs are held.
 
 ## The race's grid
 

@@ -3888,6 +3888,17 @@ pub struct RaceRules {
     /// every car with a time). Waived when the race starts wet. 0 is off.
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub qualifying_tyre_start: u8,
+    /// Parc fermé: from a car's first run in qualifying to the end of the
+    /// race its setup is held, all but the knobs a driver may still touch
+    /// (`CarSetup::under_parc_ferme`).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub parc_ferme: bool,
+    /// A weekend's tyre allocation: the new slick sets a car may take in its
+    /// practice and qualifying together; the sets carry from one phase to
+    /// the next, and past it a car goes out on its least worn used set.
+    /// The race's stops fit new sets. 0 is none.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub weekend_tyre_sets: u8,
 }
 
 fn is_zero_u8(v: &u8) -> bool {

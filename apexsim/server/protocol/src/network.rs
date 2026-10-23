@@ -5852,11 +5852,20 @@ mod tests {
         let rules = RaceRules {
             qualifying_tyre_sets: 3,
             qualifying_tyre_start: 10,
+            parc_ferme: true,
+            weekend_tyre_sets: 8,
             ..Default::default()
         };
         let bytes = rmp_serde::to_vec_named(&rules).unwrap();
         let text = String::from_utf8_lossy(&bytes);
-        assert!(text.contains("qualifying_tyre_sets") && text.contains("qualifying_tyre_start"));
+        for key in [
+            "qualifying_tyre_sets",
+            "qualifying_tyre_start",
+            "parc_ferme",
+            "weekend_tyre_sets",
+        ] {
+            assert!(text.contains(key), "{key} on the wire");
+        }
         assert_eq!(rmp_serde::from_slice::<RaceRules>(&bytes).unwrap(), rules);
         let one = rmp_serde::to_vec_named(&RaceRules {
             qualifying_tyre_sets: 1,
