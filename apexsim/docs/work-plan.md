@@ -353,7 +353,7 @@ the hotlap record (the server's ghost traces are 20 Hz positions only).
 #### N7. Championships and series with points — P2 · 🟡 · M
 **Built 2026-10-23:** the offline season against the AI (calendar, class
 and car, points preset, drop rounds, drivers' and cars' standings, saved in
-the profile; `n7-season` shots wait for a person).
+the profile; its screens judged good from the `n7-season` shots).
 **Left:** league seasons online, on R3's persistence (phase 2) and the
 proved driver ids (phase 1, built); a fastest-lap point; per-round rules.
 N17's ballast by championship position can now read the offline standings.

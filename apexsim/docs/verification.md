@@ -319,13 +319,11 @@ in the `flags` component and the radar's RIGHT marker at the start.
 `n15-profiles` (the Profile screen: the first driver given picture 3, a
 second driver made, back to the first) then `n15-who-drives` (the launch
 asking "Who is driving?" with two profiles). Both write the save games:
-back up `Saved/SaveGames` first and put it back after. Shot 2026-10-23
-(the layout was fixed from the first shots); a person judges:
+back up `Saved/SaveGames` first and put it back after. The Profile screen
+and the launch picker were judged good from the shots on 2026-10-23. Left:
 
-- The Profile screen: the list, the picture grid with the picked one
-  outlined, the name field, the stats row and the personal bests.
-- The launch picker, and that pad and keys reach every control
-  (`ApexSim.UI.PadWalk` does not walk this screen yet).
+- Pad and keys reach every control (`ApexSim.UI.PadWalk` lists the screen
+  but has not walked it yet).
 - Stats after an offline race and a hotlap, and two profiles joining one
   server, each under its own id (the leaderboard lights each one's laps).
   The runs' servers bound both profiles' keys (their `records/drivers.json`)
@@ -336,9 +334,9 @@ back up `Saved/SaveGames` first and put it back after. Shot 2026-10-23
 `n7-season` (a three-round season of two-lap races, the stand-in driving,
 round 1 at Zandervoort) then `n7-season-standings` (the Season screen on
 the profile it wrote). Both write the save games: back them up first. Shot
-2026-10-23: round 1 raced and filed, the standings right. A person judges:
+2026-10-23: round 1 raced and filed, the standings right; the setup and
+season cards judged good from the shots the same day. Left:
 
-- The setup card and the season card (calendar, drivers', cars').
 - A whole season by hand: three rounds, a DNF, End season and the
   summary on the next season's setup.
 
