@@ -142,9 +142,6 @@ The race-start rules and penalties ([server/sessions.md](server/sessions.md#race
 are on the wire and run on the server, and the create screen offers them;
 the client does not show all of them yet, and the server leaves a few edges.
 
-- client: the safety car is a car of its own (the Murcetes-AMD GT3's body,
-  amber roof lamps); it drives through a lapped car passing it (it is no
-  body on the server), so the pass is seen as an overlap.
 - The AI lifts only for a confirmed yellow (`INCIDENT_CONFIRM_S`, 1.5 s),
   not for trouble it could see sooner. When the confirmation came in, the
   survey's off-road time rose 485 -> 654 car-seconds; on 2026-10-23 at

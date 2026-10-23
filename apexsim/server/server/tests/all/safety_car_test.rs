@@ -14,7 +14,7 @@ use apexsim_server::data::*;
 use apexsim_server::game_session::GameSession;
 use apexsim_server::race_control::{Course, VSC_SPEED_MPS};
 use apexsim_server::race_start::RacePhase;
-use apexsim_server::safety_car::{ScStage, SC_GAP_M, SC_QUEUED_M};
+use apexsim_server::safety_car::{ScStage, SC_GAP_M, SC_LENGTH_M, SC_QUEUED_M, SC_WIDTH_M};
 use apexsim_server::session_wire::SessionWire;
 use apexsim_server::track_loader::TrackLoader;
 
@@ -201,6 +201,8 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
     let mut opened_seen = false;
     let mut formed_seen = false;
     let mut lapped_passed_sc = false;
+    // Ticks the lapped car spent inside the safety car's body.
+    let mut overlap_ticks = 0u32;
     let mut in_this_lap_at = None;
     let mut green_at = None;
     let mut worst_queue_gap = 0.0f32;
@@ -252,6 +254,12 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
             // The lapped car goes past the safety car.
             if sc.stage == ScStage::OnTrack {
                 let s = &race.session.participants[&lapped];
+                let (dx, dy) = (s.pos_x - sc.pose.x, s.pos_y - sc.pose.y);
+                let (cos, sin) = (sc.pose.yaw_rad.cos(), sc.pose.yaw_rad.sin());
+                let (along, side) = (dx * cos + dy * sin, -dx * sin + dy * cos);
+                if along.abs() < SC_LENGTH_M && side.abs() < SC_WIDTH_M {
+                    overlap_ticks += 1;
+                }
                 let behind = (sc.progress_m - s.track_progress).rem_euclid(total);
                 if let Some(was) = last_behind {
                     if was < 60.0 && behind > total - 60.0 {
@@ -311,6 +319,10 @@ fn a_stranded_car_brings_out_the_safety_car_on_the_road() {
     assert!(closed_seen && opened_seen, "the lane closed, then opened");
     assert!(formed_seen, "the queue formed");
     assert!(lapped_passed_sc, "the lapped car was let by");
+    assert_eq!(
+        overlap_ticks, 0,
+        "ticks the lapped car spent inside the safety car's body"
+    );
     assert!(in_this_lap_at.is_some(), "in this lap");
     assert!(green_at.is_some(), "and green again");
     assert!(

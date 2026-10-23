@@ -5121,6 +5121,45 @@ impl GameSession {
     /// whether it passes, defends or lets a car by. Decided from one
     /// snapshot of the field, so no driver's answer depends on whose was
     /// worked out first.
+    /// The safety car on the road as a car in the AI's traffic: a body at
+    /// its pose, at its speed, at its place on the lap. `None` while it
+    /// waits at the pit exit or is in the lane.
+    fn safety_car_body(&self) -> Option<CarState> {
+        let sc = self
+            .race_control
+            .safety_car
+            .as_ref()
+            .filter(|sc| sc.stage == crate::safety_car::ScStage::OnTrack)?;
+        let centerline = &self.track_config.centerline;
+        if centerline.is_empty() {
+            return None;
+        }
+        let pose = sc.pose;
+        let mut body = CarState::new(
+            crate::safety_car::SC_BODY_ID,
+            uuid::Uuid::nil(),
+            &GridSlot {
+                position: 0,
+                x: pose.x,
+                y: pose.y,
+                z: pose.z,
+                yaw_rad: pose.yaw_rad,
+            },
+        );
+        body.speed_mps = pose.speed_mps;
+        body.vel_x = pose.speed_mps * pose.yaw_rad.cos();
+        body.vel_y = pose.speed_mps * pose.yaw_rad.sin();
+        body.track_progress = sc.progress_m;
+        let idx = centerline
+            .partition_point(|p| p.distance_from_start_m <= sc.progress_m)
+            .saturating_sub(1);
+        let (_, right) = physics::centerline_at(centerline, idx, pose.x, pose.y);
+        body.nearest_centerline_idx = Some(idx as u32);
+        body.lateral_offset_m = right;
+        body.is_on_track = true;
+        Some(body)
+    }
+
     fn update_racecraft(&mut self) {
         let total = crate::laps::track_length_m(&self.track_config);
         if total <= 0.0 || self.session.ai_player_ids.is_empty() {
@@ -5132,6 +5171,18 @@ impl GameSession {
             race: self.session.game_mode == GameMode::Race,
             dt: self.dt(),
         };
+        // The safety car on the road is a car to go round (a car let by
+        // passes it), never one on anybody's lap: nobody yields to it or
+        // defends against it.
+        let safety_car = self.safety_car_body().map(|body| crate::racecraft::Rival {
+            race_m: f32::MIN,
+            ..crate::racecraft::Rival::of(
+                &body,
+                crate::safety_car::SC_LENGTH_M + crate::safety_car::SC_ROOM_M,
+                crate::safety_car::SC_WIDTH_M + crate::safety_car::SC_SIDE_ROOM_M,
+                total,
+            )
+        });
         let field: Vec<crate::racecraft::Rival> = self
             .session
             .participants
@@ -5143,6 +5194,7 @@ impl GameSession {
                     ..crate::racecraft::Rival::of(state, config.length_m, config.width_m, total)
                 })
             })
+            .chain(safety_car)
             .collect();
         let decided: Vec<(PlayerId, crate::racecraft::Racecraft)> = field
             .iter()
@@ -6530,6 +6582,7 @@ impl GameSession {
             .with_short_shift(fuel_save.short_shift);
         // BTreeMap order: the traffic list, and so the input, is
         // deterministic.
+        let safety_car = self.safety_car_body();
         let traffic: Vec<TrafficCar> = self
             .session
             .participants
@@ -6543,6 +6596,11 @@ impl GameSession {
                     width_m: config.width_m,
                 })
             })
+            .chain(safety_car.as_ref().map(|body| TrafficCar {
+                state: body,
+                length_m: crate::safety_car::SC_LENGTH_M + crate::safety_car::SC_ROOM_M,
+                width_m: crate::safety_car::SC_WIDTH_M + crate::safety_car::SC_SIDE_ROOM_M,
+            }))
             .collect();
         let mut input = controller.generate_input_in_traffic(
             state,

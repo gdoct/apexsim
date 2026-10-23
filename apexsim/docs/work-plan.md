@@ -43,7 +43,7 @@ takes it up (— : no step, taken opportunistically).
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 6 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 6 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 6 |
-| R8 | Race control's edges: safety-car overlap, formation warmth (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S each | 2 |
+| R8 | Race control's edges: formation warmth (follow-ups #20) | Race rules | P3 | 🟢/🟡 | S | 2 |
 | N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 4 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | N6 | Lap comparison against the ghost (any two laps, MoTeC export built) | Driver tools | P3 | 🟢 | S | — |
@@ -165,9 +165,8 @@ Saturday, race Sunday, same drivers, results kept.
 **Watch out:** keep the sim path free of persistence reads.
 
 #### R8. Race control's edges — P3 · 🟢/🟡 · S each
-*Source: follow-ups #20* (A6 is its own item). The safety car drives
-through a lapped car passing it; the formation lap puts no warmth in
-(`FORMATION_LAP_WARMTH`).
+*Source: follow-ups #20* (A6 is its own item). The formation lap puts no
+warmth in (`FORMATION_LAP_WARMTH`).
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Qualifying tyre allowance and starting on the qualifying tyres.

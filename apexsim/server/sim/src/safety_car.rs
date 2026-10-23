@@ -32,7 +32,7 @@
 //! with no chance and no clock, so a seeded race runs the same every time.
 
 use crate::data::{CarConfig, TrackConfig};
-use crate::race_start::follow_cap_mps;
+use crate::race_start::{follow_cap_mps, station_cap_mps};
 
 /// The safety car's pace on a straight, m/s (162 km/h).
 pub const SC_SPEED_MPS: f32 = 45.0;
@@ -65,6 +65,21 @@ pub const SC_PASS_WINDOW_M: f32 = 60.0;
 /// A car ahead slower than this is no pace for the queue behind it (stopped
 /// or crawling: the cars behind go round it), m/s.
 pub const SC_PACE_SETTER_MPS: f32 = 3.0;
+/// Its body, m: the Murcetes-AMD GT3's, which the client draws. The AI
+/// sees it as a car in its traffic, so a car let by goes round it.
+pub const SC_LENGTH_M: f32 = 4.7;
+pub const SC_WIDTH_M: f32 = 2.0;
+/// The room the AI gives it beyond its body, m along and across: a car
+/// let by does not cut back across its nose a hand's breadth ahead.
+pub const SC_ROOM_M: f32 = 2.0;
+pub const SC_SIDE_ROOM_M: f32 = 0.5;
+/// A car this close ahead of it on the lap, m, it keeps station on (a car
+/// let by, a backmarker it joined behind) at its body and room behind it,
+/// dropping back from one alongside, rather than drive through it.
+pub const SC_FOLLOW_WINDOW_M: f32 = 60.0;
+/// The id its body goes by in the AI's traffic: no participant's.
+pub const SC_BODY_ID: crate::data::PlayerId =
+    uuid::Uuid::from_u128(0x5afe_ca12_0000_0000_0000_0000_0000_0001);
 
 /// Where the safety car is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -481,7 +496,21 @@ impl SafetyCar {
                 }
             }
             ScStage::OnTrack => {
-                let target = self.line.pace_at(self.along_m);
+                let mut target = self.line.pace_at(self.along_m);
+                let ahead = cars
+                    .iter()
+                    .filter(|c| c.running)
+                    .map(|c| {
+                        (
+                            (c.progress_m - self.progress_m).rem_euclid(total),
+                            c.speed_mps,
+                        )
+                    })
+                    .filter(|(gap, _)| *gap < SC_FOLLOW_WINDOW_M)
+                    .min_by(|a, b| a.0.total_cmp(&b.0));
+                if let Some((gap, speed)) = ahead {
+                    target = target.min(station_cap_mps(speed, gap, SC_LENGTH_M + SC_ROOM_M));
+                }
                 self.speed_mps = (self.speed_mps + SC_ACCEL_MPS2 * dt).min(target);
                 let before = self.progress_m;
                 self.along_m = (self.along_m + self.speed_mps * dt).rem_euclid(self.line.length_m);

@@ -599,6 +599,16 @@ call to the green.
   once it is more than `SC_PASS_WINDOW_M` (60 m) ahead of the safety car with
   nobody behind it a lap up. The lights do not wait for it to catch the
   queue up.
+- **Its body.** On the road the safety car is a car in the AI's traffic
+  and racecraft field (`GameSession::safety_car_body`: `SC_LENGTH_M` x
+  `SC_WIDTH_M`, the Murcetes-AMD GT3's 4.7 x 2.0 m, given `SC_ROOM_M` 2 m
+  and `SC_SIDE_ROOM_M` 0.5 m more), never on anybody's lap, so nobody
+  yields to it or defends against it: a car let by passes it as it passes
+  a crawling car, on a lane beside it. The safety car in turn keeps
+  station on a running car within `SC_FOLLOW_WINDOW_M` (60 m) ahead of it
+  on the lap, at its body and room (`race_start::station_cap_mps`, so it
+  drops back from one alongside): it drives through nobody it has let by
+  or joined behind. Neither is a body to the collision pass.
 - **Passes.** Every pass under it is one under a yellow
   (`RaceControl::update`, any pass while the course is not green), and a car
   not let by that goes past the safety car is given the same offence

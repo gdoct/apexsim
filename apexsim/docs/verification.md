@@ -311,6 +311,9 @@ in the `flags` component and the radar's RIGHT marker at the start.
   pairing on the run to the line, two by two at the green with no
   contact; with the stand-in in the field, whose driver is held to the
   pace but given no side of the road.
+- A lapped car let by under the safety car going round it on a lane
+  beside it, the safety car dropping back as it comes alongside, with no
+  overlap between the two bodies.
 - The `race_phase` banner and the `flags` component up together (a yellow
   under the formation lap or a safety car): seen apart on 2026-10-20
   (`v-r13-phase`, `v-r13-blue`), never side by side.
