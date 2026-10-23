@@ -71,13 +71,13 @@ box on the session browser for the lobby's own lines, a profanity filter
 
 ### 10. Upscaling and HDR
 
-Built: a render scale row (TSR) set by the presets and an HDR switch
-([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
+Built: a render scale row (TSR) set by the presets, an HDR switch and its
+paper white ([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
 Left:
 
 - DLSS and FSR as plugins (decided 2026-10-18: both; TSR stays the
   default, and NVIDIA's DLSS SDK terms are accepted when it is
-  downloaded), and a paper-white level for HDR.
+  downloaded).
 
 **Check:** the presets on the RTX machine and an integrated GPU; mirrors
 and triple screens at each scale; HDR on an HDR display.

@@ -43,7 +43,7 @@ takes it up (— : no step, taken opportunistically).
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
-| N10 | DLSS / FSR upscaling, HDR paper white | Rendering | P3 | 🟡 | M | 3 |
+| N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 3 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
 | A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
@@ -341,12 +341,12 @@ browser gets an Internet tab. Opt-in per server in `operations` config.
 register themselves, so sign or verify them (TLS fingerprint); the browser's
 filter pills already exist.
 
-#### N10. DLSS / FSR, HDR paper white — P3 · 🟡 · M
+#### N10. DLSS / FSR — P3 · 🔴 · M
 Built: the Graphics tab's render scale (TSR; LOW 70, MEDIUM 85, HIGH and
-ULTRA 100) and an HDR switch where the display supports it. Left: DLSS and
-FSR plugins (decided 2026-10-18: ship both, TSR stays the default; you
-accept NVIDIA's DLSS SDK terms when the plugin is downloaded), a
-paper-white level for HDR, and the checks in verification.md.
+ULTRA 100), an HDR switch and its paper white where the display supports
+it. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
+the default; you accept NVIDIA's DLSS SDK terms when the plugin is
+downloaded, so the download is yours), and the checks in verification.md.
 
 #### N11. Livery editor / own livery import — P2 · 🟡 · M
 **Built 2026-10-24 (phase 1):** the player's own liveries in

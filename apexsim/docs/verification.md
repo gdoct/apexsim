@@ -590,7 +590,9 @@ Mandarina Bay.
 - The Graphics tab's Render scale at 50, 70 and 100 in a race: the frame
   rate against the sharpness, the HUD sharp at every scale, the cockpit
   mirrors and a triple's side views. HDR switched on with an HDR display
-  (the row shows on this machine, which reports HDR support). Only the settings round trip has run.
+  (the row shows on this machine, which reports HDR support), and its
+  paper white moved from 80 to 500 nits: the scene and the menus brighten
+  together. Only the settings round trip has run.
 
 **Chat.** ([server/protocol.md](server/protocol.md))
 

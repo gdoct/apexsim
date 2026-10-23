@@ -114,6 +114,7 @@ protected:
 	UFUNCTION() void HandleAiSkillChanged(float Value);
 	UFUNCTION() void HandleMotionBlurChanged(float Value);
 	UFUNCTION() void HandleRenderScaleChanged(float Value);
+	UFUNCTION() void HandlePaperWhiteChanged(float Value);
 	UFUNCTION() void HandleTripleWidthChanged(float Value);
 	UFUNCTION() void HandleTripleBezelChanged(float Value);
 	UFUNCTION() void HandleTripleDistanceChanged(float Value);
@@ -293,6 +294,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RenderScaleValue;
 	/** The HDR row: shown only where the display supports HDR output. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> HdrRow;
+	UPROPERTY(Transient) TObjectPtr<USlider> PaperWhiteSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> PaperWhiteFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> PaperWhiteValue;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> TripleWidthSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> TripleWidthFill;

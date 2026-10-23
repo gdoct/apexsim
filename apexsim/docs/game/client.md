@@ -484,8 +484,11 @@ the project's anti-aliasing method) bring it back to full size
 (`UGameUserSettings::SetResolutionScaleValueEx`); the HUD and menus are
 drawn at full size. The presets set it: LOW 70, MEDIUM 85, HIGH and ULTRA
 100; moving it by hand makes the preset CUSTOM. HDR (`bHdrOutput`,
-`EnableHDRDisplayOutput` at `HdrPeakNits`, 1000) is a row only where the
-display reports HDR support (`SupportsHDRDisplayOutput`).
+`EnableHDRDisplayOutput` at `HdrPeakNits`, 1000) and its paper white
+(`HdrPaperWhiteNits`, 80-500 in ten-nit steps, default 200,
+`SetHDRPaperWhiteNits`: how bright white is, the scene and the menus
+against the display's peak) are rows only where the display reports HDR
+support (`SupportsHDRDisplayOutput`).
 
 LOW is the path for integrated graphics. Lighting 0 turns Lumen off (no
 Lumen GI, no Lumen reflections, no distance-field AO). Shadows 0 turns off

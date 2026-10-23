@@ -133,6 +133,8 @@ public:
 	void SetRenderScale(int32 Percent);
 	/** HDR output on or off; only offered where the display supports it (SupportsHdrOutput). */
 	void SetHdrOutput(bool bEnabled);
+	/** HDR paper white, nits, clamped to 80-500 (UApexSettingsSave::HdrPaperWhiteNits). */
+	void SetHdrPaperWhite(int32 Nits);
 	static bool SupportsHdrOutput();
 
 	/** Modes the display actually supports, widest first. Cached after the first call. */

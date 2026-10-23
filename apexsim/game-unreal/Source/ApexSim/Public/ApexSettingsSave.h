@@ -297,6 +297,14 @@ public:
 	UPROPERTY()
 	int32 HdrPeakNits = 1000;
 
+	/**
+	 * How bright white paper is in HDR, nits (UGameUserSettings::
+	 * SetHDRPaperWhiteNits): the scene's and the menus' brightness against
+	 * the display's peak. 80-500; 200 is a lit room's screen.
+	 */
+	UPROPERTY()
+	int32 HdrPaperWhiteNits = 200;
+
 	/** 0..1, driving r.MotionBlurQuality and the post-process amount. */
 	UPROPERTY()
 	float MotionBlur = 0.3f;

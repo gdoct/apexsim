@@ -973,8 +973,15 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AddV(Right, MakeRow(TEXT("Lighting"), TEXT("LOW turns off global illumination, for integrated graphics."),
 		MakeSized(*WidgetTree, LightingBox, DropdownWidth, -1.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
-	HdrRow = MakeRow(TEXT("HDR"), TEXT("High dynamic range output to an HDR display."),
-		MakeSegment(SegHdr, { TEXT("OFF"), TEXT("ON") }, 0, 120.0f));
+	// The HDR switch and its paper white, together, only where the display
+	// can show it.
+	UVerticalBox* HdrGroup = WidgetTree->ConstructWidget<UVerticalBox>();
+	AddV(HdrGroup, MakeRow(TEXT("HDR"), TEXT("High dynamic range output to an HDR display."),
+		MakeSegment(SegHdr, { TEXT("OFF"), TEXT("ON") }, 0, 120.0f)));
+	AddSliderRow(HdrGroup, TEXT("HDR paper white"), TEXT("How bright white is in HDR: the scene and the menus against the display's peak."),
+		PaperWhiteSlider, PaperWhiteFill, PaperWhiteValue, false);
+	PaperWhiteSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandlePaperWhiteChanged);
+	HdrRow = HdrGroup;
 	AddV(Right, HdrRow, FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 	HdrRow->SetVisibility(UApexSettingsSubsystem::SupportsHdrOutput() ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	// Field of view lives on the camera page with the seat it belongs to.
@@ -2106,6 +2113,8 @@ void UApexSettingsWidget::RefreshFromSettings()
 		FString::FromInt(FMath::RoundToInt(Values->MotionBlur * 100.0f)));
 	SetSlider(RenderScaleSlider, RenderScaleFill, RenderScaleValue, static_cast<float>(Values->RenderScalePct), 50.0f, 100.0f,
 		FString::Printf(TEXT("%d%%"), Values->RenderScalePct));
+	SetSlider(PaperWhiteSlider, PaperWhiteFill, PaperWhiteValue, static_cast<float>(Values->HdrPaperWhiteNits), 80.0f, 500.0f,
+		FString::Printf(TEXT("%d NITS"), Values->HdrPaperWhiteNits));
 	SetSlider(FovSlider, FovFill, FovValue, Values->FieldOfView, FovMin, FovMax,
 		FString::Printf(TEXT("%d°"), FMath::RoundToInt(Values->FieldOfView)));
 	SetSlider(SeatForwardSlider, SeatForwardFill, SeatForwardValue, Values->SeatForwardCm, -SeatForwardRange, SeatForwardRange,
@@ -2499,6 +2508,17 @@ void UApexSettingsWidget::HandleAiSkillChanged(float Value)
 			Flow->SaveProfile();
 		}
 	}
+	RefreshFooter();
+}
+
+void UApexSettingsWidget::HandlePaperWhiteChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	ApexUiAudio::Play(this, EApexUiSound::Adjust);
+	// Ten-nit steps.
+	const int32 Nits = FMath::Clamp(FMath::RoundToInt(FMath::Lerp(80.0f, 500.0f, Value) / 10.0f) * 10, 80, 500);
+	ReflectSlider(PaperWhiteFill, PaperWhiteValue, Value, FString::Printf(TEXT("%d NITS"), Nits));
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetHdrPaperWhite(Nits); }
 	RefreshFooter();
 }
 

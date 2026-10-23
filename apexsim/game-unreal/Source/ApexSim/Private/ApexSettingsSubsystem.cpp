@@ -490,6 +490,14 @@ void UApexSettingsSubsystem::SetHdrOutput(bool bEnabled)
 	Changed(EApexSettingsGroup::Graphics);
 }
 
+void UApexSettingsSubsystem::SetHdrPaperWhite(int32 Nits)
+{
+	const int32 Clamped = FMath::Clamp(Nits, 80, 500);
+	if (!Settings || Settings->HdrPaperWhiteNits == Clamped) { return; }
+	Settings->HdrPaperWhiteNits = Clamped;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
 bool UApexSettingsSubsystem::SupportsHdrOutput()
 {
 	const UGameUserSettings* User = GEngine ? GEngine->GetGameUserSettings() : nullptr;
@@ -568,6 +576,7 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	if (User->SupportsHDRDisplayOutput())
 	{
 		User->EnableHDRDisplayOutput(Settings->bHdrOutput, FMath::Clamp(Settings->HdrPeakNits, 400, 10000));
+		User->SetHDRPaperWhiteNits(static_cast<float>(FMath::Clamp(Settings->HdrPaperWhiteNits, 80, 500)));
 	}
 
 	// bCheckForCommandLineOverrides off: a -ResX on the command line would
