@@ -134,7 +134,19 @@ impl Client {
         Ok(joined.session_id)
     }
 
+    /// A heartbeat: a driver in a session who says nothing for the server's
+    /// heartbeat timeout (5 s) is dropped, and the countdown alone can run
+    /// that long on a loaded machine.
+    async fn beat(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.send(&ClientMessage::Heartbeat {
+            client_tick: 0,
+            ping_ms: None,
+        })
+        .await
+    }
+
     async fn drive(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        self.beat().await?;
         self.send(&ClientMessage::PlayerInput {
             server_tick_ack: 0,
             throttle: 0.7,
@@ -202,6 +214,7 @@ async fn a_practice_driven_alone_rewinds_and_cuts_its_recording() {
         let deadline = Instant::now() + Duration::from_secs(30);
         while !racing(&server, session_id).await {
             assert!(Instant::now() < deadline, "the countdown never ended");
+            host.beat().await?;
             sleep(Duration::from_millis(20)).await;
         }
         let start = car_now(&server, session_id).await.0;
@@ -254,6 +267,7 @@ async fn a_practice_driven_alone_rewinds_and_cuts_its_recording() {
                 Instant::now() < deadline,
                 "the cut recording was never written"
             );
+            host.beat().await?;
             sleep(Duration::from_millis(100)).await;
         }
 
@@ -279,6 +293,7 @@ async fn a_practice_driven_alone_rewinds_and_cuts_its_recording() {
         let deadline = Instant::now() + Duration::from_secs(30);
         while !racing(&server, online).await {
             assert!(Instant::now() < deadline, "the countdown never ended");
+            other.beat().await?;
             sleep(Duration::from_millis(20)).await;
         }
         other.send(&ClientMessage::Rewind { seconds: 5 }).await?;
