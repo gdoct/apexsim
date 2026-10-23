@@ -3,6 +3,7 @@
 #include "ApexDriverKey.h"
 #include "ApexProtocolCodec.h"
 #include "ApexProtocolTypes.h"
+#include "ApexServerErrors.h"
 #include "HAL/IConsoleManager.h"
 #include "Tests/ApexGoldenBlobs.h"
 
@@ -849,6 +850,24 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		if (Decode(TEXT("SessionJoined, one class"), ApexGolden::S_SessionJoinedAiSkill, Plain))
 		{
 			TestEqual(TEXT("Classes (none when absent)"), Plain.Classes.Num(), 0);
+		}
+	}
+
+	{
+		// The race event the session is run for; none for a session that is no event's.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined with an event"), ApexGolden::S_SessionJoinedEvent, Joined))
+		{
+			TestTrue(TEXT("Event.IsEvent"), Joined.Event.IsEvent());
+			TestEqual(TEXT("Event.Id"), Joined.Event.Id, FString(TEXT("autumn-cup")));
+			TestEqual(TEXT("Event.Name"), Joined.Event.Name, FString(TEXT("Autumn Cup")));
+			TestEqual(TEXT("Event.Phase"), Joined.Event.Phase, static_cast<int32>(EApexWeekendPhase::Race));
+			TestFalse(TEXT("Event.IsDone"), Joined.Event.IsDone());
+		}
+		FApexServerMessage Plain;
+		if (Decode(TEXT("SessionJoined, no event"), ApexGolden::S_SessionJoinedClasses, Plain))
+		{
+			TestFalse(TEXT("Event (none when absent)"), Plain.Event.IsEvent());
 		}
 	}
 
@@ -2159,6 +2178,30 @@ bool FApexProtocolPitBoxTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("width"), Box.LaneWidthM, 12.0f);
 	TestEqual(TEXT("radius"), Box.RadiusM, 2.5f);
 	TestFalse(TEXT("on the autopilot (left off the wire)"), Box.bManual);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexServerErrorsTest,
+	"ApexSim.Net.ServerErrors",
+	ApexTestFlags)
+
+bool FApexServerErrorsTest::RunTest(const FString& Parameters)
+{
+	// A race event's refusals read as a sentence, whatever the server's words.
+	for (const TCHAR* Reason : { TEXT("This event takes drivers by their proved driver id"), TEXT("Not entered in this event"),
+		TEXT("This event's entry list is full"), TEXT("The livery is fixed for this event") })
+	{
+		const FString Text = ApexServerError::Describe(403, Reason);
+		TestFalse(FString::Printf(TEXT("%s: no bare code"), Reason), Text.Contains(TEXT("403")));
+		TestTrue(FString::Printf(TEXT("%s: a sentence"), Reason), Text.EndsWith(TEXT(".")));
+		TestTrue(FString::Printf(TEXT("%s: names the event"), Reason), Text.Contains(TEXT("race event")));
+	}
+	// Any other refusal is the server's sentence; other codes keep theirs.
+	TestEqual(TEXT("another 403"), ApexServerError::Describe(403, TEXT("Rewind needs you driving alone")),
+		FString(TEXT("Rewind needs you driving alone.")));
+	TestEqual(TEXT("a 409"), ApexServerError::Describe(409, TEXT("Race under way")),
+		FString(TEXT("Server error 409: Race under way")));
 	return true;
 }
 

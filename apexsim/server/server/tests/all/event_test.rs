@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use apexsim_server::config::ServerConfig;
 use apexsim_server::data::*;
-use apexsim_server::network::{ClientMessage, ServerMessage};
+use apexsim_server::network::{ClientMessage, ServerMessage, SessionEventData};
 use apexsim_server::server::{run_server_from, ServerHandle};
 use ring::signature::KeyPair;
 use serde_json::Value;
@@ -142,8 +142,14 @@ impl Driver {
         None
     }
 
-    /// Pick a car and join; `Ok` on `SessionJoined`, the error code else.
-    async fn join(&mut self, session: SessionId, car: CarConfigId, livery: u8) -> Result<(), u16> {
+    /// Pick a car and join; the event `SessionJoined` names on joining,
+    /// the error code else.
+    async fn join(
+        &mut self,
+        session: SessionId,
+        car: CarConfigId,
+        livery: u8,
+    ) -> Result<Option<SessionEventData>, u16> {
         self.send(&ClientMessage::SelectCar {
             car_config_id: car,
             livery,
@@ -155,7 +161,7 @@ impl Driver {
         })
         .await;
         self.until(|m| match m {
-            ServerMessage::SessionJoined(_) => Some(Ok(())),
+            ServerMessage::SessionJoined(j) => Some(Ok(j.event.clone())),
             ServerMessage::Error { code, .. } => Some(Err(*code)),
             _ => None,
         })
@@ -248,8 +254,16 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
         let mut b = Driver::connect(server.tcp_addr, "Bea", Some((id_b, &key_b))).await;
         let mut c = Driver::connect(server.tcp_addr, "Cy", None).await;
         sleep(Duration::from_millis(100)).await;
-        assert_eq!(a.join(session, car, 1).await, Ok(()));
-        assert_eq!(b.join(session, car, 0).await, Ok(()));
+        // `SessionJoined` names the event and its phase.
+        let named = |phase| {
+            Ok(Some(SessionEventData {
+                id: "autumn-cup".into(),
+                name: "Autumn Cup".into(),
+                phase,
+            }))
+        };
+        assert_eq!(a.join(session, car, 1).await, named(1), "at its practice");
+        assert!(b.join(session, car, 0).await.is_ok());
         assert_eq!(c.join(session, car, 0).await, Err(403), "no proved id");
         // The livery is the entry's for the event.
         a.send(&ClientMessage::SetLivery { livery: 2 }).await;
@@ -356,8 +370,14 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
         )
         .await;
         sleep(Duration::from_millis(100)).await;
-        assert_eq!(a.join(session, other_car, 0).await, Ok(()));
-        assert_eq!(b.join(session, car, 0).await, Ok(()));
+        // Resumed at its race: the lobby's weekend is at its start, the
+        // event names the phase that comes next.
+        assert_eq!(
+            a.join(session, other_car, 0).await,
+            named(3),
+            "resumed at its race"
+        );
+        assert!(b.join(session, car, 0).await.is_ok());
         // Entries close: a new driver is refused.
         let (status, _) = api(
             http,

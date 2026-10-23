@@ -7,6 +7,7 @@
 #include "ApexDemoModeSubsystem.h"
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexServerErrors.h"
 #include "ApexReplayRecorder.h"
 #include "ApexSessionRecorder.h"
 #include "ApexPlayerController.h"
@@ -1805,7 +1806,7 @@ void UApexRootWidget::HandleDisconnected(const FString& Reason)
 
 void UApexRootWidget::HandleServerError(int32 Code, const FString& Message)
 {
-	ShowToast(FString::Printf(TEXT("Server error %d: %s"), Code, *Message), true);
+	ShowToast(ApexServerError::Describe(Code, Message), true);
 }
 
 void UApexRootWidget::HandleRewound(const FApexRewound& Rewound)

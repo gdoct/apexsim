@@ -1354,6 +1354,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentAiSkill = Message.AiSkill;
 			CurrentClasses = Message.Classes;
 			CurrentBallast = Message.Ballast;
+
+			CurrentEvent = Message.Event;
 			CurrentRaceSeconds = Message.RaceSeconds;
 			CurrentQualifyingSeconds = Message.QualifyingSeconds;
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
@@ -1380,6 +1382,10 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined SessionId=%s YourGridPosition=%d LockedAssists=%d Conditions=%s Damage=%d AiSkill=%d RaceSeconds=%d QualifyingSeconds=%d"),
 				*CurrentSessionId, Message.GridPosition, CurrentAllowedAssists.CountLocked(), *CurrentConditions.Describe(),
 				static_cast<int32>(CurrentDamage), CurrentAiSkill, CurrentRaceSeconds, CurrentQualifyingSeconds);
+			if (CurrentEvent.IsEvent())
+			{
+				UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined Event=%s (%s) Phase=%d"), *CurrentEvent.Id, *CurrentEvent.Name, CurrentEvent.Phase);
+			}
 			OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 
 			// The cached lobby state predates this session, so anything resolving the
@@ -1399,6 +1405,8 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentAiSkill = ApexAiSkill::Mixed;
 		CurrentClasses.Reset();
 		CurrentBallast.Reset();
+
+		CurrentEvent = FApexSessionEvent();
 		CurrentRaceSeconds = 0;
 		CurrentQualifyingSeconds = 0;
 		CurrentQualifyingCutoffPct = 0;

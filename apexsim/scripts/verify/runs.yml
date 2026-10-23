@@ -7834,3 +7834,67 @@ runs:
     shots:
       - {at: 6, label: "main menu", checks: ""}
       - {at: 10, label: "Esc: the exit card", checks: "a 420-wide card in the middle over a dim, not a card filling the screen"}
+#   server.event        a race event kept and opened before the server starts
+#                       (name, track, car, phase, entries_open, ...: run_checks.py)
+#   dashboard           at, action broadcast|stop|call (method, path, body)
+
+  - id: r3c-event-lobby
+    about: "R3. A race event resumed at its race: the lobby names it and its phase"
+    # The event is kept at its race (practice and qualifying run before a
+    # restart, as the server opens it after one). No demo: its session is
+    # the only one in the browser. The dashboard starts it at 60 s.
+    server:
+      event:
+        name: "Verify Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: race
+        practice_min: 5
+        qualifying_min: 5
+        ai: 5
+        laps: 3
+    args:
+      - -ApexNoDemo
+    dashboard:
+      - at: 60
+        action: call
+        method: POST
+        path: /api/events/verify-cup/start
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Texts", "apexsim.ui.Click Browse sessions"]
+      14: ["apexsim.ui.Texts", "apexsim.ui.Click Shiverstone Circuit"]
+      30: ["apexsim.ui.Texts"]
+    shots:
+      - at: 12
+        label: "session browser: the event's session"
+        checks: "R3: the session listed under the event's name (Verify Cup)"
+      - at: 28
+        label: "lobby: the event and its phase"
+        checks: "R3: VERIFY CUP · RACE NEXT; RACE EVENT · PRACTICE 5 MIN DONE · QUALIFYING 5 MIN DONE · RACE 3 LAPS; WAITING FOR RACE CONTROL TO START THE RACE"
+      - at: 75
+        label: "started from the dashboard"
+        checks: "R3: straight to the race's grid (no practice or qualifying)"
+
+  - id: r3c-event-refused
+    about: "R3. A race event with its entries closed refuses the player in a sentence"
+    server:
+      event:
+        name: "Closed Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: race
+        entries_open: false
+        practice_min: 5
+        qualifying_min: 5
+        ai: 3
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Texts", "apexsim.ui.Click Browse sessions"]
+      14: ["apexsim.ui.Click Shiverstone Circuit"]
+    shots:
+      - at: 16
+        label: "the refusal"
+        checks: "R3: a toast reading 'You are not entered in this race event, and its entry list is closed.' (no 'Server error 403')"

@@ -664,6 +664,8 @@ async fn handle_create_session(
                     physics: Some(physics),
                     classes,
                     ballast,
+
+                    event: None,
                 }),
             )
             .await;
@@ -766,6 +768,8 @@ pub(crate) async fn handle_join_session(
         }
     };
 
+    // The event the session is run for, named to the driver.
+    let event = state_write.events.joined_event(session_id);
     let joined = state_write
         .lobby
         .join_session(conn_info.player_id, session_id)
@@ -874,6 +878,8 @@ pub(crate) async fn handle_join_session(
                     physics: Some(physics),
                     classes,
                     ballast,
+
+                    event,
                 }),
             )
             .await;
@@ -914,6 +920,7 @@ async fn rejoin_session(
     let records = state_write.records.clone();
     let track_content = state_write.track_content.clone();
     let balance_tables = state_write.config.balance.clone();
+    let event = state_write.events.joined_event(session_id);
     let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
         return;
     };
@@ -959,6 +966,8 @@ async fn rejoin_session(
             )
         }),
         ballast: game_session.session.ballast.clone(),
+
+        event,
     });
     let mut messages = vec![joined];
     messages.extend(game_session.phase_state_messages());
@@ -1288,6 +1297,11 @@ pub(crate) async fn handle_join_as_spectator(
         )
     };
 
+    let event = if joined {
+        ctx.state.read().await.events.joined_event(session_id)
+    } else {
+        None
+    };
     if joined {
         debug!(
             "Player {} joined session {} as spectator",
@@ -1316,6 +1330,8 @@ pub(crate) async fn handle_join_as_spectator(
                     physics: None,
                     classes,
                     ballast,
+
+                    event,
                 }),
             )
             .await;

@@ -129,13 +129,14 @@ const VIEWS = [
   { id: 'timing', code: '02', title: 'Timing', sub: 'SECTORS AND GAPS' },
   { id: 'sessions', code: '03', title: 'Sessions', sub: 'HOST, START, STOP, BROADCAST' },
   { id: 'schedule', code: '04', title: 'Schedule', sub: 'SESSIONS AT SET TIMES' },
-  { id: 'players', code: '05', title: 'Players', sub: 'CONNECTIONS AND BANS' },
-  { id: 'history', code: '06', title: 'History', sub: 'RECORDED SESSIONS' },
-  { id: 'incidents', code: '07', title: 'Incidents', sub: 'CONTACTS, YELLOWS, TRACK LIMITS, PENALTIES' },
-  { id: 'logs', code: '08', title: 'Logs', sub: 'SERVER OUTPUT' },
-  { id: 'perf', code: '09', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
-  { id: 'config', code: '10', title: 'Config', sub: 'SERVER.TOML' },
-  { id: 'content', code: '11', title: 'Content', sub: 'TRACKS AND CARS' },
+  { id: 'events', code: '05', title: 'Events', sub: 'RACE WEEKENDS KEPT ACROSS RESTARTS' },
+  { id: 'players', code: '06', title: 'Players', sub: 'CONNECTIONS AND BANS' },
+  { id: 'history', code: '07', title: 'History', sub: 'RECORDED SESSIONS' },
+  { id: 'incidents', code: '08', title: 'Incidents', sub: 'CONTACTS, YELLOWS, TRACK LIMITS, PENALTIES' },
+  { id: 'logs', code: '09', title: 'Logs', sub: 'SERVER OUTPUT' },
+  { id: 'perf', code: '10', title: 'Performance', sub: 'TICK LOOP AND PROCESS' },
+  { id: 'config', code: '11', title: 'Config', sub: 'SERVER.TOML' },
+  { id: 'content', code: '12', title: 'Content', sub: 'TRACKS AND CARS' },
 ];
 
 function mountShell() {
@@ -646,6 +647,133 @@ PAGES.schedule = el => {
   });
   api('/api/content').then(c => { content = c; paintForm(); }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
   every(3000, load);
+};
+
+// ---------------------------------------------------------------- events
+/* Race events (/api/events): a weekend the server keeps across restarts,
+   with its entry list, the phase it is at and each finished phase's
+   results. OPEN keeps a session open for it (opened again after a
+   restart, at its phase); START and NEXT PHASE move that session on;
+   CLOSE ends it and stops reopening it. */
+PAGES.events = el => {
+  el.innerHTML = `<div class="stack">
+    <div class="panel scroll-x"><div style="min-width:940px" id="ev-list"><div class="empty">Loading…</div></div></div>
+    <div class="panel" id="ev-form"><div class="empty">Loading…</div></div></div>`;
+  const cols = 'grid-template-columns:minmax(170px,1.4fr) minmax(130px,1fr) 110px 90px minmax(140px,1fr) minmax(330px,auto) 24px';
+  const PHASES = { practice: 'Practice', qualifying: 'Qualifying', race: 'Race', done: 'Done' };
+  const phaseColour = p => p === 'done' ? 'var(--muted)' : p === 'race' ? GREEN : AMBER;
+  let events = [], content = null, open = null;
+  const carName = id => { const c = content && content.cars.find(x => x.id === id); return c ? c.name : String(id || '').slice(0, 8); };
+  const slots = e => e.spec.player_slots || 12;
+  function sessionText(e) {
+    if (e.last_error) return `<span class="bad" title="${esc(e.last_error)}">${esc(e.last_error)}</span>`;
+    if (!e.session) return e.opened ? '<span class="muted">opening…</span>' : '<span class="muted">closed</span>';
+    return esc(e.session_mode || '') + (e.session_state && e.session_state !== 'racing' ? ' · ' + esc(e.session_state) : '') + (e.awaits_advance ? ' · <span class="warn">phase over</span>' : '');
+  }
+  function actions(e) {
+    const b = (act, label, cls = '') => `<button class="btn sm ${cls}" data-ev="${esc(e.id)}" data-act="${act}">${label}</button>`;
+    const out = [];
+    if (e.phase !== 'done' && !e.opened) out.push(b('open', 'OPEN', 'primary'));
+    if (e.session && e.session_state === 'lobby') out.push(b('start', 'START', 'primary'));
+    if (e.session && e.awaits_advance) out.push(b('advance', 'NEXT PHASE', 'primary'));
+    if (e.opened) out.push(b('close', 'CLOSE'));
+    if (e.phase !== 'done') out.push(b('entries', e.entries_open ? 'CLOSE ENTRIES' : 'OPEN ENTRIES', 'quiet'));
+    out.push(b('delete', 'DELETE', 'danger'));
+    return out.join('');
+  }
+  function lineTime(l, phase) {
+    if (phase === 'race') return l.status && l.status !== 'finished' ? esc(l.status.toUpperCase()) : l.race_time_ms ? fmtDur(l.race_time_ms / 1000).replace(/^00:/, '') : '—';
+    return fmtLap(l.best_lap_ms);
+  }
+  function detail(e) {
+    const entries = e.entries.map(x => `<div class="row" style="grid-template-columns:minmax(140px,220px) minmax(120px,1fr) 80px minmax(160px,1fr) 90px;padding:5px 0">
+        <span class="name" style="font-size:17px">${esc(x.name)}</span><span style="font-family:var(--sans);font-size:17px">${esc(carName(x.car_id))}</span>
+        <span class="muted">LIVERY ${x.livery}</span><span class="sm-mono" title="the driver's proved id">${esc(x.driver_id)}</span>
+        <button class="btn sm quiet" style="justify-self:end" data-ev="${esc(e.id)}" data-act="remove" data-driver="${esc(x.driver_id)}" data-name="${esc(x.name)}">REMOVE</button></div>`).join('')
+      || `<div class="muted">Nobody entered yet. ${e.entries_open ? 'A driver who joins the event’s session with their driver key is entered in the car and livery they join with.' : 'Entries are closed.'}</div>`;
+    const results = e.results.map(r => `<div style="margin-top:12px"><div class="eyebrow">${esc((PHASES[r.phase] || r.phase).toUpperCase())}${r.finished_at ? ' · ' + fmtDate(r.finished_at) : ''}</div>
+        ${r.lines.map(l => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) minmax(120px,1fr) 60px 110px 90px;padding:5px 0">
+          <span class="muted">${l.position}</span><span class="name" style="font-size:17px">${esc(l.name)}${l.driver_id ? '' : ' <span class="sm-mono">AI</span>'}</span>
+          <span style="font-family:var(--sans);font-size:17px">${esc(carName(l.car_id))}</span><span>${l.laps || '—'}</span>
+          <span>${lineTime(l, r.phase)}</span><span class="muted">${l.knocked_out_in ? 'OUT IN Q' + l.knocked_out_in : ''}</span></div>`).join('')}</div>`).join('');
+    return `<div style="padding:4px 16px 16px 16px"><div class="eyebrow">ENTRIES · ${e.entries.length} / ${slots(e)} · ${e.entries_open ? 'OPEN' : 'CLOSED'}</div>${entries}
+      ${results || '<div class="muted" style="margin-top:12px">No phase finished yet.</div>'}</div>`;
+  }
+  function paintList() {
+    $('#ev-list').innerHTML = `<div class="row head" style="${cols}"><span>EVENT</span><span>TRACK</span><span>PHASE</span><span>ENTRIES</span><span>SESSION</span><span></span><span></span></div>` +
+      (events.map(e => `<div style="border-bottom:1px solid var(--line-soft);${open === e.id ? 'background:#0f1214' : ''}">
+        <div class="row click" data-open="${esc(e.id)}" style="${cols};border-bottom:0">
+          <span style="display:flex;flex-direction:column;gap:1px"><span class="name">${esc(e.name)}</span><span class="sm-mono">${esc(e.id)}</span></span>
+          <span style="font-family:var(--sans);font-size:17px">${esc(e.track || '?')}</span>
+          <span style="font-size:11px;letter-spacing:.1em;color:${phaseColour(e.phase)}">${esc((PHASES[e.phase] || e.phase).toUpperCase())}</span>
+          <span>${e.entries.length} / ${slots(e)}${e.entries_open ? '' : ' <span class="sm-mono">CLOSED</span>'}</span>
+          <span style="font-family:var(--sans);font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sessionText(e)}</span>
+          <span style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">${actions(e)}</span>
+          <span class="muted">${open === e.id ? '▾' : '▸'}</span></div>
+        ${open === e.id ? detail(e) : ''}</div>`).join('')
+      || '<div class="empty">No events. An event is a race weekend the server keeps across restarts: make one below, then OPEN it for drivers to enter.</div>');
+  }
+  function paintForm() {
+    $('#ev-form').innerHTML = `<div class="panel-head"><span class="eyebrow">NEW EVENT · ITS ID IS ITS NAME’S SLUG</span></div>
+      <div class="form">
+        <label class="field"><span class="eyebrow">EVENT NAME</span><input class="input" id="ev-name" maxlength="60" placeholder="Autumn Cup"></label>
+        <label class="field"><span class="eyebrow">ENTRIES</span><select class="input" id="ev-entries"><option value="1">Open: drivers enter by joining</option><option value="0">Closed</option></select></label>
+      </div>${specForm(content, { weekend: { practice_seconds: 900, qualifying_seconds: [600] } })}
+      <div class="acts-row"><button class="btn primary" id="ev-create">CREATE</button></div>`;
+    bindSpecForm($('#ev-form'));
+  }
+  async function load() { events = (await api('/api/events')).events; paintList(); }
+  el.addEventListener('click', async ev => {
+    const b = ev.target.closest('button');
+    if (!b) {
+      const row = ev.target.closest('[data-open]');
+      if (row) { open = open === row.dataset.open ? null : row.dataset.open; paintList(); }
+      return;
+    }
+    try {
+      if (b.id === 'ev-create') {
+        const name = $('#ev-name').value.trim();
+        if (!name) throw new Error('The event needs a name.');
+        const spec = readSpec($('#ev-form'));
+        const res = await api('/api/events', { method: 'POST', body: { name, spec, entries_open: $('#ev-entries').value === '1' } });
+        toast('Created ' + res.event.name + ': OPEN it for drivers to enter');
+        open = res.event.id;
+        paintForm();
+        load();
+        return;
+      }
+      const { ev: id, act } = b.dataset;
+      if (!id) return;
+      const e = events.find(x => x.id === id);
+      if (!e) return;
+      if (act === 'delete' || act === 'close' || act === 'remove') {
+        const text = {
+          delete: ['DELETE EVENT', 'Delete ' + e.name + '?', 'The event, its entries and its results are gone, and its session ends now.', 'DELETE'],
+          close: ['CLOSE EVENT', 'Close ' + e.name + ' for now?', 'Its session ends now and is not opened again until you OPEN it; a phase under way is run again from its start.', 'CLOSE'],
+          remove: ['REMOVE ENTRY', 'Take ' + b.dataset.name + ' off ' + e.name + '?', 'They are no longer entered; while entries are open they are entered again when they join.', 'REMOVE'],
+        }[act];
+        const r = await modal({ eyebrow: text[0], title: text[1], body: text[2], confirm: text[3], danger: true });
+        if (!r.ok) return;
+      }
+      if (act === 'delete') {
+        await api('/api/events/' + encodeURIComponent(id), { method: 'DELETE' });
+        toast('Deleted ' + e.name);
+        if (open === id) open = null;
+      } else if (act === 'remove') {
+        await api(`/api/events/${encodeURIComponent(id)}/entries/${b.dataset.driver}/remove`, { method: 'POST', body: {} });
+        toast('Removed ' + b.dataset.name);
+      } else if (act === 'entries') {
+        const res = await api(`/api/events/${encodeURIComponent(id)}/entries`, { method: 'POST', body: { open: !e.entries_open } });
+        toast(res.entries_open ? 'Entries open' : 'Entries closed');
+      } else {
+        const res = await api(`/api/events/${encodeURIComponent(id)}/${act}`, { method: 'POST', body: {} });
+        toast({ open: 'Open: drivers can join it now', start: 'Started: ' + res.phase, advance: 'Moved on to ' + res.phase, close: 'Closed for now' }[act]);
+      }
+      load();
+    } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+  });
+  api('/api/content').then(c => { content = c; paintForm(); paintList(); }).catch(err => { if (!(err instanceof AuthError)) toast(err.message, true); });
+  every(2000, load);
 };
 
 // ---------------------------------------------------------------- players

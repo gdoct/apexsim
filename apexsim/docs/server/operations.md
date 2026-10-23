@@ -222,7 +222,7 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   fastest lap and every car's best and laps; CSV export), logs (a ring
   buffer of `log_buffer_lines`, fed by `admin::logbuf::LogBufferLayer`;
   filter, download), incidents (below), performance (1 s samples over 2
-  minutes), config (below), content (below).
+  minutes), config (below), content (below), events (below).
 - **Hosted sessions** (`hosted.rs`): the Sessions view opens a session the
   server runs, from the same settings a player's create screen has (track,
   the car whose class the AI races in, player slots, AI cars and level,
@@ -260,10 +260,16 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   entry keeps to UTC across a change of the clocks; the page shows them in
   the browser's time.
 - **Events** (`crate::events`, [sessions.md](sessions.md#events-across-restarts)):
-  a weekend kept across restarts, in `<records>/events/<id>.json`. API
-  only for now (the page has no Events view): `GET /api/events` and
-  `/api/events/<id>` (the event, the session open for it, its state and
-  mode); `POST /api/events` with `{ "name", "spec": <a hosted session's
+  a weekend kept across restarts, in `<records>/events/<id>.json`. The
+  Events view lists them (name, track, phase, entries against the
+  player slots, the session open for it and its state, the last error
+  opening one) with OPEN, START, NEXT PHASE (while the session waits for
+  it), CLOSE, OPEN / CLOSE ENTRIES and DELETE; a row unfolds its entry list
+  (each with REMOVE) and every finished phase's results, and the form under
+  it makes one from a name, the entry rule and a hosted session's settings.
+  The API under it: `GET /api/events` and
+  `/api/events/<id>` (the event, the session open for it, its state, mode
+  and `awaits_advance`); `POST /api/events` with `{ "name", "spec": <a hosted session's
   settings>, "entries_open" }` makes one (id the name's slug);
   `POST /api/events/<id>/open` opens its session (and keeps it open across
   restarts), `/start` starts that session (its next phase), `/advance`

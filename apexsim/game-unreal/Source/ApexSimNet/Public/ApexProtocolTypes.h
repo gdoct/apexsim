@@ -638,6 +638,34 @@ enum class EApexWeekendPhase : uint8
 	Race       = 3,
 };
 
+/**
+ * The race event a session is run for (`SessionJoined.Event`, network.rs
+ * `SessionEventData`): a weekend the server keeps across restarts.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexSessionEvent
+{
+	GENERATED_BODY()
+
+	/** The event's id, the slug of its name; empty when the session is no event's. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString Name;
+
+	/**
+	 * The phase the event is at, numbered as EApexWeekendPhase (1 practice,
+	 * 2 qualifying, 3 race) and 4 for an event that is over. While the
+	 * session's WeekendState is at its lobby, the phase that comes next.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	int32 Phase = 0;
+
+	bool IsEvent() const { return !Id.IsEmpty(); }
+	bool IsDone() const { return Phase >= 4; }
+};
+
 /** A car knocked out of qualifying: where it starts, and the time that put it there. */
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexKnockedOut
@@ -4106,6 +4134,9 @@ struct APEXSIMNET_API FApexServerMessage
 	TArray<FApexClassEntry> Classes;
 	/** SessionJoined::Ballast, ballast by driver as the server keeps it; empty for none. */
 	TArray<FApexDriverBallast> Ballast;
+
+	/** SessionJoined::Event, the race event the session is run for; not IsEvent() for none. */
+	FApexSessionEvent Event;
 	/**
 	 * SessionJoined::Conditions as the server wrote them (MessagePack, named):
 	 * what the physics library's apx_track_load bakes, every field kept,

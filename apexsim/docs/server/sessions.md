@@ -1434,6 +1434,15 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   not back leaves their slot empty, as anywhere. The runner reads the
   session under the server lock and hands the resume data in; nothing in
   the simulation reads the event.
+- **On the wire**: every `SessionJoined` for an event's session (a
+  driver, a spectator, a rejoin) carries `Event` (`EventStore::joined_event`:
+  the id, the name and the phase as `EventPhase::wire` numbers it, 1
+  practice to 4 done). A session opened at `qualifying` or `race` has its
+  weekend at the lobby (`WeekendState.Phase` 0) until it is started, so the
+  client's lobby shows the event's phase as the one that comes next
+  ([client.md](../game/client.md#session-lobby-uiapexsessionlobbywidgetcpp)).
+  The refusals above are `Error 403` with those reasons; the client puts
+  them as sentences (`ApexServerError::Describe`).
 - **A phase under way when the server stops is run again** from its start
   (qualifying from Q1): only finished phases are kept. Ending an event's
   session (STOP) ends this sitting; the runner opens it again at its phase.

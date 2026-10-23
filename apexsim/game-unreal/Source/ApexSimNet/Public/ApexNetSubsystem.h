@@ -638,6 +638,13 @@ public:
 	const TArray<FApexDriverBallast>& GetSessionBallast() const { return CurrentBallast; }
 
 	/**
+	 * The race event the session this client is in is run for, from its
+	 * SessionJoined (its name and the phase it is at); not IsEvent() outside
+	 * one, and from a server that predates the field.
+	 */
+	const FApexSessionEvent& GetSessionEvent() const { return CurrentEvent; }
+
+	/**
 	 * A timed race's length in the session this client is in, from its
 	 * SessionJoined (ApexRaceLength): 0 for a race over laps, and outside one.
 	 */
@@ -1073,6 +1080,8 @@ private:
 	int32 CurrentAiSkill = ApexAiSkill::Mixed;
 	TArray<FApexClassEntry> CurrentClasses;
 	TArray<FApexDriverBallast> CurrentBallast;
+
+	FApexSessionEvent CurrentEvent;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;

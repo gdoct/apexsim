@@ -478,6 +478,23 @@ replay recipe (`n20-photo-replay`, needs a saved replay), the PNGs opened,
 and by hand: the pad's sticks, triggers and D-pad, the mouse's
 held-button look and the wheel's zoom.
 
+### R22. Race events in the game and on the dashboard
+
+`r3c-event-lobby` and `r3c-event-refused`: the server starts with an event
+kept at its race (`server.event` in runs.yml), as after a restart.
+
+- The session lobby names the event and its phase: "VERIFY CUP · RACE
+  NEXT", the format line RACE EVENT with practice and qualifying DONE,
+  and WAITING FOR RACE CONTROL TO START THE RACE; the dashboard's start
+  goes straight to the race's grid.
+- An event with its entries closed refuses the player with the sentence
+  "You are not entered in this race event, and its entry list is closed."
+  (not "Server error 403").
+- The dashboard's Events view (the page on 9403 during either run, token
+  `verify`): the event listed with its phase and session, a row unfolding
+  its entries and results, OPEN / START / NEXT PHASE / CLOSE / entries /
+  DELETE answering, and an event created from the form.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

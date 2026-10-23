@@ -50,6 +50,19 @@ pub enum EventPhase {
     Done,
 }
 
+impl EventPhase {
+    /// The phase as `SessionJoined.Event.Phase` numbers it (as
+    /// `WeekendState.Phase` does, the event's end after the race).
+    pub fn wire(self) -> u8 {
+        match self {
+            EventPhase::Practice => 1,
+            EventPhase::Qualifying => 2,
+            EventPhase::Race => 3,
+            EventPhase::Done => 4,
+        }
+    }
+}
+
 /// A driver entered in an event: known by their proved driver id, racing
 /// the car and livery they entered with in every session of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -536,6 +549,17 @@ impl EventStore {
             .iter()
             .find(|(_, s)| **s == session)
             .map(|(id, _)| id.clone())
+    }
+
+    /// The event a session is open for, as `SessionJoined.Event` names it.
+    pub fn joined_event(&self, session: SessionId) -> Option<crate::network::SessionEventData> {
+        let id = self.event_of_session(session)?;
+        let event = self.get(&id)?;
+        Some(crate::network::SessionEventData {
+            id: event.id,
+            name: event.name,
+            phase: event.phase.wire(),
+        })
     }
 
     fn bind_session(&self, id: &str, session: Option<SessionId>) {

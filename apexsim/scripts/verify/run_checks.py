@@ -37,9 +37,18 @@ count from the green, -ApexCountdown seconds (and about one more) later.
 A shot's `exec` commands run `lead` seconds (default 3) before its grab.
 
 A run may also drive the dashboard (`dashboard:` entries: `at`, `action`
-broadcast|stop, `message`): the runner logs in with the run's token and
+broadcast|stop, `message`; or `call` with `method`, `path`, `body`: any
+dashboard API call, e.g. an event's /start): the runner logs in with the run's token and
 fires each at its game-clock time, which it reads off a marker command the
 run executes at 1 s and the client logs.
+
+A run's server may start with a race event already kept (`server.event`:
+`name`, `track` stem, `car` name or part of one, `phase` practice|
+qualifying|race, `entries_open`, `slots`, `ai`, `laps`, `practice_min`,
+`qualifying_min`): written to the run's records/events/<slug>.json before
+the server starts, opened, so the server opens its session at that phase
+as it does after a restart (docs/server/sessions.md, "Events across
+restarts"). Its results are empty: a race resumed so grids by the slots.
 
 A sitting (`--sit <block>`, scripts/verify/sittings.yml) is the same
 launch with a human driving: docs/wheel-sitting.md. No shots and no time
@@ -159,6 +168,55 @@ def server_toml(work: Path, port: int) -> Path:
     return path
 
 
+def content_id(kind: str, name: str) -> str:
+    """A track's (by stem) or car's (by name, or a part of it) id from its
+    file in apexsim-content: what a kept event names them by."""
+    content = (REPO / ".." / "apexsim-content").resolve()
+    if kind == "track":
+        for path in sorted(content.glob(f"tracks/*/{name}/{name}.yaml")):
+            found = re.search(r"^track_id:\s*([0-9a-fA-F-]{36})", path.read_text(encoding="utf-8"), re.M)
+            if found:
+                return found.group(1)
+    else:
+        for path in sorted(content.glob("cars/*/*/car.toml")):
+            text = path.read_text(encoding="utf-8")
+            car = re.search(r'^name\s*=\s*"([^"]*)"', text, re.M)
+            car_id = re.search(r'^id\s*=\s*"([0-9a-fA-F-]{36})"', text, re.M)
+            if car and car_id and name.lower() in car.group(1).lower():
+                return car_id.group(1)
+    raise SystemExit(f"server.event: no {kind} {name} in {content}")
+
+
+def seed_event(work: Path, event: dict) -> None:
+    """`server.event`: a kept race event at its phase, opened, for the server
+    to open a session for as it starts."""
+    import json
+    name = event.get("name", "Verify Cup")
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    weekend = None
+    if event.get("qualifying_min") or event.get("practice_min"):
+        weekend = {
+            "practice_seconds": int(event.get("practice_min", 0)) * 60,
+            "qualifying_seconds": [int(event.get("qualifying_min", 5)) * 60],
+        }
+    spec = {
+        "name": name,
+        "track_id": content_id("track", event["track"]),
+        "car_id": content_id("car", event["car"]),
+        "player_slots": int(event.get("slots", 4)),
+        "ai_count": int(event.get("ai", 5)),
+        "lap_limit": int(event.get("laps", 3)),
+        "weekend": weekend,
+    }
+    folder = work / "records" / "events"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{slug}.json").write_text(json.dumps({
+        "version": 1, "id": slug, "name": name, "spec": spec,
+        "entries_open": bool(event.get("entries_open", True)), "entries": [], "ai": [],
+        "phase": event.get("phase", "race"), "opened": True, "results": [],
+    }, indent=2), encoding="utf-8")
+
+
 class Server:
     def __init__(self, run: dict, work: Path, port: int):
         self.run, self.work, self.port = run, work, port
@@ -171,6 +229,8 @@ class Server:
         config = server_toml(self.work, self.port)
         env = dict(os.environ)
         server = self.run.get("server") or {}
+        if server.get("event"):
+            seed_event(self.work, server["event"])
         if server.get("stand_in"):
             env["APEXSIM_DEBUG_STAND_IN_DRIVER"] = "true"
         if server.get("events"):
@@ -310,6 +370,9 @@ class Dashboard:
             for sid in ids:
                 self.call("POST", f"/api/sessions/{sid}/stop", {"reason": entry.get("message", "Verification run")})
             return f"stopped {len(ids)} session(s)"
+        if action == "call":
+            answer = self.call(entry.get("method", "POST"), entry["path"], entry.get("body", {}))
+            return f"{entry['path']}: {answer}"
         raise ValueError(f"unknown dashboard action {action}")
 
 

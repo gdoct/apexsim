@@ -153,8 +153,9 @@ Bundle by module, each judged by the survey:
 **What:** An event keeps a weekend across restarts (built 2026-10-23:
 `events.rs`, `records/events/<id>.json`, run from the dashboard's API;
 [sessions](server/sessions.md#events-across-restarts)), its AI field
-fixed for the event. No schedule, no combined results record shown to
-players, no dashboard page or client view of an event. Drivers are known
+fixed for the event, run from the dashboard's Events view; the client is
+told a session is an event's (`SessionJoined.Event`). No schedule, no
+combined results record shown to players. Drivers are known
 across connections (each profile's id, proved by its Ed25519 key,
 `driver_keys.rs`).
 **Outcome:** Real league-style weekends: practice Friday, qualifying
@@ -164,8 +165,8 @@ Saturday, race Sunday, same drivers, results kept.
    per server).
 2. *Event entity + persistence*: built (entries by proved id with car and
    livery fixed, phases and results, resumed at the next phase after a
-   restart). Left: an Events view on the dashboard page, and the client
-   told it is in an event (it sees a hosted weekend).
+   restart), run from the dashboard's Events view, named in the client's
+   lobby with its phase.
 3. *Schedule*: sessions open and start on time, lobby view and countdown,
    late joiners from the pit lane.
 4. *AI entries* with fixed identities and levels across days: built

@@ -180,6 +180,31 @@ button, lit while a race is being driven (`WatchSession`). Rows are rebuilt
 only when sessions come or go and refreshed in place otherwise, so a
 broadcast never moves the pad's place.
 
+### Session lobby (`UI/ApexSessionLobbyWidget.cpp`)
+
+The joined session before it starts: the state line, the circuit, its
+format and the slots filled, the grid, chat, and for the host the mode,
+countdown and START (a race weekend's START sends it to its first phase).
+A session run for a race event (`UApexNetSubsystem::GetSessionEvent`, from
+`SessionJoined.Event`; [sessions.md](../server/sessions.md#events-across-restarts))
+says so (`ApexEventLabels`): the state line is the event's name and phase
+("AUTUMN CUP · RACE NEXT" while its weekend stands at the lobby, the
+weekend's own phase once it runs), the format line starts RACE EVENT and
+marks the phases already run DONE (an event resumed after a server restart
+opens at its next phase), and under the start button the server's race
+control is waited for ("WAITING FOR RACE CONTROL TO START THE RACE"). The
+race's laps there are the listed session's, not the player's own create
+settings.
+
+A server `Error` is a toast (`UApexRootWidget::HandleServerError`,
+`ApexServerError::Describe`): a race event's refusals (joining without a
+proved driver key, not entered with entries closed, the entry list full,
+a livery change) are sentences saying what happened, any other 403 is the
+server's reason as a sentence, and the rest keep their code.
+
+Checks: `ApexSim.UI.EventLobby.Labels`, `ApexSim.Net.ServerErrors`, and
+`ApexSim.Net.Protocol.GoldenDecode` (`S_SessionJoinedEvent`).
+
 ### Main menu (`UI/ApexMainMenuWidget.cpp`)
 
 Two columns. The left "hero" shows what the player was last doing (pending

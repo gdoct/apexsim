@@ -16,6 +16,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexEventLabels.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
@@ -356,6 +357,10 @@ void UApexSessionLobbyWidget::RefreshHeader()
 
 	FApexSessionSummary Session;
 	const bool bHasSession = Net->FindSessionById(Net->GetCurrentSessionId(), Session);
+	// A race event's session: its name and the phase it is at, which for
+	// one resumed after a restart is past the weekend's own lobby.
+	const FApexSessionEvent& Event = Net->GetSessionEvent();
+	const EApexWeekendPhase WeekendPhase = Net->GetWeekendState().bValid ? Net->GetWeekendState().Phase : EApexWeekendPhase::Lobby;
 
 	FString State;
 	FLinearColor Colour = ApexUI::Palette::Live;
@@ -363,6 +368,10 @@ void UApexSessionLobbyWidget::RefreshHeader()
 	{
 		State = FString::Printf(TEXT("STARTING IN %d"), CountdownRemaining);
 		Colour = ApexUI::Palette::Accent;
+	}
+	else if (Event.IsEvent())
+	{
+		State = ApexEventLabels::LobbyState(Event, WeekendPhase);
 	}
 	else if (IsHost())
 	{
@@ -402,19 +411,36 @@ void UApexSessionLobbyWidget::RefreshHeader()
 		const int32 RaceSeconds = Net->GetSessionRaceSeconds();
 		// A race weekend: its sessions, as the session was made.
 		const FApexWeekendFormat& Weekend = Net->GetSessionWeekend();
+		// The session's laps as the lobby lists it (a guest's own create settings say nothing of it).
+		const int32 RaceLaps = bHasSession && Session.LapLimit > 0 ? Session.LapLimit : Flow->CreateLapLimit;
 		TArray<FString> Parts;
 		if (Weekend.IsWeekend())
 		{
-			Parts.Add(TEXT("RACE WEEKEND"));
+			// An event's phases already run say so: a resumed weekend
+			// goes on from the first one that is not.
+			const auto Done = [&Event, WeekendPhase](EApexWeekendPhase Phase)
+			{
+				return ApexEventLabels::IsPhaseDone(Event, WeekendPhase, static_cast<int32>(Phase)) ? TEXT(" DONE") : TEXT("");
+			};
+			Parts.Add(Event.IsEvent() ? TEXT("RACE EVENT") : TEXT("RACE WEEKEND"));
 			if (Weekend.PracticeSeconds > 0)
 			{
-				Parts.Add(FString::Printf(TEXT("PRACTICE %s"), *ApexRaceLength::Describe(Weekend.PracticeSeconds).ToUpper()));
+				Parts.Add(FString::Printf(TEXT("PRACTICE %s%s"), *ApexRaceLength::Describe(Weekend.PracticeSeconds).ToUpper(),
+					Done(EApexWeekendPhase::Practice)));
 			}
 			Parts.Add(Weekend.Rounds() > 1
-				? FString::Printf(TEXT("Q1-Q%d %s"), Weekend.Rounds(), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper())
-				: FString::Printf(TEXT("QUALIFYING %s"), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper()));
+				? FString::Printf(TEXT("Q1-Q%d %s%s"), Weekend.Rounds(), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
+					Done(EApexWeekendPhase::Qualifying))
+				: FString::Printf(TEXT("QUALIFYING %s%s"), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
+					Done(EApexWeekendPhase::Qualifying)));
 			Parts.Add(RaceSeconds > 0 ? FString::Printf(TEXT("RACE %s"), *ApexRaceLength::Describe(RaceSeconds).ToUpper())
-				: FString::Printf(TEXT("RACE %d LAPS"), Flow->CreateLapLimit));
+				: FString::Printf(TEXT("RACE %d LAPS"), RaceLaps));
+		}
+		else if (Event.IsEvent())
+		{
+			Parts.Add(TEXT("RACE EVENT"));
+			Parts.Add(RaceSeconds > 0 ? FString::Printf(TEXT("RACE %s"), *ApexRaceLength::Describe(RaceSeconds).ToUpper())
+				: FString::Printf(TEXT("RACE %d LAPS"), RaceLaps));
 		}
 		FormatText->SetText(FText::FromString(Parts.Num() > 0 ? FString::Join(Parts, TEXT(" · "))
 			: RaceSeconds > 0
@@ -716,6 +742,12 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 		if (CountdownRemaining > 0)
 		{
 			NotReadyText->SetText(FText::FromString(FString::Printf(TEXT("STARTING IN %d…"), CountdownRemaining)));
+		}
+		else if (!bHost && Net->GetSessionEvent().IsEvent())
+		{
+			// The server runs an event: its dashboard starts each phase.
+			const EApexWeekendPhase WeekendPhase = Net->GetWeekendState().bValid ? Net->GetWeekendState().Phase : EApexWeekendPhase::Lobby;
+			NotReadyText->SetText(FText::FromString(ApexEventLabels::WaitingLine(Net->GetSessionEvent(), WeekendPhase)));
 		}
 		else if (!bHost)
 		{

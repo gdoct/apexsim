@@ -613,6 +613,27 @@ pub struct SessionJoinedData {
     /// none (and absent from a server that predates the field).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ballast: Vec<DriverBallast>,
+
+    /// The race event the session is run for (docs/server/sessions.md
+    /// "Events across restarts"): its id, name and the phase it is at.
+    /// Left off the wire for a session that is no event's (and absent from
+    /// a server that predates the field).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub event: Option<SessionEventData>,
+}
+
+/// A race event as `SessionJoined.Event` names it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct SessionEventData {
+    /// The event's id (the slug of its name).
+    pub id: String,
+    pub name: String,
+    /// The phase the event is at, as `WeekendState.Phase` numbers them: 1
+    /// practice, 2 qualifying, 3 race, 4 done. A session opened for an
+    /// event at its qualifying or race skips the phases before, so while
+    /// `WeekendState.Phase` is 0 (the lobby) this is what comes next.
+    pub phase: u8,
 }
 
 /// The session's physics as the client's copy of the car step needs them
@@ -4725,6 +4746,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAssists: {}", hex(&joined_bytes));
@@ -4792,6 +4815,8 @@ mod tests {
             }),
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysics: {}", hex(&bytes));
@@ -4845,6 +4870,8 @@ mod tests {
             physics: Some(physics),
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let bytes = rmp_serde::to_vec_named(&joined).unwrap();
         print_golden("S_SessionJoinedPhysicsBalance", &bytes);
@@ -4945,6 +4972,8 @@ mod tests {
             physics: Some(physics),
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPhysicsBundle: {}", hex(&joined_bytes));
@@ -5103,6 +5132,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedNoDamage: {}", hex(&joined_bytes));
@@ -5245,6 +5276,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingCutoff: {}", hex(&joined_bytes));
@@ -5345,6 +5378,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedShootout: {}", hex(&joined_bytes));
@@ -5513,6 +5548,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedPitRule: {}", hex(&joined_bytes));
@@ -5638,6 +5675,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceRules: {}", hex(&joined_bytes));
@@ -6060,6 +6099,7 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: ballast.clone(),
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedBallast: {}", hex(&joined_bytes));
@@ -6234,6 +6274,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedRaceTime: {}", hex(&joined_bytes));
@@ -6364,6 +6406,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedQualifyingTime: {}", hex(&joined_bytes));
@@ -6511,6 +6555,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedWeekend: {}", hex(&joined_bytes));
@@ -6724,6 +6770,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAiSkill: {}", hex(&joined_bytes));
@@ -6846,6 +6894,8 @@ mod tests {
             physics: None,
             classes: classes.clone(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedClasses: {}", hex(&joined_bytes));
@@ -6927,6 +6977,71 @@ mod tests {
 
         assert_eq!(create_bytes, GOLDEN_C_CREATE_SESSION_CLASSES);
         assert_eq!(joined_bytes, GOLDEN_S_SESSION_JOINED_CLASSES);
+    }
+
+    /// The race event a session is run for: `SessionJoined.Event`, last,
+    /// left off for a session that is no event's (the bytes of every other
+    /// `SessionJoined` golden). Pinned on the client as
+    /// `ApexGolden::S_SessionJoinedEvent`; `cargo test
+    /// session_joined_event_wire_format -- --nocapture` prints it.
+    #[test]
+    fn session_joined_event_wire_format() {
+        const GOLDEN: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E,
+            0x4A, 0x6F, 0x69, 0x6E, 0x65, 0x64, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x86, 0xA9, 0x53,
+            0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33,
+            0x34, 0x35, 0x36, 0x37, 0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66,
+            0x2D, 0x30, 0x31, 0x32, 0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62,
+            0x63, 0x64, 0x65, 0x66, 0xB0, 0x59, 0x6F, 0x75, 0x72, 0x47, 0x72, 0x69, 0x64, 0x50,
+            0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x02, 0xAB, 0x53, 0x65, 0x73, 0x73, 0x69,
+            0x6F, 0x6E, 0x4B, 0x69, 0x6E, 0x64, 0x00, 0xAE, 0x41, 0x6C, 0x6C, 0x6F, 0x77, 0x65,
+            0x64, 0x41, 0x73, 0x73, 0x69, 0x73, 0x74, 0x73, 0x85, 0xA3, 0x61, 0x62, 0x73, 0xC3,
+            0xB0, 0x74, 0x72, 0x61, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x5F, 0x63, 0x6F, 0x6E, 0x74,
+            0x72, 0x6F, 0x6C, 0xC3, 0xAC, 0x61, 0x75, 0x74, 0x6F, 0x5F, 0x67, 0x65, 0x61, 0x72,
+            0x62, 0x6F, 0x78, 0xC3, 0xAF, 0x73, 0x74, 0x65, 0x65, 0x72, 0x69, 0x6E, 0x67, 0x5F,
+            0x61, 0x73, 0x73, 0x69, 0x73, 0x74, 0xC3, 0xAB, 0x72, 0x61, 0x63, 0x69, 0x6E, 0x67,
+            0x5F, 0x6C, 0x69, 0x6E, 0x65, 0xC3, 0xAA, 0x43, 0x6F, 0x6E, 0x64, 0x69, 0x74, 0x69,
+            0x6F, 0x6E, 0x73, 0x82, 0xA7, 0x77, 0x65, 0x61, 0x74, 0x68, 0x65, 0x72, 0x00, 0xB3,
+            0x74, 0x69, 0x6D, 0x65, 0x5F, 0x6F, 0x66, 0x5F, 0x64, 0x61, 0x79, 0x5F, 0x6D, 0x69,
+            0x6E, 0x75, 0x74, 0x65, 0x73, 0xCD, 0x03, 0x0C, 0xA5, 0x45, 0x76, 0x65, 0x6E, 0x74,
+            0x83, 0xA2, 0x49, 0x64, 0xAA, 0x61, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x2D, 0x63, 0x75,
+            0x70, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xAA, 0x41, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x20,
+            0x43, 0x75, 0x70, 0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x03,
+        ];
+        let event = SessionEventData {
+            id: "autumn-cup".into(),
+            name: "Autumn Cup".into(),
+            phase: 3,
+        };
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 2,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: None,
+            classes: Vec::new(),
+            ballast: Vec::new(),
+            event: Some(event.clone()),
+        });
+        let bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        print_golden("S_SessionJoinedEvent", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.event, Some(event)),
+            _ => panic!("Wrong message type"),
+        }
+        assert_eq!(bytes, GOLDEN);
     }
 
     /// The session's air named in full: a create that picks every figure
@@ -7020,6 +7135,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedAir: {}", hex(&joined_bytes));
@@ -7108,6 +7225,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
         println!("S_SessionJoinedSky: {}", hex(&joined_bytes));
@@ -7164,6 +7283,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let sun_bytes = rmp_serde::to_vec_named(&sun_joined).unwrap();
         println!("S_SessionJoinedSun: {}", hex(&sun_bytes));
@@ -7219,6 +7340,8 @@ mod tests {
             physics: None,
             classes: Vec::new(),
             ballast: Vec::new(),
+
+            event: None,
         });
         let forecast_joined_bytes = rmp_serde::to_vec_named(&forecast_joined).unwrap();
         println!("S_SessionJoinedForecast: {}", hex(&forecast_joined_bytes));

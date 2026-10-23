@@ -249,6 +249,35 @@ namespace
 		return true;
 	}
 
+	/** `SessionEventData` (network.rs) — PascalCase keys. */
+	bool ParseSessionEvent(FMsgPackReader& Reader, FApexSessionEvent& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Id"))         { bOk = Reader.ReadString(Out.Id); }
+			else if (Key == TEXT("Name"))  { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("Phase")) { bOk = Reader.ReadUInt64(Raw); Out.Phase = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else                           { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool ParseSessionSummary(FMsgPackReader& Reader, FApexSessionSummary& Out)
 	{
 		int32 FieldCount = 0;
@@ -908,6 +937,8 @@ namespace
 			else if (Key == TEXT("RaceRules"))         { bOk = ParseRaceRules(Reader, Out.RaceRules); }
 			else if (Key == TEXT("Classes"))           { bOk = ParseArrayOf(Reader, Out.Classes, &ParseClassEntry); }
 			else if (Key == TEXT("Ballast"))           { bOk = ParseArrayOf(Reader, Out.Ballast, &ParseDriverBallast); }
+
+			else if (Key == TEXT("Event"))             { bOk = ParseSessionEvent(Reader, Out.Event); }
 			else                                       { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

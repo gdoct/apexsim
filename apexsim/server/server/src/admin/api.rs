@@ -1233,6 +1233,7 @@ async fn event_json(ctx: &AdminContext, event: &crate::events::Event) -> Value {
     v["session"] = json!(session.filter(|_| live.is_some()));
     v["session_state"] = json!(live.map(|gs| state_label(gs.session.state)));
     v["session_mode"] = json!(live.map(|gs| mode_label(gs.session.game_mode)));
+    v["awaits_advance"] = json!(live.is_some_and(|gs| gs.awaits_weekend_advance()));
     v["track"] = json!(st
         .track_configs
         .get(&event.spec.track_id)
