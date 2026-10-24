@@ -75,7 +75,7 @@ takes it up (— : no step, taken opportunistically).
    side by side: `SURVEY_CLASSES` is its target now), N11 (liveries), then
    the rest of R3, and N7 online on top of identity.
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
-   close-ups wait on T2), P3 on an integrated-GPU machine.
+   close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
 6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
 
 ## 3. Items by type
@@ -283,8 +283,9 @@ beyond the weather already on the wire. 🔴 for the models.
 ### Verification
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
-- R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (needs T2).
-- R2 Silverstone long stint: marbles and rubber, tyre wear visuals (T2),
+- R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (photo mode
+  over the run's replay holds the car for the close-up).
+- R2 Silverstone long stint: marbles and rubber, tyre wear visuals (photo mode),
   brake material colours and disc wear/stint energy (needs a custom car.toml
   with `disc_wear_per_mj` and `stint_energy_mj`).
 - R7 seeded pile-up replay: dents, hanging parts, sparks, racecraft and
@@ -473,4 +474,5 @@ What only you can do, roughly in the order it pays off:
 - **New features N1–N23** were not in any backlog; they are now packages in
   `roadmap.md`. Yellow and blue flags stay in `simulation-gaps.md` (race
   rules) and are split here into R1a (flags, P1) and R1b (safety car, P2).
-- **Blocked verification:** R1/R2 tyre close-ups wait on T2; R4 waits on A2.
+- **Verification:** R1/R2's tyre close-ups are framed with photo mode (N20)
+  over a paused replay of the run.
