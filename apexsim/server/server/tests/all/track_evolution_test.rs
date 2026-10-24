@@ -36,6 +36,15 @@ fn gt3() -> CarConfig {
 /// A race at Monza for `cars` AI GT3s under `conditions`, applied as the
 /// server does on create.
 fn race(conditions: SessionConditions, cars: usize) -> (GameSession, Vec<PlayerId>) {
+    race_in(conditions, cars, gt3())
+}
+
+/// [`race`] in `car`.
+fn race_in(
+    conditions: SessionConditions,
+    cars: usize,
+    car: CarConfig,
+) -> (GameSession, Vec<PlayerId>) {
     let mut track = monza();
     let mut session = RaceSession::new(
         Uuid::from_u128(1),
@@ -50,7 +59,6 @@ fn race(conditions: SessionConditions, cars: usize) -> (GameSession, Vec<PlayerI
     let conditions = conditions.resolve(session.id.as_u64_pair().0);
     conditions.apply_to_track(&mut track);
     session.conditions = conditions;
-    let car = gt3();
     let mut car_configs = HashMap::new();
     car_configs.insert(car.id, car.clone());
     let profiles: Vec<AiDriverProfile> = (0..cars)
@@ -326,4 +334,169 @@ fn a_winter_forecast_brings_snow_onto_a_bare_road() {
         "the winter air stays cold: {}",
         gs.sky.air_c
     );
+}
+
+fn rally() -> CarConfig {
+    CarLoader::load_from_file(Path::new(
+        "../../../apexsim-content/cars/default/lancha-037-rally/car.toml",
+    ))
+    .expect("car loads")
+}
+
+/// The line's mean snow cover now.
+fn line_snow(gs: &GameSession) -> f32 {
+    gs.track_config
+        .road_state
+        .as_ref()
+        .unwrap()
+        .mean_line_snow()
+}
+
+/// Each AI's call for a change of tyres that `wanted` picks out: when it
+/// asked (s) and the line's cover then, the first time each asks.
+fn calls(
+    gs: &mut GameSession,
+    ids: &[PlayerId],
+    seconds: usize,
+    wanted: impl Fn(CompoundKind) -> bool,
+) -> HashMap<PlayerId, (f32, f32)> {
+    let mut asked = HashMap::new();
+    let mut tick = 0usize;
+    run(gs, ids, seconds, |gs| {
+        tick += 1;
+        if !tick.is_multiple_of(HZ) {
+            return;
+        }
+        for id in ids {
+            let s = &gs.session.participants[id];
+            let tyre = &gs.car_configs[&s.car_config_id].tire_config;
+            if s.pit.wants_stop
+                && s.tyre_compound != s.pit.next_compound
+                && wanted(tyre.compound(s.pit.next_compound).kind)
+            {
+                asked
+                    .entry(*id)
+                    .or_insert((tick as f32 / HZ as f32, line_snow(gs)));
+            }
+        }
+    });
+    asked
+}
+
+/// A dry winter race with snow forecast six minutes in: the rally cars
+/// call for their studs before the snow lies on the line (most before it
+/// starts to fall, a gambler as it does), and every one is on them once
+/// the line is covered.
+#[test]
+fn the_ai_fits_studs_before_the_forecast_snow() {
+    let conditions = SessionConditions {
+        weather: Weather::Overcast,
+        air_temp_c: Some(-3),
+        changeable: Some(2),
+        ..SessionConditions::DEFAULT
+    };
+    let (mut gs, ids) = race_in(conditions, 4, rally());
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "a stop for studs")
+    {
+        return;
+    }
+    const SNOW_AT_S: f32 = 360.0;
+    gs.sky.forecast = vec![WeatherChange {
+        at_s: SNOW_AT_S,
+        weather: Weather::Snow,
+    }];
+    let asked = calls(&mut gs, &ids, 840, |k| k == CompoundKind::Snow);
+    let mut on_studs = 0;
+    for id in &ids {
+        let s = &gs.session.participants[id];
+        let tyre = &gs.car_configs[&s.car_config_id].tire_config;
+        on_studs += (tyre.compound(s.tyre_compound).kind == CompoundKind::Snow) as usize;
+        println!(
+            "snow at {SNOW_AT_S} s: asked for studs at {:?}",
+            asked.get(id)
+        );
+    }
+    println!(
+        "after 14 min: line cover {:.2}, {on_studs} of {} on studs",
+        line_snow(&gs),
+        ids.len()
+    );
+    assert_eq!(asked.len(), ids.len(), "every car asked for studs");
+    for (at_s, cover) in asked.values() {
+        assert!(
+            *cover < apexsim_server::pit::SNOW_ON_COVER,
+            "asked at {at_s} s on a line already covered {cover}"
+        );
+    }
+    assert!(
+        asked.values().any(|(at_s, _)| *at_s < SNOW_AT_S),
+        "ahead of the snow"
+    );
+    assert!(line_snow(&gs) > apexsim_server::pit::SNOW_ON_COVER);
+    assert_eq!(on_studs, ids.len(), "all on studs on the covered line");
+}
+
+/// A snow race whose snow stops and whose sun comes out on a track a few
+/// degrees over freezing: the line melts, and the rally cars call for
+/// their tarmac tyres while it still holds a snow tyre's cover, not after
+/// it is bare.
+#[test]
+fn the_ai_comes_off_studs_ahead_of_the_melt() {
+    let conditions = SessionConditions {
+        weather: Weather::Snow,
+        air_temp_c: Some(2),
+        changeable: Some(2),
+        ..SessionConditions::DEFAULT
+    };
+    let (mut gs, ids) = race_in(conditions, 4, rally());
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "a stop off studs")
+    {
+        return;
+    }
+    gs.sky.forecast = vec![WeatherChange {
+        at_s: 30.0,
+        weather: Weather::Sunny,
+    }];
+    let start_on = {
+        let s = &gs.session.participants[&ids[0]];
+        gs.car_configs[&s.car_config_id]
+            .tire_config
+            .compound(s.tyre_compound)
+            .kind
+    };
+    assert_eq!(start_on, CompoundKind::Snow, "out on studs on the snow");
+    let asked = calls(&mut gs, &ids, 900, |k| k != CompoundKind::Snow);
+    for id in &ids {
+        println!("melt: asked off studs at {:?}", asked.get(id));
+    }
+    println!(
+        "after 15 min: track {:.1} °C, line cover {:.2}",
+        gs.sky.track_c,
+        line_snow(&gs)
+    );
+    assert!(gs.sky.track_c > 0.0, "the track warmed over freezing");
+    assert!(
+        line_snow(&gs) < apexsim_server::pit::SNOW_OFF_COVER,
+        "the line melted"
+    );
+    assert_eq!(asked.len(), ids.len(), "every car asked off studs");
+    for id in &ids {
+        let s = &gs.session.participants[id];
+        let tyre = &gs.car_configs[&s.car_config_id].tire_config;
+        assert_ne!(
+            tyre.compound(s.tyre_compound).kind,
+            CompoundKind::Snow,
+            "off studs on the bare line"
+        );
+    }
+    for (at_s, cover) in asked.values() {
+        assert!(
+            *cover >= apexsim_server::pit::SNOW_OFF_COVER,
+            "asked at {at_s} s on a line already bare {cover}"
+        );
+    }
 }

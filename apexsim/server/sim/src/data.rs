@@ -1596,6 +1596,12 @@ pub struct TireData {
     pub blister: f32,
     #[serde(default)]
     pub pressure_loss_kpa: f32,
+    /// The share of a studded tyre's studs pulled out on bare tarmac, 0..1
+    /// (`tyre_thermal::Compound::stud_loss`): its bite on ice and part of
+    /// its bite on snow go with them. 0 on a new set and on any tyre
+    /// without studs.
+    #[serde(default)]
+    pub studs_lost: f32,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]

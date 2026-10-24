@@ -100,9 +100,14 @@ Built per tick in `ai_input_for` with the car's speed profile
   (`surface_grip_share`: rubber, marbles, water; `snow_tyre_share`: a snow
   tyre's bite on the cover); `aero_load_share` covers
   the wake, the wind and a damaged nose.
-- **Snow technique**, on a road baked snow-covered
-  (`TrackSurface::baked_snow`, each scaled by it, so a dry road is driven
-  bit for bit as before): the target pace times `SNOW_PACE` (0.93), so the
+- **Snow technique**, on a snow-covered line on any tyre, studs too (each
+  scaled by `snow_technique_weight` of the line's cover as the sky last read
+  it, `LiveConditions::line_snow`, in full from `SNOW_TECHNIQUE_FULL_COVER`
+  0.3 and so on a packed line, none on a bare one; the bake's
+  `TrackSurface::baked_snow` on a track without a road state;
+  `GameSession::snow_technique` into `AiDriverController::with_snow`): snow
+  that the forecast brings mid-race brings it, a melted line ends it, and a
+  dry road is driven bit for bit as before. The target pace times `SNOW_PACE` (0.93), so the
   braking comes earlier than the plan's grip says; the steering lag times
   `SNOW_STEER_LAG_SCALE` (1.8); and the throttle squeezed in no faster
   than `SNOW_THROTTLE_STEP` (0.15) a decision. Against the controller
@@ -280,13 +285,34 @@ off by `Racecraft::blend`; the controller holds it across the road
   or stop-go is served at the next pass of the lane (`plan_ai_stops` sets
   `wants_stop`), before any stop it plans.
 - **Stops** (`plan_ai_stops`, races only, inside `update_pits`): first the
-  weather. A car with a snow tyre reads the snow on the line first
-  (`CrossoverContext::line_snow`, `RoadState::line_snow_of`;
-  `pit::snow_tyres`): onto its snow tyre from `SNOW_ON_COVER` (0.4), on it
-  while the line holds `SNOW_OFF_COVER` (0.15) or more (a packed line's
-  0.65 stays a snow tyre's), and off it for the water's tyre or its
-  reference once the line is clear; neither within
-  `CROSSOVER_STAY_OUT_LAPS` of the flag. Off snow tyres on a clear line,
+  weather. A car with a snow tyre reads the snow first
+  (`pit::snow_tyres_for`): on the line's cover (`CrossoverContext::line_snow`,
+  `RoadState::line_snow_of`; `pit::snow_tyres`) onto its snow tyre from
+  `SNOW_ON_COVER` (0.4), on it while the line holds `SNOW_OFF_COVER` (0.15)
+  or more (a packed line's 0.65 stays a snow tyre's); and against the
+  forecast (`snowing`: the road's snowfall or the sky's snow step;
+  `snow_turn_in_s`: the next step that starts or stops it) and the melt
+  (`melting_per_s`: `road_state::SNOW_MELT_PER_C` times the road's degrees
+  over freezing). It fits studs `SNOW_FIT_LEAD_LAPS` (2) laps before the
+  forecast's snow and while snow falls that is not due to stop within
+  `FORECAST_LAPS`; keeps them on a bare line while snow falls or more is
+  due within `FORECAST_LAPS`; and, the snow stopped and none due, comes off
+  them for the water's tyre or its reference once the melt will take the
+  line under `SNOW_OFF_COVER` within `SNOW_MELT_LEAD_LAPS` (1), not onto
+  them on a covered line that melts clear within
+  `SNOW_GAMBLE_MELT_LEAD_LAPS`. A gambler (by `SNOW_GAMBLE_CHANCE` 0.6
+  times its aggressiveness, drawn once a race from its id,
+  `CrossoverContext::snow_roll`) fits them only `SNOW_GAMBLE_FIT_LEAD_LAPS`
+  (0.5) ahead, waits for the cover once it snows, and comes off
+  `SNOW_GAMBLE_MELT_LEAD_LAPS` (2.5) ahead of the melt. No change either way
+  within `CROSSOVER_STAY_OUT_LAPS` of the flag; a stop planned for fuel or
+  wear fits the same snow tyre. In a dry winter race at Monza with snow
+  forecast six minutes in, three rally cars called for studs 245 s (two laps)
+  ahead and the gambler 78 s ahead, all on a bare line, and all four were on
+  them on the covered line; in a melt on a 7.5 °C track all four called for
+  slicks with the line at 0.44-0.59, ahead of the 0.15 (`track_evolution_test`
+  `the_ai_fits_studs_before_the_forecast_snow`,
+  `the_ai_comes_off_studs_ahead_of_the_melt`). Off snow tyres on a clear line,
   and for a car without one, the rain decides as follows
   (`pit::tyres_for_the_track` on `RoadState::mean_line_water`: off
   slicks at `SLICK_OFF_WATER` 0.25, off treaded tyres under
@@ -306,7 +332,8 @@ off by `Racecraft::blend`; the controller holds it across the road
   the line is drying (`drying_per_s`: `GameSession::line_drying`, the
   line's water a second eased over `LINE_DRYING_EASE_S` 30 s, reset at the
   green) and what the rest of the running field is on (`field_treaded`,
-  the share on treaded tyres): with `HEAVY_RAIN_AHEAD` (0.9, a downpour) on
+  the share on rain tyres of the cars on slicks or rain tyres: a car on
+  studs is neither): with `HEAVY_RAIN_AHEAD` (0.9, a downpour) on
   a line getting wetter, slicks come in from `SLICK_FOLLOW_WATER` (0.18)
   and straight onto the full wet; slicks in the rain follow half the field
   (`FIELD_FOLLOW_SHARE`) onto treaded tyres from 0.18 too; a wet becomes an

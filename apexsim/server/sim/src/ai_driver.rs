@@ -75,15 +75,26 @@ const STANLEY_GAIN_ACE: f32 = 2.0;
 const STANLEY_SOFTENING_MPS: f32 = 3.0;
 const STEER_LAG_NOVICE_S: f32 = 0.08;
 const STEER_LAG_ACE_S: f32 = 0.04;
-/// Snow technique, on a road baked snow-covered (`TrackSurface::baked_snow`,
-/// each scaled by it): the plan's pace taken down to this share, so the
-/// braking comes earlier and the corners slower than the grip the plan
-/// reads ...
+/// Snow technique, on a snow-covered road (each scaled by
+/// [`snow_technique_weight`] of the line's cover, on any tyre): the plan's
+/// pace taken down to this share, so the braking comes earlier and the
+/// corners slower than the grip the plan reads ...
 pub const SNOW_PACE: f32 = 0.93;
 /// ... the wheel turned this much slower (the steering lag scaled) ...
 pub const SNOW_STEER_LAG_SCALE: f32 = 1.8;
 /// ... and the throttle fed in no faster than this much a decision.
 pub const SNOW_THROTTLE_STEP: f32 = 0.15;
+/// The line's snow cover (`RoadState::mean_line_snow`) from which the snow
+/// technique is driven in full: a packed line (`road_state::SNOW_FLOOR`)
+/// is all of it, a film melting away less and less.
+pub const SNOW_TECHNIQUE_FULL_COVER: f32 = 0.3;
+
+/// How much of the snow technique a driver uses on a line under this much
+/// snow `cover`, 0..1: in full from [`SNOW_TECHNIQUE_FULL_COVER`], none on
+/// a bare line.
+pub fn snow_technique_weight(cover: f32) -> f32 {
+    (cover / SNOW_TECHNIQUE_FULL_COVER).clamp(0.0, 1.0)
+}
 /// Seconds of steering per unit of yaw-rate error against the rate the path
 /// asks for (`track_path`): damps the weave the wheel and tyre lags make.
 const YAW_DAMPING: f32 = 0.25;
@@ -297,6 +308,10 @@ pub struct AiDriverController<'a> {
     /// How hard the driver short-shifts, 0..1 ([`Self::with_short_shift`]):
     /// to save fuel, or to spare a damaged engine.
     short_shift: f32,
+    /// How much of the snow technique it drives with, 0..1
+    /// ([`Self::with_snow`]): the road's baked cover unless told the live
+    /// line's.
+    snow: f32,
 }
 
 /// The longest a driver saving fuel coasts before a braking zone, s.
@@ -361,7 +376,17 @@ impl<'a> AiDriverController<'a> {
             speed_profile: None,
             coast_s: 0.0,
             short_shift: 0.0,
+            snow: track_config.track_surface.baked_snow.clamp(0.0, 1.0),
         }
+    }
+
+    /// Drive `weight` (0..1) of the snow technique ([`SNOW_PACE`] and the
+    /// rest): the session's own reading of the snow on the line now
+    /// ([`snow_technique_weight`]), which snow arriving or melting moves
+    /// away from the bake's.
+    pub fn with_snow(mut self, weight: f32) -> Self {
+        self.snow = weight.clamp(0.0, 1.0);
+        self
     }
 
     /// Short-shift by `share` (0..1) of [`SHORT_SHIFT_DROP`]: upshift that
@@ -850,10 +875,10 @@ impl<'a> AiDriverController<'a> {
 
     /// A driver's hands are not instant: the wheel moves towards the wanted
     /// angle with a skill-dependent time constant.
-    /// How snow-covered the road was baked, 0..1 (`TrackSurface::baked_snow`):
-    /// the snow technique's weight. 0 on any other road.
+    /// The snow technique's weight, 0..1 ([`Self::with_snow`]): 0 on a
+    /// road without snow.
     fn snow(&self) -> f32 {
-        self.track_config.track_surface.baked_snow.clamp(0.0, 1.0)
+        self.snow
     }
 
     fn smooth_steering(

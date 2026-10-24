@@ -80,6 +80,8 @@ wear = 2.6
 window_shift_c = -45.0
 water_grip = [0.80, 0.92, 0.88]
 snow_grip = 2.0
+# Studs torn out on tarmac: a third of the tread worn there takes them all.
+stud_loss = 0.03
 
 [brakes]
 material = "steel"

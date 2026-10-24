@@ -52,7 +52,6 @@ takes it up (— : no step, taken opportunistically).
 | C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
-| A5 | AI winter tyres (snow technique built) | AI + sim | P3 | 🟢 | M | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |

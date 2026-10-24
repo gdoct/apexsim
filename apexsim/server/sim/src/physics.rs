@@ -674,11 +674,13 @@ pub fn update_car_3d(
     // was planned on: what the AI drives to on a drying line or in a puddle.
     let centre = road_under(0.0, 0.0);
     state.surface_grip_share = centre.grip;
-    // And what the fitted tyre's bite on its snow and ice adds to it.
+    // And what the fitted tyre's bite on its snow and ice adds to it, with
+    // the studs the set has left.
+    let studs_lost = state.tires.each().iter().map(|t| t.studs_lost).sum::<f32>() / 4.0;
     state.snow_tyre_share = config
         .tire_config
         .compound(state.tyre_compound)
-        .snow_factor(centre.snow, centre.ice);
+        .snow_factor_with(centre.snow, centre.ice, studs_lost);
     // Body frame: +y is LEFT, so the left wheels sit at +track/2.
     let contacts = [
         contact_under(front_axle_x, config.track_width_front_m / 2.0),

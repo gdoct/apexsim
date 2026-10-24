@@ -91,6 +91,7 @@ fn a_snow_tyre_corners_harder_on_a_covered_road() {
         snow_grip: 2.0,
         ice_grip: 1.0,
         bare_wear: 1.0,
+        stud_loss: 0.0,
         window_scale: 1.0,
         heat_scale: 1.0,
         rolling_heat_scale: 1.0,

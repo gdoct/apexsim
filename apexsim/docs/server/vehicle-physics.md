@@ -268,6 +268,16 @@ racing surface). The root blends it in as the road's own snow grip falls
 tarmac, none on a covered road. All three keys default to 1.0, which is exactly the
 compound without them, and off a snow session every cover and ice is 0.
 
+**Studs pull out** on bare tarmac: each percent of tread a tyre wears adds
+`stud_loss (1 - cover / STUDS_KEPT_FROM_COVER)` (0.3: a packed line or a film of snow keeps
+them off the asphalt) to its `TireData::studs_lost` (0..1, `Compound::studs_pulled`,
+in `tyre_thermal::step`), and a new set (`tyre_thermal::fit`) has them all again. The bite
+goes with them (`Compound::snow_factor_with`, which `grip_multiplier` and `snow_tyre_share`
+read with the set's mean): all of `ice_grip` over 1 is the studs', and `STUD_SNOW_SHARE`
+(0.5) of `snow_grip` over 1, so a set that has lost them all keeps half its bite on snow and
+none on ice. `stud_loss` defaults to 0, which loses none; the rally cars' studs are 0.03 (a
+third of the tread worn on tarmac pulls them all).
+
 
 ### Wear, flat spots, punctures
 
@@ -304,7 +314,8 @@ compound without them, and off a snow session every cover and ice is 0.
 
 `CarState::tyre_grip_share` (weaker axle's grip against new reference tyres in their window,
 times the road's `surface_grip_share`, times `snow_tyre_share`: the fitted compound's
-`snow_factor` on the cover and ice under the car's middle, 1.0 for any tyre but a snow tyre)
+`snow_factor_with` on the cover and ice under the car's middle and the studs it has left, 1.0
+for any tyre but a snow tyre)
 scales the AI's profile speeds by its **0.75 power**
 with `aero_load_share` (`ai_driver.rs`). Trap: the physically "right" square root put the AI
 off the road more, because grip moves under the car as the tread heats through a corner. The
@@ -319,7 +330,8 @@ player's racing line is planned on warm tyres.
 (`_front_n`/`_rear_n`), `longitudinal_grip_factor`, `front_grip_scale`, `rear_grip_scale`;
 `[[tires.compound]]`: `name`, `kind` (`slick`/`intermediate`/`wet`/`snow`), `grip`, `wear`,
 `window_shift_c`, `water_grip = [dry, light, heavy]` (a snow kind's default `[0.8, 0.9, 0.85]`),
-`reference`, `snow_grip`, `ice_grip`, `bare_wear`, `window_scale` (1.0 each; `window_scale`
+`reference`, `snow_grip`, `ice_grip`, `bare_wear`, `stud_loss` (0 when absent),
+`window_scale` (1.0 each; `window_scale`
 multiplies `temperature_window_c` for that compound, `tyre_thermal::window_c`, wherever the
 window is read: grip, hot wear, blistering, the hysteresis fade and the AI's cold-tyre edge;
 0.25-4), `heat_scale` and `rolling_heat_scale` (1.0 each, 0.25-4: `tyre_thermal::step`

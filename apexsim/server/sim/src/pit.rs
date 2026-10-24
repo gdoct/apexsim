@@ -984,6 +984,88 @@ pub fn snow_tyres(tire: &crate::data::TireConfig, fitted: u8, line_snow: f32) ->
     (line_snow >= from).then_some(snow)
 }
 
+/// A driver who will not gamble fits its snow tyre this many laps before
+/// the forecast's snow arrives, and one who will ([`SNOW_GAMBLE_CHANCE`])
+/// this many: the stop comes at the next pass of the lane, within a lap
+/// of the decision.
+pub const SNOW_FIT_LEAD_LAPS: f32 = 2.0;
+pub const SNOW_GAMBLE_FIT_LEAD_LAPS: f32 = 0.5;
+/// Once the snow has stopped and the line is melting, a driver comes off
+/// its snow tyre when the melt will take the line under
+/// [`SNOW_OFF_COVER`] within this many laps, and a gambler within
+/// [`SNOW_GAMBLE_MELT_LEAD_LAPS`]: before the line is bare, not after.
+pub const SNOW_MELT_LEAD_LAPS: f32 = 1.0;
+pub const SNOW_GAMBLE_MELT_LEAD_LAPS: f32 = 2.5;
+/// A driver gambles on the snow (on its dry or rain tyre until the snow
+/// is falling, off its snow tyre early in the melt) by this chance times
+/// its aggressiveness, drawn once for the race
+/// (`CrossoverContext::snow_roll`).
+pub const SNOW_GAMBLE_CHANCE: f32 = 0.6;
+
+/// The snow tyre a car on `fitted` should be on, read against the
+/// forecast and its driver (`ctx`): [`snow_tyres`] on the line's cover,
+/// and besides it
+///
+/// - onto it ahead of the forecast's snow: [`SNOW_FIT_LEAD_LAPS`] before
+///   it falls ([`SNOW_GAMBLE_FIT_LEAD_LAPS`] for a gambler), so the car is
+///   on it as the line whitens;
+/// - onto it while snow falls that is not due to stop within
+///   [`FORECAST_LAPS`], on a line not yet covered (a gambler waits for the
+///   cover);
+/// - kept on a line clear of snow while the snow falls or more is due
+///   within [`FORECAST_LAPS`];
+/// - off it while the line still holds snow once the snow has stopped and
+///   the melt (`CrossoverContext::melting_per_s`) takes the cover under
+///   [`SNOW_OFF_COVER`] within [`SNOW_MELT_LEAD_LAPS`] (a gambler's
+///   [`SNOW_GAMBLE_MELT_LEAD_LAPS`]), and not onto it on a covered line
+///   that melts clear within the gambler's lead (so a car just off it does
+///   not turn back).
+///
+/// `None` for a car without one, or with no snow for it.
+pub fn snow_tyres_for(
+    tire: &crate::data::TireConfig,
+    fitted: u8,
+    ctx: &CrossoverContext,
+) -> Option<u8> {
+    let snow = tire.snow_compound()?;
+    let on_snow = tire.compound(fitted).kind == crate::tyre_thermal::CompoundKind::Snow;
+    let lap_s = ctx.lap_s.max(1.0);
+    let gambler = ctx.snow_roll < SNOW_GAMBLE_CHANCE * ctx.aggressiveness.clamp(0.0, 1.0);
+    // Snow due (none falling now) within `laps`.
+    let due_within =
+        |laps: f32| !ctx.snowing && ctx.snow_turn_in_s.is_some_and(|t| t <= laps * lap_s);
+    // The line under a snow tyre's cover within `laps`, the snow stopped
+    // and none due back.
+    let melted_within = |laps: f32| {
+        !ctx.snowing
+            && !due_within(FORECAST_LAPS)
+            && ctx.melting_per_s > 0.0
+            && ctx.line_snow - ctx.melting_per_s * laps * lap_s < SNOW_OFF_COVER
+    };
+    // Snow falling that the forecast does not stop within its reach.
+    let falling = ctx.snowing && ctx.snow_turn_in_s.is_none_or(|t| t > FORECAST_LAPS * lap_s);
+    let on_the_cover = snow_tyres(tire, fitted, ctx.line_snow).is_some();
+    let want = if on_snow {
+        let lead = if gambler {
+            SNOW_GAMBLE_MELT_LEAD_LAPS
+        } else {
+            SNOW_MELT_LEAD_LAPS
+        };
+        (on_the_cover && !melted_within(lead))
+            || (!on_the_cover && (ctx.snowing || due_within(FORECAST_LAPS)))
+    } else {
+        let lead = if gambler {
+            SNOW_GAMBLE_FIT_LEAD_LAPS
+        } else {
+            SNOW_FIT_LEAD_LAPS
+        };
+        (on_the_cover && !melted_within(SNOW_GAMBLE_MELT_LEAD_LAPS))
+            || due_within(lead)
+            || (falling && !gambler)
+    };
+    want.then_some(snow)
+}
+
 /// What an AI weighs a change of tyres for the weather against, besides
 /// the water on the line.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -1014,6 +1096,19 @@ pub struct CrossoverContext {
     /// The snow cover on the racing line, 0..1
     /// (`RoadState::line_snow_of`): what a car with a snow tyre reads.
     pub line_snow: f32,
+    /// Snow falling now.
+    pub snowing: bool,
+    /// Seconds until the forecast brings snow, while none falls, and
+    /// until it stops, while it does; `None` when it does not within its
+    /// reach.
+    pub snow_turn_in_s: Option<f32>,
+    /// How fast the line's snow is melting, cover a second
+    /// (`road_state::SNOW_MELT_PER_C` times the track's degrees over
+    /// freezing): 0 on a track at or under 0 °C.
+    pub melting_per_s: f32,
+    /// A number in 0..1 drawn once for the driver and the race: its gamble
+    /// on the snow ([`SNOW_GAMBLE_CHANCE`]).
+    pub snow_roll: f32,
 }
 
 impl Default for CrossoverContext {
@@ -1030,6 +1125,10 @@ impl Default for CrossoverContext {
             drying_per_s: 0.0,
             field_treaded: None,
             line_snow: 0.0,
+            snowing: false,
+            snow_turn_in_s: None,
+            melting_per_s: 0.0,
+            snow_roll: 1.0,
         }
     }
 }
@@ -1076,14 +1175,15 @@ pub fn tyres_for_the_track(
 ) -> Option<u8> {
     use crate::tyre_thermal::{CompoundKind, WET_FROM_WATER};
     let kind = tire.compound(fitted).kind;
-    // A car with a snow tyre reads the snow first ([`snow_tyres`]): onto
-    // it once the line is covered, off it for the water's tyre (or its
-    // reference) once the line is clear, no stop for either within
-    // [`CROSSOVER_STAY_OUT_LAPS`] of the flag. On snow tyres on a snowy
-    // line, it stays out; off them on a clear one, the rain decides.
+    // A car with a snow tyre reads the snow first ([`snow_tyres_for`]):
+    // onto it once the line is covered or ahead of the forecast's snow,
+    // off it for the water's tyre (or its reference) once the line is
+    // clear or ahead of the melt, no stop for either within
+    // [`CROSSOVER_STAY_OUT_LAPS`] of the flag. On snow tyres with snow for
+    // them, it stays out; off them with none, the rain decides.
     if tire.snow_compound().is_some() {
         let on_snow = kind == CompoundKind::Snow;
-        let snow = snow_tyres(tire, fitted, ctx.line_snow);
+        let snow = snow_tyres_for(tire, fitted, ctx);
         if on_snow != snow.is_some() {
             if ctx.laps_left <= CROSSOVER_STAY_OUT_LAPS {
                 return None;
@@ -2437,6 +2537,138 @@ pub(crate) mod tests {
                 );
             }
         }
+    }
+
+    /// The snow tyre read against the forecast: onto it before the snow
+    /// arrives (later for a gambler), kept with more snow due, off it ahead
+    /// of the melt (earlier for a gambler), and a car just off it in the
+    /// melt does not turn back.
+    #[test]
+    fn the_snow_tyre_reads_the_forecast_the_melt_and_the_drivers_gamble() {
+        use crate::tyre_thermal::{CompoundKind, INTERMEDIATE, MEDIUM};
+        let mut list = crate::tyre_thermal::default_compounds();
+        list.push(crate::tyre_thermal::Compound {
+            name: "studs".into(),
+            kind: CompoundKind::Snow,
+            snow_grip: 2.0,
+            ..list[INTERMEDIATE as usize].clone()
+        });
+        let rally = crate::data::TireConfig {
+            compounds: list,
+            ..crate::data::TireConfig::default()
+        };
+        const SNOW: u8 = 5;
+        let lap_s = 100.0;
+        let timid = CrossoverContext {
+            laps_left: 20,
+            lap_s,
+            aggressiveness: 0.5,
+            snow_roll: 0.9,
+            ..CrossoverContext::default()
+        };
+        let gambler = CrossoverContext {
+            snow_roll: 0.1,
+            ..timid
+        };
+        // Snow due in 150 s on a bare line: the timid driver comes in now,
+        // the gambler waits until it is half a lap off.
+        let due = |ctx: CrossoverContext, s: f32| CrossoverContext {
+            snow_turn_in_s: Some(s),
+            ..ctx
+        };
+        assert_eq!(
+            snow_tyres_for(&rally, MEDIUM, &due(timid, 150.0)),
+            Some(SNOW)
+        );
+        assert_eq!(
+            tyres_for_the_track(&rally, MEDIUM, 0.0, &due(timid, 150.0)),
+            Some(SNOW)
+        );
+        assert_eq!(snow_tyres_for(&rally, MEDIUM, &due(timid, 250.0)), None);
+        assert_eq!(snow_tyres_for(&rally, MEDIUM, &due(gambler, 150.0)), None);
+        assert_eq!(
+            snow_tyres_for(&rally, MEDIUM, &due(gambler, 40.0)),
+            Some(SNOW)
+        );
+        // Snow falling and due to stop is no reason to fit them.
+        let stopping = CrossoverContext {
+            snowing: true,
+            ..due(timid, 50.0)
+        };
+        assert_eq!(snow_tyres_for(&rally, MEDIUM, &stopping), None);
+        // Snow falling on a line not yet covered: the timid driver comes
+        // in, the gambler waits for the cover; on them, both stay.
+        let falling = CrossoverContext {
+            snowing: true,
+            ..timid
+        };
+        assert_eq!(snow_tyres_for(&rally, MEDIUM, &falling), Some(SNOW));
+        let gamble = CrossoverContext {
+            snow_roll: 0.1,
+            ..falling
+        };
+        assert_eq!(snow_tyres_for(&rally, MEDIUM, &gamble), None);
+        for ctx in [falling, gamble, stopping] {
+            assert_eq!(snow_tyres_for(&rally, SNOW, &ctx), Some(SNOW));
+        }
+        // On them on a line clear of snow, more due within the forecast:
+        // they stay on; none due, they come off.
+        assert_eq!(snow_tyres_for(&rally, SNOW, &due(timid, 150.0)), Some(SNOW));
+        assert_eq!(snow_tyres_for(&rally, SNOW, &timid), None);
+        // The melt: the snow stopped, the line at 0.4 melting at 0.001 a
+        // second (0.1 a lap): the timid driver keeps them while the line
+        // holds a lap, the gambler comes off at a little faster.
+        let melting = |ctx: CrossoverContext, per_s: f32| CrossoverContext {
+            line_snow: 0.4,
+            melting_per_s: per_s,
+            ..ctx
+        };
+        assert_eq!(
+            snow_tyres_for(&rally, SNOW, &melting(timid, 0.001)),
+            Some(SNOW)
+        );
+        assert_eq!(snow_tyres_for(&rally, SNOW, &melting(timid, 0.003)), None);
+        assert_eq!(
+            snow_tyres_for(&rally, SNOW, &melting(gambler, 0.0015)),
+            None
+        );
+        assert_eq!(
+            tyres_for_the_track(&rally, SNOW, 0.0, &melting(gambler, 0.0015)),
+            Some(MEDIUM)
+        );
+        // Nor while it still snows, or with more due.
+        let still = CrossoverContext {
+            snowing: true,
+            ..melting(gambler, 0.003)
+        };
+        assert_eq!(snow_tyres_for(&rally, SNOW, &still), Some(SNOW));
+        assert_eq!(
+            snow_tyres_for(&rally, SNOW, &due(melting(gambler, 0.003), 150.0)),
+            Some(SNOW)
+        );
+        // Off them on a melting line, a car does not turn back for them.
+        for ctx in [timid, gambler] {
+            assert_eq!(snow_tyres_for(&rally, MEDIUM, &melting(ctx, 0.0015)), None);
+        }
+        // A cold track holds the cover: on them, as the cover says.
+        assert_eq!(
+            snow_tyres_for(&rally, MEDIUM, &melting(timid, 0.0)),
+            Some(SNOW)
+        );
+        // Without forecast or melt, the cover alone, as `snow_tyres`.
+        for (fitted, cover) in [(MEDIUM, 0.39), (MEDIUM, 0.4), (SNOW, 0.2), (SNOW, 0.1)] {
+            let ctx = CrossoverContext {
+                line_snow: cover,
+                ..gambler
+            };
+            assert_eq!(
+                snow_tyres_for(&rally, fitted, &ctx),
+                snow_tyres(&rally, fitted, cover)
+            );
+        }
+        // A car without a snow tyre: nothing.
+        let plain = crate::data::TireConfig::default();
+        assert_eq!(snow_tyres_for(&plain, MEDIUM, &due(timid, 10.0)), None);
     }
 
     #[test]

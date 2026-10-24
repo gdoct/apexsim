@@ -94,7 +94,8 @@ The rally cars are Group B, 1984-85, on their real figures and not balanced
 against each other: a front-engined five-cylinder turbo with four-wheel
 drive, a mid-engined turbo four with four-wheel drive, and a supercharged
 mid-engined four driving the rear wheels. Each has a tarmac slick, a wet
-and a studded snow tyre (`kind = "snow"`,
+and a studded snow tyre (`kind = "snow"`, `snow_grip = 2.0`, `stud_loss = 0.03`: a third
+of its tread worn on bare tarmac pulls all its studs,
 [apexsim/docs/server/vehicle-physics.md](../../apexsim/docs/server/vehicle-physics.md#compounds)).
 Their shape data is in `rally_cars.py` (plain Python, shared with the
 livery painter); `build_rally.py` is the GT3 build's method with a rally

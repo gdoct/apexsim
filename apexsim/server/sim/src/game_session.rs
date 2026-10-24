@@ -149,6 +149,9 @@ pub fn session_track(mut track: TrackConfig, conditions: &SessionConditions) -> 
 const STRATEGY_SALT: u64 = 0x5747_5241_5445_4759;
 /// And for its nerve on the weather's tyres (`pit::CrossoverContext::roll`).
 const CROSSOVER_SALT: u64 = 0x4352_4f53_534f_5652;
+/// And for its gamble on the snow, once a race
+/// (`pit::CrossoverContext::snow_roll`).
+const SNOW_GAMBLE_SALT: u64 = 0x534e_4f57_5354_5544;
 
 /// The [`AI_POWER_PLAN_STEP`]s of power a car's engine damage has cost it.
 fn power_steps_lost(state: &CarState) -> u8 {
@@ -163,11 +166,15 @@ fn laps_run(state: &CarState, total_m: f32) -> f32 {
 }
 
 fn live_sky(session: &RaceSession, track: &TrackConfig) -> crate::conditions::LiveConditions {
-    crate::conditions::LiveConditions::at(
+    let mut sky = crate::conditions::LiveConditions::at(
         session.conditions,
         track.climate_site(),
         session.conditions.sky_seed_or(session.id.as_u64_pair().0),
-    )
+    );
+    // The line's snow as the track was baked, before the sky first reads
+    // the road: what the AI's snow technique starts from.
+    sky.line_snow = crate::road_state::RoadState::line_snow_of(track);
+    sky
 }
 
 /// The AI's speed plans per car: one for every this-many-th of its tank
@@ -7245,8 +7252,9 @@ impl GameSession {
                         .get(&car_id)
                         .map(|c| c.tire_config.clone())
                         .unwrap_or_default();
-                    let weather = crate::pit::snow_tyres(&tyre, state.tyre_compound, line_snow)
-                        .or_else(|| tyre.weather_compound(line_water));
+                    let weather =
+                        crate::pit::snow_tyres_for(&tyre, state.tyre_compound, &crossover)
+                            .or_else(|| tyre.weather_compound(line_water));
                     let compound = weather.unwrap_or_else(|| {
                         let want = tyre.compound_for_click(plan.pick.click());
                         if ctx.compound_owed {
@@ -7336,7 +7344,8 @@ impl GameSession {
         let controller = AiDriverController::new(profile, &self.track_config, car_config)
             .with_speed_profile(self.ai_speed_profile(state))
             .with_fuel_save(fuel_save.coast_s)
-            .with_short_shift(fuel_save.short_shift);
+            .with_short_shift(fuel_save.short_shift)
+            .with_snow(self.snow_technique());
         // BTreeMap order: the traffic list, and so the input, is
         // deterministic.
         let safety_car = self.safety_car_body();
@@ -7407,10 +7416,14 @@ impl GameSession {
             .take_while(|c| c.at_s - now_s <= horizon_s)
             .map(|c| c.weather.rainfall())
             .fold(self.sky.rain, f32::max);
-        // What the rest of the running field is on.
+        // What the rest of the running field is on: a rain tyre or a slick
+        // (a car on snow tyres is neither, and is left out).
         let treaded = |s: &CarState| {
-            self.car_configs.get(&s.car_config_id).map(|c| {
-                c.tire_config.compound(s.tyre_compound).kind != tyre_thermal::CompoundKind::Slick
+            self.car_configs.get(&s.car_config_id).and_then(|c| {
+                match c.tire_config.compound(s.tyre_compound).kind {
+                    tyre_thermal::CompoundKind::Snow => None,
+                    kind => Some(kind != tyre_thermal::CompoundKind::Slick),
+                }
             })
         };
         let (on_treaded, running) = self
@@ -7426,7 +7439,7 @@ impl GameSession {
             .filter_map(treaded)
             .fold((0u32, 0u32), |(t, n), on| (t + on as u32, n + 1));
         let field_treaded = (running > 0).then(|| on_treaded as f32 / running as f32);
-        let (aggressiveness, roll) = match self.ai_profiles.get(&state.player_id) {
+        let (aggressiveness, roll, snow_roll) = match self.ai_profiles.get(&state.player_id) {
             Some(profile) => {
                 let (hi, lo) = state.player_id.as_u64_pair();
                 (
@@ -7435,10 +7448,30 @@ impl GameSession {
                         hi ^ lo.rotate_left(13),
                         CROSSOVER_SALT ^ state.current_lap as u64,
                     ),
+                    crate::wind::hash01(hi ^ lo.rotate_left(13), SNOW_GAMBLE_SALT),
                 )
             }
-            None => (0.0, 1.0),
+            None => (0.0, 1.0, 1.0),
         };
+        // The snow: whether it falls, when the forecast starts or stops
+        // it, and how fast a warm track melts the line (the road's own
+        // figures, which the sky hands it, where it has a road state).
+        let (snowfall, track_c) = self
+            .track_config
+            .road_state
+            .as_ref()
+            .map_or((self.sky.snowfall, self.sky.track_c), |r| {
+                (r.snowfall, r.track_c)
+            });
+        // (The forecast's snow counts from its step, while the flakes ease
+        // in.)
+        let snowing = snowfall > 0.05 || self.sky.weather.is_snow();
+        let snow_turn_in_s = self
+            .sky
+            .changes_after(now_s, 16)
+            .find(|c| c.weather.is_snow() != snowing)
+            .map(|c| c.at_s - now_s);
+        let melting_per_s = crate::road_state::SNOW_MELT_PER_C * track_c.max(0.0);
         crate::pit::CrossoverContext {
             laps_left,
             raining,
@@ -7450,7 +7483,22 @@ impl GameSession {
             drying_per_s: self.line_drying.per_s,
             field_treaded,
             line_snow,
+            snowing,
+            snow_turn_in_s,
+            melting_per_s,
+            snow_roll,
         }
+    }
+
+    /// How much of the snow technique the AI drives with now
+    /// (`ai_driver::snow_technique_weight`): the line's cover as the sky
+    /// last read it from the road, the bake's on a track without a road
+    /// state. 0 on a road without snow.
+    fn snow_technique(&self) -> f32 {
+        if self.track_config.road_state.is_none() {
+            return self.track_config.track_surface.baked_snow.clamp(0.0, 1.0);
+        }
+        crate::ai_driver::snow_technique_weight(self.sky.line_snow)
     }
 
     /// A lap of `state`'s car, s: its last, or its car's planned lap.
@@ -8710,6 +8758,59 @@ mod tests {
         assert!(game_session
             .set_car_setup(&Uuid::new_v4(), applied)
             .is_none());
+    }
+
+    /// What an AI weighs the weather's tyres against: the field's share on
+    /// rain tyres leaves a car on studs out, and the forecast's snow is
+    /// timed from the sky's steps.
+    #[test]
+    fn the_crossover_counts_studs_apart_and_reads_the_snow_ahead() {
+        let track = crate::track_loader::TrackLoader::load_from_file(
+            "../../../apexsim-content/tracks/default/Monzarella/Monzarella.yaml",
+        )
+        .expect("Monzarella");
+        let car = crate::car_loader::CarLoader::load_from_file(std::path::Path::new(
+            "../../../apexsim-content/cars/default/lancha-037-rally/car.toml",
+        ))
+        .expect("car");
+        let snow = car.tire_config.snow_compound().expect("studs");
+        let wet = car.tire_config.weather_compound(1.0).expect("a rain tyre");
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car_id, car.clone());
+        let session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            0,
+            3,
+        );
+        let mut gs = GameSession::new(session, track, car_configs);
+        let ids: Vec<PlayerId> = (0..4).map(|i| Uuid::from_u128(7500 + i)).collect();
+        for id in &ids {
+            gs.add_player(*id, car_id);
+        }
+        // Studs, a rain tyre, a slick; and the car asking, on a slick.
+        for (id, compound) in ids.iter().zip([snow, wet, 0, 0]) {
+            let state = gs.session.participants.get_mut(id).unwrap();
+            state.in_garage = false;
+            state.tyre_compound = compound;
+        }
+        gs.sky.forecast = vec![crate::conditions::WeatherChange {
+            at_s: 120.0,
+            weather: Weather::Snow,
+        }];
+        let state = gs.session.participants[&ids[3]].clone();
+        let ctx = gs.crossover_context(&state, 10, 0.0);
+        assert_eq!(ctx.field_treaded, Some(0.5), "the studs are neither");
+        assert!(!ctx.snowing);
+        assert_eq!(ctx.snow_turn_in_s, Some(120.0));
+        // All the rest on studs: nobody to follow.
+        for id in &ids[1..3] {
+            gs.session.participants.get_mut(id).unwrap().tyre_compound = snow;
+        }
+        assert_eq!(gs.crossover_context(&state, 10, 0.0).field_treaded, None);
     }
 
     /// A human's racing line aid is planned again at the line for the car

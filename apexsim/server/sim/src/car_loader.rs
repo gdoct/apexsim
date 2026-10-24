@@ -318,6 +318,10 @@ struct CompoundToml {
     ice_grip: Option<f32>,
     #[serde(default)]
     bare_wear: Option<f32>,
+    /// The share of its studs a percent of wear on a bare road pulls out
+    /// (`tyre_thermal::Compound::stud_loss`); 0 when absent.
+    #[serde(default)]
+    stud_loss: Option<f32>,
 }
 
 /// Optional `[engine.turbo]`: the lag of a turbo whose boost the torque
@@ -1118,6 +1122,7 @@ impl CarLoader {
                             snow_grip: c.snow_grip.unwrap_or(1.0),
                             ice_grip: c.ice_grip.unwrap_or(1.0),
                             bare_wear: c.bare_wear.unwrap_or(1.0),
+                            stud_loss: c.stud_loss.unwrap_or(0.0).max(0.0),
                             window_scale: c.window_scale.unwrap_or(1.0),
                             heat_scale: c.heat_scale.unwrap_or(1.0),
                             rolling_heat_scale: c.rolling_heat_scale.unwrap_or(1.0),

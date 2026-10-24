@@ -251,6 +251,13 @@ pub struct Compound {
     /// last on snow. 1.0 changes nothing.
     #[serde(default = "one", skip_serializing_if = "is_one")]
     pub bare_wear: f32,
+    /// The share of its studs each percent of tread it wears on a bare
+    /// road pulls out (`TireData::studs_lost`), blended out by the root of
+    /// the cover as [`Compound::bare_wear`] is: studs driven on tarmac tear
+    /// out, and the tyre keeps less of its bite on ice
+    /// ([`Compound::snow_factor_with`]). 0 changes nothing.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub stud_loss: f32,
     /// Multiplier on the width of its working window (the tyre's
     /// `temperature_window_c` either side of the optimum): a compound whose
     /// grip holds over a wider spread of temperatures than the car's tyre
@@ -309,6 +316,7 @@ impl Compound {
             snow_grip: 1.0,
             ice_grip: 1.0,
             bare_wear: 1.0,
+            stud_loss: 0.0,
             window_scale: 1.0,
             heat_scale: 1.0,
             rolling_heat_scale: 1.0,
@@ -338,17 +346,44 @@ impl Compound {
     /// `1 + (ice_grip - 1) * ice`. Exactly 1.0 on a bare road, and for a
     /// compound without the keys anywhere.
     pub fn snow_factor(&self, cover: f32, ice: f32) -> f32 {
+        self.snow_factor_with(cover, ice, 0.0)
+    }
+
+    /// [`Compound::snow_factor`] on a tyre that has lost `studs_lost`
+    /// (0..1) of its studs: the bite on ice is the studs' alone and goes
+    /// with them, the bite on snow [`STUD_SNOW_SHARE`] of it. A full set is
+    /// exactly [`Compound::snow_factor`].
+    pub fn snow_factor_with(&self, cover: f32, ice: f32, studs_lost: f32) -> f32 {
+        let kept = 1.0 - studs_lost.clamp(0.0, 1.0);
         let snow = if self.snow_grip == 1.0 {
             1.0
         } else {
-            1.0 + (self.snow_grip - 1.0) * cover.clamp(0.0, 1.0).sqrt()
+            let bite = if kept == 1.0 {
+                self.snow_grip - 1.0
+            } else {
+                (self.snow_grip - 1.0) * (1.0 - STUD_SNOW_SHARE * (1.0 - kept))
+            };
+            1.0 + bite * cover.clamp(0.0, 1.0).sqrt()
         };
         let ice = if self.ice_grip == 1.0 {
             1.0
         } else {
-            1.0 + (self.ice_grip - 1.0) * ice.clamp(0.0, 1.0)
+            1.0 + (self.ice_grip - 1.0) * kept * ice.clamp(0.0, 1.0)
         };
         snow * ice
+    }
+
+    /// The share of its studs a tyre loses for wearing `wear` percent of
+    /// tread on a road under this much snow `cover`: `stud_loss` a
+    /// percent on bare tarmac, none from [`STUDS_KEPT_FROM_COVER`] (a
+    /// packed line or a film of snow keeps the studs off the asphalt),
+    /// linearly between. 0 for a compound without the key.
+    pub fn studs_pulled(&self, wear: f32, cover: f32) -> f32 {
+        if self.stud_loss == 0.0 {
+            return 0.0;
+        }
+        let bare = (1.0 - cover / STUDS_KEPT_FROM_COVER).clamp(0.0, 1.0);
+        self.stud_loss * wear.max(0.0) * bare
     }
 
     /// Its wear multiplier on a road under this much snow `cover`:
@@ -362,6 +397,14 @@ impl Compound {
         self.wear_scale * (1.0 + (self.bare_wear - 1.0) * bare)
     }
 }
+
+/// The share of a studded tyre's bite on snow that is its studs' (the rest
+/// is its blocks'): what a tyre that has lost them all keeps of
+/// `snow_grip` over 1 is the other half ([`Compound::snow_factor_with`]).
+pub const STUD_SNOW_SHARE: f32 = 0.5;
+/// Snow cover under a wheel from which its studs touch no asphalt and pull
+/// none out ([`Compound::studs_pulled`]).
+pub const STUDS_KEPT_FROM_COVER: f32 = 0.3;
 
 /// Grip lost per unit of water over 1 (a puddle: standing water deeper
 /// than heavy rain leaves on a flat road).
@@ -843,7 +886,7 @@ pub fn grip_multiplier(
 ) -> f32 {
     let optimum = optimum_c(tire, compound);
     let used = compound.grip_on(water)
-        * compound.snow_factor(cover, ice)
+        * compound.snow_factor_with(cover, ice, tyre.studs_lost)
         * wear_grip_factor(tyre.wear_percent)
         * (1.0 - FLAT_SPOT_GRIP_LOSS * tyre.flat_spot.clamp(0.0, 1.0))
         * (1.0 - PICKUP_GRIP_LOSS * tyre.pickup.clamp(0.0, 1.0));
@@ -923,6 +966,7 @@ pub fn fit(
         tyre.punctured = false;
         tyre.leak_kpa_per_s = 0.0;
         tyre.pressure_loss_kpa = 0.0;
+        tyre.studs_lost = 0.0;
         refresh(tyre, tire, c, set, water);
     }
     state.tyre_compound = index;
@@ -1097,6 +1141,11 @@ pub fn step(
         * tire.wear_rate.max(0.0)
         * (1.0 + HOT_WEAR_PER_C * over);
     tyre.wear_percent = (tyre.wear_percent + wear).min(100.0);
+    // Studs worn on a bare road pull out.
+    let pulled = compound.studs_pulled(wear, work.snow);
+    if pulled > 0.0 {
+        tyre.studs_lost = (tyre.studs_lost + pulled).min(1.0);
+    }
     // Worn through, it lets go of its air.
     if tyre.wear_percent >= 100.0 {
         tyre.punctured = true;
@@ -2185,6 +2234,106 @@ mod tests {
         let rally = vec![medium(), list[5].clone()];
         assert_eq!(weather_compound_in(&rally, 0.3, 1.0), Some(1));
         assert_eq!(weather_compound_in(&rally, 1.0, 0.0), None);
+    }
+
+    /// Studs worn on bare tarmac pull out: none on a covered road, the
+    /// set's bite on ice goes with them and half its bite on snow; a new
+    /// set has them all, and a compound without `stud_loss` never loses
+    /// any.
+    #[test]
+    fn studs_driven_on_bare_tarmac_pull_out_and_take_the_bite_with_them() {
+        let studs = Compound {
+            name: "studs".into(),
+            kind: CompoundKind::Snow,
+            snow_grip: 2.0,
+            ice_grip: 1.8,
+            bare_wear: 2.0,
+            stud_loss: 0.03,
+            ..medium()
+        };
+        assert_eq!(studs.studs_pulled(1.0, 1.0), 0.0, "on snow");
+        assert_eq!(studs.studs_pulled(1.0, 0.65), 0.0, "on a packed line");
+        assert!((studs.studs_pulled(1.0, 0.15) - 0.015).abs() < 1e-6);
+        assert!((studs.studs_pulled(1.0, 0.0) - 0.03).abs() < 1e-6);
+        assert_eq!(medium().studs_pulled(10.0, 0.0), 0.0);
+        // Half of them gone: half the ice bite, three quarters of the snow's.
+        assert!((studs.snow_factor_with(1.0, 0.0, 0.5) - 1.75).abs() < 1e-6);
+        assert!((studs.snow_factor_with(0.0, 1.0, 0.5) - 1.4).abs() < 1e-6);
+        // All gone: the blocks' half on snow, nothing on ice.
+        assert!((studs.snow_factor_with(1.0, 0.0, 1.0) - 1.5).abs() < 1e-6);
+        assert_eq!(studs.snow_factor_with(0.0, 1.0, 1.0), 1.0);
+        assert_eq!(
+            studs.snow_factor_with(0.7, 0.3, 0.0),
+            studs.snow_factor(0.7, 0.3)
+        );
+
+        // Five seconds' hard cornering on a bare road pulls studs out ...
+        let t = tyre();
+        let surface = TrackSurface::default();
+        let corner = |snow: f32| TyreWork {
+            fy: 7_000.0,
+            slip_angle_rad: 1.3 * t.optimal_slip_angle_rad,
+            load_n: 6_000.0,
+            speed_mps: 30.0,
+            air_mps: 30.0,
+            snow,
+            ..Default::default()
+        };
+        let run = |compound: &Compound, snow: f32| {
+            let mut data = at(80.0, 80.0);
+            for _ in 0..(420 * 5) {
+                step(
+                    &mut data,
+                    &corner(snow),
+                    &t,
+                    compound,
+                    180.0,
+                    &surface,
+                    1.0 / 420.0,
+                );
+            }
+            data
+        };
+        let bare = run(&studs, 0.0);
+        println!(
+            "five seconds' cornering on tarmac: {:.1}% worn, {:.0}% of the studs out",
+            bare.wear_percent,
+            100.0 * bare.studs_lost
+        );
+        assert!(bare.studs_lost > 0.0);
+        assert!((bare.studs_lost - 0.03 * bare.wear_percent).abs() < 1e-3);
+        // ... and the grip on a covered road goes down with them.
+        let fresh = at(bare.temperature_c, bare.core_temperature_c);
+        let worn = TireData {
+            studs_lost: bare.studs_lost,
+            ..fresh
+        };
+        assert!(
+            grip_multiplier(&t, &studs, 180.0, &worn, 0.3, 1.0, 0.5)
+                < grip_multiplier(&t, &studs, 180.0, &fresh, 0.3, 1.0, 0.5)
+        );
+        // None on snow, none without the key.
+        assert_eq!(run(&studs, 1.0).studs_lost, 0.0);
+        let plain = Compound {
+            stud_loss: 0.0,
+            ..studs.clone()
+        };
+        assert_eq!(run(&plain, 0.0).studs_lost, 0.0);
+        // A new set has all its studs.
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        state.tires.front_left.studs_lost = 0.4;
+        fit(&mut state, &t, 20.0, 0, 0.0);
+        assert_eq!(state.tires.front_left.studs_lost, 0.0);
     }
 
     /// The AI drives to a snow tyre's bite through `snow_tyre_share`, past
