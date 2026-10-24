@@ -640,10 +640,10 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   `hybrid::delivery_share`): the car's own electronics as an AC import's default
   `ctrl_ers_*.ini` has them. Each input's map is linear between its points and held past
   either end; the speed's, the gear's and the engine rpm's multiply what the mode asks for,
-  and the throttle's stands in for the mode's pedal (Balanced's 60-95% ramp, Attack's and the
-  button's straight pedal), the product held to the whole motor. One profile drives both
-  motors. The plan reads it flat out at each speed in the gear the box holds. Without one,
-  the modes alone, exactly as before.
+  and the throttle's caps the mode's own pedal (Balanced's 60-95% ramp, Attack's and the
+  button's straight pedal), the product held to the whole motor: a profile only takes
+  deployment away. One profile drives both motors. The plan reads it flat out at each speed
+  in the gear the box holds. Without one, the modes alone, exactly as before.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.

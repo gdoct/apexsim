@@ -42,9 +42,9 @@
 //!   default: [`delivery_share`]): the car's own electronics, as an AC
 //!   import's `ctrl_ers_*.ini` has them: a share of the motor by the
 //!   speed, the gear and the engine's rpm, multiplied into what the mode
-//!   asks for, and by the throttle in place of the mode's own pedal
+//!   asks for, and by the throttle as a cap on the mode's own pedal
 //!   response (Balanced's ramp, Attack's and the button's straight
-//!   pedal); held to the whole motor at most;
+//!   pedal): a profile only ever takes deployment away;
 //! - an **axle** (`axle`, [`HybridAxle`]): the crank by default, or the
 //!   front axle directly, a hypercar's motor turning with the front wheels
 //!   ([`MotorOutput::front_axle_torque_nm`]): an RWD car drives at both
@@ -386,15 +386,15 @@ fn deploy_share(
     if hybrid.delivery.is_empty() {
         return mode_share(state, config, mode, boost, throttle, None);
     }
-    // The profile's throttle map stands in for the mode's pedal.
+    // The profile's throttle map caps the mode's pedal.
     let pedal = input_share(hybrid, crate::data::DeliveryInput::Throttle, throttle);
     let rest = delivery_share(hybrid, None, state.speed_mps * 3.6, state.gear, engine_rpm);
     (mode_share(state, config, mode, boost, throttle, pedal) * rest).clamp(0.0, 1.0)
 }
 
 /// [`deploy_share`] by the mode alone: `pedal` a delivery profile's
-/// throttle map at the throttle, which stands in for the pedal Attack and
-/// the button deploy on and for Balanced's ramp; `None`, the mode's own.
+/// throttle map at the throttle, which caps the pedal Attack and the button
+/// deploy on and Balanced's ramp; `None`, the mode's own alone.
 fn mode_share(
     state: &CarState,
     config: &CarConfig,
@@ -409,7 +409,7 @@ fn mode_share(
     }
     if boost {
         return if override_left_kj(state, config) > 0.0 {
-            pedal.unwrap_or(throttle).clamp(0.0, 1.0)
+            pedal.map_or(throttle, |p| p.min(throttle)).clamp(0.0, 1.0)
         } else {
             0.0
         };
@@ -423,10 +423,11 @@ fn mode_share(
     }
     match mode {
         ErsMode::Harvest => 0.0,
-        ErsMode::Attack => pedal.unwrap_or(throttle).clamp(0.0, 1.0),
+        ErsMode::Attack => pedal.map_or(throttle, |p| p.min(throttle)).clamp(0.0, 1.0),
         ErsMode::Balanced => {
             let (lo, hi) = BALANCED_THROTTLE;
-            let pedal = pedal.unwrap_or((throttle - lo) / (hi - lo)).clamp(0.0, 1.0);
+            let ramp = (throttle - lo) / (hi - lo);
+            let pedal = pedal.map_or(ramp, |p| p.min(ramp)).clamp(0.0, 1.0);
             let capacity = hybrid.battery_capacity_kwh.max(1e-6);
             let soc = state.hybrid_battery_kwh / capacity;
             let charge = ((soc - SOC_FLOOR) / (SOC_EASE - SOC_FLOOR)).clamp(0.0, 1.0);
@@ -1244,8 +1245,9 @@ mod tests {
         ];
         assert_eq!(run(&masked, 1.0, ErsMode::Attack, 50.0, 1), 0.0);
         assert_eq!(run(&masked, 1.0, ErsMode::Attack, 50.0, 3), full);
-        // A throttle map stands in for the mode's pedal: nothing under 60%,
-        // all of it from 90%, in Attack and Balanced alike.
+        // A throttle map caps the mode's pedal: nothing under 60%, all of
+        // it from 90%, in Attack and Balanced alike; never more than the
+        // mode gives.
         let mut pedal = plain.clone();
         pedal.hybrid.delivery = vec![
             point(DeliveryInput::Throttle, 0.6, 0.0),
@@ -1253,9 +1255,18 @@ mod tests {
         ];
         assert_eq!(run(&pedal, 0.5, ErsMode::Attack, 50.0, 6), 0.0);
         assert!(run(&plain, 0.5, ErsMode::Attack, 50.0, 6) > 0.0);
-        assert_eq!(run(&pedal, 0.95, ErsMode::Attack, 50.0, 6), full);
-        let balanced = run(&pedal, 0.75, ErsMode::Balanced, 50.0, 6);
-        assert!((balanced / full - 0.5).abs() < 1e-3, "{balanced}");
+        assert_eq!(run(&pedal, 1.0, ErsMode::Attack, 50.0, 6), full);
+        let attack = run(&pedal, 0.8, ErsMode::Attack, 50.0, 6);
+        assert!((attack / full - 2.0 / 3.0).abs() < 1e-3, "{attack}");
+        // Balanced's ramp (60-95%) is under the map at 75%: the ramp's.
+        let ramp = run(&plain, 0.75, ErsMode::Balanced, 50.0, 6);
+        assert_eq!(run(&pedal, 0.75, ErsMode::Balanced, 50.0, 6), ramp);
+        let mut generous = plain.clone();
+        generous.hybrid.delivery = vec![point(DeliveryInput::Throttle, 0.0, 1.0)];
+        assert_eq!(
+            run(&generous, 0.5, ErsMode::Attack, 50.0, 6),
+            run(&plain, 0.5, ErsMode::Attack, 50.0, 6)
+        );
         assert_eq!(run(&pedal, 1.0, ErsMode::Harvest, 50.0, 6), 0.0);
         // The plan reads the profile flat out at the speed.
         let (p0, p1) = (

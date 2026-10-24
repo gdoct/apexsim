@@ -164,6 +164,14 @@ as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
   speed map and the second motor fails both stability tests, so it is the
   car's own figures, not those keys.
+- The SF70H import (`ks_ferrari_sf70h`) fails the same flick test once its
+  ERS delivery profile is carried (`[[hybrid.delivery_point]]`): sliding
+  from 76 m/s it deploys 0.2-0.4 of its motor (the profile's 270 km/h
+  share and its fourth-gear share) where it had all of it, and spins
+  (sliding 37 m/s at the end); with the profile left out it passes. With any
+  one of its throttle, speed or gear maps left out it still spins, so it is
+  the drive the car is left with mid-slide, not one map. The 2021 RSS
+  hybrid fails the test with or without its profile.
 
 **Check:** `SURVEY_CARS=RssFormulaHybrid2021,KsFerrariSf70h,KsPorsche919Hybrid2016,fugazzi-sf26`
 on seeds 1-3, totals against the commit before.
