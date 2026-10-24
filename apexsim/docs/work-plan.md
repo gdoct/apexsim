@@ -94,10 +94,14 @@ and `GRHIDeviceIsIntegrated`. Until then keep "discrete GPU recommended".
 ### AI
 
 #### A7. Imported F1s' AI touches other cars — P3 · 🟢 · S
-*Source: follow-ups #19.* The imported F1s leave the road no more than
-the shipped F1 now, but their contact in traffic is 2.2-2.4 times its
-(seeds 1-3, every circuit): find what it is with `SURVEY_EVENTS` and the
-check in follow-ups #19.
+*Source: follow-ups #19.* The imported F1s touch other cars 2.2-2.4
+times as much as the shipped F1 (seeds 1-3, every circuit). Found: it is
+side-by-side contact under the traffic dodge, from the cars' handling in
+the AI's hands (the `[physics]` table's mass, size and centre of
+gravity together, none alone), not brakes, tyres, aero, engine or dirty
+air; a wider dodge cost the shipped classes contact and off-road. Left:
+a fix, starting with the steering's recovery to the line (follow-ups
+#19 has the numbers and what was tried).
 
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:

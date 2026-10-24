@@ -433,6 +433,13 @@ fn survey_ai_races_on_every_circuit() {
             let mut passes = Passes::default();
             let mut tactics: HashMap<String, u32> = HashMap::new();
             let mut was: HashMap<PlayerId, (bool, bool, u32)> = HashMap::new();
+            // `SURVEY_DBG=1`: the contact split into cars (another car
+            // within 7 m) and walls, and the car-seconds spent within
+            // `NEAR_M` of another car (how much traffic there was to touch).
+            const NEAR_M: f32 = 10.0;
+            let dbg_on = std::env::var("SURVEY_DBG").is_ok();
+            let (mut near_ticks, mut car_contact, mut wall_contact) = (0u32, 0u32, 0u32);
+            let (mut beside_ticks, mut tight_ticks, mut beside_closing) = (0u32, 0u32, 0.0f32);
             for t in 1..=(TICK_RATE as u32 * 180) {
                 tick(&mut race);
                 if t.is_multiple_of(TICK_RATE as u32 / 4) {
@@ -453,13 +460,44 @@ fn survey_ai_races_on_every_circuit() {
                 // A car out of the race is parked in its box (towed), not
                 // racing: it is counted as retired, not as time off the
                 // road against the garage walls.
-                for c in race
+                let live: Vec<&CarState> = race
                     .session
                     .participants
                     .values()
                     .filter(|c| !c.towed && c.damage.is_drivable)
-                {
-                    if c.is_colliding && std::env::var("SURVEY_DBG").is_ok() {
+                    .collect();
+                if dbg_on {
+                    for c in &live {
+                        let nearest = live
+                            .iter()
+                            .filter(|o| o.player_id != c.player_id)
+                            .map(|o| (o.pos_x - c.pos_x).hypot(o.pos_y - c.pos_y))
+                            .fold(f32::INFINITY, f32::min);
+                        near_ticks += (nearest < NEAR_M) as u32;
+                        let (s, co) = c.yaw_rad.sin_cos();
+                        for o in live.iter().filter(|o| o.player_id != c.player_id) {
+                            let (rx, ry) = (o.pos_x - c.pos_x, o.pos_y - c.pos_y);
+                            let along = rx * co + ry * s;
+                            let side = -rx * s + ry * co;
+                            if along.abs() < 7.6 && side.abs() < 5.0 {
+                                beside_ticks += 1;
+                                let vlat = -(o.vel_x - c.vel_x) * s + (o.vel_y - c.vel_y) * co;
+                                // Closing across: the side shrinking.
+                                beside_closing += (-vlat * side.signum()).max(0.0);
+                                tight_ticks += (side.abs() < 2.3) as u32;
+                            }
+                        }
+                        if c.is_colliding {
+                            if nearest < 7.0 {
+                                car_contact += 1;
+                            } else {
+                                wall_contact += 1;
+                            }
+                        }
+                    }
+                }
+                for c in live {
+                    if c.is_colliding && dbg_on {
                         *tactics
                             .entry(format!("{:?}", c.racecraft.tactic))
                             .or_insert(0u32) += 1;
@@ -478,6 +516,20 @@ fn survey_ai_races_on_every_circuit() {
             worst.sort_by_key(|w| std::cmp::Reverse(w.1));
             if !tactics.is_empty() {
                 println!("    contact by tactic: {tactics:?}");
+            }
+            if dbg_on {
+                println!(
+                    "    contact with cars {:.1} s, walls {:.1} s; within {NEAR_M} m of a car {:.1} s",
+                    secs(car_contact),
+                    secs(wall_contact),
+                    secs(near_ticks)
+                );
+                println!(
+                    "    beside {:.1} s, tight {:.1} s, closing across {:.3} m/s",
+                    secs(beside_ticks),
+                    secs(tight_ticks),
+                    beside_closing / beside_ticks.max(1) as f32
+                );
             }
             for ((bucket, grid), ticks) in worst.into_iter().take(4) {
                 println!(

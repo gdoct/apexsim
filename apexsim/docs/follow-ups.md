@@ -156,9 +156,37 @@ seeds 1-3, 90 races each: off-road `RssFormulaHybrid2021` 102.3,
 Mordschleife again the most), but they touch other cars more than twice
 as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
 
-- Find what the imported F1s' contact is (`SURVEY_EVENTS`: closing
-  speed into the car ahead, or the dodge's short lock, 0.24-0.31 rad
-  against the shipped F1's 0.34) and bring it to the shipped F1's.
+- Bring the imported F1s' contact to the shipped F1's. What it is
+  (2026-10-25, `SURVEY_DBG` on eight circuits, AlbertParkour to
+  Monzarella in the survey's order but the quiet ones, seeds 1-3, 24
+  races a car): all of it is car against car, beside each other in the
+  `Race` tactic (the traffic dodge, not a racecraft move), 3-6 m apart
+  along the road. The field is no more bunched (within 10 m of a car
+  6239 car-s against 5269), but beside one another the imports are closer
+  across (within 2.3 m 7.9% of the time against 3.9%) and touch 4.5 times
+  as often for the time beside (1.58 car-s of contact per 100 against
+  0.35); the contacts start all race long, not on lap one. A trace
+  (`SURVEY_TRACE`, AlbertParkour seed 1, car 8 at 33-36 s) shows the
+  kind: a car run wide out of a corner at full lock swings back to its
+  line across the car beside it, overshooting the dodge's room (2.95 m)
+  to 2.1 m. It is the car's handling in the AI's hands, spread over the
+  `[physics]` table: the shipped F1 with the RSS import's whole
+  `[physics]` table touches 73.6 car-s (its own 15.6, the import 85.1),
+  with only its mass, size, wheelbase, tracks, wheel radius, centre of
+  gravity and weight split 52.2, and with any one of those 18-28 (the
+  centre of gravity, 0.27 m against the shipped F1's default 0.45, and
+  the weight split, 0.455 against 0.52, the most). Not the cause, each
+  tried alone: ABS and the brakes, the steering lock, the tyres, the
+  aero and grip, the engine and turbo lag, the hybrid, the suspension,
+  dirty air (switched off, the imports still touched 10 times the
+  shipped F1), the lock-up mistake on a car without ABS. Tried and kept
+  out: keeping the dodge's room plus the drift across the road over
+  0.5 s (or 1 s): imported contact 140 -> 97 (86) on the eight
+  circuits, but the shipped classes over the whole calendar, seeds 1-3,
+  contact 181 -> 250 and off-road 288 -> 415 (passes 1659 -> 2050, 163
+  races in common). The next try is the steering's recovery to the line
+  (the Stanley and yaw-damping gains are constants tuned on the shipped
+  cars), judged by `SURVEY_DBG`'s tight-beside share.
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
