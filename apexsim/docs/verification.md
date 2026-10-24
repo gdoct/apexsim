@@ -413,7 +413,11 @@ stand-in driving; car 2's engine killed at 20 s of green, BoxThisLap at
 `green_green`, `box_confirmed` after 60 s, `last_lap`, `chequered` and
 `position_<n>`; no line twice back to back, no side call left without its
 clear. `n14-radio-settings`: the Audio tab's Radio rows (Radio volume,
-Spotter, Race engineer) laid out like the rows above them.
+Spotter, Race engineer) laid out like the rows above them. Run 2026-10-24:
+car_left/right each followed by its clear_* (eight pairs), safety_car,
+box_confirmed, sc_in, green_green, last_lap, chequered, position_6, no
+line twice in a row; no yellow line, as the stopped car went straight to a
+safety car. Left: hearing it, and the settings shot.
 
 ### R20. Colour-vision palettes
 
