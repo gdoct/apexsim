@@ -485,6 +485,8 @@ Environment:
 | `SURVEY_AI_LEVEL=95` | the field at that AI level (spread over 4 points round it), not the mixed field |
 | `SURVEY_ROAD_CONTACT=mesh` | drive the road meshes (default: centerline backend) |
 | `SURVEY_WIND_KPH=25` | race in wind |
+| `SURVEY_WEATHER=snow`, `SURVEY_AIR_C=15` | that sky baked onto the track (and that air) |
+| `SURVEY_TIME_OF_DAY=15:00`, `SURVEY_TIME_SCALE=30`, `SURVEY_CHANGEABLE=1` | with `SURVEY_WEATHER`: the session's live sky runs from there as a server's does (the clock, the forecast, the road freezing) |
 | `SURVEY_EVENTS=1` | log each contact with both cars' tactics, and long off-road spells |
 | `SURVEY_DBG=1` | contact by tactic and the worst stations per car; contact with cars (another within 7 m) against walls; car-seconds within 10 m of another car, beside one (within 7.6 m along, 5 m across), tight beside (under 2.3 m across), and how fast beside cars close across |
 | `SURVEY_TRACE=grid,from_s,to_s` | one car every 0.1 s |
