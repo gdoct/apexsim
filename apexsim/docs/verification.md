@@ -525,7 +525,7 @@ shot every 7 s, cuts logged with their reason and the lens's position.
   old look (`apexsim.cockpit.ScreenReferenceEv -10`) beside it; the same
   display by day unchanged.
 
-### R23. Marshals and recovery
+### R25. Marshals and recovery
 
 `marshals-recovery`: car 2's engine killed 20 s after the green at
 Monzarella, the shot camera parked on the scene (`apexsim.marshals.Look`).

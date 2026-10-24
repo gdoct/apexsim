@@ -7935,7 +7935,7 @@ runs:
         checks: "N19: the cars of incident 0 in view (TV camera)"
 
   - id: tv-inside-night
-    about: "R22. Night cameras at Mandarina Bay"
+    about: "R24. Night cameras at Mandarina Bay"
     # The TV director round a street circuit at night, a shot every 7 s;
     # the client log's `Broadcast camera:` lines give each cut's reason and
     # the lens's position.
@@ -7974,7 +7974,7 @@ runs:
       - {at: 135, label: "TV", checks: "no flat white or black frame"}
 
   - id: cockpit-screens-night
-    about: "R22. Night cameras at Mandarina Bay"
+    about: "R24. Night cameras at Mandarina Bay"
     # The wheel display and mirrors from the cockpit at night, then with the
     # exposure dimming off (a reference EV below any view's) for the old look.
     server:
@@ -7997,7 +7997,7 @@ runs:
       - {at: 32, label: "cockpit, night, back", checks: "dimmed again", lead: 1, exec: "apexsim.cockpit.ScreenReferenceEv 14"}
 
   - id: cockpit-screens-day
-    about: "R22. Night cameras at Mandarina Bay"
+    about: "R24. Night cameras at Mandarina Bay"
     # The same display by day: as before (at or above the reference EV).
     server:
       stand_in: true
@@ -8016,7 +8016,7 @@ runs:
       - {at: 14, label: "cockpit, day", checks: "the wheel display as bright as before"}
 
   - id: marshals-recovery
-    about: "R23. Marshals and recovery"
+    about: "R25. Marshals and recovery"
     # Car 2's engine dies 20 s after the green: it stops at once (out of the
     # race), the marshals come out 2 s later, the tractor 1.5 s after that
     # and is beside the car in 5 s; the server tows the car 10 s after it
