@@ -611,8 +611,10 @@ as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
   through the fog in metres, 0 from a sender that does not say), appended
   after `race_clock` (nil then when there is no race clock); every frame.
   Golden: `ApexUdpGolden::S_TelemetryCompactSky` (the client skips the
-  twentieth field). A spectator stream's state record keeps the first
-  nineteen (`StreamState::encode`), so a stream reads `visibility_m` 0.
+  twentieth field). A spectator stream's state record carries all twenty
+  (`StreamState::encode`, the client's `ApexSpectatorWriter` too), so a
+  showcase, a live stream and a replay draw the fog as the race had it; an
+  older stream's nineteen read `visibility_m` 0.
 - `PlayerInput.headlights` / `flash`: `cargo test
   player_input_headlights_wire_format -- --nocapture` ->
   `ApexUdpGolden::C_PlayerInput`.

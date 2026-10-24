@@ -1766,7 +1766,8 @@ impl CarExtra {
 /// viewer who joins or seeks mid-file has the latest within a fraction of a
 /// second. The body is
 /// `[9, epoch, tick, sky, race_clock, entry_size, extras bin, yellows]`;
-/// `sky` is nil or `SkyNow`'s 19 fields in order, `race_clock` nil or
+/// `sky` is nil or `SkyNow`'s 20 fields in order (an older stream's 13,
+/// 15 or 19: the fog's `visibility_m` came last), `race_clock` nil or
 /// `[left_ms, final_lap]`, `yellows` (appended; absent from an older
 /// stream) nil or `[sector_m, [[sector, level], ...]]` as telemetry's
 /// `yellow_flags`.
@@ -1792,9 +1793,9 @@ impl StreamState {
         wr::u32_fixed(&mut out, self.tick);
         match &self.sky {
             Some(s) => {
-                // The first nineteen of `SkyNow`'s fields: the fog's
-                // `visibility_m` stays off the stream (0 read back).
-                wr::array(&mut out, 19);
+                // `SkyNow`'s fields in order, the fog's `visibility_m`
+                // last (an older stream ends before it: 0 read back).
+                wr::array(&mut out, 20);
                 wr::uint(&mut out, s.clock_s as u64);
                 wr::uint(&mut out, s.weather as u64);
                 wr::uint(&mut out, s.rain_pct as u64);
@@ -1814,6 +1815,7 @@ impl StreamState {
                 wr::uint(&mut out, s.next2_in_s as u64);
                 wr::uint(&mut out, s.next3_weather as u64);
                 wr::uint(&mut out, s.next3_in_s as u64);
+                wr::uint(&mut out, s.visibility_m as u64);
             }
             None => wr::nil(&mut out),
         }
@@ -1893,6 +1895,10 @@ impl StreamState {
                 sky.next3_weather = rd.uint()? as u8;
                 sky.next3_in_s = rd.uint()? as u32;
                 read = 19;
+            }
+            if n >= 20 {
+                sky.visibility_m = rd.uint()? as u16;
+                read = 20;
             }
             rd.skip_rest(n, read)?;
             Some(sky)
@@ -3371,8 +3377,8 @@ mod tests {
                 next2_in_s: 2400,
                 next3_weather: 0,
                 next3_in_s: 5400,
-                // Streams carry the sky's first nineteen fields only.
-                visibility_m: 0,
+                // The fog, the twentieth field.
+                visibility_m: 420,
             }),
             race_clock: Some(crate::network::RaceClock {
                 left_ms: 754_300,

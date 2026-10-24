@@ -273,6 +273,7 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 			&& S.Sky.LineSnowPct == 35 && S.Sky.SnowfallPct == 100);
 		TestTrue(TEXT("state forecast ahead"), S.Sky.HasNext2Change() && S.Sky.Next2Weather == (int32)EApexWeather::Cloudy
 			&& S.Sky.Next2InS == 2400 && S.Sky.HasNext3Change() && S.Sky.Next3Weather == (int32)EApexWeather::Sunny && S.Sky.Next3InS == 5400);
+		TestEqual(TEXT("the fog's visibility, the sky's twentieth field"), S.Sky.VisibilityM, 420);
 		TestTrue(TEXT("state forecast"), S.Sky.HasNextChange() && S.Sky.NextWeather == (int32)EApexWeather::Overcast && S.Sky.NextInS == 600);
 		TestTrue(TEXT("state race clock"), S.RaceLeftMs == 754300 && S.RaceFinalLap == 0);
 		if (TestEqual(TEXT("state cars"), S.Cars.Num(), 2))

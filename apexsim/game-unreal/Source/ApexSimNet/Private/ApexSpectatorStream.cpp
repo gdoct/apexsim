@@ -375,7 +375,8 @@ namespace ApexSpectatorCodec
 				|| (Fields >= 15 && (!ReadI32(Reader, S.LineSnowPct) || !ReadI32(Reader, S.SnowfallPct)))
 				|| (Fields >= 19 && (!ReadI32(Reader, S.Next2Weather) || !ReadI32(Reader, S.Next2InS)
 					|| !ReadI32(Reader, S.Next3Weather) || !ReadI32(Reader, S.Next3InS)))
-				|| !SkipRest(Reader, Fields, Fields >= 19 ? 19 : (Fields >= 15 ? 15 : 13)))
+				|| (Fields >= 20 && !ReadI32(Reader, S.VisibilityM))
+				|| !SkipRest(Reader, Fields, Fields >= 20 ? 20 : Fields >= 19 ? 19 : (Fields >= 15 ? 15 : 13)))
 			{
 				return false;
 			}

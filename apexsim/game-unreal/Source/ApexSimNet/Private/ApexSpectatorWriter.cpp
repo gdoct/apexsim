@@ -233,7 +233,7 @@ namespace ApexSpectator
 		if (S.Sky.bValid)
 		{
 			const FApexSkyNow& K = S.Sky;
-			W.WriteArrayHeader(19);
+			W.WriteArrayHeader(20);
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.ClockS, 0, 86399)));
 			W.WriteUInt(static_cast<uint64>(K.Weather));
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.RainPct, 0, 255)));
@@ -253,6 +253,7 @@ namespace ApexSpectator
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, K.Next2InS)));
 			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.Next3Weather, 0, 255)));
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, K.Next3InS)));
+			W.WriteUInt(static_cast<uint64>(FMath::Clamp(K.VisibilityM, 0, 65535)));
 		}
 		else
 		{

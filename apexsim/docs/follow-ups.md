@@ -324,13 +324,6 @@ the launcher import with the network off.
 
 ### 32. The sky's environment on the client
 
-- Fog is drawn live (`FApexSkyNow::VisibilityM`, `ApexSky::FogDensityFor`
-  in `DeriveLive`) but not in a recorded stream: carry the visibility in
-  the spectator stream's state record (`StreamState::encode` and
-  `ApexSpectatorWriter` write nineteen fields; both decoders already skip
-  extra ones), with the golden `State` and `File` blobs moved together.
-  The damp dawn road (`RoadState::dew`) is drawn already: it is the road
-  state's water.
 - The run-off's and the pit lane's glaze (`Cell::verge_ice`,
   `RoadState::lane_ice`) is not on the wire: the client draws a frozen lane
   as packed snow, and a predicting client (`apx_track_road_rows`) grips it
