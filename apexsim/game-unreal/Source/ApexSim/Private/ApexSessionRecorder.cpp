@@ -213,6 +213,22 @@ FApexCarResult& UApexSessionRecorder::FindOrAddCar(int32 CarIndex)
 
 	FApexCarResult NewResult;
 	NewResult.CarIndex = CarIndex;
+	// Named from the roster as it is first seen: the roster usually comes
+	// before the car's first frame, and without another one in the race
+	// a live finish view listed every car nameless, none as the player's.
+	const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (Net && !Net->IsInDemoSession())
+	{
+		for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+		{
+			if (Entry.CarIndex == CarIndex)
+			{
+				NewResult.DriverName = Entry.PlayerName;
+				NewResult.PlayerId = Entry.PlayerId;
+				NewResult.bIsAi = Entry.bIsAi;
+			}
+		}
+	}
 	return Results[Results.Add(MoveTemp(NewResult))];
 }
 

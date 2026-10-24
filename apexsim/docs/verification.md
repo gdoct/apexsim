@@ -123,8 +123,14 @@ AC-imported circuit is installed; Spa stands in.
   Run again with it: the stand-in raced on (38-80 km/h through La Source
   and Eau Rouge in the evening shots, P5-6), took hits (31% front, 43%
   rear, a flat) and retired at about 575 s, its finish view following; the
-  sky went from snow to overcast with the forecast. The snow rows above
-  (ice, melt, the veer, the props' snow) are still to judge.
+  sky went from snow to overcast with the forecast. Its finish view listed
+  every car nameless and none as the player's (titled CHEQUERED FLAG): the
+  recorder took names only from a roster that came after a car's first
+  frame. It names a car from the roster as it first sees it now
+  (`UApexSessionRecorder::FindOrAddCar`); a retired car's finish view
+  should read YOUR RACE IS OVER with the names: look at it on the next
+  run. The snow rows above (ice, melt, the veer, the props' snow) are still
+  to judge.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
   snow tread with its steel studs and the ice-white ring, and the field
