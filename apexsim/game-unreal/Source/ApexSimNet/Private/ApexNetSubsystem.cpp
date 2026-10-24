@@ -862,6 +862,18 @@ void UApexNetSubsystem::RequestGhost()
 	SendPayload(ApexProtocol::EncodeRequestGhost());
 }
 
+void UApexNetSubsystem::RequestLiveryChunk(const FString& Hash, int32 Chunk)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> RequestLivery %s chunk %d"), *Hash, Chunk);
+	SendPayload(ApexProtocol::EncodeRequestLivery(Hash, Chunk));
+}
+
+void UApexNetSubsystem::UploadLiveryChunk(const FString& Hash, int32 Chunk, int32 Chunks, TArrayView<const uint8> Bytes)
+{
+	UE_LOG(LogApexSimNet, Verbose, TEXT("-> UploadLivery %s chunk %d of %d, %d bytes"), *Hash, Chunk, Chunks, Bytes.Num());
+	SendPayload(ApexProtocol::EncodeUploadLivery(Hash, Chunk, Chunks, Bytes));
+}
+
 void UApexNetSubsystem::RequestTrackBundleChunk(uint32 Crc, int32 Chunk)
 {
 	UE_LOG(LogApexSimNet, Verbose, TEXT("-> RequestTrackBundle %08X chunk %d"), Crc, Chunk);
@@ -1484,6 +1496,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Verbose, TEXT("<- TrackBundleChunk %08X %d of %d, %d bytes"), Message.TrackBundleChunk.Crc,
 			Message.TrackBundleChunk.Chunk, Message.TrackBundleChunk.Chunks, Message.TrackBundleChunk.Bytes.Num());
 		OnTrackBundleChunk.Broadcast(Message.TrackBundleChunk);
+		break;
+
+	case EApexServerMessageType::LiveryChunk:
+		UE_LOG(LogApexSimNet, Verbose, TEXT("<- LiveryChunk %s %d of %d, %d bytes"), *Message.LiveryChunk.Hash,
+			Message.LiveryChunk.Chunk, Message.LiveryChunk.Chunks, Message.LiveryChunk.Bytes.Num());
+		OnLiveryChunk.Broadcast(Message.LiveryChunk);
 		break;
 
 	case EApexServerMessageType::Chat:

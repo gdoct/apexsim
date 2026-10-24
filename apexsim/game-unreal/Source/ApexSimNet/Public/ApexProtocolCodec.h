@@ -126,6 +126,12 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics), answered with TrackBundleChunk. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestTrackBundle(uint32 Crc, int32 Chunk);
+
+	/** One chunk (of Chunks, from 0) of the player's own livery package, named by its SHA-256 (ApexLiveryPackage). */
+	APEXSIMNET_API TArray<uint8> EncodeUploadLivery(const FString& Hash, int32 Chunk, int32 Chunks, TArrayView<const uint8> Bytes);
+
+	/** Asks for one chunk of a livery a roster named (FApexRosterEntry::OwnLivery), answered with LiveryChunk. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestLivery(const FString& Hash, int32 Chunk);
 	/** Asks which showcases the server plays; answered with Showcases. */
 	APEXSIMNET_API TArray<uint8> EncodeListShowcases();
 	/** Watch a showcase channel (empty: the server's first); answered with SpectatorJoined and the stream. */

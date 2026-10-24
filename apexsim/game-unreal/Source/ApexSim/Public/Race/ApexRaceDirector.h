@@ -15,6 +15,7 @@
 
 #include "ApexRaceDirector.generated.h"
 
+struct FApexCarLivery;
 class AApexCockpitRig;
 class FApexReplayClip;
 class AApexGhostCarActor;
@@ -499,7 +500,8 @@ private:
 	void SyncCarsToRoster(const FApexSessionRoster& Roster);
 	/** Gives a car the catalog's mesh, wheels and cockpit for `CarId`, or the fallback. */
 	/** The car's mesh, wheels, cockpit and sound from its catalog row, in `Livery` (0: as authored). */
-	void ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery = 0);
+	/** `OwnLivery`, another player's own livery (UApexLiveryExchange), wins over `Livery`. */
+	void ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery = 0, const FApexCarLivery* OwnLivery = nullptr);
 
 	UFUNCTION()
 	void HandleGhostLap(const FApexGhostLap& Lap);
@@ -1198,6 +1200,8 @@ private:
 	/** The session went back in time (`Rewound`): every car's buffered motion is of the run undone. */
 	void HandleRewound(const FApexRewound& Rewound);
 	void HandleDemoSessionChanged(bool bJoined);
+	/** Another player's own livery came: the cars wearing it are repainted. */
+	void HandleLiveryReady();
 	/** Once a frame: make and fill the textures, hand them to the road's materials, lay the debris. */
 	void UpdateRoadState();
 	/** Set the road-state parameters on every road material taken (RoadStateMids). */
@@ -1221,6 +1225,7 @@ private:
 	FDelegateHandle RoadStateHandle;
 	FDelegateHandle RewoundHandle;
 	FDelegateHandle DemoSessionHandle;
+	FDelegateHandle LiveryReadyHandle;
 	UPROPERTY(Transient)
 	TObjectPtr<UTexture2D> RoadStateTexture;
 	UPROPERTY(Transient)

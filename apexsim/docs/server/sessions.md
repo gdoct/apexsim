@@ -1415,7 +1415,7 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   entered with the car and livery they join with while `entries_open` and
   fewer than `spec.player_slots` are entered, else `Error 403` ("Not
   entered in this event", "This event's entry list is full"). `SetLivery`
-  in an event's session is `Error 403` ("The livery is fixed for this
+  (and `UploadLivery`, an own livery) in an event's session is `Error 403` ("The livery is fixed for this
   event"). Spectators are always taken.
 - **Results** (`PhaseResult { phase, finished_at, lines }`, from
   `events::finished_phase`): practice by best lap (no time behind, by grid

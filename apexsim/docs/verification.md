@@ -591,6 +591,26 @@ deleting the oldest recent replay as the next is written.
 
 Run 2026-10-24: the client's recording of a 2-lap, 12-car Red Pull Ring race is 955 KB against 2.2 MB for the same race recorded before (43%); the Replays list shows each size and 23 MB in all; it plays from the start and after a seek to a minute in.
 
+### R28. Own liveries: the editor and a race in one
+
+`n11-livery-editor` (car select from the start: the SF-26's EDIT, the
+paint stepped to Midnight blue, the accent to Sun yellow, the number to 3,
+SAVE) then `n11-edited-livery-race` (Monzarella in that livery, `-ApexLivery=7`
+while it is the SF-26's only own livery; delete
+`apexsim-content/cars/custom/liveries/fugazzi-sf26/midnight-blue-3` after).
+Look at ([apexsim-content/docs/cars.md](../../apexsim-content/docs/cars.md#liveries)):
+
+- The editor's panel over the turntable's right side, its rows' colour
+  names in their own colours, the car on the turntable changing as they
+  step, and the number on a rounded plate on its flanks (the `car_logo`
+  slot: where on the car, how large, the plate's edge smooth).
+- After SAVE: the livery button names "Midnight blue 3 (yours)", the toast,
+  the turntable in it.
+- In the race: the player's car blue with the yellow plate and 3, the AI in
+  the SF-26's own liveries; the client log's `Own livery Midnight blue 3
+  goes to the server` and no `Error` back (the server's `wears their own
+  livery` at debug level).
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
@@ -599,6 +619,16 @@ Everything an unattended run cannot check: one sitting with a real
 wheelbase, pedals, a shifter, a pad and speakers, in this order so each
 step feeds the next. Until it has run, all of this is unverified. The
 wheel rows are run as the blocks of [wheel-sitting.md](wheel-sitting.md).
+
+**Own liveries on a second client.** ([apexsim-content/docs/cars.md](../../apexsim-content/docs/cars.md#liveries))
+Two games on one server (two machines, or a second game with its own
+`Saved`): one drives in an own livery (the editor's, or a skin from the
+template tool), the other joins the session. On the second, the first's
+car in that livery once it has come (a package of 1 MB takes about a
+second), `Saved/ApexSim/Liveries/<hash>.apxlivery` written, and in the
+next session the car painted at once from the cache. A skin over 1 MB stays
+the first player's alone, with a toast saying so. The exchange itself is
+checked by `protocol_test::test_an_own_livery_goes_to_the_other_drivers`.
 
 **Client prediction at a ping.** ([game/client.md](game/client.md#client-prediction-raceapexpredictionsubsystemh))
 A checkout's editor build with the physics library built

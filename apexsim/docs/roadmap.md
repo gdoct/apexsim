@@ -84,11 +84,15 @@ and triple screens at each scale; HDR on an HDR display.
 
 ### 11. Own liveries
 
-- An in-game editor (colours, decals, number); online, own liveries sent
-  to the other clients, size-capped and cached by hash. (The import into
-  `cars/custom/liveries` and the template tool are built.)
+Built: the import into `cars/custom/liveries`, the template tool, the
+garage's editor (paint, accent, a number on the logo, a name) and own
+liveries sent to the other clients
+([cars.md](../../apexsim-content/docs/cars.md#liveries)). Left:
 
-**Check:** a custom livery on a second client.
+- Decals in the editor: an image placed over the paint (a skin painted in
+  the game rather than in the template tool).
+
+**Check:** a decal on the car in the turntable and in a race.
 
 ### 24. The simulation in the client: backdrops, showcases, replays
 

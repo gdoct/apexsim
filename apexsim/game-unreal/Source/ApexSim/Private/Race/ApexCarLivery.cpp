@@ -215,7 +215,7 @@ namespace ApexLivery
 		return RosterLivery == 0 && Found && Found->bOwn ? Picked : RosterLivery;
 	}
 
-	TArray<FString> OwnLiveryFolders(const FString& CarDir)
+	FString OwnLiveryRoot(const FString& CarDir)
 	{
 		// <cars>/default/<car> and <cars>/custom/<car> share <cars>/custom/liveries;
 		// a loose car (an -ApexCarsDir of cars) keeps them beside itself.
@@ -225,7 +225,12 @@ namespace ApexLivery
 				|| ParentLeaf.Equals(TEXT("custom"), ESearchCase::IgnoreCase)
 			? FPaths::GetPath(Parent)
 			: Parent;
-		const FString Root = FPaths::Combine(CarsRoot, TEXT("custom"), TEXT("liveries"), FPaths::GetCleanFilename(CarDir));
+		return FPaths::Combine(CarsRoot, TEXT("custom"), TEXT("liveries"), FPaths::GetCleanFilename(CarDir));
+	}
+
+	TArray<FString> OwnLiveryFolders(const FString& CarDir)
+	{
+		const FString Root = OwnLiveryRoot(CarDir);
 
 		TArray<FString> Names;
 		IFileManager::Get().FindFiles(Names, *FPaths::Combine(Root, TEXT("*")), /*Files*/ false, /*Directories*/ true);

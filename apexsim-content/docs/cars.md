@@ -433,10 +433,58 @@ textures the model carries there, and a `livery.toml.example`. A car built
 from colours and a logo (the generated cars) has only a `car_logo` sheet;
 its own liveries set `paint`, `accent` and `logo`. The game lists them after
 the car's own liveries, named "<name> (yours)" (`FApexCarLivery::bOwn`,
-`ApexLivery::OwnLiveryFolders`). They are this client's alone: the pick goes
-to the server as 0, the works livery, and only the player's own car is
-painted with it (`ApexLivery::ForServer`, `ForLocalCar`); other players see
-the works. `-ApexLivery=N` picks livery N for an `-ApexAutoRace`.
+`ApexLivery::OwnLiveryFolders`). The pick goes to the server as 0, the
+works livery (`ApexLivery::ForServer`), and the player's own car is painted
+from the folder (`ForLocalCar`); the other players get it as a package
+(below). `-ApexLivery=N` picks livery N for an `-ApexAutoRace`.
+
+**Own liveries online** (`Race/ApexLiveryExchange`, `ApexSimNet/ApexLiveryPackage`,
+`server/protocol/src/livery.rs`, `server/server/src/livery_store.rs`). In a
+session whose pick is one of the player's own, the client packs that table
+(name, paint, accent, metallic) and the images it names (logo, skin,
+`textures`) into one MessagePack map, `LiveryPackage`, and uploads it in
+chunks of 256 KiB (`UploadLivery`), once per session, car and pick (a rejoin
+and a new pick send it again). The server checks it: 1 MiB at most in all,
+the SHA-256 the client named, the car the driver drives, a name of 1 to 40
+characters, colours within 0..1, at most 8 texture slots of letters, digits
+and `_`, and every image a PNG or JPEG (its header read: IHDR or the first
+start-of-frame) of at most 4096 pixels a side. A package that fails is
+refused with `Error` 400 (413 over the size, 409 from outside a session or
+for another car, 403 in a race event, which fixes each entrant's livery) and
+the car stays in the works livery. A package that passes is kept by its hash
+(64 MiB at most, the oldest dropped first) and the roster names the hash on
+the car (`RosterEntry.OwnLivery`); any livery picked after takes it off. Every
+other client looks for the hash in `Saved/ApexSim/Liveries/<hash>.apxlivery`
+(64 MiB kept, the oldest pruned at start), else fetches it a chunk at a time
+(`RequestLivery`, one in flight, at most a message every 0.3 s against the
+server's livery bucket of 4/s), checks the bytes against the hash and the
+same caps, writes the images beside it (`<hash>/logo.png`, `skin.jpg`,
+`texture_<n>.png`) and repaints the car (`UApexLiveryExchange::OnLiveryReady`,
+`AApexRaceDirector::ApplyCatalogMesh`'s `OwnLivery`). A livery over a cap
+stays on its own client and says so in a toast. A spectator stream or a
+replay carries the roster's livery index only, so it shows the works.
+**What a livery's images show is the player's own:** the server checks their
+format and size and can check nothing else, so no trademark check is
+possible on them.
+
+**The livery editor** (`Cars/ApexLiveryEditor`, the garage's
+`UApexCarSelectWidget`). EDIT beside the livery (E, or pad Y on a car's row)
+opens a panel over the turntable for a car with a folder on this machine:
+Paint and Accent step through fourteen swatches (`ApexLiveryEditor::Swatches`,
+invented names, sRGB stored linear), Number through none and 0..99, and the
+name is the paint and number ("Racing red 17") until the player types one.
+Left and right step a row, up and down move between them, Back closes it.
+The turntable wears the draft as it changes. The number is drawn onto the
+`car_logo` texture: the glyphs by a canvas into a 1536 x 512 render target
+(the size of the works logos), then a rounded plate in the accent colour
+composed on the CPU with the number in black or white, whichever reads
+(`ComposeLogo`), transparent round it; without a renderer (`-nullrhi`) a
+livery has no number. SAVE writes a new own livery folder,
+`cars/custom/liveries/<car folder>/<name as a folder>/` (a `-2` after a name
+already taken) with `livery.toml` and `logo.png`, rescans the cars' files
+(`UApexCarContentSubsystem::RescanRows`, keeping every built model) and
+picks it. Liveries made by hand (skins, textures) use the template tool
+above; the editor makes colour-and-number ones.
 
 The server keeps only the names (`CarConfig::livery_names`); the pick goes
 out as `SelectCar.livery` and comes back to everyone as `RosterEntry.Livery`

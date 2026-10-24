@@ -63,6 +63,15 @@ public:
 	/** Read the car folders again and drop every built car (`apexsim.car.Rescan`). */
 	void Rescan();
 
+	/**
+	 * Read the car folders again keeping every built model: a livery saved
+	 * by the garage's editor shows in its car's row (`Liveries`).
+	 */
+	void RescanRows() { ScanNow(); }
+
+	/** The folder a runtime car was read from; empty for a car only the table knows. */
+	FString CarDirectory(const FString& CarId) const;
+
 	/** The folders scanned for cars, in order. */
 	static TArray<FString> CarDirectories();
 
@@ -127,6 +136,8 @@ private:
 
 	void EnsureScanned() const;
 	void ScanNow();
+	/** Each runtime car's folder, by lower-case id (ScanNow). */
+	TMap<FString, FString> RuntimeDirs;
 	void DropBuilt();
 	static FString ModelKey(const FString& Path);
 	static TSharedPtr<FParsedModel> ParseModel(const FString& Path, IImageWrapperModule* ImageWrappers);

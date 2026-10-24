@@ -2156,6 +2156,15 @@ struct APEXSIMNET_API FApexRosterEntry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	TArray<FApexPenalty> Penalties;
 
+	/**
+	 * The driver's own livery (`OwnLivery`): the SHA-256 of its package as
+	 * lowercase hex, painted over Livery by a client that has it or fetches
+	 * it (RequestLivery). Empty when the car wears one of its own, or from
+	 * an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	FString OwnLivery;
+
 	/** The seconds its penalties add to its race time (those Added). */
 	int32 PenaltySeconds() const
 	{
@@ -4005,6 +4014,8 @@ enum class EApexServerMessageType : uint8
 	Rewound,
 	/** The race's incident list, asked for with RequestIncidents (`Incidents`). */
 	Incidents,
+	/** A chunk of a player's own livery, asked for with RequestLivery (`LiveryChunk`). */
+	LiveryChunk,
 };
 
 /** `IncidentData::kind` and the codes beside it (network.rs `INCIDENT_*`). */
@@ -4097,6 +4108,19 @@ struct FApexTrackBundleChunk
 	TArray<uint8> Bytes;
 };
 
+/**
+ * `LiveryChunkData` (network.rs): one chunk of a player's own livery package
+ * (server/protocol/src/livery.rs), answering RequestLivery. Chunks 0 says the
+ * server has no livery with that hash, or no such chunk.
+ */
+struct FApexLiveryChunk
+{
+	FString Hash;
+	int32 Chunk = 0;
+	int32 Chunks = 0;
+	TArray<uint8> Bytes;
+};
+
 /** A chat line as the server sends it on (`ChatData`). */
 struct APEXSIMNET_API FApexChatLine
 {
@@ -4145,6 +4169,7 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexTelemetryFrame Telemetry;
 	FApexDriverFeedback DriverFeedback;
 	FApexTrackBundleChunk TrackBundleChunk;
+	FApexLiveryChunk LiveryChunk;
 
 	/** Showcases::entries. */
 	TArray<FApexShowcaseSummary> Showcases;

@@ -270,6 +270,7 @@ impl From<RosterRow> for RosterEntry {
             missed_stops: r.missed_stops,
             qualifying_laps: r.qualifying_laps,
             penalties: r.penalties.iter().map(PenaltyData::from).collect(),
+            own_livery: r.own_livery,
         }
     }
 }

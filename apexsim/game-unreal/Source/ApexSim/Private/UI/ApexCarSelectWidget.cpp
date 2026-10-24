@@ -7,6 +7,9 @@
 #include "ApexSim.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/EditableTextBox.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
@@ -22,6 +25,9 @@
 #include "Engine/TextureRenderTarget2D.h"
 #include "ImageUtils.h"
 #include "TimerManager.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Race/ApexCarLivery.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexNavigation.h"
@@ -34,6 +40,16 @@ namespace
 	const FName ActionSetup(TEXT("__setup"));
 	const FName ActionLivery(TEXT("__livery"));
 	const FName ActionConfirm(TEXT("__confirm"));
+	const FName ActionEditLivery(TEXT("__livery_edit"));
+	const FName ActionEditorPaint(TEXT("__editor_paint"));
+	const FName ActionEditorAccent(TEXT("__editor_accent"));
+	const FName ActionEditorNumber(TEXT("__editor_number"));
+	const FName ActionEditorSave(TEXT("__editor_save"));
+	const FName ActionEditorCancel(TEXT("__editor_cancel"));
+
+	constexpr float EditorWidth = 440.0f;
+	/** A draft's number runs 0..99, or none (-1: the car keeps its own logo). */
+	constexpr int32 MaxNumber = 99;
 
 	constexpr float ListWidth = 420.0f;
 	/** Watts per kilowatt-hour of marketing: kW to the horsepower everyone quotes. */
@@ -207,7 +223,19 @@ UWidget* UApexCarSelectWidget::BuildStage()
 		StageFit,
 		FMargin(),
 		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
-	ApexUI::AddV(Column, StageFrame, FMargin(), HAlign_Fill, 1.0f);
+	UOverlay* StageStack = WidgetTree->ConstructWidget<UOverlay>();
+	if (UOverlaySlot* FrameSlot = StageStack->AddChildToOverlay(StageFrame))
+	{
+		FrameSlot->SetHorizontalAlignment(HAlign_Fill);
+		FrameSlot->SetVerticalAlignment(VAlign_Fill);
+	}
+	if (UOverlaySlot* EditorSlot = StageStack->AddChildToOverlay(BuildLiveryEditor()))
+	{
+		EditorSlot->SetHorizontalAlignment(HAlign_Right);
+		EditorSlot->SetVerticalAlignment(VAlign_Center);
+		EditorSlot->SetPadding(FMargin(16.0f));
+	}
+	ApexUI::AddV(Column, StageStack, FMargin(), HAlign_Fill, 1.0f);
 
 	// Name and actions.
 	UVerticalBox* NameStack = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -240,6 +268,21 @@ UWidget* UApexCarSelectWidget::BuildStage()
 	LiveryPreview->SetVisibility(ESlateVisibility::Collapsed);
 	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, LiveryPreview, 96.0f, 54.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, LiveryButton, 300.0f, -1.0f), FMargin(16.0f, 0.0f, 0.0f, 0.0f));
+
+	// The livery editor. A pad opens it with Y on a car's row (the key cap
+	// says E, the keyboard's), so the button, like the livery's, is the mouse's.
+	FApexButtonSpec EditSpec;
+	EditSpec.Label = TEXT("Edit");
+	EditSpec.KeyCap = TEXT("E");
+	EditSpec.Variant = EApexButtonVariant::Ghost;
+	EditSpec.LabelSize = 17.0f;
+	EditSpec.Height = 56.0f;
+	EditSpec.ActionId = ActionEditLivery;
+	EditSpec.bMouseOnly = true;
+	EditLiveryButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	EditLiveryButton->Setup(EditSpec);
+	EditLiveryButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+	ApexUI::AddH(ActionRow, ApexUI::MakeSized(*WidgetTree, EditLiveryButton, 130.0f, -1.0f), FMargin(10.0f, 0.0f, 0.0f, 0.0f));
 
 	// No setup system exists yet, so the button says so rather than doing nothing.
 	FApexButtonSpec SetupSpec;
@@ -311,6 +354,285 @@ UWidget* UApexCarSelectWidget::BuildStage()
 		Column,
 		FMargin(28.0f, 20.0f, ApexUI::Metrics::PageGutter, 26.0f),
 		ApexUI::MakeBrush(FLinearColor::Transparent));
+}
+
+UWidget* UApexCarSelectWidget::BuildLiveryEditor()
+{
+	UVerticalBox* Box = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(Box, ApexUI::MakeLabel(*WidgetTree, TEXT("Livery editor"), ApexUI::Palette::Accent));
+
+	auto Stepper = [this, Box](const TCHAR* Label, FName Id)
+	{
+		FApexButtonSpec Spec;
+		Spec.Label = Label;
+		Spec.KeyCap = TEXT("◀ ▶");
+		Spec.Variant = EApexButtonVariant::Panel;
+		Spec.LabelSize = 17.0f;
+		Spec.Height = 52.0f;
+		Spec.ActionId = Id;
+		UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Row->Setup(Spec);
+		Row->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+		ApexUI::AddV(Box, Row, FMargin(0.0f, 10.0f, 0.0f, 0.0f));
+		return Row;
+	};
+	EditorPaintRow = Stepper(TEXT("Paint"), ActionEditorPaint);
+	EditorAccentRow = Stepper(TEXT("Accent"), ActionEditorAccent);
+	EditorNumberRow = Stepper(TEXT("Number"), ActionEditorNumber);
+
+	ApexUI::AddV(Box, ApexUI::MakeLabel(*WidgetTree, TEXT("Name")), FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+	EditorNameBox = ApexUI::MakeSearchBox(*WidgetTree, TEXT("The paint and number, until you type one"));
+	EditorNameBox->OnTextChanged.AddDynamic(this, &UApexCarSelectWidget::HandleEditorNameChanged);
+	ApexUI::AddV(Box, EditorNameBox, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+
+	EditorNote = ApexUI::MakeText(*WidgetTree,
+		TEXT("Kept in cars/custom/liveries, listed as yours. In a session the other drivers see it too."),
+		ApexUI::Font::Body(13.0f), ApexUI::Palette::TextMuted);
+	EditorNote->SetAutoWrapText(true);
+	ApexUI::AddV(Box, EditorNote, FMargin(0.0f, 12.0f, 0.0f, 0.0f));
+
+	FApexButtonSpec SaveSpec;
+	SaveSpec.Label = TEXT("Save");
+	SaveSpec.Variant = EApexButtonVariant::Primary;
+	SaveSpec.bCentreLabel = true;
+	SaveSpec.LabelSize = 17.0f;
+	SaveSpec.Height = 52.0f;
+	SaveSpec.ActionId = ActionEditorSave;
+	EditorSaveButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	EditorSaveButton->Setup(SaveSpec);
+	EditorSaveButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+
+	FApexButtonSpec CancelSpec;
+	CancelSpec.Label = TEXT("Cancel");
+	CancelSpec.KeyCap = TEXT("Esc");
+	CancelSpec.Sound = EApexUiSound::Back;
+	CancelSpec.Variant = EApexButtonVariant::Ghost;
+	CancelSpec.bCentreLabel = true;
+	CancelSpec.LabelSize = 17.0f;
+	CancelSpec.Height = 52.0f;
+	CancelSpec.ActionId = ActionEditorCancel;
+	EditorCancelButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	EditorCancelButton->Setup(CancelSpec);
+	EditorCancelButton->OnActivated.AddDynamic(this, &UApexCarSelectWidget::HandleButtonActivated);
+
+	UHorizontalBox* Buttons = WidgetTree->ConstructWidget<UHorizontalBox>();
+	ApexUI::AddH(Buttons, EditorSaveButton, FMargin(), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Buttons, EditorCancelButton, FMargin(10.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	ApexUI::AddV(Box, Buttons, FMargin(0.0f, 16.0f, 0.0f, 0.0f));
+
+	EditorRows = {EditorPaintRow, EditorAccentRow, EditorNumberRow, EditorSaveButton, EditorCancelButton};
+
+	LiveryEditorPanel = ApexUI::MakePanel(*WidgetTree, Box, FMargin(22.0f, 18.0f),
+		ApexUI::MakeBrush(ApexUI::Palette::Surface, ApexUI::Palette::Border, 1.0f));
+	LiveryEditorPanel->SetVisibility(ESlateVisibility::Collapsed);
+	return ApexUI::MakeSized(*WidgetTree, LiveryEditorPanel, EditorWidth, -1.0f);
+}
+
+// ---------------------------------------------------------------------------
+// The livery editor
+// ---------------------------------------------------------------------------
+
+bool UApexCarSelectWidget::IsLiveryEditorOpen() const
+{
+	return LiveryEditorPanel && LiveryEditorPanel->GetVisibility() != ESlateVisibility::Collapsed;
+}
+
+FString UApexCarSelectWidget::SelectedCarDir() const
+{
+	const UApexCarContentSubsystem* Content = UApexCarContentSubsystem::Get();
+	return Content && !SelectedCarId.IsEmpty() ? Content->CarDirectory(SelectedCarId) : FString();
+}
+
+bool UApexCarSelectWidget::OpenLiveryEditor()
+{
+	if (!LiveryEditorPanel || SelectedCarId.IsEmpty())
+	{
+		return false;
+	}
+	if (SelectedCarDir().IsEmpty())
+	{
+		ShowToast(TEXT("This car has no folder on this machine to keep a livery in"), true);
+		return false;
+	}
+	Draft = FApexLiveryDraft();
+	Draft.Number = 1;
+	bDraftNamed = false;
+	LiveryEditorPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	RefreshLiveryEditor();
+	ApexNav::Focus(EditorPaintRow);
+	return true;
+}
+
+void UApexCarSelectWidget::CloseLiveryEditor()
+{
+	if (!IsLiveryEditorOpen())
+	{
+		return;
+	}
+	LiveryEditorPanel->SetVisibility(ESlateVisibility::Collapsed);
+	// The turntable back in the livery the garage has picked.
+	UpdatePreviewStage();
+	FocusRow(FocusedRowIndex);
+}
+
+void UApexCarSelectWidget::StepEditor(UApexButtonWidget* Row, int32 Step)
+{
+	const int32 Swatches = ApexLiveryEditor::Swatches().Num();
+	auto Wrap = [](int32 Value, int32 Count) { return ((Value % Count) + Count) % Count; };
+	if (Row == EditorPaintRow)
+	{
+		Draft.Paint = Wrap(Draft.Paint + Step, Swatches);
+	}
+	else if (Row == EditorAccentRow)
+	{
+		Draft.Accent = Wrap(Draft.Accent + Step, Swatches);
+	}
+	else if (Row == EditorNumberRow)
+	{
+		// -1 (none) and 0..99 in a ring.
+		Draft.Number = Wrap(Draft.Number + 1 + Step, MaxNumber + 2) - 1;
+	}
+	else
+	{
+		return;
+	}
+	RefreshLiveryEditor();
+}
+
+void UApexCarSelectWidget::HandleEditorNameChanged(const FText& Text)
+{
+	// SetText below raises this too; only the player's typing names the draft.
+	if (Text.ToString() != Draft.Name)
+	{
+		Draft.Name = ApexLiveryEditor::CleanName(Text.ToString());
+		bDraftNamed = !Draft.Name.IsEmpty();
+	}
+}
+
+void UApexCarSelectWidget::RefreshLiveryEditor()
+{
+	const TConstArrayView<ApexLiveryEditor::FSwatch> All = ApexLiveryEditor::Swatches();
+	auto Badge = [&All](UApexButtonWidget* Row, int32 Index)
+	{
+		if (Row)
+		{
+			const ApexLiveryEditor::FSwatch& Swatch = All[((Index % All.Num()) + All.Num()) % All.Num()];
+			// The name in its own colour: the swatch itself.
+			Row->SetBadge(FString(Swatch.Name).ToUpper(), FLinearColor::FromSRGBColor(Swatch.Srgb));
+		}
+	};
+	Badge(EditorPaintRow, Draft.Paint);
+	Badge(EditorAccentRow, Draft.Accent);
+	if (EditorNumberRow)
+	{
+		EditorNumberRow->SetBadge(Draft.Number >= 0 ? FString::FromInt(Draft.Number) : FString(TEXT("NONE")),
+			ApexUI::Palette::TextPrimary);
+	}
+	if (!bDraftNamed)
+	{
+		Draft.Name = ApexLiveryEditor::AutoName(Draft);
+		if (EditorNameBox)
+		{
+			EditorNameBox->SetText(FText::FromString(Draft.Name));
+		}
+	}
+
+	// The draft on the turntable: its colours, and its number on the logo,
+	// drawn once per number and plate colour into Saved/ApexSim/LiveryEditor.
+	FApexCarLivery Preview;
+	Preview.Name = Draft.Name;
+	Preview.Paint = ApexLiveryEditor::Linear(Draft.Paint);
+	Preview.Accent = ApexLiveryEditor::Linear(Draft.Accent);
+	if (Draft.Number >= 0)
+	{
+		const FString Key = FString::Printf(TEXT("%d_%d"), Draft.Number, Draft.Accent);
+		if (const FString* Known = DraftLogos.Find(Key))
+		{
+			Preview.RuntimeLogo = *Known;
+		}
+		else
+		{
+			TArray<uint8> Png;
+			const FString Path = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("ApexSim"), TEXT("LiveryEditor"),
+				FString::Printf(TEXT("logo_%s.png"), *Key));
+			if (ApexLiveryEditor::RenderNumberLogo(Draft.Number, Preview.Accent, Png) && FFileHelper::SaveArrayToFile(Png, *Path))
+			{
+				Preview.RuntimeLogo = Path;
+			}
+			DraftLogos.Add(Key, Preview.RuntimeLogo);
+		}
+	}
+	if (AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this))
+	{
+		Stage->SetCarLivery(&Preview);
+	}
+}
+
+void UApexCarSelectWidget::SaveLiveryEditor()
+{
+	const FString CarDir = SelectedCarDir();
+	TArray<uint8> Logo;
+	if (Draft.Number >= 0 && !ApexLiveryEditor::RenderNumberLogo(Draft.Number, ApexLiveryEditor::Linear(Draft.Accent), Logo))
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("Livery editor: no renderer to draw the number; the livery keeps the car's logo"));
+	}
+	FString Folder;
+	FString Error;
+	if (!ApexLiveryEditor::Save(CarDir, Draft, Logo, Folder, Error))
+	{
+		ShowToast(FString::Printf(TEXT("The livery was not saved: %s"), *Error), true);
+		return;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Livery editor: %s saved in %s"), *Draft.Name, *Folder);
+	if (UApexCarContentSubsystem* Content = UApexCarContentSubsystem::Get())
+	{
+		Content->RescanRows();
+	}
+	// The new livery picked: the last of the player's own with its name.
+	FApexCarCatalogRow Row;
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	if (Flow && Flow->GetCarCatalogRow(SelectedCarId, Row))
+	{
+		const FString Saved = ApexLiveryEditor::CleanName(Draft.Name);
+		for (int32 Index = Row.Liveries.Num() - 1; Index >= 0; --Index)
+		{
+			if (Row.Liveries[Index].bOwn && Row.Liveries[Index].Name == Saved
+				&& FPaths::IsUnderDirectory(Row.Liveries[Index].RuntimeLogo.IsEmpty() ? Folder : Row.Liveries[Index].RuntimeLogo, Folder))
+			{
+				SelectedLivery = Index + 1;
+				break;
+			}
+		}
+	}
+	LiveryEditorPanel->SetVisibility(ESlateVisibility::Collapsed);
+	RefreshLiveryButton();
+	UpdatePreviewStage();
+	FocusRow(FocusedRowIndex);
+	ShowToast(FString::Printf(TEXT("Saved: %s (yours)"), *ApexLiveryEditor::CleanName(Draft.Name)));
+}
+
+bool UApexCarSelectWidget::HandleBack()
+{
+	if (IsLiveryEditorOpen())
+	{
+		CloseLiveryEditor();
+		return true;
+	}
+	return Super::HandleBack();
+}
+
+FReply UApexCarSelectWidget::NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent)
+{
+	const FKey Key = InKeyEvent.GetKey();
+	const bool bTyping = EditorNameBox && EditorNameBox->HasKeyboardFocus();
+	if (!IsLiveryEditorOpen() && !bTyping && !InKeyEvent.IsRepeat() && (Key == EKeys::E || Key == EKeys::Gamepad_FaceButton_Top))
+	{
+		if (OpenLiveryEditor())
+		{
+			return FReply::Handled();
+		}
+	}
+	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
 // ---------------------------------------------------------------------------
@@ -528,6 +850,10 @@ void UApexCarSelectWidget::SelectCar(const FString& CarId)
 {
 	if (!SelectedCarId.Equals(CarId, ESearchCase::IgnoreCase))
 	{
+		if (IsLiveryEditorOpen() && LiveryEditorPanel)
+		{
+			LiveryEditorPanel->SetVisibility(ESlateVisibility::Collapsed);
+		}
 		// Another car starts in its works livery, unless it is the car the
 		// player already drives, which comes back in the livery they picked.
 		SelectedLivery = 0;
@@ -695,6 +1021,10 @@ void UApexCarSelectWidget::RefreshLiveryButton()
 	{
 		return;
 	}
+	if (EditLiveryButton)
+	{
+		EditLiveryButton->SetVisibility(SelectedCarDir().IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+	}
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	FApexCarCatalogRow Row;
 	const bool bHasRow = Flow && Flow->GetCarCatalogRow(SelectedCarId, Row);
@@ -822,6 +1152,26 @@ void UApexCarSelectWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		ConfirmSelection();
 		return;
 	}
+	if (Id == ActionEditLivery)
+	{
+		OpenLiveryEditor();
+		return;
+	}
+	if (Id == ActionEditorPaint || Id == ActionEditorAccent || Id == ActionEditorNumber)
+	{
+		StepEditor(Button, +1);
+		return;
+	}
+	if (Id == ActionEditorSave)
+	{
+		SaveLiveryEditor();
+		return;
+	}
+	if (Id == ActionEditorCancel)
+	{
+		CloseLiveryEditor();
+		return;
+	}
 
 	// Otherwise a class chip.
 	ActiveFilter = Id.IsNone() ? FString() : Id.ToString();
@@ -879,6 +1229,58 @@ bool UApexCarSelectWidget::FocusChip()
 
 bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* Source)
 {
+	// The editor holds the pad while it is up: up and down through its rows,
+	// left and right step a row's value or move between Save and Cancel.
+	const int32 EditorAt = ApexNav::IndexOf(EditorRows, Source);
+	if (EditorAt != INDEX_NONE)
+	{
+		constexpr int32 SaveAt = 3;
+		constexpr int32 CancelAt = 4;
+		switch (Direction)
+		{
+		case EUINavigation::Up:
+		case EUINavigation::Previous:
+			if (EditorAt > 0)
+			{
+				ApexNav::Focus(EditorRows[EditorAt == CancelAt ? SaveAt - 1 : EditorAt - 1]);
+			}
+			return true;
+		case EUINavigation::Down:
+		case EUINavigation::Next:
+			if (EditorAt < SaveAt)
+			{
+				ApexNav::Focus(EditorRows[EditorAt + 1]);
+			}
+			return true;
+		case EUINavigation::Left:
+		case EUINavigation::Right:
+			if (EditorAt < SaveAt)
+			{
+				StepEditor(EditorRows[EditorAt], Direction == EUINavigation::Right ? +1 : -1);
+			}
+			else
+			{
+				ApexNav::Focus(EditorRows[Direction == EUINavigation::Right ? CancelAt : SaveAt]);
+			}
+			return true;
+		default:
+			return true;
+		}
+	}
+	if (IsLiveryEditorOpen() && Source == EditorNameBox)
+	{
+		// Typing: left and right move the caret; up and down leave the box.
+		if (Direction == EUINavigation::Up)
+		{
+			return ApexNav::Focus(EditorNumberRow);
+		}
+		if (Direction == EUINavigation::Down)
+		{
+			return ApexNav::Focus(EditorSaveButton);
+		}
+		return false;
+	}
+
 	const int32 RowAt = ApexNav::IndexOf(VisibleRows, Source);
 	if (RowAt != INDEX_NONE)
 	{

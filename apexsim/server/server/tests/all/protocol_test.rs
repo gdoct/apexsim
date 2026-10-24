@@ -917,3 +917,178 @@ async fn test_the_track_bundle_comes_in_chunks_on_request() {
 
     server.shutdown().await;
 }
+
+/// A driver's own livery online (`apexsim_server::livery_store`): uploaded in
+/// chunks from a session, named on their car in the roster the other driver
+/// gets, fetched by that driver chunk by chunk to the same bytes; a package
+/// that is not one, or an upload from outside a session, is refused, and a
+/// livery picked from the car's own takes it off again.
+#[tokio::test]
+async fn test_an_own_livery_goes_to_the_other_drivers() {
+    use apexsim_server::livery::{LiveryPackage, LIVERY_CHUNK_BYTES};
+    use apexsim_server::livery_store::hash_of;
+    use apexsim_server::network::RecordBytes;
+
+    let server = common::start_test_server().await;
+    let mut host = ProtocolTestClient::connect(server.tcp_addr).await;
+    host.authenticate("Painter", PROTOCOL_VERSION).await;
+    let mut guest = ProtocolTestClient::connect(server.tcp_addr).await;
+    guest.authenticate("Watcher", PROTOCOL_VERSION).await;
+    host.send(&ClientMessage::RequestLobbyState).await;
+    let (car_id, track_id) = match host
+        .recv_until(|m| matches!(m, ServerMessage::LobbyState(_)))
+        .await
+    {
+        ServerMessage::LobbyState(lobby) => (lobby.car_configs[0].id, lobby.track_configs[0].id),
+        _ => unreachable!(),
+    };
+
+    // A PNG header and padding: 300 kB, two chunks.
+    let mut png = vec![0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13];
+    png.extend_from_slice(b"IHDR");
+    png.extend_from_slice(&1024u32.to_be_bytes());
+    png.extend_from_slice(&1024u32.to_be_bytes());
+    png.resize(300_000, 7);
+    let package = rmp_serde::to_vec_named(&LiveryPackage {
+        car: car_id.to_string(),
+        name: "Mine".into(),
+        paint: Some([0.6, 0.05, 0.04]),
+        skin: Some(RecordBytes(png)),
+        ..Default::default()
+    })
+    .unwrap();
+    let hash = hash_of(&package);
+    let chunks: Vec<&[u8]> = package.chunks(LIVERY_CHUNK_BYTES).collect();
+    assert_eq!(chunks.len(), 2);
+    let upload =
+        |bytes: &[u8], hash: &str, chunk: usize, chunks: usize| ClientMessage::UploadLivery {
+            hash: hash.to_string(),
+            chunk: chunk as u32,
+            chunks: chunks as u32,
+            bytes: RecordBytes(bytes.to_vec()),
+        };
+
+    // Outside a session: refused.
+    guest.send(&upload(chunks[0], &hash, 0, 2)).await;
+    match guest
+        .recv_until(|m| matches!(m, ServerMessage::Error { .. }))
+        .await
+    {
+        ServerMessage::Error { code, .. } => assert_eq!(code, 409),
+        _ => unreachable!(),
+    }
+
+    for client in [&mut host, &mut guest] {
+        client
+            .send(&ClientMessage::SelectCar {
+                car_config_id: car_id,
+                livery: 0,
+            })
+            .await;
+    }
+    host.send(&ClientMessage::CreateSession {
+        track_config_id: track_id,
+        max_players: 2,
+        ai_count: 0,
+        lap_limit: 2,
+        session_kind: apexsim_server::data::SessionKind::Practice,
+        allowed_assists: Default::default(),
+        conditions: Default::default(),
+        damage: Default::default(),
+        ai_skill: None,
+        race_seconds: None,
+        grid_order: Vec::new(),
+        qualifying_seconds: None,
+        weekend: None,
+        watch: None,
+        qualifying_cutoff_pct: None,
+        mandatory_stops: 0,
+        compound_change: false,
+        qualifying_format: apexsim_server::data::QualifyingFormat::Open,
+        qualifying_lap_allowance: 0,
+        race_rules: Default::default(),
+        classes: Vec::new(),
+        ballast: Vec::new(),
+    })
+    .await;
+    let session_id = match host
+        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
+        .await
+    {
+        ServerMessage::SessionJoined(joined) => joined.session_id,
+        _ => unreachable!(),
+    };
+    guest.send(&ClientMessage::JoinSession { session_id }).await;
+    guest
+        .recv_until(|m| matches!(m, ServerMessage::SessionJoined(_)))
+        .await;
+
+    // Not a livery: refused, worn by no one.
+    let junk = b"not a livery".to_vec();
+    host.send(&upload(&junk, &hash_of(&junk), 0, 1)).await;
+    match host
+        .recv_until(|m| matches!(m, ServerMessage::Error { .. }))
+        .await
+    {
+        ServerMessage::Error { code, .. } => assert_eq!(code, 400),
+        _ => unreachable!(),
+    }
+
+    for (i, chunk) in chunks.iter().enumerate() {
+        host.send(&upload(chunk, &hash, i, chunks.len())).await;
+    }
+    let worn = |m: &ServerMessage, hash: &str| match m {
+        ServerMessage::SessionRoster(roster) => roster
+            .entries
+            .iter()
+            .any(|e| !e.is_ai && e.player_name == "Painter" && e.own_livery == hash),
+        _ => false,
+    };
+    guest.recv_until(|m| worn(m, &hash)).await;
+
+    let mut fetched = Vec::new();
+    let mut count = 1;
+    let mut chunk = 0;
+    while chunk < count {
+        guest
+            .send(&ClientMessage::RequestLivery {
+                hash: hash.clone(),
+                chunk,
+            })
+            .await;
+        match guest
+            .recv_until(|m| matches!(m, ServerMessage::LiveryChunk(_)))
+            .await
+        {
+            ServerMessage::LiveryChunk(data) => {
+                assert_eq!((data.hash.as_str(), data.chunk), (hash.as_str(), chunk));
+                count = data.chunks;
+                fetched.extend_from_slice(&data.bytes.0);
+            }
+            _ => unreachable!(),
+        }
+        chunk += 1;
+    }
+    assert_eq!(count, 2);
+    assert_eq!(hash_of(&fetched), hash, "the same bytes come back");
+
+    guest
+        .send(&ClientMessage::RequestLivery {
+            hash: "0".repeat(64),
+            chunk: 0,
+        })
+        .await;
+    match guest
+        .recv_until(|m| matches!(m, ServerMessage::LiveryChunk(_)))
+        .await
+    {
+        ServerMessage::LiveryChunk(data) => assert_eq!(data.chunks, 0, "no such livery"),
+        _ => unreachable!(),
+    }
+
+    // The car's works livery picked: the own one comes off.
+    host.send(&ClientMessage::SetLivery { livery: 0 }).await;
+    guest.recv_until(|m| worn(m, "")).await;
+
+    server.shutdown().await;
+}

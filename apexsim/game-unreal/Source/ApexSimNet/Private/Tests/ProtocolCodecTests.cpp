@@ -1,6 +1,7 @@
 #include "Misc/AutomationTest.h"
 
 #include "ApexDriverKey.h"
+#include "ApexLiveryPackage.h"
 #include "ApexProtocolCodec.h"
 #include "ApexProtocolTypes.h"
 #include "ApexServerErrors.h"
@@ -2238,6 +2239,121 @@ bool FApexServerErrorsTest::RunTest(const FString& Parameters)
 		FString(TEXT("Rewind needs you driving alone.")));
 	TestEqual(TEXT("a 409"), ApexServerError::Describe(409, TEXT("Race under way")),
 		FString(TEXT("Server error 409: Race under way")));
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexProtocolOwnLiveryTest,
+	"ApexSim.Net.Protocol.OwnLivery",
+	ApexTestFlags)
+
+bool FApexProtocolOwnLiveryTest::RunTest(const FString& Parameters)
+{
+	// The wire (network.rs `own_livery_wire_format`, livery.rs
+	// `livery_package_wire_format`): the upload, the request, the chunk, the
+	// roster naming the hash, and the package as the client packs it.
+	auto CheckBytes = [this](const TCHAR* Label, const TArray<uint8>& Actual, TArrayView<const uint8> Expected)
+	{
+		TestEqual(FString::Printf(TEXT("%s: length"), Label), Actual.Num(), Expected.Num());
+		TestTrue(FString::Printf(TEXT("%s: bytes"), Label),
+			Actual.Num() == Expected.Num() && FMemory::Memcmp(Actual.GetData(), Expected.GetData(), Actual.Num()) == 0);
+	};
+	const FString Hash = FString::ChrN(64, TEXT('a')).Replace(TEXT("aa"), TEXT("ab"));
+	const TArray<uint8> Png4 = {0x89, 0x50, 0x4E, 0x47};
+	CheckBytes(TEXT("UploadLivery"), ApexProtocol::EncodeUploadLivery(Hash, 1, 2, Png4), ApexGolden::C_UploadLivery);
+	CheckBytes(TEXT("RequestLivery"), ApexProtocol::EncodeRequestLivery(Hash, 1), ApexGolden::C_RequestLivery);
+
+	FApexServerMessage Chunk;
+	FString Error;
+	if (TestTrue(TEXT("LiveryChunk decodes"), ApexProtocol::DecodeServerMessage(ApexGolden::S_LiveryChunk, Chunk, Error)))
+	{
+		TestEqual(TEXT("Chunk type"), Chunk.Type, EApexServerMessageType::LiveryChunk);
+		TestEqual(TEXT("Chunk.Hash"), Chunk.LiveryChunk.Hash, Hash);
+		TestEqual(TEXT("Chunk.Chunk"), Chunk.LiveryChunk.Chunk, 1);
+		TestEqual(TEXT("Chunk.Chunks"), Chunk.LiveryChunk.Chunks, 2);
+		TestEqual(TEXT("Chunk.Bytes"), Chunk.LiveryChunk.Bytes, Png4);
+	}
+	FApexServerMessage Missing;
+	if (TestTrue(TEXT("LiveryChunk missing decodes"), ApexProtocol::DecodeServerMessage(ApexGolden::S_LiveryChunkMissing, Missing, Error)))
+	{
+		TestEqual(TEXT("Missing.Chunks"), Missing.LiveryChunk.Chunks, 0);
+		TestEqual(TEXT("Missing.Bytes"), Missing.LiveryChunk.Bytes.Num(), 0);
+	}
+	FApexServerMessage Roster;
+	if (TestTrue(TEXT("Roster decodes"), ApexProtocol::DecodeServerMessage(ApexGolden::S_SessionRosterOwnLivery, Roster, Error)))
+	{
+		TestEqual(TEXT("one entry"), Roster.Roster.Entries.Num(), 1);
+		TestEqual(TEXT("OwnLivery"), Roster.Roster.Entries.Num() == 1 ? Roster.Roster.Entries[0].OwnLivery : FString(), Hash);
+	}
+	FApexServerMessage Plain;
+	if (ApexProtocol::DecodeServerMessage(ApexGolden::S_SessionRosterPenalties, Plain, Error) && Plain.Roster.Entries.Num() > 0)
+	{
+		TestTrue(TEXT("no OwnLivery from a roster without it"), Plain.Roster.Entries[0].OwnLivery.IsEmpty());
+	}
+
+	// The package: packed to livery.rs's bytes, and read back.
+	auto PngHeader = [](uint32 W, uint32 H)
+	{
+		TArray<uint8> B = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 'I', 'H', 'D', 'R'};
+		for (const uint32 V : {W, H})
+		{
+			B.Append({uint8(V >> 24), uint8(V >> 16), uint8(V >> 8), uint8(V)});
+		}
+		B.Append({8, 6, 0, 0, 0});
+		return B;
+	};
+	FApexLiveryPackage Package;
+	Package.Car = TEXT("99999999-8888-7777-6666-555555555555");
+	Package.Name = TEXT("Mine");
+	Package.Paint = FLinearColor(0.5f, 0.25f, 0.0f, 1.0f);
+	Package.Accent = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	Package.Metallic = 0.5f;
+	Package.Logo = PngHeader(2, 1);
+	Package.Skin = {0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x04, 0x4A, 0x46, 0xFF, 0xC0, 0x00, 0x11, 0x08, 0x00, 0x01, 0x00, 0x02,
+		3, 3, 3, 3, 3, 3, 3, 3, 3, 3};
+	Package.Textures.Emplace(TEXT("EXT_RIM"), PngHeader(1, 1));
+	const TArray<uint8> Packed = ApexLiveryPackage::Encode(Package);
+	CheckBytes(TEXT("LiveryPackage"), Packed, ApexGolden::C_LiveryPackage);
+	FApexLiveryPackage Back;
+	if (TestTrue(TEXT("the package reads back"), ApexLiveryPackage::Decode(Packed, Back, Error)))
+	{
+		TestEqual(TEXT("its car"), Back.Car, Package.Car);
+		TestEqual(TEXT("its name"), Back.Name, Package.Name);
+		TestEqual(TEXT("its paint"), Back.Paint, Package.Paint);
+		TestEqual(TEXT("its metallic"), Back.Metallic, 0.5f);
+		TestEqual(TEXT("its skin"), Back.Skin, Package.Skin);
+		TestEqual(TEXT("its texture"), Back.Textures.Num() == 1 ? Back.Textures[0].Key : FString(), FString(TEXT("EXT_RIM")));
+	}
+	int32 W = 0;
+	int32 H = 0;
+	TestTrue(TEXT("a JPEG's size"), ApexLiveryPackage::ImageSize(Package.Skin, W, H) && W == 2 && H == 1);
+	TestFalse(TEXT("a PNG past the side"), ApexLiveryPackage::ImageSize(PngHeader(8192, 4), W, H));
+
+	// What the server refuses, the client refuses too.
+	auto Refused = [&](TFunctionRef<void(FApexLiveryPackage&)> Edit)
+	{
+		FApexLiveryPackage Bad = Package;
+		Edit(Bad);
+		FApexLiveryPackage Out;
+		FString Why;
+		return !ApexLiveryPackage::Decode(ApexLiveryPackage::Encode(Bad), Out, Why) && !Why.IsEmpty();
+	};
+	TestTrue(TEXT("no car id"), Refused([](FApexLiveryPackage& P) { P.Car = TEXT("a car"); }));
+	TestTrue(TEXT("no name"), Refused([](FApexLiveryPackage& P) { P.Name = TEXT("  "); }));
+	TestTrue(TEXT("a colour past 1"), Refused([](FApexLiveryPackage& P) { P.Paint.R = 1.5f; }));
+	TestTrue(TEXT("not an image"), Refused([](FApexLiveryPackage& P) { P.Logo = {'G', 'I', 'F', '8', '9', 'a'}; }));
+	TestTrue(TEXT("nothing to paint"), Refused([](FApexLiveryPackage& P) { P.Paint.A = 0.0f; P.Skin.Reset(); P.Textures.Reset(); }));
+	TestTrue(TEXT("a slot twice"), Refused([&](FApexLiveryPackage& P) { P.Textures.Emplace(TEXT("ext_rim"), PngHeader(1, 1)); }));
+	TestTrue(TEXT("over the cap"), Refused([](FApexLiveryPackage& P) { P.Skin.SetNumZeroed(ApexLiveryPackage::MaxBytes); P.Skin[0] = 0xFF; }));
+	FApexLiveryPackage Out;
+	TestFalse(TEXT("not a package"), ApexLiveryPackage::Decode(TArray<uint8>({1, 2, 3}), Out, Error));
+
+	// The hash is the server's: SHA-256, lowercase hex.
+	const TArray<uint8> Abc = {'a', 'b', 'c'};
+	TestEqual(TEXT("SHA-256 of abc"), ApexLiveryPackage::Hash(Abc),
+		FString(TEXT("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")));
+	TestEqual(TEXT("chunks of a package"), ApexLiveryPackage::ChunkCount(ApexLiveryPackage::MaxBytes), 4);
+	TestEqual(TEXT("one chunk at least"), ApexLiveryPackage::ChunkCount(0), 1);
 	return true;
 }
 

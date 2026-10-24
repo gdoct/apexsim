@@ -383,6 +383,25 @@ pub enum ClientMessage {
         crc: u32,
         chunk: u32,
     },
+    /// A driver sends their own livery (`crate::livery::LiveryPackage`),
+    /// `chunk` of `chunks` (in order, from 0) of at most
+    /// `livery::LIVERY_CHUNK_BYTES`, named by the SHA-256 of the whole
+    /// package (lowercase hex). On the last, the server checks the hash and
+    /// the package and the roster carries the hash on the driver's car
+    /// (`RosterEntry.OwnLivery`); a refused one is answered with `Error`
+    /// (400 bad, 413 too large, 409 not driving that car in a session).
+    UploadLivery {
+        hash: String,
+        chunk: u32,
+        chunks: u32,
+        bytes: RecordBytes,
+    },
+    /// A client asks for one chunk of a livery a roster named
+    /// (`RosterEntry.OwnLivery`): answered with `LiveryChunk`.
+    RequestLivery {
+        hash: String,
+        chunk: u32,
+    },
 
     // UDP - Binds the sender's UDP address to the TCP connection that was
     // issued `token` in `AuthSuccess`. Server replies `UdpHandshakeAck` over
@@ -730,6 +749,18 @@ pub struct TrackBundleChunkData {
     pub bytes: RecordBytes,
 }
 
+/// One chunk of a player's own livery (`crate::livery`), answering
+/// `RequestLivery`. `chunks` 0 (and no bytes) says the server has no
+/// livery with that hash or no such chunk.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LiveryChunkData {
+    pub hash: String,
+    pub chunk: u32,
+    pub chunks: u32,
+    pub bytes: RecordBytes,
+}
+
 /// Where a race weekend stands (`crate::weekend`). Sent to every member of
 /// the session, drivers and spectators, right after `SessionJoined` (and a
 /// rejoin) and whenever a field changes.
@@ -1056,6 +1087,9 @@ pub enum ServerMessage {
     // (`RequestTrackBundle`): what a predicting client steps its car on.
     TrackBundleChunk(TrackBundleChunkData),
 
+    // TCP - One chunk of a player's own livery, on request (`RequestLivery`).
+    LiveryChunk(LiveryChunkData),
+
     // TCP - The session was rewound (`ClientMessage::Rewind`): every car is
     // back where it was at `tick`, held still for `hold_ms`. Sent to the
     // session's drivers and spectators, so they drop what they buffered of
@@ -1106,6 +1140,7 @@ impl ServerMessage {
             ServerMessage::Chat(_) => MessagePriority::Critical,
             // Asked for once, chunk by chunk, a few in flight.
             ServerMessage::TrackBundleChunk(_) => MessagePriority::Critical,
+            ServerMessage::LiveryChunk(_) => MessagePriority::Critical,
             ServerMessage::Rewound(_) => MessagePriority::Critical,
             // Asked for once, for a screen waiting on it.
             ServerMessage::Incidents(_) => MessagePriority::Critical,
@@ -2141,6 +2176,12 @@ pub struct RosterEntry {
     /// wire when none.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub penalties: Vec<PenaltyData>,
+    /// The driver's own livery (`ClientMessage::UploadLivery`), the SHA-256
+    /// of its package as lowercase hex: painted over `livery` by a client
+    /// that has it or fetches it (`RequestLivery`). Left off the wire when
+    /// the car wears one of its own.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub own_livery: String,
 }
 
 /// One penalty (`race_control::Penalty`) as a roster carries it.
@@ -5749,6 +5790,7 @@ mod tests {
                 missed_stops: true,
                 qualifying_laps: 0,
                 penalties: Vec::new(),
+                own_livery: String::new(),
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -5977,6 +6019,7 @@ mod tests {
                         status: 2,
                     },
                 ],
+                own_livery: String::new(),
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -8182,6 +8225,7 @@ mod tests {
                 missed_stops: false,
                 qualifying_laps: 0,
                 penalties: Vec::new(),
+                own_livery: String::new(),
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -8338,6 +8382,7 @@ mod tests {
             missed_stops: false,
             qualifying_laps: 0,
             penalties: Vec::new(),
+            own_livery: String::new(),
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();
@@ -8353,6 +8398,98 @@ mod tests {
                 assert!(data.entries[0].ready);
                 assert!(!data.entries[1].ready);
             }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// A player's own livery online (`crate::livery`): a chunk uploaded
+    /// (`UploadLivery`), a chunk asked for (`RequestLivery`) and sent
+    /// (`LiveryChunk`, and without one: `Chunks` 0), and a roster naming the
+    /// livery a car wears (`RosterEntry.OwnLivery`, left off without one).
+    /// `cargo test own_livery_wire_format -- --nocapture` ->
+    /// `ApexGolden::C_UploadLivery`, `C_RequestLivery`, `S_LiveryChunk`,
+    /// `S_LiveryChunkMissing`, `S_SessionRosterOwnLivery`.
+    #[test]
+    fn own_livery_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let hash = "ab".repeat(32);
+        let upload = ClientMessage::UploadLivery {
+            hash: hash.clone(),
+            chunk: 1,
+            chunks: 2,
+            bytes: RecordBytes(vec![0x89, 0x50, 0x4E, 0x47]),
+        };
+        let upload_bytes = rmp_serde::to_vec_named(&upload).unwrap();
+        println!("C_UploadLivery: {}", hex(&upload_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&upload_bytes).unwrap() {
+            ClientMessage::UploadLivery {
+                hash: h,
+                chunk: 1,
+                chunks: 2,
+                bytes,
+            } => assert_eq!((h, bytes.0.len()), (hash.clone(), 4)),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        let request = ClientMessage::RequestLivery {
+            hash: hash.clone(),
+            chunk: 1,
+        };
+        let request_bytes = rmp_serde::to_vec_named(&request).unwrap();
+        println!("C_RequestLivery: {}", hex(&request_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&request_bytes).unwrap() {
+            ClientMessage::RequestLivery { hash: h, chunk: 1 } => assert_eq!(h, hash),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        let chunk = ServerMessage::LiveryChunk(LiveryChunkData {
+            hash: hash.clone(),
+            chunk: 1,
+            chunks: 2,
+            bytes: RecordBytes(vec![0x89, 0x50, 0x4E, 0x47]),
+        });
+        let chunk_bytes = rmp_serde::to_vec_named(&chunk).unwrap();
+        println!("S_LiveryChunk: {}", hex(&chunk_bytes));
+        let missing = ServerMessage::LiveryChunk(LiveryChunkData {
+            hash: hash.clone(),
+            chunk: 0,
+            chunks: 0,
+            bytes: RecordBytes(Vec::new()),
+        });
+        let missing_bytes = rmp_serde::to_vec_named(&missing).unwrap();
+        println!("S_LiveryChunkMissing: {}", hex(&missing_bytes));
+        assert!(matches!(chunk.priority(), MessagePriority::Critical));
+
+        let entry = |own_livery: &str| RosterEntry {
+            car_index: 0,
+            player_id: Uuid::from_u128(1),
+            player_name: "Player".to_string(),
+            is_ai: false,
+            car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+            livery: 0,
+            away: false,
+            grid_slot: 1,
+            ready: false,
+            dnq: false,
+            missed_stops: false,
+            qualifying_laps: 0,
+            penalties: Vec::new(),
+            own_livery: own_livery.to_string(),
+        };
+        let plain = rmp_serde::to_vec_named(&entry("")).unwrap();
+        assert!(!String::from_utf8_lossy(&plain).contains("OwnLivery"));
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![entry(&hash)],
+        });
+        let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!("S_SessionRosterOwnLivery: {}", hex(&roster_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&roster_bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => assert_eq!(data.entries[0].own_livery, hash),
             other => panic!("Wrong message type: {other:?}"),
         }
     }

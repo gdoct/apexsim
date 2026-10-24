@@ -57,4 +57,7 @@ namespace ApexLivery
 	 * each `<cars>/custom/liveries/<car folder>/<name>/` holding a livery.toml.
 	 */
 	APEXSIM_API TArray<FString> OwnLiveryFolders(const FString& CarDir);
+
+	/** Where the player's own liveries for the car in `CarDir` live: `<cars>/custom/liveries/<car folder>`. */
+	APEXSIM_API FString OwnLiveryRoot(const FString& CarDir);
 }

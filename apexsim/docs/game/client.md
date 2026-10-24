@@ -494,6 +494,15 @@ pad's D-pad (and Up and Down) on the way down
 (`NativeOnPreviewKeyDown`): Left to Back, Right to the chips, Down to the
 grid; the keyboard's Left and Right stay the caret's.
 
+Car select's EDIT (E, or pad Y on a car's row) opens the livery editor, a
+panel over the turntable's right side that holds the pad while it is up
+(up and down through Paint, Accent, Number, Save and Cancel, left and right
+step a row or move between the two buttons, Back closes it; the name box is
+the keyboard's). What it draws and saves is in
+[cars.md](../../../apexsim-content/docs/cars.md#liveries), as is
+`UApexLiveryExchange`, which sends the player's own livery to the server in
+a session and fetches the others'.
+
 ## Input mode and focus
 
 Driving bindings are Enhanced Input actions built in C++

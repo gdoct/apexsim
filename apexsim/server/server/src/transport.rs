@@ -34,6 +34,11 @@ const INPUT_RATE_PER_SEC: f32 = 300.0;
 const INPUT_RATE_BURST: f32 = 60.0;
 const CONTROL_RATE_PER_SEC: f32 = 10.0;
 const CONTROL_RATE_BURST: f32 = 20.0;
+/// Own liveries (`UploadLivery`, `RequestLivery`): chunks of 256 KiB, so a
+/// slower rate than control traffic, but a bucket of their own so a livery
+/// never starves a session's control messages or the other way round.
+const LIVERY_RATE_PER_SEC: f32 = 4.0;
+const LIVERY_RATE_BURST: f32 = 8.0;
 /// Disconnect a connection after this many rate-limit/protocol violations.
 const MAX_VIOLATIONS: u32 = 200;
 
@@ -624,6 +629,7 @@ impl TransportLayer {
         let mut authenticated = false;
         let mut input_bucket = TokenBucket::new(INPUT_RATE_PER_SEC, INPUT_RATE_BURST);
         let mut control_bucket = TokenBucket::new(CONTROL_RATE_PER_SEC, CONTROL_RATE_BURST);
+        let mut livery_bucket = TokenBucket::new(LIVERY_RATE_PER_SEC, LIVERY_RATE_BURST);
         let mut violations: u32 = 0;
 
         let kick = Arc::new(tokio::sync::Notify::new());
@@ -662,6 +668,8 @@ impl TransportLayer {
                                     let bucket = match &msg {
                                         ClientMessage::PlayerInput { .. }
                                         | ClientMessage::Heartbeat { .. } => &mut input_bucket,
+                                        ClientMessage::UploadLivery { .. }
+                                        | ClientMessage::RequestLivery { .. } => &mut livery_bucket,
                                         _ => &mut control_bucket,
                                     };
                                     if !bucket.try_take() {

@@ -388,6 +388,20 @@ For: the client holding the smaller version 2 stream
 Recorded list, a showcase rendered in the game and a client-recorded replay
 all play.
 
+### 37. Own liveries beyond the race
+
+([cars.md](../../apexsim-content/docs/cars.md#liveries)) Another
+player's own livery is painted on their car in a session only.
+
+- A spectator stream, a showcase and a replay carry the roster's livery
+  index, so a car in its driver's own livery shows the works there. The
+  stream's roster row would need the hash and the replay the package.
+- A race event refuses an own livery (`Error 403`, as `SetLivery`): its
+  entrants race in the car's liveries.
+
+**Check:** a live spectator and a saved replay of a session with an own
+livery show it.
+
 ## P4: Unrefined
 
 ### 13. Windshield wipers

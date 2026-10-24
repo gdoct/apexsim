@@ -3,7 +3,9 @@
 #include "Cars/ApexBlockCompress.h"
 #include "Cars/ApexCarContentSubsystem.h"
 #include "Cars/ApexCarToml.h"
+#include "ApexLiveryPackage.h"
 #include "Cars/ApexGlbReader.h"
+#include "Cars/ApexLiveryEditor.h"
 #include "Components/StaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture2D.h"
@@ -15,6 +17,7 @@
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 #include "Race/ApexCarLivery.h"
+#include "Race/ApexLiveryExchange.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -928,6 +931,143 @@ bool FApexCarOwnLiveryTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("two livery folders, template skipped"), Folders.Num(), 2);
 	TestTrue(TEXT("in name order"), Folders.Num() == 2 && Folders[0].EndsWith(TEXT("/a")) && Folders[1].EndsWith(TEXT("/b")));
 	IFileManager::Get().DeleteDirectory(*FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("OwnLivery")), false, true);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarLiveryEditorTest, "ApexSim.Cars.LiveryEditor", ApexTestFlags)
+
+bool FApexCarLiveryEditorTest::RunTest(const FString& Parameters)
+{
+	// A draft is named by its paint and number until the player types a name.
+	FApexLiveryDraft Draft;
+	Draft.Paint = 0;
+	Draft.Accent = 1;
+	Draft.Number = 17;
+	TestEqual(TEXT("auto name"), ApexLiveryEditor::AutoName(Draft), FString(TEXT("Racing red 17")));
+	Draft.Number = -1;
+	TestEqual(TEXT("auto name without a number"), ApexLiveryEditor::AutoName(Draft), FString(TEXT("Racing red")));
+	TestEqual(TEXT("quotes and backslashes out"), ApexLiveryEditor::CleanName(TEXT(" My \"fast\" \\ car ")), FString(TEXT("My fast  car")));
+	TestTrue(TEXT("a swatch is linear"), ApexLiveryEditor::Linear(0).R < 200.0f / 255.0f && ApexLiveryEditor::Linear(0).R > 0.5f);
+	TestEqual(TEXT("swatches wrap"), ApexLiveryEditor::Linear(ApexLiveryEditor::Swatches().Num()), ApexLiveryEditor::Linear(0));
+
+	// Saved where the car's own liveries are read from, and read back as one.
+	const FString Cars = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("LiveryEditor"), TEXT("cars"));
+	IFileManager::Get().DeleteDirectory(*Cars, false, true);
+	const FString CarDir = FPaths::Combine(Cars, TEXT("default"), TEXT("test-car"));
+	Draft.Name = TEXT("Racing red 17");
+	Draft.Number = 17;
+	const TArray<uint8> Logo = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+	FString Folder;
+	FString Error;
+	TestTrue(TEXT("saved"), ApexLiveryEditor::Save(CarDir, Draft, Logo, Folder, Error));
+	TestTrue(TEXT("in the car's own livery root"), Folder.EndsWith(TEXT("custom/liveries/test-car/racing-red-17")));
+	FString Second;
+	TestTrue(TEXT("saved again"), ApexLiveryEditor::Save(CarDir, Draft, Logo, Second, Error));
+	TestTrue(TEXT("beside the first"), Second.EndsWith(TEXT("racing-red-17-2")));
+	const TArray<FString> Folders = ApexLivery::OwnLiveryFolders(CarDir);
+	TestEqual(TEXT("both listed"), Folders.Num(), 2);
+	FString Text;
+	TArray<FApexCarLiveryToml> Read;
+	TestTrue(TEXT("livery.toml reads"), FFileHelper::LoadFileToString(Text, *FPaths::Combine(Folder, TEXT("livery.toml")))
+		&& ApexCarToml::ParseLiveryFile(Text, Read, Error));
+	if (TestEqual(TEXT("one table"), Read.Num(), 1))
+	{
+		TestEqual(TEXT("its name"), Read[0].Name, FString(TEXT("Racing red 17")));
+		TestTrue(TEXT("its paint"), Read[0].HasPaint() && FMath::IsNearlyEqual(Read[0].Paint.R, ApexLiveryEditor::Linear(0).R, 0.002f));
+		TestTrue(TEXT("its accent"), FMath::IsNearlyEqual(Read[0].Accent.G, ApexLiveryEditor::Linear(1).G, 0.002f));
+		TestEqual(TEXT("its logo"), Read[0].Logo, FString(TEXT("logo.png")));
+	}
+	TestTrue(TEXT("the logo beside it"), IFileManager::Get().FileExists(*FPaths::Combine(Folder, TEXT("logo.png"))));
+	FApexLiveryDraft Plain = Draft;
+	Plain.Number = -1;
+	TestFalse(TEXT("no number, no logo key"), ApexLiveryEditor::LiveryToml(Plain, false).Contains(TEXT("logo")));
+	TestFalse(TEXT("a car with no folder is refused"), ApexLiveryEditor::Save(FString(), Draft, Logo, Folder, Error));
+	TestEqual(TEXT("the template folder is the tool's"),
+		ApexLiveryEditor::FolderFor(TEXT("Template"), FPaths::Combine(Cars, TEXT("nowhere"))), FString(TEXT("livery")));
+	IFileManager::Get().DeleteDirectory(*FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("LiveryEditor")), false, true);
+
+	// The logo: a plate in the accent, the number on it in black or white, transparent round it.
+	TArray<uint8> Coverage;
+	Coverage.SetNumZeroed(ApexLiveryEditor::LogoWidth * ApexLiveryEditor::LogoHeight);
+	const int32 Middle = (ApexLiveryEditor::LogoHeight / 2) * ApexLiveryEditor::LogoWidth + ApexLiveryEditor::LogoWidth / 2;
+	Coverage[Middle] = 255;
+	const TArray<FColor> White = ApexLiveryEditor::ComposeLogo(Coverage, FLinearColor::White);
+	TestEqual(TEXT("logo size"), White.Num(), ApexLiveryEditor::LogoWidth * ApexLiveryEditor::LogoHeight);
+	TestEqual(TEXT("transparent in the corner"), White[0].A, uint8(0));
+	TestEqual(TEXT("the plate is the accent"), White[Middle + 40], FColor(255, 255, 255, 255));
+	TestTrue(TEXT("a black number on a light plate"), White[Middle].R < 40 && White[Middle].A == 255);
+	const TArray<FColor> Dark = ApexLiveryEditor::ComposeLogo(Coverage, ApexLiveryEditor::Linear(3));
+	TestTrue(TEXT("a white number on a dark plate"), Dark[Middle].R > 200);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarLiveryExchangeTest, "ApexSim.Cars.LiveryExchange", ApexTestFlags)
+
+bool FApexCarLiveryExchangeTest::RunTest(const FString& Parameters)
+{
+	// An own livery packed from its files and unpacked elsewhere paints the same.
+	const FString Root = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Tests"), TEXT("LiveryExchange"));
+	IFileManager::Get().DeleteDirectory(*Root, false, true);
+	const TArray<uint8> Png = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 2, 0, 0, 0, 1, 0, 8, 6, 0, 0, 0};
+	const FString LogoFile = FPaths::Combine(Root, TEXT("mine"), TEXT("logo.png"));
+	const FString RimFile = FPaths::Combine(Root, TEXT("mine"), TEXT("rim.png"));
+	FFileHelper::SaveArrayToFile(Png, *LogoFile);
+	FFileHelper::SaveArrayToFile(Png, *RimFile);
+
+	FApexCarLivery Own;
+	Own.Name = TEXT("Mine");
+	Own.bOwn = true;
+	Own.Paint = FLinearColor(0.6f, 0.05f, 0.04f, 1.0f);
+	Own.Accent = FLinearColor(1.0f, 1.0f, 1.0f, 1.0f);
+	Own.RuntimeLogo = LogoFile;
+	FApexLiveryTexture& Rim = Own.RuntimeTextures.AddDefaulted_GetRef();
+	Rim.Slot = FName(TEXT("EXT_RIM"));
+	Rim.RuntimeTexture = RimFile;
+
+	const FString Car = TEXT("99999999-8888-7777-6666-555555555555");
+	FApexLiveryPackage Package;
+	FString Error;
+	if (!TestTrue(TEXT("packed"), ApexLiveryExchange::Pack(Own, Car, Package, Error)))
+	{
+		AddError(Error);
+		return false;
+	}
+	TestEqual(TEXT("its car"), Package.Car, Car);
+	TestEqual(TEXT("its logo's bytes"), Package.Logo, Png);
+	TestEqual(TEXT("its texture"), Package.Textures.Num(), 1);
+
+	const TArray<uint8> Bytes = ApexLiveryPackage::Encode(Package);
+	FApexLiveryPackage Back;
+	TestTrue(TEXT("decoded"), ApexLiveryPackage::Decode(Bytes, Back, Error));
+	FApexCarLivery Painted;
+	TestTrue(TEXT("unpacked"), ApexLiveryExchange::Unpack(Back, FPaths::Combine(Root, TEXT("cache"), TEXT("x")), Painted));
+	TestEqual(TEXT("same name"), Painted.Name, Own.Name);
+	TestEqual(TEXT("same paint"), Painted.Paint, Own.Paint);
+	TestFalse(TEXT("not this client's own"), Painted.bOwn);
+	TArray<uint8> Written;
+	TestTrue(TEXT("the logo written"), FFileHelper::LoadFileToArray(Written, *Painted.RuntimeLogo) && Written == Png);
+	TestTrue(TEXT("the slot kept"), Painted.RuntimeTextures.Num() == 1 && Painted.RuntimeTextures[0].Slot == FName(TEXT("EXT_RIM")));
+
+	// A file that is not an image stays on this client.
+	FFileHelper::SaveStringToFile(TEXT("GIF89a"), *RimFile);
+	TestFalse(TEXT("a GIF is not packed"), ApexLiveryExchange::Pack(Own, Car, Package, Error));
+	// Nor one over the cap.
+	TArray<uint8> Big = Png;
+	Big.SetNumZeroed(ApexLiveryPackage::MaxBytes + 10);
+	FMemory::Memcpy(Big.GetData(), Png.GetData(), Png.Num());
+	FFileHelper::SaveArrayToFile(Big, *RimFile);
+	TestFalse(TEXT("over 1 MB is not packed"), ApexLiveryExchange::Pack(Own, Car, Package, Error));
+
+	// Hashes as the roster names them, and nothing else, become file names.
+	TestTrue(TEXT("a hash"), ApexLiveryExchange::IsHash(FString::ChrN(64, TEXT('a'))));
+	TestFalse(TEXT("upper case"), ApexLiveryExchange::IsHash(FString::ChrN(64, TEXT('A'))));
+	TestFalse(TEXT("a path"), ApexLiveryExchange::IsHash(TEXT("../../") + FString::ChrN(58, TEXT('a'))));
+
+	// The cache keeps the newest under its size.
+	const TArray<FString> Prune = ApexLiveryExchange::ToPrune({{TEXT("old"), 40}, {TEXT("mid"), 40}, {TEXT("new"), 40}}, 90);
+	TestEqual(TEXT("one pruned"), Prune.Num(), 1);
+	TestEqual(TEXT("the oldest"), Prune.Num() == 1 ? Prune[0] : FString(), FString(TEXT("old")));
+	IFileManager::Get().DeleteDirectory(*Root, false, true);
 	return true;
 }
 

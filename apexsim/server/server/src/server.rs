@@ -55,6 +55,9 @@ pub struct ServerState {
     /// The rewind snapshots of each session driven alone (`crate::rewind`),
     /// taken by the game loop after its tick.
     pub rewinds: HashMap<SessionId, crate::rewind::Rewind>,
+    /// Players' own liveries, kept by hash for the other clients to fetch
+    /// (`crate::livery_store`).
+    pub liveries: crate::livery_store::LiveryStore,
 }
 
 impl ServerState {
@@ -131,6 +134,7 @@ impl ServerState {
             disabled_content,
             chat: crate::chat::ChatGuard::default(),
             rewinds: HashMap::new(),
+            liveries: Default::default(),
             config,
             car_configs,
             track_configs,

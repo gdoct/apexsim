@@ -303,6 +303,7 @@ void UApexCarContentSubsystem::ScanNow()
 {
 	bScanned = true;
 	RuntimeRows.Reset();
+	RuntimeDirs.Reset();
 	TableRows.Reset();
 
 	// The table: the fallback for a car with no folder here, and the hand-tuned
@@ -502,6 +503,7 @@ void UApexCarContentSubsystem::ScanNow()
 
 				Found.Add(Folder);
 				RuntimeRows.Add(IdKey, MoveTemp(Row));
+				RuntimeDirs.Add(IdKey, CarDir);
 			}
 		}
 	}
@@ -514,6 +516,13 @@ void UApexCarContentSubsystem::ScanNow()
 	UE_LOG(LogApexSim, Log, TEXT("Runtime cars: %d found (%s)%s%s"), Found.Num(), *FString::Join(Found, TEXT(", ")),
 		Skipped > 0 ? *FString::Printf(TEXT(", %d skipped"), Skipped) : TEXT(""),
 		FromTableOnly > 0 ? *FString::Printf(TEXT("; %d more only in DT_CarCatalog"), FromTableOnly) : TEXT(""));
+}
+
+FString UApexCarContentSubsystem::CarDirectory(const FString& CarId) const
+{
+	EnsureScanned();
+	const FString* Found = RuntimeDirs.Find(CarId.ToLower());
+	return Found ? *Found : FString();
 }
 
 const FApexCarCatalogRow* UApexCarContentSubsystem::FindRow(const FString& CarId) const

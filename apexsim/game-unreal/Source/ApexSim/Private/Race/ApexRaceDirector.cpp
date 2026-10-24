@@ -40,6 +40,7 @@
 #include "Input/ApexInputConfig.h"
 #include "Race/ApexCarEffectsActor.h"
 #include "Race/ApexCarLivery.h"
+#include "Race/ApexLiveryExchange.h"
 #include "Race/ApexCockpitRig.h"
 #include "Race/ApexGhostCarActor.h"
 #include "Race/ApexRaceCarActor.h"
@@ -552,6 +553,19 @@ void AApexRaceDirector::BeginPlay()
 		RewoundHandle = Net->OnRewound.AddUObject(this, &AApexRaceDirector::HandleRewound);
 		DemoSessionHandle = Net->OnDemoSessionChanged.AddUObject(this, &AApexRaceDirector::HandleDemoSessionChanged);
 	}
+	if (UApexLiveryExchange* Exchange = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLiveryExchange>() : nullptr)
+	{
+		LiveryReadyHandle = Exchange->OnLiveryReady.AddUObject(this, &AApexRaceDirector::HandleLiveryReady);
+	}
+}
+
+void AApexRaceDirector::HandleLiveryReady()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (Net && Net->IsInSession() && !bReplayView)
+	{
+		SyncCarsToRoster(Net->GetSessionRoster());
+	}
 }
 
 void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -566,6 +580,10 @@ void AApexRaceDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		Net->OnRoadState.Remove(RoadStateHandle);
 		Net->OnRewound.Remove(RewoundHandle);
 		Net->OnDemoSessionChanged.Remove(DemoSessionHandle);
+	}
+	if (UApexLiveryExchange* Exchange = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLiveryExchange>() : nullptr)
+	{
+		Exchange->OnLiveryReady.Remove(LiveryReadyHandle);
 	}
 	DestroyAllCars();
 	Super::EndPlay(EndPlayReason);
@@ -752,14 +770,21 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 		{
 			Livery = ApexLivery::ForLocalCar(LiveryRow, Entry.Livery, LiveryNet->GetPendingLivery());
 		}
+		// Another player's own livery, once this client has it (fetched by
+		// hash); until then, and for a car it was not painted for, the
+		// roster's livery.
+		const UApexLiveryExchange* Exchange = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexLiveryExchange>() : nullptr;
+		const bool bOthers = !LiveryNet || Entry.CarIndex != LiveryNet->GetLocalCarIndex();
+		const FApexCarLivery* OwnLivery = Exchange && bOthers ? Exchange->FindWorn(Entry.OwnLivery, CarId) : nullptr;
 		// Keyed by car and livery: a driver who rejoins in another paint
 		// scheme gets repainted, not left in the old one.
-		const FString ShownKey = FString::Printf(TEXT("%s#%d"), *CarId, Livery);
+		const FString ShownKey = OwnLivery ? FString::Printf(TEXT("%s#%s"), *CarId, *Entry.OwnLivery)
+										   : FString::Printf(TEXT("%s#%d"), *CarId, Livery);
 		const FString* Shown = CarIdShown.Find(Entry.CarIndex);
 		if (!Shown || !Shown->Equals(ShownKey, ESearchCase::IgnoreCase))
 		{
 			CarIdShown.Add(Entry.CarIndex, ShownKey);
-			ApplyCatalogMesh(Car, CarId, Livery);
+			ApplyCatalogMesh(Car, CarId, Livery, OwnLivery);
 		}
 
 		Car->SetDisplayName(Entry.PlayerName);
@@ -792,7 +817,7 @@ void AApexRaceDirector::SyncCarsToRoster(const FApexSessionRoster& Roster)
 	UE_LOG(LogApexSim, Log, TEXT("Race roster: %d car(s) spawned"), Cars.Num());
 }
 
-void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery)
+void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& CarId, int32 Livery, const FApexCarLivery* OwnLivery)
 {
 	if (!Car)
 	{
@@ -869,7 +894,7 @@ void AApexRaceDirector::ApplyCatalogMesh(AApexRaceCarActor* Car, const FString& 
 		DamagePartMeshes.Reset();
 	}
 	Car->SetDamageParts(DamageParts, DamagePartMeshes);
-	Car->SetLivery(bRowBody ? ApexLivery::Find(Row, Livery) : nullptr);
+	Car->SetLivery(bRowBody ? (OwnLivery ? OwnLivery : ApexLivery::Find(Row, Livery)) : nullptr);
 }
 
 void AApexRaceDirector::HandleRewound(const FApexRewound& Rewound)

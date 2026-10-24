@@ -44,6 +44,7 @@ pub(crate) async fn handle_player_disconnect(
 
     let mut state_write = ctx.state.write().await;
     state_write.stop_watching(&player_id).await;
+    state_write.liveries.forget_connection(connection_id);
 
     // The seat is the lobby's record, not the connection's session: a player
     // holding a seat may be watching a menu backdrop when they drop again.

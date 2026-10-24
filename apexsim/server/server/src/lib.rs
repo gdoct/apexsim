@@ -7,6 +7,7 @@ pub mod events;
 pub mod game_loop;
 pub mod health;
 pub mod incident_report;
+pub mod livery_store;
 pub mod lobby;
 pub mod metrics;
 pub mod replay;
@@ -27,6 +28,7 @@ pub mod webhook;
 // `apexsim-protocol` (../protocol), which the physics library links too; they
 // keep their paths here.
 pub use apexsim_protocol::hotlap_watch;
+pub use apexsim_protocol::livery;
 pub use apexsim_protocol::network;
 pub use apexsim_protocol::poses;
 pub use apexsim_protocol::records;

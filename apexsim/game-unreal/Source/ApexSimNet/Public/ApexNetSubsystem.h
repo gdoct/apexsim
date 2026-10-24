@@ -49,6 +49,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRewound, const FApexRewound&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnIncidents, const FApexIncidents&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnLiveryChunk, const FApexLiveryChunk&);
 
 /**
  * Owns the connection to the ApexSim server and translates it into Blueprint
@@ -270,6 +271,9 @@ public:
 	/** What the server hears of the pick: 0 for the player's own livery. */
 	int32 GetWireLivery() const { return bPendingLiveryOwn ? 0 : PendingLivery; }
 
+	/** The pick is one of the player's own liveries, which UApexLiveryExchange uploads in a session. */
+	bool IsPendingLiveryOwn() const { return bPendingLiveryOwn; }
+
 	/**
 	 * AllowedAssists: which driving aids the session lets its drivers use
 	 * (every one by default). Conditions: its weather and clock. Damage: how
@@ -409,6 +413,18 @@ public:
 
 	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics). */
 	void RequestTrackBundleChunk(uint32 Crc, int32 Chunk);
+
+	/**
+	 * Every chunk of a player's own livery as it arrives, answering
+	 * RequestLiveryChunk (UApexLiveryExchange asks, assembles and caches).
+	 */
+	FApexOnLiveryChunk OnLiveryChunk;
+
+	/** Asks for one chunk of a livery a roster named (FApexRosterEntry::OwnLivery). */
+	void RequestLiveryChunk(const FString& Hash, int32 Chunk);
+
+	/** Sends one chunk of the player's own livery package (UploadLivery), named by its SHA-256. */
+	void UploadLiveryChunk(const FString& Hash, int32 Chunk, int32 Chunks, TArrayView<const uint8> Bytes);
 
 	// --- Backdrop feed --------------------------------------------------------------
 

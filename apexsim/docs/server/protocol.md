@@ -12,6 +12,10 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 - `server/protocol/src/network.rs` - `ClientMessage`, `ServerMessage`, their payload
   structs, `MessagePriority`, `PROTOCOL_VERSION`, and the `*_wire_format`
   tests that print golden bytes.
+- `server/protocol/src/livery.rs` - a player's own livery as it travels
+  (`LiveryPackage`, its checks); `server/server/src/livery_store.rs` -
+  the uploads assembled and the liveries kept by hash
+  ([own liveries](#own-liveries)).
 - `server/server/src/transport.rs` - TCP (+TLS) and UDP IO, framing, auth, the UDP
   handshake, rate limits, bounded queues, `TransportMetrics`.
 - `server/server/src/game_loop/dispatch.rs` (handlers), `broadcast.rs` (fan-out,
@@ -298,6 +302,33 @@ serials, and when the UDP worker took the snapshot's datagram in,
 `GetOwnCarSnapshotSeconds`); the prediction loop reads them
 ([../game/client.md](../game/client.md#client-prediction-raceapexpredictionsubsystemh)).
 
+## Own liveries
+
+A player's own livery (`server/protocol/src/livery.rs`,
+[cars.md](../../../apexsim-content/docs/cars.md#liveries)) travels as one
+`LiveryPackage`, a named MessagePack map (`car`, `name`, and when set
+`paint`, `accent`, `metallic`, `logo`, `skin`, `textures` of `{ slot, image }`,
+images as bins), named by the SHA-256 of its bytes as lowercase hex:
+
+- `UploadLivery { hash, chunk, chunks, bytes }` (named, chunks in order from
+  0, 256 KiB each, 4 at most): on the last the server checks the hash and
+  the package (`LiveryPackage::check`) and keeps it
+  (`livery_store::LiveryStore`, 64 MiB, the oldest out first), and the
+  driver's car wears it: `RosterEntry.OwnLivery` (PascalCase, left off when
+  empty), cleared by any `SetLivery`. A refusal is an `Error`: 400 a bad
+  package or chunk order, 413 over the caps, 409 from outside a session or
+  for another car, 403 in a race event.
+- `RequestLivery { hash, chunk }` (named) is answered with
+  `LiveryChunk(LiveryChunkData { Hash, Chunk, Chunks, Bytes })` (Critical,
+  PascalCase); `Chunks` 0 says the server has no such livery or chunk.
+
+Golden: `own_livery_wire_format` into `ApexGolden::C_UploadLivery`,
+`C_RequestLivery`, `S_LiveryChunk`, `S_LiveryChunkMissing`,
+`S_SessionRosterOwnLivery`; `livery_package_wire_format` (livery.rs) into
+`C_LiveryPackage`; the client's `ApexSim.Net.Protocol.OwnLivery`.
+`protocol_test::test_an_own_livery_goes_to_the_other_drivers` uploads one
+from a session and fetches it from the other driver's connection.
+
 ## Evolving a message
 
 - **Append only.** Never reorder, rename, retype or remove a field.
@@ -355,6 +386,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Reconnect, profiles | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`; `C_AuthenticateProfile`: `Authenticate.driver_id`; `C_AuthenticateKey`, `S_AuthSuccessChallenge`, `C_ProveDriverKey`: the key handshake) |
 | Records | `grid_wire_format` also prints `S_QualifyingResults` and `S_Leaderboard`, each with a line carrying its `DriverId` |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`, `RosterEntry.Dnq`, `RosterEntry.QualifyingLaps`) |
+| Own liveries | `own_livery_wire_format` (`UploadLivery`, `RequestLivery`, `LiveryChunk` with and without its chunk, `RosterEntry.OwnLivery`), `livery_package_wire_format` (livery.rs: `C_LiveryPackage`) |
 | The race's grid | `ready_grid_wire_format` (`OpenGrid`, `SetReady`, `SetLivery`, `GameModeChanged { Grid }`, `RosterEntry.Ready`) |
 | Lobby | `track_site_wire_format` (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg`) |
 | Spectator | `showcase_wire_format` (network.rs), `spectator_wire_format` (spectator.rs), `recordings_wire_format` (`LobbyState.recordings_port`) |
@@ -387,7 +419,8 @@ The counters are exported on `/metrics` ([operations.md](operations.md#health-an
 ## Rate limiting
 
 Token buckets per TCP connection: control traffic 10 msg/s (burst 20),
-`PlayerInput` and `Heartbeat` 300 msg/s (burst 60); a bucket per UDP source
+`PlayerInput` and `Heartbeat` 300 msg/s (burst 60), own liveries
+(`UploadLivery`, `RequestLivery`) 4 msg/s (burst 8); a bucket per UDP source
 address at the input rate. A message over the limit is dropped and counted as
 a violation (a pre-auth message counts ten); 200 violations close the
 connection. Constants at the top of `transport.rs`.

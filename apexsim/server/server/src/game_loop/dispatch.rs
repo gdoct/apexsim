@@ -9,8 +9,8 @@ use crate::data::*;
 use crate::game_session::GameSession;
 use crate::lobby::{LobbyPlayerState, LobbySessionInfo, SessionVisibility};
 use crate::network::{
-    ClientMessage, GhostLapData, LapRecordData, RacingLineData, RecordBytes, ServerMessage,
-    SessionJoinedData, TrackBundleChunkData, TrackSectorsData,
+    ClientMessage, GhostLapData, LapRecordData, LiveryChunkData, RacingLineData, RecordBytes,
+    ServerMessage, SessionJoinedData, TrackBundleChunkData, TrackSectorsData,
 };
 use crate::racing_line;
 use crate::session_wire::SessionWire;
@@ -204,6 +204,17 @@ pub(crate) async fn handle_message(
         }
         ClientMessage::RequestTrackBundle { crc, chunk } => {
             handle_request_track_bundle(ctx, connection_id, crc, chunk).await;
+        }
+        ClientMessage::UploadLivery {
+            hash,
+            chunk,
+            chunks,
+            bytes,
+        } => {
+            handle_upload_livery(ctx, connection_id, &hash, chunk, chunks, &bytes.0).await;
+        }
+        ClientMessage::RequestLivery { hash, chunk } => {
+            handle_request_livery(ctx, connection_id, hash, chunk).await;
         }
         ClientMessage::ListShowcases => {
             showcase::handle_list(ctx, connection_id).await;
@@ -2102,6 +2113,104 @@ async fn handle_request_track_bundle(
     };
     let _ = ctx
         .send(connection_id, ServerMessage::TrackBundleChunk(data))
+        .await;
+}
+
+/// A chunk of a driver's own livery (`crate::livery_store`). The last one
+/// puts it on their car: the session's roster carries its hash. Only from a
+/// driver in a session, in the car the livery names, outside a race event
+/// (which fixes each entrant's livery); anything else is answered with
+/// `Error` and the livery is not worn.
+async fn handle_upload_livery(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    hash: &str,
+    chunk: u32,
+    chunks: u32,
+    bytes: &[u8],
+) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        ctx.send_error(connection_id, 409, "A livery is sent from a session")
+            .await;
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    if state_write.events.event_of_session(session_id).is_some() {
+        drop(state_write);
+        ctx.send_error(connection_id, 403, "The livery is fixed for this event")
+            .await;
+        return;
+    }
+    let received = state_write
+        .liveries
+        .receive(connection_id, hash, chunk, chunks, bytes);
+    let (hash, package) = match received {
+        Ok(crate::livery_store::Received::Partial) => return,
+        Ok(crate::livery_store::Received::Done { hash, package }) => (hash, package),
+        Err(refused) => {
+            drop(state_write);
+            debug!(
+                "Livery from {} refused: {}",
+                conn_info.player_name, refused.message
+            );
+            ctx.send_error(connection_id, refused.code, &refused.message)
+                .await;
+            return;
+        }
+    };
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    let car = game_session
+        .session
+        .participants
+        .get(&conn_info.player_id)
+        .map(|p| p.car_config_id);
+    if car.is_none() || uuid::Uuid::parse_str(&package.car).ok() != car {
+        drop(state_write);
+        ctx.send_error(
+            connection_id,
+            409,
+            "The livery is for another car than the one you drive",
+        )
+        .await;
+        return;
+    }
+    debug!(
+        "{} wears their own livery {} ({})",
+        conn_info.player_name, package.name, hash
+    );
+    game_session.set_own_livery(conn_info.player_id, hash);
+}
+
+/// One chunk of a kept livery, by its hash; a hash or chunk the server does
+/// not have comes back as no chunks.
+async fn handle_request_livery(
+    ctx: &GameLoopCtx,
+    connection_id: ConnectionId,
+    hash: String,
+    chunk: u32,
+) {
+    let found = ctx.state.read().await.liveries.chunk(&hash, chunk);
+    let data = match found {
+        Some((bytes, chunks)) => LiveryChunkData {
+            hash,
+            chunk,
+            chunks,
+            bytes: RecordBytes(bytes),
+        },
+        None => LiveryChunkData {
+            hash,
+            chunk,
+            chunks: 0,
+            bytes: RecordBytes(Vec::new()),
+        },
+    };
+    let _ = ctx
+        .send(connection_id, ServerMessage::LiveryChunk(data))
         .await;
 }
 

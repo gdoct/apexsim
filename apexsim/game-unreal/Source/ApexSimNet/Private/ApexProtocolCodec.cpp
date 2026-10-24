@@ -1297,6 +1297,7 @@ namespace
 			else if (Key == TEXT("Dnq"))        { bOk = Reader.ReadBool(Out.bDnq); }
 			else if (Key == TEXT("MissedStops")) { bOk = Reader.ReadBool(Out.bMissedStops); }
 			else if (Key == TEXT("QualifyingLaps")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLaps = static_cast<int32>(Raw); }
+			else if (Key == TEXT("OwnLivery"))  { bOk = Reader.ReadString(Out.OwnLivery); }
 			else if (Key == TEXT("Penalties"))
 			{
 				int32 Count = 0;
@@ -1860,6 +1861,45 @@ namespace
 			}
 		}
 		Out.bValid = true;
+		return true;
+	}
+
+	/** `LiveryChunkData` (network.rs): PascalCase keys, the chunk as a bin. */
+	bool ParseLiveryChunk(FMsgPackReader& Reader, FApexLiveryChunk& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexLiveryChunk();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Hash"))        { bOk = Reader.ReadString(Out.Hash); }
+			else if (Key == TEXT("Chunk"))  { bOk = Reader.ReadUInt64(Raw); Out.Chunk = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("Chunks")) { bOk = Reader.ReadUInt64(Raw); Out.Chunks = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("Bytes"))
+			{
+				TArrayView<const uint8> Bytes;
+				bOk = Reader.ReadBinary(Bytes);
+				if (bOk)
+				{
+					Out.Bytes = TArray<uint8>(Bytes);
+				}
+			}
+			else { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
 		return true;
 	}
 
@@ -3554,6 +3594,7 @@ namespace
 		if (Variant == TEXT("TrackBundleChunk"))   { return EApexServerMessageType::TrackBundleChunk; }
 		if (Variant == TEXT("Rewound"))            { return EApexServerMessageType::Rewound; }
 		if (Variant == TEXT("Incidents"))          { return EApexServerMessageType::Incidents; }
+		if (Variant == TEXT("LiveryChunk"))        { return EApexServerMessageType::LiveryChunk; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -3632,6 +3673,8 @@ namespace
 			return ParseRewound(Reader, Out.Rewound);
 		case EApexServerMessageType::Incidents:
 			return ParseIncidents(Reader, Out.Incidents);
+		case EApexServerMessageType::LiveryChunk:
+			return ParseLiveryChunk(Reader, Out.LiveryChunk);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -4386,6 +4429,32 @@ namespace ApexProtocol
 		Writer.WriteUInt(static_cast<uint32>(FMath::Max(Chunk, 0)));
 		return MoveTemp(Writer.GetBuffer());
 	}
+	TArray<uint8> EncodeUploadLivery(const FString& Hash, int32 Chunk, int32 Chunks, TArrayView<const uint8> Bytes)
+	{
+		FMsgPackWriter Writer(Bytes.Num() + 160);
+		BeginDataVariant(Writer, "UploadLivery", 4);
+		Writer.WriteString("hash");
+		Writer.WriteString(Hash);
+		Writer.WriteString("chunk");
+		Writer.WriteUInt(static_cast<uint32>(FMath::Max(Chunk, 0)));
+		Writer.WriteString("chunks");
+		Writer.WriteUInt(static_cast<uint32>(FMath::Max(Chunks, 0)));
+		Writer.WriteString("bytes");
+		Writer.WriteBinary(Bytes);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
+	TArray<uint8> EncodeRequestLivery(const FString& Hash, int32 Chunk)
+	{
+		FMsgPackWriter Writer(128);
+		BeginDataVariant(Writer, "RequestLivery", 2);
+		Writer.WriteString("hash");
+		Writer.WriteString(Hash);
+		Writer.WriteString("chunk");
+		Writer.WriteUInt(static_cast<uint32>(FMath::Max(Chunk, 0)));
+		return MoveTemp(Writer.GetBuffer());
+	}
+
 	TArray<uint8> EncodeListShowcases() { return EncodeUnitVariant("ListShowcases"); }
 	TArray<uint8> EncodeLeaveSpectate() { return EncodeUnitVariant("LeaveSpectate"); }
 

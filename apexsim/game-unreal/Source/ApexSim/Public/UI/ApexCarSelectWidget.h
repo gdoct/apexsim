@@ -2,12 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "ApexProtocolTypes.h"
+#include "Cars/ApexLiveryEditor.h"
 #include "Catalog/ApexCatalogRows.h"
 #include "UI/ApexScreenWidget.h"
 
 #include "ApexCarSelectWidget.generated.h"
 
 class UApexButtonWidget;
+class UBorder;
+class UEditableTextBox;
 class UHorizontalBox;
 class UImage;
 class UProgressBar;
@@ -48,11 +51,19 @@ public:
 
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	/** Back closes the livery editor first. */
+	virtual bool HandleBack() override;
+
+	/** The livery editor's panel is up (N11 phase 2). */
+	bool IsLiveryEditorOpen() const;
+	/** Opens it for the selected car (the EDIT button, E or pad Y on a car's row); false for a car with no folder here. */
+	bool OpenLiveryEditor();
 
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	void BuildLayout();
@@ -73,6 +84,20 @@ private:
 	void RefreshLiveryButton();
 	/** Shows `Livery`'s picture beside its button, or hides the slot (no livery, no picture). */
 	void RefreshLiveryPreview(const struct FApexCarLivery* Livery);
+
+	// --- The livery editor: paint, accent, number and name, saved as one of
+	// the player's own liveries (Cars/ApexLiveryEditor.h). The turntable
+	// shows the draft as it changes.
+	UWidget* BuildLiveryEditor();
+	void CloseLiveryEditor();
+	/** A stepper row (paint, accent, number) one step on. */
+	void StepEditor(UApexButtonWidget* Row, int32 Step);
+	/** The rows' values, the name, and the draft on the turntable. */
+	void RefreshLiveryEditor();
+	void SaveLiveryEditor();
+	/** The selected car's folder on this machine; empty for one only the table knows. */
+	FString SelectedCarDir() const;
+	UFUNCTION() void HandleEditorNameChanged(const FText& Text);
 
 	/** Focus has to wait a tick after the tree changes; see the main menu. */
 	void RequestRowFocus();
@@ -108,6 +133,24 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UImage> LiveryPreview;
 	/** Previews read so far, by file: stepping back and forth reads each once. */
 	UPROPERTY(Transient) TMap<FString, TObjectPtr<UTexture2D>> LiveryPreviewTextures;
+
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditLiveryButton;
+	UPROPERTY(Transient) TObjectPtr<UBorder> LiveryEditorPanel;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorPaintRow;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorAccentRow;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorNumberRow;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorSaveButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorCancelButton;
+	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> EditorNameBox;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> EditorNote;
+	/** The pad's walk through the editor, top to bottom. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> EditorRows;
+
+	FApexLiveryDraft Draft;
+	/** The player typed the name: the paint and number no longer rename the draft. */
+	bool bDraftNamed = false;
+	/** The number's logo drawn for the turntable, by number and plate, so stepping back finds it. */
+	TMap<FString, FString> DraftLogos;
 
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> PowerValue;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> WeightValue;

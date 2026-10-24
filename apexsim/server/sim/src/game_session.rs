@@ -492,6 +492,9 @@ pub struct RosterRow {
     pub qualifying_laps: u8,
     /// Race control's penalties given to this car this race, in order.
     pub penalties: Vec<crate::race_control::Penalty>,
+    /// The driver's own livery, the hash of the package the server keeps
+    /// (`set_own_livery`); empty for none.
+    pub own_livery: String,
 }
 
 /// A session's state at one tick, to rewind to (`GameSession::snapshot`,
@@ -687,6 +690,9 @@ pub struct GameSession {
     /// The livery each human driver picked (`SelectCar`); AI drivers are
     /// dealt one in `build_roster`. Looked up by key only.
     liveries: HashMap<PlayerId, u8>,
+    /// Each human's own livery as the server keeps it, by its package's
+    /// hash (`set_own_livery`). Cosmetic: only the roster reads it.
+    own_liveries: HashMap<PlayerId, String>,
     /// The humans who said they are ready on the grid (`GameMode::Grid`),
     /// cleared each time the grid goes up and when the countdown begins.
     ready: std::collections::BTreeSet<PlayerId>,
@@ -1223,6 +1229,7 @@ impl GameSession {
             tuned_configs: HashMap::new(),
             ballast_kg: std::collections::BTreeMap::new(),
             liveries: HashMap::new(),
+            own_liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
@@ -1317,6 +1324,7 @@ impl GameSession {
             tuned_configs: HashMap::new(),
             ballast_kg: std::collections::BTreeMap::new(),
             liveries: HashMap::new(),
+            own_liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
@@ -5029,6 +5037,7 @@ impl GameSession {
         self.pit_plans.remove(player_id);
         self.lap_traces.remove(player_id);
         self.liveries.remove(player_id);
+        self.own_liveries.remove(player_id);
         if self.ready.remove(player_id) {
             self.roster_dirty = true;
         }
@@ -7819,11 +7828,33 @@ impl GameSession {
 
     /// The livery a driver wears, as they picked it. Clamped to the car's
     /// own list when the roster is built, so a stale pick is harmless.
+    /// A livery picked takes the driver's own livery off (an upload that
+    /// follows puts it back on).
     pub fn set_livery(&mut self, player_id: PlayerId, livery: u8) {
         let old = self.liveries.insert(player_id, livery).unwrap_or(0);
         if old != livery {
             self.roster_dirty = true;
         }
+        self.set_own_livery(player_id, String::new());
+    }
+
+    /// The driver's own livery, by the hash of the package the server keeps
+    /// for it (`ClientMessage::UploadLivery`); empty takes it off. The roster
+    /// carries it on their car.
+    pub fn set_own_livery(&mut self, player_id: PlayerId, hash: String) {
+        let old = if hash.is_empty() {
+            self.own_liveries.remove(&player_id)
+        } else {
+            self.own_liveries.insert(player_id, hash.clone())
+        };
+        if old.unwrap_or_default() != hash {
+            self.roster_dirty = true;
+        }
+    }
+
+    /// The hash of the driver's own livery, if they wear one.
+    pub fn own_livery(&self, player_id: &PlayerId) -> Option<&str> {
+        self.own_liveries.get(player_id).map(String::as_str)
     }
 
     /// Whether session membership changed since the last roster broadcast.
@@ -7936,6 +7967,11 @@ impl GameSession {
                         .copied()
                         .unwrap_or(0),
                     penalties: self.penalties.get(player_id).cloned().unwrap_or_default(),
+                    own_livery: self
+                        .own_liveries
+                        .get(player_id)
+                        .cloned()
+                        .unwrap_or_default(),
                 }
             })
             .collect()

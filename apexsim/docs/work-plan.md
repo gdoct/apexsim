@@ -38,7 +38,6 @@ takes it up (— : no step, taken opportunistically).
 | R3 | Race events across days (schedule, results record; identity, persistence and AI entries built) | Race rules (epic) | P2 | 🟡 | L | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
-| N11 | Livery editor; own liveries seen online (import built) | Content | P2 | 🟡 | M | 4 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
@@ -68,8 +67,8 @@ takes it up (— : no step, taken opportunistically).
 3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-4. **Online and depth.** N11's online liveries and editor, then the rest
-   of R3 (schedule, results record), and N7 online on top of identity.
+4. **Online and depth.** The rest of R3 (schedule, results record), and
+   N7 online on top of identity.
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
 6. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -323,18 +322,6 @@ ULTRA 100), an HDR switch and its paper white where the display supports
 it. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
 the default; you accept NVIDIA's DLSS SDK terms when the plugin is
 downloaded, so the download is yours), and the checks in verification.md.
-
-#### N11. Livery editor / own livery import — P2 · 🟡 · M
-**Built 2026-10-24 (phase 1):** the player's own liveries in
-`cars/custom/liveries/<car>/<name>/livery.toml`, the template tool
-(`tools/livery_template.py`: UV sheets and the works textures), listed after
-the car's liveries and painted on the player's own car only (checked in
-`n11-own-livery`). **Left:** phase 2, an in-game editor (colours, decals,
-number, name); online, sending an own livery to the other clients
-(size-capped, cached by hash) so they see it too.
-**Watch out:** `cars/custom` is the player's and never ships; the
-car's material comes from `ApexCarContent::OwnMaterialInstance`; no
-trademarks on screen (decals are user content — say so).
 
 #### N26. Content packs and a content repository — P2 · 🔴 · L (epic)
 *Source: roadmap #27, [proposals/split-off-content.md](proposals/split-off-content.md).*

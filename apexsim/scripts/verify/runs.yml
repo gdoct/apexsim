@@ -8165,3 +8165,63 @@ runs:
       - at: 40
         label: "a minute in (sought)"
         checks: "Follow-ups #36: after the seek the cars are where the race had them, the tower's laps and gaps sensible"
+
+  - id: n11-livery-editor
+    about: "R27. The garage's livery editor"
+    # Car select from the start: the SF-26's EDIT, Paint three steps on
+    # (Midnight blue), Accent six (Sun yellow), Number two (3), SAVE. Leaves
+    # apexsim-content/cars/custom/liveries/fugazzi-sf26/midnight-blue-3 for
+    # n11-edited-livery-race; delete it after.
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=4
+    exec:
+      5: ["apexsim.ui.Texts", "apexsim.ui.Click Fugazzi SF-26"]
+      7: ["apexsim.ui.Click Edit"]
+      10: ["apexsim.ui.Key Right", "apexsim.ui.Key Right", "apexsim.ui.Key Right"]
+      12: ["apexsim.ui.Key Down", "apexsim.ui.Key Right", "apexsim.ui.Key Right", "apexsim.ui.Key Right", "apexsim.ui.Key Right", "apexsim.ui.Key Right", "apexsim.ui.Key Right"]
+      14: ["apexsim.ui.Key Down", "apexsim.ui.Key Right", "apexsim.ui.Key Right"]
+      18: ["apexsim.ui.Click Save"]
+    shots:
+      - at: 9
+        label: "The editor open on the SF-26"
+        checks: "R27: the panel over the turntable; Racing red, Snow white, 1; the number on a plate on the flanks"
+      - at: 13
+        label: "Paint and accent stepped"
+        checks: "R27: Midnight blue paint, Sun yellow accent on the turntable; the names in their colours"
+      - at: 17
+        label: "Number 3"
+        checks: "R27: the plate's number 3; the name Midnight blue 3"
+      - at: 21
+        label: "Saved"
+        checks: "R27: the livery button names Midnight blue 3 (yours); the toast; the turntable in it"
+
+  - id: n11-edited-livery-race
+    about: "R27. A race in the livery the editor saved"
+    # After n11-livery-editor: the SF-26 has six liveries of its own, so 7 is
+    # the first of the player's (midnight-blue-3 while it is the only one).
+    # The client uploads it to the server (the log's "Own livery ... goes to
+    # the server"); another client would fetch it by hash.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexLivery=7
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=near
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "chase near: the player's car in the edited livery"
+        checks: "R27: blue with the yellow plate and 3 on the flanks"
+      - at: 16
+        label: "TV: the field"
+        checks: "R27: the AI in the SF-26's own liveries"
+        lead: 1
+        exec: "apexsim.tv.View 0"

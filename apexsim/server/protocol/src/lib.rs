@@ -11,6 +11,7 @@
 //! module under the same path (`apexsim_server::network`, ...).
 
 pub mod hotlap_watch;
+pub mod livery;
 pub mod network;
 pub mod poses;
 pub mod records;
