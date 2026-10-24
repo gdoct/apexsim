@@ -3,6 +3,7 @@
 #include "ApexNetSubsystem.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/HorizontalBox.h"
+#include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "UI/ApexEventLabels.h"
