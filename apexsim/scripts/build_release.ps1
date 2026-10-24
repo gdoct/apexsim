@@ -114,6 +114,10 @@
     Ship every car and circuit under apexsim-content (default\) installed, not
     only the starter set, and make no content pack.
 
+.PARAMETER NoContentPack
+    Make no content/content.acp: the release bakes and ships the starter set
+    alone.
+
 .PARAMETER IncludeCustomTracks
     Also ship the tracks in apexsim-content\tracks\custom (server YAML and sidecars,
     client export). Off by default: that folder is the player's own, and may
@@ -157,6 +161,7 @@ param(
     [switch]$SkipProps,
     [switch]$SkipTracks,
     [switch]$AllContent,
+    [switch]$NoContentPack,
     [switch]$IncludeCustomTracks,
     [switch]$IncludeCustomCars,
     [switch]$SkipClient,
@@ -269,15 +274,15 @@ function Get-TrackFiles {
 }
 
 # What content.acp carries: the default cars and circuits the starter set
-# leaves out. Nothing with -AllContent, which installs them all, and never
-# custom\ content.
+# leaves out. Nothing with -AllContent, which installs them all, or with
+# -NoContentPack, and never custom\ content.
 function Get-PackCarFiles {
-    if (-not $Starter -or -not (Test-Path $CarsDir)) { return @() }
+    if (-not $Starter -or $NoContentPack -or -not (Test-Path $CarsDir)) { return @() }
     return @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly | Where-Object { $StarterCars -notcontains $_.Directory.Name })
 }
 
 function Get-PackTrackFiles {
-    if (-not $Starter) { return @() }
+    if (-not $Starter -or $NoContentPack) { return @() }
     return @(Get-ApexTrackFiles -ContentRoot $ContentRoot -DefaultOnly | Where-Object { $Starter.Tracks -notcontains $_.BaseName })
 }
 
@@ -355,7 +360,8 @@ function Invoke-Preflight {
         # The game builds every car from these files; one it cannot find is a
         # car drawn as nothing, or without its wheels. The shipped cars and
         # the pack's are every default car between them.
-        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars))) {
+        $only = if ($NoContentPack) { $StarterCars } else { $null }
+        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars) -Only $only)) {
             $problems.Add("car data: $problem")
         }
     }
@@ -433,7 +439,7 @@ function Invoke-Preflight {
     if ($Starter) { Write-Detail "the starter set ($($Starter.Path))" }
     Write-Detail "$($cars.Count) car(s) in $CarsDir"
     Write-Detail "$($tracks.Count) track(s) in $(Get-TrackFolderText)"
-    if ($Starter) {
+    if ($Starter -and -not $NoContentPack) {
         Write-Detail "$(@(Get-PackCarFiles).Count) car(s) and $(@(Get-PackTrackFiles).Count) track(s) for content.acp"
     }
 }
@@ -924,6 +930,12 @@ $carCount   = @(Get-CarFiles).Count
 $trackCount = @(Get-TrackFiles).Count
 
 $packText = if ($packed) { "`n    content\content.acp: $($packed.Tracks) more track(s), $($packed.Cars) more car(s)." } else { '' }
+$packEntry = if ($packed) {
+    "    content\content.acp`n" +
+    "                       More cars and circuits, not installed. Use the`n" +
+    "                       launcher's Manage content > Install pack... and pick`n" +
+    "                       this file: they land in the custom folders.`n"
+} else { '' }
 $readme = @"
 ApexSim $Version (Windows 64-bit)
 Built from commit $Commit, client configuration $Configuration.
@@ -943,11 +955,7 @@ WHAT IS IN HERE
                        install. Use the launcher's Manage content > Import
                        from Assetto Corsa: it needs Python 3.11 or newer
                        (python.org) and sets up the rest itself on first use.
-    content\content.acp
-                       More cars and circuits, not installed. Use the
-                       launcher's Manage content > Install pack... and pick
-                       this file: they land in the custom folders.
-    Game\              The ApexSim client. Run Game\ApexSim.exe to play
+$packEntry    Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
     Game\Tracks\       The circuits, as the data the game builds them from
                        when it is raced. A new circuit is its .uescene.json,

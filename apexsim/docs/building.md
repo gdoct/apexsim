@@ -496,6 +496,7 @@ left out.
 | `-BuildEditor` | Build `ApexSimEditor` before the track stage |
 | `-Configuration`, `-EngineRoot`, `-OutputDirectory`, `-Version` | As named |
 | `-AllContent` | Install every car and circuit, not only the starter set, and make no `content.acp` |
+| `-NoContentPack` | Make no `content.acp`: bake and ship the starter set alone |
 | `-IncludeCustomTracks`, `-IncludeCustomCars` | Ship `custom/` content |
 
 A skipped stage must still find the output it would have produced (a
