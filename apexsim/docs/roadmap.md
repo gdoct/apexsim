@@ -201,34 +201,6 @@ reporting every other dossier unchanged after each dossier edit.
 
 ## P3: nice to have
 
-### 28. Smaller recorded sessions
-
-Cut a `.apxs` stream file to about 40% of its size without losing a bit,
-keep zlib on both sides, and bound what recordings may occupy
-([proposals/replay-size.md](proposals/replay-size.md)). Today 16 cars are
-45 to 57 MB an hour, on the server and again on every client in the
-session; the frames are 87% of it.
-
-- Phase 1, a columnar block: a `ColumnBlock` record (type 11), columns per
-  car and field, deltas from the previous frame, byte planes, zlib-6;
-  `FILE_VERSION` 2, readers keep reading version 1; the wire does not
-  change. About 1.9x smaller. `scripts/replay_size.py` lands with it.
-- Phase 2, ten-second blocks (`BLOCK_SECONDS` on both sides,
-  `QUEUE_BLOCKS` 512 to 51): another 1.25-1.4x.
-- Phase 3, lossy and measured first: wheel slip off every row (the
-  watched car's road sound is the judge), cm poses, a second-order delta.
-- Phase 4, how much is kept: `[records] keep_replays` / `keep_replays_mb`
-  on the server (default unlimited), a size line on the client's Replays
-  screen, the timeshift buffer held packed.
-- `.gitignore` ignores `server/replays/` but not `/replays/`, where a server
-  run from the repo root writes.
-
-**Check:** a round trip test (`bodies` of `pack` is the input),
-`a_session_is_recorded_as_a_stream_file`, a version 2 golden `File` beside
-the version 1 one in `ApexSpectatorGoldenBlobs.h` / `BackdropTests.cpp`,
-`apexsim-replay info --check` on every re-rendered showcase, and the
-determinism of `render` (same seed, same bytes).
-
 
 ### 16. Driving school
 

@@ -1986,6 +1986,7 @@ async fn handle_rewind(ctx: &GameLoopCtx, connection_id: ConnectionId, seconds: 
                     // The run up to the rewind is a replay of its own.
                     let cut = super::tick::finish_recording(
                         &state.replay,
+                        &state.config.records,
                         session_id,
                         game_session.session.race_start_tick,
                         game_session.session.game_mode,

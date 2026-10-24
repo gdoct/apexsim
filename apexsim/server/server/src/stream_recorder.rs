@@ -455,6 +455,66 @@ pub fn is_served_stream(name: &str) -> bool {
         && !name.contains("..")
 }
 
+/// Deletes the oldest finished replays in `dir` beyond `keep_count` replays
+/// or `keep_bytes` bytes (0: no limit on that), newest kept first. A replay
+/// is every `replay_<stem>.*` file of one stem (the `.apxs` and its
+/// `.meta.json`, or a `.bin` from before streams), aged by its newest file;
+/// the newest replay is never deleted. Returns how many replays went.
+pub fn prune(dir: &Path, keep_count: usize, keep_bytes: u64) -> usize {
+    if keep_count == 0 && keep_bytes == 0 {
+        return 0;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    // stem -> (newest modification, bytes, files)
+    let mut replays: std::collections::BTreeMap<
+        String,
+        (std::time::SystemTime, u64, Vec<PathBuf>),
+    > = std::collections::BTreeMap::new();
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let Some(stem) = [".meta.json", ".apxs", ".bin"]
+            .iter()
+            .find_map(|ext| name.strip_suffix(ext))
+            .filter(|stem| stem.starts_with("replay_"))
+        else {
+            continue;
+        };
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        let modified = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+        let replay =
+            replays
+                .entry(stem.to_string())
+                .or_insert((std::time::UNIX_EPOCH, 0, Vec::new()));
+        replay.0 = replay.0.max(modified);
+        replay.1 += meta.len();
+        replay.2.push(entry.path());
+    }
+    let mut replays: Vec<_> = replays.into_values().collect();
+    // Newest first; a tie by name keeps the order the same run to run.
+    replays.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.2.cmp(&a.2)));
+    let mut bytes = 0u64;
+    let mut removed = 0;
+    for (i, (_, size, files)) in replays.iter().enumerate() {
+        bytes += size;
+        let over_count = keep_count > 0 && i >= keep_count;
+        let over_bytes = keep_bytes > 0 && bytes > keep_bytes;
+        if i == 0 || !(over_count || over_bytes) {
+            continue;
+        }
+        for file in files {
+            if let Err(e) = std::fs::remove_file(file) {
+                warn!("Could not delete the old replay {:?}: {}", file, e);
+            }
+        }
+        removed += 1;
+    }
+    removed
+}
+
 /// Whether a file in the replay folder is one the history lists.
 pub fn is_listed_file(name: &str) -> bool {
     name.starts_with("replay_") && (name.ends_with(".meta.json") || name.ends_with(".bin"))
@@ -594,6 +654,60 @@ mod tests {
         assert!(is_listed_file(
             meta_path.file_name().unwrap().to_str().unwrap()
         ));
+    }
+
+    #[test]
+    fn old_replays_are_pruned_to_the_keep_limits() {
+        let dir = TempDir::new().unwrap();
+        let t0 = std::time::SystemTime::now() - std::time::Duration::from_secs(1000);
+        // Five replays, a = oldest, each 2 MB plus a sidecar; an old .bin;
+        // and files that are not replays.
+        let write = |name: &str, bytes: usize, age: u64| {
+            let path = dir.path().join(name);
+            std::fs::write(&path, vec![0u8; bytes]).unwrap();
+            let f = std::fs::File::options().write(true).open(&path).unwrap();
+            f.set_modified(t0 + std::time::Duration::from_secs(age))
+                .unwrap();
+        };
+        write("replay_old.bin", 1 << 20, 0);
+        for (i, stem) in ["a", "b", "c", "d", "e"].iter().enumerate() {
+            write(&format!("replay_{stem}.apxs"), 2 << 20, 10 + i as u64 * 10);
+            write(&format!("replay_{stem}.meta.json"), 100, 10 + i as u64 * 10);
+        }
+        write("notes.txt", 10, 0);
+        write(".recording_x.blocks", 10, 0);
+        let names = || {
+            let mut n: Vec<String> = std::fs::read_dir(dir.path())
+                .unwrap()
+                .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+                .collect();
+            n.sort();
+            n
+        };
+
+        // No limits: nothing goes.
+        assert_eq!(prune(dir.path(), 0, 0), 0);
+        assert_eq!(names().len(), 13);
+        // Five kept: the .bin (oldest) goes.
+        assert_eq!(prune(dir.path(), 5, 0), 1);
+        assert!(!names().contains(&"replay_old.bin".to_string()));
+        // 5 MB: d and e (4 MB and a bit) stay, the sidecar with its replay.
+        assert_eq!(prune(dir.path(), 0, 5 << 20), 3);
+        assert_eq!(
+            names(),
+            [
+                ".recording_x.blocks",
+                "notes.txt",
+                "replay_d.apxs",
+                "replay_d.meta.json",
+                "replay_e.apxs",
+                "replay_e.meta.json"
+            ]
+        );
+        // The newest is kept even past the size.
+        assert_eq!(prune(dir.path(), 0, 1), 1);
+        assert_eq!(names().len(), 4);
+        assert!(names().contains(&"replay_e.apxs".to_string()));
     }
 
     #[test]

@@ -53,7 +53,6 @@ takes it up (— : no step, taken opportunistically).
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
-| N27 | Smaller recorded sessions (proposal) | Platform | P3 | 🟢/🟡 | M | — |
 | N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
@@ -76,7 +75,7 @@ takes it up (— : no step, taken opportunistically).
    the rest of R3, and N7 online on top of identity.
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
-6. Everything P3 opportunistically, bundled with whatever touches the same files (N27 with any `.apxs` work, AU1's targets one at a time by ear).
+6. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -404,19 +403,6 @@ you there. What is left of phase 0 needs neither and is 🟢.
 showcases, the demo backdrop, the first-run defaults), but the tests run on
 the whole content root.
 
-#### N27. Smaller recorded sessions — P3 · 🟢/🟡 · M
-*Source: roadmap #28, [proposals/replay-size.md](proposals/replay-size.md).*
-**What:** A 16-car hour is 45 to 57 MB, stored on the server and on every
-client in the session, and nothing ever deletes a server's recordings.
-**Outcome:** Files about 40% of today's with nothing lost, and a cap on
-what the recordings take.
-**Implementation:** Columnar delta blocks under zlib (file only, version 2),
-then ten-second blocks, then measured lossy cuts, then keep limits.
-**Human:** 🟢 for phases 1, 2 and 4; 🟡 for phase 3, where the road sound
-from coarser wheel slip has to be heard.
-**Watch out:** the wire stays as it is (frames stay self-contained
-datagrams); version 1 files must still play; `render` stays byte-identical
-for a seed.
 
 #### N16. Driving school / licence tests — P3 · 🟡 · M
 Short challenges built on the racing line, track guide and corner data:

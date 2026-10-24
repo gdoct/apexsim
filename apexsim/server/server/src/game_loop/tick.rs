@@ -808,6 +808,7 @@ pub(crate) async fn tick_sessions(
         state.streams.remove(&session_id);
         if !finish_recording(
             &state.replay,
+            &state.config.records,
             session_id,
             race_start_tick,
             game_mode,
@@ -932,6 +933,7 @@ const REPLAY_FRAME_HZ: u16 = 30;
 /// is a long file to assemble). False when it had none.
 pub(super) fn finish_recording(
     replay: &crate::stream_recorder::StreamRecorders,
+    records: &crate::config::RecordsSettings,
     session_id: SessionId,
     race_start_tick: Option<u32>,
     game_mode: GameMode,
@@ -941,10 +943,17 @@ pub(super) fn finish_recording(
         return false;
     };
     let dir = replay.dir().to_path_buf();
+    let keep_count = records.keep_replays as usize;
+    let keep_bytes = records.keep_replays_mb.saturating_mul(1 << 20);
+    // Written off the loop: a long race is a long file to assemble.
     tokio::task::spawn_blocking(move || {
         match recording.finish(&dir, results, race_start_tick, game_mode) {
             Ok(path) => debug!("Replay saved for session {} to {:?}", session_id, path),
             Err(e) => warn!("Failed to save replay for session {}: {}", session_id, e),
+        }
+        let removed = crate::stream_recorder::prune(&dir, keep_count, keep_bytes);
+        if removed > 0 {
+            info!("Deleted {} old replay(s) past the keep limits", removed);
         }
     });
     true

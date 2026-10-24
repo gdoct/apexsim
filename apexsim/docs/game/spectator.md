@@ -147,7 +147,8 @@ block (`a_column_block_gives_back_every_body`). 16 GT3s over 6.4 min of
 Zandervoort are 2.56 MB in version 2 and 6.41 MB in version 1 (Spa in heavy
 rain 2.48 MB against 6.50 MB): about 24 MB for a 16-car hour against 60.
 The layout halves the plain blocks; the ten-second blocks take another
-fifth. Nothing seeks by block on a hot path (the client inflates a whole
+fifth; the 27 shipped showcases repacked go from 127 MB to 51 MB, each to
+the same records. Nothing seeks by block on a hot path (the client inflates a whole
 file before it plays, a showcase on its first viewer's join), so the longer
 block costs only a tool reading one block by the index. The client's
 codec unpacks a column block through the physics library
@@ -156,7 +157,8 @@ without it still plays version 1 files and names the library for a
 version 2 one. `apexsim-replay repack <in.apxs> --out <out.apxs>` rewrites a
 file of any version as this build writes it and checks it reads back to the
 same records; `info` prints the `file_version` and a `records_crc` over the
-records, the same for one race in either version.
+records, the same for one race in either version. `scripts/replay_size.py [--repack <dir>] <files>` prints
+both for a set of files, repacked or not.
 
 **Golden bytes**: `cargo test spectator_wire_format showcase_wire_format --
 --nocapture` prints them; the client pins them in `ApexSpectatorGoldenBlobs.h`

@@ -197,6 +197,11 @@ pub struct RecordsSettings {
     /// (`/recordings/<file>`), and `LobbyState.recordings_port` tells the
     /// clients: the session browser's Recorded list.
     pub serve_replays: bool,
+    /// Finished replays the folder keeps, the oldest deleted beyond it as
+    /// each new one is written (`stream_recorder::prune`); 0 is no limit.
+    pub keep_replays: u32,
+    /// MB the finished replays may take, the same way; 0 is no limit.
+    pub keep_replays_mb: u64,
     /// Each finished race's classification as JSON and CSV in `results/`
     /// under `dir` (`crate::results`).
     pub results: bool,
@@ -214,6 +219,8 @@ impl Default for RecordsSettings {
             dir: "./records".to_string(),
             replay_dir: "./replays".to_string(),
             serve_replays: true,
+            keep_replays: 0,
+            keep_replays_mb: 0,
             results: true,
             webhook_url: String::new(),
             webhook_format: crate::webhook::WebhookFormat::Json,

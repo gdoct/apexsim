@@ -85,6 +85,12 @@ Every section and its keys (defaults from `config.rs`):
   (true): the health port hands out the replay folder's recordings and the
   lobby says so (`LobbyState.recordings_port`), for the session browser's
   Recorded list. A `health_bind` on loopback keeps them to this machine.
+  `keep_replays` (0: no limit) and `keep_replays_mb` (0: no limit): how many
+  finished replays the folder keeps and how many MB they may take. Each
+  replay written deletes the oldest beyond either (by modification time,
+  the `.apxs` and its `.meta.json` together, and a `.bin` from before
+  streams), never the newest one (`stream_recorder::prune`). A 16-car hour
+  is about 24 MB ([../game/spectator.md](../game/spectator.md#the-stream-format)).
   `results` (true): each finished race's classification as
   `results/<session>_<unix>.json` and `.csv` under `dir` (`results.rs`,
   `GameSession::classification`): place, driver, car, status, laps, best
@@ -382,7 +388,8 @@ the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated
 as empty). `./replays/`: a replay (`.apxs` plus a `.meta.json`) per finished race,
-streamed to `.recording_<session>.blocks` while racing. `[logging] file_dir` when file
+streamed to `.recording_<session>.blocks` while racing, kept to `[records]
+keep_replays` / `keep_replays_mb` when they are set. `[logging] file_dir` when file
 logging is on.
 
 ## Shutdown

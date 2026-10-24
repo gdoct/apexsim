@@ -39,6 +39,10 @@ dir = "./records"
 # Replays of finished sessions: an `.apxs` (the spectator stream format, which
 # the game's Replays screen plays) and a `.meta.json` each.
 replay_dir = "./replays"
+# How many finished replays to keep, and how many MB they may take (a 16-car
+# hour is about 24 MB); the oldest go as each new one is written. 0: no limit.
+# keep_replays = 500
+# keep_replays_mb = 10000
 # Each finished race's classification is written to `dir`/results/ (JSON and
 # CSV) and, when webhook_url is set, POSTed there: "json" posts the result as
 # written, "discord" a Discord message (a channel webhook's URL).

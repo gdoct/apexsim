@@ -401,6 +401,15 @@ For: the client reading and writing the smaller version 2 stream files
   (plain blocks of a second): its replays in `Saved/Replays/` stay twice
   the size of the server's. Packing its blocks through the physics library
   (a pack call beside `apx_stream_block_raw`) halves them.
+- Nothing bounds the client's kept replays (`Saved/Replays/`;
+  `Recent/` keeps 10): a size line on the Replays screen, so the player
+  decides.
+- A live stream's timeshift is kept inflated up to `LiveBufferCapBytes`
+  (256 MB, about two hours of 16 cars); held as column blocks it would hold
+  ten times as long, at the cost of unpacking a block on a seek.
+- The lossy cuts of [proposals/replay-size.md](proposals/replay-size.md)
+  phase 3 (wheel slip at a lower rate or coarser, cm poses, a second-order
+  delta), each measured, the slip judged by the road sound by ear.
 
 **Check:** `ApexSim.Spectator.*` green; a server replay downloaded from the
 Recorded list, a showcase rendered in the game and a client-recorded replay

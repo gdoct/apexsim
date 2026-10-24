@@ -1,6 +1,6 @@
 # Smaller recorded sessions
 
-Status: phases 1 and 2 built (column blocks of ten seconds, version 2 files; docs/game/spectator.md): 6.41 MB -> 2.56 MB for 16 GT3s over 6.4 min. Phases 3 and 4 not built.
+Status: phases 1 and 2 built (column blocks of ten seconds, version 2 files; docs/game/spectator.md): 6.41 MB -> 2.56 MB for 16 GT3s over 6.4 min, the shipped showcases 127 MB -> 51 MB; `scripts/replay_size.py` measures it. Phase 4's server keep limits built (`[records] keep_replays`, `keep_replays_mb`; docs/server/operations.md). Phase 3 and phase 4's client parts not built (docs/follow-ups.md, 32).
 
 Every race the server finishes, every session a client is in, every
 showcase and every promo clip is a spectator stream (`.apxs`,
