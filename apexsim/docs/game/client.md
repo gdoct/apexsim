@@ -378,30 +378,64 @@ A season against the AI, saved in the driver profile
   10-6-4-3-2-1, Deep field 50 down to 1), laps, AI drivers, AI level,
   dropped rounds, success ballast (None; Light 30-20-10 kg; Heavy 75, 57,
   48, 39, 30, 21, 15, 9, 3 kg: `EApexSuccessBallast`,
-  `ApexSeason::BallastTable`). The AI are named by seat on the server, so
-  the same field size keeps the same drivers round to round.
+  `ApexSeason::BallastTable`), the fastest lap's points (none, +1 to +5:
+  `FApexSeason::FastestLapPoints`) and whom they go to (In the points, the
+  setup's default, or For anyone: `bFastestLapNeedsPoints`). The AI are
+  named by seat on the server, so the same field size keeps the same
+  drivers round to round.
+- **Each round's rules**: the setup's calendar is a list of rows (a scroll
+  box), each naming its round's format; a round with rules of its own has
+  its badge in the accent colour. A row opens the round's rules in the
+  right column: Weather (the season's sky, or one of the six), Race start
+  (the season's time, or an hour 00:00-23:00), Format (race only, or 10,
+  15, 20, 30 or 60 min timed qualifying + race) and Race length (the
+  season's laps, 2-40 laps, or the timed race ladder 5 min-24 h). Done or
+  Back returns to the calendar on that row, Season's rules clears the
+  round. Each rule is kept on `FApexSeasonRound` (`Weather`, `StartHour`,
+  `QualifyingMinutes`, `Laps`, `RaceMinutes`) at -1 / 0 for "the
+  season's", so a rule left alone follows the setup's laps and the
+  profile's sky, and a season saved before the rules loads as it raced.
+  The rules stay with the round's place in the calendar when the round
+  count changes.
 - **Under way**: the calendar (each raced round's winner and the player's
   place), the drivers' standings (points after drops, then wins, seconds...,
   the player one driver under any name) and the cars' standings (every
   result of each car, no drops). Race round N sets the round's circuit and
-  the season's car as pending, creates a Practice-kind race with the
-  season's field and laps (the profile's conditions, assists and damage)
-  and counts it in on join; the race opens on its grid, as any race does.
+  the season's car as pending, creates a Practice-kind session with the
+  season's field (the profile's assists and damage) under the round's rules
+  (`ApexSeason::RoundSession`: the round's laps or `race_seconds`, its
+  `qualifying_seconds`, its weather and start hour over the profile's
+  conditions; a round naming its weather drops the profile's written
+  forecast, and snow holds the air at 2 °C) and counts it in on join: into
+  the race, which opens on its grid as any race does, or into qualifying,
+  whose results screen's Start the race grids the race by the
+  classification. The calendar names each round's own rules and NEXT.
   Under success ballast the session is created with each scoring driver's
   weight by their place in the drivers' standings so far
   (`ApexSeason::Ballast`: the player as `@host`, an AI by its name;
   `CreateSession.ballast`, [sessions.md](../server/sessions.md#session-rules-set-on-create));
   the drivers' table shows each one's "+30 KG" for the next round.
+  Under the fastest-lap rule a round's quickest best lap
+  (`ApexSeason::FastestLapScorer`; the earlier line on a tie) adds the
+  points to that round's score in both tables, drops included; under In
+  the points a fastest lap out of the points gives them to nobody, and a
+  round filed without best laps has no fastest lap. The calendar marks the
+  round's "FL NAME +1" and the drivers' table counts each one's "2 FL".
   End season is pressed twice.
 - **Filing**: `UApexSessionRecorder::FinishRecording` hands a race that
   took the flag on the running round's circuit to
   `UApexMenuFlowSubsystem::FileSeasonRace` (each car's place, 0 for not
-  classified, and its car from the roster). A race left before the flag
-  files nothing; the round stays next.
+  classified, its best lap, and its car from the roster). A race left
+  before the flag files nothing, and neither does a round's qualifying; the
+  round stays next.
 
 Unattended: `apexsim.season.Setup <laps> <ai> <rounds> [first stem, - for
-the spread's] [ballast 0-2]` and
-`apexsim.season.Race` drive the screen (`n7-season` in the verify runs).
+the spread's] [ballast 0-2]`, `apexsim.season.FastestLap <points 0-5>
+[needs a points finish 0/1]`, `apexsim.season.Round <round> <weather -1,
+0-5> [start hour -1, 0-23] [qualifying min] [laps] [race min]` (a round's
+rules, opened on screen), `apexsim.season.Edit <round, 0 the calendar>`
+and `apexsim.season.Race` drive the screen (`n7-season`,
+`n7-season-rounds` in the verify runs).
 Checks: `ApexSim.Season.*`.
 
 ### Driving school (`School/ApexSchool.h`, `UI/ApexSchoolWidget.cpp`)

@@ -384,6 +384,15 @@ season cards judged good from the shots the same day. Left:
 
 - A whole season by hand: three rounds, a DNF, End season and the
   summary on the next season's setup.
+- Each round's rules and the fastest-lap point: `n7-season-rounds` (the
+  setup with +1 for the fastest lap in the points, round 2 heavy rain at
+  18:00 with 15 min qualifying and a 45-minute race, round 3 snow over 12
+  laps; shots of round 3's rules and the calendar's rows) is not shot yet.
+  Unseen in the game: a round raced from qualifying (its results screen's
+  Start the race, then the race filed into the round), a round under its
+  own weather and length, the calendar's "FL NAME +1" and the drivers'
+  "FL" count after a round, and the rows and rule steppers walked with a
+  pad (Back closing a round's rules onto its row).
 
 ### R16. Multi-class racing
 

@@ -43,7 +43,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
-| N7 | Championships: a fastest-lap point, per-round rules (offline season and online standings built) | Game mode | P2 | 🟡 | S–M | 3 |
+| N7 | Championships: a fastest-lap point, per-round rules online (offline season with both, and online standings built) | Game mode | P2 | 🟡 | S–M | 3 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 4 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 4 |
@@ -279,7 +279,10 @@ Not in any backlog before this plan; each is a package in
 #### N7. Championships and series with points — P2 · 🟡 · M
 The offline season and online championships are built
 ([features-by-date](features-by-date.md),
-[sessions](server/sessions.md#championships)). **Left:** a fastest-lap point; per-round rules; the standings in the
+[sessions](server/sessions.md#championships)); the offline season has a
+fastest-lap point and each round's own rules
+([client.md](game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)).
+**Left:** a fastest-lap point and per-round rules online; the standings in the
 lobby and on the results screen of a championship's event.
 
 #### N8. Public server list (master server) — Parked

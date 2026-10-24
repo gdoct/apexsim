@@ -7024,6 +7024,26 @@ runs:
         label: "Season after round 1: calendar with the winner, standings"
         checks: "N7: the drivers' and cars' standings"
 
+  - id: n7-season-rounds
+    about: "N7. Offline season: each round's rules and the fastest-lap point in the setup"
+    # The setup only: nothing is started, so the profile's season is left
+    # alone (unless one is under way, which shows instead: end it first).
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=12
+    exec:
+      3: ["apexsim.season.Setup 8 11 6", "apexsim.season.FastestLap 1 1"]
+      4: ["apexsim.season.Round 2 4 18 15 0 45"]
+      5: ["apexsim.season.Round 3 5 -1 0 12"]
+      9: ["apexsim.season.Edit 0"]
+    shots:
+      - at: 7
+        label: "Round 3's rules: snow, the season's start, race only, 12 laps"
+        checks: "N7: a round's rules in the setup"
+      - at: 11
+        label: "The calendar: rounds 2 and 3 with their own rules in the accent colour, the fastest-lap rule under it"
+        checks: "N7: the setup calendar's per-round rows"
+
   # A two-class race (-ApexClasses): four LMP2s and three GT3s with the
   # player's Caravan, the stand-in driving. The lobby lists the grid by
   # class (the LMP2s first), the standings tag each car with its class

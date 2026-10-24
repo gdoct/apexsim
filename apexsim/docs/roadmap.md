@@ -44,8 +44,7 @@ None open.
 The offline season is built (Main menu > Drive > Season,
 [client.md](game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)). Left:
 
-- A fastest-lap point; each round's own rules (weather, a weekend with
-  qualifying, a timed race) instead of the season's one race format.
+- A fastest-lap point.
 
 **Check:** a league season with two humans across two server restarts.
 

@@ -54,9 +54,18 @@ struct APEXSIM_API FApexSeasonEntry
 	/** Classified position; 0 for a car that did not finish (no points). */
 	UPROPERTY()
 	int32 Position = 0;
+
+	/** The car's best lap of the race, seconds (the server's, inside track limits); 0 for none or a round filed before it was kept. */
+	UPROPERTY()
+	float BestLapSeconds = 0.0f;
 };
 
-/** A round of a season: its circuit and, once raced, the classification. */
+/**
+ * A round of a season: its circuit, its own rules and, once raced, the
+ * classification. Every rule defaults to the season's (-1 or 0), so a round
+ * nobody edited, and one saved before rounds had rules, races the season's
+ * format (ApexSeason::RoundSession).
+ */
 USTRUCT()
 struct APEXSIM_API FApexSeasonRound
 {
@@ -64,6 +73,31 @@ struct APEXSIM_API FApexSeasonRound
 
 	UPROPERTY()
 	FString TrackId;
+
+	/** The round's weather (EApexWeather); -1 for the season's (the profile's conditions). */
+	UPROPERTY()
+	int32 Weather = -1;
+
+	/** The race's start, hour of the day 0..23; -1 for the season's. */
+	UPROPERTY()
+	int32 StartHour = -1;
+
+	/** Timed qualifying before the race, minutes (ApexQualifyingLength); 0 for the race alone, the season's format. */
+	UPROPERTY()
+	int32 QualifyingMinutes = 0;
+
+	/** The race's laps; 0 for the season's. */
+	UPROPERTY()
+	int32 Laps = 0;
+
+	/** A timed race's length, minutes (ApexRaceLength); 0 for a race over laps. */
+	UPROPERTY()
+	int32 RaceMinutes = 0;
+
+	/** Any rule of the round's own, not the season's. */
+	bool HasOwnRules() const { return Weather >= 0 || StartHour >= 0 || QualifyingMinutes > 0 || Laps > 0 || RaceMinutes > 0; }
+	/** The rules back to the season's. */
+	void ClearRules() { Weather = -1; StartHour = -1; QualifyingMinutes = 0; Laps = 0; RaceMinutes = 0; }
 
 	UPROPERTY()
 	bool bDone = false;
@@ -116,6 +150,14 @@ struct APEXSIM_API FApexSeason
 	/** Ballast by championship position into each round (none in round 1). */
 	UPROPERTY()
 	EApexSuccessBallast Ballast = EApexSuccessBallast::None;
+
+	/** Points for a round's fastest lap (ApexSeason::FastestLapScorer); 0 for none, a season saved before the rule. */
+	UPROPERTY()
+	int32 FastestLapPoints = 0;
+
+	/** The fastest lap scores only for a driver who finished in the points. */
+	UPROPERTY()
+	bool bFastestLapNeedsPoints = false;
 
 	bool IsActive() const { return Rounds.Num() > 0 && NextRound() != INDEX_NONE; }
 	bool IsFinished() const { return Rounds.Num() > 0 && NextRound() == INDEX_NONE; }
@@ -171,6 +213,8 @@ namespace ApexSeason
 		bool bIsAi = false;
 		int32 Points = 0;
 		int32 Wins = 0;
+		/** Rounds whose fastest-lap points this line took (dropped rounds included). */
+		int32 FastestLaps = 0;
 		/** Each round's points; -1 for a round not raced or not entered. */
 		TArray<int32> RoundPoints;
 		/** Which rounds' points the drop rule left out. */
@@ -185,6 +229,20 @@ namespace ApexSeason
 	 * whatever name they raced under.
 	 */
 	APEXSIM_API TArray<FStanding> DriverStandings(const FApexSeason& Season);
+
+	/** The line of a round's results with its fastest lap (the earliest line on a tie); INDEX_NONE when no lap was timed. */
+	APEXSIM_API int32 FastestLapIndex(const FApexSeasonRound& Round);
+
+	/**
+	 * The line of a round's results that takes the season's fastest-lap
+	 * points: the fastest lap's, when the season scores one and, under
+	 * bFastestLapNeedsPoints, that line finished in the points; else
+	 * INDEX_NONE (nobody takes it).
+	 */
+	APEXSIM_API int32 FastestLapScorer(const FApexSeason& Season, const FApexSeasonRound& Round);
+
+	/** "+1 point for the fastest lap, in the points"; empty without the rule. */
+	APEXSIM_API FString FastestLapRuleName(const FApexSeason& Season);
 
 	/** The cars' standings: every result of each car summed, no drops. */
 	APEXSIM_API TArray<FStanding> CarStandings(const FApexSeason& Season);
@@ -211,6 +269,34 @@ namespace ApexSeason
 	 * and without a preset.
 	 */
 	APEXSIM_API TArray<FApexDriverBallast> Ballast(const FApexSeason& Season);
+
+	/** What the session made for a round is: the round's own rules over the season's. */
+	struct APEXSIM_API FRoundSession
+	{
+		FString TrackId;
+		/** CreateSession's lap_limit: the round's laps, else the season's (sent with a timed race too, which ignores it). */
+		int32 Laps = 0;
+		/** race_seconds; 0 for a race over laps. */
+		int32 RaceSeconds = 0;
+		/** qualifying_seconds; 0 for the race alone. */
+		int32 QualifyingSeconds = 0;
+		FApexSessionConditions Conditions;
+		/** What the session counts into on join: Qualification before a race with qualifying, else Race. */
+		EApexGameMode StartMode = EApexGameMode::Race;
+		TArray<FApexDriverBallast> Ballast;
+	};
+
+	/**
+	 * Round `Round`'s session: its circuit, length, qualifying and sky (the
+	 * round's weather and start hour over `Base`, the profile's conditions;
+	 * a round that names its weather drops Base's written forecast, which
+	 * was written from another sky), and the ballast by the standings so
+	 * far. A round with no rules of its own is the season's race exactly.
+	 */
+	APEXSIM_API FRoundSession RoundSession(const FApexSeason& Season, int32 Round, const FApexSessionConditions& Base);
+
+	/** "8 laps", "Qualifying 15 min · 45 min · Heavy rain · 18:00": the round's format as the menus say it. */
+	APEXSIM_API FString DescribeRound(const FApexSeason& Season, int32 Round);
 
 	/** The season as the profile keeps it once over. */
 	APEXSIM_API FApexSeasonSummary Summarise(const FApexSeason& Season);

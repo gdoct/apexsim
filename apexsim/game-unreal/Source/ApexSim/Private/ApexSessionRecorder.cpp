@@ -144,6 +144,7 @@ void UApexSessionRecorder::FinishRecording()
 			Entry.bYou = &Result == Local;
 			Entry.bIsAi = Result.bIsAi;
 			Entry.Position = Result.FinishPosition;
+			Entry.BestLapSeconds = Result.BestLapSeconds;
 			if (Net)
 			{
 				if (const FApexRosterEntry* Row = Net->GetSessionRoster().Entries.FindByPredicate(
