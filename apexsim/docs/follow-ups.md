@@ -453,11 +453,16 @@ the same files.
   or sleep short and spin the last fraction; measure with
   `[debug] tick_jitter_seconds`.
 
-- The main menu's Esc menu (Back to main menu / Exit game,
-  `UApexMainMenuWidget::BuildQuitOverlay`) is built as a 420-wide card in
-  the middle over a dim, and draws as a card filling the whole screen
-  (`out/verify` shots of 2026-10-21, on the root page and on Garage >
-  Tracks).
+- A `UBorder`'s `SetHorizontalAlignment` / `SetVerticalAlignment` after
+  its content is set never reaches the content's slot (the slot keeps the
+  alignment it was made with, and `UBorderSlot::SynchronizeProperties`
+  wins at build): the main menu's Esc card filled the screen for that
+  (fixed 2026-10-24, `menu-esc-overlay`). Three more panels set a centre
+  after `MakePanel` and so draw filled or top-aligned:
+  `ApexHotlapWidget.cpp` (the footer and header panels' `VAlign_Center`)
+  and `ApexMainMenuWidget.cpp`'s panel at its `SetVerticalAlignment`. Set
+  the alignment before `SetContent`, or on the `UBorderSlot`, and check
+  those screens.
 
 - `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` and
   `ApexSim.Guide.MadeMatchesBuild` compare the game's own render with

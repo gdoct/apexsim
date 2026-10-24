@@ -7824,3 +7824,13 @@ runs:
       - {at: 14, label: "chase near", checks: "the beam down the road, no white disc at the nose"}
       - {at: 18, label: "cockpit", checks: "the road ahead lit, not blown", lead: 1, exec: "apexsim.cam.Chase cockpit"}
       - {at: 22, label: "chase far", checks: "the cars ahead in their own beams", lead: 1, exec: "apexsim.cam.Chase far"}
+
+  - id: menu-esc-overlay
+    about: "Follow-ups #99: the main menu's Esc card"
+    args:
+      - -ApexNoDemo
+    exec:
+      8: ["apexsim.ui.Key Escape"]
+    shots:
+      - {at: 6, label: "main menu", checks: ""}
+      - {at: 10, label: "Esc: the exit card", checks: "a 420-wide card in the middle over a dim, not a card filling the screen"}
