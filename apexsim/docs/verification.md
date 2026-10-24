@@ -120,8 +120,11 @@ AC-imported circuit is installed; Spa stands in.
   `RESET_AFTER_S`) decided only for cars with an AI profile, never for a
   human's car the stand-in drives; it does now
   (`racecraft_test::a_stand_in_that_cannot_get_back_on_the_road_is_put_back`).
-  Run `r4-spa-snow` again to see the stand-in race on, then judge the snow
-  rows.
+  Run again with it: the stand-in raced on (38-80 km/h through La Source
+  and Eau Rouge in the evening shots, P5-6), took hits (31% front, 43%
+  rear, a flat) and retired at about 575 s, its finish view following; the
+  sky went from snow to overcast with the forecast. The snow rows above
+  (ice, melt, the veer, the props' snow) are still to judge.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
   snow tread with its steel studs and the ice-white ring, and the field
