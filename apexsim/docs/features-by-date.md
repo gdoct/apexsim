@@ -52,7 +52,9 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
   - ten-second column blocks (`d7b95787`)
   - replay keep limits; replay_size.py (`c8199104`)
 - **N6** — the record lap among the lap traces, laid on the player's own line (`1a691571`)
-- **N7** — championships over race events, standings by proved driver id (`accbe12b`)
+- **N7**
+  - championships over race events, standings by proved driver id (`accbe12b`)
+  - the offline season's fastest-lap point and each round's own rules (`7a06b879`)
 - **R3**
   - race events kept across server restarts (`8f2ee7a2`)
   - an event's AI entries keep their identities and levels (`595cd155`)
