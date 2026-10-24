@@ -230,9 +230,9 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   track and kept running; with fresh showcases a 7-minute run was clean.
   If it comes back, the run's `-abslog` and the Windows event log are the
   places to look.
-- Loose packs (`.acp`): the launcher lists what one installed but has no
-  Remove for a custom car, track or HUD component (the folders are deleted
-  by hand), and nothing records which pack an item came from. A HUD pack's
+- Loose packs (`.acp`): the launcher uninstalls a custom car, track or HUD
+  component (`content uninstall`), but nothing records which pack an item
+  came from, so a pack is not removed as one. A HUD pack's
   `layout.json` is not an item, so it is ignored. The installer reads a
   pack whole into memory before it writes, about 0.9 GB for a release's
   `content.acp`.
