@@ -1791,6 +1791,78 @@ namespace
 		return true;
 	}
 
+	/** `IncidentData` (network.rs): PascalCase keys. */
+	bool ParseIncident(FMsgPackReader& Reader, FApexIncident& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			const auto Small = [&Raw](int32 Max) { return static_cast<int32>(FMath::Min<uint64>(Raw, static_cast<uint64>(Max))); };
+			if (Key == TEXT("Tick"))            { bOk = Reader.ReadUInt64(Raw); Out.Tick = static_cast<uint32>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("Lap"))        { bOk = Reader.ReadUInt64(Raw); Out.Lap = Small(MAX_uint16); }
+			else if (Key == TEXT("Kind"))       { bOk = Reader.ReadUInt64(Raw); Out.Kind = Small(255); }
+			else if (Key == TEXT("Car"))        { bOk = Reader.ReadUInt64(Raw); Out.Car = Small(255); }
+			else if (Key == TEXT("Name"))       { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("Other"))      { bOk = Reader.ReadUInt64(Raw); Out.Other = Small(255); }
+			else if (Key == TEXT("OtherName"))  { bOk = Reader.ReadString(Out.OtherName); }
+			else if (Key == TEXT("Severity"))   { bOk = Reader.ReadUInt64(Raw); Out.Severity = Small(255); }
+			else if (Key == TEXT("ClosingMps")) { bOk = Reader.ReadFloat(Out.ClosingMps); }
+			else if (Key == TEXT("Cut"))        { bOk = Reader.ReadBool(Out.bCut); }
+			else if (Key == TEXT("Offence"))    { bOk = Reader.ReadUInt64(Raw); Out.Offence = Small(255); }
+			else if (Key == TEXT("Penalty"))    { bOk = Reader.ReadUInt64(Raw); Out.Penalty = Small(255); }
+			else if (Key == TEXT("Seconds"))    { bOk = Reader.ReadUInt64(Raw); Out.Seconds = Small(MAX_uint16); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `IncidentsData` (network.rs): PascalCase keys. */
+	bool ParseIncidents(FMsgPackReader& Reader, FApexIncidents& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexIncidents();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("SessionId"))          { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("TickRate"))      { bOk = Reader.ReadUInt64(Raw); Out.TickRate = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
+			else if (Key == TEXT("RaceStartTick")) { bOk = Reader.ReadUInt64(Raw); Out.RaceStartTick = static_cast<int64>(FMath::Min<uint64>(Raw, MAX_uint32)); }
+			else if (Key == TEXT("Incidents"))     { bOk = ParseArrayOf(Reader, Out.Incidents, &ParseIncident); }
+			else                                   { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	/** `TrackBundleChunkData` (network.rs): PascalCase keys, the chunk as a bin. */
 	bool ParseTrackBundleChunk(FMsgPackReader& Reader, FApexTrackBundleChunk& Out)
 	{
@@ -3481,6 +3553,7 @@ namespace
 		if (Variant == TEXT("ShootoutState"))      { return EApexServerMessageType::ShootoutState; }
 		if (Variant == TEXT("TrackBundleChunk"))   { return EApexServerMessageType::TrackBundleChunk; }
 		if (Variant == TEXT("Rewound"))            { return EApexServerMessageType::Rewound; }
+		if (Variant == TEXT("Incidents"))          { return EApexServerMessageType::Incidents; }
 
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
@@ -3557,6 +3630,8 @@ namespace
 			return ParseTrackBundleChunk(Reader, Out.TrackBundleChunk);
 		case EApexServerMessageType::Rewound:
 			return ParseRewound(Reader, Out.Rewound);
+		case EApexServerMessageType::Incidents:
+			return ParseIncidents(Reader, Out.Incidents);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -4298,6 +4373,8 @@ namespace ApexProtocol
 	}
 
 	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
+
+	TArray<uint8> EncodeRequestIncidents() { return EncodeUnitVariant("RequestIncidents"); }
 
 	TArray<uint8> EncodeRequestTrackBundle(uint32 Crc, int32 Chunk)
 	{

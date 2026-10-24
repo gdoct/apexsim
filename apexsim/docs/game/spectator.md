@@ -419,7 +419,8 @@ speed with the stream. It hides within 3 m of the car. `BeginGhostReplay`
 also runs in the watch view, with the TV director off until it ends. Console: `apexsim.watch
 [start|stop|next|prev|car N|camera|auto|tower|overlay|race|pause|back|forward|faster|slower]`.
 Unattended: `-ApexWatch` (the backdrop), `-ApexWatchSession` (the first race
-on the server), `-ApexWatchReplay=<file|latest>`, with `-ApexWatchCamera=`,
+on the server), `-ApexWatchReplay=<file|latest>` (with `-ApexWatchReplayAt=<s>`
+seeked there once it has loaded: `UApexRootWidget::WatchReplayAt`), with `-ApexWatchCamera=`,
 `-ApexWatchTower=`, `-ApexWatchCar=`, `-ApexWatchHideHud`.
 
 ## Photo mode
@@ -505,7 +506,11 @@ race as an `.apxs` in `replays/` (see [sessions](../server/sessions.md)), so a
 server's replay and a client's replay are one format and play in the same
 Replays screen. `replay.rs`'s `.bin` is only the offline tools' format.
 The dashboard's incident list gives each incident's second in the server's
-replay, for `apexsim.watch seek` ([sessions](../server/sessions.md#incidents)).
+replay, for `-ApexWatchReplayAt` or `apexsim.watch seek`
+([sessions](../server/sessions.md#incidents)); the results screen's
+incident list jumps into the client's own replay of the session
+(`UApexReplayRecorder::ReplaySecondsOf`: the server tick less the file's
+first tick and cut garage time, over its tick rate).
 
 ## Replay clips (`-ApexReplay=`)
 

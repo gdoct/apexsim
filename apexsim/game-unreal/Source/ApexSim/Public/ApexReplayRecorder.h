@@ -75,6 +75,14 @@ public:
 	/** KeepThisSession has been asked for this session (or it was kept). */
 	bool IsThisSessionKept() const;
 
+	/**
+	 * The file of session InSessionId's replay, written when it ended (or
+	 * was left), and the second of it server tick ServerTick falls on: where
+	 * a jump to an incident of the race puts the watch view. False while it
+	 * is still recording, for another session, or a tick before the file.
+	 */
+	bool ReplaySecondsOf(const FString& InSessionId, int64 ServerTick, FString& OutPath, double& OutSeconds) const;
+
 	/** `Saved/Replays` (the kept ones) and its `Recent` folder. */
 	static FString ReplayDirectory();
 	static FString RecentDirectory();
@@ -167,4 +175,9 @@ private:
 	bool bKeepWhenFinished = false;
 	/** Where the last session's file went when it ended. */
 	FString LastSessionPath;
+	/** That file's session, first tick, tick rate and cut garage time: its ticks to its seconds. */
+	FString LastSessionId;
+	int64 LastSessionStartTick = -1;
+	int32 LastSessionTickRate = 0;
+	int64 LastSessionTickOffset = 0;
 };

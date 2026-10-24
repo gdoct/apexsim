@@ -1246,6 +1246,54 @@ async fn incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay() {
         .iter()
         .any(|i| i["kind"] == "penalty_cleared"));
 
+    // The game gets the same list on asking, from the race it watches:
+    // each car by its roster index and name, the green's tick to count
+    // the race's seconds from.
+    let (mut watcher, _) = Racer::connect(d.server.tcp_addr, "Watcher").await.unwrap();
+    watcher
+        .send(&ClientMessage::JoinAsSpectator { session_id: sid })
+        .await;
+    watcher
+        .until(|m| matches!(m, ServerMessage::SessionJoined(_)).then_some(()))
+        .await
+        .expect("the spectator joins");
+    watcher.send(&ClientMessage::RequestIncidents).await;
+    let listed = watcher
+        .until(|m| match m {
+            ServerMessage::Incidents(data) => Some(data.clone()),
+            _ => None,
+        })
+        .await
+        .expect("the incident list");
+    assert_eq!(listed.session_id, sid);
+    let (index_a, index_b, start) = {
+        let st = d.server.state.read().await;
+        let gs = &st.sessions[&sid];
+        (
+            gs.car_index_of(&a).unwrap(),
+            gs.car_index_of(&b).unwrap(),
+            gs.session.race_start_tick,
+        )
+    };
+    assert_eq!(listed.race_start_tick, start);
+    let contact = listed
+        .incidents
+        .iter()
+        .find(|i| i.kind == apexsim_server::network::INCIDENT_CONTACT)
+        .expect("the contact on the wire");
+    let mut pair = [contact.car, contact.other.unwrap()];
+    pair.sort();
+    let mut want = [index_a, index_b];
+    want.sort();
+    assert_eq!(pair, want);
+    assert!(!contact.name.is_empty() && !contact.other_name.is_empty());
+    assert!(contact.tick > start.unwrap());
+    assert!(listed.incidents.iter().any(|i| i.kind
+        == apexsim_server::network::INCIDENT_PENALTY_CLEARED
+        && i.car == index_a
+        && i.offence == 0));
+    drop(watcher);
+
     // Every car out: the race is over, and its list kept with its results
     // and matched to its replay.
     {

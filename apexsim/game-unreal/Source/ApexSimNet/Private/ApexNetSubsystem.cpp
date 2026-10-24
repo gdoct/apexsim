@@ -793,6 +793,16 @@ void UApexNetSubsystem::Rewind(int32 Seconds)
 	SendPayload(ApexProtocol::EncodeRewind(Clamped));
 }
 
+void UApexNetSubsystem::RequestIncidents()
+{
+	if (!IsInSession())
+	{
+		return;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestIncidents"));
+	SendPayload(ApexProtocol::EncodeRequestIncidents());
+}
+
 bool UApexNetSubsystem::CanRewind() const
 {
 	if (CurrentSessionId.IsEmpty() || bSessionSpectator || CurrentSessionKind != EApexSessionKind::Practice)
@@ -1356,6 +1366,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			CurrentBallast = Message.Ballast;
 
 			CurrentEvent = Message.Event;
+			CurrentIncidents = FApexIncidents();
 			CurrentRaceSeconds = Message.RaceSeconds;
 			CurrentQualifyingSeconds = Message.QualifyingSeconds;
 			CurrentQualifyingCutoffPct = Message.QualifyingCutoffPct;
@@ -1407,6 +1418,7 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentBallast.Reset();
 
 		CurrentEvent = FApexSessionEvent();
+		CurrentIncidents = FApexIncidents();
 		CurrentRaceSeconds = 0;
 		CurrentQualifyingSeconds = 0;
 		CurrentQualifyingCutoffPct = 0;
@@ -1633,6 +1645,16 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		UE_LOG(LogApexSimNet, Log, TEXT("<- PitBox %d at (%.1f, %.1f)m, %.1f m off the lane's middle, %s"),
 			OwnPitBox.PitBox + 1, OwnPitBox.Position.X, OwnPitBox.Position.Y, OwnPitBox.LateralM,
 			OwnPitBox.bManual ? TEXT("manual pit lane") : TEXT("pit autopilot"));
+		break;
+
+	case EApexServerMessageType::Incidents:
+		// Kept only for the session it is of: an answer that crossed a move to another is stale.
+		if (Message.Incidents.SessionId.Equals(CurrentSessionId, ESearchCase::IgnoreCase))
+		{
+			CurrentIncidents = Message.Incidents;
+			UE_LOG(LogApexSimNet, Log, TEXT("<- Incidents: %d"), CurrentIncidents.Incidents.Num());
+			OnIncidents.Broadcast(CurrentIncidents);
+		}
 		break;
 
 	case EApexServerMessageType::Rewound:

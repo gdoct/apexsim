@@ -7,6 +7,7 @@
 #include "ApexSessionResultsWidget.generated.h"
 
 struct FApexCarResult;
+struct FApexIncidents;
 class UApexButtonWidget;
 class UHorizontalBox;
 class UTextBlock;
@@ -28,6 +29,12 @@ class UWidget;
  * fastest in purple, and the driver's own grid slot, sectors against pole and
  * ideal lap. Its primary action is the host's: start the race, which grids
  * from this classification.
+ *
+ * After a race, Incidents turns the table into the race's incident list as
+ * the server keeps it for stewards (`RequestIncidents`): each row a contact,
+ * a pass under yellow, a track-limits strike or a penalty, and activating
+ * one watches this session's own replay from just before it
+ * (UApexRootWidget::WatchReplayAt; the session is left).
  */
 UCLASS()
 class APEXSIM_API UApexSessionResultsWidget : public UApexScreenWidget
@@ -44,6 +51,13 @@ public:
 	/** No history behind a finished session; Back does nothing rather than something arbitrary. */
 	virtual bool HandleBack() override { return true; }
 
+	/** The table on the race's incident list (asked for again) or back on the classification. */
+	void ShowIncidents(bool bShow);
+	/** Activating incident row Index: the replay from just before it, or a toast why not. */
+	void JumpToIncident(int32 Index);
+	/** The incident list as it stands, a log line each (`apexsim.incidents`). */
+	void LogIncidents() const;
+
 protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
@@ -59,6 +73,11 @@ private:
 	void RefreshTableHeader(bool bQualifying);
 	void FillRaceRows(bool bLive);
 	void FillQualifyingRows();
+	/** The race's incident list in the table, a row per incident, each a jump into the replay. */
+	void FillIncidentRows();
+	/** The Incidents button: shown after a race the client is still in, labelled for the other view. */
+	void RefreshIncidentsButton();
+	void HandleIncidents(const FApexIncidents& Incidents);
 	/** The local driver's qualifying: grid slot, gap to pole, sectors, ideal lap. */
 	void FillQualifyingSummary(const FApexCarResult& Local);
 	/** The primary button: Drive again, or after qualifying the host's Start the race. */
@@ -98,6 +117,11 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveAgainButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackToLobbyButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SaveReplayButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> IncidentsButton;
+
+	/** The table shows the race's incident list instead of the classification. */
+	bool bShowingIncidents = false;
+	FDelegateHandle IncidentsHandle;
 
 	/** Seconds until the provisional table is redrawn. */
 	float LiveRefreshCountdown = 0.0f;

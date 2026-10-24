@@ -218,6 +218,13 @@ public:
 	bool WatchReplay(const FString& Path);
 	bool IsWatchingReplay() const { return WatchKind == EWatchKind::Backdrop && bWatchingReplay; }
 
+	/**
+	 * Play a saved replay from Seconds in, seeked once it has loaded: the
+	 * results screen's jump to an incident, and -ApexWatchReplayAt. In a
+	 * session it is left first, and the replay starts once out of it.
+	 */
+	void WatchReplayAt(const FString& Path, double Seconds);
+
 	/** Save the session being recorded as a replay, with a toast either way. */
 	void SaveReplay();
 
@@ -604,6 +611,12 @@ private:
 	bool bWatchCommandLineApplied = false;
 	bool bWatchSessionFromCommandLine = false;
 	bool bWatchReplayFromCommandLine = false;
+	/** WatchReplayAt: the replay to start once out of the session, and the second to seek it to once loaded (-1 for none). */
+	FString PendingReplayPath;
+	double PendingReplaySeek = -1.0;
+	/** How long the pending replay has waited to start; it gives up after a while. */
+	float PendingReplayWait = 0.0f;
+	void UpdatePendingReplay(float DeltaSeconds);
 
 	bool bRaceViewActive = false;
 	bool bPauseMenuOpen = false;

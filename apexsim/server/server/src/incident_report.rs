@@ -128,6 +128,36 @@ impl IncidentReport {
     }
 }
 
+/// The session's incident list as the client gets it
+/// (`ServerMessage::Incidents`): each car by its index and name, the latest
+/// [`crate::network::MAX_INCIDENTS_SENT`].
+pub fn wire(session: &GameSession) -> crate::network::IncidentsData {
+    let list = &session.incidents.incidents;
+    let from = list
+        .len()
+        .saturating_sub(crate::network::MAX_INCIDENTS_SENT);
+    let car = |id: &PlayerId| {
+        let name = session.driver_name(id);
+        (
+            session.car_index_of(id),
+            if name.is_empty() {
+                "Driver".to_string()
+            } else {
+                name
+            },
+        )
+    };
+    crate::network::IncidentsData {
+        session_id: session.session.id,
+        tick_rate: session.tick_rate_hz(),
+        race_start_tick: session.session.race_start_tick,
+        incidents: list[from..]
+            .iter()
+            .map(|i| crate::network::IncidentData::of(i, car))
+            .collect(),
+    }
+}
+
 /// The reports in `dir`, newest first, at most [`LIST_MAX`]; one that does
 /// not parse is left out.
 pub fn list(dir: &Path) -> Vec<IncidentReport> {

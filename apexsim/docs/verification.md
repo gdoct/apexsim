@@ -495,6 +495,20 @@ kept at its race (`server.event` in runs.yml), as after a restart.
   its entries and results, OPEN / START / NEXT PHASE / CLOSE / entries /
   DELETE answering, and an event created from the form.
 
+### R20. The race's incident list in the game
+
+`r3c-incidents`: a short race with the AI and a stand-in driver, then the
+results screen.
+
+- The results screen's Incidents: the race's list (contacts, track limits,
+  penalties) with race clock, lap, cars and detail, the player's own rows
+  in the accent colour, WATCH on each once the session has ended.
+- A row's jump (`apexsim.incidents watch 0`): the session left, the
+  replay playing from three seconds before that incident.
+- The dashboard's copied command with `-ApexWatchReplayAt=<s>` on a
+  downloaded server replay: it seeks once loaded (no "nothing is
+  playing").
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

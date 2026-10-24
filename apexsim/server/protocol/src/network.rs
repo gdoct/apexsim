@@ -453,6 +453,11 @@ pub enum ClientMessage {
     Rewind {
         seconds: u16,
     },
+
+    // TCP - The incident list of the race the player is in (drives or
+    // watches), as it stands: answered with `Incidents` (empty outside a
+    // race, and in a session that is not one).
+    RequestIncidents,
 }
 
 // --- Message Priority ---
@@ -1056,6 +1061,11 @@ pub enum ServerMessage {
     // session's drivers and spectators, so they drop what they buffered of
     // the run that was undone.
     Rewound(RewoundData),
+
+    // TCP - The race's incident list for the player who asked
+    // (`ClientMessage::RequestIncidents`; docs/server/sessions.md
+    // "Incidents").
+    Incidents(IncidentsData),
 }
 
 impl ServerMessage {
@@ -1097,6 +1107,8 @@ impl ServerMessage {
             // Asked for once, chunk by chunk, a few in flight.
             ServerMessage::TrackBundleChunk(_) => MessagePriority::Critical,
             ServerMessage::Rewound(_) => MessagePriority::Critical,
+            // Asked for once, for a screen waiting on it.
+            ServerMessage::Incidents(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -2406,6 +2418,166 @@ pub struct RewoundData {
     pub from_tick: u32,
     /// How long the cars stand still before the session runs on, ms.
     pub hold_ms: u32,
+}
+
+/// The most incidents one `Incidents` carries: the latest, when a race
+/// has more (a long one's track limits).
+pub const MAX_INCIDENTS_SENT: usize = 500;
+
+/// `IncidentData::kind`: what happened (`incidents::IncidentKind`).
+pub const INCIDENT_CONTACT: u8 = 0;
+pub const INCIDENT_YELLOW_PASS: u8 = 1;
+pub const INCIDENT_TRACK_LIMITS: u8 = 2;
+pub const INCIDENT_PENALTY: u8 = 3;
+pub const INCIDENT_PENALTY_CLEARED: u8 = 4;
+/// `IncidentData::car` for a car no longer in the session.
+pub const INCIDENT_NO_CAR: u8 = u8::MAX;
+
+/// A race's incident list (`ServerMessage::Incidents`): what the stewards'
+/// list holds (`GameSession::incidents`), each car by its index and name.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct IncidentsData {
+    #[serde(
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub session_id: SessionId,
+    /// The session's tick rate: an incident's `tick` less `race_start_tick`
+    /// over it is its second of the race.
+    pub tick_rate: u16,
+    /// The tick of the green; left off before the race has started.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_start_tick: Option<u32>,
+    /// In the order they happened, at most [`MAX_INCIDENTS_SENT`] (the
+    /// latest).
+    pub incidents: Vec<IncidentData>,
+}
+
+/// One incident (`incidents::Incident`) as the client shows it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct IncidentData {
+    /// The session tick it happened on (a contact: the tick it began).
+    pub tick: u32,
+    /// The lap `car` was on.
+    pub lap: u16,
+    /// `INCIDENT_CONTACT`, `_YELLOW_PASS`, `_TRACK_LIMITS`, `_PENALTY`,
+    /// `_PENALTY_CLEARED`.
+    pub kind: u8,
+    /// The car's index as the roster maps it; [`INCIDENT_NO_CAR`] for one
+    /// that has left.
+    pub car: u8,
+    pub name: String,
+    /// A contact's other car, the car passed under a yellow: its index, left
+    /// off for none or one that has left.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub other: Option<u8>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub other_name: String,
+    /// A contact's: 0 a touch, 1 light, 2 heavy (`incidents::Severity`).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub severity: u8,
+    /// A contact's hardest closing speed, m/s.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub closing_mps: f32,
+    /// Track limits: the line reached without every checkpoint.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub cut: bool,
+    /// A penalty's offence, as `PenaltyData::reason` (0 a jump start, 1 a
+    /// pass under a yellow, 2 a red-light pit exit).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub offence: u8,
+    /// A penalty's kind, as `PenaltyData::kind` (0 time, 1 drive-through,
+    /// 2 stop-go).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub penalty: u8,
+    /// A penalty's seconds.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub seconds: u16,
+}
+
+fn is_zero_f32(value: &f32) -> bool {
+    *value == 0.0
+}
+
+fn is_zero_u16(value: &u16) -> bool {
+    *value == 0
+}
+
+impl IncidentData {
+    /// An incident of the list, its cars named by `car` (index and name).
+    pub fn of(
+        incident: &crate::incidents::Incident,
+        car: impl Fn(&PlayerId) -> (Option<u8>, String),
+    ) -> IncidentData {
+        use crate::incidents::{IncidentKind, Severity};
+        let (index, name) = car(&incident.car);
+        let mut data = IncidentData {
+            tick: incident.tick,
+            lap: incident.lap,
+            kind: INCIDENT_CONTACT,
+            car: index.unwrap_or(INCIDENT_NO_CAR),
+            name,
+            other: None,
+            other_name: String::new(),
+            severity: 0,
+            closing_mps: 0.0,
+            cut: false,
+            offence: 0,
+            penalty: 0,
+            seconds: 0,
+        };
+        let offence_code = |name: &str| match name {
+            "yellow_pass" => 1,
+            "pit_exit_red" => 2,
+            _ => 0,
+        };
+        let penalty_code = |name: &str| match name {
+            "drive_through" => 1,
+            "stop_go" => 2,
+            _ => 0,
+        };
+        match &incident.kind {
+            IncidentKind::Contact {
+                other,
+                closing_mps,
+                severity,
+            } => {
+                (data.other, data.other_name) = car(other);
+                data.closing_mps = *closing_mps;
+                data.severity = match severity {
+                    Severity::Touch => 0,
+                    Severity::Light => 1,
+                    Severity::Heavy => 2,
+                };
+            }
+            IncidentKind::YellowPass { passed } => {
+                data.kind = INCIDENT_YELLOW_PASS;
+                (data.other, data.other_name) = car(passed);
+            }
+            IncidentKind::TrackLimits { cut } => {
+                data.kind = INCIDENT_TRACK_LIMITS;
+                data.cut = *cut;
+            }
+            IncidentKind::Penalty {
+                offence,
+                penalty,
+                seconds,
+            } => {
+                data.kind = INCIDENT_PENALTY;
+                data.offence = offence_code(offence);
+                data.penalty = penalty_code(penalty);
+                data.seconds = *seconds;
+            }
+            IncidentKind::PenaltyCleared { offence, penalty } => {
+                data.kind = INCIDENT_PENALTY_CLEARED;
+                data.offence = offence_code(offence);
+                data.penalty = penalty_code(penalty);
+            }
+        }
+        data
+    }
 }
 
 /// A driver's own pit box (`ServerMessage::PitBox`), in the server's
@@ -7877,6 +8049,117 @@ mod tests {
             }
             other => panic!("Wrong message type: {other:?}"),
         }
+    }
+
+    /// The race's incident list on request: `C_RequestIncidents` and
+    /// `S_Incidents` (a heavy contact, a cut, a drive-through for a pass
+    /// under a yellow) on the client. `cargo test incidents_wire_format --
+    /// --nocapture` prints them.
+    #[test]
+    fn test_incidents_wire_format() {
+        const GOLDEN_C_REQUEST_INCIDENTS: &[u8] = &[
+            0x81, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xB0, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+            0x49, 0x6E, 0x63, 0x69, 0x64, 0x65, 0x6E, 0x74, 0x73,
+        ];
+        const GOLDEN_S_INCIDENTS: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xA9, 0x49, 0x6E, 0x63, 0x69, 0x64, 0x65, 0x6E,
+            0x74, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x84, 0xA9, 0x53, 0x65, 0x73, 0x73, 0x69,
+            0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+            0x2D, 0x38, 0x39, 0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32,
+            0x33, 0x2D, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66,
+            0xA8, 0x54, 0x69, 0x63, 0x6B, 0x52, 0x61, 0x74, 0x65, 0xCD, 0x01, 0xA4, 0xAD, 0x52,
+            0x61, 0x63, 0x65, 0x53, 0x74, 0x61, 0x72, 0x74, 0x54, 0x69, 0x63, 0x6B, 0xCD, 0x09,
+            0xD8, 0xA9, 0x49, 0x6E, 0x63, 0x69, 0x64, 0x65, 0x6E, 0x74, 0x73, 0x93, 0x89, 0xA4,
+            0x54, 0x69, 0x63, 0x6B, 0xCD, 0x13, 0xB0, 0xA3, 0x4C, 0x61, 0x70, 0x02, 0xA4, 0x4B,
+            0x69, 0x6E, 0x64, 0x00, 0xA3, 0x43, 0x61, 0x72, 0x00, 0xA4, 0x4E, 0x61, 0x6D, 0x65,
+            0xA3, 0x41, 0x64, 0x61, 0xA5, 0x4F, 0x74, 0x68, 0x65, 0x72, 0x03, 0xA9, 0x4F, 0x74,
+            0x68, 0x65, 0x72, 0x4E, 0x61, 0x6D, 0x65, 0xA3, 0x42, 0x65, 0x61, 0xA8, 0x53, 0x65,
+            0x76, 0x65, 0x72, 0x69, 0x74, 0x79, 0x02, 0xAA, 0x43, 0x6C, 0x6F, 0x73, 0x69, 0x6E,
+            0x67, 0x4D, 0x70, 0x73, 0xCA, 0x41, 0x18, 0x00, 0x00, 0x86, 0xA4, 0x54, 0x69, 0x63,
+            0x6B, 0xCD, 0x18, 0x9C, 0xA3, 0x4C, 0x61, 0x70, 0x03, 0xA4, 0x4B, 0x69, 0x6E, 0x64,
+            0x02, 0xA3, 0x43, 0x61, 0x72, 0xCC, 0xFF, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA2, 0x43,
+            0x79, 0xA3, 0x43, 0x75, 0x74, 0xC3, 0x87, 0xA4, 0x54, 0x69, 0x63, 0x6B, 0xCD, 0x1D,
+            0x88, 0xA3, 0x4C, 0x61, 0x70, 0x03, 0xA4, 0x4B, 0x69, 0x6E, 0x64, 0x03, 0xA3, 0x43,
+            0x61, 0x72, 0x03, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA3, 0x42, 0x65, 0x61, 0xA7, 0x4F,
+            0x66, 0x66, 0x65, 0x6E, 0x63, 0x65, 0x01, 0xA7, 0x50, 0x65, 0x6E, 0x61, 0x6C, 0x74,
+            0x79, 0x01,
+        ];
+        let asked = rmp_serde::to_vec_named(&ClientMessage::RequestIncidents).unwrap();
+        print_golden("C_RequestIncidents", &asked);
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&asked).unwrap(),
+            ClientMessage::RequestIncidents
+        ));
+
+        use crate::incidents::{Incident, IncidentKind, Severity};
+        let (a, b, gone) = (Uuid::from_u128(1), Uuid::from_u128(2), Uuid::from_u128(3));
+        let car = |id: &PlayerId| match id.as_u128() {
+            1 => (Some(0), "Ada".to_string()),
+            2 => (Some(3), "Bea".to_string()),
+            _ => (None, "Cy".to_string()),
+        };
+        let list = [
+            Incident {
+                tick: 5040,
+                lap: 2,
+                car: a,
+                kind: IncidentKind::Contact {
+                    other: b,
+                    closing_mps: 9.5,
+                    severity: Severity::Heavy,
+                },
+            },
+            Incident {
+                tick: 6300,
+                lap: 3,
+                car: gone,
+                kind: IncidentKind::TrackLimits { cut: true },
+            },
+            Incident {
+                tick: 7560,
+                lap: 3,
+                car: b,
+                kind: IncidentKind::Penalty {
+                    offence: "yellow_pass".into(),
+                    penalty: "drive_through".into(),
+                    seconds: 0,
+                },
+            },
+        ];
+        let message = ServerMessage::Incidents(IncidentsData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            tick_rate: 420,
+            race_start_tick: Some(2520),
+            incidents: list.iter().map(|i| IncidentData::of(i, car)).collect(),
+        });
+        assert_eq!(message.priority(), MessagePriority::Critical);
+        let bytes = rmp_serde::to_vec_named(&message).unwrap();
+        print_golden("S_Incidents", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::Incidents(d) => {
+                assert_eq!(d.race_start_tick, Some(2520));
+                let contact = &d.incidents[0];
+                assert_eq!(
+                    (contact.kind, contact.car, contact.other, contact.severity),
+                    (INCIDENT_CONTACT, 0, Some(3), 2)
+                );
+                assert_eq!(contact.other_name, "Bea");
+                let cut = &d.incidents[1];
+                assert_eq!(
+                    (cut.kind, cut.car, cut.cut),
+                    (INCIDENT_TRACK_LIMITS, INCIDENT_NO_CAR, true)
+                );
+                assert_eq!(cut.name, "Cy");
+                let penalty = &d.incidents[2];
+                assert_eq!(
+                    (penalty.kind, penalty.offence, penalty.penalty),
+                    (INCIDENT_PENALTY, 1, 1)
+                );
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        assert_eq!(asked, GOLDEN_C_REQUEST_INCIDENTS);
+        assert_eq!(bytes, GOLDEN_S_INCIDENTS);
     }
 
     /// The roster's away flag and grid slot, pinned on the client as

@@ -48,6 +48,7 @@ pub use apexsim_sim::grid_order;
 pub use apexsim_sim::ground;
 pub use apexsim_sim::headlights;
 pub use apexsim_sim::hybrid;
+pub use apexsim_sim::incidents;
 pub use apexsim_sim::laps;
 pub use apexsim_sim::own_car;
 pub use apexsim_sim::physics;

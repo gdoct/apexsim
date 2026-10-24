@@ -287,9 +287,11 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   kind. A row opens the jump into the replay: DOWNLOAD REPLAY
   (`GET /api/replays/<file>`, only the recorder's own `replay_*.apxs`) and
   the game's command line that plays it from three seconds before
-  (`-ApexWatchReplay=<the downloaded file> "-ApexExecAfter=8=apexsim.watch
-  seek <s>"`, or `apexsim.watch seek <s>` in the console while watching
-  it; [spectator](../game/spectator.md#replays)). In a running race CLEAR
+  (`-ApexWatchReplay=<the downloaded file> -ApexWatchReplayAt=<s>`, which
+  seeks once the replay has loaded, or `apexsim.watch seek <s>` in the
+  console while watching it; [spectator](../game/spectator.md#replays)). The
+  game has the same list on its results screen
+  ([client](../game/client.md#session-results-uiapexsessionresultswidgetcpp)). In a running race CLEAR
   takes a penalty back (`POST /api/sessions/<id>/penalties/<car>/<index>/clear`,
   the index in the order given; 409 when there is none).
 - **Content** (`content.rs`): every car and track can be switched off (kept

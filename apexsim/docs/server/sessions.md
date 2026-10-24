@@ -930,12 +930,21 @@ detected, so not listed.
   the file, opens the replay at an incident, and clears a penalty
   (`clear_penalty`: gone from the car's list, owed or added; the roster
   goes out again without it, and an AI coming in only to serve it stays out).
-- Not on the wire: the client shows none of it.
+- **In the game**: `RequestIncidents` from anyone in the session (driver
+  or spectator) is answered with `Incidents` (`incident_report::wire`):
+  the session's tick rate and green, and each incident (the latest
+  `MAX_INCIDENTS_SENT`, 500) with its tick, lap, kind, car (roster index
+  and name, `INCIDENT_NO_CAR` for one that has left), the other car, a
+  contact's severity and closing speed, a cut, a penalty's offence, kind
+  and seconds as `PenaltyData` codes. The results screen lists it and
+  jumps into the client's own replay
+  ([client.md](../game/client.md#session-results-uiapexsessionresultswidgetcpp)).
 
 Tests: `server/sim/tests/all/incident_test.rs` (a forced contact, a car put
 off the road, a penalty given and cleared),
 `admin_test::incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay`
-(live, cleared, written, matched to its replay).
+(live, cleared, on the wire to a spectator, written, matched to its replay),
+`incidents_wire_format` (`C_RequestIncidents`, `S_Incidents`).
 
 ## Timed races
 

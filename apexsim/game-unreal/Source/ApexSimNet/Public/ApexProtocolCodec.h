@@ -119,6 +119,9 @@ namespace ApexProtocol
 	 * driven alone, 409 nothing to rewind to yet).
 	 */
 	APEXSIMNET_API TArray<uint8> EncodeRewind(uint16 Seconds);
+
+	/** The incident list of the race we are in (driving or watching): answered with Incidents. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestIncidents();
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics), answered with TrackBundleChunk. */

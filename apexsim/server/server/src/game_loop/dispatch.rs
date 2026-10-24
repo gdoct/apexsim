@@ -241,6 +241,9 @@ pub(crate) async fn handle_message(
         ClientMessage::Rewind { seconds } => {
             handle_rewind(ctx, connection_id, seconds).await;
         }
+        ClientMessage::RequestIncidents => {
+            handle_request_incidents(ctx, connection_id).await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,
@@ -1917,6 +1920,36 @@ async fn handle_hotlap_relocate(
 
 /// A stuck driver's car put back (`GameSession::recover_car`); an `Error`
 /// says why when it cannot be.
+/// The incident list of the race the player is in, driving or watching
+/// (`incident_report::wire`): empty outside a race.
+async fn handle_request_incidents(ctx: &GameLoopCtx, connection_id: ConnectionId) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        ctx.send_error(connection_id, 409, "Not in a session").await;
+        return;
+    };
+    let data = ctx
+        .state
+        .read()
+        .await
+        .sessions
+        .get(&session_id)
+        .map(crate::incident_report::wire);
+    match data {
+        Some(data) => {
+            let _ = ctx
+                .send(connection_id, ServerMessage::Incidents(data))
+                .await;
+        }
+        None => {
+            ctx.send_error(connection_id, 404, "Session not found")
+                .await
+        }
+    }
+}
+
 /// A driver alone in a practice session rewinds it (`crate::rewind`): the
 /// recording so far is written as it stands, the session restored, its
 /// stream started again for whoever watches it, and everyone in it told

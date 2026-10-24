@@ -4003,6 +4003,71 @@ enum class EApexServerMessageType : uint8
 	TrackBundleChunk,
 	/** The session was rewound (`Rewound`, answering our `Rewind`). */
 	Rewound,
+	/** The race's incident list, asked for with RequestIncidents (`Incidents`). */
+	Incidents,
+};
+
+/** `IncidentData::kind` and the codes beside it (network.rs `INCIDENT_*`). */
+namespace ApexIncident
+{
+	inline constexpr int32 Contact = 0;
+	inline constexpr int32 YellowPass = 1;
+	inline constexpr int32 TrackLimits = 2;
+	inline constexpr int32 Penalty = 3;
+	inline constexpr int32 PenaltyCleared = 4;
+	/** `Car` (and `Other`) of a car no longer in the session. */
+	inline constexpr int32 NoCar = 255;
+	/** A contact's severity. */
+	inline constexpr int32 Touch = 0;
+	inline constexpr int32 Light = 1;
+	inline constexpr int32 Heavy = 2;
+}
+
+/**
+ * `IncidentData` (network.rs): one incident of the race's list for stewards
+ * (docs/server/sessions.md, "Incidents"), its cars by roster index and name.
+ */
+struct FApexIncident
+{
+	/** The session tick it happened on (a contact: the tick it began). */
+	uint32 Tick = 0;
+	int32 Lap = 0;
+	/** ApexIncident::Contact ... PenaltyCleared. */
+	int32 Kind = 0;
+	/** The car's roster index; ApexIncident::NoCar for one that has left. */
+	int32 Car = ApexIncident::NoCar;
+	FString Name;
+	/** A contact's other car, the car passed under a yellow; NoCar for none. */
+	int32 Other = ApexIncident::NoCar;
+	FString OtherName;
+	/** A contact's: ApexIncident::Touch, Light or Heavy, and its hardest closing speed. */
+	int32 Severity = 0;
+	float ClosingMps = 0.0f;
+	/** Track limits: the line reached without every checkpoint. */
+	bool bCut = false;
+	/** A penalty's offence and kind (ApexPenalty codes) and its seconds. */
+	int32 Offence = 0;
+	int32 Penalty = 0;
+	int32 Seconds = 0;
+};
+
+/** `IncidentsData` (network.rs): a race's incident list, answering RequestIncidents. */
+struct FApexIncidents
+{
+	FString SessionId;
+	int32 TickRate = 0;
+	/** The tick of the green; -1 before the race started. */
+	int64 RaceStartTick = -1;
+	TArray<FApexIncident> Incidents;
+	bool bValid = false;
+
+	/** An incident's second of the race (0 before the green). */
+	double RaceSeconds(const FApexIncident& Incident) const
+	{
+		return TickRate > 0 && RaceStartTick >= 0
+			? FMath::Max(0.0, (static_cast<double>(Incident.Tick) - static_cast<double>(RaceStartTick)) / TickRate)
+			: 0.0;
+	}
 };
 
 /**
@@ -4151,6 +4216,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexChatLine Chat;
 	/** Rewound. */
 	FApexRewound Rewound;
+	/** Incidents. */
+	FApexIncidents Incidents;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

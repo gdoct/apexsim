@@ -17,20 +17,58 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "Engine/GameInstance.h"
+#include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 #include "Race/ApexQualifyingBoard.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexIncidentList.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRaceResultsWidget.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
+#include "UObject/UObjectIterator.h"
 
 namespace
 {
+	FAutoConsoleCommandWithWorldAndArgs IncidentsCommand(
+		TEXT("apexsim.incidents"),
+		TEXT("The results screen's incident list: apexsim.incidents [show|hide|log|watch <n>] ")
+		TEXT("(show turns the table to it and asks the server again; watch plays this session's replay from just before incident n, 0-based)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			UApexSessionResultsWidget* Results = nullptr;
+			for (TObjectIterator<UApexSessionResultsWidget> It; It; ++It)
+			{
+				if (It->GetWorld() == World && It->GetCachedWidget().IsValid())
+				{
+					Results = *It;
+					break;
+				}
+			}
+			if (!Results)
+			{
+				UE_LOG(LogApexSim, Warning, TEXT("apexsim.incidents: no results screen in this world"));
+				return;
+			}
+			const FString Verb = Args.Num() > 0 ? Args[0].ToLower() : FString(TEXT("show"));
+			if (Verb == TEXT("show") || Verb == TEXT("hide"))
+			{
+				Results->ShowIncidents(Verb == TEXT("show"));
+			}
+			else if (Verb == TEXT("watch") && Args.Num() > 1)
+			{
+				Results->JumpToIncident(FCString::Atoi(*Args[1]));
+			}
+			Results->LogIncidents();
+		}));
+
 	const FName ActionDriveAgain(TEXT("__again"));
 	const FName ActionLobby(TEXT("__lobby"));
 	const FName ActionSaveReplay(TEXT("__savereplay"));
 	const FName ActionMenu(TEXT("__menu"));
+	const FName ActionIncidents(TEXT("__incidents"));
+	/** An incident row's action: this, then its index in the list. */
+	const FString IncidentActionPrefix(TEXT("__incident_"));
 
 	constexpr float ResultsSidePanelWidth = 470.0f;
 
@@ -141,9 +179,16 @@ void UApexSessionResultsWidget::OnScreenActivated()
 		// A weekend's state (who is out, whether the host may move on) can land
 		// after the session's end.
 		Net->OnWeekendStateChanged.AddUniqueDynamic(this, &UApexSessionResultsWidget::HandleWeekendStateChanged);
+		if (!IncidentsHandle.IsValid())
+		{
+			IncidentsHandle = Net->OnIncidents.AddUObject(this, &UApexSessionResultsWidget::HandleIncidents);
+		}
 	}
 
+	// A new visit starts on the classification.
+	bShowingIncidents = false;
 	LiveRefreshCountdown = LiveRefreshSeconds;
+	RefreshIncidentsButton();
 	RefreshTable();
 	RefreshSidePanel();
 	RefreshSaveReplay();
@@ -159,6 +204,31 @@ void UApexSessionResultsWidget::HandleWeekendStateChanged()
 	RefreshTable();
 	RefreshSidePanel();
 	RefreshPrimaryAction();
+}
+
+void UApexSessionResultsWidget::HandleIncidents(const FApexIncidents& Incidents)
+{
+	if (IsVisible() && bShowingIncidents)
+	{
+		RefreshTable();
+	}
+}
+
+void UApexSessionResultsWidget::RefreshIncidentsButton()
+{
+	if (!IncidentsButton)
+	{
+		return;
+	}
+	// The list is the server's, of a race: asked for while still in its session.
+	const UApexNetSubsystem* Net = GetNet();
+	const bool bCan = Net && Net->IsInSession() && !IsTimesheet();
+	if (!bCan)
+	{
+		bShowingIncidents = false;
+	}
+	IncidentsButton->SetVisibility(bCan ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	IncidentsButton->SetLabel(bShowingIncidents ? TEXT("Classification") : TEXT("Incidents"));
 }
 
 void UApexSessionResultsWidget::RefreshSaveReplay()
@@ -191,9 +261,22 @@ void UApexSessionResultsWidget::NativeTick(const FGeometry& MyGeometry, float In
 		return;
 	}
 	LiveRefreshCountdown = LiveRefreshSeconds;
-	RefreshTable();
+	if (bShowingIncidents)
+	{
+		// The list grows while the race runs, and the replay to jump into is
+		// written at its end: ask again, it redraws on arrival.
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->RequestIncidents();
+		}
+	}
+	else
+	{
+		RefreshTable();
+	}
 	RefreshSaveReplay();
 	RefreshPrimaryAction();
+	RefreshIncidentsButton();
 	if (!bLive)
 	{
 		// The session just ended: the recorder has filed the local best by now.
@@ -383,7 +466,20 @@ UWidget* UApexSessionResultsWidget::BuildSidePanel()
 	SaveReplayButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
 	SaveReplayButton->Setup(ReplaySpec);
 	SaveReplayButton->OnActivated.AddDynamic(this, &UApexSessionResultsWidget::HandleButtonActivated);
-	ApexUI::AddV(Column, SaveReplayButton);
+	ApexUI::AddV(Column, SaveReplayButton, FMargin(0.0f, 0.0f, 0.0f, 8.0f));
+
+	// The race's incident list in the table, and back (RefreshIncidentsButton).
+	FApexButtonSpec IncidentsSpec;
+	IncidentsSpec.Label = TEXT("Incidents");
+	IncidentsSpec.Variant = EApexButtonVariant::Ghost;
+	IncidentsSpec.LabelSize = 17.0f;
+	IncidentsSpec.Height = 52.0f;
+	IncidentsSpec.ActionId = ActionIncidents;
+
+	IncidentsButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+	IncidentsButton->Setup(IncidentsSpec);
+	IncidentsButton->OnActivated.AddDynamic(this, &UApexSessionResultsWidget::HandleButtonActivated);
+	ApexUI::AddV(Column, IncidentsButton);
 
 	return ApexUI::MakePanel(
 		*WidgetTree,
@@ -484,6 +580,12 @@ void UApexSessionResultsWidget::RefreshTable()
 			Recorder->GetResults().Num())));
 	}
 
+	if (bShowingIncidents && !bQualifying)
+	{
+		FillIncidentRows();
+		return;
+	}
+
 	RefreshTableHeader(bQualifying);
 	TableBox->ClearChildren();
 
@@ -504,6 +606,115 @@ void UApexSessionResultsWidget::RefreshTable()
 	else
 	{
 		FillRaceRows(bLive);
+	}
+}
+
+void UApexSessionResultsWidget::FillIncidentRows()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !TableBox || !TableHeaderRow)
+	{
+		return;
+	}
+	TableHeaderRow->ClearChildren();
+	ApexUI::AddH(TableHeaderRow, ApexUI::MakeText(*WidgetTree,
+		TEXT("RACE INCIDENTS · ENTER WATCHES THE REPLAY FROM JUST BEFORE ONE (LEAVES THE SESSION)"),
+		ApexUI::Font::Mono(10.0f, 120), ApexUI::Palette::TextMuted));
+	TableBox->ClearChildren();
+
+	const FApexIncidents& List = Net->GetIncidents();
+	if (!List.bValid || List.Incidents.Num() == 0)
+	{
+		ApexUI::AddV(TableBox, ApexUI::MakeText(*WidgetTree,
+			!List.bValid ? TEXT("Asking the server for the race's incidents…") : TEXT("No incidents: a clean race."),
+			ApexUI::Font::Body(14.0f), ApexUI::Palette::TextMuted));
+		return;
+	}
+
+	const UApexReplayRecorder* Replays = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+	const int32 Own = Net->GetLocalCarIndex();
+	for (int32 Index = 0; Index < List.Incidents.Num(); ++Index)
+	{
+		const FApexIncident& Incident = List.Incidents[Index];
+		FString Path;
+		double ReplaySeconds = 0.0;
+		const bool bWatchable = Replays && Replays->ReplaySecondsOf(List.SessionId, Incident.Tick, Path, ReplaySeconds);
+		const bool bMine = Own >= 0 && (Incident.Car == Own || Incident.Other == Own);
+
+		FApexButtonSpec Row;
+		Row.Label = FString::Printf(TEXT("%s · %s"), *ApexIncidentList::What(Incident), *ApexIncidentList::Cars(Incident));
+		Row.SubLabel = FString::Printf(TEXT("%s · lap %d · %s"),
+			*ApexIncidentList::RaceClock(List.RaceSeconds(Incident)), Incident.Lap, *ApexIncidentList::Detail(Incident));
+		Row.Badge = bWatchable ? TEXT("WATCH") : FString();
+		Row.BadgeColour = bMine ? ApexUI::Palette::Accent : ApexUI::Palette::TextSecondary;
+		Row.LabelSize = 16.0f;
+		Row.ActionId = FName(*(IncidentActionPrefix + FString::FromInt(Index)));
+		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Button->Setup(Row);
+		Button->OnActivated.AddDynamic(this, &UApexSessionResultsWidget::HandleButtonActivated);
+		ApexUI::AddV(TableBox, Button, FMargin(0.0f, 0.0f, 0.0f, 4.0f));
+	}
+}
+
+void UApexSessionResultsWidget::ShowIncidents(bool bShow)
+{
+	bShowingIncidents = bShow;
+	if (bShow)
+	{
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->RequestIncidents();
+		}
+	}
+	RefreshIncidentsButton();
+	RefreshTable();
+}
+
+void UApexSessionResultsWidget::LogIncidents() const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !Net->GetIncidents().bValid)
+	{
+		UE_LOG(LogApexSim, Display, TEXT("apexsim.incidents: no list yet"));
+		return;
+	}
+	const FApexIncidents& List = Net->GetIncidents();
+	const UApexReplayRecorder* Replays = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+	UE_LOG(LogApexSim, Display, TEXT("apexsim.incidents: %d"), List.Incidents.Num());
+	for (int32 Index = 0; Index < List.Incidents.Num(); ++Index)
+	{
+		const FApexIncident& Incident = List.Incidents[Index];
+		FString Path;
+		double Seconds = -1.0;
+		const bool bWatchable = Replays && Replays->ReplaySecondsOf(List.SessionId, Incident.Tick, Path, Seconds);
+		UE_LOG(LogApexSim, Display, TEXT("  %d: %s lap %d %s · %s · %s%s"), Index,
+			*ApexIncidentList::RaceClock(List.RaceSeconds(Incident)), Incident.Lap, *ApexIncidentList::What(Incident),
+			*ApexIncidentList::Cars(Incident), *ApexIncidentList::Detail(Incident),
+			bWatchable ? *FString::Printf(TEXT(" (replay %.1f s)"), Seconds) : TEXT(""));
+	}
+}
+
+void UApexSessionResultsWidget::JumpToIncident(int32 Index)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const UApexReplayRecorder* Replays = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexReplayRecorder>() : nullptr;
+	if (!Net || !Replays || !Net->GetIncidents().Incidents.IsValidIndex(Index))
+	{
+		return;
+	}
+	const FApexIncidents& List = Net->GetIncidents();
+	FString Path;
+	double Seconds = 0.0;
+	if (!Replays->ReplaySecondsOf(List.SessionId, List.Incidents[Index].Tick, Path, Seconds))
+	{
+		ShowToast(Replays->IsRecording()
+			? TEXT("The replay is written when the session ends: wait for the flag")
+			: TEXT("This machine's replay of the race does not reach back to that incident"), true);
+		return;
+	}
+	if (UApexRootWidget* Root = GetRoot())
+	{
+		Root->WatchReplayAt(Path, ApexIncidentList::JumpSeconds(Seconds));
 	}
 }
 
@@ -1346,6 +1557,18 @@ void UApexSessionResultsWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		}
 		// After qualifying: the race, gridded by the server from the result.
 		Net->BeginSession(5, IsTimesheet() && !IsPractice() ? EApexGameMode::Race : Flow->CreateStartingMode);
+		return;
+	}
+
+	if (Id == ActionIncidents)
+	{
+		ShowIncidents(!bShowingIncidents);
+		return;
+	}
+
+	if (Id.ToString().StartsWith(IncidentActionPrefix))
+	{
+		JumpToIncident(FCString::Atoi(*Id.ToString().RightChop(IncidentActionPrefix.Len())));
 		return;
 	}
 

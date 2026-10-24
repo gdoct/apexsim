@@ -205,6 +205,24 @@ server's reason as a sentence, and the rest keep their code.
 Checks: `ApexSim.UI.EventLobby.Labels`, `ApexSim.Net.ServerErrors`, and
 `ApexSim.Net.Protocol.GoldenDecode` (`S_SessionJoinedEvent`).
 
+### Session results (`UI/ApexSessionResultsWidget.cpp`)
+
+After a race the client is still in, the side panel's **Incidents** turns
+the table into the race's incident list as the server keeps it for stewards
+(`UApexNetSubsystem::RequestIncidents`, `GetIncidents`, `OnIncidents`;
+[sessions.md](../server/sessions.md#incidents)), asked for again every half
+second while the race runs; **Classification** turns it back. A row each:
+what (contact, pass under yellow, track limits, penalty, penalty cleared),
+the cars, the race clock, the lap and the detail (`ApexIncidentList`), the
+player's own in the accent colour. Once the session has ended and the
+client's replay of it is written, a row is badged WATCH and activating it
+leaves the session and plays that replay from three seconds before the
+incident (`UApexReplayRecorder::ReplaySecondsOf`,
+`UApexRootWidget::WatchReplayAt`, which waits out of the session and seeks
+once the file has loaded). Console: `apexsim.incidents [show|hide|log|watch
+<n>]` (0-based). Checks: `ApexSim.UI.IncidentList.*`,
+`ApexSim.Net.Protocol.GoldenDecode` (`S_Incidents`).
+
 ### Main menu (`UI/ApexMainMenuWidget.cpp`)
 
 Two columns. The left "hero" shows what the player was last doing (pending
@@ -914,7 +932,8 @@ Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 ### Watching, replays, guide, content folders
 
 - `-ApexWatch` (the backdrop), `-ApexWatchSession`,
-  `-ApexWatchReplay=<file|latest>`, `-ApexWatchHotlap`, with
+  `-ApexWatchReplay=<file|latest>` (`-ApexWatchReplayAt=<s>` seeks it once
+  loaded), `-ApexWatchHotlap`, with
   `-ApexWatchCamera=`, `-ApexWatchTower=`, `-ApexWatchCar=`,
   `-ApexWatchHideHud`; console `apexsim.watch [...]`. See
   [spectator.md](spectator.md).

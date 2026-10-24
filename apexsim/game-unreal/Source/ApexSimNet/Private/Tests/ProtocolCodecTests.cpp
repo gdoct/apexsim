@@ -117,6 +117,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeRewind(10),
 		ApexGolden::C_Rewind);
 
+	CheckBytes(TEXT("RequestIncidents"),
+		ApexProtocol::EncodeRequestIncidents(),
+		ApexGolden::C_RequestIncidents);
+
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
@@ -1240,6 +1244,38 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Rewound.Tick"), Message.Rewound.Tick, 4200u);
 			TestEqual(TEXT("Rewound.FromTick"), Message.Rewound.FromTick, 8610u);
 			TestEqual(TEXT("Rewound.HoldMs"), Message.Rewound.HoldMs, 3000u);
+		}
+	}
+
+	{
+		// The race's incident list: cars by roster index and name, a car gone as NoCar.
+		FApexServerMessage Message;
+		if (Decode(TEXT("Incidents"), ApexGolden::S_Incidents, Message))
+		{
+			const FApexIncidents& List = Message.Incidents;
+			TestEqual(TEXT("Incidents type"), Message.Type, EApexServerMessageType::Incidents);
+			TestTrue(TEXT("Incidents decoded"), List.bValid);
+			TestEqual(TEXT("TickRate"), List.TickRate, 420);
+			TestEqual(TEXT("RaceStartTick"), List.RaceStartTick, static_cast<int64>(2520));
+			if (TestEqual(TEXT("Incidents.Num"), List.Incidents.Num(), 3))
+			{
+				const FApexIncident& Contact = List.Incidents[0];
+				TestEqual(TEXT("contact kind"), Contact.Kind, ApexIncident::Contact);
+				TestEqual(TEXT("contact cars"), Contact.Car * 10 + Contact.Other, 3);
+				TestEqual(TEXT("contact names"), Contact.Name + Contact.OtherName, FString(TEXT("AdaBea")));
+				TestEqual(TEXT("contact severity"), Contact.Severity, ApexIncident::Heavy);
+				TestEqual(TEXT("contact closing"), Contact.ClosingMps, 9.5f);
+				TestEqual(TEXT("contact second of the race"), List.RaceSeconds(Contact), 6.0);
+				const FApexIncident& Cut = List.Incidents[1];
+				TestEqual(TEXT("cut kind"), Cut.Kind, ApexIncident::TrackLimits);
+				TestEqual(TEXT("cut car gone"), Cut.Car, ApexIncident::NoCar);
+				TestTrue(TEXT("cut"), Cut.bCut);
+				TestEqual(TEXT("cut other (none)"), Cut.Other, ApexIncident::NoCar);
+				const FApexIncident& Penalty = List.Incidents[2];
+				TestEqual(TEXT("penalty kind"), Penalty.Kind, ApexIncident::Penalty);
+				TestEqual(TEXT("penalty offence"), Penalty.Offence, ApexPenalty::YellowPass);
+				TestEqual(TEXT("penalty paid by"), Penalty.Penalty, ApexPenalty::DriveThrough);
+			}
 		}
 	}
 

@@ -903,11 +903,11 @@ PAGES.incidents = el => {
   function jump(i) {
     if (report.live) return `<div class="muted">${fmtRace(i.replay_s != null ? i.replay_s : i.race_s)} into the race's replay. The replay and the jump into it are here once the race has finished.</div>`;
     if (!report.replay_file || i.replay_s == null) return '<div class="muted">This race has no replay on the server to jump into.</div>';
-    const cmd = `ApexSim.exe -ApexWatchReplay="<folder>\\${report.replay_file}" "-ApexExecAfter=8=apexsim.watch seek ${Math.max(0, i.replay_s - 3).toFixed(1)}"`;
+    const cmd = `ApexSim.exe -ApexWatchReplay="<folder>\\${report.replay_file}" -ApexWatchReplayAt=${Math.max(0, i.replay_s - 3).toFixed(1)}`;
     return `<div style="display:flex;flex-direction:column;gap:8px">
       <div><a class="btn sm" href="/api/replays/${encodeURIComponent(report.replay_file)}" download>DOWNLOAD REPLAY</a> <span class="sm-mono">${esc(report.replay_file)}</span> · ${fmtRace(i.replay_s)} into it</div>
       <div class="sm-mono" style="user-select:all;word-break:break-all">${esc(cmd)}</div>
-      <div class="muted">Three seconds before it, the replay held there in the game. While watching it already: <span class="sm-mono">apexsim.watch seek ${Math.max(0, i.replay_s - 3).toFixed(1)}</span> in the console. <button class="btn sm quiet" data-copy="${esc(cmd)}">COPY COMMAND</button></div></div>`;
+      <div class="muted">The game plays it from three seconds before, once it has loaded. While watching it already: <span class="sm-mono">apexsim.watch seek ${Math.max(0, i.replay_s - 3).toFixed(1)}</span> in the console. <button class="btn sm quiet" data-copy="${esc(cmd)}">COPY COMMAND</button></div></div>`;
   }
   function paintPick() {
     const all = [...live.map(s => ({ key: 'live:' + s.id, label: 'LIVE · ' + s.track + ' · ' + s.mode })),

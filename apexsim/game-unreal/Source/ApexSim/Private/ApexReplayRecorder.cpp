@@ -8,6 +8,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "UI/ApexIncidentList.h"
 
 namespace
 {
@@ -603,6 +604,10 @@ void UApexReplayRecorder::FinishAndKeepRecent()
 		if (FFileHelper::SaveArrayToFile(Bytes, *Path))
 		{
 			LastSessionPath = Path;
+			LastSessionId = SessionId;
+			LastSessionStartTick = Header.StartTick;
+			LastSessionTickRate = Header.TickRate;
+			LastSessionTickOffset = TickOffset;
 			if (bKeepWhenFinished)
 			{
 				UE_LOG(LogApexSim, Log, TEXT("Replay of the session saved: %s"), *Path);
@@ -616,6 +621,21 @@ void UApexReplayRecorder::FinishAndKeepRecent()
 	}
 	bKeepWhenFinished = false;
 	Writer.Reset();
+}
+
+bool UApexReplayRecorder::ReplaySecondsOf(const FString& InSessionId, int64 ServerTick, FString& OutPath, double& OutSeconds) const
+{
+	if (bRecording || LastSessionPath.IsEmpty() || InSessionId.IsEmpty()
+		|| !InSessionId.Equals(LastSessionId, ESearchCase::IgnoreCase) || !IFileManager::Get().FileExists(*LastSessionPath))
+	{
+		return false;
+	}
+	if (!ApexIncidentList::ReplaySecondsOf(ServerTick, LastSessionStartTick, LastSessionTickRate, LastSessionTickOffset, OutSeconds))
+	{
+		return false;
+	}
+	OutPath = LastSessionPath;
+	return true;
 }
 
 bool UApexReplayRecorder::CanKeepThisSession() const

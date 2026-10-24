@@ -3056,6 +3056,7 @@ void UApexRootWidget::SetGamepadHints(bool bGamepad)
 void UApexRootWidget::UpdateWatch(float DeltaSeconds)
 {
 	ApplyWatchCommandLine();
+	UpdatePendingReplay(DeltaSeconds);
 	if (WatchKind != EWatchKind::Backdrop)
 	{
 		return;
@@ -3457,9 +3458,20 @@ void UApexRootWidget::ApplyWatchCommandLine()
 			ReplayArg = Newest ? Newest->Path : FString();
 		}
 		UE_LOG(LogApexSim, Log, TEXT("-ApexWatchReplay: %s"), ReplayArg.IsEmpty() ? TEXT("no replay on disk") : *ReplayArg);
+		// -ApexWatchReplayAt=<s>: seek there once the replay has loaded
+		// (the dashboard's jump to an incident).
+		float At = -1.0f;
+		FParse::Value(FCommandLine::Get(), TEXT("ApexWatchReplayAt="), At);
 		if (!ReplayArg.IsEmpty())
 		{
-			WatchReplay(ReplayArg);
+			if (At >= 0.0f)
+			{
+				WatchReplayAt(ReplayArg, At);
+			}
+			else
+			{
+				WatchReplay(ReplayArg);
+			}
 		}
 	}
 
@@ -3544,6 +3556,67 @@ bool UApexRootWidget::WatchReplay(const FString& Path)
 	bWatchingReplay = true;
 	PushWatchState();
 	return true;
+}
+
+void UApexRootWidget::WatchReplayAt(const FString& Path, double Seconds)
+{
+	PendingReplayPath = Path;
+	PendingReplaySeek = FMath::Max(0.0, Seconds);
+	PendingReplayWait = 0.0f;
+	UE_LOG(LogApexSim, Log, TEXT("Replay %s from %.1f s"), *FPaths::GetCleanFilename(Path), PendingReplaySeek);
+	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+	if (Net && Net->IsInSession())
+	{
+		// A replay plays outside a session: leave it, and start once out.
+		Net->LeaveSession();
+	}
+	UpdatePendingReplay(0.0f);
+}
+
+void UApexRootWidget::UpdatePendingReplay(float DeltaSeconds)
+{
+	if (!PendingReplayPath.IsEmpty())
+	{
+		// Out of the session and its race view first; a while, then given up.
+		static constexpr float GiveUpSeconds = 15.0f;
+		PendingReplayWait += DeltaSeconds;
+		const UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
+		const bool bWaiting = (Net && Net->IsInSession()) || bRaceViewActive || IsWatching() || !AApexRaceDirector::Find(this);
+		if (bWaiting && PendingReplayWait < GiveUpSeconds)
+		{
+			return;
+		}
+		const FString Path = PendingReplayPath;
+		PendingReplayPath.Reset();
+		if (bWaiting || !WatchReplay(Path))
+		{
+			UE_LOG(LogApexSim, Warning, TEXT("Replay %s: could not start it"), *FPaths::GetCleanFilename(Path));
+			PendingReplaySeek = -1.0;
+			return;
+		}
+	}
+	if (PendingReplaySeek < 0.0)
+	{
+		return;
+	}
+	if (!IsWatchingReplay())
+	{
+		// Watching, the replay not on yet (WatchReplay on its way); not watching at all, given up.
+		if (!IsWatching())
+		{
+			PendingReplaySeek = -1.0;
+		}
+		return;
+	}
+	UApexSpectatorSubsystem* Spectator = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSpectatorSubsystem>() : nullptr;
+	if (!Spectator || !Spectator->IsPlaying() || Spectator->GetDurationSeconds() <= 0.0)
+	{
+		// Still loading.
+		return;
+	}
+	Spectator->SeekTo(PendingReplaySeek);
+	UE_LOG(LogApexSim, Log, TEXT("Replay seeked to %.1f s of %.1f"), Spectator->GetPlaybackSeconds(), Spectator->GetDurationSeconds());
+	PendingReplaySeek = -1.0;
 }
 
 void UApexRootWidget::SaveReplay()

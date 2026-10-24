@@ -149,6 +149,13 @@ in [sessions.md](sessions.md#rewind-in-offline-practice)). Golden bytes:
 `cargo test rewind_wire_format -- --nocapture` -> `ApexGolden::C_Rewind`,
 `S_Rewound`. Client: `ApexProtocol::EncodeRewind`, `FApexRewound`.
 
+The race's incident list: `RequestIncidents` (no fields; the session the
+connection is in) is answered with `Incidents` (`IncidentsData { SessionId,
+TickRate, RaceStartTick?, Incidents }`, each `IncidentData` naming its cars
+by roster index and name), or `Error 409` outside a session
+([sessions.md](sessions.md#incidents)). Client: `ApexProtocol::EncodeRequestIncidents`,
+`FApexIncidents`.
+
 Joining a session: `SelectCar`, then `CreateSession` or `JoinSession`, answered
 by `SessionJoined`, a `SessionRoster` (car index to player, reliable, resent
 whenever membership changes), `RacingLine`, `TrackSectors`, `CarSetupSheet`,
@@ -342,6 +349,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Road state | `road_state_wire_format` |
 | Session rules | `assists_wire_format`, `session_damage_wire_format`, `race_time_wire_format`, `qualifying_time_wire_format` (`CreateSession.qualifying_seconds`, `SessionJoined.QualifyingSeconds`, a qualifying `race_clock`), `weekend_wire_format` (`CreateSession.weekend` with and without a day's sky (`C_CreateSessionWeekendDays`, sent by the codec), `SessionJoined.Weekend`, `WeekendState`, a late entry (`S_WeekendStateLate`), a lobby listing a weekend between phases (`S_LobbyStateWeekendWaiting`), `AdvanceWeekend`, a `GameMode::Practice` frame with its clock), `session_ai_skill_wire_format`, `qualifying_cutoff_wire_format` (`CreateSession.qualifying_cutoff_pct`, `SessionJoined.QualifyingCutoffPct`), `pit_rule_wire_format` (`CreateSession.mandatory_stops` / `compound_change`, `SessionJoined.MandatoryStops` / `CompoundChange`, `RosterEntry.MissedStops`), `shootout_wire_format` (`CreateSession.qualifying_format` / `qualifying_lap_allowance`, `SessionJoined.QualifyingFormat` / `QualifyingLapAllowance`, `ShootoutState`, a weekend's `practice_damage` / `qualifying_damage`, `WeekendState.Damage`, a day's sky in `WeekendState.Conditions` (`S_WeekendStateConditions`)), `race_rules_wire_format` (`CreateSession.race_rules`, `SessionJoined.RaceRules`, a pace-lap frame's `race_phase`, `S_TelemetryCompactPaceLap`: the field after `yellow_flags`), `penalties_wire_format` (`race_rules.yellow_penalty` / `pit_exit_penalty`, `RosterEntry.Penalties`), `safety_car_wire_format` (`race_rules.safety_car`, a frame's `race_phase` 3), `reverse_grid_wire_format` (`race_rules.reverse_grid`, `C_CreateSessionReverseGrid`), `tyre_and_stint_rules_wire_format` (the tyre, parc fermé and stint keys of `race_rules`, `C_CreateSessionTyreStintRules`), `ballast_wire_format` (`CreateSession.ballast`, `SessionJoined.Ballast`, `C_CreateSessionBallast` / `S_SessionJoinedBallast`), `full_safety_car_wire_format` (`race_rules.safety_car` 2, `C_CreateSessionFullSafetyCar`; a frame with `race_phase` 5 and the safety car's pose, `S_TelemetryCompactSafetyCar`), `lobby_race_rules_wire_format` (a listed session's `RaceRules` and the lobby's `Balanced`, `S_LobbyStateRaceRules`), `conditions_air_wire_format`, `sky_wire_format`, `grid_wire_format` |
 | Events | `session_joined_event_wire_format` (`SessionJoined.Event`, `S_SessionJoinedEvent`) |
+| Incidents | `incidents_wire_format` (`RequestIncidents`, `Incidents`: `C_RequestIncidents`, `S_Incidents`) |
 | Prediction | `session_joined_physics_wire_format`, `track_bundle_wire_format` (`SessionJoined.Physics` naming the bundle, `RequestTrackBundle`, `TrackBundleChunk` with and without its chunk), `session_joined_balance_wire_format` (`S_SessionJoinedPhysicsBalance`: `Physics.balance`, a balanced car's figures) |
 | Garage, pit, hotlap | `car_setup_wire_format`, `car_setup_sheet_wire_format`, `pit_service_wire_format`, `pit_plan_wire_format` (`SetPitPlan`, full and empty), `hotlap_wire_format`, `hotlap_watch_wire_format` (`CreateSession.watch`), `recover_wire_format`, `rewind_wire_format` (`Rewind`, `Rewound`) |
 | Reconnect, profiles | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`; `C_AuthenticateProfile`: `Authenticate.driver_id`; `C_AuthenticateKey`, `S_AuthSuccessChallenge`, `C_ProveDriverKey`: the key handshake) |

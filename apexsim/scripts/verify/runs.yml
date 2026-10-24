@@ -7898,3 +7898,38 @@ runs:
       - at: 16
         label: "the refusal"
         checks: "R3: a toast reading 'You are not entered in this race event, and its entry list is closed.' (no 'Server error 403')"
+
+  - id: r3c-incidents
+    about: "N19. The race's incident list on the results screen, and the jump into the replay"
+    # Two laps with a full field from a standing start: contacts and track
+    # limits come by themselves. The stand-in takes the flag; the results
+    # screen follows the finish view. The shot times allow ~170 s of race:
+    # move them if the run's client.log shows the results later.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    exec:
+      200: ["apexsim.incidents show"]
+      206: ["apexsim.incidents log"]
+      214: ["apexsim.incidents watch 0"]
+      230: ["apexsim.watch hold"]
+    shots:
+      - at: 205
+        label: "results: the incident list"
+        checks: "N19: the race's incidents (what, cars, race clock, lap, detail), own rows in the accent colour, WATCH badges"
+      - at: 226
+        label: "the jump: the replay from just before incident 0"
+        checks: "N19: out of the session, the replay playing ~3 s before the first incident (client.log: Replay seeked to)"
+      - at: 233
+        label: "held there"
+        checks: "N19: the cars of incident 0 in view (TV camera)"

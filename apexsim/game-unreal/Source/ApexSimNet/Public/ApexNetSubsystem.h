@@ -47,6 +47,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const ui
 /** A slice of the session's road state (`RoadState`, or a stream's `Road` record on the backdrop feed). */
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRewound, const FApexRewound&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnIncidents, const FApexIncidents&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
 
 /**
@@ -396,6 +397,9 @@ public:
 	 */
 	FApexOnRewound OnRewound;
 
+	/** The race's incident list arrived (`Incidents`, answering RequestIncidents). */
+	FApexOnIncidents OnIncidents;
+
 	/**
 	 * Every chunk of a track's physics bundle as it arrives, answering
 	 * RequestTrackBundleChunk (the prediction subsystem asks and assembles,
@@ -569,6 +573,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void Rewind(int32 Seconds);
+
+	/**
+	 * Ask for the incident list of the race this client is in, driving or
+	 * watching (`RequestIncidents`): it arrives as GetIncidents and
+	 * OnIncidents. Empty outside a race.
+	 */
+	void RequestIncidents();
+	/** The incident list last received for the session this client is in; not bValid before one. */
+	const FApexIncidents& GetIncidents() const { return CurrentIncidents; }
 
 	/** In a practice session as its only human driver: what the server lets rewind. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -1082,6 +1095,8 @@ private:
 	TArray<FApexDriverBallast> CurrentBallast;
 
 	FApexSessionEvent CurrentEvent;
+	/** The session's incident list, as last asked for; reset with the session. */
+	FApexIncidents CurrentIncidents;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;
