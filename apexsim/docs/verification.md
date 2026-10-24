@@ -152,6 +152,16 @@ an overpass, the gantry, the camp villages, a rail tag on its beam. From
   hillside letters seen from the Döttinger Höhe (or hidden by the trees
   between); Brünnchen's hedge colour.
 
+Run 2026-10-24 (`r6-nordschleife`): the overpass at 3964 m, the timing
+gantry, the camp villages (tents, caravans, flags), the K 73 bridge, the
+skid marks and the road graffiti read well. Still not judged from these
+shots: the marshal post's number and the grade plates are a few pixels at
+the poses' distance, no rail tag is in frame, the toll booths and the
+spectator banks sit far behind the catch fence, the Hohe Acht tower and
+the Döttinger Höhe letters are hidden by the fence and trees from the
+road, and Brünnchen's hedge is not in shot. The poses need moving closer
+(`spots.py --prop`) before these close.
+
 ### R7. A seeded pile-up replay, before and after
 
 Four unattended runs (snow and heavy rain, chase and watch cameras) left
