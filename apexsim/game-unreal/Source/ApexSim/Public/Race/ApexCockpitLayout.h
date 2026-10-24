@@ -238,4 +238,19 @@ namespace ApexCockpit
 	{
 		return -FMath::Clamp(ServerSteering, -1.0f, 1.0f) * 14.0f * FMath::Clamp(Amount, 0.0f, 1.0f);
 	}
+
+	/** EV100 the screens' `apexsim.cockpit.ScreenNits` is set for: a sunny race. */
+	inline constexpr float ScreenReferenceEv = 14.0f;
+
+	/** EV100 of the eye adaptation's linear exposure (Unreal's 1 / (1.2 * 2^EV100)). */
+	APEXSIM_API float ExposureToEv100(float Exposure);
+
+	/**
+	 * The cockpit screens' emissive multiplier at the view's exposure. At
+	 * or above the reference EV it is `BaseNits`, as set; below it, down by
+	 * as many stops as the exposure opened, so a display reads the same on
+	 * screen at night as by day rather than as a blown white rectangle. An
+	 * exposure not known yet (0 or less) leaves `BaseNits`. Never under 1.
+	 */
+	APEXSIM_API float ScreenNitsAt(float BaseNits, float Exposure, float ReferenceEv = ScreenReferenceEv);
 }

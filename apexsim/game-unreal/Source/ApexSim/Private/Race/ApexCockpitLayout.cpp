@@ -161,4 +161,20 @@ namespace ApexCockpit
 		const float Sideways = FMath::Clamp(-LateralG * 3.5f, -6.0f, 6.0f);
 		return FVector(Forward, Sideways, 0.0f) * Scale;
 	}
+
+	float ExposureToEv100(float Exposure)
+	{
+		return FMath::Log2(1.0f / (1.2f * FMath::Max(Exposure, UE_SMALL_NUMBER)));
+	}
+
+	float ScreenNitsAt(float BaseNits, float Exposure, float ReferenceEv)
+	{
+		const float Base = FMath::Max(BaseNits, 1.0f);
+		if (!(Exposure > 0.0f))
+		{
+			return Base;
+		}
+		const float StopsDown = FMath::Max(0.0f, ReferenceEv - ExposureToEv100(Exposure));
+		return FMath::Max(1.0f, Base * FMath::Exp2(-StopsDown));
+	}
 }

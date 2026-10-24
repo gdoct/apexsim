@@ -519,6 +519,11 @@ shot every 7 s, cuts logged with their reason and the lens's position.
   no flat white or near-black frame, and how often the log's
   `cut: inside a mesh` comes (a street circuit's helicopter and trackside
   spots among the buildings).
+- The cockpit display and mirrors at night dimmed with the exposure
+  (`cockpit-screens-night`, [game/cameras.md](game/cameras.md), Cockpit):
+  the SF-26's wheel display readable, not a white rectangle, with the
+  old look (`apexsim.cockpit.ScreenReferenceEv -10`) beside it; the same
+  display by day unchanged.
 
 ## 2. Needs a human: hands, ears and hardware
 

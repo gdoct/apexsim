@@ -7,6 +7,7 @@
 #include "ApexCockpitRig.generated.h"
 
 class AApexRaceCarActor;
+class FApexCockpitExposureProbe;
 class UApexCockpitDashWidget;
 class UApexMirrorWidget;
 class UMaterialInstanceDynamic;
@@ -156,6 +157,8 @@ private:
 	void PlaceMirror(FMirror& Mirror, const FVector& Local, const FVector2D& SizeCm, const FRotator& CaptureRotation);
 	void ApplyVisibility();
 	void EnsureRenderTargets();
+	/** The screens' emissive multiplier now: the knob, dimmed by the view's exposure. */
+	float ScreenNits() const;
 	void ApplyScreenBrightness();
 
 	void UpdateWheel(float DeltaSeconds);
@@ -250,6 +253,8 @@ private:
 	/** Quality the render targets were sized for; -1 until built. */
 	int32 BuiltQuality = -1;
 	float AppliedNits = -1.0f;
+	/** Reads the view's exposure each frame, which the screens' brightness follows. */
+	TSharedPtr<FApexCockpitExposureProbe, ESPMode::ThreadSafe> ExposureProbe;
 	bool bPlaced = false;
 	/** The car's cockpit revision the layout and steering wheel were taken from. */
 	uint32 SeenCockpitRevision = 0;

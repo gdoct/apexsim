@@ -281,11 +281,6 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
-- At night the cockpit wheel's display glows as a blown white rectangle
-  (`headlights-night`, 2026-10-24, the SF-26 at Mandarina Bay): its
-  emissive is set for the day's exposure; scale it with the scene's
-  exposure as the lamp faces are.
-
 - Runtime-built track meshes stay out of the distance-field scene, so
   software Lumen and DF shadows see the road and terrain less well than the
   kit props. The fast build makes no distance field. `-ApexTrackFullBuild`

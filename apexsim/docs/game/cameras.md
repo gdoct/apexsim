@@ -57,7 +57,14 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   shadows. A fourth capture feeds the HUD's virtual mirror strip.
 - The screens are unlit widget components; at race exposure they would be
   black at a tint of 1, so `apexsim.cockpit.ScreenNits` (default 4500) scales
-  them.
+  them. That is their brightness in a view exposed at
+  `apexsim.cockpit.ScreenReferenceEv` (EV100 14, a sunny race) or above; a
+  view exposed lower (dusk, night) dims them by as many stops
+  (`ApexCockpit::ScreenNitsAt`), so the display and mirrors read the same
+  on screen at night as by day instead of as white rectangles. The
+  exposure is the game view's own eye adaptation, read as each frame's
+  views are set up (`FApexCockpitExposureProbe`, a world scene view
+  extension that skips scene captures).
 
 Placement is `ApexCockpit::DeriveLayout`: pure maths over the mesh's bounds
 in the car frame, open cockpit or closed cabin from the catalog class (else

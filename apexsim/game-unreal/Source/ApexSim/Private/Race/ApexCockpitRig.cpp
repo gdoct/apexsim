@@ -12,6 +12,8 @@
 #include "Materials/MaterialInterface.h"
 #include "Race/ApexRaceCarActor.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "SceneView.h"
+#include "SceneViewExtension.h"
 #include "UI/ApexCockpitDashWidget.h"
 #include "UI/ApexMirrorWidget.h"
 #include "UObject/ConstructorHelpers.h"
@@ -28,6 +30,12 @@ namespace
 		TEXT("apexsim.cockpit.ScreenNits"),
 		4500.0f,
 		TEXT("Brightness of the cockpit display and mirror faces, as an emissive multiplier"),
+		ECVF_Default);
+
+	TAutoConsoleVariable<float> CVarScreenReferenceEv(
+		TEXT("apexsim.cockpit.ScreenReferenceEv"),
+		ApexCockpit::ScreenReferenceEv,
+		TEXT("EV100 at which the cockpit screens are as bright as ScreenNits; a view exposed below it dims them by its stops"),
 		ECVF_Default);
 
 	/** Render-target scale per mirror-quality bucket. */
@@ -125,6 +133,39 @@ namespace
 		}
 	}
 }
+
+/**
+ * The exposure the game view was drawn at, read on the game thread as each
+ * frame's views are set up (the eye adaptation's value from a few frames
+ * back). Scene captures (the mirrors) and reflection captures are left out.
+ */
+class FApexCockpitExposureProbe : public FWorldSceneViewExtension
+{
+public:
+	FApexCockpitExposureProbe(const FAutoRegister& AutoRegister, UWorld* InWorld)
+		: FWorldSceneViewExtension(AutoRegister, InWorld)
+	{
+	}
+
+	virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) override
+	{
+		if (InView.bIsSceneCapture || InView.bIsReflectionCapture || InView.bIsPlanarReflection)
+		{
+			return;
+		}
+		const float Exposure = InView.GetLastEyeAdaptationExposure();
+		if (Exposure > 0.0f)
+		{
+			LastExposure = Exposure;
+		}
+	}
+
+	/** 0 until a view has been drawn with eye adaptation. */
+	float GetExposure() const { return LastExposure; }
+
+private:
+	float LastExposure = 0.0f;
+};
 
 AApexCockpitRig::AApexCockpitRig()
 {
@@ -251,6 +292,11 @@ void AApexCockpitRig::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UWorld* World = GetWorld(); World && !IsRunningCommandlet())
+	{
+		ExposureProbe = FSceneViewExtensions::NewExtension<FApexCockpitExposureProbe>(World);
+	}
+
 	// Dark carbon for the hub and spokes, a shade lighter for the grips, so
 	// the rim reads as a shape against the hub. Instances are made here
 	// rather than in the constructor, which is too early for dynamic
@@ -356,7 +402,7 @@ void AApexCockpitRig::BindCarGlass()
 		return;
 	}
 
-	const float Nits = FMath::Max(1.0f, CVarScreenNits.GetValueOnGameThread());
+	const float Nits = AppliedNits > 0.0f ? AppliedNits : ScreenNits();
 	const TPair<FMirror*, FVector2D> Mirrors[] = {
 		{ &Centre, Layout.CentreMirrorSizeCm }, { &Left, Layout.LeftMirrorSizeCm }, { &Right, Layout.RightMirrorSizeCm } };
 	for (const TPair<FMirror*, FVector2D>& Entry : Mirrors)
@@ -640,10 +686,19 @@ void AApexCockpitRig::EnsureRenderTargets()
 	}
 }
 
+float AApexCockpitRig::ScreenNits() const
+{
+	return ApexCockpit::ScreenNitsAt(CVarScreenNits.GetValueOnGameThread(),
+		ExposureProbe.IsValid() ? ExposureProbe->GetExposure() : 0.0f, CVarScreenReferenceEv.GetValueOnGameThread());
+}
+
 void AApexCockpitRig::ApplyScreenBrightness()
 {
-	const float Nits = FMath::Max(1.0f, CVarScreenNits.GetValueOnGameThread());
-	if (FMath::IsNearlyEqual(Nits, AppliedNits))
+	// The screens follow the view's exposure, so at night they are dimmed by
+	// the stops it opened (ApexCockpit::ScreenNitsAt). Within 2% is a step
+	// nobody sees, and not worth pushing to five faces every frame.
+	const float Nits = ScreenNits();
+	if (AppliedNits > 0.0f && FMath::Abs(Nits - AppliedNits) <= 0.02f * AppliedNits)
 	{
 		return;
 	}

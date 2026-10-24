@@ -7972,3 +7972,45 @@ runs:
       - {at: 121, label: "TV", checks: "no flat white or black frame"}
       - {at: 128, label: "TV", checks: "no flat white or black frame"}
       - {at: 135, label: "TV", checks: "no flat white or black frame"}
+
+  - id: cockpit-screens-night
+    about: "R22. Night cameras at Mandarina Bay"
+    # The wheel display and mirrors from the cockpit at night, then with the
+    # exposure dimming off (a reference EV below any view's) for the old look.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=21:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    shots:
+      - {at: 14, label: "cockpit, night", checks: "the wheel display readable, not a white rectangle; mirrors not blown"}
+      - {at: 20, label: "cockpit, night", checks: "the same down the road"}
+      - {at: 26, label: "cockpit, night, old look", checks: "for comparison: the display blown white", lead: 1, exec: "apexsim.cockpit.ScreenReferenceEv -10"}
+      - {at: 32, label: "cockpit, night, back", checks: "dimmed again", lead: 1, exec: "apexsim.cockpit.ScreenReferenceEv 14"}
+
+  - id: cockpit-screens-day
+    about: "R22. Night cameras at Mandarina Bay"
+    # The same display by day: as before (at or above the reference EV).
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    shots:
+      - {at: 14, label: "cockpit, day", checks: "the wheel display as bright as before"}

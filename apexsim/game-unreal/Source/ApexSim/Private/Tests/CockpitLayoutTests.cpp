@@ -253,4 +253,29 @@ bool FApexCockpitCarWheelTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCockpitScreenNitsTest,
+	"ApexSim.Cockpit.ScreenNitsFollowExposure",
+	ApexTestFlags)
+
+bool FApexCockpitScreenNitsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCockpit;
+	auto ExposureAt = [](float Ev) { return 1.0f / (1.2f * FMath::Exp2(Ev)); };
+
+	TestEqual(TEXT("EV100 round trip"), ExposureToEv100(ExposureAt(8.0f)), 8.0f, 1.0e-3f);
+	TestEqual(TEXT("unknown exposure: as set"), ScreenNitsAt(4500.0f, 0.0f), 4500.0f);
+	TestEqual(TEXT("a sunny race at the reference: as set"), ScreenNitsAt(4500.0f, ExposureAt(ScreenReferenceEv)), 4500.0f, 1.0f);
+	TestEqual(TEXT("brighter than the reference: never above the knob"), ScreenNitsAt(4500.0f, ExposureAt(15.0f)), 4500.0f, 1.0f);
+	// Night: the exposure opens six stops at a floodlit EV 8, nine at a dark
+	// circuit's EV 5; the screen comes down by as many.
+	TestEqual(TEXT("EV 8: six stops down"), ScreenNitsAt(4500.0f, ExposureAt(8.0f)), 4500.0f / 64.0f, 0.5f);
+	TestEqual(TEXT("EV 5: nine stops down"), ScreenNitsAt(4500.0f, ExposureAt(5.0f)), 4500.0f / 512.0f, 0.1f);
+	TestEqual(TEXT("a moonless EV -2: never under 1"), ScreenNitsAt(4500.0f, ExposureAt(-2.0f)), 1.0f);
+	TestEqual(TEXT("the reference moves with its knob"), ScreenNitsAt(4500.0f, ExposureAt(8.0f), 10.0f), 4500.0f / 4.0f, 1.0f);
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS
