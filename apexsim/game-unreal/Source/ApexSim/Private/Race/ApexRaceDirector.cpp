@@ -956,6 +956,7 @@ void AApexRaceDirector::HandleTelemetry(const FApexTelemetryFrame& Frame)
 		Progress.FinishPosition = Car.FinishPosition;
 	}
 
+	SampleMarshalCars(Frame);
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
 	UpdateFlagPanels(Frame);
@@ -1607,6 +1608,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	ApplyTrackLevelConditions();
 	UpdateRoadState();
 	UpdatePitBoxMarker();
+	UpdateMarshals(DeltaSeconds);
 	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);
 	UpdateCameraFeel(DeltaSeconds);
 	if (bTvView)
@@ -3783,6 +3785,7 @@ void AApexRaceDirector::EndRaceView()
 	bLocalInGarage = false;
 	LocalLap = 0;
 	ForgetPitBoxMarker();
+	ForgetMarshals();
 	// A shot is for one race; the next one re-reads the command line.
 	bPhotoMode = false;
 	ClearPhotoLens();
@@ -3990,6 +3993,7 @@ void AApexRaceDirector::UnloadTrackLevel()
 	ForgetTrackLevelConditions();
 	ForgetRoadStateOnTrack();
 	ForgetPitBoxMarker();
+	ForgetMarshals();
 	// The track went back with its materials reset; its looks are forgotten.
 	RoadDryLook.Reset();
 	SnowMids.Reset();
@@ -5356,6 +5360,7 @@ void AApexRaceDirector::ApplyReplayFrame(const FApexTelemetryFrame& Frame, float
 		Progress.StationM = Car.TrackProgress;
 		Progress.bOnTrack = Car.bIsOnTrack;
 	}
+	SampleMarshalCars(Frame);
 	UpdateStartLights(Frame);
 	UpdatePitExitLights(Frame);
 	UpdateFlagPanels(Frame);

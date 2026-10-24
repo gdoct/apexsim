@@ -6,6 +6,7 @@
 #include "Race/ApexChaseView.h"
 #include "Race/ApexFinishCamera.h"
 #include "Race/ApexLobbyCamera.h"
+#include "Race/ApexMarshals.h"
 #include "Race/ApexReplayCamera.h"
 #include "Race/ApexRoadStateMap.h"
 #include "Race/ApexSkyModel.h"
@@ -341,6 +342,12 @@ public:
 
 	/** Back to the cockpit or chase camera. */
 	void ReleaseShotCamera();
+
+	/**
+	 * Park the shot camera on the newest marshal scene (`apexsim.marshals.Look`):
+	 * up the road from the stopped car, looking at it. False when there is none.
+	 */
+	bool LookAtMarshals();
 
 	bool HasShotCameraPose() const { return bShotCameraPose; }
 
@@ -1232,6 +1239,29 @@ private:
 	TObjectPtr<UInstancedStaticMeshComponent> RoadDebris;
 	/** The pieces have been laid on the track on show (cleared when it goes). */
 	bool bRoadDebrisLaid = false;
+
+	// --- Marshals and recovery (ApexRaceDirectorMarshals.cpp) ---
+
+	/** This frame's cars for the marshals (`ApexMarshals::FTracker`), from the telemetry. */
+	void SampleMarshalCars(const FApexTelemetryFrame& Frame);
+	/** Advance the scenes and draw them: pooled figures, flags and tractors. */
+	void UpdateMarshals(float DeltaSeconds);
+	/** Hide every scene (the race view ended, or the track went). */
+	void ForgetMarshals();
+	ApexMarshals::FTracker MarshalTracker;
+	TArray<ApexMarshals::FCarSample> MarshalCars;
+	bool bMarshalRacing = false;
+	/** One scene's actors, made once and reused; MaxIncidents of them at most. */
+	struct FMarshalSlot
+	{
+		TObjectPtr<UStaticMeshComponent> Figures[2];
+		TObjectPtr<UStaticMeshComponent> Flags[2];
+		TObjectPtr<UStaticMeshComponent> Truck;
+		TObjectPtr<UStaticMeshComponent> Beacon;
+	};
+	TArray<FMarshalSlot> MarshalSlots;
+	/** Seconds the marshals' flags have been waving, for their swing. */
+	float MarshalClock = 0.0f;
 
 	// --- The pit box (ApexRaceDirectorPit.cpp) ---
 

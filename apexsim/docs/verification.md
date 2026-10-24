@@ -525,6 +525,20 @@ shot every 7 s, cuts logged with their reason and the lens's position.
   old look (`apexsim.cockpit.ScreenReferenceEv -10`) beside it; the same
   display by day unchanged.
 
+### R23. Marshals and recovery
+
+`marshals-recovery`: car 2's engine killed 20 s after the green at
+Monzarella, the shot camera parked on the scene (`apexsim.marshals.Look`).
+
+- The marshals at a stopped car ([game/cameras.md](game/cameras.md),
+  Marshals and recovery): two kit marshal cards facing the oncoming cars
+  (not edge-on or turned away: the card's face is taken as the kit's local
+  +Y), their yellow flags swinging, standing on the verge.
+- The recovery tractor driving in along the verge with its beacon
+  flashing, nose first (the kit vehicle's front taken as local +X), stopping
+  behind the car before the tow; the car gone to its box, the flags down,
+  the scene gone 5 s later. The TV director's trouble shot on the scene.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

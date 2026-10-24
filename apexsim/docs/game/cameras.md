@@ -13,12 +13,12 @@ in [spectator.md](spectator.md); triple-screen side views in
 - `game-unreal/Source/ApexSim/Public/Race/`: `ApexCockpitRig.h`,
   `ApexCockpitLayout.h`, `ApexChaseView.h`, `ApexShotCamera.h`,
   `ApexRaceCoordinate.h`, `ApexTvDirector.h`, `ApexLobbyCamera.h`, `ApexFinishCamera.h`,
-  `ApexPitCamera.h`, `ApexRaceDirector.h`
+  `ApexPitCamera.h`, `ApexMarshals.h`, `ApexRaceDirector.h`
 - `UI/ApexCockpitDashWidget.h`, `UI/ApexMirrorWidget.h`
 - `ApexDemoModeSubsystem.h` (module root)
 - Tests: `Private/Tests/CockpitLayoutTests.cpp`, `ChaseViewTests.cpp`,
   `ShotCameraTests.cpp`, `TvDirectorTests.cpp`, `LobbyCameraTests.cpp`, `FinishCameraTests.cpp`,
-  `PitCameraTests.cpp`
+  `PitCameraTests.cpp`, `MarshalsTests.cpp`
 
 ## Camera modes
 
@@ -188,6 +188,40 @@ director feeds it the session track's centerline from the lobby
 Tests: `ApexSim.Tv.*` (cutting, framing, path, target choice, cars in
 trouble, a blocked view, a lens inside a mesh, trackside placement, lock
 target).
+
+## Marshals and recovery (`ApexMarshals::FTracker`, `Race/ApexMarshals.h`)
+
+A car stopped off the road or out of the race gets marshals, and a
+recovery vehicle that comes for it, drawn by the client from telemetry
+alone (nothing on the wire; the tow itself is the server's,
+[sessions](../server/sessions.md#virtual-safety-car)). Pure logic,
+tested on the synthetic ring; the director draws it
+(`ApexRaceDirectorMarshals.cpp`) during a race, live or replayed.
+
+- **When**: slower than `StoppedMps` (1.5 m/s) outside the pits for
+  `OffRoadAfterS` (2 s) off the road or with a damage zone at 100%, or for
+  `OnRoadAfterS` (6 s) on the road. At most `MaxIncidents` (3) scenes; a new
+  one takes the place of a finished one, else the oldest, and a car whose
+  scene was dropped or ran its course gets none again until it moves.
+- **Marshals**: two kit `misc/marshal_figure` cards side by side at the
+  verge `PostUpCm` (12 m) up the road from the car, on its side and at
+  least 7 m out (3.5 m beyond a car off the road), facing the oncoming cars,
+  each waving a yellow flag (a primitive sheet swinging in the card's plane).
+- **Recovery vehicle**: the kit `vehicle/tractor`, with a flashing amber
+  roof beacon, sets off `TruckAfterS` (1.5 s) after the marshals came out
+  from 45 m up the road and drives in over `TruckDriveS` (5 s) along the
+  car's line, 2.5 m further out, to stop 6.5 m behind it: there before the
+  server tows a car out of the race (10 s after it went out).
+- **Gone**: the car towed to its pit box (it moved 30 m or into the pits) or
+  driving on (over 4 m/s): the flags go down, and the scene clears after
+  `LingerS` (5 s). A grid or a finished race clears every scene.
+- Without the circuit's path the car's own heading and right-hand side
+  stand in; without the kit, orange primitives.
+- `apexsim.marshals 0` turns them off; `apexsim.marshals.Look` parks the
+  shot camera on the newest scene (`apexsim.cam.Release` hands it back).
+  Each scene is logged (`Marshals out for car N at (...) cm`).
+
+Tests: `ApexSim.Marshals.*`.
 
 ## Finish view (`ApexFinishCam::FMove`)
 
