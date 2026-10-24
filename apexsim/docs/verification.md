@@ -394,8 +394,9 @@ season cards judged good from the shots the same day. Left:
 - Each round's rules and the fastest-lap point: `n7-season-rounds` (the
   setup with +1 for the fastest lap in the points, round 2 heavy rain at
   18:00 with 15 min qualifying and a 45-minute race, round 3 snow over 12
-  laps; shots of round 3's rules and the calendar's rows) is not shot yet.
-  Unseen in the game: a round raced from qualifying (its results screen's
+  laps; shots of round 3's rules and the calendar's rows), shot
+  2026-10-25: round 3's rules and the rows (R2's rules on their own line
+  under its name) as set. Unseen in the game: a round raced from qualifying (its results screen's
   Start the race, then the race filed into the round), a round under its
   own weather and length, the calendar's "FL NAME +1" and the drivers'
   "FL" count after a round, and the rows and rule steppers walked with a

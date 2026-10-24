@@ -416,7 +416,7 @@ A season against the AI, saved in the driver profile
   drivers round to round.
 - **Each round's rules**: the setup's calendar is a list of rows (a scroll
   box), each naming its round's format; a round with rules of its own has
-  its badge in the accent colour. A row opens the round's rules in the
+  an OWN RULES badge in the accent colour and its rules on a second line. A row opens the round's rules in the
   right column: Weather (the season's sky, or one of the six), Race start
   (the season's time, or an hour 00:00-23:00), Format (race only, or 10,
   15, 20, 30 or 60 min timed qualifying + race) and Race length (the

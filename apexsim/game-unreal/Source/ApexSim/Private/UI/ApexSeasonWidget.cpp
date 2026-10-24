@@ -537,11 +537,15 @@ void UApexSeasonWidget::RebuildCalendar(const FApexSeason& Preview)
 		Flow->GetTrackCatalogRow(Preview.Rounds[Round].TrackId, Row);
 		FApexButtonSpec Spec;
 		Spec.Label = FString::Printf(TEXT("R%d   %s"), Round + 1, *Row.DisplayName);
-		Spec.Badge = ApexSeason::DescribeRound(Preview, Round).ToUpper();
-		// A round with rules of its own stands out from the season's.
-		Spec.BadgeColour = Preview.Rounds[Round].HasOwnRules() ? Palette::Accent : Palette::TextMuted;
+		// A round with rules of its own stands out from the season's, its
+		// rules on a line of their own (beside a long name they ran into it).
+		const bool bOwnRules = Preview.Rounds[Round].HasOwnRules();
+		const FString Rules = ApexSeason::DescribeRound(Preview, Round).ToUpper();
+		Spec.Badge = bOwnRules ? FString(TEXT("OWN RULES")) : Rules;
+		Spec.SubLabel = bOwnRules ? Rules : FString();
+		Spec.BadgeColour = bOwnRules ? Palette::Accent : Palette::TextMuted;
 		Spec.ActionId = ActionSeasonRound;
-		Spec.Height = 40.0f;
+		Spec.Height = bOwnRules ? 54.0f : 40.0f;
 		Spec.LabelSize = 15.0f;
 		UApexButtonWidget* Button = WidgetTree->ConstructWidget<UApexButtonWidget>();
 		Button->Setup(Spec);
