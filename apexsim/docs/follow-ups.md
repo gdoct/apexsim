@@ -253,6 +253,10 @@ wear), and with the start rule pole's race begins on it.
   track and kept running; with fresh showcases a 7-minute run was clean.
   If it comes back, the run's `-abslog` and the Windows event log are the
   places to look.
+- Loose packs (`.acp`): the launcher lists what one installed but has no
+  Remove for a custom car, track or HUD component (the folders are deleted
+  by hand), and nothing records which pack an item came from. A HUD pack's
+  `layout.json` is not an item, so it is ignored.
 - Shanghai's and Monza's surface models are checked against a bare-earth
   one (grandstands, the park's canopy); both still drive their invented z.
 - Verification runs (`scripts/verify`): the tyre close-ups (two flat spots,

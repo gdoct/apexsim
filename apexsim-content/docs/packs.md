@@ -81,3 +81,49 @@ Nothing reads `installed.json` to decide what loads: the server loads its
 content folders, the game what is beside it, as before.
 
 A pack installs only into `default/`; `custom/` stays the player's.
+
+## Loose packs (.acp)
+
+An `.acp` ("ApexSim content pack") is a plain zip of a player's own
+content, made by hand or by a tool, for sharing: no manifest, no hashes,
+any number of cars, tracks and HUD components. What it holds is worked
+out from its files (`apexsim-lib/formats/src/pack/acp.rs`, `classify`),
+and it installs into the `custom/` folders, never over shipped content.
+
+| Item | Found by | Takes | Named |
+|---|---|---|---|
+| car | a folder holding `car.toml` | the whole folder (models, liveries, logos) | the folder; the pack's file name when `car.toml` is at the top |
+| HUD component | a folder holding `component.json` | the whole folder | as a car |
+| track | `<Stem>.yaml` with `<Stem>.uescene.json` anywhere in the zip | server half: every `<Stem>.*` file beside the YAML (sidecars, `.ats`, guide, layout); export: `<Stem>.uescene.json`, `<Stem>.uemesh`, `<Stem>.png` and `<Stem>.textures/`, wherever they sit | the stem |
+
+So both of these are one track:
+
+```
+Ring.acp                          Ring.acp
+  Ring/Ring.yaml                    Ring.yaml
+  Ring/Ring.ground.msgpack ...      Ring.ground.msgpack ...
+  game/Ring.uescene.json            Ring.uescene.json
+  game/Ring.uemesh                  Ring.uemesh
+  game/Ring.textures/...
+```
+
+A file in a folder item nested in another (a component inside a car folder)
+belongs to the deeper one; a file in no item is listed as ignored, and
+`__MACOSX/`, `.DS_Store`, `Thumbs.db` and `desktop.ini` are dropped.
+A track is baked before it is packed (a release has no pipeline): its
+`.uemesh` is required, a missing one of the five sidecars (`ground`,
+`curbs`, `walls`, `road`, `pit`) is a warning. Refused before anything is
+written: a path that is absolute or climbs out with `..`, a name that is not
+letters, digits, `-` and `_` (or starts with `_`), two items of one kind and
+name, a track named as a shipped track, a car `id` or `track_id` missing or
+already held by another item (both sides would ignore it), and a pack with
+no item at all.
+
+`apexsim-server content install <file>.acp` installs one, into a release
+(`--root`, by default the server's own) or a checkout (`--checkout
+<apexsim>`); `--dry-run` prints what it holds and where it would go. The
+launcher's Manage content > Install pack... runs both, asking first. Where
+each item goes is in [../../apexsim/MODDING.md](../../apexsim/MODDING.md)
+("Where things go"): an item replaces the player's own of its name (its
+folders emptied first), and a HUD component named as a shipped one
+replaces that on screen. Nothing is recorded in `installed.json`.

@@ -29,14 +29,22 @@ enum Command {
 
 #[derive(Subcommand, Debug)]
 enum ContentCommand {
-    /// Install a pack (.apxpack): checked whole, then written where the
-    /// server and the game look, and recorded in Content/installed.json
+    /// Install a pack: an .apxpack checked whole, written where the server
+    /// and the game look and recorded in Content/installed.json; or a loose
+    /// .acp, its cars, tracks and HUD components written into custom/
     Install {
         pack: std::path::PathBuf,
         /// The install folder (holding Server and Game); default: the one
         /// this server sits in
         #[arg(long)]
         root: Option<std::path::PathBuf>,
+        /// An .acp into a source checkout instead: its code root (apexsim/,
+        /// with apexsim-content/ beside it)
+        #[arg(long, conflicts_with = "root")]
+        checkout: Option<std::path::PathBuf>,
+        /// An .acp: say what it holds and where it would go, write nothing
+        #[arg(long)]
+        dry_run: bool,
     },
     /// List the installed packs
     List {
@@ -56,7 +64,28 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
     use apexsim_server::content_pack;
     let result = (|| -> Result<serde_json::Value, String> {
         match command {
-            ContentCommand::Install { pack, root } => {
+            ContentCommand::Install {
+                pack,
+                root,
+                checkout,
+                dry_run,
+            } => {
+                use apexsim_formats::pack::acp::ACP_EXTENSION;
+                use apexsim_server::content_acp::{self, Layout};
+                if pack
+                    .extension()
+                    .is_some_and(|e| e.eq_ignore_ascii_case(ACP_EXTENSION))
+                {
+                    let layout = match checkout {
+                        Some(code) => Layout::checkout(&code)?,
+                        None => Layout::Release(content_pack::install_root(root)?),
+                    };
+                    let report = content_acp::install(&layout, &pack, dry_run)?;
+                    return serde_json::to_value(report).map_err(|e| e.to_string());
+                }
+                if checkout.is_some() || dry_run {
+                    return Err("--checkout and --dry-run are for .acp packs".into());
+                }
                 let root = content_pack::install_root(root)?;
                 let entry = content_pack::install(&root, &pack)?;
                 serde_json::to_value(entry).map_err(|e| e.to_string())

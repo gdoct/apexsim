@@ -8,6 +8,7 @@
 #include <commctrl.h>
 #include <shellapi.h>
 #include <algorithm>
+#include <cstring>
 
 namespace fs = std::filesystem;
 
@@ -102,28 +103,130 @@ static void PopulateList(HWND hw)
     EnableWindow(GetDlgItem(hw, IdImport), t == TabTracks || t == TabCars);
 }
 
+// The JSON string at the start of s (just past its opening quote), unescaped; pos
+// ends past the closing quote. Enough for what the server's installer prints.
+static std::string JsonStringAt(const std::string& s, size_t& pos)
+{
+    std::string v;
+    while (pos < s.size() && s[pos] != '"')
+    {
+        char c = s[pos++];
+        if (c != '\\' || pos >= s.size()) { v += c; continue; }
+        char e = s[pos++];
+        switch (e)
+        {
+        case 'n': v += '\n'; break;
+        case 't': v += '\t'; break;
+        case 'r': break;
+        case 'u':
+            // Only control characters are escaped this way; they are dropped.
+            pos = std::min(pos + 4, s.size());
+            break;
+        default: v += e; break;
+        }
+    }
+    ++pos;
+    return v;
+}
+
+// The strings of "key" in json: the value when it is a string, or each string of an array.
+static std::vector<std::string> JsonStrings(const std::string& json, const char* key)
+{
+    std::vector<std::string> out;
+    size_t k = json.find("\"" + std::string(key) + "\":");
+    if (k == std::string::npos) return out;
+    size_t pos = json.find_first_not_of(" \t\r\n:", k + strlen(key) + 2);
+    if (pos == std::string::npos) return out;
+    if (json[pos] == '"')
+    {
+        ++pos;
+        out.push_back(JsonStringAt(json, pos));
+        return out;
+    }
+    if (json[pos] != '[') return out;
+    for (++pos; pos < json.size() && json[pos] != ']'; ++pos)
+        if (json[pos] == '"') { ++pos; out.push_back(JsonStringAt(json, pos)); --pos; }
+    return out;
+}
+
+// Runs the server's content installer with args; out is what it printed, and the
+// result whether it ran and reported no error ("apexsim-server: <why>" on failure).
+static bool RunInstaller(const Env& env, const std::wstring& args, std::wstring& out)
+{
+    std::wstring line = L"\"" + env.serverExe.wstring() + L"\" content install " + args;
+    std::string text;
+    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
+    bool ran = RunCapture(line, text, 300000);
+    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
+    out = ran ? Widen(Trim(text)) : L"the server's installer did not start";
+    return ran && out.find(L"apexsim-server:") == std::wstring::npos;
+}
+
+// A loose pack (.acp): the server's installer says what the pack holds (--dry-run),
+// the player confirms, and its cars, tracks and HUD components go into custom/ on
+// both sides, in a release or a checkout (CMDLINE.md, "content").
+static void InstallLoosePack(HWND hw, const fs::path& pack)
+{
+    const Env& env = *gEnv;
+    const wchar_t* title = L"Install a content pack";
+    if (!Exists(env.serverExe))
+    {
+        std::wstring m = env.release
+            ? L"The server (" + env.serverExe.wstring() + L") is missing, and it installs the pack."
+            : L"Packs install with the server's installer: build the server first (cargo build --release in server\\server).";
+        MessageBoxW(hw, m.c_str(), title, MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+    std::wstring args = L"\"" + pack.wstring() + L"\"";
+    if (!env.release)
+    {
+        std::wstring code = env.root.wstring();
+        while (code.size() > 3 && (code.back() == L'\\' || code.back() == L'/')) code.pop_back();  // a trailing \ would escape the quote
+        args += L" --checkout \"" + code + L"\"";
+    }
+    std::wstring out;
+    if (!RunInstaller(env, args + L" --dry-run", out))
+    {
+        MessageBoxW(hw, (L"Could not install " + pack.filename().wstring() + L":\n\n" + out).c_str(), title, MB_OK | MB_ICONWARNING);
+        return;
+    }
+    std::string json = Narrow(out);
+    std::vector<std::string> summary = JsonStrings(json, "summary"), warnings = JsonStrings(json, "warnings");
+    std::wstring m = pack.filename().wstring() + L" holds:\n\n" + (summary.empty() ? L"" : Widen(summary[0])) + L"\n";
+    if (!warnings.empty())
+    {
+        m += L"\nNote:\n";
+        for (const std::string& w : warnings) m += L"  " + Widen(w) + L"\n";
+    }
+    m += L"\nInstall it?";
+    if (MessageBoxW(hw, m.c_str(), title, MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+
+    bool ok = RunInstaller(env, args, out);
+    m = ok ? L"Installed " + pack.filename().wstring() + L". Restart the game and the server to use it."
+           : L"Could not install " + pack.filename().wstring() + L":\n\n" + out;
+    MessageBoxW(hw, m.c_str(), title, MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
+    PopulateList(hw);
+}
+
 // Install a pack with the server's own installer (apexsim-server content install,
 // Server\CMDLINE: it checks the pack whole before it writes), and say what it did.
+// A release's .apxpack goes to default/, a loose .acp to custom/ (InstallLoosePack).
 static void InstallPack(HWND hw)
 {
     const Env& env = *gEnv;
+    fs::path pack = PickFile(hw, L"Install a content pack", L"ApexSim content pack (.acp, .apxpack)", L"*.acp;*.apxpack");
+    if (pack.empty()) return;
+    if (EndsWithI(pack.wstring(), L".acp")) { InstallLoosePack(hw, pack); return; }
     if (!env.release || !Exists(env.serverExe))
     {
-        MessageBoxW(hw, L"Content packs install into a release package (its Server and Game folders).",
+        MessageBoxW(hw, L"An .apxpack installs into a release package (its Server and Game folders).",
                     L"Install a content pack", MB_OK | MB_ICONINFORMATION);
         return;
     }
-    fs::path pack = PickFile(hw, L"Install a content pack", L"ApexSim content pack", L"*.apxpack");
-    if (pack.empty()) return;
-    std::wstring line = L"\"" + env.serverExe.wstring() + L"\" content install \"" + pack.wstring() + L"\"";
-    std::string out;
-    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    bool ran = RunCapture(line, out, 120000);
-    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
-    std::wstring text = Widen(Trim(out));
-    bool ok = ran && text.find(L"apexsim-server:") == std::wstring::npos && text.find(L"\"version\"") != std::wstring::npos;
+    std::wstring out;
+    bool ok = RunInstaller(env, L"\"" + pack.wstring() + L"\"", out) && out.find(L"\"version\"") != std::wstring::npos;
     std::wstring m = ok ? L"Installed " + pack.filename().wstring() + L". Restart the game and the server to use it."
-                        : L"Could not install " + pack.filename().wstring() + L":\n\n" + (ran ? text : L"the server's installer did not start");
+                        : L"Could not install " + pack.filename().wstring() + L":\n\n" + out;
     MessageBoxW(hw, m.c_str(), L"Install a content pack", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
     PopulateList(hw);
 }

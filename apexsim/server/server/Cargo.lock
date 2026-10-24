@@ -145,6 +145,7 @@ dependencies = [
  "uuid",
  "webpki-roots",
  "winresource",
+ "zip",
 ]
 
 [[package]]

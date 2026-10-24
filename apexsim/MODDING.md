@@ -250,6 +250,22 @@ root, `apexsim-content/`; the scripts and the server from the code root,
   order. Keep the `track_id`: lap records, ghosts and the catalog are keyed by
   it.
 
+## Sharing content as an .acp
+
+An `.acp` is a zip of your own cars, tracks and HUD components, renamed to
+`.acp`. Zip the car folder (with its `car.toml`), the component folder (with
+its `component.json`), or a baked track (its YAML and sidecars plus its
+export, `<Stem>.uescene.json`, `.uemesh`, `.png` and `.textures/`); one pack
+may hold several. Whoever gets it opens the launcher's **Manage content >
+Install pack...**, which shows what the pack holds and puts each item in
+the `custom/` folders above, on both the server's and the game's side, in
+an installed game or a checkout. An item replaces your own of the same
+name. A car or track reusing another's `id` / `track_id` is refused: give a
+copy its own. The exact rules are in
+[apexsim-content/docs/packs.md](../apexsim-content/docs/packs.md#loose-packs-acp);
+from a command line it is `apexsim-server content install <file>.acp`
+([server/server/CMDLINE.md](server/server/CMDLINE.md#content)).
+
 ## Importing from Assetto Corsa
 
 Cars and tracks from your own Assetto Corsa install convert in one step.

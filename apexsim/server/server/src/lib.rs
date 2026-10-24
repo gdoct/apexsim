@@ -2,6 +2,7 @@ pub mod admin;
 pub mod championships;
 pub mod chat;
 pub mod config;
+pub mod content_acp;
 pub mod content_pack;
 pub mod driver_keys;
 pub mod events;

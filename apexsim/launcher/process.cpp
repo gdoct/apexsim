@@ -3,6 +3,8 @@
 #include "process.h"
 #include "text.h"
 
+#include <algorithm>
+
 bool RunCapture(const std::wstring& line, std::string& out, unsigned long timeoutMs)
 {
     SECURITY_ATTRIBUTES sa = { sizeof sa, nullptr, TRUE };
@@ -22,13 +24,22 @@ bool RunCapture(const std::wstring& line, std::string& out, unsigned long timeou
     if (!ok) { CloseHandle(rd); return false; }
     CloseHandle(pi.hThread);
     out.clear();
-    // The output is a few bytes, far under the pipe's buffer, so waiting first cannot block it;
-    // a hung interpreter is cut off after the timeout.
-    if (WaitForSingleObject(pi.hProcess, timeoutMs) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
-    char buf[256];
-    DWORD n = 0;
-    while (PeekNamedPipe(rd, nullptr, 0, nullptr, &n, nullptr) && n && ReadFile(rd, buf, sizeof buf, &n, nullptr) && n)
-        out.append(buf, n);
+    // Read while it runs: output larger than the pipe's buffer would otherwise stall the
+    // command until the timeout. A hung command is cut off after the timeout.
+    char buf[4096];
+    auto drain = [&] {
+        DWORD n = 0;
+        while (PeekNamedPipe(rd, nullptr, 0, nullptr, &n, nullptr) && n &&
+               ReadFile(rd, buf, (DWORD)std::min<size_t>(n, sizeof buf), &n, nullptr) && n)
+            out.append(buf, n);
+    };
+    ULONGLONG start = GetTickCount64();
+    while (WaitForSingleObject(pi.hProcess, 20) == WAIT_TIMEOUT)
+    {
+        drain();
+        if (GetTickCount64() - start > timeoutMs) { TerminateProcess(pi.hProcess, 1); break; }
+    }
+    drain();
     CloseHandle(rd);
     CloseHandle(pi.hProcess);
     return true;
