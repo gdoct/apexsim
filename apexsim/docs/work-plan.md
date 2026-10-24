@@ -139,7 +139,6 @@ ahead sees coming, not a looser attack.
 ### Race rules and sessions
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
-- Assists per weekend phase — bundle with B2.
 - Driver swaps (fixed stint lengths are built).
 
 ### Simulation

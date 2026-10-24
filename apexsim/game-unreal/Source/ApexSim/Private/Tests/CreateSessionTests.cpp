@@ -882,7 +882,7 @@ bool FApexCreateSessionWrittenForecastTest::RunTest(const FString& Parameters)
 }
 
 // -----------------------------------------------------------------------------
-// Qualifying's format, lap allowance and a weekend phase's damage.
+// Qualifying's format, lap allowance and a weekend phase's damage and aids.
 // -----------------------------------------------------------------------------
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
@@ -908,6 +908,41 @@ bool FApexCreateSessionQualifyingFormatTest::RunTest(const FString& Parameters)
 	for (int32 Chip = 0; Chip < PhaseDamageChips; ++Chip)
 	{
 		TestEqual(*FString::Printf(TEXT("chip %d round trip"), Chip), PhaseDamageChip(PhaseDamageOfChip(Chip)), Chip);
+	}
+
+	// A weekend phase's own aids: the race's, or a preset.
+	TestEqual(TEXT("assists: the race's first"), PhaseAssistChip(-1), 0);
+	TestEqual(TEXT("then each preset"), PhaseAssistChips, 1 + static_cast<int32>(EAssistPreset::Count));
+	TestEqual(TEXT("the race's chip"), PhaseAssistChipLabel(0), FString(TEXT("Race's")));
+	TestEqual(TEXT("Pro the last chip"), PhaseAssistChipLabel(PhaseAssistChips - 1), FString(TEXT("Pro")));
+	for (int32 Chip = 0; Chip < PhaseAssistChips; ++Chip)
+	{
+		TestEqual(*FString::Printf(TEXT("assist chip %d round trip"), Chip), PhaseAssistChip(PhaseAssistOfChip(Chip)), Chip);
+	}
+	TestTrue(TEXT("Pro allows nothing"), PhaseAssists(static_cast<int32>(EAssistPreset::Pro)) == AssistPreset(EAssistPreset::Pro));
+	TestEqual(TEXT("a preset summarised"), AssistsSummary(AssistPreset(EAssistPreset::Club)), FString(TEXT("CLUB ASSISTS")));
+	FApexAllowedAssists NoLine;
+	NoLine.bRacingLine = false;
+	TestEqual(TEXT("a mix counted"), AssistsSummary(NoLine), FString(TEXT("4/5 ASSISTS")));
+	TestEqual(TEXT("no note without its own"), PhaseAssistsNote(false, NoLine), FString());
+	TestEqual(TEXT("a lobby note"), PhaseAssistsNote(true, AssistPreset(EAssistPreset::Pro)), FString(TEXT(", PRO ASSISTS")));
+	{
+		UGameInstance* Instance = NewObject<UGameInstance>(GetTransientPackage());
+		UApexMenuFlowSubsystem* Flow = NewObject<UApexMenuFlowSubsystem>(Instance);
+		Flow->CreateStartingMode = EApexGameMode::Race;
+		Flow->bCreateWeekend = true;
+		Flow->CreateWeekendPracticeMinutes = 0;
+		Flow->CreateWeekendPracticeAssists = static_cast<int32>(EAssistPreset::Pro);
+		Flow->CreateWeekendQualifyingAssists = static_cast<int32>(EAssistPreset::Club);
+		FApexWeekendFormat Sent = Flow->WeekendToSend();
+		TestFalse(TEXT("no practice, no practice aids"), Sent.bHasPracticeAssists);
+		TestTrue(TEXT("qualifying sends its own"), Sent.bHasQualifyingAssists);
+		TestTrue(TEXT("as Club"), Sent.QualifyingAssists == AssistPreset(EAssistPreset::Club));
+		Flow->CreateWeekendPracticeMinutes = 10;
+		Flow->CreateWeekendQualifyingAssists = -1;
+		Sent = Flow->WeekendToSend();
+		TestTrue(TEXT("practice sends its own"), Sent.bHasPracticeAssists && Sent.PracticeAssists == AssistPreset(EAssistPreset::Pro));
+		TestFalse(TEXT("the race's sends none"), Sent.bHasQualifyingAssists);
 	}
 	TestEqual(TEXT("no allowance, no count"), ApexQualifyingLapAllowance::LapsLeft(0, 3), -1);
 	TestEqual(TEXT("two of three run"), ApexQualifyingLapAllowance::LapsLeft(3, 2), 1);

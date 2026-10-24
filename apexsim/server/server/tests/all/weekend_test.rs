@@ -313,3 +313,143 @@ async fn a_weekend_runs_from_the_lobby_to_the_race_over_the_wire() {
         Err(_) => panic!("test timed out"),
     }
 }
+
+/// A weekend whose practice allows no aid and whose qualifying allows ABS
+/// alone: the host asks for every aid in the lobby, each phase clamps the
+/// car to its own caps when it begins, and the race (the session's caps,
+/// everything) gives every aid back, the racing line planned again.
+#[tokio::test]
+async fn a_weekend_clamps_the_aids_to_each_phase() {
+    let result = timeout(TEST_TIMEOUT, async {
+        let server = common::start_test_server().await;
+        let (mut host, lobby) = Client::connect("Host", server.tcp_addr).await?;
+        let car_id = lobby.car_configs.first().ok_or("no cars")?.id;
+        let track_id = lobby.track_configs.first().ok_or("no tracks")?.id;
+        host.send(&ClientMessage::SelectCar {
+            car_config_id: car_id,
+            livery: 0,
+        })
+        .await?;
+        sleep(Duration::from_millis(50)).await;
+        let qualifying = AllowedAssists {
+            abs: true,
+            ..AllowedAssists::NONE
+        };
+        let format = WeekendFormat {
+            practice_seconds: 60,
+            qualifying_seconds: vec![600],
+            practice_assists: Some(AllowedAssists::NONE),
+            qualifying_assists: Some(qualifying),
+            ..Default::default()
+        };
+        host.send(&ClientMessage::CreateSession {
+            track_config_id: track_id,
+            max_players: 4,
+            ai_count: 1,
+            lap_limit: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: Some(format.clone()),
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            classes: Vec::new(),
+            ballast: Vec::new(),
+        })
+        .await?;
+        let joined = host.wait_joined().await?;
+        assert_eq!(joined.weekend, Some(format));
+        assert_eq!(joined.allowed_assists, AllowedAssists::ALL);
+        let session_id = joined.session_id;
+        let in_lobby = host.wait_weekend(|_| true).await?;
+        assert_eq!(in_lobby.allowed_assists, Some(AllowedAssists::ALL));
+
+        let everything = ClientMessage::SetDriverAids {
+            auto_gearbox: true,
+            steering_assist: true,
+            abs: Some(true),
+            traction_control: Some(TractionControl::High),
+            pit_autopilot: None,
+        };
+        host.send(&everything).await?;
+        sleep(Duration::from_millis(100)).await;
+        let aids = |state: &apexsim_server::server::ServerState| {
+            let session = state.sessions.get(&session_id).expect("session");
+            let car = &session.session.participants[&session.session.host_player_id];
+            (
+                car.abs,
+                car.traction_control,
+                car.auto_gearbox,
+                car.steering_assist,
+            )
+        };
+        let all_on = (Some(true), Some(TractionControl::High), true, true);
+        assert_eq!(aids(&*server.state.read().await), all_on);
+
+        // Practice: nothing but the driver, whatever they ask for.
+        host.send(&ClientMessage::AdvanceWeekend).await?;
+        let practice = host.wait_weekend(|w| w.phase == 1).await?;
+        assert_eq!(practice.allowed_assists, Some(AllowedAssists::NONE));
+        let none = (Some(false), Some(TractionControl::Off), false, false);
+        assert_eq!(aids(&*server.state.read().await), none);
+        host.send(&everything).await?;
+        sleep(Duration::from_millis(100)).await;
+        assert_eq!(aids(&*server.state.read().await), none);
+        {
+            let mut state = server.state.write().await;
+            let session = state.sessions.get_mut(&session_id).ok_or("no session")?;
+            session.session.state = SessionState::Finished;
+        }
+        host.wait_weekend(|w| w.phase == 1 && w.finished).await?;
+
+        // Qualifying: ABS comes back, nothing else.
+        host.send(&ClientMessage::AdvanceWeekend).await?;
+        let q1 = host.wait_weekend(|w| w.phase == 2).await?;
+        assert_eq!(q1.allowed_assists, Some(qualifying));
+        assert_eq!(
+            aids(&*server.state.read().await),
+            (Some(true), Some(TractionControl::Off), false, false)
+        );
+        {
+            let mut state = server.state.write().await;
+            let session = state.sessions.get_mut(&session_id).ok_or("no session")?;
+            session.session.state = SessionState::Finished;
+        }
+        host.wait_weekend(|w| w.phase == 2 && w.finished).await?;
+
+        // The race: the session's own caps, every aid as asked, and the
+        // racing line the last two phases withheld.
+        host.send(&ClientMessage::AdvanceWeekend).await?;
+        let race = host.wait_weekend(|w| w.phase == 3).await?;
+        assert_eq!(race.allowed_assists, Some(AllowedAssists::ALL));
+        assert_eq!(aids(&*server.state.read().await), all_on);
+        let mut line = false;
+        for _ in 0..2000 {
+            if let ServerMessage::RacingLine(_) =
+                timeout(Duration::from_secs(5), host.recv()).await??
+            {
+                line = true;
+                break;
+            }
+        }
+        assert!(line, "the racing line is sent again in the race");
+        Ok::<(), Box<dyn std::error::Error>>(())
+    })
+    .await;
+
+    match result {
+        Ok(Ok(())) => {}
+        Ok(Err(e)) => panic!("test failed: {e}"),
+        Err(_) => panic!("test timed out"),
+    }
+}

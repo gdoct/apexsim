@@ -25,7 +25,7 @@ belong to these rules are described briefly beside them.
   `update_shootout`, `shootout_state`), the lap allowance
   (`update_lap_allowance`), the race weekend
   (`advance_weekend`, `settle_weekend`, `weekend_state`,
-  `begin_phase_damage`), the watched hotlap
+  `begin_phase_damage`, `begin_phase_assists`), the watched hotlap
   (`start_hotlap_watch`, `update_hotlap_watch`, `hotlap_watch_driver`)
 - `server/sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
   `WeekendProgress`; `GameSession::resume_weekend`
@@ -1234,7 +1234,34 @@ late arrival is seated under it, and `RaceSession::damage` (so
 `SessionJoined.Damage` for anyone joining then) is it while the phase runs;
 the race day's is kept (`race_day_damage`). `WeekendState.Damage` carries
 the phase's rule (left off the wire when Full), and the client's
-`GetSessionDamage` follows it. Assists stay the session's for every phase.
+`GetSessionDamage` follows it.
+
+**Each phase's aids**: `practice_assists` and `qualifying_assists`
+(`Option<AllowedAssists>`, left off the wire when absent) cap the aids in
+practice and in every qualifying round; the race, and a phase not named,
+has the session's `allowed_assists` (so that row is the race's caps). When
+either is named, each phase begins (`GameSession::begin_phase_assists`,
+beside `begin_phase_damage`) by making `RaceSession::allowed_assists` the
+phase's (late arrivals are seated under it, `SessionJoined.AllowedAssists`
+names it) and clamping every car's aids to it again from what its driver
+last asked for (`GameSession::asked_aids`, kept by `set_driver_aids`; a car
+whose driver never asked keeps the car.toml's ABS and TC where they are
+allowed): an aid one phase forbids comes back in a phase that allows it,
+without the client sending anything. A racing line allowed again is planned
+for every human at once (`AidLineKey::NONE`, `take_day_lines_due`); the
+race day's caps are kept (`race_day_assists`). `WeekendState.AllowedAssists`
+carries the phase's caps (left off the wire for a weekend naming none); the
+client's `GetAllowedAssists` follows it, the settings' Assists locks show
+it the next time the page is built, and a line the phase forbids is
+cleared (`ClearRacingLine`). Client: the Race weekend section's Practice
+assists and Qualifying assists rows (Race's / Novice / Club / Pro, the
+create screen's assist presets; `CreateWeekendPracticeAssists` /
+`CreateWeekendQualifyingAssists`, kept in the profile, sent in
+`WeekendToSend`, practice's only with practice; the summary names them, and
+the lobby's format line adds ", PRO ASSISTS" after the phase;
+`-ApexWeekendAssists=P,Q` for an auto race). A hosted session's or
+event's spec carries them in its `weekend` as the create does; the
+dashboard's form edits neither the session's aids nor a phase's.
 
 **Each day's sky**: `practice_conditions` and `qualifying_conditions`
 (`Option<Box<SessionConditions>>`, as `CreateSession.conditions` is given,

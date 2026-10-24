@@ -1213,4 +1213,39 @@ namespace ApexCreateSession
 		}
 		return INDEX_NONE;
 	}
+
+	/** "PRO ASSISTS" for a preset's set, "3/5 ASSISTS" for any other. */
+	inline FString AssistsSummary(const FApexAllowedAssists& Assists)
+	{
+		const int32 Preset = MatchingPreset(Assists);
+		return Preset != INDEX_NONE
+			? FString::Printf(TEXT("%s ASSISTS"), *FString(PresetName(static_cast<EAssistPreset>(Preset))).ToUpper())
+			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Assists.CountLocked(), FApexAllowedAssists::Count);
+	}
+
+	/** A weekend phase's assist chips: the race's (-1), then each EAssistPreset. */
+	inline constexpr int32 PhaseAssistChips = 1 + static_cast<int32>(EAssistPreset::Count);
+
+	inline FString PhaseAssistChipLabel(int32 Chip)
+	{
+		return Chip <= 0 ? FString(TEXT("Race's"))
+			: FString(PresetName(static_cast<EAssistPreset>(FMath::Min(Chip, PhaseAssistChips - 1) - 1)));
+	}
+
+	/** The chip for a phase's pick (-1 the race's, else a preset) and back. */
+	inline int32 PhaseAssistChip(int32 Pick) { return FMath::Clamp(Pick, -1, PhaseAssistChips - 2) + 1; }
+	inline int32 PhaseAssistOfChip(int32 Chip) { return FMath::Clamp(Chip, 0, PhaseAssistChips - 1) - 1; }
+
+	/** ", PRO ASSISTS" after a weekend phase in a lobby line when it has aids of its own, else nothing. */
+	inline FString PhaseAssistsNote(bool bHasOwn, const FApexAllowedAssists& Assists)
+	{
+		return bHasOwn ? FString::Printf(TEXT(", %s"), *AssistsSummary(Assists)) : FString();
+	}
+
+	/** The aids a phase's pick allows; everything for the race's (unused: the format leaves it off). */
+	inline FApexAllowedAssists PhaseAssists(int32 Pick)
+	{
+		return Pick < 0 ? FApexAllowedAssists()
+			: AssistPreset(static_cast<EAssistPreset>(FMath::Min(Pick, PhaseAssistChips - 2)));
+	}
 }

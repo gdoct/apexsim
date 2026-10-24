@@ -1988,6 +1988,29 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 		Flow->CreateWeekendRounds = Fields.IsValidIndex(1) ? FMath::Clamp(FCString::Atoi(*Fields[1]), 1, FApexWeekendFormat::MaxRounds) : 1;
 		Flow->CreateWeekendRoundMinutes = Fields.IsValidIndex(2) ? FMath::Max(1, FCString::Atoi(*Fields[2])) : 10;
 		Flow->CreateStartingMode = EApexGameMode::Race;
+		// -ApexWeekendAssists=P,Q: practice's and qualifying's own allowed
+		// aids as presets (novice, club, pro; race or empty for the race's).
+		Flow->CreateWeekendPracticeAssists = -1;
+		Flow->CreateWeekendQualifyingAssists = -1;
+		FString PhaseAssistsText;
+		if (FParse::Value(FCommandLine::Get(), TEXT("ApexWeekendAssists="), PhaseAssistsText, /*bShouldStopOnSeparator=*/false))
+		{
+			TArray<FString> Picks;
+			PhaseAssistsText.ParseIntoArray(Picks, TEXT(","), /*InCullEmpty=*/false);
+			const auto PresetOf = [](const FString& Name)
+			{
+				for (int32 Index = 0; Index < static_cast<int32>(ApexCreateSession::EAssistPreset::Count); ++Index)
+				{
+					if (Name.TrimStartAndEnd().Equals(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Index)), ESearchCase::IgnoreCase))
+					{
+						return Index;
+					}
+				}
+				return -1;
+			};
+			Flow->CreateWeekendPracticeAssists = Picks.IsValidIndex(0) ? PresetOf(Picks[0]) : -1;
+			Flow->CreateWeekendQualifyingAssists = Picks.IsValidIndex(1) ? PresetOf(Picks[1]) : -1;
+		}
 	}
 
 	UE_LOG(LogApexSim, Log, TEXT("-ApexAutoRace: creating '%s' on '%s' with %d AI over %d lap(s)"),

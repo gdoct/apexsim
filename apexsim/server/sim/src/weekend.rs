@@ -6,8 +6,8 @@
 //! (`advance_weekend`, `settle_weekend`).
 
 use crate::data::{
-    clamp_qualifying_seconds, DamageLevel, PlayerId, SessionConditions, MAX_QUALIFYING_SECONDS,
-    MIN_QUALIFYING_SECONDS,
+    clamp_qualifying_seconds, AllowedAssists, DamageLevel, PlayerId, SessionConditions,
+    MAX_QUALIFYING_SECONDS, MIN_QUALIFYING_SECONDS,
 };
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +42,14 @@ pub struct WeekendFormat {
     /// The race's is the session's `damage`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub qualifying_damage: Option<DamageLevel>,
+    /// The aids practice allows; absent for the session's own
+    /// (`allowed_assists`). Left off the wire when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_assists: Option<AllowedAssists>,
+    /// The aids every qualifying round allows; absent for the session's
+    /// own. The race's are the session's `allowed_assists`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualifying_assists: Option<AllowedAssists>,
 }
 
 impl WeekendFormat {
@@ -67,7 +75,24 @@ impl WeekendFormat {
             qualifying_conditions: self.qualifying_conditions.map(|c| Box::new(c.clamp())),
             practice_damage: self.practice_damage,
             qualifying_damage: self.qualifying_damage,
+            practice_assists: self.practice_assists,
+            qualifying_assists: self.qualifying_assists,
         }
+    }
+
+    /// The aids a phase allows of its own, if it names them: practice and
+    /// qualifying may, the race's are the session's.
+    pub fn phase_assists(&self, phase: WeekendPhase) -> Option<AllowedAssists> {
+        match phase {
+            WeekendPhase::Practice => self.practice_assists,
+            WeekendPhase::Qualifying => self.qualifying_assists,
+            _ => None,
+        }
+    }
+
+    /// Whether any phase names its own allowed aids.
+    pub fn has_phase_assists(&self) -> bool {
+        self.practice_assists.is_some() || self.qualifying_assists.is_some()
     }
 
     /// The damage rule a phase names for itself, if it names one: practice

@@ -385,6 +385,11 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 				AddAll(WeekendPracticeDamageButtons);
 			}
 			AddAll(WeekendQualifyingDamageButtons);
+			if (Flow->CreateWeekendPracticeMinutes > 0)
+			{
+				AddAll(WeekendPracticeAssistsButtons);
+			}
+			AddAll(WeekendQualifyingAssistsButtons);
 			for (int32 Day = 0; Day < 2; ++Day)
 			{
 				if (Day == 0 && Flow->CreateWeekendPracticeMinutes <= 0)
@@ -1186,6 +1191,19 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			WeekendPracticeDamageRow = MakeChipRow(TEXT("Practice damage"), DamageChips, WeekendPracticeDamageButtons);
 			ApexUI::AddV(Section, WeekendPracticeDamageRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 			ApexUI::AddV(Section, MakeChipRow(TEXT("Qualifying damage"), DamageChips, WeekendQualifyingDamageButtons),
+				FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		}
+		// Each phase's own allowed aids, as a preset; the race keeps the
+		// Assists allowed row's.
+		{
+			TArray<FString> AssistChips;
+			for (int32 Chip = 0; Chip < ApexCreateSession::PhaseAssistChips; ++Chip)
+			{
+				AssistChips.Add(ApexCreateSession::PhaseAssistChipLabel(Chip));
+			}
+			WeekendPracticeAssistsRow = MakeChipRow(TEXT("Practice assists"), AssistChips, WeekendPracticeAssistsButtons);
+			ApexUI::AddV(Section, WeekendPracticeAssistsRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+			ApexUI::AddV(Section, MakeChipRow(TEXT("Qualifying assists"), AssistChips, WeekendQualifyingAssistsButtons),
 				FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		}
 
@@ -2297,6 +2315,25 @@ void UApexSessionCreateWidget::RefreshSettings()
 			WeekendQualifyingDamageButtons[Index]->SetSelected(Index == ApexCreateSession::PhaseDamageChip(Flow->CreateWeekendQualifyingDamage));
 		}
 	}
+	if (WeekendPracticeAssistsRow)
+	{
+		WeekendPracticeAssistsRow->SetVisibility(Flow->CreateWeekendPracticeMinutes <= 0
+			? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	}
+	for (int32 Index = 0; Index < WeekendPracticeAssistsButtons.Num(); ++Index)
+	{
+		if (WeekendPracticeAssistsButtons[Index])
+		{
+			WeekendPracticeAssistsButtons[Index]->SetSelected(Index == ApexCreateSession::PhaseAssistChip(Flow->CreateWeekendPracticeAssists));
+		}
+	}
+	for (int32 Index = 0; Index < WeekendQualifyingAssistsButtons.Num(); ++Index)
+	{
+		if (WeekendQualifyingAssistsButtons[Index])
+		{
+			WeekendQualifyingAssistsButtons[Index]->SetSelected(Index == ApexCreateSession::PhaseAssistChip(Flow->CreateWeekendQualifyingAssists));
+		}
+	}
 
 	if (LengthSection)
 	{
@@ -3201,11 +3238,7 @@ void UApexSessionCreateWidget::RefreshFooter()
 		}
 		Parts.Add(C.ClockText());
 		Parts.Add(FApexSessionConditions::WeatherLabel(C.Weather).ToUpper());
-		const int32 Preset = ApexCreateSession::MatchingPreset(Flow->CreateAllowedAssists);
-		Parts.Add(Preset != INDEX_NONE
-			? FString::Printf(TEXT("%s ASSISTS"), *FString(ApexCreateSession::PresetName(static_cast<ApexCreateSession::EAssistPreset>(Preset))).ToUpper())
-			: FString::Printf(TEXT("%d/%d ASSISTS"), FApexAllowedAssists::Count - Flow->CreateAllowedAssists.CountLocked(),
-				FApexAllowedAssists::Count));
+		Parts.Add(ApexCreateSession::AssistsSummary(Flow->CreateAllowedAssists));
 		if (Flow->QualifyingFormatToSend() == EApexQualifyingFormat::Shootout)
 		{
 			Parts.Add(Flow->IsCreatingWeekend() && Flow->CreateWeekendRounds > 1 ? TEXT("FINAL ROUND A SHOOT-OUT") : TEXT("SHOOT-OUT"));
@@ -3238,6 +3271,14 @@ void UApexSessionCreateWidget::RefreshFooter()
 			if (Weekend.bHasQualifyingDamage)
 			{
 				Parts.Add(FString::Printf(TEXT("QUALIFYING %s"), DamageOptions[static_cast<int32>(Weekend.QualifyingDamage)].Summary));
+			}
+			if (Weekend.bHasPracticeAssists)
+			{
+				Parts.Add(FString::Printf(TEXT("PRACTICE %s"), *ApexCreateSession::AssistsSummary(Weekend.PracticeAssists)));
+			}
+			if (Weekend.bHasQualifyingAssists)
+			{
+				Parts.Add(FString::Printf(TEXT("QUALIFYING %s"), *ApexCreateSession::AssistsSummary(Weekend.QualifyingAssists)));
 			}
 		}
 		if (!CurrentSetupLabel.IsEmpty())
@@ -4091,6 +4132,18 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Chip = ApexNav::IndexOf(WeekendQualifyingDamageButtons, Button); Chip != INDEX_NONE)
 	{
 		Flow->CreateWeekendQualifyingDamage = ApexCreateSession::PhaseDamageOfChip(Chip);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(WeekendPracticeAssistsButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateWeekendPracticeAssists = ApexCreateSession::PhaseAssistOfChip(Chip);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(WeekendQualifyingAssistsButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateWeekendQualifyingAssists = ApexCreateSession::PhaseAssistOfChip(Chip);
 		Changed();
 		return;
 	}

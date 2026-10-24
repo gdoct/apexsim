@@ -16,6 +16,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexCreateSessionModel.h"
 #include "UI/ApexEventLabels.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
@@ -428,14 +429,16 @@ void UApexSessionLobbyWidget::RefreshHeader()
 			Parts.Add(Event.IsEvent() ? TEXT("RACE EVENT") : TEXT("RACE WEEKEND"));
 			if (Weekend.PracticeSeconds > 0)
 			{
-				Parts.Add(FString::Printf(TEXT("PRACTICE %s%s"), *ApexRaceLength::Describe(Weekend.PracticeSeconds).ToUpper(),
+				Parts.Add(FString::Printf(TEXT("PRACTICE %s%s%s"), *ApexRaceLength::Describe(Weekend.PracticeSeconds).ToUpper(),
+					*ApexCreateSession::PhaseAssistsNote(Weekend.bHasPracticeAssists, Weekend.PracticeAssists),
 					Done(EApexWeekendPhase::Practice)));
 			}
+			const FString QualifyingAssists = ApexCreateSession::PhaseAssistsNote(Weekend.bHasQualifyingAssists, Weekend.QualifyingAssists);
 			Parts.Add(Weekend.Rounds() > 1
-				? FString::Printf(TEXT("Q1-Q%d %s%s"), Weekend.Rounds(), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
-					Done(EApexWeekendPhase::Qualifying))
-				: FString::Printf(TEXT("QUALIFYING %s%s"), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
-					Done(EApexWeekendPhase::Qualifying)));
+				? FString::Printf(TEXT("Q1-Q%d %s%s%s"), Weekend.Rounds(), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
+					*QualifyingAssists, Done(EApexWeekendPhase::Qualifying))
+				: FString::Printf(TEXT("QUALIFYING %s%s%s"), *ApexRaceLength::Describe(Weekend.QualifyingSeconds[0]).ToUpper(),
+					*QualifyingAssists, Done(EApexWeekendPhase::Qualifying)));
 			Parts.Add(RaceSeconds > 0 ? FString::Printf(TEXT("RACE %s"), *ApexRaceLength::Describe(RaceSeconds).ToUpper())
 				: FString::Printf(TEXT("RACE %d LAPS"), RaceLaps));
 		}

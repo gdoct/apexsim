@@ -198,6 +198,7 @@ impl From<&WeekendState> for WeekendStateData {
             eliminated: s.eliminated.iter().map(KnockedOutData::from).collect(),
             damage: s.damage,
             conditions: s.conditions,
+            allowed_assists: s.allowed_assists,
         }
     }
 }

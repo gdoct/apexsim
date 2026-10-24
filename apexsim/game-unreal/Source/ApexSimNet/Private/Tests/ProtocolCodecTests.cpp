@@ -458,6 +458,27 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 				TArray<FString>(), 0, Weekend),
 			ApexGolden::C_CreateSessionWeekendDamage);
 	}
+	{
+		// A weekend whose practice and qualifying name their own allowed aids.
+		FApexWeekendFormat Weekend;
+		Weekend.PracticeSeconds = 600;
+		Weekend.QualifyingSeconds = { 600 };
+		Weekend.bHasPracticeAssists = true;
+		Weekend.PracticeAssists.bAbs = true;
+		Weekend.PracticeAssists.bTractionControl = false;
+		Weekend.PracticeAssists.bAutoGearbox = false;
+		Weekend.PracticeAssists.bSteeringAssist = false;
+		Weekend.PracticeAssists.bRacingLine = false;
+		Weekend.bHasQualifyingAssists = true;
+		Weekend.QualifyingAssists.bRacingLine = false;
+		CheckBytes(TEXT("CreateSession for a weekend with each phase's aids"),
+			ApexProtocol::EncodeCreateSession(
+				TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"), 8, 3, 5, EApexSessionKind::Multiplayer,
+				FApexAllowedAssists(), FApexSessionConditions(), EApexDamageLevel::Full, ApexAiSkill::Mixed, 0,
+				TArray<FString>(), 0, Weekend),
+			ApexGolden::C_CreateSessionWeekendAssists);
+
+	}
 	CheckBytes(TEXT("AdvanceWeekend"), ApexProtocol::EncodeAdvanceWeekend(), ApexGolden::C_AdvanceWeekend);
 	CheckBytes(TEXT("GiveUpSeat"), ApexProtocol::EncodeGiveUpSeat(), ApexGolden::C_GiveUpSeat);
 
@@ -945,6 +966,34 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 		{
 			TestEqual(TEXT("WeekendState.Damage (full when absent)"), Late.WeekendState.Damage, EApexDamageLevel::Full);
 		}
+	}
+	{
+		// A weekend whose practice and qualifying name their own allowed aids.
+		FApexServerMessage Joined;
+		if (Decode(TEXT("SessionJoined echoing each phase's aids"), ApexGolden::S_SessionJoinedWeekendAssists, Joined))
+		{
+			const FApexWeekendFormat& Echo = Joined.Weekend;
+			TestTrue(TEXT("Weekend.bHasPracticeAssists"), Echo.bHasPracticeAssists);
+			TestTrue(TEXT("practice allows ABS"), Echo.PracticeAssists.bAbs);
+			TestEqual(TEXT("and nothing else"), Echo.PracticeAssists.CountLocked(), 4);
+			TestTrue(TEXT("Weekend.bHasQualifyingAssists"), Echo.bHasQualifyingAssists);
+			TestFalse(TEXT("qualifying without the line"), Echo.QualifyingAssists.bRacingLine);
+			TestEqual(TEXT("qualifying locks one"), Echo.QualifyingAssists.CountLocked(), 1);
+		}
+		FApexServerMessage State;
+		if (Decode(TEXT("WeekendState under a phase's aids"), ApexGolden::S_WeekendStateAssists, State))
+		{
+			TestTrue(TEXT("WeekendState.bHasAllowedAssists"), State.WeekendState.bHasAllowedAssists);
+			TestTrue(TEXT("WeekendState.AllowedAssists.bAbs"), State.WeekendState.AllowedAssists.bAbs);
+			TestEqual(TEXT("WeekendState.AllowedAssists locks four"), State.WeekendState.AllowedAssists.CountLocked(), 4);
+		}
+		FApexServerMessage Plain;
+		if (Decode(TEXT("WeekendState with no aids of its own"), ApexGolden::S_WeekendStateDamage, Plain))
+		{
+			TestFalse(TEXT("WeekendState without aids"), Plain.WeekendState.bHasAllowedAssists);
+		}
+	}
+	{
 		FApexServerMessage Day;
 		if (Decode(TEXT("WeekendState under a day's own sky"), ApexGolden::S_WeekendStateConditions, Day))
 		{

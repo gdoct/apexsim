@@ -303,6 +303,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendPracticeDamageRow;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendPracticeDamageButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendQualifyingDamageButtons;
+	/** Each phase's own allowed aids: the race's, or an assist preset. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendPracticeAssistsRow;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendPracticeAssistsButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendQualifyingAssistsButtons;
 	/** Hidden for a hotlap, which has no field. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> FieldSection;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> FieldInfoText;

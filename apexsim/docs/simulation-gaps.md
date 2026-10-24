@@ -84,7 +84,6 @@ browsable in the client with each phase's replay.
 | Gap | Effort | Impact |
 |---|---|---|
 | An event ([sessions](server/sessions.md#events-across-restarts)) keeps finished phases only: a phase under way when the server stops is run again from its start (a knockout from Q1), and the session's own state (the cars, a round's laps) is not persisted. | Med | Low |
-| Assists are the session's for every phase of a weekend (practice and qualifying name their own damage rule, lengths and sky): the client learns `AllowedAssists` only from `SessionJoined`, so a phase's own assists need them sent again (in `WeekendState`, as its `Damage` is) and the client's Assists locks refreshed on it. | Low | Low |
 
 ## Assetto Corsa imports
 

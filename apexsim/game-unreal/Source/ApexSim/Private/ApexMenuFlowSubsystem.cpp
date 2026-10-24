@@ -225,6 +225,8 @@ void UApexMenuFlowSubsystem::LoadProfileEntry(const FApexProfileEntry& Entry)
 	CreateQualifyingLapAllowance = ApexQualifyingLapAllowance::Clamp(Profile->QualifyingLapAllowance);
 	CreateWeekendPracticeDamage = FMath::Clamp(Profile->WeekendPracticeDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
 	CreateWeekendQualifyingDamage = FMath::Clamp(Profile->WeekendQualifyingDamage, -1, static_cast<int32>(EApexDamageLevel::VisualOnly));
+	CreateWeekendPracticeAssists = ApexCreateSession::PhaseAssistOfChip(ApexCreateSession::PhaseAssistChip(Profile->WeekendPracticeAssists));
+	CreateWeekendQualifyingAssists = ApexCreateSession::PhaseAssistOfChip(ApexCreateSession::PhaseAssistChip(Profile->WeekendQualifyingAssists));
 
 	// A profile written before demo lap was locked would otherwise start a mode
 	// the server turns into a dead end for the player who asked for it; one
@@ -631,6 +633,11 @@ FApexWeekendFormat UApexMenuFlowSubsystem::WeekendToSend() const
 	Format.PracticeDamage = static_cast<EApexDamageLevel>(FMath::Max(CreateWeekendPracticeDamage, 0));
 	Format.bHasQualifyingDamage = CreateWeekendQualifyingDamage >= 0;
 	Format.QualifyingDamage = static_cast<EApexDamageLevel>(FMath::Max(CreateWeekendQualifyingDamage, 0));
+	// Each phase's own aids, as a preset; practice's only with practice.
+	Format.bHasPracticeAssists = CreateWeekendPracticeMinutes > 0 && CreateWeekendPracticeAssists >= 0;
+	Format.PracticeAssists = ApexCreateSession::PhaseAssists(CreateWeekendPracticeAssists);
+	Format.bHasQualifyingAssists = CreateWeekendQualifyingAssists >= 0;
+	Format.QualifyingAssists = ApexCreateSession::PhaseAssists(CreateWeekendQualifyingAssists);
 	return Format.Clamped();
 }
 
@@ -715,6 +722,8 @@ void UApexMenuFlowSubsystem::SaveProfile()
 	Profile->QualifyingLapAllowance = CreateQualifyingLapAllowance;
 	Profile->WeekendPracticeDamage = CreateWeekendPracticeDamage;
 	Profile->WeekendQualifyingDamage = CreateWeekendQualifyingDamage;
+	Profile->WeekendPracticeAssists = CreateWeekendPracticeAssists;
+	Profile->WeekendQualifyingAssists = CreateWeekendQualifyingAssists;
 
 	if (!UGameplayStatics::SaveGameToSlot(Profile, ProfileSlot, 0))
 	{

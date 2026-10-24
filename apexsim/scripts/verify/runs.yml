@@ -1970,6 +1970,32 @@ runs:
       - {at: 400, label: "", checks: ""}
       - {at: 465, label: "results", checks: "DNQ on the results"}
 
+  # A weekend whose practice allows no aid (Pro) and whose qualifying allows
+  # the Club set: the Assists tab opened in practice shows every row locked.
+  # The log's "<- WeekendState ... locked=5" names the phase's caps.
+  - id: r12-weekend-assists
+    about: "R12. A weekend phase's own allowed aids: the Assists locks in practice"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexWeekend=2,1,3
+      - -ApexWeekendAssists=pro,club
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexOpenSettings=40
+      - -ApexSettingsTab=1
+    exec:
+      43: ["apexsim.ui.Texts"]
+    shots:
+      - {at: 30, label: "practice", checks: "the garage; no racing line drawn"}
+      - {at: 45, label: "Settings > Assists in practice", checks: "every row's lock badge (Off in this session)"}
+
   # A Custom start order naming a driver who is not there: the gap kept in
   # the session lobby's GRID list, the grid card and the lined-up field.
   - id: r9-empty-slot

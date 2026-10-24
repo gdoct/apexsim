@@ -778,6 +778,16 @@ namespace
 				(bPractice ? Out.PracticeDamage : Out.QualifyingDamage) = Raw <= 3 ? static_cast<EApexDamageLevel>(Raw) : EApexDamageLevel::Full;
 				(bPractice ? Out.bHasPracticeDamage : Out.bHasQualifyingDamage) = bOk;
 			}
+			else if (Key == TEXT("practice_assists") || Key == TEXT("qualifying_assists"))
+			{
+				const bool bPractice = Key == TEXT("practice_assists");
+				if (Reader.TryReadNil())
+				{
+					continue;
+				}
+				bOk = ParseAllowedAssists(Reader, bPractice ? Out.PracticeAssists : Out.QualifyingAssists);
+				(bPractice ? Out.bHasPracticeAssists : Out.bHasQualifyingAssists) = bOk;
+			}
 			else                                        { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -843,6 +853,7 @@ namespace
 			else if (Key == TEXT("Eliminated")) { bOk = ParseArrayOf(Reader, Out.Eliminated, &ParseKnockedOut); }
 			else if (Key == TEXT("Damage"))     { bOk = ReadSmallUInt(Reader, Value, 255); Out.Damage = Value <= 3 ? static_cast<EApexDamageLevel>(Value) : EApexDamageLevel::Full; }
 			else if (Key == TEXT("Conditions")) { bOk = ParseSessionConditions(Reader, Out.Conditions); Out.bHasConditions = bOk; }
+			else if (Key == TEXT("AllowedAssists")) { bOk = ParseAllowedAssists(Reader, Out.AllowedAssists); Out.bHasAllowedAssists = bOk; }
 			else                                { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -4277,7 +4288,8 @@ namespace ApexProtocol
 			// Then each day's own sky, only when named, as the server leaves them off.
 			Writer.WriteString("weekend");
 			Writer.WriteMapHeader(2 + (WeekendFormat.bHasPracticeConditions ? 1 : 0) + (WeekendFormat.bHasQualifyingConditions ? 1 : 0)
-				+ (WeekendFormat.bHasPracticeDamage ? 1 : 0) + (WeekendFormat.bHasQualifyingDamage ? 1 : 0));
+				+ (WeekendFormat.bHasPracticeDamage ? 1 : 0) + (WeekendFormat.bHasQualifyingDamage ? 1 : 0)
+				+ (WeekendFormat.bHasPracticeAssists ? 1 : 0) + (WeekendFormat.bHasQualifyingAssists ? 1 : 0));
 			Writer.WriteString("practice_seconds");
 			Writer.WriteUInt(static_cast<uint32>(WeekendFormat.PracticeSeconds));
 			Writer.WriteString("qualifying_seconds");
@@ -4305,6 +4317,16 @@ namespace ApexProtocol
 			{
 				Writer.WriteString("qualifying_damage");
 				Writer.WriteUInt(static_cast<uint32>(WeekendFormat.QualifyingDamage));
+			}
+			if (WeekendFormat.bHasPracticeAssists)
+			{
+				Writer.WriteString("practice_assists");
+				WriteAllowedAssists(Writer, WeekendFormat.PracticeAssists);
+			}
+			if (WeekendFormat.bHasQualifyingAssists)
+			{
+				Writer.WriteString("qualifying_assists");
+				WriteAllowedAssists(Writer, WeekendFormat.QualifyingAssists);
 			}
 		}
 		if (Watch)

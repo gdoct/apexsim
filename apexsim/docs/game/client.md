@@ -138,7 +138,10 @@ and widget factories), so layouts are reviewable as diffs.
   fermé Off / On where the session qualifies, Weekend sets Free / 6 / 8 /
   10 / 13 in a weekend, Stint laps Free / 10 / 15 / 20 / 30 and Stint
   time Free / 20 / 30 / 45 / 60 min;
-  [sessions.md](../server/sessions.md#session-rules-set-on-create)). Each
+  [sessions.md](../server/sessions.md#session-rules-set-on-create)). The
+  Race weekend section also gives practice and qualifying their own
+  damage, sky and allowed aids (Practice / Qualifying assists: Race's or
+  an assist preset; [sessions.md](../server/sessions.md#race-weekend)). Each
   section's caption line and the summary under the screen name what is
   set. Keys and pad reach every chip through `ApexNav::MoveToward`; a new
   row only has to be added to `GatherFocusables` while it shows. The Field
@@ -1064,7 +1067,9 @@ P minutes' practice, 0 for none, R knockout rounds of M minutes; the race is
 `-ApexLaps` / `-ApexRaceMinutes`, and the start is the weekend's first
 session), `-ApexNoStart`
 (stop in the lobby), `-ApexAiSkill=N`, `-ApexDamage=off|reduced|full|visual`,
-`-ApexLockAssists=abs,tc,gearbox,steering,line`, `-ApexQualifyingCutoff=N`
+`-ApexLockAssists=abs,tc,gearbox,steering,line`, `-ApexWeekendAssists=P,Q`
+(a weekend's practice and qualifying aids as presets, novice / club / pro,
+empty for the race's), `-ApexQualifyingCutoff=N`
 (the cut-off, percent of pole; 107 is the rule), `-ApexMandatoryStops=N`
 (0-3) and `-ApexCompoundChange` (the race's pit rule),
 `-ApexQualifyingFormat=shootout`, `-ApexLapAllowance=N`, the race-control

@@ -1652,10 +1652,22 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		{
 			CurrentConditions = CurrentWeekendState.Conditions;
 		}
-		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d damage=%d sky=%s"),
+		// And its own aids: the Assists locks follow the phase's, and a
+		// racing line the phase forbids is no longer drawn (the server sends
+		// it again where a later phase allows it).
+		if (CurrentWeekendState.bHasAllowedAssists)
+		{
+			CurrentAllowedAssists = CurrentWeekendState.AllowedAssists;
+			if (!CurrentAllowedAssists.bRacingLine)
+			{
+				ClearRacingLine();
+			}
+		}
+		UE_LOG(LogApexSimNet, Log, TEXT("<- WeekendState phase=%d round=%d/%d finished=%d advancing=%d eliminated=%d damage=%d sky=%s locked=%d"),
 			static_cast<int32>(CurrentWeekendState.Phase), CurrentWeekendState.Round, CurrentWeekendState.Rounds,
 			CurrentWeekendState.bFinished ? 1 : 0, CurrentWeekendState.Advancing, CurrentWeekendState.Eliminated.Num(),
-			static_cast<int32>(CurrentDamage), CurrentWeekendState.bHasConditions ? *CurrentConditions.Describe() : TEXT("-"));
+			static_cast<int32>(CurrentDamage), CurrentWeekendState.bHasConditions ? *CurrentConditions.Describe() : TEXT("-"),
+			CurrentWeekendState.bHasAllowedAssists ? CurrentAllowedAssists.CountLocked() : -1);
 		OnWeekendStateChanged.Broadcast();
 		break;
 

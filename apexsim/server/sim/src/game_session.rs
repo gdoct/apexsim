@@ -303,6 +303,15 @@ struct AidLineKey {
 impl AidLineKey {
     /// The line sent on joining: the stock car with a dry tank, on the
     /// grip the session was planned on, under the day's sky.
+    /// No line held: the next plan is sent whatever it is (a weekend phase
+    /// allowing the aid again, `begin_phase_assists`).
+    const NONE: AidLineKey = AidLineKey {
+        setup: u64::MAX,
+        fuel_step: usize::MAX,
+        grip_steps: i32::MIN,
+        day: u8::MAX,
+    };
+
     const fn joined(day: u8) -> AidLineKey {
         AidLineKey {
             setup: 0,
@@ -379,6 +388,9 @@ pub struct WeekendState {
     pub eliminated: Vec<KnockedOut>,
     /// The phase's damage rule.
     pub damage: DamageLevel,
+    /// The aids the current phase allows, for a weekend whose practice or
+    /// qualifying names its own; `None` for a weekend under one set.
+    pub allowed_assists: Option<AllowedAssists>,
     /// The sky the current phase runs under, for a weekend whose practice
     /// or qualifying has its own; `None` for a weekend raced under one sky.
     pub conditions: Option<SessionConditions>,
@@ -607,6 +619,13 @@ pub struct GameSession {
     /// qualifying has replaced `RaceSession::damage` with its own
     /// (`begin_phase_damage`).
     race_day_damage: Option<DamageLevel>,
+    /// The race day's allowed aids, kept once a weekend's practice or
+    /// qualifying has replaced `RaceSession::allowed_assists` with its own
+    /// (`begin_phase_assists`).
+    race_day_assists: Option<AllowedAssists>,
+    /// The aids each driver last asked for (`set_driver_aids`), before the
+    /// session's caps: a weekend phase that allows more gives them back.
+    asked_aids: std::collections::BTreeMap<PlayerId, DriverAids>,
     /// The one-lap shoot-out running in this qualifying session or round
     /// ([`Shootout`]); `None` outside one.
     shootout: Option<Shootout>,
@@ -1208,6 +1227,8 @@ impl GameSession {
             weekend_sent: None,
             phase_started: false,
             race_day_damage: None,
+            race_day_assists: None,
+            asked_aids: std::collections::BTreeMap::new(),
             shootout: None,
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
@@ -1304,6 +1325,8 @@ impl GameSession {
             weekend_sent: None,
             phase_started: false,
             race_day_damage: None,
+            race_day_assists: None,
+            asked_aids: std::collections::BTreeMap::new(),
             shootout: None,
             shootout_sent: None,
             qualifying_laps_run: Default::default(),
@@ -1446,6 +1469,57 @@ impl GameSession {
         let picked = format.phase_damage(phase);
         let race_day = *self.race_day_damage.get_or_insert(self.session.damage);
         self.set_damage(picked.unwrap_or(race_day));
+    }
+
+    /// A race weekend's phase begins under its own allowed aids, when the
+    /// format names them for practice or qualifying
+    /// (`WeekendFormat::practice_assists` / `qualifying_assists`):
+    /// `RaceSession::allowed_assists` is the phase's while it runs, and
+    /// every car's aids are clamped to it again from what its driver asked
+    /// for, so an aid the last phase forbade comes back where this one
+    /// allows it. A racing line allowed again is planned for every human at
+    /// once. The race, and a phase that names none, has the session's own.
+    fn begin_phase_assists(&mut self, phase: crate::weekend::WeekendPhase) {
+        let Some(format) = self.session.weekend.as_ref() else {
+            return;
+        };
+        if !format.has_phase_assists() {
+            return;
+        }
+        let picked = format.phase_assists(phase);
+        let race_day = *self
+            .race_day_assists
+            .get_or_insert(self.session.allowed_assists);
+        let allowed = picked.unwrap_or(race_day);
+        let line_back = allowed.racing_line && !self.session.allowed_assists.racing_line;
+        self.session.allowed_assists = allowed;
+        for (player_id, car) in self.session.participants.iter_mut() {
+            // A driver who never asked runs the car's own ABS and traction
+            // control where they are allowed.
+            let asked = self
+                .asked_aids
+                .get(player_id)
+                .copied()
+                .unwrap_or(DriverAids {
+                    abs: None,
+                    traction_control: None,
+                    ..car.driver_aids()
+                });
+            car.set_driver_aids(allowed.clamp(asked));
+        }
+        if line_back {
+            let humans: Vec<PlayerId> = self
+                .session
+                .participants
+                .keys()
+                .filter(|p| !self.session.ai_player_ids.contains(p))
+                .copied()
+                .collect();
+            for player_id in humans {
+                self.aid_lines.insert(player_id, AidLineKey::NONE);
+            }
+            self.day_lines_due = true;
+        }
     }
 
     /// Seconds of the sky's own clock (from `sky_epoch_tick`).
@@ -2903,6 +2977,7 @@ impl GameSession {
     fn begin_practice(&mut self) {
         self.begin_day(crate::weekend::WeekendPhase::Practice);
         self.begin_phase_damage(crate::weekend::WeekendPhase::Practice);
+        self.begin_phase_assists(crate::weekend::WeekendPhase::Practice);
         self.weekend.phase = crate::weekend::WeekendPhase::Practice;
         self.weekend.round = 0;
         self.set_game_mode(GameMode::Practice);
@@ -2925,6 +3000,7 @@ impl GameSession {
             self.weekend.first_round.clear();
             self.weekend.last_round.clear();
             self.begin_phase_damage(crate::weekend::WeekendPhase::Qualifying);
+            self.begin_phase_assists(crate::weekend::WeekendPhase::Qualifying);
         }
         self.weekend.phase = crate::weekend::WeekendPhase::Qualifying;
         self.weekend.round = round;
@@ -3120,6 +3196,9 @@ impl GameSession {
                 })
                 .collect(),
             damage: self.session.damage,
+            allowed_assists: format
+                .has_phase_assists()
+                .then_some(self.session.allowed_assists),
             conditions: format
                 .has_day_conditions()
                 .then_some(self.session.conditions),
@@ -4744,6 +4823,7 @@ impl GameSession {
             if self.weekend.phase != crate::weekend::WeekendPhase::Race {
                 self.begin_day(crate::weekend::WeekendPhase::Race);
                 self.begin_phase_damage(crate::weekend::WeekendPhase::Race);
+                self.begin_phase_assists(crate::weekend::WeekendPhase::Race);
             }
             self.weekend.phase = crate::weekend::WeekendPhase::Race;
             self.weekend.round = 0;
@@ -4911,6 +4991,7 @@ impl GameSession {
         let applied = self.session.allowed_assists.clamp(asked);
         let car = self.session.participants.get_mut(player_id)?;
         car.set_driver_aids(applied);
+        self.asked_aids.insert(*player_id, asked);
         Some(applied)
     }
 
@@ -5098,6 +5179,7 @@ impl GameSession {
         self.away.remove(player_id);
         self.held_steering_assist.remove(player_id);
         self.aid_lines.remove(player_id);
+        self.asked_aids.remove(player_id);
         self.tuned_configs.remove(player_id);
         self.ballast_kg.remove(player_id);
         self.car_setups.remove(player_id);

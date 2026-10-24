@@ -214,6 +214,13 @@ public:
 	UPROPERTY()
 	int32 WeekendQualifyingDamage = -1;
 
+	/** A weekend's practice and qualifying rounds' own allowed aids (an assist preset; -1 the race's). */
+	UPROPERTY()
+	int32 WeekendPracticeAssists = -1;
+
+	UPROPERTY()
+	int32 WeekendQualifyingAssists = -1;
+
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;

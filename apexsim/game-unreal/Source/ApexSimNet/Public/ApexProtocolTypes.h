@@ -1474,6 +1474,17 @@ struct APEXSIMNET_API FApexWeekendState
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	FApexSessionConditions Conditions;
 
+	/**
+	 * The aids the phase allows, for a weekend whose practice or qualifying
+	 * names its own: it replaces what `SessionJoined.AllowedAssists` said.
+	 * Absent (bHasAllowedAssists false) for a weekend under one set of aids.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasAllowedAssists = false;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexAllowedAssists AllowedAssists;
+
 	const FApexKnockedOut* FindEliminated(int32 CarIndex) const
 	{
 		return Eliminated.FindByPredicate([CarIndex](const FApexKnockedOut& Out) { return Out.CarIndex == CarIndex; });
@@ -1530,6 +1541,20 @@ struct APEXSIMNET_API FApexWeekendFormat
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
 	EApexDamageLevel QualifyingDamage = EApexDamageLevel::Full;
 
+	/**
+	 * The aids practice and every qualifying round allow of their own
+	 * (`practice_assists`, `qualifying_assists`): a phase not named, and the
+	 * race, run under the session's own AllowedAssists.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasPracticeAssists = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexAllowedAssists PracticeAssists;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	bool bHasQualifyingAssists = false;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Weekend")
+	FApexAllowedAssists QualifyingAssists;
+
 	bool IsWeekend() const { return QualifyingSeconds.Num() > 0; }
 	int32 Rounds() const { return QualifyingSeconds.Num(); }
 
@@ -1545,6 +1570,10 @@ struct APEXSIMNET_API FApexWeekendFormat
 		Out.PracticeDamage = bHasPracticeDamage ? PracticeDamage : EApexDamageLevel::Full;
 		Out.bHasQualifyingDamage = bHasQualifyingDamage;
 		Out.QualifyingDamage = bHasQualifyingDamage ? QualifyingDamage : EApexDamageLevel::Full;
+		Out.bHasPracticeAssists = bHasPracticeAssists;
+		Out.PracticeAssists = bHasPracticeAssists ? PracticeAssists : FApexAllowedAssists();
+		Out.bHasQualifyingAssists = bHasQualifyingAssists;
+		Out.QualifyingAssists = bHasQualifyingAssists ? QualifyingAssists : FApexAllowedAssists();
 		Out.PracticeSeconds = ApexQualifyingLength::Clamp(PracticeSeconds);
 		for (int32 Index = 0; Index < FMath::Min(QualifyingSeconds.Num(), MaxRounds); ++Index)
 		{

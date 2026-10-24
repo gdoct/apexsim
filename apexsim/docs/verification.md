@@ -330,6 +330,13 @@ limits, as in [server/sessions.md](server/sessions.md).
   from them running under them (a rolling start or a formation lap, the
   reverse grid on the grid, a safety car), and the pad walk
   (`ApexSim.UI.PadWalk`) over the rows.
+- A weekend phase's own allowed aids (`r12-weekend-assists`): the Assists
+  tab opened in a Pro practice with every row locked. Still to see by
+  hand: the Race weekend section's Practice assists and Qualifying assists
+  rows reached by pad and named in the summary, the lobby's format line
+  (", PRO ASSISTS" after the phase), and in a weekend with the racing line
+  on, the line gone in a phase that forbids it and drawn again in the race
+  ([server/sessions.md](server/sessions.md#race-weekend)).
 
 ### R13. Race control and the radar, live
 

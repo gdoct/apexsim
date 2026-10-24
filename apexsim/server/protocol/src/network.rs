@@ -808,6 +808,12 @@ pub struct WeekendStateData {
     /// weekend raced under one sky.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub conditions: Option<SessionConditions>,
+    /// The aids the current phase allows, for a weekend whose practice or
+    /// qualifying names its own (`WeekendFormat::practice_assists`): it
+    /// replaces what `SessionJoined.AllowedAssists` said. Left off the wire
+    /// for a weekend under one set of aids.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_assists: Option<AllowedAssists>,
 }
 
 /// A one-lap shoot-out's run order and where it stands
@@ -6153,6 +6159,7 @@ mod tests {
             eliminated: vec![],
             damage: DamageLevel::Off,
             conditions: None,
+            allowed_assists: None,
         });
         let phase_bytes = rmp_serde::to_vec_named(&phase).unwrap();
         println!("S_WeekendStateDamage: {}", hex(&phase_bytes));
@@ -6179,11 +6186,134 @@ mod tests {
             eliminated: vec![],
             damage: DamageLevel::Full,
             conditions: Some(day),
+            allowed_assists: None,
         });
         let day_bytes = rmp_serde::to_vec_named(&day_state).unwrap();
         println!("S_WeekendStateConditions: {}", hex(&day_bytes));
         match rmp_serde::from_slice::<ServerMessage>(&day_bytes).unwrap() {
             ServerMessage::WeekendState(data) => assert_eq!(data.conditions, Some(day)),
+            _ => panic!("Wrong message type"),
+        }
+    }
+
+    /// A weekend whose practice allows no aid but ABS and whose qualifying
+    /// allows everything but the racing line: the create, the joined echo,
+    /// and a `WeekendState` in practice under its caps. A weekend naming
+    /// none keeps the keys off the wire. Printed as
+    /// `C_CreateSessionWeekendAssists` / `S_SessionJoinedWeekendAssists` /
+    /// `S_WeekendStateAssists`
+    /// (`cargo test weekend_assists_wire_format -- --nocapture`).
+    #[test]
+    fn test_weekend_assists_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let practice = AllowedAssists {
+            abs: true,
+            ..AllowedAssists::NONE
+        };
+        let qualifying = AllowedAssists {
+            racing_line: false,
+            ..AllowedAssists::ALL
+        };
+        let weekend = crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            practice_assists: Some(practice),
+            qualifying_assists: Some(qualifying),
+            ..Default::default()
+        };
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: Some(weekend.clone()),
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            classes: Vec::new(),
+            ballast: Vec::new(),
+        };
+        let create_bytes = rmp_serde::to_vec_named(&create).unwrap();
+        println!("C_CreateSessionWeekendAssists: {}", hex(&create_bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&create_bytes).unwrap() {
+            ClientMessage::CreateSession { weekend: back, .. } => {
+                assert_eq!(back, Some(weekend.clone()))
+            }
+            _ => panic!("Wrong message type"),
+        }
+        let plain = crate::weekend::WeekendFormat {
+            practice_seconds: 600,
+            qualifying_seconds: vec![600],
+            ..Default::default()
+        };
+        assert!(
+            !String::from_utf8_lossy(&rmp_serde::to_vec_named(&plain).unwrap()).contains("assists")
+        );
+
+        let joined = ServerMessage::SessionJoined(SessionJoinedData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            your_grid_position: 3,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::ALL,
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            qualifying_seconds: None,
+            weekend: Some(weekend.clone()),
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: Default::default(),
+            physics: None,
+            classes: Vec::new(),
+            ballast: Vec::new(),
+            event: None,
+        });
+        let joined_bytes = rmp_serde::to_vec_named(&joined).unwrap();
+        println!("S_SessionJoinedWeekendAssists: {}", hex(&joined_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&joined_bytes).unwrap() {
+            ServerMessage::SessionJoined(data) => assert_eq!(data.weekend, Some(weekend)),
+            _ => panic!("Wrong message type"),
+        }
+
+        let state = ServerMessage::WeekendState(WeekendStateData {
+            phase: 1,
+            round: 0,
+            rounds: 1,
+            finished: false,
+            advancing: 0,
+            eliminated: vec![],
+            damage: DamageLevel::Full,
+            conditions: None,
+            allowed_assists: Some(practice),
+        });
+        let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
+        println!("S_WeekendStateAssists: {}", hex(&state_bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&state_bytes).unwrap() {
+            ServerMessage::WeekendState(data) => {
+                assert_eq!(data.allowed_assists, Some(practice))
+            }
             _ => panic!("Wrong message type"),
         }
     }
@@ -7294,6 +7424,7 @@ mod tests {
             }],
             damage: DamageLevel::Full,
             conditions: None,
+            allowed_assists: None,
         });
         let state_bytes = rmp_serde::to_vec_named(&state).unwrap();
         println!("S_WeekendState: {}", hex(&state_bytes));
@@ -7336,6 +7467,7 @@ mod tests {
             eliminated: vec![late],
             damage: DamageLevel::Full,
             conditions: None,
+            allowed_assists: None,
         });
         let late_state_bytes = rmp_serde::to_vec_named(&late_state).unwrap();
         println!("S_WeekendStateLate: {}", hex(&late_state_bytes));

@@ -180,6 +180,12 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	int32 CreateWeekendQualifyingDamage = -1;
 
+	/** A weekend's practice and qualifying rounds' own allowed aids (an ApexCreateSession::EAssistPreset); -1 runs them under the race's. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendPracticeAssists = -1;
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
+	int32 CreateWeekendQualifyingAssists = -1;
+
 	/** Whether the session being made qualifies: a qualifying session or a weekend. */
 	bool CreatesQualifying() const { return CreateStartingMode == EApexGameMode::Qualification || IsCreatingWeekend(); }
 
