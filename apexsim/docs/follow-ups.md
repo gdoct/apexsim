@@ -457,12 +457,12 @@ the same files.
   its content is set never reaches the content's slot (the slot keeps the
   alignment it was made with, and `UBorderSlot::SynchronizeProperties`
   wins at build): the main menu's Esc card filled the screen for that
-  (fixed 2026-10-24, `menu-esc-overlay`). Three more panels set a centre
-  after `MakePanel` and so draw filled or top-aligned:
-  `ApexHotlapWidget.cpp` (the footer and header panels' `VAlign_Center`)
-  and `ApexMainMenuWidget.cpp`'s panel at its `SetVerticalAlignment`. Set
-  the alignment before `SetContent`, or on the `UBorderSlot`, and check
-  those screens.
+  (fixed 2026-10-24, `menu-esc-overlay`). `ApexUI::AlignContent` sets
+  both; the hotlap header and footer and the main menu's top bar use it.
+  Other screens still call the border's setters after `MakePanel`
+  (`grep -n "Bar->SetVerticalAlignment\|->SetHorizontalAlignment(HAlign_Center)"`
+  in `Private/UI`): their rows mostly centre their own children, so look
+  at each screen before moving it to the helper.
 
 - `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` and
   `ApexSim.Guide.MadeMatchesBuild` compare the game's own render with

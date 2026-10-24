@@ -288,17 +288,12 @@ UWidget* UApexMainMenuWidget::BuildQuitOverlay()
 		ApexUI::MakeBrush(ApexUI::Palette::Background, ApexUI::Palette::Border, 1.0f));
 
 	// Dims the screen and swallows the mouse, so the rail behind cannot be clicked.
-	// The alignment before the content: the border's slot takes it when the
-	// card goes in, and a later change to the border never reaches the slot
-	// (the card then filled the screen).
 	UBorder* Dim = ApexUI::MakePanel(
 		*WidgetTree,
-		nullptr,
+		Card,
 		FMargin(),
 		ApexUI::MakeBrush(FLinearColor(0.0f, 0.0f, 0.0f, 0.78f)));
-	Dim->SetHorizontalAlignment(HAlign_Center);
-	Dim->SetVerticalAlignment(VAlign_Center);
-	Dim->SetContent(Card);
+	ApexUI::AlignContent(*Dim, HAlign_Center, VAlign_Center);
 	return Dim;
 }
 
@@ -545,7 +540,7 @@ UWidget* UApexMainMenuWidget::BuildTopBar()
 		Bar,
 		FMargin(ApexUI::Metrics::PageGutter, 0.0f),
 		ApexUI::MakeBrush(ApexUI::Palette::Background));
-	Panel->SetVerticalAlignment(VAlign_Center);
+	ApexUI::AlignContent(*Panel, HAlign_Fill, VAlign_Center);
 
 	return ApexUI::MakeSized(*WidgetTree, Panel, -1.0f, ApexUI::Metrics::TopBarHeight);
 }

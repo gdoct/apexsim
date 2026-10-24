@@ -123,6 +123,13 @@ namespace ApexUI
 	UBorder* MakePanel(UWidgetTree& Tree, UWidget* Content, const FMargin& Padding, const FSlateBrush& Brush);
 
 	/**
+	 * Where a panel's content sits. UBorder::SetHorizontalAlignment after the
+	 * content is in never reaches the content's slot (the slot's own copy
+	 * wins when the widget is built), so this sets both.
+	 */
+	void AlignContent(UBorder& Panel, EHorizontalAlignment H, EVerticalAlignment V);
+
+	/**
 	 * Adds a hidden focus ring on top of Host's other children and returns it;
 	 * show it while the owner has keyboard focus. Padding moves the ring in
 	 * from the host's edges, negative to draw it outside them (for controls

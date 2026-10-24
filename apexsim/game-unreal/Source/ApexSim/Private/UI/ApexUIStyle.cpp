@@ -3,6 +3,7 @@
 #include "Blueprint/WidgetTree.h"
 #include "Components/BackgroundBlur.h"
 #include "Components/Border.h"
+#include "Components/BorderSlot.h"
 #include "Components/ComboBoxString.h"
 #include "Components/EditableTextBox.h"
 #include "Components/HorizontalBox.h"
@@ -118,6 +119,17 @@ namespace ApexUI
 			Panel->SetContent(Content);
 		}
 		return Panel;
+	}
+
+	void AlignContent(UBorder& Panel, EHorizontalAlignment H, EVerticalAlignment V)
+	{
+		Panel.SetHorizontalAlignment(H);
+		Panel.SetVerticalAlignment(V);
+		if (UBorderSlot* ContentSlot = Panel.GetContent() ? Cast<UBorderSlot>(Panel.GetContent()->Slot) : nullptr)
+		{
+			ContentSlot->SetHorizontalAlignment(H);
+			ContentSlot->SetVerticalAlignment(V);
+		}
 	}
 
 	USizeBox* MakeSized(UWidgetTree& Tree, UWidget* Content, float Width, float Height)

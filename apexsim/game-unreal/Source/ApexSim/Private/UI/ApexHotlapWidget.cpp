@@ -953,7 +953,7 @@ UWidget* UApexHotlapWidget::BuildGarage()
 	AddH(Footer, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
 	AddH(Footer, Caption(*WidgetTree, TEXT("Changes apply on the next run")));
 	UBorder* FooterPanel = MakePanel(*WidgetTree, Footer, FMargin(PagePadX, 0.0f), MakeBrush(FLinearColor::Transparent));
-	FooterPanel->SetVerticalAlignment(VAlign_Center);
+	AlignContent(*FooterPanel, HAlign_Fill, VAlign_Center);
 	AddV(Card, MakeSized(*WidgetTree, FooterPanel, -1.0f, FooterHeight));
 
 	UBorder* CardPanel = MakePanel(*WidgetTree, Card, FMargin(), MakeBrush(CardFill, Outline, 1.0f));
@@ -994,7 +994,7 @@ UWidget* UApexHotlapWidget::BuildGarageHeader()
 	AddH(Header, Setup, FMargin(24.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
 
 	UBorder* Panel = MakePanel(*WidgetTree, Header, FMargin(PagePadX, 0.0f), MakeBrush(FLinearColor::Transparent));
-	Panel->SetVerticalAlignment(VAlign_Center);
+	AlignContent(*Panel, HAlign_Fill, VAlign_Center);
 	return MakeSized(*WidgetTree, Panel, -1.0f, HeaderHeight);
 }
 
