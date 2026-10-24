@@ -144,7 +144,17 @@ Tests: `ApexSim.Camera.ParseNumberList`, `ApexSim.Camera.ServerFramePose`.
 Pure logic with ground and visibility traces injected, so it is tested on a
 synthetic ring. In the game (`MakeCameraQueries`) visibility is a complex
 trace against world statics both ways, camera to car and back: a camera put
-down inside a mesh (a pit wall, a building) sees out of it one way only. It picks a subject (battles, the leader, a car in trouble:
+down inside a mesh (a pit wall, a building) sees out of it one way only. A
+view blocked for `BlockedCutSeconds` (0.8 s) is cut. A lens inside a mesh
+(`FWorldQueries::IsInside`) is never shown at all, not even for that long:
+the director cuts again in the same frame, up to `InsideRetries` (3) times,
+the last try the chase. A trackside spot inside one is not taken. In the game
+a lens is inside when a static face lies within 40 cm of it along any axis,
+traced either way (a face beside the line to the car fills a long lens with
+a blur), or when traces coming in from 25 m out on all four level sides and
+from above all meet a face (a trace meets a face only from its front, so
+these see a hoarding's or a building's outside however the lens looks out
+of it). It picks a subject (battles, the leader, a car in trouble:
 off track or stopped, at most once per 12 s) and cuts between shots
 (`EShot`): grid, trackside (a long lens off the road on the outside of the
 bend, ahead of the car), helicopter (a low, raking orbit 45-70 m out and
@@ -164,11 +174,13 @@ director feeds it the session track's centerline from the lobby
 - `-ApexView=tv` or `apexsim.tv.View 1` films a race with it.
 - `apexsim.tv.Shot <name|none>` holds one shot, `apexsim.tv.Cut` cuts now,
   `apexsim.tv.Pace` scales hold times, `apexsim.tv.DepthOfField 0`,
-  `apexsim.tv.Debug 1` (shot, subject and lens on screen). Each cut and its
-  reason is logged at `LogApexSim Verbose`.
+  `apexsim.tv.Debug 1` (shot, subject and lens on screen). Each cut, its
+  reason (`inside a mesh` for the rule above) and the camera's position are
+  logged at `LogApexSim Verbose` (`Broadcast camera:`).
 
 Tests: `ApexSim.Tv.*` (cutting, framing, path, target choice, cars in
-trouble, a blocked view, trackside placement, lock target).
+trouble, a blocked view, a lens inside a mesh, trackside placement, lock
+target).
 
 ## Finish view (`ApexFinishCam::FMove`)
 

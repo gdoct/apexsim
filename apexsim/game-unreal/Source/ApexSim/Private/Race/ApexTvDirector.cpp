@@ -352,6 +352,24 @@ namespace ApexTv
 		}
 
 		Evaluate(*Target, Cars, DeltaSeconds, TimeSeconds, World, OutPose);
+
+		// A lens inside a hoarding or a building face shows a flat frame of it:
+		// never a picture, not even for the moment a blocked view is allowed.
+		// Cut at once, in this frame, and try again a few times; the last try
+		// is the chase, which hangs over the road behind the car.
+		for (int32 Retry = 0; Retry < InsideRetries && !IsOnboard(Shot) && World.IsInside && World.IsInside(OutPose.Location); ++Retry)
+		{
+			RequestCutFor(TEXT("inside a mesh"));
+			bChaseNext = Retry == InsideRetries - 1;
+			Cut(Cars, bCountdown, World);
+			bChaseNext = false;
+			Target = FindCar(Cars, TargetCarIndex);
+			if (!Target)
+			{
+				return false;
+			}
+			Evaluate(*Target, Cars, DeltaSeconds, TimeSeconds, World, OutPose);
+		}
 		PrevTargetLocation = Target->Location;
 
 		// A camera that cannot see its car is not a shot. The onboard ones are
@@ -479,7 +497,9 @@ namespace ApexTv
 			return;
 		}
 
-		EShot Next = ForcedShot != EShot::None ? ForcedShot : ChooseShot(*Target, Cars, bCountdown);
+		EShot Next = bChaseNext ? EShot::Chase
+			: ForcedShot != EShot::None ? ForcedShot
+			: ChooseShot(*Target, Cars, bCountdown);
 		if (!SetUpShot(Next, *Target, Cars, World))
 		{
 			// Trackside is the one that can fail (no path, nowhere with a view);
@@ -666,6 +686,10 @@ namespace ApexTv
 				{
 					FVector Camera = Point + RightOf(Tangent) * SideTry * Lateral;
 					Camera.Z = GroundBelow(Camera + FVector(0, 0, Target.Location.Z + 50.0 * Metre), Target.Location.Z, World) + Height;
+					if (World.IsInside && World.IsInside(Camera))
+					{
+						continue;
+					}
 					int32 Seen = 0;
 					for (const FVector& OnRoad : Approach)
 					{

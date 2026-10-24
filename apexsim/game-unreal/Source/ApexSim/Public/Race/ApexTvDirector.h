@@ -81,13 +81,18 @@ namespace ApexTv
 		float Aperture = 0.0f;
 	};
 
-	/** What only the world knows. Either may be unset, which reads as "flat, clear". */
+	/** What only the world knows. Any may be unset, which reads as "flat, clear, open". */
 	struct FWorldQueries
 	{
 		/** Height of the ground below a point, cm; false if nothing was hit. */
 		TFunction<bool(const FVector& Above, double& OutGroundZ)> GroundZ;
 		/** Nothing but cars between two points. */
 		TFunction<bool(const FVector& From, const FVector& To)> IsClear;
+		/**
+		 * A lens there is inside a mesh or has one against it: what it shows
+		 * is a flat frame of that mesh, whatever the line to the car says.
+		 */
+		TFunction<bool(const FVector& At)> IsInside;
 	};
 
 	/**
@@ -183,6 +188,8 @@ namespace ApexTv
 
 		/** Seconds a view may stay blocked before it is cut. */
 		static constexpr float BlockedCutSeconds = 0.8f;
+		/** New shots tried in one frame when a camera lands inside a mesh. */
+		static constexpr int32 InsideRetries = 3;
 
 		/**
 		 * Cut to a shot on the next tick and keep coming back to it (debugging).
@@ -263,6 +270,8 @@ namespace ApexTv
 		float LastShotHeld = 0.0f;
 		bool bCutRequested = false;
 		bool bWasCountdown = false;
+		/** The next cut is the chase: the other shots all landed inside a mesh. */
+		bool bChaseNext = false;
 		/** The last few shots, newest first, so the cutting does not repeat itself. */
 		TArray<EShot, TInlineAllocator<4>> History;
 

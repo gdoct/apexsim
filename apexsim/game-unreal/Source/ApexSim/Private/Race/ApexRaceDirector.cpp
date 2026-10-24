@@ -411,6 +411,39 @@ namespace
 			return !World->LineTraceTestByObjectType(From, To, Statics, Params)
 				&& !World->LineTraceTestByObjectType(To, From, Statics, Params);
 		};
+		// A lens inside a mesh, or against one, films a flat frame of it; the
+		// line to the car can still read clear (the camera looks out of an
+		// open side, or the face sits beside the line, a blur filling the
+		// frame). Two tests: a face within LensClearanceCm along any axis,
+		// either way; or faces met by traces coming in from EnclosureCm out on
+		// all four level sides and from above (a trace meets a face only from
+		// its front, so these see a hoarding's or a building's outside).
+		Queries.IsInside = [World, &Params, &Statics](const FVector& At)
+		{
+			constexpr double LensClearanceCm = 40.0;
+			constexpr double EnclosureCm = 2500.0;
+			static const FVector Axes[] = {FVector::ForwardVector, FVector::BackwardVector, FVector::RightVector,
+				FVector::LeftVector, FVector::UpVector, FVector::DownVector};
+			for (const FVector& Axis : Axes)
+			{
+				const FVector End = At + Axis * LensClearanceCm;
+				if (World->LineTraceTestByObjectType(At, End, Statics, Params)
+					|| World->LineTraceTestByObjectType(End, At, Statics, Params))
+				{
+					return true;
+				}
+			}
+			// The first five axes: level ones and up. Below is the ground, whose
+			// underside a trace from beneath never meets.
+			for (int32 Index = 0; Index < 5; ++Index)
+			{
+				if (!World->LineTraceTestByObjectType(At + Axes[Index] * EnclosureCm, At, Statics, Params))
+				{
+					return false;
+				}
+			}
+			return true;
+		};
 		return Queries;
 	}
 
@@ -4096,8 +4129,9 @@ void AApexRaceDirector::UpdateTvCamera(float DeltaSeconds)
 	if (Tv.GetCutCount() != LoggedTvCuts)
 	{
 		LoggedTvCuts = Tv.GetCutCount();
-		UE_LOG(LogApexSim, Verbose, TEXT("Broadcast camera: %s on car %d (cut: %s, after %.1f s)"),
-			ApexTv::ShotName(Tv.GetShot()), Tv.GetTargetCarIndex(), Tv.GetLastCutReason(), Tv.GetLastShotHeld());
+		UE_LOG(LogApexSim, Verbose, TEXT("Broadcast camera: %s on car %d (cut: %s, after %.1f s) from (%.0f, %.0f, %.0f) cm"),
+			ApexTv::ShotName(Tv.GetShot()), Tv.GetTargetCarIndex(), Tv.GetLastCutReason(), Tv.GetLastShotHeld(),
+			Pose.Location.X, Pose.Location.Y, Pose.Location.Z);
 	}
 
 	if (CVarTvDebug.GetValueOnGameThread() != 0 && GEngine)

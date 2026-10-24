@@ -7933,3 +7933,42 @@ runs:
       - at: 233
         label: "held there"
         checks: "N19: the cars of incident 0 in view (TV camera)"
+
+  - id: tv-inside-night
+    about: "R22. Night cameras at Mandarina Bay"
+    # The TV director round a street circuit at night, a shot every 7 s;
+    # the client log's `Broadcast camera:` lines give each cut's reason and
+    # the lens's position.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=21:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      2: ["log LogApexSim Verbose"]
+      12: ["apexsim.tv.Debug 1"]
+    shots:
+      - {at: 30, label: "TV", checks: "no flat white or black frame"}
+      - {at: 37, label: "TV", checks: "no flat white or black frame"}
+      - {at: 44, label: "TV", checks: "no flat white or black frame"}
+      - {at: 51, label: "TV", checks: "no flat white or black frame"}
+      - {at: 58, label: "TV", checks: "no flat white or black frame"}
+      - {at: 65, label: "TV", checks: "no flat white or black frame"}
+      - {at: 72, label: "TV", checks: "no flat white or black frame"}
+      - {at: 79, label: "TV", checks: "no flat white or black frame"}
+      - {at: 86, label: "TV", checks: "no flat white or black frame"}
+      - {at: 93, label: "TV", checks: "no flat white or black frame"}
+      - {at: 100, label: "TV", checks: "no flat white or black frame"}
+      - {at: 107, label: "TV", checks: "no flat white or black frame"}
+      - {at: 114, label: "TV", checks: "no flat white or black frame"}
+      - {at: 121, label: "TV", checks: "no flat white or black frame"}
+      - {at: 128, label: "TV", checks: "no flat white or black frame"}
+      - {at: 135, label: "TV", checks: "no flat white or black frame"}

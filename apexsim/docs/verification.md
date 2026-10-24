@@ -495,7 +495,7 @@ kept at its race (`server.event` in runs.yml), as after a restart.
   its entries and results, OPEN / START / NEXT PHASE / CLOSE / entries /
   DELETE answering, and an event created from the form.
 
-### R20. The race's incident list in the game
+### R23. The race's incident list in the game
 
 `r3c-incidents`: a short race with the AI and a stand-in driver, then the
 results screen.
@@ -508,6 +508,17 @@ results screen.
 - The dashboard's copied command with `-ApexWatchReplayAt=<s>` on a
   downloaded server replay: it seeks once loaded (no "nothing is
   playing").
+
+### R24. Night cameras at Mandarina Bay
+
+`tv-inside-night`: the TV director round the street circuit at 21:00, a
+shot every 7 s, cuts logged with their reason and the lens's position.
+
+- No TV frame inside a hoarding or a building (`FWorldQueries::IsInside`,
+  [game/cameras.md](game/cameras.md), TV director):
+  no flat white or near-black frame, and how often the log's
+  `cut: inside a mesh` comes (a street circuit's helicopter and trackside
+  spots among the buildings).
 
 ## 2. Needs a human: hands, ears and hardware
 

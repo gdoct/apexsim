@@ -281,13 +281,6 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
-- Mandarina Bay at night (`r5-mandarina-night`, 2026-10-24): two of the TV
-  director's shots were a whole frame of flat white (shot 7) and of near
-  black (shot 10): a camera set down inside a mesh (a hoarding, a building
-  face) that the visibility trace does not catch from that side
-  (cameras.md, TV director). Find the two poses from the client log's
-  `Tv:` lines and test the placement against the street circuit's walls
-  and buildings both ways.
 - At night the cockpit wheel's display glows as a blown white rectangle
   (`headlights-night`, 2026-10-24, the SF-26 at Mandarina Bay): its
   emissive is set for the day's exposure; scale it with the scene's

@@ -434,6 +434,60 @@ bool FApexTvBlockedTest::RunTest(const FString& Parameters)
 
 // -----------------------------------------------------------------------------
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexTvInsideTest, "ApexSim.Tv.NeverFilmsFromInsideAMesh", ApexTestFlags)
+
+bool FApexTvInsideTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexTv;
+	using namespace ApexTvTest;
+
+	FTvField Field;
+	FDirector Director;
+	Director.Reset(77);
+	Director.SetPath(Field.Ring.Centerline());
+
+	// A street circuit: buildings wall to wall from 6 m outside the road's
+	// centre, the infield open. The line from any camera to any car reads
+	// clear, as a trace started inside a mesh does.
+	const FVector Middle = ApexRace::ServerToUnrealPosition(FVector(0.0, Field.Ring.RadiusM, 0.0));
+	const double BuildingsFromCm = (Field.Ring.RadiusM + 6.0) * 100.0;
+	FWorldQueries Street;
+	Street.IsInside = [Middle, BuildingsFromCm](const FVector& At) { return FVector::Dist2D(At, Middle) > BuildingsFromCm; };
+
+	constexpr double Dt = 1.0 / 30.0;
+	int32 Filmed = 0;
+	int32 Inside = 0;
+	int32 InsideCuts = 0;
+	int32 LastCuts = 0;
+	TSet<EShot> Kinds;
+	for (int32 Frame = 0; Frame < static_cast<int32>(150.0 / Dt); ++Frame)
+	{
+		Field.Step(Dt, true);
+		ApexTv::FPose Pose;
+		if (!Director.Tick(Field.Cars, false, static_cast<float>(Dt), static_cast<float>(Frame * Dt), Street, Pose))
+		{
+			continue;
+		}
+		if (Director.GetCutCount() != LastCuts)
+		{
+			InsideCuts += FCString::Strcmp(Director.GetLastCutReason(), TEXT("inside a mesh")) == 0;
+			LastCuts = Director.GetCutCount();
+			Kinds.Add(Director.GetShot());
+		}
+		if (Director.GetShot() != EShot::Onboard && Director.GetShot() != EShot::Nose)
+		{
+			++Filmed;
+			Inside += Street.IsInside(Pose.Location);
+		}
+	}
+	TestTrue(FString::Printf(TEXT("cameras were put down among the buildings and cut (%d)"), InsideCuts), InsideCuts > 0);
+	TestEqual(FString::Printf(TEXT("no frame filmed from inside one (of %d)"), Filmed), Inside, 0);
+	TestTrue(FString::Printf(TEXT("still a varied cut (%d kinds)"), Kinds.Num()), Kinds.Num() >= 4);
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexTvIncidentTest, "ApexSim.Tv.GoesToACarInTrouble", ApexTestFlags)
 
 bool FApexTvIncidentTest::RunTest(const FString& Parameters)
