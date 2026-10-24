@@ -7919,15 +7919,17 @@ runs:
       - -ApexView=chase
       - -ApexRacingLine=off
     exec:
-      200: ["apexsim.incidents show"]
-      206: ["apexsim.incidents log"]
-      214: ["apexsim.incidents watch 0"]
-      230: ["apexsim.watch hold"]
+      # The results screen opens at about 203 s, and the list answers a
+      # request: ask early, show once both are there.
+      200: ["apexsim.incidents log"]
+      210: ["apexsim.incidents show"]
+      218: ["apexsim.incidents watch 0"]
+      234: ["apexsim.watch hold"]
     shots:
-      - at: 205
+      - at: 213
         label: "results: the incident list"
         checks: "N19: the race's incidents (what, cars, race clock, lap, detail), own rows in the accent colour, WATCH badges"
-      - at: 226
+      - at: 230
         label: "the jump: the replay from just before incident 0"
         checks: "N19: out of the session, the replay playing ~3 s before the first incident (client.log: Replay seeked to)"
       - at: 233

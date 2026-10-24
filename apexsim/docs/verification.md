@@ -519,7 +519,7 @@ results screen.
   downloaded server replay: it seeks once loaded (no "nothing is
   playing").
 
-Run 2026-10-24 (`r3c-incidents`): the jump played the client's replay from 0:50 and held it; the 205 s shot caught the results table, not the incident list (the Incidents toggle had not been pressed by then): move the shot or the `apexsim.incidents show`.
+Run 2026-10-24 (`r3c-incidents`): the jump played the client's replay from 0:50 and held it; the list shot catches the finish view ("YOU FINISHED P6"), not the results screen, which opens only once the session reaches Finished; `apexsim.incidents show` then turns a results screen that is not on screen yet. The recipe needs its list shot after the session's Finished state (or the list offered on the finish view too).
 
 ### R24. Night cameras at Mandarina Bay
 
