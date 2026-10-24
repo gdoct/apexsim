@@ -137,7 +137,10 @@ Built per tick in `ai_input_for` with the car's speed profile
   (1 m), or that pins it against the road's edge, is dropped in behind at
   `SQUEEZE_DROP_MPS` (1.5 m/s) under its pace, unless it is the rival
   the car is attacking. "Ahead" is by lap progress, so in a hairpin two
-  cars do not both back off.
+  cars do not both back off. Squeezed between two cars (the room each
+  leaves overlaps) it takes the middle and drops behind whichever of them
+  is ahead, at `SQUEEZE_DROP_MPS` under its pace; between cars level with
+  it or behind it does not brake at all.
 - **Fuel save**: `with_fuel_save(coast_s)` shuts the throttle `coast_s`
   before every braking zone of the profile (brake left to the plan);
   `with_short_shift(share)` upshifts up to `SHORT_SHIFT_DROP` (30%) before
@@ -533,6 +536,11 @@ What the AI still lacks is in [../simulation-gaps.md](../simulation-gaps.md)
   on every corner entry and drives the passing car into the passed one.
   The per-tick traffic dodge is still an offset; holding it across the
   road was tried and made contact worse.
+- **Traffic never slows a car against its own speed.** A squeeze limit of
+  the car's own speed less a margin, re-read every tick, brakes it to a
+  stop: three abreast into the Snorisring hairpin on lap one the middle
+  car stopped at the apex and the field ran into it. Every traffic limit
+  is another car's pace (or a gap to it).
 - **The pace noise must stay one-sided** (never faster than the plan): a
   fast side held over a whole corner doubled the field's sliding.
 - **A load-sensitive tyre is not its static-load coefficient.** Read at

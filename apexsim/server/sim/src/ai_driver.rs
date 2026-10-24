@@ -1283,8 +1283,15 @@ impl<'a> AiDriverController<'a> {
         let road_right = -center.width_right_m + edge;
 
         let side = if lo > hi {
-            // Squeezed between two cars: take the middle and drop back.
-            speed_limit = speed_limit.min(own_fwd - 2.0).max(0.0);
+            // Squeezed between two cars: take the middle and drop behind
+            // whichever of them is ahead. Not below its own pace: a car
+            // braking for being squeezed by cars level or behind it
+            // stopped in the corner (the Snorisring hairpin's lap-one
+            // pile-ups), with the field arriving behind.
+            let ahead_fwd = lo_ahead
+                .unwrap_or(f32::INFINITY)
+                .min(hi_ahead.unwrap_or(f32::INFINITY));
+            speed_limit = speed_limit.min(ahead_fwd - SQUEEZE_DROP_MPS).max(0.0);
             0.5 * (lo + hi)
         } else {
             wanted.clamp(lo, hi)
