@@ -229,9 +229,12 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 
 ### R8. Stadium stands and pit rows
 
-`r8-ims` and `r8-mexicocity` aim at their `grandstand_corner`; the first
-pass put the camera at road level and in a chase view: aim again, from
-higher and further off.
+`r8-ims` and `r8-mexicocity` aim at their `grandstand_corner` from 45 m
+up and 170 m off (2026-10-25). At Mexico City the corner stand follows the
+bend as one curved, crowded stand with its roof: the wedge reads. At
+Indianapolis the stand there shows as two straight sections with a gap
+between them, set back on the grass: no wedge in sight from that side;
+look again from the inside of the turn.
 
 - A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
