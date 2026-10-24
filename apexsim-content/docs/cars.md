@@ -505,7 +505,9 @@ hinge_up_m = 0.8226           # above its floor
 open_deg = 25.0
 ```
 
-`FApexCarDrsFlap` swings it open over `ApexDrs::SwingSeconds` (0.18 s) while
+An AC import writes the same from the car's DRS animation
+([ac-import](ac-import.md), "The DRS flap"), the GLB in the car's own
+folder. `FApexCarDrsFlap` swings it open over `ApexDrs::SwingSeconds` (0.18 s) while
 telemetry's `bDrsOpen` is set; liveries, the ghost tint and a detached rear
 wing carry it along. The DRS rule is server-side
 ([apexsim/docs/server/vehicle-physics.md](../../apexsim/docs/server/vehicle-physics.md)).

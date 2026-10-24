@@ -234,6 +234,11 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     mirrors = model.read_mirrors(car, kn5, eye)
     # The glass is a slot of its own, like a lamp: the rig paints it.
     plan = model.plan_materials(kn5, split, lights, mirrors)
+    # The DRS flap, cut out of the body so the client can open it.
+    flap, flap_why = model.find_drs_flap(car, kn5, split.body)
+    if flap is not None:
+        cut = {id(m) for m in flap.meshes}
+        split.body = [m for m in split.body if id(m) not in cut]
     if plan.skin_texture is None:
         warnings.append("the kn5 has no Skin_00.dds: the paint cannot be repainted by a livery")
 
@@ -272,6 +277,23 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         wheel_glbs[name] = model.build_glb(kn5, split.wheels[corner], plan, lights, colours, frame.to_local,
                                            frame.dir_to_local, texture_sizes, cache, False)
 
+    flap_glb = None
+    drs_flap = None
+    if flap is not None:
+        # In the seated frame with the origin on the hinge, which the client
+        # places `hinge_forward_m` ahead of the body's origin and
+        # `hinge_up_m` above its floor; across the car the flap stays put.
+        hinge = seat.apply(flap.hinge)
+        hinge[0] = 0.0
+
+        def flap_pts(p):
+            return seat.apply(flap.shut_points(p)) - hinge
+
+        flap_glb = model.build_glb(kn5, flap.meshes, plan, lights, colours, flap_pts, flap.shut_dirs,
+                                   texture_sizes, cache, True)
+        drs_flap = {"model": f"{stem}_drs.glb", "hinge_forward_m": round(float(hinge[2]), 4),
+                    "hinge_up_m": round(float(hinge[1]), 4), "open_deg": float(flap.open_deg)}
+
     steer_frame = model.steering_frame(kn5)
     steer_glb = None
     if split.steer and steer_frame is not None:
@@ -287,9 +309,9 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     except physics.PhysicsError as e:
         raise ImportError_(f"physics: {e}") from None
     warnings.extend(phys.warnings)
-    if phys.has_drs:
-        warnings.append("the DRS changes the aero (drs_* keys) but its flap is not split off the body yet: "
-                        "the wing is drawn closed")
+    if phys.has_drs and flap is None:
+        warnings.append(f"the DRS changes the aero (drs_* keys) but its flap is drawn closed: "
+                        f"{flap_why or 'drs.ini names no wing'}")
 
     # Liveries.
     liv = liveries.plan_liveries(kn5_original, kn5, car.skins, default_skin, plan,
@@ -380,7 +402,7 @@ def import_car(car_dir: Path, opts: Options) -> Result:
               "skin": default_skin.name if default_skin else "", "tool": TOOL_VERSION}
     notes = [f"Engine sound: {sound['cylinders']} cylinders ({sound_why})."] if sound_why else []
     toml_text = render(header=header, physics=phys, sound=sound, wheels=wheels, cockpit=cockpit,
-                       drs_flap=None, source=source, liveries=liv.liveries, notes=notes)
+                       drs_flap=drs_flap, source=source, liveries=liv.liveries, notes=notes)
 
     # Checks.
     checks: list[dict] = []
@@ -401,7 +423,7 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     rpm = [r for r, _ in phys.torque_curve]
     check("torque curve", rpm == sorted(rpm) and len(rpm) >= 2, f"{len(rpm)} points, {rpm[0]:.0f}-{rpm[-1]:.0f} rpm")
     tris = body.builder.triangle_count + sum(g.builder.triangle_count for g in wheel_glbs.values()) + \
-        (steer_glb.builder.triangle_count if steer_glb else 0)
+        (steer_glb.builder.triangle_count if steer_glb else 0) + (flap_glb.builder.triangle_count if flap_glb else 0)
     check("triangles", tris <= TRIANGLE_BUDGET, f"{tris:,} (budget {TRIANGLE_BUDGET:,})", fatal=False)
     decoded_mb = sum(t.width * t.height * 4 * 4 / 3 for t in cache.values() if t) / 1e6
     check("texture memory", decoded_mb <= TEXTURE_BUDGET_MB, f"{decoded_mb:.0f} MB decoded (budget {TEXTURE_BUDGET_MB})",
@@ -433,6 +455,9 @@ def import_car(car_dir: Path, opts: Options) -> Result:
             "body_meshes": len(split.body),
             "wheel_meshes": {c: len(v) for c, v in split.wheels.items()},
             "steering_wheel_meshes": len(split.steer),
+            "drs_flap": ({"node": flap.node, "meshes": sorted(m.name for m in flap.meshes),
+                          "hinge_model_m": [round(float(v), 4) for v in flap.hinge], **drs_flap}
+                         if flap is not None else flap_why),
             "dropped": {why: sorted(set(names)) for why, names in sorted(split.dropped.items())},
         },
         "materials": plan.report,
@@ -467,6 +492,8 @@ def import_car(car_dir: Path, opts: Options) -> Result:
         sizes[f"wheels/{name_}.glb"] = g.builder.write(out_dir / "wheels" / f"{name_}.glb")
     if steer_glb is not None:
         sizes["steering_wheel.glb"] = steer_glb.builder.write(out_dir / "steering_wheel.glb")
+    if flap_glb is not None:
+        sizes[f"{stem}_drs.glb"] = flap_glb.builder.write(out_dir / f"{stem}_drs.glb")
     liveries.write_files(out_dir, liv.files)
     for rel, data in liv.files.items():
         sizes[rel] = len(data)
@@ -475,7 +502,8 @@ def import_car(car_dir: Path, opts: Options) -> Result:
     report["damage_parts"] = add_damage_parts(out_dir)
     toml_text = (out_dir / "car.toml").read_bytes().decode("utf-8")
     # Read back what the client will read.
-    for rel in [f"{stem}.glb", "wheels/front.glb", "wheels/rear.glb"] + (["steering_wheel.glb"] if steer_glb else []):
+    for rel in [f"{stem}.glb", "wheels/front.glb", "wheels/rear.glb"] + (["steering_wheel.glb"] if steer_glb else []) + \
+            ([f"{stem}_drs.glb"] if flap_glb else []):
         read_glb_json(out_dir / rel)
     report["files"] = {k: sizes[k] for k in sorted(sizes)}
     (out_dir / f"{stem}.import.json").write_text(json.dumps(report, indent=2, sort_keys=False, default=_json) + "\n",

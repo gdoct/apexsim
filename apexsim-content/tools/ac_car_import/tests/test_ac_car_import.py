@@ -224,9 +224,13 @@ ANGLE=10
 }
 
 
-def build_car(root: Path, folder: str = "test_car", packed: bool = False) -> Path:
+def build_car(root: Path, folder: str = "test_car", packed: bool = False, extra_nodes: tuple = (),
+              animations: dict[str, bytes] | None = None) -> Path:
     car = root / folder
     car.mkdir(parents=True)
+    for name, blob in (animations or {}).items():
+        (car / "animations").mkdir(exist_ok=True)
+        (car / "animations" / name).write_bytes(blob)
     files = {k: v.encode("latin-1") for k, v in DATA.items()}
     if packed:
         (car / "data.acd").write_bytes(encrypt_acd(files, folder))
@@ -284,6 +288,7 @@ def build_car(root: Path, folder: str = "test_car", packed: bool = False) -> Pat
         dummy("COCKPIT_LR", (0, 0, 0), [node_mesh("GEO_COCKPIT_LR", box((-0.5, 0.2, -0.5), (0.5, 0.8, 0.5)), 4)]),
         dummy("DAMAGE_GLASS_1", (0, 0, 0), [node_mesh("DAMAGE_GLASS_MESH", box((-0.5, 0.9, 0.5), (0.5, 1.0, 0.6)), 5)]),
         node_mesh("GEO_Far_Lod", box((-1, 0, -1), (1, 1, 1)), 0, lod_in=50.0),
+        *extra_nodes,
     ]
     kn5.write_kn5(car / "test_car.kn5", textures, materials, nodes)
     return car
@@ -580,6 +585,109 @@ LUT=(1000=1|9000=1|9001=0)
         flat = "[CONTROLLER_0]\nINPUT=SPEED_KMH\nCOMBINATOR=MULT\nLUT=(0=1|300=1)\n"
         points, dropped = physics.delivery_profile(fake_car(ctrl_ers_0__ini=flat), "ctrl_ers_0.ini")
         self.assertEqual((points, dropped), ([], []))
+
+
+def flap_frame(open_deg: float, hinge=(0.0, 1.2, -2.4)) -> np.ndarray:
+    """A flap dummy's local transform: origin on the hinge, turned about the
+    left-right axis so its leading edge (+z) rises `open_deg`."""
+    a = math.radians(open_deg)
+    m = np.eye(4)
+    m[1, :3] = [0.0, math.cos(a), -math.sin(a)]
+    m[2, :3] = [0.0, math.sin(a), math.cos(a)]
+    m[3, :3] = hinge
+    return m
+
+
+class DrsFlapTest(unittest.TestCase):
+    """A DRS wing whose flap AC opens with a `.ksanim`: cut out of the body as
+    `<stem>_drs.glb` on its hinge, with the `[drs_flap]` table."""
+
+    FLAP = ("dummy", "DRS_FLAP", flap_frame(0.0), [node_mesh("GEO_Flap", box((-0.5, -0.05, 0.0), (0.5, 0.0, 0.2)), 0)])
+    # A piston beside it that slides, which stays in the body.
+    PISTON = ("dummy", "DRS_PISTON", flap_frame(0.0, (0.0, 1.0, -2.3)),
+              [node_mesh("GEO_Piston", box((-0.02, 0.0, -0.02), (0.02, 0.2, 0.02)), 0)])
+
+    @classmethod
+    def setUpClass(cls):
+        from unittest import mock
+        piston_up = flap_frame(0.0, (0.0, 1.05, -2.3))
+        anim = model.write_ksanim({"DRS_FLAP": [flap_frame(0.0), flap_frame(15.0), flap_frame(30.0)],
+                                   "DRS_PISTON": [flap_frame(0.0, (0.0, 1.0, -2.3)), piston_up]})
+        extra = {"drs.ini": "[HEADER]\nVERSION=1\n[WING_1]\nEFFECT=0\n",
+                 "wing_animations.ini": "[HEADER]\nVERSION=2\n[ANIMATION_0]\nWING=1\nFILE=drs.ksanim\nMIN=0\nMAX=10\n"}
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = Path(cls.tmp.name)
+        with mock.patch.dict(DATA, extra):
+            car_dir = build_car(root / "ac", folder="test_drs", extra_nodes=(cls.FLAP, cls.PISTON),
+                                animations={"drs.ksanim": anim})
+        opts = cli.Options(custom_dir=root / "custom", default_dir=root / "default")
+        (root / "default").mkdir()
+        cls.result = cli.import_car(car_dir, opts)
+        cls.out = next(opts.custom_dir.iterdir())
+        cls.toml = tomllib.loads((cls.out / "car.toml").read_text(encoding="utf-8"))
+        cls.report = json.loads((cls.out / f"{cls.out.name}.import.json").read_text(encoding="utf-8"))
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def test_the_flap_is_its_own_glb_on_its_hinge(self):
+        flap = self.toml["drs_flap"]
+        self.assertEqual(flap["model"], f"{self.out.name}_drs.glb")
+        # The hinge 2.4 m behind the axles' middle, 1.2 m up in the model
+        # (the tyres' 0.1 m lift on top); the animation's 30 degrees.
+        self.assertAlmostEqual(flap["hinge_forward_m"], -2.4, places=3)
+        self.assertAlmostEqual(flap["hinge_up_m"], 1.3, places=3)
+        self.assertAlmostEqual(flap["open_deg"], 30.0, places=2)
+        js = glb.read_glb_json(self.out / flap["model"])
+        acc = js["accessors"]
+        prims = js["meshes"][0]["primitives"]
+        lo = np.min([acc[p["attributes"]["POSITION"]]["min"] for p in prims], axis=0)
+        hi = np.max([acc[p["attributes"]["POSITION"]]["max"] for p in prims], axis=0)
+        # Shut, from the hinge: across the car as it is, forward to the
+        # leading edge, down to its underside.
+        np.testing.assert_allclose(lo, [-0.5, -0.05, 0.0], atol=1e-4)
+        np.testing.assert_allclose(hi, [0.5, 0.0, 0.2], atol=1e-4)
+        self.assertEqual(self.report["parts"]["drs_flap"]["node"], "DRS_FLAP")
+        self.assertFalse(any("drawn closed" in w for w in self.result.warnings))
+
+    def test_the_body_keeps_the_rest_and_not_the_flap(self):
+        js = glb.read_glb_json(self.out / f"{self.out.name}.glb")
+        prims = js["meshes"][0]["primitives"]
+        lo = np.min([js["accessors"][p["attributes"]["POSITION"]]["min"] for p in prims], axis=0)
+        # The flap reached 2.4 m back; the piston beside it (2.32 m) stays.
+        self.assertAlmostEqual(float(lo[2]), -2.32, places=3)
+
+    def test_a_flap_drawn_open_is_cut_shut(self):
+        car_dir = Path(self.tmp.name) / "ac" / "test_drs"
+        car = data.read_car(car_dir)
+        k = kn5.read_kn5(data.main_kn5(car_dir), textures=False)
+        split = model.split_meshes(k)
+        # The same flap, with the animation run backwards (shut at its end).
+        anim = model.read_ksanim((car_dir / "animations" / "drs.ksanim").read_bytes())
+        anim = {n: list(reversed(m)) for n, m in anim.items()}
+        (car_dir / "animations" / "drs.ksanim").write_bytes(model.write_ksanim(anim))
+        flap, why = model.find_drs_flap(car, k, split.body)
+        self.assertIsNone(why)
+        self.assertEqual(flap.open_deg, 30.0)
+        np.testing.assert_allclose(flap.to_shut, np.eye(4), atol=1e-6)
+        np.testing.assert_allclose(flap.hinge[1:], [1.2, -2.4], atol=1e-4)
+
+    def test_no_animation_says_why(self):
+        car = fake_car(drs__ini="[WING_1]\nEFFECT=0\n")
+        flap, why = model.find_drs_flap(car, kn5.Kn5File(Path("x"), 6), [])
+        self.assertIsNone(flap)
+        self.assertIn("wing_animations.ini", why)
+        self.assertEqual(model.find_drs_flap(fake_car(), kn5.Kn5File(Path("x"), 6), []), (None, None))
+
+    def test_a_version_2_ksanim_reads_as_its_matrices(self):
+        # A quaternion of 30 degrees about -x: the leading edge (+z) up.
+        a = math.radians(30.0)
+        q = (-math.sin(a / 2), 0.0, 0.0, math.cos(a / 2))
+        blob = struct.pack("<ii", 2, 1) + struct.pack("<i", 4) + b"FLAP" + struct.pack("<i", 1) + \
+            struct.pack("<10f", *q, 0.0, 1.2, -2.4, 1.0, 1.0, 1.0)
+        m = model.read_ksanim(blob)["FLAP"][0]
+        np.testing.assert_allclose(m, flap_frame(30.0), atol=1e-6)
 
 
 def _import_with(extra: dict, folder: str):

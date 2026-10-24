@@ -333,6 +333,8 @@ car.toml also to `Server/content/cars/custom`):
   holding a `/` is looked up in the car folder (`ApexCarToml::IsCarLocalWheel`).
 - `steering_wheel.glb`: `STEER_HR` in its own frame for the cockpit rig
   (`[cockpit] steering_wheel_model`).
+- `<Stem>_drs.glb` and `[drs_flap]` for a car whose DRS wing AC opens
+  with an animation (see "The DRS flap").
 - `skins/<skin>/...`, `skins/_kn5/`: every AC skin but the baked one as a
   texture `[[livery]]` (`skin`, `textures` slot overrides, `preview`). A
   livery lists every texture any skin overrides, taking the kn5's own
@@ -505,6 +507,26 @@ importer change.
     their place) and `FRONT_TORQUE_VECTORING_BIAS` are warned about, not
     carried; a two-motor car's crank profile is not read (the front's
     drives both).
+- **The DRS flap** (`model.find_drs_flap`). `wing_animations.ini` names
+  the `.ksanim` (`animations/`, outside `data.acd`) of `drs.ini`'s wing;
+  `read_ksanim` reads it (`i32 version, i32 nodes`, per node its name and
+  per frame a local transform: version 1 a row-major 4x4 as the kn5's,
+  version 2 a quaternion, translation and scale). Of the nodes it moves
+  that hold body meshes, the one holding the most triangles that turns
+  about the car's left-right axis (`FLAP_MIN_LATERAL`, 1-60 degrees, the
+  hinge within 0.3 m of its meshes) is the flap; a piston or link beside
+  it stays in the body, drawn shut. Open is the end of the animation that
+  lifts the leading edge, whatever `INVERTED` says; the hinge is the line
+  the shut-to-open motion leaves where it is, in the side view; `open_deg`
+  the turn. Its meshes leave the body for `<Stem>_drs.glb`, shut, in the
+  seated frame less the hinge (across the car they stay put), and
+  `[drs_flap]` carries `hinge_forward_m` / `hinge_up_m` (the hinge in the
+  seated frame) and `open_deg`, which the client opens as it does the
+  shipped F1s' ([cars](cars.md#drs-flap)). The SF70H's flap 34.7 degrees
+  about its trailing edge, the 2021 RSS hybrid's 42.9, the F138's 46.9. A
+  DRS car without a flap (no animation, a P1's piston and an airbrake
+  past 60 degrees) keeps its wing drawn closed, with the reason in the
+  warnings and the report's `parts.drs_flap`.
 - **Class** from `ui_car.json` tags (`map_class`): `GT3`, `LMP2`,
   `Hypercar`, `F1` (a single-seater with a DRS wing and a `gp`/`f1` tag),
   else a group of its own (`Formula`, `GT4`, `GT`, `Vintage`, `Drift`,
@@ -633,8 +655,9 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
   with real `geotags` (and the DEM), north by AC's convention.
 - Kit props in place of AC scenery; night lighting from AC's lights; AC's
   normal, `txMaps` and detail maps (diffuse only).
-- A DRS flap split off a car's body: a DRS car gets the drag and downforce
-  reductions but its wing is drawn closed.
+- A DRS flap that is not a single hinged node turning 60 degrees at most
+  about the car's left-right axis (the P1's wing): drawn closed. A flap's
+  linkage beside it does not move.
 - AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or
   porpoising: an import gets the defaults (standard pads, brake-by-wire,
   none).

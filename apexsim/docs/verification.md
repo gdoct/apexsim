@@ -841,6 +841,19 @@ Mandarina Bay.
 - An AI defending against a player: one move to the inside, early on the
   straight when the player is closing in its tow, never a second one.
 
+**An imported car's moving aero and ERS.** Import the SF70H, the 2021 RSS
+hybrid and the Huracán Performante again (`--force`) and drive them.
+
+- The DRS flap cut out of the body (`<Stem>_drs.glb`, `[drs_flap]`): that
+  it sits where the wing had it, shut, swings open about its trailing
+  edge on the straights and shuts on the brakes, and carries the livery.
+  Only the importer's tests and the numbers in its report have seen it.
+- The input map (`[[aero.input_point]]`): the Huracán's ALA (more rear
+  downforce off the throttle and on the brake, more grip from 0.35 g) and
+  the SF70H's lighter front at full lock, felt in a corner; and the
+  delivery profile (`[[hybrid.delivery_point]]`): the SF70H's motor
+  fading past 250 km/h on the HUD's ERS readout. Only unit tests have run.
+
 **An imported circuit's pit stop.**
 
 - A human drives an AC-imported circuit's pit lane on screen: the speed

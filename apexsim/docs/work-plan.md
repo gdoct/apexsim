@@ -52,7 +52,6 @@ takes it up (— : no step, taken opportunistically).
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
-| C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
@@ -202,10 +201,6 @@ circuits without a dossier (their OSM fits fail on layout variants:
 barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
-
-#### C4. AC import fidelity — P3 · 🟢 · M
-The DRS flap split (brake pads, `brake_by_wire` and porpoising have
-no AC figure).
 
 ### Audio and features
 

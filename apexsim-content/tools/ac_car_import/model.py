@@ -14,6 +14,8 @@ Parts, by the dummy a mesh hangs under (its `path`):
   are drawn from those by the client. `RIM_BLUR_*` is dropped.
 - `STEER_HR` becomes `steering_wheel.glb` in its own frame, which is the
   column's: the rig tilts it by `wheel_rake_deg` and turns it.
+- The DRS wing's animated flap (`find_drs_flap`) becomes `<stem>_drs.glb`,
+  shut, its origin on the hinge (`[drs_flap]`).
 - `COCKPIT_LR`, `STEER_LR`, `DAMAGE_GLASS*`, `CINTURE_ON` (belts over a
   driver ApexSim does not draw), `lod_in > 0`, hidden and non-renderable
   meshes are dropped.
@@ -740,3 +742,174 @@ def mesh_centroid(kn5: Kn5File, node: str) -> np.ndarray | None:
     if not pts:
         return None
     return np.concatenate(pts).mean(axis=0)
+
+
+# --- the DRS flap ---------------------------------------------------------
+#
+# AC opens a DRS flap with a `.ksanim` (`animations/<file>`, named for the
+# DRS wing by `wing_animations.ini`): per node, its local transform at each
+# frame. The client opens a flap of its own (`[drs_flap]`, docs/cars.md)
+# by turning it about its hinge, so the importer takes the node that moves
+# the most of the body, works out its hinge and angle between the two ends
+# of the animation, and cuts its meshes out of the body as `<stem>_drs.glb`.
+
+#: Least turn, degrees, and least share of the turn about the car's
+#: left-right axis for a node's motion to be read as a hinged flap.
+FLAP_MIN_DEG = 1.0
+FLAP_MIN_LATERAL = 0.95
+#: Most a flap may open, degrees (the client's `[drs_flap]` check), and
+#: farthest its hinge may sit from the flap's own box, m.
+FLAP_MAX_DEG = 60.0
+FLAP_HINGE_REACH_M = 0.3
+
+
+def _quat_matrix(x: float, y: float, z: float, w: float) -> np.ndarray:
+    """A quaternion as the 3x3 that turns a row vector (`p @ m`)."""
+    return np.array([[1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w)],
+                     [2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)],
+                     [2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y)]])
+
+
+def read_ksanim(blob: bytes) -> dict[str, list[np.ndarray]]:
+    """A `.ksanim`: `i32 version, i32 node_count`, then per node `str name,
+    i32 frame_count` and per frame a local transform: version 1 a row-major
+    4x4 (the kn5's convention), version 2 a quaternion (x, y, z, w), a
+    translation and a scale. Node name -> its frames' local 4x4s."""
+    import struct
+    off = 0
+
+    def take(fmt: str):
+        nonlocal off
+        values = struct.unpack_from(fmt, blob, off)
+        off += struct.calcsize(fmt)
+        return values
+
+    try:
+        version, count = take("<ii")
+        out: dict[str, list[np.ndarray]] = {}
+        for _ in range(count):
+            (length,) = take("<i")
+            name = blob[off:off + length].decode("utf-8", "replace")
+            off += length
+            (frames,) = take("<i")
+            mats = []
+            for _ in range(frames):
+                if version == 1:
+                    m = np.array(take("<16f"), dtype=np.float64).reshape(4, 4)
+                else:
+                    qx, qy, qz, qw, tx, ty, tz, sx, sy, sz = take("<10f")
+                    m = np.eye(4)
+                    m[:3, :3] = np.diag([sx, sy, sz]) @ _quat_matrix(qx, qy, qz, qw)
+                    m[3, :3] = [tx, ty, tz]
+                mats.append(m)
+            out[name] = mats
+        return out
+    except struct.error as e:
+        raise ModelError(f"a truncated ksanim: {e}") from None
+
+
+def write_ksanim(nodes: dict[str, list[np.ndarray]]) -> bytes:
+    """A version 1 `.ksanim` of `nodes` (for the tests)."""
+    import struct
+    out = bytearray(struct.pack("<ii", 1, len(nodes)))
+    for name, mats in nodes.items():
+        b = name.encode("utf-8")
+        out += struct.pack("<i", len(b)) + b + struct.pack("<i", len(mats))
+        for m in mats:
+            out += np.asarray(m, dtype="<f4").reshape(16).tobytes()
+    return bytes(out)
+
+
+@dataclass
+class DrsFlap:
+    """The DRS flap cut out of the body."""
+    node: str
+    meshes: list[Kn5Mesh]
+    #: The hinge in the model frame (x the flap's middle), m.
+    hinge: np.ndarray
+    open_deg: float
+    #: World (rest) -> world (shut), a row-vector 4x4: identity when the
+    #: kn5 draws the flap shut, as it does.
+    to_shut: np.ndarray
+
+    def shut_points(self, p: np.ndarray) -> np.ndarray:
+        return p @ self.to_shut[:3, :3] + self.to_shut[3, :3]
+
+    def shut_dirs(self, n: np.ndarray) -> np.ndarray:
+        n = n @ self.to_shut[:3, :3]
+        length = np.linalg.norm(n, axis=1, keepdims=True)
+        return n / np.where(length == 0, 1.0, length)
+
+
+def find_drs_flap(car: CarData, kn5: Kn5File, body: list[Kn5Mesh]) -> tuple[DrsFlap | None, str | None]:
+    """The DRS flap of a car with a DRS wing, from its wing animation, and
+    why there is none (`None` for a car without DRS)."""
+    wings = {m.group(1) for sec in car.ini("drs.ini") for m in [re.match(r"WING_(\d+)$", sec)] if m}
+    if not wings:
+        return None, None
+    files = [str(s.get("FILE", "")).strip() for sec, s in car.ini("wing_animations.ini").items()
+             if sec.startswith("ANIMATION") and str(s.get("WING", "")).strip() in wings and s.get("FILE")]
+    if not files:
+        return None, "wing_animations.ini names no animation for the DRS wing"
+    anim_dir = car.car_dir / "animations"
+    nodes: dict[str, list[np.ndarray]] = {}
+    for f in files:
+        path = next((p for p in anim_dir.glob("*") if p.name.lower() == f.lower()), None) \
+            if anim_dir.is_dir() else None
+        if path is None:
+            return None, f"the DRS wing's animation {f} is not in animations/"
+        nodes.update(read_ksanim(path.read_bytes()))
+    dummies = {d.name: d for d in kn5.dummies}
+    found: list[tuple[int, str, object]] = []
+    for name, mats in nodes.items():
+        d = dummies.get(name)
+        if d is None or len(mats) < 2 or np.allclose(mats[0], mats[-1], atol=1e-6):
+            continue
+        meshes = [m for m in body if name in m.path]
+        if meshes:
+            found.append((sum(m.triangle_count for m in meshes), name, _flap_of(name, mats, d, dummies, meshes)))
+    if not found:
+        return None, "the DRS wing's animation moves no node of the body"
+    # The node that turns the most of the body is the flap; a piston or a
+    # link beside it stays in the body, drawn shut.
+    found.sort(key=lambda f: -f[0])
+    flaps = [f for f in found if isinstance(f[2], DrsFlap)]
+    if not flaps:
+        return None, "; ".join(dict.fromkeys(f[2] for f in found))
+    return flaps[0][2], None
+
+
+def _flap_of(name: str, mats: list[np.ndarray], d: Kn5Dummy, dummies: dict[str, Kn5Dummy],
+             meshes: list[Kn5Mesh]) -> DrsFlap | str:
+    """The flap that node `name` makes of its animation `mats`, or why it is
+    not a hinged flap."""
+    parent = dummies.get(d.parent)
+    parent_world = parent.transform.astype(np.float64) if parent is not None else np.eye(4)
+    first, last = mats[0] @ parent_world, mats[-1] @ parent_world
+    motion = np.linalg.inv(first) @ last
+    r = motion[:3, :3].T  # the column-vector rotation
+    angle = float(np.degrees(np.arccos(np.clip((np.trace(r) - 1.0) / 2.0, -1.0, 1.0))))
+    axis = np.array([r[2, 1] - r[1, 2], r[0, 2] - r[2, 0], r[1, 0] - r[0, 1]])
+    if angle < FLAP_MIN_DEG or np.linalg.norm(axis) < 1e-9:
+        return f"the DRS animation's {name} does not turn"
+    axis /= np.linalg.norm(axis)
+    if abs(axis[0]) < FLAP_MIN_LATERAL:
+        return f"the DRS animation's {name} does not turn about the car's left-right axis"
+    # Open is the end where the leading edge (+z, forward) is up (+y).
+    lifts = (r @ np.array([0.0, 0.0, 1.0]))[1] > 0.0
+    shut, opened = (first, last) if lifts else (last, first)
+    rest = d.transform.astype(np.float64)
+    to_shut = np.linalg.inv(rest) @ shut
+    # The hinge: the line the shut-to-open motion leaves where it is, in the
+    # side view (y, z): p = p @ R + t.
+    m = np.linalg.inv(shut) @ opened
+    rot_yz, t_yz = m[1:3, 1:3], m[3, 1:3]
+    yz = t_yz @ np.linalg.inv(np.eye(2) - rot_yz)
+    pts = np.concatenate([m_.world_positions() for m_ in meshes])
+    if angle > FLAP_MAX_DEG:
+        return f"the DRS animation's {name} turns {angle:.0f} degrees (a flap opens {FLAP_MAX_DEG:.0f} at most)"
+    lo, hi = pts[:, 1:3].min(axis=0), pts[:, 1:3].max(axis=0)
+    if np.any(yz < lo - FLAP_HINGE_REACH_M) or np.any(yz > hi + FLAP_HINGE_REACH_M):
+        return f"the DRS animation's {name} turns about a line away from its meshes"
+    hinge = np.array([float(pts[:, 0].mean()), float(yz[0]), float(yz[1])])
+    return DrsFlap(name, meshes, hinge, round(angle, 2), to_shut)
