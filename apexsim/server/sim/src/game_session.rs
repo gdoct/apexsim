@@ -6121,9 +6121,28 @@ impl GameSession {
 
     fn update_racecraft(&mut self) {
         let total = crate::laps::track_length_m(&self.track_config);
-        if total <= 0.0 || self.session.ai_player_ids.is_empty() {
+        if total <= 0.0 || (self.session.ai_player_ids.is_empty() && !self.debug.stand_in_driver) {
             return;
         }
+        // A debug stand-in drives a human's car as an AI does
+        // (`stand_in_input`), so it decides as one too: without this a car
+        // it put into a wall never reversed out or asked to be put back,
+        // and sat there for the rest of the race.
+        let stand_ins: std::collections::BTreeMap<PlayerId, AiDriverProfile> =
+            if self.debug.stand_in_driver {
+                self.session
+                    .participants
+                    .keys()
+                    .filter(|id| !self.ai_profiles.contains_key(id))
+                    .map(|id| {
+                        let mut profile = AiDriverProfile::new("Stand-in", 100);
+                        profile.id = *id;
+                        (*id, profile)
+                    })
+                    .collect()
+            } else {
+                Default::default()
+            };
         let ctx = crate::racecraft::Context {
             track: &self.track_config,
             total_m: total,
@@ -6160,7 +6179,10 @@ impl GameSession {
         let decided: Vec<(PlayerId, crate::racecraft::Racecraft)> = field
             .iter()
             .filter_map(|me| {
-                let profile = self.ai_profiles.get(&me.id)?;
+                let profile = self
+                    .ai_profiles
+                    .get(&me.id)
+                    .or_else(|| stand_ins.get(&me.id))?;
                 let state = self.session.participants.get(&me.id)?;
                 let speeds = self.ai_speed_profile(state);
                 let risk = self.mistake_risk(state, total);

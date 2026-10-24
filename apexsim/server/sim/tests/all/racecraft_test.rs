@@ -295,3 +295,89 @@ fn a_car_that_cannot_get_back_on_the_road_is_put_back() {
     assert!(c.is_on_track, "on the road again");
     assert!(c.speed_mps > 15.0, "and racing: {:.1} m/s", c.speed_mps);
 }
+
+/// The debug stand-in drives a human's car as an AI does, and decides as
+/// one: penned in off the road it is put back after `RESET_AFTER_S`, as the
+/// AI is. Without its racecraft a stand-in that hit the wall at La Source
+/// sat there for the rest of a verification run.
+#[test]
+fn a_stand_in_that_cannot_get_back_on_the_road_is_put_back() {
+    const STATION_M: f32 = 600.0;
+    let mut track = TrackLoader::load_from_file_with(
+        repo("../apexsim-content/tracks/default/Monzarella/Monzarella.yaml"),
+        apexsim_sim::track_loader::RoadContactMode::Centerline,
+    )
+    .expect("track loads");
+    let (x, y, z, yaw) = apexsim_sim::physics::pose_at_station(&track.centerline, STATION_M);
+    let (rx, ry) = (yaw.sin(), -yaw.cos());
+    let (fx, fy) = (yaw.cos(), yaw.sin());
+    let (cx, cy) = (x + rx * 25.0, y + ry * 25.0);
+    let corner = |a: f32, b: f32| (cx + fx * a + rx * b, cy + fy * a + ry * b);
+    let ring = [
+        corner(-5.0, -5.0),
+        corner(5.0, -5.0),
+        corner(5.0, 5.0),
+        corner(-5.0, 5.0),
+    ];
+    track.walls = Some(Walls::from_segments(
+        (0..4)
+            .map(|i| {
+                let (a, b) = (ring[i], ring[(i + 1) % 4]);
+                WallSegment {
+                    x0: a.0,
+                    y0: a.1,
+                    x1: b.0,
+                    y1: b.1,
+                    z: z - 1.0,
+                    height_m: 3.0,
+                    kind: 0,
+                }
+            })
+            .collect(),
+    ));
+    let car =
+        CarLoader::load_from_file(&repo("../apexsim-content/cars/default/posh-gt3rs/car.toml"))
+            .expect("car loads");
+    let car_id = car.id;
+    let mut cars = HashMap::new();
+    cars.insert(car.id, car);
+    let session = RaceSession::new(
+        uuid::Uuid::from_u64_pair(9, 9),
+        track.id,
+        SessionKind::Demo,
+        1,
+        0,
+        5,
+    );
+    let mut race = GameSession::with_ai_profiles(session, track, cars, Vec::new());
+    race.set_tick_rate(TICK_RATE);
+    race.set_debug_hooks(apexsim_sim::debug_hooks::DebugHooks {
+        stand_in_driver: true,
+        ..Default::default()
+    });
+    let id = uuid::Uuid::from_u64_pair(2, 1);
+    race.add_player(id, car_id);
+    race.set_game_mode(GameMode::Race);
+    race.session.state = SessionState::Racing;
+    {
+        let c = race.session.participants.get_mut(&id).expect("the car");
+        (c.pos_x, c.pos_y, c.pos_z, c.yaw_rad) = (cx, cy, z, yaw);
+        (c.vel_x, c.vel_y, c.speed_mps) = (0.0, 0.0, 0.0);
+        c.gear = 1;
+        c.nearest_centerline_idx = None;
+        apexsim_sim::physics::seed_track_progress(c, &race.track_config);
+    }
+    let mut put_back = None;
+    for t in 1..=(TICK_RATE as u32 * 60) {
+        let input = race.stand_in_input(&id).expect("the stand-in drives");
+        race.tick(&HashMap::from([(id, input)]));
+        if put_back.is_none() && race.session.participants[&id].recovery.is_some() {
+            put_back = Some(t);
+        }
+    }
+    let after_s = put_back.expect("the stand-in was never put back") as f32 / TICK_RATE as f32;
+    assert!(after_s >= apexsim_sim::racecraft::RESET_AFTER_S);
+    let c = &race.session.participants[&id];
+    assert!(c.is_on_track, "on the road again");
+    assert!(c.speed_mps > 15.0, "and racing: {:.1} m/s", c.speed_mps);
+}

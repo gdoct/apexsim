@@ -114,7 +114,14 @@ AC-imported circuit is installed; Spa stands in.
   on the centerline and 1-3 on the road mesh, stalled no Chiffon longer
   than a few seconds. What the survey does not have is the stand-in in the
   player's car (its setup and tyres as the player's); run `r4-spa-snow`
-  again and watch the stand-in from 250 s.
+  again and watch the stand-in from 250 s. Found the same night: run
+  again, the stand-in hit the wall at La Source in the first minute and
+  sat against it to the end. Racecraft (the back-out, the put-back after
+  `RESET_AFTER_S`) decided only for cars with an AI profile, never for a
+  human's car the stand-in drives; it does now
+  (`racecraft_test::a_stand_in_that_cannot_get_back_on_the_road_is_put_back`).
+  Run `r4-spa-snow` again to see the stand-in race on, then judge the snow
+  rows.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
   snow tread with its steel studs and the ice-white ring, and the field
