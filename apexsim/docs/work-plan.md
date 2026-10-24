@@ -74,7 +74,7 @@ takes it up (— : no step, taken opportunistically).
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 3 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
-| A7 | AI in imported cars leaves the road in traffic (follow-ups #19), in progress | AI | P3 | 🟢 | M | — |
+| A7 | Re-measure the imported F1s' AI in traffic (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
@@ -130,12 +130,13 @@ and `GRHIDeviceIsIntegrated`. Until then keep "discrete GPU recommended".
 
 ### AI
 
-#### A7. AI in imported cars — P3 · 🟢 · M
-*Source: follow-ups #19.* Imported F1s and prototypes finish their races
-but leave the road two to four times as much as the shipped F1, in
-traffic: find the lane or dodge their short lock cannot turn
-(`SURVEY_EVENTS`, `SURVEY_TRACE`), judged by the survey on those cars,
-seeds 1-3.
+#### A7. Imported F1s' AI in traffic — P3 · 🟢 · S
+*Source: follow-ups #19.* The imported prototypes now leave the road no
+more than the shipped classes (the traffic dodge measured across the
+road did it); the imported F1s were not installed where that was
+measured: install them, run the survey on them (seeds 1-3) and, if they
+still leave the road in traffic, find the lane or dodge their short
+lock cannot turn.
 
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:

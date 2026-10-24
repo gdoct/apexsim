@@ -151,17 +151,20 @@ the same `ApexProps` code.
 
 ### 19. AI in imported cars
 
-An imported field finishes its survey races (none retired in 72, three
-seeds, eight circuits), but its F1s and prototypes still leave the road
-more than the shipped classes: off-road car-seconds over the 24 races
-`RssFormulaHybrid2021` 313, `KsFerrariSf70h` 215, `KsPorsche919Hybrid2016`
-196 against `fugazzi-sf26`'s 86, a fifth to a quarter of it at Laguna Seca.
-A lone ace holds its plan on every circuit tried, so what is left is in
-traffic.
+Since the traffic dodge is measured across the road (ai.md, Traffic) the
+imported prototypes leave the road no more than the shipped classes: on
+every circuit, seeds 1-3, 90 races each, off-road car-seconds
+`AcFriendsFerrari499pLmh` 93.7 and `KsPorsche919Hybrid2016` 160.3 against
+`fugazzi-sf26` 124.7 and `yotota-lmp2` 113.0, two thirds of it on the
+Mordschleife and Laguna Seca, where the shipped cars go off as much
+(contact 131.8 and 137.4 against 97.0 and 121.4). The imported F1s
+(`RssFormulaHybrid2021`, `KsFerrariSf70h`), which were the worst, are not
+installed on the machine that measured this and are unmeasured since.
 
-- Find where an imported F1's traffic leaves the road (`SURVEY_EVENTS`,
-  `SURVEY_TRACE` on the worst races): a lane or dodge its short lock
-  (0.24-0.31 rad against the shipped F1's 0.34) cannot turn.
+- Re-measure the imported F1s with the check below; if they still leave
+  the road in traffic, find the lane or dodge their short lock
+  (0.24-0.31 rad against the shipped F1's 0.34) cannot turn
+  (`SURVEY_EVENTS`, `SURVEY_TRACE`).
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
