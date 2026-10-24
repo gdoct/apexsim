@@ -131,6 +131,15 @@ const TRAFFIC_SIDE_MARGIN_M: f32 = 1.0;
 /// Extra longitudinal reach beyond the two half lengths within which a car
 /// counts as alongside (a car just ahead diagonally is still a side threat).
 const TRAFFIC_ALONGSIDE_M: f32 = 2.0;
+/// How much slower than a car alongside and ahead a driver pinned against
+/// the edge by it goes, m/s, to drop in behind.
+const SQUEEZE_DROP_MPS: f32 = 1.5;
+/// Below this pace, m/s, a car alongside is driven round rather than
+/// dropped in behind.
+const SQUEEZE_MIN_MPS: f32 = 5.0;
+/// Closer than the two half widths plus this beside a car ahead on the lap,
+/// m, and a driver not attacking it drops in behind.
+const CLOSE_BESIDE_M: f32 = 1.0;
 /// How far past the two half lengths an AI driver looks for traffic.
 const TRAFFIC_WINDOW_M: f32 = 60.0;
 
@@ -641,7 +650,12 @@ impl<'a> AiDriverController<'a> {
 
         if !traffic.is_empty() {
             let (hx, hy) = self.line_heading(&line, d_line);
-            let (ax, ay, speed_limit) = self.avoid_traffic(state, traffic, (hx, hy), (tx, ty));
+            let d_center = (state.track_progress
+                + look_ahead * track_length / line_length.max(1.0))
+            .rem_euclid(track_length.max(1e-3));
+            let center = self.find_nearest_centerline_point(d_center);
+            let (ax, ay, speed_limit) =
+                self.avoid_traffic(state, traffic, (hx, hy), (tx, ty), center);
             // On race control's lane the field is two by two: a dodge
             // across the road would take the car into the one beside it.
             if state.formation_lane_m.is_none() {
@@ -1167,16 +1181,28 @@ impl<'a> AiDriverController<'a> {
         traffic: &[TrafficCar<'_>],
         (hx, hy): (f32, f32),
         (tx, ty): (f32, f32),
+        center: &TrackPoint,
     ) -> (f32, f32, f32) {
         let (nx, ny) = (-hy, hx);
         let own_len = self.car_config.length_m;
         let own_width = self.car_config.width_m;
-        // Where the line would have the car go, sideways from where it is.
-        let wanted = (tx - state.pos_x) * nx + (ty - state.pos_y) * ny;
+        // Across the road at the target: its centerline point's left normal.
+        let (cnx, cny) = (-center.heading_rad.sin(), center.heading_rad.cos());
+        let me_left = -state.lateral_offset_m;
+        // Sides are measured across the road, m left of the centerline at
+        // the target, not across the car's own line: in a corner the line's
+        // normal swings away from the road's, and a dodge measured on it
+        // put cars into each other and off the edge.
+        let wanted = (tx - center.x) * cnx + (ty - center.y) * cny;
         let mut lo = f32::NEG_INFINITY;
         let mut hi = f32::INFINITY;
         let mut speed_limit = f32::INFINITY;
         let own_fwd = state.vel_x * hx + state.vel_y * hy;
+        // The pace of the car setting each bound, when it is ahead: a car
+        // pinned against the edge by one alongside and ahead drops behind
+        // it.
+        let mut lo_ahead: Option<f32> = None;
+        let mut hi_ahead: Option<f32> = None;
 
         for other in traffic {
             let o = other.state;
@@ -1195,12 +1221,38 @@ impl<'a> AiDriverController<'a> {
             if along.abs() < reach_along + TRAFFIC_ALONGSIDE_M {
                 // Alongside: stay on our side of it. An exact tie goes by
                 // player id so two cars never pick the same side.
-                let left_of_us = side > 0.0 || (side == 0.0 && o.player_id > state.player_id);
+                let across = -o.lateral_offset_m - me_left;
+                let left_of_us = across > 0.0 || (across == 0.0 && o.player_id > state.player_id);
+                let side = -o.lateral_offset_m;
                 let gap = clear_side + TRAFFIC_SIDE_MARGIN_M;
+                let other_fwd = o.vel_x * hx + o.vel_y * hy;
+                // Ahead by the lap, not by the frame of either car's line:
+                // in a hairpin each can be ahead along its own heading,
+                // and both would drop back.
+                let total = self.get_track_length().max(1.0);
+                let lap_ahead = (o.track_progress - state.track_progress + 0.5 * total)
+                    .rem_euclid(total)
+                    - 0.5 * total;
+                let is_ahead =
+                    lap_ahead > 0.0 || (lap_ahead == 0.0 && o.player_id > state.player_id);
+                // A car barely moving is driven round, not followed.
+                let is_ahead = is_ahead && other_fwd > SQUEEZE_MIN_MPS;
+                let ahead = is_ahead.then_some(other_fwd);
+                // Closer beside a car ahead than the room kept: drop behind
+                // it.
+                let passing = state.racecraft.tactic == crate::racecraft::Tactic::Attack
+                    && state.racecraft.rival == Some(o.player_id);
+                if is_ahead && !passing && (rx * nx + ry * ny).abs() < clear_side + CLOSE_BESIDE_M {
+                    speed_limit = speed_limit.min(other_fwd - SQUEEZE_DROP_MPS).max(0.0);
+                }
                 if left_of_us {
-                    hi = hi.min(side - gap);
-                } else {
-                    lo = lo.max(side + gap);
+                    if side - gap < hi {
+                        hi = side - gap;
+                        hi_ahead = ahead;
+                    }
+                } else if side + gap > lo {
+                    lo = side + gap;
+                    lo_ahead = ahead;
                 }
             } else if along > 0.0 && side.abs() < clear_side + TRAFFIC_SIDE_MARGIN_M {
                 // Ahead in our lane: close to the following distance, then
@@ -1227,8 +1279,8 @@ impl<'a> AiDriverController<'a> {
 
         // Keep the dodge on the road (the line itself may use the edges).
         let edge = 0.5 * own_width + 0.5;
-        let road_left = state.lateral_offset_m + self.track_width_left(state) - edge;
-        let road_right = state.lateral_offset_m - self.track_width_right(state) + edge;
+        let road_left = center.width_left_m - edge;
+        let road_right = -center.width_right_m + edge;
 
         let side = if lo > hi {
             // Squeezed between two cars: take the middle and drop back.
@@ -1242,25 +1294,17 @@ impl<'a> AiDriverController<'a> {
         } else {
             side
         };
+        // Pinned against the edge by a car alongside and ahead (the road
+        // leaves less than the room it needs): drop behind it rather than
+        // lean on it.
+        if let Some(other_fwd) = lo_ahead.filter(|_| side < lo - 0.05) {
+            speed_limit = speed_limit.min(other_fwd - SQUEEZE_DROP_MPS).max(0.0);
+        }
+        if let Some(other_fwd) = hi_ahead.filter(|_| side > hi + 0.05) {
+            speed_limit = speed_limit.min(other_fwd - SQUEEZE_DROP_MPS).max(0.0);
+        }
         let shift = side - wanted;
-        (tx + nx * shift, ty + ny * shift, speed_limit)
-    }
-
-    fn track_width_left(&self, state: &CarState) -> f32 {
-        self.nearest_track_point(state)
-            .map_or(5.0, |p| p.width_left_m)
-    }
-
-    fn track_width_right(&self, state: &CarState) -> f32 {
-        self.nearest_track_point(state)
-            .map_or(5.0, |p| p.width_right_m)
-    }
-
-    fn nearest_track_point(&self, state: &CarState) -> Option<&TrackPoint> {
-        state
-            .nearest_centerline_idx
-            .and_then(|i| self.track_config.centerline.get(i as usize))
-            .or_else(|| Some(self.find_nearest_centerline_point(state.track_progress)))
+        (tx + cnx * shift, ty + cny * shift, speed_limit)
     }
 
     /// Refine a proportional line-distance estimate by finding the sample

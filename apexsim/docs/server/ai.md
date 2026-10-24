@@ -128,7 +128,16 @@ Built per tick in `ai_input_for` with the car's speed profile
   `physics::auto_upshift_rpm`, downshift when the gear below lands under
   0.85 of its shift point.
 - **Traffic** (`avoid_traffic`): keeps a side margin from a car alongside
-  and a following distance behind a car ahead in its lane.
+  and a following distance behind a car ahead in its lane. Sides, the
+  dodge and the road's edges are measured across the road (left of the
+  centerline point at the target), not across the car's own line, whose
+  normal swings off the road's in a corner. A car ahead on the lap and
+  moving (over `SQUEEZE_MIN_MPS`, 5 m/s; slower ones are driven round)
+  that the car is closer beside than its half widths plus `CLOSE_BESIDE_M`
+  (1 m), or that pins it against the road's edge, is dropped in behind at
+  `SQUEEZE_DROP_MPS` (1.5 m/s) under its pace, unless it is the rival
+  the car is attacking. "Ahead" is by lap progress, so in a hairpin two
+  cars do not both back off.
 - **Fuel save**: `with_fuel_save(coast_s)` shuts the throttle `coast_s`
   before every braking zone of the profile (brake left to the plan);
   `with_short_shift(share)` upshifts up to `SHORT_SHIFT_DROP` (30%) before
