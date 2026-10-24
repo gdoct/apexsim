@@ -39,7 +39,6 @@ takes it up (— : no step, taken opportunistically).
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | N11 | Livery editor; own liveries seen online (import built) | Content | P2 | 🟡 | M | 4 |
-| A3 | Side by side past the apex on narrow roads | AI | P2 | 🟡 | L | 4 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
@@ -69,9 +68,8 @@ takes it up (— : no step, taken opportunistically).
 3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-4. **Online and depth.** A3 (a two-class field's speed differences stress
-   side by side: `SURVEY_CLASSES` is its target now), N11 (liveries), then
-   the rest of R3, and N7 online on top of identity.
+4. **Online and depth.** N11's online liveries and editor, then the rest
+   of R3 (schedule, results record), and N7 online on top of identity.
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
 6. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -102,23 +100,6 @@ Needs an Iris Xe / Arc or Radeon 680M/780M machine to confirm the LOW preset
 and `GRHIDeviceIsIntegrated`. Until then keep "discrete GPU recommended".
 
 ### AI
-
-#### A3. Side by side past the apex on narrow roads — P2 · 🟡 · L
-*Source: simulation-gaps, AI.*
-
-**What:** After the apex, side-by-side cars fall back to the per-tick dodge,
-which sweeps with the line; on Zandvoort two GT3s lean on each other.
-Holding the dodge across the road was tried and made contact worse.
-**Outcome:** Fewer side-by-side contacts; races on narrow circuits stay clean.
-**Implementation:** A lane commitment through the exit (each car owns a
-lateral band until one is a car length clear), built on `racecraft::pass_here`'s
-lane choice rather than an offset on the line.
-**Watch out:** two attempts failed (simulation-gaps has the numbers):
-holding the dodge, and room for any car alongside (which did help the
-single-class Monza and Spa races but doubled two-class contact at the
-Norisring). Start with the survey's contact count on Zandvoort and the
-two-class field (`SURVEY_CLASSES=LMP2:6,GT3:6`: Monza 18, Spa 28, Zandvoort 24 car-s
-of contact at `94fc5cbe`) as the target numbers; human review on R7.
 
 #### A7. AI in imported cars — P3 · 🟢 · M
 *Source: follow-ups #19.* Imported F1s and prototypes finish their races
@@ -287,7 +268,8 @@ beyond the weather already on the wire. 🔴 for the models.
   brake material colours and disc wear/stint energy (needs a custom car.toml
   with `disc_wear_per_mj` and `stint_energy_mj`).
 - R7 seeded pile-up replay: dents, hanging parts, sparks, racecraft and
-  reversing out of a barrier. Also the human look for A3.
+  reversing out of a barrier. Also the human look at side-by-side traffic
+  since the 2026-10-24 traffic change (AI).
 
 #### V3. R4, R5, R6, R8, R10 — P3 · 🟡 · S each
 Snow/ice/melt and wind veer (R4 needs A2), Marina Bay night clouds and kerbs

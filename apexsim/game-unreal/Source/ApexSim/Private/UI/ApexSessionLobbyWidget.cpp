@@ -175,10 +175,13 @@ UWidget* UApexSessionLobbyWidget::BuildHeader()
 	TrackText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Display(22.0f), ApexUI::Palette::TextPrimary);
 	ApexUI::AddH(Row, TrackText);
 
+	// The format takes what the row has left and ends in an ellipsis: a race
+	// event's line (its phases, each DONE) is longer than the bar, and as an
+	// auto-sized child it pushed the row off the screen's left edge.
 	FormatText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::TextMuted);
-	ApexUI::AddH(Row, FormatText, FMargin(16.0f, 0.0f, 0.0f, 0.0f));
-
-	ApexUI::AddH(Row, WidgetTree->ConstructWidget<UHorizontalBox>(), FMargin(), VAlign_Center, 1.0f);
+	FormatText->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+	FormatText->SetClipping(EWidgetClipping::ClipToBounds);
+	ApexUI::AddH(Row, FormatText, FMargin(16.0f, 0.0f, 16.0f, 0.0f), VAlign_Center, 1.0f);
 
 	SlotsText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::TextMuted);
 	ApexUI::AddH(Row, SlotsText);
