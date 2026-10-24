@@ -41,6 +41,19 @@
 //! its drag by the car's speed, linear between the points and held past
 //! either end, 1.0 at the speed the car.toml's figures were taken at. A car
 //! without one has none.
+//!
+//! Wings that move with the driver (an air brake, a flap that stands up
+//! off the throttle or in a corner: AC's controllers on `BRAKE`, `GAS`,
+//! `STEER`, `LATG`) carry an **input map** ([`input_multipliers`],
+//! `[[aero.input_point]]`): per input (throttle, brake, steer, lateral g),
+//! multipliers on the same three by how far it is in, linear between that
+//! input's points and held past either end, the inputs' multipliers
+//! multiplied together and into the speed map. Each input is 1.0 where the
+//! car.toml's figures were taken: flat out in a straight line (full
+//! throttle, no brake, no steer, no cornering). Steer and lateral g are
+//! read either way (the sim has no side-to-side aero). A car without one
+//! has none. The racing line plans with neither the input map nor the
+//! driver: it plans flat out.
 //! The racing line plans with the same map at steady state
 //! ([`steady_downforce_factor`]).
 
@@ -80,6 +93,60 @@ pub struct SpeedPoint {
     pub drag: f32,
 }
 
+/// What an input map's point ([`InputPoint`]) is read against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AeroInput {
+    /// The throttle pedal, 0-1.
+    Throttle,
+    /// The brake pedal, 0-1.
+    Brake,
+    /// The steering, a share of full lock, 0-1 either way.
+    Steer,
+    /// The cornering, g, either way.
+    LateralG,
+}
+
+impl AeroInput {
+    /// The input's reference value: where the car.toml's figures hold.
+    pub fn reference(self) -> f32 {
+        match self {
+            AeroInput::Throttle => 1.0,
+            AeroInput::Brake | AeroInput::Steer | AeroInput::LateralG => 0.0,
+        }
+    }
+
+    /// Most a point may read: a pedal or the lock 1, the cornering 6 g.
+    pub fn top(self) -> f32 {
+        match self {
+            AeroInput::LateralG => 6.0,
+            _ => 1.0,
+        }
+    }
+}
+
+/// One point of a car's input map ([`input_multipliers`]): with `input`
+/// at `at`, multipliers on its car.toml front and rear downforce and on
+/// its drag.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InputPoint {
+    pub input: AeroInput,
+    pub at: f32,
+    pub downforce_front: f32,
+    pub downforce_rear: f32,
+    pub drag: f32,
+}
+
+/// What a car's driver-moved wings see this tick ([`input_multipliers`]).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DriverInputs {
+    pub throttle: f32,
+    pub brake: f32,
+    pub steer: f32,
+    pub lateral_g: f32,
+}
+
 /// A car's ride-height aero (`[aero]` in car.toml). All sensitivities zero
 /// is a car whose downforce is a constant, as every car's was.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,6 +182,11 @@ pub struct AeroConfig {
     /// speed; empty for a car whose wings do not move.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub speed_map: Vec<SpeedPoint>,
+    /// Its wings' answer to the driver (`[[aero.input_point]]`), each
+    /// input's points by rising `at`; empty for a car whose wings do not
+    /// move with the driver.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub input_map: Vec<InputPoint>,
 }
 
 impl Default for AeroConfig {
@@ -131,6 +203,7 @@ impl Default for AeroConfig {
             reference_front_m: 0.0,
             reference_rear_m: 0.0,
             speed_map: Vec::new(),
+            input_map: Vec::new(),
         }
     }
 }
@@ -364,6 +437,52 @@ pub fn speed_multipliers(config: &CarConfig, speed_mps: f32) -> AeroMultipliers 
     }
 }
 
+/// What a car's driver-moved wings make of its car.toml downforce and drag
+/// with `inputs` (its input map: per input linear between its points and
+/// held past either end, the inputs multiplied together; steer and
+/// lateral g by their size); exactly [`AeroMultipliers::ONE`] for a car
+/// without one.
+pub fn input_multipliers(config: &CarConfig, inputs: DriverInputs) -> AeroMultipliers {
+    let map = &config.aero.input_map;
+    if map.is_empty() {
+        return AeroMultipliers::ONE;
+    }
+    let mut out = AeroMultipliers::ONE;
+    for (input, value) in [
+        (AeroInput::Throttle, inputs.throttle),
+        (AeroInput::Brake, inputs.brake),
+        (AeroInput::Steer, inputs.steer.abs()),
+        (AeroInput::LateralG, inputs.lateral_g.abs()),
+    ] {
+        let mut below: Option<&InputPoint> = None;
+        let mut above: Option<&InputPoint> = None;
+        for p in map.iter().filter(|p| p.input == input) {
+            if p.at <= value {
+                below = Some(p);
+            } else if above.is_none() {
+                above = Some(p);
+            }
+        }
+        let m = match (below, above) {
+            (None, None) => continue,
+            (Some(p), None) | (None, Some(p)) => (p.downforce_front, p.downforce_rear, p.drag),
+            (Some(a), Some(b)) => {
+                let t = (value - a.at) / (b.at - a.at).max(1e-6);
+                let lerp = |x: f32, y: f32| x + (y - x) * t;
+                (
+                    lerp(a.downforce_front, b.downforce_front),
+                    lerp(a.downforce_rear, b.downforce_rear),
+                    lerp(a.drag, b.drag),
+                )
+            }
+        };
+        out.downforce_front *= m.0;
+        out.downforce_rear *= m.1;
+        out.drag *= m.2;
+    }
+    out
+}
+
 /// The car's clean-air downforce from its car.toml, front and rear, N, at
 /// `speed`.
 fn filed_downforce(config: &CarConfig, speed: f32) -> (f32, f32) {
@@ -466,6 +585,58 @@ mod tests {
         assert!(car.aero.is_constant());
         assert!(steady_downforce_factor(&car, 10.0) > 1.2);
         assert!(steady_downforce_factor(&car, 80.0) < 1.0);
+    }
+
+    #[test]
+    fn the_input_map_is_per_input_multiplied_and_absent_is_one() {
+        let mut car = CarConfig::default();
+        let cruise = DriverInputs {
+            throttle: 1.0,
+            brake: 0.0,
+            steer: 0.0,
+            lateral_g: 0.0,
+        };
+        assert_eq!(input_multipliers(&car, cruise), AeroMultipliers::ONE);
+        let braking = DriverInputs {
+            throttle: 0.0,
+            brake: 1.0,
+            steer: -0.5,
+            lateral_g: -2.0,
+        };
+        assert_eq!(input_multipliers(&car, braking), AeroMultipliers::ONE);
+        let point = |input, at, f, r, d| InputPoint {
+            input,
+            at,
+            downforce_front: f,
+            downforce_rear: r,
+            drag: d,
+        };
+        car.aero.input_map = vec![
+            point(AeroInput::Throttle, 0.0, 1.0, 1.2, 1.1),
+            point(AeroInput::Throttle, 1.0, 1.0, 1.0, 1.0),
+            point(AeroInput::Brake, 0.0, 1.0, 1.0, 1.0),
+            point(AeroInput::Brake, 0.5, 1.0, 1.5, 2.0),
+            point(AeroInput::Steer, 0.2, 1.0, 1.0, 1.0),
+            point(AeroInput::Steer, 0.4, 0.8, 1.0, 1.0),
+        ];
+        // Flat out in a straight line the car.toml's figures hold.
+        assert_eq!(input_multipliers(&car, cruise), AeroMultipliers::ONE);
+        // Off the throttle on the brake: both inputs, multiplied; the
+        // brake held past its last point, the steer by its size.
+        let m = input_multipliers(&car, braking);
+        assert!((m.downforce_rear - 1.2 * 1.5).abs() < 1e-6);
+        assert!((m.drag - 1.1 * 2.0).abs() < 1e-6);
+        assert!((m.downforce_front - 0.8).abs() < 1e-6);
+        let half = input_multipliers(
+            &car,
+            DriverInputs {
+                throttle: 0.5,
+                steer: 0.3,
+                ..cruise
+            },
+        );
+        assert!((half.downforce_rear - 1.1).abs() < 1e-6);
+        assert!((half.downforce_front - 0.9).abs() < 1e-6);
     }
 
     #[test]

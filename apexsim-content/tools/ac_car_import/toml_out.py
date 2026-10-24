@@ -89,16 +89,27 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
 
     for name in TABLE_ORDER:
         entries = physics.tables.get(name)
-        if name == "aero" and physics.aero_speed_map:
+        if name == "aero" and (physics.aero_speed_map or physics.aero_input_map):
             if entries:
                 table(name, entries)
-            w("")
-            w("# aero.ini DYNAMIC_CONTROLLER: the wings' angles by speed, as multipliers on the")
-            w("# downforce and drag above (1 at 50 m/s, where they were taken)")
+            if physics.aero_speed_map:
+                w("")
+                w("# aero.ini DYNAMIC_CONTROLLER: the wings' angles by speed, as multipliers on the")
+                w("# downforce and drag above (1 at 50 m/s, where they were taken)")
             for pt in physics.aero_speed_map:
                 w("")
                 w("[[aero.speed_point]]")
                 for key in ("speed_mps", "downforce_front", "downforce_rear", "drag"):
+                    w(f"{key} = {fmt(float(pt[key]))}")
+            if physics.aero_input_map:
+                w("")
+                w("# aero.ini DYNAMIC_CONTROLLER: the wings' angles by the driver's inputs at 50 m/s,")
+                w("# as multipliers (1 flat out in a straight line, where the figures were taken)")
+            for pt in physics.aero_input_map:
+                w("")
+                w("[[aero.input_point]]")
+                w(f'input = "{pt["input"]}"')
+                for key in ("at", "downforce_front", "downforce_rear", "drag"):
                     w(f"{key} = {fmt(float(pt[key]))}")
             continue
         if not entries:

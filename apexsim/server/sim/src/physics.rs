@@ -1963,6 +1963,17 @@ fn calculate_aerodynamic_forces(
     let posture = crate::aero::multipliers_at(config, ride_front_m, ride_rear_m, posture);
     // Wings that move with the car's speed (exactly 1.0 without a speed map).
     let by_speed = crate::aero::speed_multipliers(config, state.speed_mps);
+    // And with the driver: the last tick's pedals, steering and cornering
+    // (exactly 1.0 without an input map).
+    let by_driver = crate::aero::input_multipliers(
+        config,
+        crate::aero::DriverInputs {
+            throttle: state.throttle_input,
+            brake: state.brake_input,
+            steer: state.steering_input,
+            lateral_g: state.g_forces.lateral_g,
+        },
+    );
     let felt = state.felt_damage();
     let nose = 1.0
         - crate::aero::FRONT_DAMAGE_AERO_LOSS * (felt.front_damage_percent / 100.0).clamp(0.0, 1.0);
@@ -1974,7 +1985,8 @@ fn calculate_aerodynamic_forces(
         * drag_scale
         * wake.drag
         * posture.drag
-        * by_speed.drag;
+        * by_speed.drag
+        * by_driver.drag;
     let airspeed = airspeed_sq.sqrt();
     let (drag_x, drag_y) = if airspeed > 1e-3 {
         (-drag * along / airspeed, -drag * across / airspeed)
@@ -1990,6 +2002,7 @@ fn calculate_aerodynamic_forces(
         * config.frontal_area_m2
         * posture.downforce_front
         * by_speed.downforce_front
+        * by_driver.downforce_front
         * nose)
         .max(0.0);
     let tail = crate::damage::rear_downforce_factor(&felt);
@@ -1997,7 +2010,8 @@ fn calculate_aerodynamic_forces(
         * config.frontal_area_m2
         * rear_scale
         * posture.downforce_rear
-        * by_speed.downforce_rear)
+        * by_speed.downforce_rear
+        * by_driver.downforce_rear)
         .max(0.0);
     let downforce_front = flow_pressure * front_filed * wake.downforce_front;
     let downforce_rear = flow_pressure * rear_filed * tail * wake.downforce_rear;
@@ -7304,6 +7318,44 @@ mod tests {
             "Rear downforce should be positive"
         );
         assert_eq!(air.load_share, 1.0);
+    }
+
+    #[test]
+    fn an_air_brake_stands_up_on_the_brake_pedal_only() {
+        let mut state = create_test_car_state();
+        state.speed_mps = 50.0;
+        state.vel_x = 50.0;
+        state.throttle_input = 1.0;
+        let plain = create_test_config();
+        let mut braked = plain.clone();
+        let point = |at, rear, drag| crate::aero::InputPoint {
+            input: crate::aero::AeroInput::Brake,
+            at,
+            downforce_front: 1.0,
+            downforce_rear: rear,
+            drag,
+        };
+        braked.aero.input_map = vec![point(0.0, 1.0, 1.0), point(1.0, 1.3, 2.0)];
+        let air = |state: &CarState, config: &CarConfig| {
+            calculate_aerodynamic_forces(
+                state,
+                config,
+                &TrackSurface::default(),
+                0.06,
+                0.08,
+                crate::aero::Posture::STRAIGHT,
+            )
+        };
+        // Flat out the map is neutral, bit for bit.
+        let (a, b) = (air(&state, &plain), air(&state, &braked));
+        assert_eq!(a.drag.to_bits(), b.drag.to_bits());
+        assert_eq!(a.downforce_rear.to_bits(), b.downforce_rear.to_bits());
+        state.throttle_input = 0.0;
+        state.brake_input = 1.0;
+        let (a, b) = (air(&state, &plain), air(&state, &braked));
+        assert!((b.drag / a.drag - 2.0).abs() < 1e-4);
+        assert!((b.downforce_rear / a.downforce_rear - 1.3).abs() < 1e-4);
+        assert_eq!(a.downforce_front.to_bits(), b.downforce_front.to_bits());
     }
 
     #[test]

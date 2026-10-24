@@ -446,11 +446,22 @@ importer change.
     at each speed a `SPEED_KMH` controller's LUT names (to 120 m/s) the
     car's front and rear Cl x area and its Cd x area over those at 50 m/s,
     the wings held at their 50 m/s heights, a point its neighbours' line
-    already gives dropped. Controllers on other inputs (`BRAKE`, `GAS`,
-    `STEER`, `LATG`, suspension travel: 20 of the 78 controlled cars in an AC install have one) are read
-    flat out in a straight line (`CRUISE_INPUTS`: full gas, no brake, no
-    steer, no cornering) with a warning, so an air brake or a cornering
-    flap is not carried. The 919's diffuser flap (20 degrees at rest, 2
+    already gives dropped. Controllers on the driver (`BRAKE`, `GAS`,
+    `STEER`, `LATG`: 20 of the 78 controlled cars in an AC install have
+    one) become `[[aero.input_point]]` (`input_map`): per input, at each
+    value its LUTs name and both ends of its range, the same three sums at
+    50 m/s over those with the input at its own value, the other inputs
+    where that input is used (`INPUT_STATES`: the brake with the throttle
+    shut, so the throttle's map and the brake's multiply to the pair; the
+    rest flat out), steer and lateral g the mean of either way. Where
+    inputs act together on one wing (the Huracán Performante's ALA on gas,
+    brake and lateral g) the server's product of one-input maps is exact
+    for each input alone from those states and an approximation in
+    between, and AC's `FILTER` smoothing is not carried (the server reads
+    the last tick). The SF70H: 0.94 of its downforce at full lock, 1.0
+    off the throttle; the P1: 1.07 of the drag on the brake. Suspension
+    travel controllers (the 908 LH) are read flat out in a straight line
+    (`CRUISE_INPUTS`) with a warning. The 919's diffuser flap (20 degrees at rest, 2
     from 110 km/h) and its rear wing (x0.8 past 230 km/h): 0.80 / 0.64 of
     the downforce and 1.19 of the drag at rest, 0.99 of the rear and 0.95
     of the drag at 260 km/h;
@@ -614,6 +625,5 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
   none).
 - AC's older `kers.ini`, a second ERS motor's own curve and recovery,
   and the ERS delivery profiles beyond their minimum speed; aero controllers on
-  anything but the speed are read flat out in a straight line, with a
-  warning.
+  suspension travel are read flat out in a straight line, with a warning.
 - `--lod B` exists but is untested.

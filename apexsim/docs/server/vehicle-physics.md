@@ -419,19 +419,30 @@ balance forward per cm of extra rake, induced drag a quarter of the change.
   downforce and the drag by the car's ground speed, linear between the points and held past
   either end, 1.0 at 50 m/s for an import (where its figures are taken). Applied on top of
   the posture in `calculate_aerodynamic_forces`; no points, exactly 1.0.
+- **Input map** (`input_multipliers`, `[[aero.input_point]]`): wings that move with the
+  driver (an air brake, a flap that stands up off the throttle or in a corner: an AC
+  import's controllers on `BRAKE`, `GAS`, `STEER`, `LATG`) as multipliers on the same three
+  by the last tick's throttle, brake, steering (a share of lock) and lateral g, each input
+  linear between its own points and held past either end, the inputs multiplied together
+  and into the speed map. Steer and lateral g are read by their size (no side-to-side
+  aero). 1.0 flat out in a straight line (full throttle, no brake, no steer, no cornering),
+  where an import's figures are taken; no points, exactly 1.0.
 - **Damage**: front up to `FRONT_DAMAGE_AERO_LOSS` (half) of its downforce, rear up to 40%.
 - The racing line uses the steady-state map on a straight car (`steady_downforce_factor`),
-  the speed map's downforce in it; its drag stays the car.toml's.
+  the speed map's downforce in it, flat out (no input map); its drag stays the car.toml's.
 - **Setup**: wings 5% of an axle's lift a click; ride heights 2 mm a click, never under 10
   mm (the reference stays the file's); springs move the aero too. No `[aero]`: wings work,
   ride heights do not.
 - car.toml `[aero]`: `ride_height_front_m`, `ride_height_rear_m`, `ride_height_sensitivity`,
   `rake_sensitivity`, `stall_height_m`, `yaw_sensitivity`, `roll_sensitivity`, `porpoising`;
   `[[aero.speed_point]]`: `speed_mps` (rising, 0-150), `downforce_front`, `downforce_rear`,
-  `drag` (0.2-3 each). Lift and drag stay in `[physics]` (`lift_coefficient_front/_rear`, `frontal_area_m2`,
+  `drag` (0.2-3 each); `[[aero.input_point]]`: `input` (`throttle`, `brake`, `steer`,
+  `lateral_g`), `at` (rising per input; 0-1, lateral g 0-6), `downforce_front`,
+  `downforce_rear`, `drag` (0.2-3 each). Lift and drag stay in `[physics]` (`lift_coefficient_front/_rear`, `frontal_area_m2`,
   `drag_coefficient`). Shipped: F1 45/90 mm, 3%/cm, porpoising 0.6; Hypercar/LMP2 50/80 mm,
   2%/cm, 0.3; GT3 70/90 mm, 1%/cm, 0.
-- Tests: `server/sim/tests/all/aero_test.rs`, `a_low_floor_porpoises_at_speed_and_a_raised_one_does_not`.
+- Tests: `server/sim/tests/all/aero_test.rs`, `a_low_floor_porpoises_at_speed_and_a_raised_one_does_not`,
+  `the_input_map_is_per_input_multiplied_and_absent_is_one`, `an_air_brake_stands_up_on_the_brake_pedal_only`.
 
 ## Slipstream and dirty air (`slipstream.rs`)
 

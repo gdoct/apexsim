@@ -222,6 +222,10 @@ struct AeroToml {
     /// rising speed; none when absent.
     #[serde(default)]
     speed_point: Vec<crate::aero::SpeedPoint>,
+    /// The wings' answer to the driver (`aero::InputPoint`), each input's
+    /// points by rising `at`; none when absent.
+    #[serde(default)]
+    input_point: Vec<crate::aero::InputPoint>,
 }
 
 /// Optional `[tires]` section: what the one `grip_coefficient` cannot say
@@ -1165,6 +1169,7 @@ impl CarLoader {
             roll_sensitivity: aero_toml.roll_sensitivity.unwrap_or(0.0),
             porpoising: aero_toml.porpoising.unwrap_or(0.0),
             speed_map: aero_toml.speed_point.clone(),
+            input_map: aero_toml.input_point.clone(),
             ..aero_defaults
         };
         Self::validate(&config, &path_str)?;
@@ -1431,6 +1436,27 @@ impl CarLoader {
                 ("drag", p.drag),
             ] {
                 in_range(&format!("aero.speed_point[{i}].{key}"), v, 0.2, 3.0);
+            }
+        }
+        // The input map's points, each input's by rising `at` within its
+        // range, each a sane multiplier.
+        let mut lowest: std::collections::BTreeMap<crate::aero::AeroInput, f32> =
+            std::collections::BTreeMap::new();
+        for (i, p) in aero.input_map.iter().enumerate() {
+            let low = lowest.get(&p.input).copied().unwrap_or(0.0);
+            in_range(
+                &format!("aero.input_point[{i}].at (rising per input)"),
+                p.at,
+                low,
+                p.input.top(),
+            );
+            lowest.insert(p.input, p.at + 1e-3);
+            for (key, v) in [
+                ("downforce_front", p.downforce_front),
+                ("downforce_rear", p.downforce_rear),
+                ("drag", p.drag),
+            ] {
+                in_range(&format!("aero.input_point[{i}].{key}"), v, 0.2, 3.0);
             }
         }
         let susp = &config.suspension;
@@ -2246,6 +2272,27 @@ downforce_front = 1.0
 downforce_rear = 1.0
 drag = 1.0
 
+[[aero.input_point]]
+input = \"brake\"
+at = 0.0
+downforce_front = 1.0
+downforce_rear = 1.0
+drag = 1.0
+
+[[aero.input_point]]
+input = \"brake\"
+at = 1.0
+downforce_front = 1.0
+downforce_rear = 1.4
+drag = 1.8
+
+[[aero.input_point]]
+input = \"lateral_g\"
+at = 2.0
+downforce_front = 1.1
+downforce_rear = 1.1
+drag = 1.05
+
 [hybrid]
 enabled = true
 battery_capacity_kwh = 1.0
@@ -2283,6 +2330,12 @@ axle = \"front\"
         assert_eq!(config.aero.porpoising, 0.5);
         assert_eq!(config.aero.speed_map.len(), 2);
         assert_eq!(config.aero.speed_map[0].downforce_rear, 1.3);
+        assert_eq!(config.aero.input_map.len(), 3);
+        assert_eq!(
+            config.aero.input_map[2].input,
+            crate::aero::AeroInput::LateralG
+        );
+        assert_eq!(config.aero.input_map[1].drag, 1.8);
         assert_eq!(config.hybrid.stint_kj, Some(30000.0));
         assert_eq!(config.hybrid.override_kj_per_lap, Some(1500.0));
         assert!(!config.hybrid.brake_by_wire);
@@ -2309,6 +2362,43 @@ reference = true
         assert_eq!(plain.hybrid.bbw_response_s, 0.0);
         assert_eq!(plain.hybrid.axle, HybridAxle::Crank);
         assert_eq!(plain.suspension.roll_centre_front_m, None);
+        assert!(plain.aero.input_map.is_empty());
+        // An input map's point past its input's range, or falling, is
+        // refused.
+        let point = |input: &str, at: f32| {
+            format!(
+                "[[aero.input_point]]
+input = \"{input}\"
+at = {at}
+downforce_front = 1.0
+downforce_rear = 1.0
+drag = 1.0
+"
+            )
+        };
+        for bad in [
+            point("brake", 1.5),
+            format!("{}{}", point("steer", 0.5), point("steer", 0.2)),
+            point("wheel", 0.5),
+        ] {
+            assert!(
+                load_toml_str(&format!(
+                    "{BASE_TOML}
+[aero]
+{bad}"
+                ))
+                .is_err(),
+                "should be refused: {bad}"
+            );
+        }
+        // Each input rises on its own.
+        let ok = format!("{}{}", point("steer", 0.5), point("brake", 0.2));
+        assert!(load_toml_str(&format!(
+            "{BASE_TOML}
+[aero]
+{ok}"
+        ))
+        .is_ok());
     }
 
     #[test]

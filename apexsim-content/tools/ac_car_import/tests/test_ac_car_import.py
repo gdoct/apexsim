@@ -1257,14 +1257,51 @@ DOWN_LIMIT=0
         self.assertAlmostEqual(points[83.33]["drag"], 0.745 / 0.77, places=3)
         self.assertNotIn("dynamic", " ".join(phys.warnings))
 
-    def test_other_inputs_are_read_flat_out_and_named(self):
+    def test_an_air_brake_is_an_input_map_on_the_brake(self):
+        # 10 degrees more on the full brake, none off it: the wing's 10 at
+        # the reference goes to 20 (0.11 + 1.0 of rear Cl, 0.7 + 0.12 of Cd).
         aero = self.AERO.replace("INPUT=SPEED_KMH", "INPUT=BRAKE")
         phys = physics.map_physics(fake_car(aero__ini=aero, wing_speed__lut="0|0\n1|10\n"))
         self.assertEqual(phys.aero_speed_map, [])
-        self.assertTrue(any("BRAKE" in w for w in phys.warnings))
+        points = {(p["input"], p["at"]): p for p in phys.aero_input_map}
+        self.assertEqual(sorted(points), [("brake", 0.0), ("brake", 1.0)])
+        self.assertEqual(points[("brake", 0.0)]["drag"], 1.0)
+        self.assertAlmostEqual(points[("brake", 1.0)]["downforce_rear"], 1.11 / 0.71, places=3)
+        self.assertAlmostEqual(points[("brake", 1.0)]["drag"], 0.82 / 0.77, places=3)
+        self.assertEqual(points[("brake", 1.0)]["downforce_front"], 1.0)
+        self.assertFalse(any("BRAKE" in w for w in phys.warnings))
+        text = toml_out.render(header={"id": "x", "name": "y"}, physics=phys, sound={}, wheels={}, cockpit={},
+                               drs_flap=None, source={}, liveries=[], notes=[])
+        parsed = tomllib.loads(text)["aero"]["input_point"]
+        self.assertEqual([(p["input"], p["at"]) for p in parsed], [("brake", 0.0), ("brake", 1.0)])
+
+    def test_a_flap_on_the_throttle_reads_against_full_throttle(self):
+        # The flap stands 10 degrees up off the throttle: 1 at full throttle.
+        aero = self.AERO.replace("INPUT=SPEED_KMH", "INPUT=GAS")
+        phys = physics.map_physics(fake_car(aero__ini=aero, wing_speed__lut="0|10\n1|0\n"))
+        points = {(p["input"], p["at"]): p for p in phys.aero_input_map}
+        self.assertEqual(sorted(points), [("throttle", 0.0), ("throttle", 1.0)])
+        self.assertEqual(points[("throttle", 1.0)]["downforce_rear"], 1.0)
+        self.assertAlmostEqual(points[("throttle", 0.0)]["downforce_rear"], 1.11 / 0.71, places=3)
+
+    def test_steer_and_lateral_g_are_read_either_way(self):
+        # A flap that stands up one way only reads as the mean of both ways.
+        aero = self.AERO.replace("INPUT=SPEED_KMH", "INPUT=STEER")
+        phys = physics.map_physics(fake_car(aero__ini=aero, wing_speed__lut="-1|0\n0|0\n1|10\n"))
+        points = {(p["input"], p["at"]): p for p in phys.aero_input_map}
+        self.assertEqual(sorted(points), [("steer", 0.0), ("steer", 1.0)])
+        self.assertAlmostEqual(points[("steer", 1.0)]["downforce_rear"], (0.71 + 1.11) / 2 / 0.71, places=3)
+
+    def test_inputs_the_server_has_no_map_for_are_read_flat_out_and_named(self):
+        aero = self.AERO.replace("INPUT=SPEED_KMH", "INPUT=SUS_TRAVEL_LR")
+        phys = physics.map_physics(fake_car(aero__ini=aero, wing_speed__lut="0|0\n1|10\n"))
+        self.assertEqual(phys.aero_speed_map, [])
+        self.assertEqual(phys.aero_input_map, [])
+        self.assertTrue(any("SUS_TRAVEL_LR" in w for w in phys.warnings))
 
     def test_a_car_without_controllers_has_no_map(self):
         self.assertEqual(physics.map_physics(fake_car()).aero_speed_map, [])
+        self.assertEqual(physics.map_physics(fake_car()).aero_input_map, [])
 
 
 @unittest.skipUnless(GT3R.is_dir(), "no Assetto Corsa install with the 911 GT3 R on this machine")
