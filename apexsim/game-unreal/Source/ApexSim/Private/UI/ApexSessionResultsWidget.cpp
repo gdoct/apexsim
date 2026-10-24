@@ -1293,6 +1293,18 @@ void UApexSessionResultsWidget::RefreshSidePanel()
 		return;
 	}
 
+	// One lap is nothing to chart: its time, and whether it stood.
+	if (Local->LapTimes.Num() == 1)
+	{
+		const bool bValid = !Local->LapValid.IsValidIndex(0) || Local->LapValid[0];
+		ApexUI::AddV(LapChartBox, ApexUI::MakeText(
+			*WidgetTree,
+			FString::Printf(TEXT("LAP 1   %s%s"), *UApexMenuFlowSubsystem::FormatLapTime(Local->LapTimes[0]), bValid ? TEXT("") : TEXT("   INVALID")),
+			ApexUI::Font::Mono(13.0f),
+			bValid ? ApexUI::Palette::TextPrimary : ApexUI::Palette::Error));
+		return;
+	}
+
 	float Slowest = 0.0f;
 	for (float Lap : Local->LapTimes)
 	{
@@ -1302,6 +1314,8 @@ void UApexSessionResultsWidget::RefreshSidePanel()
 	// Bars are relative to the slowest lap, with the best one picked out and a
 	// lap struck for track limits in red. Short bar means quick lap, which is
 	// the way round people read a lap chart.
+	constexpr float LapBarWidth = 26.0f;
+	const bool bFillChart = Local->LapTimes.Num() > 12;
 	UHorizontalBox* Chart = WidgetTree->ConstructWidget<UHorizontalBox>();
 	for (int32 Index = 0; Index < Local->LapTimes.Num(); ++Index)
 	{
@@ -1333,9 +1347,18 @@ void UApexSessionResultsWidget::RefreshSidePanel()
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f),
 			HAlign_Center);
 
-		ApexUI::AddH(Chart, Cell, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		// A short race's bars keep a bar's width rather than filling the
+		// column as blocks; a long one's share it.
+		if (bFillChart)
+		{
+			ApexUI::AddH(Chart, Cell, FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+		}
+		else
+		{
+			ApexUI::AddH(Chart, ApexUI::MakeSized(*WidgetTree, Cell, LapBarWidth, -1.0f), FMargin(Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+		}
 	}
-	ApexUI::AddV(LapChartBox, Chart);
+	ApexUI::AddV(LapChartBox, Chart, FMargin(), bFillChart ? HAlign_Fill : HAlign_Left);
 }
 
 void UApexSessionResultsWidget::FillQualifyingSummary(const FApexCarResult& Local)
