@@ -492,6 +492,13 @@ A skipped stage must still find the output it would have produced (a
 `-SkipTracks` run checks every export and the materials exist). The run does
 not import ground textures: run `initialize_content.ps1` first on a new machine.
 
+A zip downloaded through a browser marks every extracted file with a
+`Zone.Identifier` stream, and SmartScreen then stops `ApexSim.exe` or the
+server. `launcher.exe` deletes those streams under the package root on every
+start (`launcher/unblock.cpp`, as `Unblock-File` would), also when
+`launcher.show` is false; it skips junctions and never runs in a source
+checkout.
+
 ## Reclaiming disk space
 
 A working tree grows to well over 100 GB: dev-profile cargo targets

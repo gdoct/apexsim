@@ -36,6 +36,8 @@ namespace Gdiplus { using std::min; using std::max; }
 #include <objidl.h>
 #include <gdiplus.h>
 
+#include "unblock.h"
+
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "gdiplus.lib")
@@ -494,6 +496,14 @@ static void WorkerMain(HWND h)
     g.gameOk = g.env.found && Exists(g.env.release ? g.env.gameExe : g.env.playScript);
     g.serverOk = g.env.found && Exists(g.env.serverExe);
     if (g.env.found) g.versionFound = ReadVersion(g.env);  // shown once WM_APP_DONE lands on the UI thread
+
+    // A downloaded package carries the mark of the web on every file, and
+    // SmartScreen would stop the game or the server on it. Never in a checkout.
+    if (g.env.release)
+    {
+        Post(h, L"Unblocking downloaded files...", 250);
+        UnblockTree(g.env.root);
+    }
 
     Post(h, L"Generating config files...", 450);
     g.settings = DefaultSettings();
@@ -1637,6 +1647,7 @@ static bool AutoLaunch()
     if (!launch && !(have && !s.showLauncher)) return false;
 
     if (!Exists(env.release ? env.gameExe : env.playScript)) return false;
+    if (env.release) UnblockTree(env.root);  // as WorkerMain does, before anything is started
     g.env = env;
     std::wstring err;
     if (server)

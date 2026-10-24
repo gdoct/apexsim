@@ -22,7 +22,7 @@ if defined APEXSIM_VERSION set RCDEFS=/DAPEX_VERSION_STR=\"%APEXSIM_VERSION%\" /
 rc /nologo %RCDEFS% /fo out\launcher.res launcher.rc
 if errorlevel 1 exit /b 1
 cl /nologo /std:c++17 /O2 /GL /MT /EHsc /W4 /utf-8 /DUNICODE /D_UNICODE ^
-   /Fo:out\ /Fe:out\launcher.exe main.cpp ^
+   /Fo:out\ /Fe:out\launcher.exe main.cpp unblock.cpp ^
    /link /SUBSYSTEM:WINDOWS /LTCG /MANIFEST:EMBED /MANIFESTINPUT:app.manifest ^
    out\launcher.res user32.lib gdi32.lib gdiplus.lib comctl32.lib shell32.lib ole32.lib ws2_32.lib uuid.lib
 exit /b %errorlevel%
