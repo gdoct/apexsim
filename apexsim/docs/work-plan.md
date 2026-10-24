@@ -42,7 +42,6 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
-| B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
@@ -86,12 +85,6 @@ the centring re-arming; the centring was made safe blind (no re-arm on a
 stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop for 10 s, read the `Wheel
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
-
-#### B13. Tent over the track at Armadillos T15–16 — P2 · 🟡 · S
-*Source: follow-ups #6, wheel sitting 2026-10-23.* Not found in the scene:
-the only prop over the road there is the T16 footbridge, a truss gantry
-with a PIRETTI banner (verify run `b13-armadillos-t15`). Needs the driver
-to point at it again (a shot or a MARK where it stands).
 
 ### Platform and stability
 

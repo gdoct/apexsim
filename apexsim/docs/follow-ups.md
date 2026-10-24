@@ -73,13 +73,6 @@ watches.
 Prop-kit and `ats-dress` work on circuits and pieces that are built. Laid by
 the same `ApexProps` code.
 
-- Armadillos: a "tent over the track at turns 15 and 16" (wheel sitting of
-  2026-10-23). Not found yet: the only prop over the road there is the T16
-  footbridge (`truss_bridge` 22515 at 4484 m, from the dossier's OSM
-  footbridge, seated at road height), drawn as a truss gantry with a
-  PIRETTI banner; nothing else stands within the road's half-width between
-  4150 and 4700 m. Run `b13-armadillos-t15` (three shots of the corners)
-  to look again; the driver was not sure the gantry was it.
 - Mandarina Bay: corner names (the dossier has one "corner", the circuit
   itself), the F1 pit building (`building_pit_street`) placed, a quay rail
   along the water, a catch fence pass.

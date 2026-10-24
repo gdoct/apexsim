@@ -7194,6 +7194,18 @@ runs:
         label: "Over the T16 footbridge, high"
         checks: "B13: the bridge from above"
         exec: "apexsim.cam.LookAt 500.0 220.0 40.0 526.8 167.0 10.0"
+      - at: 32
+        label: "From 4618 m down the road past the tower"
+        checks: "B13: the observation tower's red canopy beside the road, not over it"
+        exec: "apexsim.cam.LookAt 485.2 48.1 13.0 430.7 22.7 13.0"
+      - at: 36
+        label: "From 4663 m up at the tower"
+        checks: "B13: the deck faces the road, the veil runs down its far side"
+        exec: "apexsim.cam.LookAt 444.2 29.4 13.0 425.5 84.4 55.0"
+      - at: 40
+        label: "The tower and its plaza canopy from above"
+        checks: "B13: the canopy reaches away from the road into the carousel's infield"
+        exec: "apexsim.cam.LookAt 520.0 -40.0 140.0 430.0 90.0 10.0"
 
   - id: b5-chase-chiffon
     about: "B5. The chase camera never inside the car's body (follow-ups #12)"

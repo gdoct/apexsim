@@ -374,6 +374,22 @@ def stadium_bowl():
 
 
 # ======================================================== building/veil_tower
+class Mirrored:
+    """A Builder whose y is negated: a piece drawn with the road on +Y comes
+    out with the kit's road on -Y."""
+    def __init__(self, b):
+        self.b = b
+
+    def box(self, mat, lo, hi):
+        self.b.box(mat, (lo[0], -hi[1], lo[2]), (hi[0], -lo[1], hi[2]))
+
+    def bar(self, mat, p0, p1, r, **kw):
+        self.b.bar(mat, (p0[0], -p0[1], p0[2]), (p1[0], -p1[1], p1[2]), r, **kw)
+
+    def cylinder(self, mat, c, r, h, **kw):
+        self.b.cylinder(mat, (c[0], -c[1], c[2]), r, h, **kw)
+
+
 def veil_tower():
     """Austin's 77 m observation tower: an open white stair tower (corner
     posts, a landing every 3.5 m, zig-zag flights on its front) under a
@@ -382,11 +398,13 @@ def veil_tower():
     sweeps out level into the long, widening canopy 15 m over the plaza on
     thin columns. The deck looks over the track (+Y, the road's side as
     laid); the plaza canopy reaches away from it (-Y). Pivot: the tower's
-    foot."""
+    foot. Drawn with the deck on +Y and mirrored in Y on the way out, so
+    the asset keeps the kit's road on -Y: the deck looks over -Y and the
+    canopy reaches +Y, away from the road."""
     m = mats()
     red = apex.material("veil_red", (0.62, 0.04, 0.04), metallic=0.3, roughness=0.35)
     white = m["white"]
-    b = apex.Builder("veil_tower")
+    b = Mirrored(apex.Builder("veil_tower"))
     X0, X1, Y0, Y1, TOP = -4.0, 4.0, -4.0, 3.0, 70.0
     # plinth, the lift core, corner posts
     b.box(m["concrete"], (X0 - 1.0, Y0 - 1.0, 0.0), (X1 + 1.0, Y1 + 1.0, 0.5))
@@ -440,7 +458,7 @@ def veil_tower():
         half = (n - 1) / 2 * gap * (1.0 + 1.6 * t)
         for x in (-half, half):
             b.cylinder(white, (x, y, 0.0), 0.25, 15.0 + 1.5 * t, segs=8)
-    return done(b)
+    return done(b.b)
 
 
 # ======================================================== misc/cauldron
@@ -741,7 +759,7 @@ BUILD = {
     "stadium_bowl": ("building", stadium_bowl, 500,
                      [((-120, -330, 6), (0, 0, 22), 45), ((-230, -230, 160), (0, 0, 10), 45)]),
     "veil_tower": ("building", veil_tower, 150,
-                   [((-230, 70, 35), (0, -30, 36), 40), ((24, 40, 72), (0, -6, 72), 60)]),
+                   [((-230, -70, 35), (0, 30, 36), 40), ((24, -40, 72), (0, 6, 72), 60)]),
     "fuel_station_canopy": ("building", fuel_station_canopy, 120,
                             [((-22, -45, 2.0), (0, 12, 3.5), 55), ((-30, -22, 18), (0, 14, 2), 50)]),
 }
