@@ -123,6 +123,11 @@ plus `LookAt` stops ([apexsim-content/docs/props.md](../../apexsim-content/docs/
 - Whether the sausage kerbs catch the AI: they lay 240 pieces here and 660
   on the Nordschleife, where the AI survey moved a little (more off-road
   and sliding, no retirements). Seen on screen inside the tight bends.
+- Run 2026-10-24 (`r5-mandarina-night`): the cloud dome over the pit
+  straight, the floodlit corners from above (grey tarmac, pools of light)
+  and the city at night read well; two TV shots were a white and a black
+  frame and the headlights blow the road white ahead of a car (both in
+  follow-ups, Rendering). The pit podium was not in shot.
 - The road under the floodlights after the floodlit exposure ceiling
   (2026-10-17): grey tarmac with pools of light from the TV and overhead
   cameras (the 2995 m shot's road 27% darker, blown pixels 7.6% to 4%);

@@ -304,6 +304,17 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
+- Mandarina Bay at night (`r5-mandarina-night`, 2026-10-24): two of the TV
+  director's shots were a whole frame of flat white (shot 7) and of near
+  black (shot 10): a camera set down inside a mesh (a hoarding, a building
+  face) that the visibility trace does not catch from that side
+  (cameras.md, TV director). Find the two poses from the client log's
+  `Tv:` lines and test the placement against the street circuit's walls
+  and buildings both ways.
+- The headlights at night light a near-white disc on the road just ahead of
+  every car (the same run's onboard and TV shots): the beam's intensity or
+  falloff is set for a darker exposure than the floodlit street gets.
+
 - Runtime-built track meshes stay out of the distance-field scene, so
   software Lumen and DF shadows see the road and terrain less well than the
   kit props. The fast build makes no distance field. `-ApexTrackFullBuild`
