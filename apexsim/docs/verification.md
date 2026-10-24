@@ -51,8 +51,12 @@ Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
   round the tread (`TyreCpd::FlatSpot2`). At racing speed the tread is a
   blur and the stand-in pits at a 0.6 spot: it needs a car held still
   ([follow-ups.md](follow-ups.md), content tooling).
-- A slow leak's LEAK read-out (`item.leak`, checked only through the golden
-  frame): grab it within the lap of the leak, before the stand-in pits.
+
+Run 2026-10-25 (`r1-spa-wet`): the LEAK read-out on the front right (the
+tyre panel's LEAK and "LEAK 154" in the car panel) through the lap after
+the leak, FLAT on the rear left after the puncture, the front left's flat
+spot read as FS 70, spray from the chase camera. The rain light and the
+two glazed patches are not readable in these shots.
 
 ### R2. Silverstone, cloudy, green start, long stint
 

@@ -26,7 +26,7 @@
         "text": "=has(sky.wind_kph) ? (sky.wind_kph == 0 ? 'Calm' : 'Wind ' + fmt(sky.wind_kph) + ' km/h' + (has(sky.wind_from) ? ' from ' + sky.wind_from : '')) : 'Wind ' + fmt(session.wind_kph) + ' km/h'" },
       { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 12, "color": "=sky.wet ? 'tyre_cold' : 'text_muted'",
         "visible": "=sky.live",
-        "text": "=(sky.wet ? 'Road ' + fmt(sky.road_water) + '% wet' : 'Road dry') + '  rubber ' + fmt(sky.rubber) + '%'" },
+        "text": "=(sky.wet ? (sky.road_water > 100 ? 'Standing water' : 'Road ' + fmt(sky.road_water) + '% wet') : 'Road dry') + '  rubber ' + fmt(sky.rubber) + '%'" },
       { "type": "text", "wrap": true, "margin": [0, 6, 0, 0], "font": "mono", "size": 12, "color": "accent",
         "visible": "=has(sky.next_weather)",
         "text": "=sky.next_weather + ' in ' + fmt_clock(sky.next_in_s)" },
