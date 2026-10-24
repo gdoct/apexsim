@@ -44,6 +44,8 @@ protected:
 	virtual void NativeOnInitialized() override;
 	virtual void NativeConstruct() override;
 	virtual void NativeDestruct() override;
+	/** A scheduled event's countdown, stepped once a second. */
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 
 private:
 	void BuildLayout();
@@ -85,6 +87,13 @@ private:
 	int32 CountdownSeconds = 10;
 	/** Non-zero while the server is counting in. */
 	int32 CountdownRemaining = 0;
+	/**
+	 * The line under the start button for a scheduled event's phase
+	 * (`LobbyState.Events`' start time), empty for none; and the second it
+	 * was last worked out for.
+	 */
+	FString ScheduledEventLine() const;
+	int64 ShownScheduleSecond = 0;
 
 	/** The session's chat under the grid: the last lines and a line to type in (Enter sends). */
 	UPROPERTY(Transient)

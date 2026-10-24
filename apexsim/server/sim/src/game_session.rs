@@ -21,6 +21,10 @@ pub const MAX_COUNTDOWN_SECONDS: u16 = 60;
 /// How long `StartSession` counts down before the race goes green.
 pub const START_SESSION_COUNTDOWN_SECONDS: u16 = 5;
 
+/// How long a driver who joins a race already under way (a session on a
+/// schedule) is held in their box before going out, s.
+pub const LATE_JOIN_HOLD_S: f32 = 5.0;
+
 /// Once the winner has finished, the rest of the field has this many of the
 /// winner's average laps to complete the distance...
 pub const FINISH_GRACE_LAPS: f32 = 2.0;
@@ -647,6 +651,12 @@ pub struct GameSession {
     /// by a player: it stays without a human in it, and the dashboard or
     /// its schedule starts and ends it. Nothing in the tick reads it.
     pub hosted: bool,
+    /// Run to a schedule (a race event with start times, set by the
+    /// server's event runner): the weekend's race counts in at once instead
+    /// of waiting on the grid for everyone to be ready, and a driver who
+    /// joins after a qualifying round or the race has begun is taken (into
+    /// the race from the pit lane, [`Self::seat_late_in_pits`]).
+    pub on_schedule: bool,
     /// Cars the AI field is not dealt (switched off on the dashboard);
     /// empty, the field is the host class's every car.
     pub ai_excluded_cars: std::collections::BTreeSet<CarConfigId>,
@@ -1222,6 +1232,7 @@ impl GameSession {
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
             hosted: false,
+            on_schedule: false,
             ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
             not_qualified: std::collections::BTreeSet::new(),
@@ -1317,6 +1328,7 @@ impl GameSession {
             finished_since_loop_tick: None,
             orphaned_since_loop_tick: None,
             hosted: false,
+            on_schedule: false,
             ai_excluded_cars: std::collections::BTreeSet::new(),
             away: std::collections::BTreeSet::new(),
             not_qualified: std::collections::BTreeSet::new(),
@@ -2864,9 +2876,10 @@ impl GameSession {
     }
 
     /// The weekend goes to its race: the grid card when a driver is here to
-    /// say ready, else the countdown at once.
+    /// say ready, else the countdown at once; on a schedule, the countdown
+    /// at once whoever is here (the race starts on time).
     fn begin_weekend_race(&mut self) {
-        if self.has_connected_driver() {
+        if self.has_connected_driver() && !self.on_schedule {
             self.open_grid(START_SESSION_COUNTDOWN_SECONDS)
         } else {
             self.start_countdown_mode(START_SESSION_COUNTDOWN_SECONDS, GameMode::Race)
@@ -3662,11 +3675,16 @@ impl GameSession {
         if self.session.state == SessionState::Finished && !self.awaits_weekend_advance() {
             return Some("Session has finished");
         }
-        if self.session.game_mode == GameMode::Race {
-            return Some("A race is under way: watch it instead");
-        }
         if self.race_start.formation.is_some() {
             return Some("The formation lap is under way: watch it instead");
+        }
+        // On a schedule the session does not wait for anyone: a driver who
+        // comes late still drives (the race from the pit lane).
+        if self.on_schedule {
+            return None;
+        }
+        if self.session.game_mode == GameMode::Race {
+            return Some("A race is under way: watch it instead");
         }
         if self.is_weekend()
             && self.weekend.phase == crate::weekend::WeekendPhase::Qualifying
@@ -4817,11 +4835,60 @@ impl GameSession {
             }
             // The ballast a season gave the newcomer (`@ai:N`, the host).
             self.apply_ballast();
+            // A race under way: the newcomer goes out from the pit lane.
+            if self.session.game_mode == GameMode::Race
+                && self.session.state == SessionState::Racing
+            {
+                self.seat_late_in_pits(&player_id);
+            }
             self.roster_dirty = true;
             Some(grid_position)
         } else {
             None
         }
+    }
+
+    /// A driver seated after the race's start (a session on a schedule):
+    /// parked at a box of their own and held [`LATE_JOIN_HOLD_S`], then
+    /// driven out by the pit autopilot (or by themselves, with manual
+    /// pits), as after a tow to the pits. On a track with no pit lane the
+    /// car is put on the road at its own place, clear of traffic, as a
+    /// recovery does. False when neither could be done.
+    pub fn seat_late_in_pits(&mut self, player_id: &PlayerId) -> bool {
+        use crate::recovery::RecoverDestination;
+        if let Some(boxes) = self
+            .track_config
+            .pit_lane
+            .as_ref()
+            .map(|l| l.boxes.len())
+            .filter(|n| *n > 0)
+        {
+            let taken: Vec<u8> = self
+                .session
+                .participants
+                .values()
+                .filter(|s| s.player_id != *player_id)
+                .filter_map(|s| s.pit.box_index)
+                .collect();
+            if let Some(state) = self.session.participants.get_mut(player_id) {
+                if state.pit.box_index.is_none() {
+                    state.pit.box_index = Some(crate::pit::deal_box(&taken, boxes));
+                }
+            }
+        }
+        let placed = self
+            .recover_car(player_id, RecoverDestination::Pits)
+            .or_else(|_| self.recover_car(player_id, RecoverDestination::Track))
+            .is_ok();
+        if let Some(recovery) = self
+            .session
+            .participants
+            .get_mut(player_id)
+            .and_then(|s| s.recovery.as_mut())
+        {
+            recovery.left_s = recovery.left_s.min(LATE_JOIN_HOLD_S);
+        }
+        placed
     }
 
     /// The session's damage rule (`RaceSession::damage`), stamped on every

@@ -224,3 +224,58 @@ fn back_to_pits_in_qualifying_is_the_garage() {
         .expect("garaged");
     assert!(gs.session.participants[&me].in_garage);
 }
+
+#[test]
+fn a_late_joiner_on_a_schedule_goes_out_from_the_pit_lane() {
+    let (mut gs, ids) = practice(1);
+    if !gs
+        .track_config
+        .has_sidecars(&[Sidecar::Pit], "a late joiner seated in a box")
+    {
+        return;
+    }
+    let inputs = throttle(&ids);
+    gs.session.lap_limit = 5;
+    gs.start_countdown_mode(1, GameMode::Race);
+    for _ in 0..ticks(2.0) {
+        gs.tick(&inputs);
+    }
+    assert_eq!(gs.session.state, SessionState::Racing);
+    assert!(
+        gs.refuses_drivers().is_some(),
+        "a race under way takes nobody"
+    );
+    gs.on_schedule = true;
+    assert_eq!(gs.refuses_drivers(), None, "on a schedule it does");
+
+    let late = Uuid::from_u128(999);
+    let car = gs.session.participants[&ids[0]].car_config_id;
+    gs.add_player(late, car).expect("seated");
+    let lane = gs.track_config.pit_lane.clone().unwrap();
+    let s = &gs.session.participants[&late];
+    let own = s.pit.box_index.expect("a box of its own");
+    assert_ne!(
+        Some(own),
+        gs.session.participants[&ids[0]].pit.box_index,
+        "not the other car's"
+    );
+    let spot = lane.box_at(own);
+    assert!(
+        (s.pos_x - spot.x).hypot(s.pos_y - spot.y) < 0.5,
+        "at its box"
+    );
+    let hold = s.recovery.expect("held").left_s;
+    assert!(hold <= apexsim_sim::game_session::LATE_JOIN_HOLD_S + 1e-3);
+
+    let mut all = inputs.clone();
+    all.insert(late, PlayerInputData::default());
+    for _ in 0..ticks(hold + 1.0) {
+        gs.tick(&all);
+    }
+    let s = &gs.session.participants[&late];
+    assert!(s.recovery.is_none(), "let go after the hold");
+    assert!(
+        s.pit.driving || s.pit.servicing,
+        "the crew takes it out of the lane"
+    );
+}

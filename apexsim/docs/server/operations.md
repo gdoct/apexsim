@@ -271,12 +271,19 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   player slots, the session open for it and its state, the last error
   opening one) with OPEN, START, NEXT PHASE (while the session waits for
   it), CLOSE, OPEN / CLOSE ENTRIES and DELETE; a row unfolds its entry list
-  (each with REMOVE) and every finished phase's results, and the form under
-  it makes one from a name, the entry rule and a hosted session's settings.
-  The API under it: `GET /api/events` and
-  `/api/events/<id>` (the event, the session open for it, its state, mode
-  and `awaits_advance`); `POST /api/events` with `{ "name", "spec": <a hosted session's
-  settings>, "entries_open" }` makes one (id the name's slug);
+  (each with REMOVE), its schedule (each phase's start in the browser's
+  local time, empty for one started by hand, how many minutes ahead it
+  opens and the break between knockout rounds, SAVE SCHEDULE; an edit
+  survives the list's repaint) and every finished phase's results, and the
+  form under it makes one from a name, the entry rule, a hosted session's
+  settings and an optional schedule. A scheduled event's phase column says
+  when it starts ("STARTS IN 12M 05S"). The API under it: `GET /api/events` and
+  `/api/events/<id>` (the event, the session open for it, its state, mode,
+  `awaits_advance`, its `schedule` and `next_start`); `POST /api/events` with `{ "name", "spec": <a hosted session's
+  settings>, "entries_open", "schedule": { "practice_at", "qualifying_at",
+  "race_at", "open_minutes", "round_break_s" } }` makes one (id the name's
+  slug; the times Unix s, each optional); `/api/events/<id>/schedule` with
+  a schedule replaces it;
   `POST /api/events/<id>/open` opens its session (and keeps it open across
   restarts), `/start` starts that session (its next phase), `/advance`
   moves it on between phases (recording the one finished), `/close` ends

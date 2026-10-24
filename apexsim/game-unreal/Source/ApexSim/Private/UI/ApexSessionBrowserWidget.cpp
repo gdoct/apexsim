@@ -26,6 +26,7 @@
 #include "Components/VerticalBox.h"
 #include "Track/ApexTrackContentSubsystem.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexEventLabels.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRootWidget.h"
 #include "UI/ApexUIStyle.h"
@@ -52,6 +53,18 @@ namespace
 		case EApexSessionKind::Multiplayer: return TEXT("Multiplayer");
 		default:                            return TEXT("Session");
 		}
+	}
+
+	/** A Unix time as the player's own clock reads it: "Sat 24 Oct 20:00". */
+	FString LocalClock(int64 Unix)
+	{
+		const FDateTime Local = FDateTime::FromUnixTimestamp(Unix) + (FDateTime::Now() - FDateTime::UtcNow());
+		return Local.ToString(TEXT("%a %d %b %H:%M"));
+	}
+
+	int64 UnixNow()
+	{
+		return FDateTime::UtcNow().ToUnixTimestamp();
 	}
 
 	/** The badge: what a driver can do with the session, coloured to match. */
@@ -94,6 +107,7 @@ namespace ApexBrowser
 		case EFilter::Racing:
 			return Session.IsWatchable();
 		case EFilter::Recorded:
+		case EFilter::Events:
 			return false;
 		default:
 			return true;
@@ -233,7 +247,7 @@ void UApexSessionBrowserWidget::BuildLayout()
 	// under way, or the finished races the server recorded.
 	FilterPills = WidgetTree->ConstructWidget<UApexSegmentedWidget>();
 	FilterPills->ControlId = TEXT("Browser.Filter");
-	FilterPills->Setup({ TEXT("ALL"), TEXT("JOINABLE"), TEXT("RACING"), TEXT("RECORDED") }, 0, 132.0f);
+	FilterPills->Setup({ TEXT("ALL"), TEXT("JOINABLE"), TEXT("RACING"), TEXT("RECORDED"), TEXT("EVENTS") }, 0, 132.0f);
 	FilterPills->OnChosen.AddDynamic(this, &UApexSessionBrowserWidget::HandleFilterChosen);
 	AddV(Body, FilterPills, FMargin(0.0f, 22.0f, 0.0f, 0.0f), HAlign_Left);
 
@@ -376,11 +390,19 @@ void UApexSessionBrowserWidget::SetFilter(ApexBrowser::EFilter InFilter)
 	}
 	// A different set of rows, from the top.
 	Shown.Reset();
+	ShownEvents.Reset();
 	LastFocused = 0;
 	if (Filter == ApexBrowser::EFilter::Recorded)
 	{
 		RebuildRecordingRows();
 		FetchRecordings();
+	}
+	else if (Filter == ApexBrowser::EFilter::Events)
+	{
+		List->ClearChildren();
+		Rows.Reset();
+		WatchButtons.Reset();
+		RefreshEventRows();
 	}
 	else
 	{
@@ -600,6 +622,11 @@ void UApexSessionBrowserWidget::RefreshList()
 		// The recordings are fetched on asking, not with every lobby broadcast.
 		return;
 	}
+	if (Filter == ApexBrowser::EFilter::Events)
+	{
+		RefreshEventRows();
+		return;
+	}
 
 	TArray<FApexSessionSummary> Sessions;
 	for (const FApexSessionSummary& Session : Net->GetCachedLobbyState().AvailableSessions)
@@ -700,6 +727,197 @@ void UApexSessionBrowserWidget::RefreshList()
 	}
 }
 
+const FApexSessionSummary* UApexSessionBrowserWidget::EventSession(const FApexLobbyEvent& Event) const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !Event.HasSession())
+	{
+		return nullptr;
+	}
+	return Net->GetCachedLobbyState().AvailableSessions.FindByPredicate(
+		[&Event](const FApexSessionSummary& S) { return S.Id.Equals(Event.SessionId, ESearchCase::IgnoreCase); });
+}
+
+void UApexSessionBrowserWidget::RefreshEventRows()
+{
+	using namespace ApexUI;
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !List)
+	{
+		return;
+	}
+	TArray<FApexLobbyEvent> Events = Net->GetCachedLobbyState().Events;
+	ApexEventLabels::SortEvents(Events);
+	bool bSameSet = Events.Num() == ShownEvents.Num();
+	for (int32 Index = 0; bSameSet && Index < Events.Num(); ++Index)
+	{
+		bSameSet = Events[Index].Id == ShownEvents[Index].Id;
+	}
+	ShownEvents = Events;
+	if (!bSameSet || Rows.Num() != Events.Num())
+	{
+		// Rebuilt when events come or go; their state and countdown are set in place.
+		const bool bHadFocus = HasFocusedDescendants();
+		const UApexMenuFlowSubsystem* Flow = GetFlow();
+		List->ClearChildren();
+		Rows.Reset();
+		WatchButtons.Reset();
+		for (int32 Index = 0; Index < Events.Num(); ++Index)
+		{
+			FApexTrackCatalogRow Track;
+			const bool bHasTrack = Flow && Flow->GetTrackCatalogRow(Events[Index].TrackId, Track);
+			UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			Row->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+			UApexButtonWidget* WatchButton = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			WatchButton->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+			Rows.Add(Row);
+			WatchButtons.Add(WatchButton);
+			UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+			AddH(Line, MakePreview(*WidgetTree, bHasTrack ? UApexTrackContentSubsystem::PreviewOf(Track) : nullptr,
+				TEXT("No preview"), PreviewWidth, PreviewHeight), FMargin(0.0f, 0.0f, 12.0f, 0.0f), VAlign_Center);
+			AddH(Line, Row, FMargin(), VAlign_Center, 1.0f);
+			AddH(Line, MakeSized(*WidgetTree, WatchButton, WatchWidth, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+			List->AddChild(Line);
+			if (UScrollBoxSlot* LineSlot = Cast<UScrollBoxSlot>(Line->Slot))
+			{
+				LineSlot->SetPadding(FMargin(0.0f, Index == 0 ? 0.0f : 6.0f, 0.0f, 0.0f));
+			}
+		}
+		LastFocused = Rows.Num() > 0 ? FMath::Clamp(LastFocused, 0, Rows.Num() - 1) : 0;
+		if (bHadFocus && IsActiveScreen())
+		{
+			FocusDefault();
+		}
+	}
+	const int64 Now = UnixNow();
+	EventsSecond = Now;
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
+	{
+		ApplyEventRow(Index, Now);
+	}
+	int32 Coming = 0;
+	for (const FApexLobbyEvent& Event : Events)
+	{
+		Coming += Event.IsDone() ? 0 : 1;
+	}
+	if (CountText)
+	{
+		CountText->SetText(FText::FromString(FString::Printf(TEXT("%d EVENT%s  ·  %d TO COME"),
+			Events.Num(), Events.Num() == 1 ? TEXT("") : TEXT("S"), Coming)));
+	}
+	if (StatusLine)
+	{
+		const FString Status = Net->GetConnectionState() != EApexConnectionState::Authenticated ? TEXT("NOT CONNECTED: CONNECT TO A SERVER FROM THE MAIN MENU")
+			: Events.Num() == 0 ? FString()
+			: TEXT("ENTER JOINS AN EVENT'S SESSION ONCE IT IS OPEN  ·  EACH PHASE STARTS AT ITS TIME, WHOEVER IS THERE");
+		StatusLine->SetText(FText::FromString(Status));
+		StatusLine->SetVisibility(Status.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	if (EmptyText)
+	{
+		EmptyText->SetText(FText::FromString(TEXT("No race events on this server. Its operator makes them on the dashboard.")));
+		EmptyText->SetVisibility(Events.Num() == 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+}
+
+void UApexSessionBrowserWidget::ApplyEventRow(int32 Index, int64 Now)
+{
+	using namespace ApexUI;
+	if (!ShownEvents.IsValidIndex(Index) || !Rows.IsValidIndex(Index))
+	{
+		return;
+	}
+	const FApexLobbyEvent& Event = ShownEvents[Index];
+	const FApexSessionSummary* Session = EventSession(Event);
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	FApexTrackCatalogRow Track;
+	// The catalog's display name; never the server's own name of a real circuit.
+	const FString TrackName = Flow && Flow->GetTrackCatalogRow(Event.TrackId, Track) && !Track.DisplayName.IsEmpty()
+		? Track.DisplayName : FString(TEXT("A circuit not installed here"));
+
+	TArray<FString> Parts;
+	Parts.Add(TrackName);
+	Parts.Add(ApexEventLabels::PhaseWords(Event, Session));
+	if (Event.StartsAt > 0 && !Event.IsDone())
+	{
+		Parts.Add(FString::Printf(TEXT("%s %s"), Event.StartsAt > Now ? TEXT("starts") : TEXT("started"), *LocalClock(Event.StartsAt)));
+	}
+	else if (!Event.IsDone())
+	{
+		Parts.Add(TEXT("started by race control"));
+	}
+	if (Event.Slots > 0)
+	{
+		Parts.Add(FString::Printf(TEXT("%d / %d entered"), Event.Entries, Event.Slots));
+	}
+
+	const ApexEventLabels::EStatus At = ApexEventLabels::Status(Event, Session);
+	const bool bMuted = At == ApexEventLabels::EStatus::Over || (At == ApexEventLabels::EStatus::NotOpen && Event.StartsAt <= Now);
+	FApexButtonSpec Spec;
+	Spec.Label = Event.Name;
+	Spec.SubLabel = FString::Join(Parts, TEXT("  ·  "));
+	Spec.Badge = ApexEventLabels::Badge(Event, Session, Now);
+	Spec.BadgeColour = bMuted ? Palette::TextMuted : At == ApexEventLabels::EStatus::UnderWay ? Palette::Accent : Palette::Live;
+	Spec.Variant = Session ? EApexButtonVariant::Panel : EApexButtonVariant::Locked;
+	Spec.LabelSize = 20.0f;
+	Spec.Height = RowHeight;
+	Spec.ActionId = ActionBrowserRow;
+	Rows[Index]->Setup(Spec);
+
+	if (WatchButtons.IsValidIndex(Index))
+	{
+		FApexButtonSpec WatchSpec;
+		WatchSpec.Label = TEXT("Watch");
+		WatchSpec.Variant = Session && Session->IsWatchable() ? EApexButtonVariant::Ghost : EApexButtonVariant::Locked;
+		WatchSpec.bCentreLabel = true;
+		WatchSpec.LabelSize = 16.0f;
+		WatchSpec.Height = RowHeight;
+		WatchSpec.ActionId = ActionBrowserWatch;
+		WatchButtons[Index]->Setup(WatchSpec);
+	}
+}
+
+void UApexSessionBrowserWidget::JoinEvent(int32 Index)
+{
+	if (!ShownEvents.IsValidIndex(Index))
+	{
+		return;
+	}
+	const FApexLobbyEvent& Event = ShownEvents[Index];
+	if (Event.IsDone())
+	{
+		ShowToast(TEXT("That event is over"), true);
+		return;
+	}
+	if (const FApexSessionSummary* Session = EventSession(Event))
+	{
+		JoinSession(*Session);
+		return;
+	}
+	ShowToast(Event.StartsAt > UnixNow()
+		? TEXT("Not open yet: the server opens it ahead of its start")
+		: TEXT("Not open: race control opens it"), true);
+}
+
+void UApexSessionBrowserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (Filter != ApexBrowser::EFilter::Events)
+	{
+		return;
+	}
+	const int64 Now = UnixNow();
+	if (Now == EventsSecond)
+	{
+		return;
+	}
+	EventsSecond = Now;
+	for (int32 Index = 0; Index < Rows.Num(); ++Index)
+	{
+		ApplyEventRow(Index, Now);
+	}
+}
+
 void UApexSessionBrowserWidget::FocusDefault()
 {
 	if (Rows.IsValidIndex(LastFocused) && ApexNav::Focus(Rows[LastFocused]))
@@ -786,13 +1004,20 @@ void UApexSessionBrowserWidget::Refresh()
 
 void UApexSessionBrowserWidget::Join(int32 Index)
 {
+	if (Shown.IsValidIndex(Index))
+	{
+		JoinSession(Shown[Index]);
+	}
+}
+
+void UApexSessionBrowserWidget::JoinSession(const FApexSessionSummary& Session)
+{
 	UApexNetSubsystem* Net = GetNet();
 	UApexMenuFlowSubsystem* Flow = GetFlow();
-	if (!Net || !Flow || !Shown.IsValidIndex(Index))
+	if (!Net || !Flow)
 	{
 		return;
 	}
-	const FApexSessionSummary& Session = Shown[Index];
 	if (Session.IsOver())
 	{
 		ShowToast(TEXT("That session is over"), true);
@@ -861,6 +1086,10 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		{
 			WatchRecording(RowAt);
 		}
+		else if (Filter == ApexBrowser::EFilter::Events)
+		{
+			JoinEvent(RowAt);
+		}
 		else
 		{
 			Join(RowAt);
@@ -869,6 +1098,17 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (const int32 WatchAt = ApexNav::IndexOf(WatchButtons, Button); WatchAt != INDEX_NONE)
 	{
 		LastFocused = WatchAt;
-		Watch(WatchAt);
+		if (Filter == ApexBrowser::EFilter::Events)
+		{
+			const FApexSessionSummary* Session = ShownEvents.IsValidIndex(WatchAt) ? EventSession(ShownEvents[WatchAt]) : nullptr;
+			if (UApexRootWidget* Root = Session && Session->IsWatchable() ? GetRoot() : nullptr)
+			{
+				Root->WatchSession(Session->Id);
+			}
+		}
+		else
+		{
+			Watch(WatchAt);
+		}
 	}
 }

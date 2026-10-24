@@ -59,6 +59,126 @@ namespace ApexEventLabels
 		return Event.IsEvent() && Phase < ShownPhase(Event, WeekendPhase);
 	}
 
+	/** Seconds as a countdown: 0:09, 4:59, 1:02:03, then 2D 04H past a day. */
+	inline FString Countdown(int64 Seconds)
+	{
+		Seconds = FMath::Max<int64>(Seconds, 0);
+		const int64 Days = Seconds / 86400;
+		const int64 Hours = Seconds % 86400 / 3600;
+		const int64 Minutes = Seconds % 3600 / 60;
+		const int64 Secs = Seconds % 60;
+		if (Days > 0)
+		{
+			return FString::Printf(TEXT("%lldD %02lldH"), Days, Hours);
+		}
+		return Hours > 0 ? FString::Printf(TEXT("%lld:%02lld:%02lld"), Hours, Minutes, Secs)
+			: FString::Printf(TEXT("%lld:%02lld"), Minutes, Secs);
+	}
+
+	/**
+	 * The lobby's line for a phase with a start time (its schedule's): it
+	 * starts on time whoever is there. "THE RACE STARTS IN 4:59", then
+	 * "THE RACE IS STARTING" once the time has come.
+	 */
+	inline FString ScheduledLine(int32 Phase, int64 StartsAt, int64 Now)
+	{
+		const FString PhaseText = PhaseName(Phase);
+		if (PhaseText.IsEmpty() || Phase > 3 || StartsAt <= 0)
+		{
+			return FString();
+		}
+		return StartsAt > Now
+			? FString::Printf(TEXT("THE %s STARTS IN %s"), *PhaseText, *Countdown(StartsAt - Now))
+			: FString::Printf(TEXT("THE %s IS STARTING"), *PhaseText);
+	}
+
+	/** Where a listed event stands, for the session browser's Events list. */
+	enum class EStatus : uint8
+	{
+		/** No session open for it yet. */
+		NotOpen,
+		/** Its session is open: in its lobby, or between two phases. */
+		Open,
+		/** A phase is being driven. */
+		UnderWay,
+		/** The race is run. */
+		Over,
+	};
+
+	/** `Session`: the listed session open for it, or null. */
+	inline EStatus Status(const FApexLobbyEvent& Event, const FApexSessionSummary* Session)
+	{
+		if (Event.IsDone())
+		{
+			return EStatus::Over;
+		}
+		if (!Session)
+		{
+			return EStatus::NotOpen;
+		}
+		return Session->IsWatchable() || (Session->State == EApexSessionState::Finished && !Session->bWeekendWaiting)
+			? EStatus::UnderWay : EStatus::Open;
+	}
+
+	/**
+	 * A listed event's badge: "In 4:59" while its phase's time is to come,
+	 * else Under way, Open, Not open or Over.
+	 */
+	inline FString Badge(const FApexLobbyEvent& Event, const FApexSessionSummary* Session, int64 Now)
+	{
+		const EStatus At = Status(Event, Session);
+		if (At != EStatus::Over && At != EStatus::UnderWay && Event.StartsAt > Now)
+		{
+			return FString::Printf(TEXT("In %s"), *Countdown(Event.StartsAt - Now));
+		}
+		switch (At)
+		{
+		case EStatus::Over:     return TEXT("Over");
+		case EStatus::UnderWay: return TEXT("Under way");
+		case EStatus::Open:     return TEXT("Open");
+		default:                return TEXT("Not open");
+		}
+	}
+
+	/** The phase a listed event is at, as its row says it: "Race next", "Practice", "Over". */
+	inline FString PhaseWords(const FApexLobbyEvent& Event, const FApexSessionSummary* Session)
+	{
+		const FString Name = PhaseName(Event.Phase);
+		if (Event.IsDone() || Name.IsEmpty())
+		{
+			return TEXT("Over");
+		}
+		const FString Phase = Name.Left(1) + Name.Mid(1).ToLower();
+		return Status(Event, Session) == EStatus::UnderWay ? Phase : Phase + TEXT(" next");
+	}
+
+	/**
+	 * The listed events in the order the browser shows them: the ones to
+	 * come by their start time (those started by hand after them, by
+	 * name), then the ones over.
+	 */
+	inline void SortEvents(TArray<FApexLobbyEvent>& Events)
+	{
+		Events.StableSort([](const FApexLobbyEvent& A, const FApexLobbyEvent& B)
+		{
+			if (A.IsDone() != B.IsDone())
+			{
+				return !A.IsDone();
+			}
+			const bool bTimedA = A.StartsAt > 0;
+			const bool bTimedB = B.StartsAt > 0;
+			if (bTimedA != bTimedB)
+			{
+				return bTimedA;
+			}
+			if (bTimedA && A.StartsAt != B.StartsAt)
+			{
+				return A.StartsAt < B.StartsAt;
+			}
+			return A.Name < B.Name;
+		});
+	}
+
 	/** The line under the start button while the server has the event's next phase to start. */
 	inline FString WaitingLine(const FApexSessionEvent& Event, EApexWeekendPhase WeekendPhase)
 	{

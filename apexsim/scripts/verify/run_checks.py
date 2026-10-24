@@ -45,10 +45,13 @@ run executes at 1 s and the client logs.
 A run's server may start with a race event already kept (`server.event`:
 `name`, `track` stem, `car` name or part of one, `phase` practice|
 qualifying|race, `entries_open`, `slots`, `ai`, `laps`, `practice_min`,
-`qualifying_min`): written to the run's records/events/<slug>.json before
-the server starts, opened, so the server opens its session at that phase
-as it does after a restart (docs/server/sessions.md, "Events across
-restarts"). Its results are empty: a race resumed so grids by the slots.
+`qualifying_min`, `starts_in_s`): written to the run's
+records/events/<slug>.json before the server starts, opened, so the server
+opens its session at that phase as it does after a restart
+(docs/server/sessions.md, "Events across restarts"). Its results are
+empty: a race resumed so grids by the slots. `starts_in_s` gives that
+phase a start time on its schedule, that many seconds after the seeding:
+the server starts it then, whoever is there.
 
 A sitting (`--sit <block>`, scripts/verify/sittings.yml) is the same
 launch with a human driving: docs/wheel-sitting.md. No shots and no time
@@ -208,13 +211,18 @@ def seed_event(work: Path, event: dict) -> None:
         "lap_limit": int(event.get("laps", 3)),
         "weekend": weekend,
     }
-    folder = work / "records" / "events"
-    folder.mkdir(parents=True, exist_ok=True)
-    (folder / f"{slug}.json").write_text(json.dumps({
+    phase = event.get("phase", "race")
+    kept = {
         "version": 1, "id": slug, "name": name, "spec": spec,
         "entries_open": bool(event.get("entries_open", True)), "entries": [], "ai": [],
-        "phase": event.get("phase", "race"), "opened": True, "results": [],
-    }, indent=2), encoding="utf-8")
+        "phase": phase, "opened": True, "results": [],
+    }
+    if event.get("starts_in_s") is not None:
+        import time
+        kept["schedule"] = {f"{phase}_at": int(time.time()) + int(event["starts_in_s"]), "open_minutes": 60}
+    folder = work / "records" / "events"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{slug}.json").write_text(json.dumps(kept, indent=2), encoding="utf-8")
 
 
 class Server:

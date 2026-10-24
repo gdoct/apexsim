@@ -119,6 +119,7 @@ bool FApexSessionBrowserFilterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("a race under way is racing"), Passes(Racing, EFilter::Racing));
 	TestFalse(TEXT("a lobby is not"), Passes(Lobby, EFilter::Racing));
 	TestFalse(TEXT("the recorded list has no live session"), Passes(Racing, EFilter::Recorded));
+	TestFalse(TEXT("nor has the events list"), Passes(Racing, EFilter::Events));
 
 	// The damage rule in the row's line: only one that is not the default.
 	TestTrue(TEXT("full damage goes unsaid"), DamageWords(EApexDamageLevel::Full).IsEmpty());

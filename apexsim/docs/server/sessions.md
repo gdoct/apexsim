@@ -30,7 +30,10 @@ belong to these rules are described briefly beside them.
 - `server/sim/src/weekend.rs`: `WeekendFormat`, `knockout_sizes`,
   `WeekendProgress`; `GameSession::resume_weekend`
 - `server/server/src/events.rs`: events kept across restarts (`Event`,
-  `EventStore`, `finished_phase`, `open_session`, `run_once`)
+  `EventStore`, `finished_phase`, `open_session`, `run_once`), their
+  schedule (`EventSchedule`, `schedule_step`, `run_schedule`) and the
+  lobby's list (`EventStore::lobby_events`); `GameSession::on_schedule`
+  and `seat_late_in_pits` in the sim
 - `server/sim/src/tyre_sets.rs`: `TyreSet`, `CarTyres` (the tyre rules,
   "Tyre sets")
 - `server/server/src/server.rs`: `ServerState::create_session` (resolves the
@@ -1456,6 +1459,42 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   (qualifying from Q1): only finished phases are kept. Ending an event's
   session (STOP) ends this sitting; the runner opens it again at its phase.
   RESTART is refused for an event's session.
+- **A schedule** (`Event::schedule`, `EventSchedule { practice_at,
+  qualifying_at, race_at, open_minutes, round_break_s }`, left out of the
+  file when no phase has a time) gives phases real start times, Unix s
+  on the server's clock, read by the event runner only (nothing in the
+  simulation reads a clock). The dashboard sets it on create or later
+  (`EventSchedule::clamp`: each time no earlier than the one before, the
+  opening at most a day ahead, the round break 10 s .. 1 h). On it:
+  - the runner opens the event (`opened`) once its phase's session is due,
+    `open_minutes` (15 by default) before the phase's time
+    (`Event::due_to_open`), unless it was closed on the dashboard (`held`,
+    cleared by OPEN);
+  - the session is run `on_schedule` (`GameSession::on_schedule`, set by
+    `open_session` and by the runner): a phase with a time starts at it
+    from the lobby (`hosted::start`), a phase after it waits for its own
+    time between phases and is advanced then, and the knockout runs on by
+    itself, each next round `round_break_s` (120 s) after the last
+    (`schedule_step` decides, `run_schedule` acts, every second); a phase
+    with no time waits for the dashboard as without a schedule;
+  - nobody is waited for: the weekend's race goes straight into its
+    countdown (`begin_weekend_race`, no grid card waiting for ready), and
+    `refuses_drivers` takes a driver after a qualifying round or the race
+    has begun (a running round as a late entry, from the back, as between
+    rounds). A driver seated in a race under way (`add_player` in
+    `Race`/`Racing`) goes out from the pit lane
+    (`GameSession::seat_late_in_pits`): dealt a free box, parked at it as
+    a tow to the pits parks a car, held `LATE_JOIN_HOLD_S` (5 s), then the
+    pit autopilot drives it out (the driver does with manual pits); a
+    track without a pit lane puts the car on the road at its place, clear
+    of traffic, as a recovery does. The formation lap still takes nobody.
+  A server that was down at a phase's time starts it when it is back.
+- **The lobby lists every event** (`LobbyState.Events`, `LobbyEventData {
+  Id, Name, Phase, TrackId, StartsAt, SessionId, Entries, Slots }`,
+  `EventStore::lobby_events`): `StartsAt` is the phase's time (0 for none),
+  `SessionId` the session open for it. The client's session browser lists
+  them with a countdown and its lobby counts down to the start
+  ([client.md](../game/client.md#session-browser-uiapexsessionbrowserwidgetcpp)).
 - **The AI field is the event's** (`Event::ai`, `EventAi { id, name,
   skill, car_id, class }`): fixed when its first session opens from the
   field that session was dealt from the spec, each driver given an id of

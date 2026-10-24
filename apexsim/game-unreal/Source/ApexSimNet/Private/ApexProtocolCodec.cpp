@@ -520,6 +520,40 @@ namespace
 		return true;
 	}
 
+	/** `LobbyEventData` (network.rs) — PascalCase keys. */
+	bool ParseLobbyEvent(FMsgPackReader& Reader, FApexLobbyEvent& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Id"))             { bOk = Reader.ReadString(Out.Id); }
+			else if (Key == TEXT("Name"))      { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("Phase"))     { bOk = Reader.ReadUInt64(Raw); Out.Phase = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("TrackId"))   { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("StartsAt"))  { bOk = Reader.ReadUInt64(Raw); Out.StartsAt = static_cast<int64>(FMath::Min<uint64>(Raw, static_cast<uint64>(MAX_int64))); }
+			else if (Key == TEXT("SessionId")) { bOk = Reader.ReadString(Out.SessionId); }
+			else if (Key == TEXT("Entries"))   { bOk = Reader.ReadUInt64(Raw); Out.Entries = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("Slots"))     { bOk = Reader.ReadUInt64(Raw); Out.Slots = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else                               { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
 	bool ParseLobbyState(FMsgPackReader& Reader, FApexLobbyState& Out)
 	{
 		int32 FieldCount = 0;
@@ -568,6 +602,10 @@ namespace
 			else if (Key == TEXT("Balanced"))
 			{
 				bOk = Reader.ReadBool(Out.bBalanced);
+			}
+			else if (Key == TEXT("Events"))
+			{
+				bOk = ParseArrayOf(Reader, Out.Events, &ParseLobbyEvent);
 			}
 			else
 			{

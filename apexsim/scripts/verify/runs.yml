@@ -7899,6 +7899,79 @@ runs:
         label: "the refusal"
         checks: "R3: a toast reading 'You are not entered in this race event, and its entry list is closed.' (no 'Server error 403')"
 
+  - id: r3s-event-schedule
+    about: "R3. A scheduled race event: the browser's Events list counts down, the lobby too, the race starts on time"
+    # The event is kept at its race with a start time 100 s after the
+    # seeding (`starts_in_s`; the game's clock starts some 20-40 s after
+    # it: read the shots' countdowns, not their exact figures). Nobody says
+    # ready: the race must count in at its time all the same.
+    server:
+      event:
+        name: "Clock Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: race
+        practice_min: 5
+        qualifying_min: 5
+        ai: 5
+        laps: 3
+        starts_in_s: 100
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Click Browse sessions"]
+      9: ["apexsim.ui.Click EVENTS", "apexsim.ui.Texts"]
+      12: ["apexsim.ui.Texts"]
+      16: ["apexsim.ui.Click Clock Cup"]
+      24: ["apexsim.ui.Texts"]
+    shots:
+      - at: 11
+        label: "browser, EVENTS: the event and its countdown"
+        checks: "R3 schedule: Clock Cup listed with the circuit's display name, Race next, starts <local day and time>, 0 / 4 entered, badge In m:ss"
+      - at: 13
+        label: "the countdown two seconds on"
+        checks: "R3 schedule: the badge stepped down by about two seconds"
+      - at: 26
+        label: "lobby: the start time"
+        checks: "R3 schedule: the state line CLOCK CUP · RACE NEXT and under the start button THE RACE STARTS IN m:ss"
+      - at: 95
+        label: "the race on time"
+        checks: "R3 schedule: the race under way (countdown or racing) without anyone saying ready; no grid card waiting"
+
+  - id: r3s-event-late
+    about: "R3. A scheduled race event already under way takes a late driver from the pit lane"
+    # The race starts 20 s after the seeding, before the game is up; the
+    # player joins it under way.
+    server:
+      event:
+        name: "Late Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: race
+        practice_min: 5
+        qualifying_min: 5
+        ai: 5
+        laps: 5
+        starts_in_s: 20
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Click Browse sessions"]
+      9: ["apexsim.ui.Click EVENTS", "apexsim.ui.Texts"]
+      12: ["apexsim.ui.Click Late Cup"]
+    shots:
+      - at: 11
+        label: "browser, EVENTS: the race under way"
+        checks: "R3 schedule: Late Cup, Race, badge Under way"
+      - at: 16
+        label: "joined: parked in the pit box"
+        checks: "R3 late joiner: the player's car in its pit box, the race view up, the field already racing"
+      - at: 30
+        label: "out of the pit lane"
+        checks: "R3 late joiner: the pit autopilot driving the car out of the lane, then the player's car racing"
+
   - id: r3c-incidents
     about: "N19. The race's incident list on the results screen, and the jump into the replay"
     # Two laps with a full field from a standing start: contacts and track

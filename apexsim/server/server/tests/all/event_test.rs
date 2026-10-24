@@ -450,3 +450,164 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
     .await
     .expect("in time");
 }
+
+/// Wait for the event's session to reach `mode`, reading the server.
+async fn wait_mode(server: &ServerHandle, session: SessionId, mode: GameMode, what: &str) {
+    for _ in 0..300 {
+        if server
+            .state
+            .read()
+            .await
+            .sessions
+            .get(&session)
+            .is_some_and(|gs| gs.session.game_mode == mode)
+        {
+            return;
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+    panic!("timed out waiting for {what}");
+}
+
+#[tokio::test]
+async fn a_scheduled_event_opens_and_starts_on_time_and_takes_a_late_driver() {
+    timeout(Duration::from_secs(120), async {
+        let dir = tempfile::tempdir().unwrap();
+        let (server, http) = start(dir.path()).await;
+        let (track, car) = {
+            let st = server.state.read().await;
+            let mut tracks: Vec<_> = st
+                .track_configs
+                .values()
+                .map(|t| (t.name.clone(), t.id))
+                .collect();
+            tracks.sort();
+            let mut cars: Vec<_> = st
+                .car_configs
+                .values()
+                .map(|c| (c.name.clone(), c.id))
+                .collect();
+            cars.sort();
+            (tracks[0].1, cars[0].1)
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let (practice_at, qualifying_at, race_at) = (now + 4, now + 8, now + 12);
+        let (status, created) = api(
+            http,
+            "POST",
+            "/api/events",
+            Some(&serde_json::json!({
+                "name": "Autumn Cup",
+                "spec": {
+                    "track_id": track, "car_id": car, "player_slots": 3,
+                    "ai_count": 1, "ai_skill": 95, "lap_limit": 2,
+                    "weekend": { "practice_seconds": 60, "qualifying_seconds": [60] },
+                },
+                "schedule": {
+                    "practice_at": practice_at, "qualifying_at": qualifying_at,
+                    "race_at": race_at, "open_minutes": 1,
+                },
+            })),
+        )
+        .await;
+        assert_eq!(status, 200, "{created}");
+        assert_eq!(created["event"]["next_start"], practice_at);
+
+        // Opened by its schedule, not by hand, and listed in the lobby
+        // with its start time and its session.
+        let event = wait_event(http, "opened by the schedule", |e| e["session"].is_string()).await;
+        assert_eq!(event["opened"], true);
+        let session = session_of(&event);
+        let rng = ring::rand::SystemRandom::new();
+        let key = || {
+            ring::signature::Ed25519KeyPair::from_pkcs8(
+                ring::signature::Ed25519KeyPair::generate_pkcs8(&rng)
+                    .unwrap()
+                    .as_ref(),
+            )
+            .unwrap()
+        };
+        let (key_a, key_b) = (key(), key());
+        let (id_a, id_b) = (uuid::Uuid::from_u128(0xA), uuid::Uuid::from_u128(0xB));
+        let mut a = Driver::connect(server.tcp_addr, "Ada", Some((id_a, &key_a))).await;
+        a.send(&ClientMessage::RequestLobbyState).await;
+        let listed = a
+            .until(|m| match m {
+                ServerMessage::LobbyState(l) if !l.events.is_empty() => Some(l.events.clone()),
+                _ => None,
+            })
+            .await
+            .expect("the lobby lists the event");
+        assert_eq!(listed[0].id, "autumn-cup");
+        assert_eq!((listed[0].phase, listed[0].starts_at), (1, practice_at));
+        assert_eq!(listed[0].session_id, session.to_string());
+        assert!(a.join(session, car, 0).await.is_ok());
+
+        // Practice starts at its time with nobody asking.
+        wait_mode(&server, session, GameMode::Practice, "practice on time").await;
+        let started = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(started >= practice_at, "not before its time");
+        run_out_the_clock(&server, session).await;
+        wait_event(http, "practice recorded", |e| e["phase"] == "qualifying").await;
+
+        // Qualifying waits for its own time, then starts.
+        wait_mode(
+            &server,
+            session,
+            GameMode::Qualification,
+            "qualifying on time",
+        )
+        .await;
+        assert!(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+                >= qualifying_at
+        );
+        run_out_the_clock(&server, session).await;
+        wait_event(http, "qualifying recorded", |e| e["phase"] == "race").await;
+
+        // The race counts in at its time although Ada never says ready:
+        // no grid card on a schedule.
+        for _ in 0..300 {
+            let st = server.state.read().await;
+            let gs = st.sessions.get(&session).unwrap();
+            assert_ne!(
+                gs.session.game_mode,
+                GameMode::Grid,
+                "no waiting on the grid"
+            );
+            if gs.session.state == SessionState::Racing {
+                break;
+            }
+            drop(st);
+            sleep(Duration::from_millis(100)).await;
+        }
+
+        // A driver who comes after the start drives, out of the pit lane.
+        let mut b = Driver::connect(server.tcp_addr, "Bea", Some((id_b, &key_b))).await;
+        sleep(Duration::from_millis(100)).await;
+        assert!(
+            b.join(session, car, 0).await.is_ok(),
+            "a late driver is taken"
+        );
+        {
+            let st = server.state.read().await;
+            let gs = st.sessions.get(&session).unwrap();
+            assert_eq!(gs.session.state, SessionState::Racing);
+            let late = &gs.session.participants[&b.player_id];
+            assert!(late.recovery.is_some(), "held in the pits before going out");
+        }
+        drop((a, b));
+        server.shutdown().await;
+    })
+    .await
+    .expect("in time");
+}

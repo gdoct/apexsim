@@ -1352,6 +1352,28 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("and the live stream"), WithPort.LobbyState.bLiveStream);
 	}
 	TestFalse(TEXT("an older lobby does not balance its cars"), Lobby.bBalanced);
+	TestEqual(TEXT("an older lobby lists no events"), Lobby.Events.Num(), 0);
+	{
+		FApexServerMessage Events;
+		if (TestTrue(TEXT("a lobby listing race events decodes"),
+				ApexProtocol::DecodeServerMessage(ApexGolden::S_LobbyStateEvents, Events, Error))
+			&& TestEqual(TEXT("two events"), Events.LobbyState.Events.Num(), 2))
+		{
+			const FApexLobbyEvent& Cup = Events.LobbyState.Events[0];
+			TestEqual(TEXT("Id"), Cup.Id, FString(TEXT("autumn-cup")));
+			TestEqual(TEXT("Name"), Cup.Name, FString(TEXT("Autumn Cup")));
+			TestEqual(TEXT("Phase"), Cup.Phase, 3);
+			TestEqual(TEXT("TrackId"), Cup.TrackId, FString(TEXT("01234567-89ab-cdef-0123-456789abcdef")));
+			TestEqual(TEXT("StartsAt"), Cup.StartsAt, static_cast<int64>(1793000000));
+			TestEqual(TEXT("SessionId"), Cup.SessionId, FString(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+			TestEqual(TEXT("Entries / Slots"), Cup.Entries * 100 + Cup.Slots, 212);
+			const FApexLobbyEvent& Spring = Events.LobbyState.Events[1];
+			TestTrue(TEXT("Spring is over"), Spring.IsDone());
+			TestEqual(TEXT("no start time"), Spring.StartsAt, static_cast<int64>(0));
+			TestFalse(TEXT("no session"), Spring.HasSession());
+			TestTrue(TEXT("FindEvent"), Events.LobbyState.FindEvent(TEXT("spring")) == &Spring);
+		}
+	}
 	{
 		FApexServerMessage Rules;
 		if (TestTrue(TEXT("a lobby listing race rules decodes"),

@@ -35,7 +35,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
-| R3 | Race events across days (schedule, results record; identity, persistence and AI entries built) | Race rules (epic) | P2 | 🟡 | L | 4 |
+| R3 | Race events across days (results record; identity, persistence, schedule and AI entries built) | Race rules (epic) | P2 | 🟡 | M | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
@@ -67,8 +67,8 @@ takes it up (— : no step, taken opportunistically).
 3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-4. **Online and depth.** The rest of R3 (schedule, results record), and
-   N7 online on top of identity.
+4. **Online and depth.** What is left of N7 online (a fastest-lap point,
+   per-round rules, standings in the lobby and the results).
 5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
 6. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -132,7 +132,8 @@ Bundle by module, each judged by the survey:
 `events.rs`, `records/events/<id>.json`, run from the dashboard's API;
 [sessions](server/sessions.md#events-across-restarts)), its AI field
 fixed for the event, run from the dashboard's Events view; the client is
-told a session is an event's (`SessionJoined.Event`). No schedule, no
+told a session is an event's (`SessionJoined.Event`); a schedule starts
+each phase on time and the lobby lists the events with a countdown. No
 combined results record shown to players. Drivers are known
 across connections (each profile's id, proved by its Ed25519 key,
 `driver_keys.rs`).
@@ -145,8 +146,8 @@ Saturday, race Sunday, same drivers, results kept.
    livery fixed, phases and results, resumed at the next phase after a
    restart), run from the dashboard's Events view, named in the client's
    lobby with its phase.
-3. *Schedule*: sessions open and start on time, lobby view and countdown,
-   late joiners from the pit lane.
+3. *Schedule*: built (sessions open and start on time, the browser's
+   Events list and the lobby's countdown, late joiners from the pit lane).
 4. *AI entries* with fixed identities and levels across days: built
    (server side; `Event::ai`).
 5. *Weekend results record*, browsable replays and sheets.

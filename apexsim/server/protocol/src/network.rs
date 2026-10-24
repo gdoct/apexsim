@@ -733,6 +733,10 @@ impl SessionPhysics {
     }
 }
 
+fn is_zero_u64(value: &u64) -> bool {
+    *value == 0
+}
+
 fn is_zero_u32(value: &u32) -> bool {
     *value == 0
 }
@@ -870,6 +874,46 @@ pub struct LobbyStateData {
     /// not.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub balanced: bool,
+    /// The server's race events (docs/server/sessions.md "Events across
+    /// restarts"), for the session browser's Events list: each with the
+    /// phase it is at, when that phase starts (a schedule's) and the
+    /// session open for it. Left off the wire for none (and absent from a
+    /// server that predates the field).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub events: Vec<LobbyEventData>,
+}
+
+/// A race event as the lobby lists it (`LobbyState.Events`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct LobbyEventData {
+    /// The event's id (the slug of its name).
+    pub id: String,
+    pub name: String,
+    /// The phase it is at, as `SessionJoined.Event.Phase` numbers it: 1
+    /// practice, 2 qualifying, 3 race, 4 done.
+    pub phase: u8,
+    /// The track config it runs on (the client shows its catalog name).
+    #[serde(
+        default = "uuid::Uuid::nil",
+        serialize_with = "serialize_uuid_as_string",
+        deserialize_with = "deserialize_uuid_from_string"
+    )]
+    pub track_id: TrackConfigId,
+    /// When its phase starts, Unix s (the event's schedule, the server's
+    /// clock; it stays while that phase runs); left off the wire (0) when
+    /// the phase has no time and is started from the dashboard.
+    #[serde(default, skip_serializing_if = "is_zero_u64")]
+    pub starts_at: u64,
+    /// The session open for it, to join: a UUID string; left off the wire
+    /// (empty) while it has none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub session_id: String,
+    /// Drivers entered, and the seats for them.
+    #[serde(default)]
+    pub entries: u8,
+    #[serde(default)]
+    pub slots: u8,
 }
 
 /// What a spectator stream is of.
@@ -3509,6 +3553,7 @@ mod tests {
                 live_stream: true,
                 recordings_port,
                 balanced: false,
+                events: Vec::new(),
             })
         };
         let bytes = rmp_serde::to_vec_named(&lobby(Some(9002))).unwrap();
@@ -3524,6 +3569,87 @@ mod tests {
         }
         let none = rmp_serde::to_vec_named(&lobby(None)).unwrap();
         assert!(!String::from_utf8_lossy(&none).contains("RecordingsPort"));
+    }
+
+    /// A lobby lists the server's race events, each with its phase, its
+    /// start time and the session open for it
+    /// (`ApexGolden::S_LobbyStateEvents`); none keeps the old bytes.
+    /// `cargo test lobby_events_wire_format -- --nocapture` prints it.
+    #[test]
+    fn test_lobby_events_wire_format() {
+        const GOLDEN: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAA, 0x4C, 0x6F, 0x62, 0x62, 0x79, 0x53, 0x74,
+            0x61, 0x74, 0x65, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x87, 0xAE, 0x50, 0x6C, 0x61, 0x79,
+            0x65, 0x72, 0x73, 0x49, 0x6E, 0x4C, 0x6F, 0x62, 0x62, 0x79, 0x90, 0xB1, 0x41, 0x76,
+            0x61, 0x69, 0x6C, 0x61, 0x62, 0x6C, 0x65, 0x53, 0x65, 0x73, 0x73, 0x69, 0x6F, 0x6E,
+            0x73, 0x90, 0xAA, 0x43, 0x61, 0x72, 0x43, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x73, 0x90,
+            0xAC, 0x54, 0x72, 0x61, 0x63, 0x6B, 0x43, 0x6F, 0x6E, 0x66, 0x69, 0x67, 0x73, 0x90,
+            0xB1, 0x53, 0x68, 0x6F, 0x77, 0x63, 0x61, 0x73, 0x65, 0x41, 0x76, 0x61, 0x69, 0x6C,
+            0x61, 0x62, 0x6C, 0x65, 0xC2, 0xAA, 0x4C, 0x69, 0x76, 0x65, 0x53, 0x74, 0x72, 0x65,
+            0x61, 0x6D, 0xC3, 0xA6, 0x45, 0x76, 0x65, 0x6E, 0x74, 0x73, 0x92, 0x88, 0xA2, 0x49,
+            0x64, 0xAA, 0x61, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x2D, 0x63, 0x75, 0x70, 0xA4, 0x4E,
+            0x61, 0x6D, 0x65, 0xAA, 0x41, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x20, 0x43, 0x75, 0x70,
+            0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x03, 0xA7, 0x54, 0x72, 0x61, 0x63, 0x6B, 0x49,
+            0x64, 0xD9, 0x24, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x2D, 0x38, 0x39,
+            0x61, 0x62, 0x2D, 0x63, 0x64, 0x65, 0x66, 0x2D, 0x30, 0x31, 0x32, 0x33, 0x2D, 0x34,
+            0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0xA8, 0x53, 0x74,
+            0x61, 0x72, 0x74, 0x73, 0x41, 0x74, 0xCE, 0x6A, 0xDF, 0x02, 0x40, 0xA9, 0x53, 0x65,
+            0x73, 0x73, 0x69, 0x6F, 0x6E, 0x49, 0x64, 0xD9, 0x24, 0x61, 0x61, 0x61, 0x61, 0x61,
+            0x61, 0x61, 0x61, 0x2D, 0x62, 0x62, 0x62, 0x62, 0x2D, 0x63, 0x63, 0x63, 0x63, 0x2D,
+            0x64, 0x64, 0x64, 0x64, 0x2D, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65, 0x65,
+            0x65, 0x65, 0x65, 0xA7, 0x45, 0x6E, 0x74, 0x72, 0x69, 0x65, 0x73, 0x02, 0xA5, 0x53,
+            0x6C, 0x6F, 0x74, 0x73, 0x0C, 0x86, 0xA2, 0x49, 0x64, 0xA6, 0x73, 0x70, 0x72, 0x69,
+            0x6E, 0x67, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA6, 0x53, 0x70, 0x72, 0x69, 0x6E, 0x67,
+            0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x04, 0xA7, 0x54, 0x72, 0x61, 0x63, 0x6B, 0x49,
+            0x64, 0xD9, 0x24, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30,
+            0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30, 0x30, 0x30, 0x30, 0x2D, 0x30,
+            0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0xA7, 0x45, 0x6E,
+            0x74, 0x72, 0x69, 0x65, 0x73, 0x00, 0xA5, 0x53, 0x6C, 0x6F, 0x74, 0x73, 0x08,
+        ];
+        let lobby = |events| {
+            ServerMessage::LobbyState(LobbyStateData {
+                players_in_lobby: vec![],
+                available_sessions: vec![],
+                car_configs: vec![],
+                track_configs: vec![],
+                showcase_available: false,
+                live_stream: true,
+                recordings_port: None,
+                balanced: false,
+                events,
+            })
+        };
+        let events = vec![
+            LobbyEventData {
+                id: "autumn-cup".into(),
+                name: "Autumn Cup".into(),
+                phase: 3,
+                track_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+                starts_at: 1_793_000_000,
+                session_id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee".into(),
+                entries: 2,
+                slots: 12,
+            },
+            LobbyEventData {
+                id: "spring".into(),
+                name: "Spring".into(),
+                phase: 4,
+                track_id: Uuid::nil(),
+                starts_at: 0,
+                session_id: String::new(),
+                entries: 0,
+                slots: 8,
+            },
+        ];
+        let bytes = rmp_serde::to_vec_named(&lobby(events.clone())).unwrap();
+        print_golden("S_LobbyStateEvents", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => assert_eq!(l.events, events),
+            _ => panic!("wrong message type"),
+        }
+        let none = rmp_serde::to_vec_named(&lobby(Vec::new())).unwrap();
+        assert!(!String::from_utf8_lossy(&none).contains("Events"));
+        assert_eq!(bytes, GOLDEN);
     }
 
     /// A listed session names its race rules, and a lobby says when the
@@ -3561,6 +3687,7 @@ mod tests {
                 live_stream: true,
                 recordings_port: None,
                 balanced,
+                events: Vec::new(),
             })
         };
         let rules = RaceRules {
@@ -3614,6 +3741,7 @@ mod tests {
                 live_stream: true,
                 recordings_port: None,
                 balanced: false,
+                events: Vec::new(),
             })
         };
         let bytes = rmp_serde::to_vec_named(&lobby(track(Some((52.0786, -1.0169))))).unwrap();
@@ -3682,6 +3810,7 @@ mod tests {
             live_stream: true,
             recordings_port: None,
             balanced: false,
+            events: Vec::new(),
         });
         let bytes = rmp_serde::to_vec_named(&msg).unwrap();
         let text = String::from_utf8_lossy(&bytes);
@@ -6875,6 +7004,7 @@ mod tests {
             live_stream: true,
             recordings_port: None,
             balanced: false,
+            events: Vec::new(),
         });
         let waiting_bytes = rmp_serde::to_vec_named(&waiting).unwrap();
         println!("S_LobbyStateWeekendWaiting: {}", hex(&waiting_bytes));

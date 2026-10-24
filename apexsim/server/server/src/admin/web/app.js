@@ -654,7 +654,37 @@ PAGES.schedule = el => {
    with its entry list, the phase it is at and each finished phase's
    results. OPEN keeps a session open for it (opened again after a
    restart, at its phase); START and NEXT PHASE move that session on;
-   CLOSE ends it and stops reopening it. */
+   CLOSE ends it and stops reopening it. A schedule gives its phases
+   start times: the server opens it ahead of the first, starts each on
+   time and runs the knockout on by itself. */
+const toLocalInput = unix => {
+  if (!unix) return '';
+  const d = new Date(unix * 1000);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = v => v ? Math.floor(new Date(v).getTime() / 1000) : null;
+function fmtIn(s) {
+  if (s <= 0) return 'now';
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  return d ? `in ${d}d ${h}h` : h ? `in ${h}h ${pad(m)}m` : `in ${m}m ${pad(s % 60)}s`;
+}
+/* The schedule's fields for an event's phases (spec: which it has). */
+function scheduleForm(spec, sched = {}) {
+  const wk = spec && spec.weekend;
+  const phases = [];
+  if (wk && wk.practice_seconds > 0) phases.push(['practice_at', 'PRACTICE STARTS']);
+  if (wk) phases.push(['qualifying_at', 'QUALIFYING STARTS']);
+  phases.push(['race_at', 'RACE STARTS']);
+  return `<div class="form">${phases.map(([k, label]) => `<label class="field"><span class="eyebrow">${label} (LOCAL TIME; EMPTY: BY HAND)</span><input class="input" type="datetime-local" data-s="${k}" value="${toLocalInput(sched[k])}"></label>`).join('')}
+    <label class="field"><span class="eyebrow">OPENS, MINUTES BEFORE</span><input class="input" type="number" min="0" max="1440" data-s="open_minutes" value="${sched.open_minutes ?? 15}"></label>
+    <label class="field"><span class="eyebrow">BREAK BETWEEN ROUNDS, S</span><input class="input" type="number" min="10" max="3600" data-s="round_break_s" value="${sched.round_break_s ?? 120}"></label></div>`;
+}
+function readSchedule(root) {
+  const f = k => $(`[data-s="${k}"]`, root);
+  const out = { open_minutes: Math.max(0, parseInt(f('open_minutes').value, 10) || 0), round_break_s: Math.max(10, parseInt(f('round_break_s').value, 10) || 120) };
+  for (const k of ['practice_at', 'qualifying_at', 'race_at']) { const x = f(k); if (x) { const t = fromLocalInput(x.value); if (t) out[k] = t; } }
+  return out;
+}
 PAGES.events = el => {
   el.innerHTML = `<div class="stack">
     <div class="panel scroll-x"><div style="min-width:940px" id="ev-list"><div class="empty">Loading…</div></div></div>
@@ -663,12 +693,19 @@ PAGES.events = el => {
   const PHASES = { practice: 'Practice', qualifying: 'Qualifying', race: 'Race', done: 'Done' };
   const phaseColour = p => p === 'done' ? 'var(--muted)' : p === 'race' ? GREEN : AMBER;
   let events = [], content = null, open = null;
+  // Schedule edits not saved yet, by event: the list repaints every 2 s.
+  const draft = {};
   const carName = id => { const c = content && content.cars.find(x => x.id === id); return c ? c.name : String(id || '').slice(0, 8); };
   const slots = e => e.spec.player_slots || 12;
   function sessionText(e) {
     if (e.last_error) return `<span class="bad" title="${esc(e.last_error)}">${esc(e.last_error)}</span>`;
     if (!e.session) return e.opened ? '<span class="muted">opening…</span>' : '<span class="muted">closed</span>';
     return esc(e.session_mode || '') + (e.session_state && e.session_state !== 'racing' ? ' · ' + esc(e.session_state) : '') + (e.awaits_advance ? ' · <span class="warn">phase over</span>' : '');
+  }
+  function startText(e) {
+    if (!e.next_start || e.phase === 'done') return '';
+    const left = e.next_start - Math.floor(Date.now() / 1000);
+    return `<span class="sm-mono" title="${esc(fmtDate(e.next_start))}">${left > 0 ? 'STARTS ' + fmtIn(left).toUpperCase() : 'STARTED ' + esc(fmtDate(e.next_start))}</span>`;
   }
   function actions(e) {
     const b = (act, label, cls = '') => `<button class="btn sm ${cls}" data-ev="${esc(e.id)}" data-act="${act}">${label}</button>`;
@@ -696,7 +733,10 @@ PAGES.events = el => {
           <span class="muted">${l.position}</span><span class="name" style="font-size:17px">${esc(l.name)}${l.driver_id ? '' : ' <span class="sm-mono">AI</span>'}</span>
           <span style="font-family:var(--sans);font-size:17px">${esc(carName(l.car_id))}</span><span>${l.laps || '—'}</span>
           <span>${lineTime(l, r.phase)}</span><span class="muted">${l.knocked_out_in ? 'OUT IN Q' + l.knocked_out_in : ''}</span></div>`).join('')}</div>`).join('');
+    const schedule = e.phase === 'done' ? '' : `<div style="margin-top:14px" data-sched="${esc(e.id)}"><div class="eyebrow">SCHEDULE · ${e.held ? 'HELD: OPEN IT TO RUN ON ITS TIMES' : 'EACH PHASE STARTS AT ITS TIME, WHOEVER IS THERE'}</div>
+        ${scheduleForm(e.spec, draft[e.id] || e.schedule || {})}<div class="acts-row"><button class="btn sm primary" data-ev="${esc(e.id)}" data-act="schedule">SAVE SCHEDULE</button></div></div>`;
     return `<div style="padding:4px 16px 16px 16px"><div class="eyebrow">ENTRIES · ${e.entries.length} / ${slots(e)} · ${e.entries_open ? 'OPEN' : 'CLOSED'}</div>${entries}
+      ${schedule}
       ${results || '<div class="muted" style="margin-top:12px">No phase finished yet.</div>'}</div>`;
   }
   function paintList() {
@@ -705,7 +745,7 @@ PAGES.events = el => {
         <div class="row click" data-open="${esc(e.id)}" style="${cols};border-bottom:0">
           <span style="display:flex;flex-direction:column;gap:1px"><span class="name">${esc(e.name)}</span><span class="sm-mono">${esc(e.id)}</span></span>
           <span style="font-family:var(--sans);font-size:17px">${esc(e.track || '?')}</span>
-          <span style="font-size:11px;letter-spacing:.1em;color:${phaseColour(e.phase)}">${esc((PHASES[e.phase] || e.phase).toUpperCase())}</span>
+          <span style="display:flex;flex-direction:column;gap:1px"><span style="font-size:11px;letter-spacing:.1em;color:${phaseColour(e.phase)}">${esc((PHASES[e.phase] || e.phase).toUpperCase())}</span>${startText(e)}</span>
           <span>${e.entries.length} / ${slots(e)}${e.entries_open ? '' : ' <span class="sm-mono">CLOSED</span>'}</span>
           <span style="font-family:var(--sans);font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sessionText(e)}</span>
           <span style="display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap">${actions(e)}</span>
@@ -719,10 +759,21 @@ PAGES.events = el => {
         <label class="field"><span class="eyebrow">EVENT NAME</span><input class="input" id="ev-name" maxlength="60" placeholder="Autumn Cup"></label>
         <label class="field"><span class="eyebrow">ENTRIES</span><select class="input" id="ev-entries"><option value="1">Open: drivers enter by joining</option><option value="0">Closed</option></select></label>
       </div>${specForm(content, { weekend: { practice_seconds: 900, qualifying_seconds: [600] } })}
+      <div class="panel-head"><span class="eyebrow">SCHEDULE · OPTIONAL: EACH PHASE STARTS AT ITS TIME</span></div>
+      <div id="ev-sched">${scheduleForm({ weekend: { practice_seconds: 1 } })}</div>
       <div class="acts-row"><button class="btn primary" id="ev-create">CREATE</button></div>`;
     bindSpecForm($('#ev-form'));
   }
-  async function load() { events = (await api('/api/events')).events; paintList(); }
+  async function load() {
+    events = (await api('/api/events')).events;
+    // Not under the cursor of someone typing a time.
+    if (document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-sched]')) return;
+    paintList();
+  }
+  el.addEventListener('input', ev => {
+    const box = ev.target.closest('[data-sched]');
+    if (box) draft[box.dataset.sched] = readSchedule(box);
+  });
   el.addEventListener('click', async ev => {
     const b = ev.target.closest('button');
     if (!b) {
@@ -735,7 +786,10 @@ PAGES.events = el => {
         const name = $('#ev-name').value.trim();
         if (!name) throw new Error('The event needs a name.');
         const spec = readSpec($('#ev-form'));
-        const res = await api('/api/events', { method: 'POST', body: { name, spec, entries_open: $('#ev-entries').value === '1' } });
+        const schedule = readSchedule($('#ev-sched'));
+        if (!spec.weekend) { delete schedule.practice_at; delete schedule.qualifying_at; }
+        else if (!spec.weekend.practice_seconds) delete schedule.practice_at;
+        const res = await api('/api/events', { method: 'POST', body: { name, spec, entries_open: $('#ev-entries').value === '1', schedule } });
         toast('Created ' + res.event.name + ': OPEN it for drivers to enter');
         open = res.event.id;
         paintForm();
@@ -762,6 +816,10 @@ PAGES.events = el => {
       } else if (act === 'remove') {
         await api(`/api/events/${encodeURIComponent(id)}/entries/${b.dataset.driver}/remove`, { method: 'POST', body: {} });
         toast('Removed ' + b.dataset.name);
+      } else if (act === 'schedule') {
+        const res = await api(`/api/events/${encodeURIComponent(id)}/schedule`, { method: 'POST', body: readSchedule(b.closest('[data-sched]')) });
+        delete draft[id];
+        toast(res.schedule.practice_at || res.schedule.qualifying_at || res.schedule.race_at ? 'Schedule saved' : 'No times: each phase is started by hand');
       } else if (act === 'entries') {
         const res = await api(`/api/events/${encodeURIComponent(id)}/entries`, { method: 'POST', body: { open: !e.entries_open } });
         toast(res.entries_open ? 'Entries open' : 'Entries closed');

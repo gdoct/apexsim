@@ -613,6 +613,21 @@ Look at ([apexsim-content/docs/cars.md](../../apexsim-content/docs/cars.md#liver
 
 Run 2026-10-24: the panel opens over the turntable's right side, the car repaints as Paint and Accent step, Save wrote the livery and the button read "Forest green 1 (yours)" with its toast (the recipe's steps landed on Forest green and number 1, not the Midnight blue 3 it names: its click counts need fixing); the race showed the player's SF-26 green with yellow accents. The number plate on the flanks was not in frame.
 
+### R29. Scheduled race events
+
+`r3s-event-schedule` (an event kept at its race with a start time 100 s
+after the seeding) and `r3s-event-late` (one whose race starts before the
+game is up). Look at: the browser's EVENTS pill listing the event with the
+circuit's display name, "Race next", its start on the local clock and a
+badge counting down once a second ("In 1:12"); the lobby's line under the
+start button counting down ("THE RACE STARTS IN 0:48"); the race counting
+in at its time with nobody saying ready (no grid card left waiting). In
+the second: the badge Under way, the join taken, the player's car parked
+in its own pit box for five seconds and then driven out of the lane by
+the pit autopilot into a race already running. Also the dashboard's
+Events view: a row's schedule fields in local time, SAVE SCHEDULE, and
+"STARTS IN …" under the phase.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

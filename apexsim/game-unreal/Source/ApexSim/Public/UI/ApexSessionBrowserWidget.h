@@ -24,6 +24,8 @@ namespace ApexBrowser
 		Racing,
 		/** Finished sessions the server recorded (`/recordings`). */
 		Recorded,
+		/** The server's race events (`LobbyState.Events`): what is coming, with a countdown, and what is over. */
+		Events,
 		Count,
 	};
 
@@ -85,6 +87,8 @@ public:
 
 protected:
 	virtual void NativeOnInitialized() override;
+	/** The Events list's countdowns, stepped once a second. */
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
 	virtual FReply NativeOnKeyDown(const FGeometry& InGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
@@ -93,6 +97,15 @@ private:
 	/** The row a session's spec says, for a fresh row or one updated in place. */
 	void ApplyRow(int32 Index, const FApexSessionSummary& Session);
 	void Join(int32 Index);
+	/** Join a listed session in the pending car (the browser's row, an event's session). */
+	void JoinSession(const FApexSessionSummary& Session);
+	/** The Events list: one row an event, rebuilt when events come or go. */
+	void RefreshEventRows();
+	void ApplyEventRow(int32 Index, int64 Now);
+	/** Enter on an event: join its session when it has one open. */
+	void JoinEvent(int32 Index);
+	/** The listed session open for `Event`, or null. */
+	const FApexSessionSummary* EventSession(const FApexLobbyEvent& Event) const;
 	void Watch(int32 Index);
 	void Refresh();
 	/** Show another filter (the row of pills, F or pad X). */
@@ -123,6 +136,9 @@ private:
 
 	/** The sessions the rows show, in their order. */
 	TArray<FApexSessionSummary> Shown;
+	/** The events the Events list shows, in their order, and the second its countdowns were last set for. */
+	TArray<FApexLobbyEvent> ShownEvents;
+	int64 EventsSecond = 0;
 	int32 LastFocused = 0;
 
 	UPROPERTY(Transient) TObjectPtr<UApexSegmentedWidget> FilterPills;

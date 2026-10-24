@@ -666,6 +666,48 @@ struct APEXSIMNET_API FApexSessionEvent
 	bool IsDone() const { return Phase >= 4; }
 };
 
+/**
+ * A race event as the lobby lists it (`LobbyState.Events`, network.rs
+ * `LobbyEventData`): its phase, when that phase starts by its schedule and
+ * the session open for it.
+ */
+USTRUCT(BlueprintType)
+struct APEXSIMNET_API FApexLobbyEvent
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString Id;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString Name;
+
+	/** As FApexSessionEvent::Phase: 1 practice, 2 qualifying, 3 race, 4 over. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	int32 Phase = 0;
+
+	/** The track it runs on (its catalog row names it on screen). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString TrackId;
+
+	/** When its phase starts, Unix s on the server's clock; 0 for a phase started by hand. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	int64 StartsAt = 0;
+
+	/** The session open for it; empty while it has none. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	FString SessionId;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	int32 Entries = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Event")
+	int32 Slots = 0;
+
+	bool IsDone() const { return Phase >= 4; }
+	bool HasSession() const { return !SessionId.IsEmpty(); }
+};
+
 /** A car knocked out of qualifying: where it starts, and the time that put it there. */
 USTRUCT(BlueprintType)
 struct APEXSIMNET_API FApexKnockedOut
@@ -1866,6 +1908,16 @@ struct APEXSIMNET_API FApexLobbyState
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	bool bBalanced = false;
+
+	/** The server's race events (`LobbyState.Events`), for the session browser's Events list. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	TArray<FApexLobbyEvent> Events;
+
+	/** The listed event `Id`, or null. */
+	const FApexLobbyEvent* FindEvent(const FString& Id) const
+	{
+		return Id.IsEmpty() ? nullptr : Events.FindByPredicate([&Id](const FApexLobbyEvent& E) { return E.Id == Id; });
+	}
 };
 
 /** What a spectator stream is of (`SpectatorKind`, network.rs). */

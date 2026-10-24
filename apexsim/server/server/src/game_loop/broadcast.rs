@@ -215,10 +215,7 @@ pub(crate) async fn deliver_lap_timing(ctx: &GameLoopCtx, events: Vec<LapTimingO
 }
 
 /// Snapshot the parts of the lobby state that actually change (state read lock).
-async fn lobby_participants(
-    ctx: &GameLoopCtx,
-    log_players: bool,
-) -> (Vec<LobbyPlayer>, Vec<SessionSummary>) {
+async fn lobby_participants(ctx: &GameLoopCtx, log_players: bool) -> LobbySnapshot {
     let state_read = ctx.state.read().await;
 
     let players_in_lobby = state_read.lobby.get_lobby_players().await;
@@ -237,22 +234,37 @@ async fn lobby_participants(
     // Each session's state reaches the lobby from the tick
     // (`GameSession::take_state_change`).
     let available_sessions = state_read.lobby.get_available_sessions().await;
+    let events = state_read.events.lobby_events();
 
-    (players_in_lobby, available_sessions)
+    LobbySnapshot {
+        players: players_in_lobby,
+        sessions: available_sessions,
+        events,
+    }
+}
+
+/// The parts of the lobby state that change: who is in the lobby, the
+/// sessions and the race events.
+#[derive(Default, Clone, PartialEq)]
+pub(crate) struct LobbySnapshot {
+    players: Vec<LobbyPlayer>,
+    sessions: Vec<SessionSummary>,
+    events: Vec<crate::network::LobbyEventData>,
 }
 
 /// Build the current `LobbyState` message from server state (state read lock).
 async fn build_lobby_state(ctx: &GameLoopCtx, log_players: bool) -> ServerMessage {
-    let (players_in_lobby, available_sessions) = lobby_participants(ctx, log_players).await;
-    build_lobby_state_with(ctx, players_in_lobby, available_sessions).await
+    let snapshot = lobby_participants(ctx, log_players).await;
+    build_lobby_state_with(ctx, snapshot).await
 }
 
 /// Build a `LobbyState` message around an already-taken participant snapshot.
-async fn build_lobby_state_with(
-    ctx: &GameLoopCtx,
-    players_in_lobby: Vec<LobbyPlayer>,
-    available_sessions: Vec<SessionSummary>,
-) -> ServerMessage {
+async fn build_lobby_state_with(ctx: &GameLoopCtx, snapshot: LobbySnapshot) -> ServerMessage {
+    let LobbySnapshot {
+        players: players_in_lobby,
+        sessions: available_sessions,
+        events,
+    } = snapshot;
     let state_read = ctx.state.read().await;
 
     // Get car and track configs
@@ -305,6 +317,7 @@ async fn build_lobby_state_with(
         live_stream: true,
         recordings_port,
         balanced,
+        events,
     })
 }
 
@@ -330,8 +343,7 @@ pub(crate) async fn send_lobby_state(
 /// payload is reused until the participant snapshot actually differs.
 #[derive(Default)]
 pub(crate) struct LobbyStateCache {
-    players: Vec<LobbyPlayer>,
-    sessions: Vec<SessionSummary>,
+    snapshot: LobbySnapshot,
     encoded: Option<Bytes>,
 }
 
@@ -353,16 +365,15 @@ pub(crate) async fn broadcast_lobby_state(
         return Ok(());
     }
 
-    let (players, sessions) = lobby_participants(ctx, false).await;
+    let snapshot = lobby_participants(ctx, false).await;
 
     let data = match &cache.encoded {
-        Some(encoded) if cache.players == players && cache.sessions == sessions => encoded.clone(),
+        Some(encoded) if cache.snapshot == snapshot => encoded.clone(),
         _ => {
-            let lobby_state = build_lobby_state_with(ctx, players.clone(), sessions.clone()).await;
+            let lobby_state = build_lobby_state_with(ctx, snapshot.clone()).await;
             debug_assert_eq!(lobby_state.priority(), MessagePriority::Droppable);
             let data = Bytes::from(rmp_serde::to_vec_named(&lobby_state)?);
-            cache.players = players;
-            cache.sessions = sessions;
+            cache.snapshot = snapshot;
             cache.encoded = Some(data.clone());
             data
         }

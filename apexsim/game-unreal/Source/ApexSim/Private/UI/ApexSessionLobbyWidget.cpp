@@ -746,6 +746,11 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 		{
 			NotReadyText->SetText(FText::FromString(FString::Printf(TEXT("STARTING IN %d…"), CountdownRemaining)));
 		}
+		else if (const FString Scheduled = ScheduledEventLine(); !Scheduled.IsEmpty())
+		{
+			// A scheduled phase starts on time, whoever is here.
+			NotReadyText->SetText(FText::FromString(Scheduled));
+		}
 		else if (!bHost && Net->GetSessionEvent().IsEvent())
 		{
 			// The server runs an event: its dashboard starts each phase.
@@ -771,6 +776,32 @@ void UApexSessionLobbyWidget::RefreshSidePanel()
 	{
 		StartAction->SetIsEnabled(bHost && CountdownRemaining == 0);
 		StartAction->SetVisibility(bHost ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+}
+
+FString UApexSessionLobbyWidget::ScheduledEventLine() const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	const FApexLobbyEvent* Listed = Net ? Net->GetCachedLobbyState().FindEvent(Net->GetSessionEvent().Id) : nullptr;
+	if (!Listed || Listed->StartsAt <= 0 || Listed->IsDone())
+	{
+		return FString();
+	}
+	return ApexEventLabels::ScheduledLine(Listed->Phase, Listed->StartsAt, FDateTime::UtcNow().ToUnixTimestamp());
+}
+
+void UApexSessionLobbyWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	const int64 Second = FDateTime::UtcNow().ToUnixTimestamp();
+	if (Second == ShownScheduleSecond || CountdownRemaining > 0 || !NotReadyText)
+	{
+		return;
+	}
+	ShownScheduleSecond = Second;
+	if (const FString Scheduled = ScheduledEventLine(); !Scheduled.IsEmpty())
+	{
+		NotReadyText->SetText(FText::FromString(Scheduled));
 	}
 }
 

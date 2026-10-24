@@ -140,7 +140,7 @@ pub async fn handle(
         (&Method::POST, ["events"]) => event_create(ctx, &body).await,
         (
             &Method::POST,
-            ["events", id, action @ ("open" | "start" | "advance" | "close" | "entries")],
+            ["events", id, action @ ("open" | "start" | "advance" | "close" | "entries" | "schedule")],
         ) => event_action(ctx, id, action, &body).await,
         (&Method::POST, ["events", id, "entries", driver, "remove"]) => {
             match driver.parse::<Uuid>() {
@@ -1238,6 +1238,8 @@ async fn event_json(ctx: &AdminContext, event: &crate::events::Event) -> Value {
         .track_configs
         .get(&event.spec.track_id)
         .map(|t| t.name.clone()));
+    v["next_start"] = json!(event.next_start());
+    v["schedule"] = serde_json::to_value(&event.schedule).unwrap_or(Value::Null);
     v
 }
 
@@ -1263,6 +1265,10 @@ struct NewEvent {
     spec: HostedSpec,
     #[serde(default = "yes")]
     entries_open: bool,
+    /// When its phases start (`events::EventSchedule`); none, the
+    /// dashboard starts each.
+    #[serde(default)]
+    schedule: crate::events::EventSchedule,
 }
 
 fn yes() -> bool {
@@ -1287,7 +1293,13 @@ async fn event_create(ctx: &AdminContext, body: &Bytes) -> Resp {
         }
         std::sync::Arc::clone(&st.events)
     };
-    let event = events.create(&new.name, new.spec, new.entries_open, unix_now());
+    let mut event = events.create(&new.name, new.spec, new.entries_open, unix_now());
+    if !new.schedule.is_empty() {
+        let schedule = new.schedule.clamp();
+        event = events
+            .update(&event.id, |e| e.schedule = schedule)
+            .unwrap_or(event);
+    }
     tracing::info!("Admin created event {} ({})", event.id, event.name);
     ok(json!({ "ok": true, "event": event_json(ctx, &event).await }))
 }
@@ -1303,6 +1315,7 @@ async fn event_action(ctx: &AdminContext, id: &str, action: &str, body: &Bytes) 
         "open" => {
             events.update(id, |e| {
                 e.opened = true;
+                e.held = false;
                 e.last_error = None;
             });
             crate::events::open_session(lc, &ctx.hosted, &events, id)
@@ -1317,7 +1330,11 @@ async fn event_action(ctx: &AdminContext, id: &str, action: &str, body: &Bytes) 
             Some(s) => hosted::advance(lc, s).await.map(|p| json!({ "phase": p })),
         },
         "close" => {
-            events.update(id, |e| e.opened = false);
+            // Held: its schedule does not open it again until it is opened.
+            events.update(id, |e| {
+                e.opened = false;
+                e.held = true;
+            });
             match session {
                 Some(s) => hosted::stop(lc, &ctx.hosted, s, "The event is closed for now")
                     .await
@@ -1325,6 +1342,14 @@ async fn event_action(ctx: &AdminContext, id: &str, action: &str, body: &Bytes) 
                 None => Ok(json!({})),
             }
         }
+        "schedule" => match serde_json::from_slice::<crate::events::EventSchedule>(body) {
+            Ok(schedule) => {
+                let schedule = schedule.clamp();
+                events.update(id, |e| e.schedule = schedule.clone());
+                Ok(json!({ "schedule": schedule }))
+            }
+            Err(e) => Err(format!("schedule: {e}")),
+        },
         _ => {
             let open = serde_json::from_slice::<Value>(body)
                 .ok()

@@ -158,8 +158,8 @@ and widget factories), so layouts are reviewable as diffs.
 
 Drive > Browse sessions: the live sessions from the latest `LobbyState`,
 filtered by the pills under the car bar (F or pad X steps them; Shift+F
-back): All, Joinable (not full, not over), Racing (a race under way) and
-Recorded (`ApexBrowser::Passes`). Recorded lists the server's recordings of
+back): All, Joinable (not full, not over), Racing (a race under way),
+Recorded (`ApexBrowser::Passes`) and Events. Recorded lists the server's recordings of
 finished sessions from its health port (`LobbyState.recordings_port`,
 `GET /recordings`, [operations](../server/operations.md); R fetches again):
 the circuit's catalog name (never the file's `name`), when, kind, cars, laps,
@@ -180,6 +180,17 @@ button, lit while a race is being driven (`WatchSession`). Rows are rebuilt
 only when sessions come or go and refreshed in place otherwise, so a
 broadcast never moves the pad's place.
 
+Events lists the server's race events (`LobbyState.Events`;
+[sessions.md](../server/sessions.md#events-across-restarts)), those to come
+by their start time, those started by hand after them, those over last
+(`ApexEventLabels::SortEvents`): the event's name, the circuit's display
+name, its phase ("Race next", or "Race" while it is driven), when it starts
+on the player's own clock, the entries against the seats, and a badge
+(`ApexEventLabels::Badge`): "In 4:59" counting down once a second while its
+time is to come, else Under way, Open, Not open or Over. Enter joins its
+session once one is open (as a row of All does); Watch watches it while a
+phase is driven.
+
 ### Session lobby (`UI/ApexSessionLobbyWidget.cpp`)
 
 The joined session before it starts: the state line, the circuit, its
@@ -192,7 +203,10 @@ says so (`ApexEventLabels`): the state line is the event's name and phase
 weekend's own phase once it runs), the format line starts RACE EVENT and
 marks the phases already run DONE (an event resumed after a server restart
 opens at its next phase), and under the start button the server's race
-control is waited for ("WAITING FOR RACE CONTROL TO START THE RACE"). The
+control is waited for ("WAITING FOR RACE CONTROL TO START THE RACE"); a
+phase with a start time counts down to it instead, once a second ("THE RACE
+STARTS IN 4:59", then "THE RACE IS STARTING"; `ApexEventLabels::ScheduledLine`
+from the listed event's `StartsAt`): it starts then whoever is there. The
 race's laps there are the listed session's, not the player's own create
 settings.
 
@@ -202,8 +216,9 @@ proved driver key, not entered with entries closed, the entry list full,
 a livery change) are sentences saying what happened, any other 403 is the
 server's reason as a sentence, and the rest keep their code.
 
-Checks: `ApexSim.UI.EventLobby.Labels`, `ApexSim.Net.ServerErrors`, and
-`ApexSim.Net.Protocol.GoldenDecode` (`S_SessionJoinedEvent`).
+Checks: `ApexSim.UI.EventLobby.Labels`, `ApexSim.UI.EventLobby.Schedule`,
+`ApexSim.Net.ServerErrors`, `ApexSim.Net.Protocol.GoldenDecode`
+(`S_SessionJoinedEvent`) and `LobbyStateDecode` (`S_LobbyStateEvents`).
 
 ### Session results (`UI/ApexSessionResultsWidget.cpp`)
 

@@ -63,6 +63,91 @@ impl EventPhase {
     }
 }
 
+/// When an event's phases start (`Event::schedule`): wall-clock times,
+/// Unix s, read by the event runner (never by the simulation). A phase with
+/// a time opens its session `open_minutes` before it (the runner opens the
+/// event), starts at it whoever is there, and the phase before it waits for
+/// it; a phase without one is started from the dashboard, as an event
+/// without a schedule is.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EventSchedule {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub practice_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qualifying_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub race_at: Option<u64>,
+    /// How long before a phase's time its session opens, minutes.
+    #[serde(default = "default_open_minutes")]
+    pub open_minutes: u32,
+    /// The pause between two knockout rounds, s.
+    #[serde(default = "default_round_break_s")]
+    pub round_break_s: u32,
+}
+
+fn default_open_minutes() -> u32 {
+    15
+}
+
+fn default_round_break_s() -> u32 {
+    120
+}
+
+impl Default for EventSchedule {
+    fn default() -> Self {
+        Self {
+            practice_at: None,
+            qualifying_at: None,
+            race_at: None,
+            open_minutes: default_open_minutes(),
+            round_break_s: default_round_break_s(),
+        }
+    }
+}
+
+impl EventSchedule {
+    /// No phase has a time.
+    pub fn is_empty(&self) -> bool {
+        self.practice_at.is_none() && self.qualifying_at.is_none() && self.race_at.is_none()
+    }
+
+    /// When `phase` starts, if it has a time.
+    pub fn at(&self, phase: EventPhase) -> Option<u64> {
+        match phase {
+            EventPhase::Practice => self.practice_at,
+            EventPhase::Qualifying => self.qualifying_at,
+            EventPhase::Race => self.race_at,
+            EventPhase::Done => None,
+        }
+    }
+
+    /// When `phase`'s session opens, if it has a time.
+    pub fn opens_at(&self, phase: EventPhase) -> Option<u64> {
+        self.at(phase)
+            .map(|at| at.saturating_sub(u64::from(self.open_minutes) * 60))
+    }
+
+    /// The times in phase order, never earlier than the one before, and an
+    /// opening of at most a day: what the dashboard's edit keeps.
+    pub fn clamp(mut self) -> Self {
+        let mut last = 0u64;
+        for at in [
+            &mut self.practice_at,
+            &mut self.qualifying_at,
+            &mut self.race_at,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            *at = (*at).max(last);
+            last = *at;
+        }
+        self.open_minutes = self.open_minutes.min(24 * 60);
+        self.round_break_s = self.round_break_s.clamp(10, 3600);
+        self
+    }
+}
+
 /// A driver entered in an event: known by their proved driver id, racing
 /// the car and livery they entered with in every session of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -201,6 +286,13 @@ pub struct Event {
     /// What went wrong opening its session last, if anything.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_error: Option<String>,
+    /// When its phases start; empty, the dashboard starts each.
+    #[serde(default, skip_serializing_if = "EventSchedule::is_empty")]
+    pub schedule: EventSchedule,
+    /// Closed on the dashboard: its schedule does not open it again until
+    /// it is opened by hand.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub held: bool,
 }
 
 fn default_true() -> bool {
@@ -223,7 +315,26 @@ impl Event {
             results: Vec::new(),
             created_at: now,
             last_error: None,
+            schedule: EventSchedule::default(),
+            held: false,
         }
+    }
+
+    /// When the phase it is at starts, by its schedule; `None` for a phase
+    /// with no time, and once it is done.
+    pub fn next_start(&self) -> Option<u64> {
+        self.schedule.at(self.phase)
+    }
+
+    /// Whether its schedule has it opened at `now`: its phase has a time,
+    /// that phase's session opens by now, and it was not closed by hand.
+    pub fn due_to_open(&self, now: u64) -> bool {
+        !self.held
+            && self.phase != EventPhase::Done
+            && self
+                .schedule
+                .opens_at(self.phase)
+                .is_some_and(|at| now >= at)
     }
 
     /// The phase after `phase` for this event's format.
@@ -404,6 +515,9 @@ struct Inner {
     events: BTreeMap<String, Event>,
     /// Each open event's session in this process.
     sessions: BTreeMap<String, SessionId>,
+    /// When a scheduled event's session was first seen between two
+    /// knockout rounds (the next one starts `round_break_s` later).
+    round_breaks: BTreeMap<String, u64>,
 }
 
 /// Every event, kept one file each in `dir` (none: in memory only).
@@ -430,6 +544,11 @@ impl EventStore {
             let mut paths: Vec<PathBuf> = read
                 .filter_map(|e| e.ok().map(|e| e.path()))
                 .filter(|p| p.extension().is_some_and(|x| x == "json"))
+                // `<id>.json` only: an event's other files share its stem.
+                .filter(|p| {
+                    p.file_stem()
+                        .is_some_and(|s| !s.to_string_lossy().contains('.'))
+                })
                 .collect();
             paths.sort();
             for path in paths {
@@ -451,7 +570,7 @@ impl EventStore {
             dir: Some(dir),
             inner: Mutex::new(Inner {
                 events,
-                sessions: BTreeMap::new(),
+                ..Default::default()
             }),
             opening: tokio::sync::Mutex::new(()),
         }
@@ -560,6 +679,29 @@ impl EventStore {
             name: event.name,
             phase: event.phase.wire(),
         })
+    }
+
+    /// Every event as the lobby lists it (`LobbyState.Events`), by id.
+    pub fn lobby_events(&self) -> Vec<crate::network::LobbyEventData> {
+        let inner = self.lock();
+        inner
+            .events
+            .values()
+            .map(|e| crate::network::LobbyEventData {
+                id: e.id.clone(),
+                name: e.name.clone(),
+                phase: e.phase.wire(),
+                track_id: e.spec.track_id,
+                starts_at: e.next_start().unwrap_or(0),
+                session_id: inner
+                    .sessions
+                    .get(&e.id)
+                    .map(|s| s.to_string())
+                    .unwrap_or_default(),
+                entries: e.entries.len().min(u8::MAX as usize) as u8,
+                slots: e.spec.player_slots,
+            })
+            .collect()
     }
 
     fn bind_session(&self, id: &str, session: Option<SessionId>) {
@@ -718,6 +860,7 @@ pub(crate) async fn open_session(
         if let Some(gs) = st.sessions.get_mut(&session) {
             let field = store.ai_field(id, gs);
             gs.replace_ai_field(field.iter().map(EventAi::profile).collect());
+            gs.on_schedule = !event.schedule.is_empty();
             match event.phase {
                 EventPhase::Qualifying => gs.resume_weekend(WeekendPhase::Qualifying),
                 EventPhase::Race => {
@@ -738,9 +881,10 @@ pub(crate) async fn open_session(
     Ok(session)
 }
 
-/// One pass: record what the events' sessions have finished, forget the
-/// sessions that have gone, and open a session for every open event that
-/// has none (after a restart, every one).
+/// One pass: record what the events' sessions have finished, run their
+/// schedules, forget the sessions that have gone, and open a session for
+/// every open event that has none (after a restart, every one; a scheduled
+/// event once its phase's session is due to open).
 pub(crate) async fn run_once(
     ctx: &GameLoopCtx,
     hosted: &HostedSessions,
@@ -753,6 +897,8 @@ pub(crate) async fn run_once(
             match st.sessions.get(&session) {
                 Some(gs) => {
                     store.note_finished(session, gs, now);
+                    drop(st);
+                    run_schedule(ctx, store, &event.id, session, now).await;
                     continue;
                 }
                 None => {
@@ -761,7 +907,16 @@ pub(crate) async fn run_once(
                 }
             }
         }
-        let event = store.get(&event.id).unwrap_or(event);
+        let mut event = store.get(&event.id).unwrap_or(event);
+        if !event.opened && event.due_to_open(now) {
+            info!("Event {} opens on its schedule", event.id);
+            event = store
+                .update(&event.id, |e| {
+                    e.opened = true;
+                    e.last_error = None;
+                })
+                .unwrap_or(event);
+        }
         if !event.opened || event.phase == EventPhase::Done {
             continue;
         }
@@ -774,6 +929,118 @@ pub(crate) async fn run_once(
                 store.update(&event.id, |e| e.last_error = error);
             }
         }
+    }
+}
+
+/// What a scheduled event's session does next at `now`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScheduleStep {
+    /// Nothing yet.
+    Wait,
+    /// Start the session in its lobby (its weekend's next phase, or the
+    /// race's countdown).
+    Start,
+    /// Move the weekend on to its next phase or knockout round.
+    Advance,
+}
+
+/// The schedule's call for an event's session: `in_lobby` (the session has
+/// not started), `between_phases` (a weekend waiting to be moved on) and
+/// `between_rounds` (that wait is between two knockout rounds, first seen
+/// at `break_since`).
+pub fn schedule_step(
+    event: &Event,
+    in_lobby: bool,
+    between_phases: bool,
+    between_rounds: bool,
+    break_since: u64,
+    now: u64,
+) -> ScheduleStep {
+    if event.schedule.is_empty() {
+        return ScheduleStep::Wait;
+    }
+    if between_phases && between_rounds {
+        // The knockout runs on after a short break once its first round
+        // has started on time.
+        return if now >= break_since + u64::from(event.schedule.round_break_s) {
+            ScheduleStep::Advance
+        } else {
+            ScheduleStep::Wait
+        };
+    }
+    let Some(at) = event.next_start() else {
+        return ScheduleStep::Wait;
+    };
+    match (in_lobby, between_phases) {
+        _ if now < at => ScheduleStep::Wait,
+        (true, _) => ScheduleStep::Start,
+        (false, true) => ScheduleStep::Advance,
+        _ => ScheduleStep::Wait,
+    }
+}
+
+/// Run a scheduled event's session on its times: started at its phase's
+/// time from the lobby, moved on to a later phase at that phase's time,
+/// and from one knockout round to the next after the round break.
+async fn run_schedule(
+    ctx: &GameLoopCtx,
+    store: &EventStore,
+    id: &str,
+    session: SessionId,
+    now: u64,
+) {
+    let Some(event) = store.get(id) else {
+        return;
+    };
+    if event.schedule.is_empty() {
+        return;
+    }
+    let (in_lobby, between_phases, between_rounds) = {
+        let mut st = ctx.state.write().await;
+        let Some(gs) = st.sessions.get_mut(&session) else {
+            return;
+        };
+        // A schedule set after the session opened.
+        gs.on_schedule = true;
+        let progress = gs.weekend_progress();
+        let rounds = gs.session.weekend.as_ref().map_or(1, |w| w.rounds());
+        (
+            gs.session.state == SessionState::Lobby,
+            gs.awaits_weekend_advance(),
+            progress.phase == WeekendPhase::Qualifying && (progress.round as usize) < rounds,
+        )
+    };
+    let break_since = {
+        let mut inner = store.lock();
+        if between_phases && between_rounds {
+            *inner.round_breaks.entry(id.to_string()).or_insert(now)
+        } else {
+            inner.round_breaks.remove(id);
+            now
+        }
+    };
+    let step = schedule_step(
+        &event,
+        in_lobby,
+        between_phases,
+        between_rounds,
+        break_since,
+        now,
+    );
+    let done = match step {
+        ScheduleStep::Wait => return,
+        ScheduleStep::Start => hosted::start(ctx, session).await,
+        ScheduleStep::Advance => hosted::advance(ctx, session).await,
+    };
+    match done {
+        Ok(phase) => {
+            store.lock().round_breaks.remove(id);
+            info!(
+                "Event {} on its schedule: {:?} into its {}",
+                id, step, phase
+            );
+        }
+        Err(why) => warn!("Event {} could not keep its schedule: {}", id, why),
     }
 }
 
@@ -894,6 +1161,77 @@ mod tests {
         assert_eq!(loaded.entries[0].name, "A2");
         assert_eq!(loaded.created_at, 7);
         assert_eq!(again.session_of("cup"), None, "sessions are this process's");
+    }
+
+    #[test]
+    fn a_schedule_starts_each_phase_at_its_time_and_runs_the_knockout_on() {
+        let mut event = Event::new("e".into(), "E".into(), spec(None), true, 0);
+        assert_eq!(
+            schedule_step(&event, true, false, false, 0, 1_000_000),
+            ScheduleStep::Wait,
+            "no schedule: the dashboard starts it"
+        );
+        assert!(!event.due_to_open(u64::MAX));
+        event.schedule = EventSchedule {
+            race_at: Some(10_000),
+            open_minutes: 10,
+            ..Default::default()
+        };
+        assert!(!event.due_to_open(9_399));
+        assert!(event.due_to_open(9_400), "open ten minutes before");
+        event.held = true;
+        assert!(!event.due_to_open(9_400), "closed by hand: held");
+        assert_eq!(
+            schedule_step(&event, true, false, false, 0, 9_999),
+            ScheduleStep::Wait
+        );
+        assert_eq!(
+            schedule_step(&event, true, false, false, 0, 10_000),
+            ScheduleStep::Start
+        );
+        assert_eq!(
+            schedule_step(&event, false, false, false, 0, 10_500),
+            ScheduleStep::Wait,
+            "under way"
+        );
+        // Between practice and qualifying: the event is at qualifying.
+        event.phase = EventPhase::Qualifying;
+        event.schedule.qualifying_at = Some(20_000);
+        assert_eq!(
+            schedule_step(&event, false, true, false, 0, 19_000),
+            ScheduleStep::Wait
+        );
+        assert_eq!(
+            schedule_step(&event, false, true, false, 0, 20_000),
+            ScheduleStep::Advance
+        );
+        // Between two knockout rounds: after the break.
+        let brk = u64::from(event.schedule.round_break_s);
+        assert_eq!(
+            schedule_step(&event, false, true, true, 21_000, 21_000 + brk - 1),
+            ScheduleStep::Wait
+        );
+        assert_eq!(
+            schedule_step(&event, false, true, true, 21_000, 21_000 + brk),
+            ScheduleStep::Advance
+        );
+    }
+
+    #[test]
+    fn a_schedule_keeps_its_phases_in_order() {
+        let s = EventSchedule {
+            practice_at: Some(500),
+            qualifying_at: Some(100),
+            race_at: Some(400),
+            open_minutes: 100_000,
+            round_break_s: 0,
+        }
+        .clamp();
+        assert_eq!(
+            (s.practice_at, s.qualifying_at, s.race_at),
+            (Some(500), Some(500), Some(500))
+        );
+        assert_eq!((s.open_minutes, s.round_break_s), (24 * 60, 10));
     }
 
     #[test]

@@ -45,4 +45,71 @@ bool FApexEventLobbyLabelsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexEventScheduleLabelsTest,
+	"ApexSim.UI.EventLobby.Schedule",
+	ApexTestFlags)
+
+bool FApexEventScheduleLabelsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexEventLabels;
+	TestEqual(TEXT("seconds"), Countdown(9), FString(TEXT("0:09")));
+	TestEqual(TEXT("minutes"), Countdown(299), FString(TEXT("4:59")));
+	TestEqual(TEXT("hours"), Countdown(3723), FString(TEXT("1:02:03")));
+	TestEqual(TEXT("days"), Countdown(2 * 86400 + 4 * 3600 + 59), FString(TEXT("2D 04H")));
+	TestEqual(TEXT("past"), Countdown(-5), FString(TEXT("0:00")));
+
+	TestEqual(TEXT("to come"), ScheduledLine(3, 1300, 1000), FString(TEXT("THE RACE STARTS IN 5:00")));
+	TestEqual(TEXT("its time"), ScheduledLine(1, 1000, 1000), FString(TEXT("THE PRACTICE IS STARTING")));
+	TestTrue(TEXT("no time"), ScheduledLine(3, 0, 1000).IsEmpty());
+	TestTrue(TEXT("over"), ScheduledLine(4, 1300, 1000).IsEmpty());
+
+	FApexLobbyEvent Cup;
+	Cup.Id = TEXT("autumn-cup");
+	Cup.Name = TEXT("Autumn Cup");
+	Cup.Phase = 2;
+	Cup.StartsAt = 1300;
+	TestEqual(TEXT("not open, to come"), Badge(Cup, nullptr, 1000), FString(TEXT("In 5:00")));
+	TestEqual(TEXT("not open, its time gone"), Badge(Cup, nullptr, 1400), FString(TEXT("Not open")));
+	TestEqual(TEXT("qualifying next"), PhaseWords(Cup, nullptr), FString(TEXT("Qualifying next")));
+
+	FApexSessionSummary Session;
+	Session.State = EApexSessionState::Lobby;
+	TestEqual(TEXT("open, to come"), Badge(Cup, &Session, 1000), FString(TEXT("In 5:00")));
+	TestEqual(TEXT("open"), Badge(Cup, &Session, 1400), FString(TEXT("Open")));
+	Session.State = EApexSessionState::Racing;
+	TestEqual(TEXT("under way"), Badge(Cup, &Session, 1400), FString(TEXT("Under way")));
+	TestEqual(TEXT("qualifying"), PhaseWords(Cup, &Session), FString(TEXT("Qualifying")));
+	Session.State = EApexSessionState::Finished;
+	Session.bWeekendWaiting = true;
+	TestEqual(TEXT("between phases: open"), Badge(Cup, &Session, 1400), FString(TEXT("Open")));
+
+	Cup.Phase = 4;
+	TestEqual(TEXT("over"), Badge(Cup, nullptr, 1000), FString(TEXT("Over")));
+	TestEqual(TEXT("over words"), PhaseWords(Cup, nullptr), FString(TEXT("Over")));
+
+	TArray<FApexLobbyEvent> Events;
+	auto Add = [&Events](const TCHAR* Name, int32 Phase, int64 StartsAt)
+	{
+		FApexLobbyEvent& E = Events.AddDefaulted_GetRef();
+		E.Name = Name;
+		E.Phase = Phase;
+		E.StartsAt = StartsAt;
+	};
+	Add(TEXT("Done"), 4, 0);
+	Add(TEXT("Zed"), 1, 0);
+	Add(TEXT("Late"), 3, 900);
+	Add(TEXT("Alpha"), 1, 0);
+	Add(TEXT("Soon"), 1, 500);
+	SortEvents(Events);
+	TArray<FString> Order;
+	for (const FApexLobbyEvent& E : Events)
+	{
+		Order.Add(E.Name);
+	}
+	TestEqual(TEXT("timed first, by hand by name, over last"), FString::Join(Order, TEXT(",")),
+		FString(TEXT("Soon,Late,Alpha,Zed,Done")));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
