@@ -152,9 +152,10 @@ the same records. Nothing seeks by block on a hot path (the client inflates a wh
 file before it plays, a showcase on its first viewer's join), so the longer
 block costs only a tool reading one block by the index. The client's
 codec unpacks a column block through the physics library
-(`apx_stream_block_raw`, ABI 6, the server's own code); a client built
-without it still plays version 1 files and names the library for a
-version 2 one. `apexsim-replay repack <in.apxs> --out <out.apxs>` rewrites a
+(`apx_stream_block_raw`, the server's own code), and its recorder packs
+one the same way (`apx_stream_block_pack`, ABI 7); a client built
+without the library writes version 1, still plays version 1 files and
+names the library for a version 2 one. `apexsim-replay repack <in.apxs> --out <out.apxs>` rewrites a
 file of any version as this build writes it and checks it reads back to the
 same records; `info` prints the `file_version` and a `records_crc` over the
 records, the same for one race in either version. `scripts/replay_size.py [--repack <dir>] <files>` prints
@@ -518,18 +519,30 @@ on|off|shot|orbit|hide|reset|pause|info`, `move <forward> <right> <up>
 `UApexReplayRecorder` records every session the client is in (race,
 practice, hotlap, a race watched) as a stream on the client: every other
 telemetry frame (30 Hz) through `FApexStreamCarRow::FromTelemetry`, the
-roster, lap timing, state and finishes, compressed a second at a time by
-`FApexStreamWriter`, whose encoders are byte-identical to the server's. Time
-with every car in a hotlap garage is cut.
+roster, lap timing, state and finishes, written by `FApexStreamWriter`,
+whose encoders are byte-identical to the server's. With the physics library
+it packs ten seconds at a time by column through `apx_stream_block_pack`
+(the server's own writer's code, on a task off the game thread) into a
+version 2 file, the same bytes the server writes for the same records
+(`ApexSim.Spectator.WriterV2` against the golden `FileV2`); without it, or
+for a block that will not pack, it writes plain zlib blocks of a second and
+the file is version 1 (`ApexSim.Spectator.Writer`). Time with every car in
+a hotlap garage is cut.
 
-When the session ends the file goes to `Saved/Replays/Recent/` (the newest
-`MaxRecent`, 10, kept). SAVE REPLAY (pause menu, hotlap garage,
+When the session ends the file goes to `Saved/Replays/Recent/`. Settings >
+Gameplay > Recent replays (10, 25, 50, 100 or ALL, the default;
+`UApexSettingsSave::KeepRecentReplays`) is the client's `[records]
+keep_replays`: each recent file written deletes the oldest beyond it, by
+modification time, never the newest (`UApexReplayRecorder::PruneRecent`);
+kept replays are never deleted. SAVE REPLAY (pause menu, hotlap garage,
 `apexsim.replay.Save`) keeps it in `Saved/Replays/`; the results screen's
 Save replay keeps the whole session (`KeepThisSession`). The Replays screen
 (`UApexReplaysWidget`) lists both: Enter watches, K keeps a recent one, E
 (pad View) exports one to `<Documents>/ApexSim/Replays` under its
 `MakeReplayName` (`UApexReplayRecorder::ExportReplay`), Delete
-removes one. Playing is `UApexDemoModeSubsystem::PlayReplay` (backdrop source
+removes one. Each row shows its file's size and the line above the list the
+total of them all (`FormatBytes`, `TotalBytes`), so the player sees what
+the folder takes and decides. Playing is `UApexDemoModeSubsystem::PlayReplay` (backdrop source
 `Replay`: no loop, never moved on from) with `UApexSpectatorSubsystem`'s
 `SetPaused`, `SetPlaybackRate` and `SeekTo` (forward applies the timing on the
 way; back replays the preamble first). A replay plays with the backdrop

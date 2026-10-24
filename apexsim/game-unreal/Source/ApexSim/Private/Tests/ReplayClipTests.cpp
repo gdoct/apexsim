@@ -1,4 +1,8 @@
 #include "ApexTestCommon.h"
+#include "ApexReplayRecorder.h"
+#include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "Race/ApexRaceCoordinate.h"
 #include "Race/ApexReplayCamera.h"
 #include "Race/ApexReplayClip.h"
@@ -168,6 +172,47 @@ bool FApexReplayCameraTest::RunTest(const FString& Parameters)
 	const float Whole = EaseAlpha(5.0f, 0.1f);
 	const float HalfStep = EaseAlpha(5.0f, 0.05f);
 	TestNearlyEqual(TEXT("ease composes"), 1.0f - (1.0f - HalfStep) * (1.0f - HalfStep), Whole, 1e-5f);
+	return true;
+}
+
+// The Replays screen's size line, and the recent folder kept to the
+// setting's count (Settings > Gameplay > Recent replays), oldest first.
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexReplayKeepTest, "ApexSim.Replay.Keep", ApexTestFlags)
+
+bool FApexReplayKeepTest::RunTest(const FString& Parameters)
+{
+	TestEqual(TEXT("KB"), UApexReplayRecorder::FormatBytes(640 * 1024), FString(TEXT("640 KB")));
+	TestEqual(TEXT("a small MB"), UApexReplayRecorder::FormatBytes(2621440), FString(TEXT("2.5 MB")));
+	TestEqual(TEXT("MB"), UApexReplayRecorder::FormatBytes(24ll * 1024 * 1024), FString(TEXT("24 MB")));
+	TestEqual(TEXT("GB"), UApexReplayRecorder::FormatBytes(1331ll * 1024 * 1024), FString(TEXT("1.30 GB")));
+	TArray<FApexReplayInfo> Infos;
+	Infos.AddDefaulted(2);
+	Infos[0].Bytes = 1000;
+	Infos[1].Bytes = 2500;
+	TestEqual(TEXT("the total"), UApexReplayRecorder::TotalBytes(Infos), (int64)3500);
+
+	const FString Dir = FPaths::Combine(FPaths::ProjectSavedDir(), TEXT("Automation"), TEXT("ReplayKeep"));
+	IFileManager::Get().DeleteDirectory(*Dir, false, true);
+	IFileManager::Get().MakeDirectory(*Dir, true);
+	const FDateTime Base(2026, 10, 1, 12, 0, 0);
+	for (int32 Index = 0; Index < 5; ++Index)
+	{
+		const FString Path = FPaths::Combine(Dir, FString::Printf(TEXT("r%d.apxs"), Index));
+		FFileHelper::SaveStringToFile(TEXT("APXS"), *Path);
+		IFileManager::Get().SetTimeStamp(*Path, Base + FTimespan::FromHours(Index));
+	}
+	FFileHelper::SaveStringToFile(TEXT("not a replay"), *FPaths::Combine(Dir, TEXT("notes.txt")));
+
+	TestEqual(TEXT("0 keeps every one"), UApexReplayRecorder::PruneOldest(Dir, 0), 0);
+	TestEqual(TEXT("keep 3: the two oldest go"), UApexReplayRecorder::PruneOldest(Dir, 3), 2);
+	TestFalse(TEXT("r0 gone"), IFileManager::Get().FileExists(*FPaths::Combine(Dir, TEXT("r0.apxs"))));
+	TestFalse(TEXT("r1 gone"), IFileManager::Get().FileExists(*FPaths::Combine(Dir, TEXT("r1.apxs"))));
+	TestTrue(TEXT("r4 kept"), IFileManager::Get().FileExists(*FPaths::Combine(Dir, TEXT("r4.apxs"))));
+	TestTrue(TEXT("other files left alone"), IFileManager::Get().FileExists(*FPaths::Combine(Dir, TEXT("notes.txt"))));
+	TestEqual(TEXT("a negative count keeps every one"), UApexReplayRecorder::PruneOldest(Dir, -1), 0);
+	TestEqual(TEXT("keep 1: the newest alone"), UApexReplayRecorder::PruneOldest(Dir, 1), 2);
+	TestTrue(TEXT("the newest kept"), IFileManager::Get().FileExists(*FPaths::Combine(Dir, TEXT("r4.apxs"))));
+	IFileManager::Get().DeleteDirectory(*Dir, false, true);
 	return true;
 }
 

@@ -372,6 +372,14 @@ void UApexSettingsSubsystem::SetColourVision(EApexColourVision Vision)
 	Changed(EApexSettingsGroup::Gameplay);
 }
 
+void UApexSettingsSubsystem::SetKeepRecentReplays(int32 Count)
+{
+	Count = FMath::Max(0, Count);
+	if (!Settings || Settings->KeepRecentReplays == Count) { return; }
+	Settings->KeepRecentReplays = Count;
+	Changed(EApexSettingsGroup::Gameplay);
+}
+
 void UApexSettingsSubsystem::ApplyGameplay()
 {
 	if (!Settings)

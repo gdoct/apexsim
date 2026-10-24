@@ -152,6 +152,29 @@ namespace
 	const FName SegUnits      = TEXT("Units");
 	const FName SegHud        = TEXT("Hud");
 	const FName SegColourVision = TEXT("ColourVision");
+	const FName SegRecentReplays = TEXT("RecentReplays");
+	/** The Recent replays pills, as counts kept; 0 is every one. */
+	constexpr int32 RecentReplayChoices[] = {10, 25, 50, 100, 0};
+	constexpr int32 NumRecentReplayChoices = static_cast<int32>(UE_ARRAY_COUNT(RecentReplayChoices));
+	int32 RecentReplaysPill(int32 Count)
+	{
+		for (int32 Index = 0; Index < NumRecentReplayChoices; ++Index)
+		{
+			if (RecentReplayChoices[Index] == Count)
+			{
+				return Index;
+			}
+		}
+		// A hand-set count between the pills shows the next one up.
+		for (int32 Index = 0; Index < NumRecentReplayChoices - 1; ++Index)
+		{
+			if (Count < RecentReplayChoices[Index])
+			{
+				return Index;
+			}
+		}
+		return NumRecentReplayChoices - 1;
+	}
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
 	const FName SegHdr        = TEXT("Hdr");
@@ -676,6 +699,13 @@ UWidget* UApexSettingsWidget::BuildGameplayPage()
 			ApexColourVision::Label(EApexColourVision::Standard),
 			ApexColourVision::Label(EApexColourVision::RedGreen),
 			ApexColourVision::Label(EApexColourVision::BlueYellow) }, 0)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+
+	// As the server's [records] keep_replays: the Replays screen shows what they take.
+	AddV(Page, MakeRow(
+		TEXT("Recent replays"),
+		TEXT("How many replays of recent sessions are kept before the oldest is deleted. Kept replays are never deleted; the Replays screen shows their size."),
+		MakeSegment(SegRecentReplays, { TEXT("10"), TEXT("25"), TEXT("50"), TEXT("100"), TEXT("ALL") }, NumRecentReplayChoices - 1, 70.0f)),
+		FMargin(0.0f, 2.0f, 0.0f, 0.0f));
 
 	// The HUD editor: the overlay steps aside while it runs (UApexRootWidget).
 	{
@@ -2114,6 +2144,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegUnits, static_cast<int32>(Values->Units));
 	SetSegment(SegHud, static_cast<int32>(Values->HudDetail));
 	SetSegment(SegColourVision, static_cast<int32>(Values->ColourVision));
+	SetSegment(SegRecentReplays, RecentReplaysPill(Values->KeepRecentReplays));
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
 	SetSegment(SegHdr, Values->bHdrOutput ? 1 : 0);
@@ -2487,6 +2518,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegUnits)      { Settings->SetUnits(static_cast<EApexUnits>(Index)); }
 	else if (Id == SegHud)        { Settings->SetHudDetail(static_cast<EApexHudDetail>(Index)); }
 	else if (Id == SegColourVision) { Settings->SetColourVision(static_cast<EApexColourVision>(Index)); }
+	else if (Id == SegRecentReplays && Index >= 0 && Index < NumRecentReplayChoices) { Settings->SetKeepRecentReplays(RecentReplayChoices[Index]); }
 	else if (Id == SegVSync)      { Settings->SetVSync(Index == 1); }
 	else if (Id == SegHdr)        { Settings->SetHdrOutput(Index == 1); }
 	else if (Id == SegScreens)

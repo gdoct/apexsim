@@ -732,7 +732,8 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("golden file loads"), Source.LoadFromBytes(TArray<uint8>(File, UE_ARRAY_COUNT(File)), Error));
 	TArray<TArray<uint8>> Bodies;
 	TestTrue(TEXT("golden file reads"), Source.ReadAll(Bodies, Error));
-	FApexStreamWriter Writer(Source.GetHeader().TickRate);
+	// Plain blocks of a second (version 1), as a client without the physics library writes.
+	FApexStreamWriter Writer(Source.GetHeader().TickRate, /*bInColumns*/ false);
 	for (const TArray<uint8>& Body : Bodies)
 	{
 		int64 Tick = 0;
@@ -750,6 +751,112 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("same preamble"), Back.GetPreambleBytes().Num() == Source.GetPreambleBytes().Num()
 		&& FMemory::Memcmp(Back.GetPreambleBytes().GetData(), Source.GetPreambleBytes().GetData(), Back.GetPreambleBytes().Num()) == 0);
 	TestEqual(TEXT("blocks of a second"), Back.NumBlocks(), Source.NumBlocks());
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// The client's own recorder writing version 2: column blocks of ten seconds
+// packed by the physics library, read back to the very records it was given.
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexSpectatorWriterV2Test, "ApexSim.Spectator.WriterV2", ApexSpectatorTests::Flags)
+
+bool FApexSpectatorWriterV2Test::RunTest(const FString& Parameters)
+{
+	using namespace ApexSpectatorGolden;
+	FApexStreamFile Source;
+	FString Error;
+	TestTrue(TEXT("golden file loads"), Source.LoadFromBytes(TArray<uint8>(File, UE_ARRAY_COUNT(File)), Error));
+	TArray<TArray<uint8>> Bodies;
+	TestTrue(TEXT("golden file reads"), Source.ReadAll(Bodies, Error));
+
+	// The records added a few at a time, so blocks go off to be packed while
+	// more arrive, and the file is taken twice: mid-way and at the end.
+	FApexStreamWriter Writer(Source.GetHeader().TickRate);
+#if WITH_APEX_PHYSICS
+	TestTrue(TEXT("the library packs columns"), FApexStreamWriter::CanPackColumns() && Writer.WritesColumns());
+#else
+	TestFalse(TEXT("no library, no columns"), Writer.WritesColumns());
+#endif
+	const int32 Half = Bodies.Num() / 2;
+	TArray<uint8> Midway;
+	for (int32 Index = 0; Index < Bodies.Num(); ++Index)
+	{
+		if (Index == Half)
+		{
+			Midway = Writer.ToBytes(Source.GetHeader(), Source.GetRoster(), Source.HasPath() ? &Source.GetPath() : nullptr, Source.GetPreamble());
+		}
+		int64 Tick = 0;
+		ApexSpectator::RecordTick(Bodies[Index], Tick);
+		Writer.Add(Tick, Bodies[Index]);
+	}
+	const TArray<uint8> Written = Writer.ToBytes(Source.GetHeader(), Source.GetRoster(),
+		Source.HasPath() ? &Source.GetPath() : nullptr, Source.GetPreamble());
+	TestTrue(TEXT("a file"), Written.Num() > 6);
+	if (Written.Num() <= 6)
+	{
+		return false;
+	}
+	const int32 Version = (Written[4] << 8) | Written[5];
+
+	FApexStreamFile Back;
+	TestTrue(*FString::Printf(TEXT("written file loads (%s)"), *Error), Back.LoadFromBytes(TArray<uint8>(Written), Error));
+	TArray<TArray<uint8>> BackBodies;
+	TestTrue(*FString::Printf(TEXT("written file reads (%s)"), *Error), Back.ReadAll(BackBodies, Error));
+	TestTrue(TEXT("the very records"), BackBodies == Bodies);
+	FApexStreamFile Partial;
+	TArray<TArray<uint8>> PartialBodies;
+	TestTrue(TEXT("the mid-way copy loads"), Partial.LoadFromBytes(MoveTemp(Midway), Error) && Partial.ReadAll(PartialBodies, Error));
+	TestEqual(TEXT("the mid-way copy holds the first half"), PartialBodies.Num(), Half);
+
+	// The records play back to the same frames: every car of every frame.
+	auto Play = [](const FApexStreamFile& Stream, const TArray<TArray<uint8>>& Records)
+	{
+		FApexSpectatorPlayer Player;
+		FString PlayError;
+		TArray<TArrayView<const uint8>> Preamble;
+		ApexSpectator::SplitFramed(Stream.GetPreambleBytes(), Preamble, PlayError);
+		for (const TArrayView<const uint8> Body : Preamble)
+		{
+			Player.Apply(Body, PlayError);
+		}
+		TArray<FApexTelemetryFrame> Out;
+		for (const TArray<uint8>& Body : Records)
+		{
+			Player.Apply(Body, PlayError);
+			Out.Append(Player.TakeFrames());
+		}
+		return Out;
+	};
+	const TArray<FApexTelemetryFrame> Want = Play(Source, Bodies);
+	const TArray<FApexTelemetryFrame> Got = Play(Back, BackBodies);
+	TestTrue(TEXT("frames played"), Want.Num() > 0);
+	TestEqual(TEXT("as many frames"), Got.Num(), Want.Num());
+	int32 Frames = 0;
+	for (int32 Index = 0; Index < Want.Num() && Index < Got.Num(); ++Index)
+	{
+		bool bSame = Want[Index].ServerTick == Got[Index].ServerTick && Want[Index].Cars.Num() == Got[Index].Cars.Num();
+		for (int32 Car = 0; bSame && Car < Want[Index].Cars.Num(); ++Car)
+		{
+			TArray<uint8> A;
+			TArray<uint8> B;
+			FApexStreamCarRow::FromTelemetry(Want[Index].Cars[Car]).Write(A);
+			FApexStreamCarRow::FromTelemetry(Got[Index].Cars[Car]).Write(B);
+			bSame = A == B;
+		}
+		Frames += bSame ? 1 : 0;
+	}
+	TestEqual(TEXT("every frame the same"), Frames, Want.Num());
+
+#if WITH_APEX_PHYSICS
+	TestEqual(TEXT("version 2"), Version, 2);
+	// Ten-second blocks, the server's: the golden content fits in one.
+	TestEqual(TEXT("blocks of ten seconds"), Back.NumBlocks(), 1);
+	// The same content the server wrote as FileV2, byte for byte: one packer.
+	TestTrue(TEXT("the server's FileV2, byte for byte"), Written == TArray<uint8>(FileV2, UE_ARRAY_COUNT(FileV2)));
+#else
+	TestEqual(TEXT("version 1 without the library"), Version, 1);
+#endif
 	return true;
 }
 

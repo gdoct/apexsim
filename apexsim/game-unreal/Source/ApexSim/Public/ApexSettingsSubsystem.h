@@ -101,6 +101,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetColourVision(EApexColourVision Vision);
 
+	/** Recent replays kept, 0 for all (Gameplay group; applied as the next one is written). */
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetKeepRecentReplays(int32 Count);
+
 	// --- Graphics -------------------------------------------------------------
 
 	/** Moves every quality row to the preset's bucket. Custom leaves them alone. */

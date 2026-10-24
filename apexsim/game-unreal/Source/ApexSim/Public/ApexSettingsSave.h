@@ -567,4 +567,12 @@ public:
 	/** The HUD's palette (Settings > Gameplay > Colour vision, apexsim.hud.Palette). */
 	UPROPERTY()
 	EApexColourVision ColourVision = EApexColourVision::Standard;
+
+	/**
+	 * Recent replays (Saved/Replays/Recent/) kept before the oldest goes, as
+	 * the server's `[records] keep_replays`; 0 keeps every one
+	 * (Settings > Gameplay > Recent replays, UApexReplayRecorder::PruneRecent).
+	 */
+	UPROPERTY()
+	int32 KeepRecentReplays = 0;
 };

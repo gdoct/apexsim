@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 6u
+#define APX_ABI_VERSION 7u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -398,7 +398,7 @@ ApxStatus apx_watch_corners(const ApxWatch *watch, uint8_t *buf, size_t capacity
 /* End a watch, keeping its ladder level and ghost (null is ignored). */
 void apx_watch_free(ApxWatch *watch);
 
-/* ---- A stream file's block (ABI 6) -------------------------------------- */
+/* ---- A stream file's block (ABI 6; packing, ABI 7) ---------------------- */
 
 /* The records of one block of an .apxs file, framed as a plain block
  * inflates to ([u32 big-endian length][body], back to back): a version 2
@@ -410,6 +410,17 @@ void apx_watch_free(ApxWatch *watch);
  * are APX_ERR_INVALID. */
 ApxStatus apx_stream_block_raw(const uint8_t *body, size_t body_len, uint8_t *buf,
                                size_t capacity, size_t *written);
+
+/* One block of an .apxs file as a version 2 file holds it: raw, the block's
+ * records framed as above, from first_tick to last_tick, laid out by column
+ * and deflated by the server's own writer's code. buf gets the column block
+ * record's body (record 11), without its length; *written its size. With a
+ * NULL buf or a short capacity nothing is copied and APX_ERR_BUFFER is
+ * returned (offer a little more than raw_len). Bytes that are not framed
+ * records are APX_ERR_INVALID. */
+ApxStatus apx_stream_block_pack(const uint8_t *raw, size_t raw_len, uint32_t first_tick,
+                                uint32_t last_tick, uint8_t *buf, size_t capacity,
+                                size_t *written);
 
 #ifdef __cplusplus
 }

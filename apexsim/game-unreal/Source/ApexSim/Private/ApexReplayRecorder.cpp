@@ -2,6 +2,8 @@
 
 #include "ApexMenuFlowSubsystem.h"
 #include "ApexNetSubsystem.h"
+#include "ApexSettingsSave.h"
+#include "ApexSettingsSubsystem.h"
 #include "ApexSim.h"
 #include "Engine/GameInstance.h"
 #include "HAL/FileManager.h"
@@ -36,11 +38,14 @@ namespace
 		TEXT("List the replays on disk."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld*)
 		{
-			for (const FApexReplayInfo& Info : UApexReplayRecorder::ListReplays())
+			const TArray<FApexReplayInfo> Replays = UApexReplayRecorder::ListReplays();
+			for (const FApexReplayInfo& Info : Replays)
 			{
-				UE_LOG(LogApexSim, Display, TEXT("%s  %s  %.0f s  %d car(s)  %s"), Info.bSaved ? TEXT("saved ") : TEXT("recent"),
-					*Info.Header.Track.DisplayName, Info.Header.DurationSeconds(), Info.Cars, *Info.Path);
+				UE_LOG(LogApexSim, Display, TEXT("%s  %s  %.0f s  %d car(s)  %s  %s"), Info.bSaved ? TEXT("saved ") : TEXT("recent"),
+					*Info.Header.Track.DisplayName, Info.Header.DurationSeconds(), Info.Cars, *UApexReplayRecorder::FormatBytes(Info.Bytes), *Info.Path);
 			}
+			UE_LOG(LogApexSim, Display, TEXT("apexsim.replay.List: %d replay(s), %s in all"), Replays.Num(),
+				*UApexReplayRecorder::FormatBytes(UApexReplayRecorder::TotalBytes(Replays)));
 		}));
 
 	/** Every other frame of a 60 Hz broadcast: 30 Hz, the showcases' rate. */
@@ -615,7 +620,10 @@ void UApexReplayRecorder::FinishAndKeepRecent()
 			else
 			{
 				UE_LOG(LogApexSim, Log, TEXT("Replay of the session kept among the recent ones: %s"), *Path);
-				PruneRecent();
+				const UGameInstance* GameInstance = GetGameInstance();
+				const UApexSettingsSubsystem* Settings = GameInstance ? GameInstance->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+				const UApexSettingsSave* Values = Settings ? Settings->Get() : nullptr;
+				PruneRecent(Values ? Values->KeepRecentReplays : 0);
 			}
 		}
 	}
@@ -764,23 +772,58 @@ bool UApexReplayRecorder::ExportReplay(const FApexReplayInfo& Info, FString& Out
 	return IFileManager::Get().Copy(*OutPath, *Info.Path, /*bReplace*/ false) == COPY_OK;
 }
 
-void UApexReplayRecorder::PruneRecent()
+int64 UApexReplayRecorder::TotalBytes(const TArray<FApexReplayInfo>& Replays)
+{
+	int64 Total = 0;
+	for (const FApexReplayInfo& Info : Replays)
+	{
+		Total += FMath::Max<int64>(0, Info.Bytes);
+	}
+	return Total;
+}
+
+FString UApexReplayRecorder::FormatBytes(int64 Bytes)
+{
+	const double Kb = static_cast<double>(FMath::Max<int64>(0, Bytes)) / 1024.0;
+	if (Kb < 1000.0)
+	{
+		return FString::Printf(TEXT("%.0f KB"), FMath::Max(1.0, Kb));
+	}
+	const double Mb = Kb / 1024.0;
+	if (Mb < 1000.0)
+	{
+		return Mb < 10.0 ? FString::Printf(TEXT("%.1f MB"), Mb) : FString::Printf(TEXT("%.0f MB"), Mb);
+	}
+	return FString::Printf(TEXT("%.2f GB"), Mb / 1024.0);
+}
+
+int32 UApexReplayRecorder::PruneRecent(int32 Keep)
+{
+	return PruneOldest(RecentDirectory(), Keep);
+}
+
+int32 UApexReplayRecorder::PruneOldest(const FString& Directory, int32 Keep)
 {
 	TArray<FString> Files;
-	IFileManager::Get().FindFiles(Files, *FPaths::Combine(RecentDirectory(), TEXT("*.apxs")), true, false);
-	if (Files.Num() <= MaxRecent)
+	IFileManager::Get().FindFiles(Files, *FPaths::Combine(Directory, TEXT("*.apxs")), true, false);
+	// Never the newest, whatever the setting says.
+	Keep = Keep <= 0 ? MAX_int32 : FMath::Max(1, Keep);
+	if (Files.Num() <= Keep)
 	{
-		return;
+		return 0;
 	}
 	TArray<TPair<FDateTime, FString>> Dated;
 	for (const FString& File : Files)
 	{
-		const FString Path = FPaths::Combine(RecentDirectory(), File);
+		const FString Path = FPaths::Combine(Directory, File);
 		Dated.Emplace(IFileManager::Get().GetTimeStamp(*Path), Path);
 	}
 	Dated.Sort([](const TPair<FDateTime, FString>& A, const TPair<FDateTime, FString>& B) { return A.Key > B.Key; });
-	for (int32 i = MaxRecent; i < Dated.Num(); ++i)
+	int32 Deleted = 0;
+	for (int32 i = Keep; i < Dated.Num(); ++i)
 	{
-		IFileManager::Get().Delete(*Dated[i].Value);
+		Deleted += IFileManager::Get().Delete(*Dated[i].Value) ? 1 : 0;
 	}
+	UE_LOG(LogApexSim, Log, TEXT("Replays in %s: %d beyond the newest %d deleted"), *Directory, Deleted, Keep);
+	return Deleted;
 }

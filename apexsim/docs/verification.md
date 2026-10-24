@@ -571,6 +571,18 @@ and the pad through the screen and the cards.
 
 Run 2026-10-24 (`n16-school-tests`): the clean lap's card, its FAILED (too slow, 1:05.411 against bronze 1:04.881) result card with RETRY / NEXT TEST / BACK TO SCHOOL, and the brake test's card for Grantig-Kehre read well.
 
+### R27. Client-recorded replays in version 2
+
+`n27c-record` (a two-lap race recorded by the client), then
+`n27c-replays-list` (the Replays screen) and `n27c-watch`
+(`-ApexWatchReplay=latest`), in that order. Look at: the recorded file in
+`Saved/Replays/Recent/` reading as version 2 (`apexsim-replay info`) and
+about half the size a version 1 recording of the race would be; each
+Replays row's size and the total on the line above the list; the replay
+playing from the start and after a seek, with no unpack error in
+client.log. Left, by hand: Settings > Gameplay > Recent replays at 10
+deleting the oldest recent replay as the next is written.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

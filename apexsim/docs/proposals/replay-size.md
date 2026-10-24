@@ -1,6 +1,6 @@
 # Smaller recorded sessions
 
-Status: phases 1 and 2 built (column blocks of ten seconds, version 2 files; docs/game/spectator.md): 6.41 MB -> 2.56 MB for 16 GT3s over 6.4 min, the shipped showcases 127 MB -> 51 MB; `scripts/replay_size.py` measures it. Phase 4's server keep limits built (`[records] keep_replays`, `keep_replays_mb`; docs/server/operations.md). Phase 3 and phase 4's client parts not built (docs/follow-ups.md, 32).
+Status: phases 1 and 2 built (column blocks of ten seconds, version 2 files; docs/game/spectator.md): 6.41 MB -> 2.56 MB for 16 GT3s over 6.4 min, the shipped showcases 127 MB -> 51 MB; `scripts/replay_size.py` measures it. Phase 4's server keep limits built (`[records] keep_replays`, `keep_replays_mb`; docs/server/operations.md). The client writes version 2 too (`apx_stream_block_pack`) and keeps its recent replays to a setting, with a size line on the Replays screen. Phase 3 and the client's packed timeshift not built (docs/follow-ups.md, 36).
 
 Every race the server finishes, every session a client is in, every
 showcase and every promo clip is a spectator stream (`.apxs`,
@@ -183,9 +183,10 @@ Smaller files do not stop a folder from growing:
   first, the `.apxs` and its `.meta.json` together, at the end of
   `Recording::finish`. Default: unlimited, so nothing changes for an
   operator who has not asked ([../server/operations.md](../server/operations.md)).
-- **Client**: `Saved/Replays/Recent/` keeps 10 (`MaxRecent`); kept replays
-  in `Saved/Replays/` have no limit. A size line on the Replays screen is
-  enough there; the player decides.
+- **Client**: `Saved/Replays/Recent/` keeps Settings > Gameplay > Recent
+  replays (every one by default); kept replays in `Saved/Replays/` have no
+  limit. The Replays screen's size line shows what they take; the player
+  decides.
 - **Timeshift**: a live stream is kept inflated up to `LiveBufferCapBytes`
   (256 MB). At the inflated rate (about 37 kB/s for 16 cars) that is two
   hours. Holding it packed by phase 1's blocks would hold ten times as much

@@ -148,6 +148,7 @@ void UApexReplaysWidget::Refresh(int32 FocusIndex)
 		TArray<FString> Parts;
 		Parts.Add(Info.When.ToString(TEXT("%Y-%m-%d %H:%M")));
 		Parts.Add(ReplayDuration(Info.Header.DurationSeconds()));
+		Parts.Add(UApexReplayRecorder::FormatBytes(Info.Bytes));
 		Parts.Add(Info.Cars == 1 ? FString(TEXT("1 car")) : FString::Printf(TEXT("%d cars"), Info.Cars));
 		if (!Info.Driver.IsEmpty())
 		{
@@ -219,7 +220,10 @@ void UApexReplaysWidget::Refresh(int32 FocusIndex)
 	}
 	if (CountText)
 	{
-		CountText->SetText(FText::FromString(FString::Printf(TEXT("%d SAVED  ·  %d RECENT  ·  %s"), Saved, Replays.Num() - Saved,
+		// What they take, all told, so the player decides what goes (recent
+		// ones are pruned by Settings > Gameplay > Recent replays).
+		CountText->SetText(FText::FromString(FString::Printf(TEXT("%d SAVED  ·  %d RECENT  ·  %s  ·  %s"), Saved, Replays.Num() - Saved,
+			*UApexReplayRecorder::FormatBytes(UApexReplayRecorder::TotalBytes(Replays)),
 			*FPaths::ConvertRelativePathToFull(UApexReplayRecorder::ReplayDirectory()))));
 	}
 	LastFocused = Rows.Num() > 0 ? FMath::Clamp(FocusIndex, 0, Rows.Num() - 1) : 0;

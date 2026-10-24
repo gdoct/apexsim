@@ -376,25 +376,16 @@ at `-ApexTimeScale=30`.
 
 ### 36. Recorded sessions on the client
 
-For: the client reading and writing the smaller version 2 stream files
-([game/spectator.md](game/spectator.md), the file).
+For: the client holding the smaller version 2 stream
+([game/spectator.md](game/spectator.md), the file and Replays).
 
-- The client's reading of version 2 files (`FApexStreamFile::ReadBlock`
-  handing a column block to `apx_stream_block_raw`, `ApexSimNet` linking
-  the `ApexPhysics` module, `ApexSim.Spectator.FileV2` against the golden
-  `FileV2`) was written without an Unreal build: compile it (with
-  `-DisableAdaptiveUnity`), rebuild the physics library (ABI 6) and run the
-  `ApexSim.Spectator` tests.
-- The client's own recorder (`FApexStreamWriter`) still writes version 1
-  (plain blocks of a second): its replays in `Saved/Replays/` stay twice
-  the size of the server's. Packing its blocks through the physics library
-  (a pack call beside `apx_stream_block_raw`) halves them.
-- Nothing bounds the client's kept replays (`Saved/Replays/`;
-  `Recent/` keeps 10): a size line on the Replays screen, so the player
-  decides.
 - A live stream's timeshift is kept inflated up to `LiveBufferCapBytes`
   (256 MB, about two hours of 16 cars); held as column blocks it would hold
-  ten times as long, at the cost of unpacking a block on a seek.
+  ten times as long, at the cost of unpacking a block on a seek. Not a
+  small change: `UApexSpectatorSubsystem` keeps `LiveRecords` /
+  `LiveTicks` record by record for its cursor, the cap's trim and every
+  seek; held packed, each of those works on blocks (pack the tail as it
+  ages past ten seconds, unpack on a seek back).
 - The lossy cuts of [proposals/replay-size.md](proposals/replay-size.md)
   phase 3 (wheel slip at a lower rate or coarser, cm poses, a second-order
   delta), each measured, the slip judged by the road sound by ear.

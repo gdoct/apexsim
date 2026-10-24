@@ -8107,3 +8107,61 @@ runs:
       - at: 340
         label: "The corner exit's result"
         checks: "N16: the medal, the exit speed and time through; the entry and exit gates on the road earlier"
+
+  # Follow-ups #36: the client's own recorder writes version 2 (column blocks
+  # of ten seconds through the physics library). Three runs in this order:
+  # a race recorded, the Replays screen's sizes, the replay played back.
+  - id: n27c-record
+    about: "R27. A race recorded by the client, as a version 2 file"
+    # Two laps with the stand-in; the file is written to Saved/Replays/Recent
+    # when the race finishes (client.log: "Replay of the session kept among
+    # the recent ones: <path>"). `apexsim-replay info <path>` should print
+    # file_version 2; apexsim.replay.List logs each file's size and the total.
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=11
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+    exec:
+      205: ["apexsim.replay.List"]
+    shots:
+      - at: 60
+        label: "the race being recorded"
+        checks: "Follow-ups #36: a race in progress (nothing to see of the recorder; the run is for its file)"
+      - at: 210
+        label: "results, the race on record"
+        checks: "Follow-ups #36: client.log has the Recent path and the apexsim.replay.List line with its size (about half of a version 1 file of the same race)"
+
+  - id: n27c-replays-list
+    about: "R27. The Replays screen: each replay's size and the total"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=9
+    shots:
+      - at: 12
+        label: "the Replays list with sizes"
+        checks: "Follow-ups #36: each row's sub-line has the file's size (KB/MB) after the duration; the line above the list reads N SAVED · N RECENT · <total> · <folder>"
+
+  - id: n27c-watch
+    about: "R27. The client-recorded replay played (-ApexWatchReplay=latest)"
+    # The newest replay on disk: n27c-record's race. client.log:
+    # "-ApexWatchReplay: <path>" and no "does not unpack" / "column block" error.
+    args:
+      - -ApexNoDemo
+      - -ApexWatchReplay=latest
+    exec:
+      30: "apexsim.watch seek 60"
+    shots:
+      - at: 20
+        label: "the replay playing from the start"
+        checks: "Follow-ups #36: the client's version 2 replay plays: the grid / start, cars moving, the timing tower"
+      - at: 40
+        label: "a minute in (sought)"
+        checks: "Follow-ups #36: after the seek the cars are where the race had them, the tower's laps and gaps sensible"

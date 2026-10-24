@@ -1,7 +1,13 @@
 #include "ApexSpectatorWriter.h"
 
+#include "ApexSimNetModule.h"
 #include "Misc/Compression.h"
 #include "MsgPack/MsgPackWriter.h"
+#include "Tasks/Task.h"
+
+// The physics library (server/ffi) packs a version 2 file's column blocks;
+// without it (WITH_APEX_PHYSICS 0) the writer writes version 1.
+#include "apexsim_physics.h"
 
 namespace
 {
@@ -353,6 +359,22 @@ namespace ApexSpectator
 
 // --- The file ---------------------------------------------------------------------
 
+bool FApexStreamWriter::CanPackColumns()
+{
+#if WITH_APEX_PHYSICS
+	static const bool bSameAbi = apx_abi_version() == APX_ABI_VERSION;
+	return bSameAbi;
+#else
+	return false;
+#endif
+}
+
+FApexStreamWriter::FApexStreamWriter(int32 InTickRate, bool bInColumns)
+	: bColumns(bInColumns && CanPackColumns())
+{
+	BlockTicks = FMath::Max(1, InTickRate) * (bColumns ? ColumnBlockSeconds : 1);
+}
+
 void FApexStreamWriter::Add(int64 Tick, TArrayView<const uint8> Body)
 {
 	if (PendingRecords > 0 && Tick >= PendingFirstTick + BlockTicks)
@@ -369,36 +391,93 @@ void FApexStreamWriter::Add(int64 Tick, TArrayView<const uint8> Body)
 	++TotalRecords;
 }
 
-FApexStreamWriter::FBlock FApexStreamWriter::Compress(int64 FirstTick, int64 LastTick, int32 Records, const TArray<uint8>& Raw)
+FApexStreamWriter::FBlock FApexStreamWriter::Pack(int64 FirstTick, int64 LastTick, int32 Records, const TArray<uint8>& Raw, bool bInColumns)
 {
 	FBlock Block;
 	Block.FirstTick = FirstTick;
 	Block.LastTick = LastTick;
 	Block.Records = Records;
-	Block.RawLen = Raw.Num();
+#if WITH_APEX_PHYSICS
+	if (bInColumns)
+	{
+		// A column block is never much larger than its records: one try in all but odd cases.
+		TArray<uint8> Body;
+		Body.SetNumUninitialized(Raw.Num() + Raw.Num() / 8 + 256);
+		size_t Written = 0;
+		ApxStatus Status = apx_stream_block_pack(Raw.GetData(), Raw.Num(), static_cast<uint32>(FirstTick), static_cast<uint32>(LastTick),
+			Body.GetData(), Body.Num(), &Written);
+		if (Status == APX_ERR_BUFFER && Written <= static_cast<size_t>(MAX_int32))
+		{
+			Body.SetNumUninitialized(static_cast<int32>(Written));
+			Status = apx_stream_block_pack(Raw.GetData(), Raw.Num(), static_cast<uint32>(FirstTick), static_cast<uint32>(LastTick),
+				Body.GetData(), Body.Num(), &Written);
+		}
+		if (Status == APX_OK)
+		{
+			Body.SetNum(static_cast<int32>(Written));
+			Block.Body = MoveTemp(Body);
+			Block.bColumns = true;
+			return Block;
+		}
+		const char* Why = apx_last_error();
+		UE_LOG(LogApexSimNet, Warning, TEXT("Stream block at tick %lld not packed by column (%d: %s); written plain"), FirstTick, Status,
+			Why ? UTF8_TO_TCHAR(Why) : TEXT(""));
+	}
+#endif
+
+	TArray<uint8> Zlib;
 	int32 Size = FCompression::CompressMemoryBound(NAME_Zlib, Raw.Num());
-	Block.Zlib.SetNumUninitialized(Size);
-	if (FCompression::CompressMemory(NAME_Zlib, Block.Zlib.GetData(), Size, Raw.GetData(), Raw.Num()))
+	Zlib.SetNumUninitialized(Size);
+	if (!FCompression::CompressMemory(NAME_Zlib, Zlib.GetData(), Size, Raw.GetData(), Raw.Num()))
 	{
-		Block.Zlib.SetNum(Size);
-	}
-	else
-	{
-		Block.Zlib.Reset();
-		Block.RawLen = 0;
 		Block.Records = 0;
+		return Block;
 	}
+	Zlib.SetNum(Size);
+	FMsgPackWriter W(Zlib.Num() + 32);
+	W.WriteArrayHeader(6);
+	W.WriteUInt(ApexSpectator::RecordBlock);
+	W.WriteUInt(static_cast<uint64>(FMath::Max<int64>(0, FirstTick)));
+	W.WriteUInt(static_cast<uint64>(FMath::Max<int64>(0, LastTick)));
+	W.WriteUInt(static_cast<uint64>(Records));
+	W.WriteUInt(static_cast<uint64>(Raw.Num()));
+	W.WriteBinary(Zlib);
+	Block.Body = MoveTemp(W.GetBuffer());
 	return Block;
+}
+
+void FApexStreamWriter::Harvest()
+{
+	int32 Done = 0;
+	while (Done < InFlight.Num() && InFlight[Done].IsCompleted())
+	{
+		FBlock& Block = Blocks.Add_GetRef(MoveTemp(InFlight[Done].GetResult()));
+		StoredBlockBytes += Block.Body.Num();
+		InFlightRawBytes -= InFlightRaw[Done];
+		++Done;
+	}
+	if (Done > 0)
+	{
+		InFlight.RemoveAt(0, Done);
+		InFlightRaw.RemoveAt(0, Done);
+	}
 }
 
 void FApexStreamWriter::Flush()
 {
+	Harvest();
 	if (PendingRecords == 0)
 	{
 		return;
 	}
-	FBlock& Block = Blocks.Add_GetRef(Compress(PendingFirstTick, PendingLastTick, PendingRecords, PendingRaw));
-	StoredBlockBytes += Block.Zlib.Num();
+	// Packing ten seconds by column takes milliseconds: not on the game thread.
+	InFlightRaw.Add(PendingRaw.Num());
+	InFlightRawBytes += PendingRaw.Num();
+	InFlight.Add(UE::Tasks::Launch(TEXT("ApexStreamBlockPack"),
+		[First = PendingFirstTick, Last = PendingLastTick, Records = PendingRecords, Raw = MoveTemp(PendingRaw), bPackColumns = bColumns]()
+		{
+			return Pack(First, Last, Records, Raw, bPackColumns);
+		}));
 	PendingRaw.Reset();
 	PendingRecords = 0;
 }
@@ -406,11 +485,31 @@ void FApexStreamWriter::Flush()
 TArray<uint8> FApexStreamWriter::ToBytes(const FApexStreamHeader& Header, const FApexStreamRoster& Roster,
 	const FApexStreamPath* Path, TConstArrayView<FApexStreamEvent> Preamble) const
 {
+	// Every block in order: the packed, those still packing (waited for), the open one.
+	TArray<const FBlock*> All;
+	All.Reserve(Blocks.Num() + InFlight.Num() + 1);
+	for (const FBlock& Block : Blocks)
+	{
+		All.Add(&Block);
+	}
+	for (UE::Tasks::TTask<FBlock>& Task : InFlight)
+	{
+		All.Add(&Task.GetResult());
+	}
+	FBlock Open;
+	if (PendingRecords > 0)
+	{
+		Open = Pack(PendingFirstTick, PendingLastTick, PendingRecords, PendingRaw, bColumns);
+		All.Add(&Open);
+	}
+	const bool bAnyColumns = All.ContainsByPredicate([](const FBlock* Block) { return Block->bColumns && Block->Records > 0; });
+	const uint16 Version = bAnyColumns ? 2 : 1;
+
 	TArray<uint8> Out;
 	Out.Reserve(StoredBytes() + 4096);
 	Out.Append(reinterpret_cast<const uint8*>("APXS"), 4);
-	Out.Add(static_cast<uint8>(ApexSpectator::FileVersion >> 8));
-	Out.Add(static_cast<uint8>(ApexSpectator::FileVersion & 0xFF));
+	Out.Add(static_cast<uint8>(Version >> 8));
+	Out.Add(static_cast<uint8>(Version & 0xFF));
 	Out.Append(Framed(ApexSpectator::EncodeHeader(Header)));
 	Out.Append(Framed(ApexSpectator::EncodeRoster(Roster)));
 	if (Path)
@@ -427,33 +526,17 @@ TArray<uint8> FApexStreamWriter::ToBytes(const FApexStreamHeader& Header, const 
 	}
 
 	TArray<FApexStreamIndexEntry> Index;
-	auto AppendBlock = [&Out, &Index](const FBlock& Block)
+	for (const FBlock* Block : All)
 	{
-		if (Block.Records == 0)
+		if (Block->Records == 0)
 		{
-			return;
+			continue;
 		}
 		FApexStreamIndexEntry& Entry = Index.AddDefaulted_GetRef();
-		Entry.FirstTick = Block.FirstTick;
+		Entry.FirstTick = Block->FirstTick;
 		Entry.Offset = Out.Num();
-		Entry.Records = Block.Records;
-		FMsgPackWriter W(Block.Zlib.Num() + 32);
-		W.WriteArrayHeader(6);
-		W.WriteUInt(ApexSpectator::RecordBlock);
-		W.WriteUInt(static_cast<uint64>(FMath::Max<int64>(0, Block.FirstTick)));
-		W.WriteUInt(static_cast<uint64>(FMath::Max<int64>(0, Block.LastTick)));
-		W.WriteUInt(static_cast<uint64>(Block.Records));
-		W.WriteUInt(static_cast<uint64>(Block.RawLen));
-		W.WriteBinary(Block.Zlib);
-		Out.Append(Framed(W.GetBuffer()));
-	};
-	for (const FBlock& Block : Blocks)
-	{
-		AppendBlock(Block);
-	}
-	if (PendingRecords > 0)
-	{
-		AppendBlock(Compress(PendingFirstTick, PendingLastTick, PendingRecords, PendingRaw));
+		Entry.Records = Block->Records;
+		ApexSpectator::AppendFramed(Out, Block->Body);
 	}
 
 	const uint64 IndexOffset = static_cast<uint64>(Out.Num());
@@ -478,7 +561,11 @@ TArray<uint8> FApexStreamWriter::ToBytes(const FApexStreamHeader& Header, const 
 
 void FApexStreamWriter::Reset()
 {
+	// A block still packing owns its records: it finishes on its own and is dropped.
 	Blocks.Reset();
+	InFlight.Reset();
+	InFlightRaw.Reset();
+	InFlightRawBytes = 0;
 	PendingRaw.Reset();
 	PendingFirstTick = 0;
 	PendingLastTick = 0;

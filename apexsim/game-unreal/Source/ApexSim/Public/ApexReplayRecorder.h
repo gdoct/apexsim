@@ -33,12 +33,15 @@ struct APEXSIM_API FApexReplayInfo
  * What is recorded is what the client received: every car's telemetry,
  * thinned to every other frame (30 Hz from a 60 Hz broadcast), the roster,
  * the lap timing and the session's state, written as the server's own
- * records (`FApexStreamCarRow::FromTelemetry`) and compressed a second at a
- * time, so an hour of a full grid is tens of megabytes. Time with every car
- * parked in its hotlap garage is cut out.
+ * records (`FApexStreamCarRow::FromTelemetry`) and packed ten seconds at a
+ * time by column (a version 2 file, as the server writes; version 1 without
+ * the physics library: FApexStreamWriter), so an hour of a full grid is a
+ * few tens of megabytes. Time with every car parked in its hotlap garage is
+ * cut out.
  *
  * When a session ends (left, finished, disconnected) what was recorded is
- * written to `Saved/Replays/Recent/` (the newest MaxRecent kept); SaveReplay
+ * written to `Saved/Replays/Recent/` (the newest Settings > Gameplay > Recent
+ * replays kept, every one by default: PruneRecent); SaveReplay
  * (the pause menu, the hotlap garage, `apexsim.replay.Save`) writes it to
  * `Saved/Replays/` for good, as does Keep for a recent one.
  */
@@ -88,6 +91,19 @@ public:
 	static FString RecentDirectory();
 	/** Every replay on disk, newest first, kept ones before recent ones. */
 	static TArray<FApexReplayInfo> ListReplays();
+	/** The bytes of Replays, all together: the Replays screen's size line. */
+	static int64 TotalBytes(const TArray<FApexReplayInfo>& Replays);
+	/** "640 KB", "2.6 MB", "1.24 GB". */
+	static FString FormatBytes(int64 Bytes);
+	/**
+	 * Delete the oldest recent replays (by modification time) beyond Keep,
+	 * never the newest; Keep 0 keeps every one. The setting is
+	 * UApexSettingsSave::KeepRecentReplays, as the server's
+	 * `[records] keep_replays`. Returns how many went.
+	 */
+	static int32 PruneRecent(int32 Keep);
+	/** PruneRecent's rule on any folder's `.apxs` files. */
+	static int32 PruneOldest(const FString& Directory, int32 Keep);
 	/** Move a recent replay into the kept ones. */
 	static bool KeepReplay(const FString& Path, FString& OutNewPath);
 	static bool DeleteReplay(const FString& Path);
@@ -102,8 +118,6 @@ public:
 	/** "2026-10-03 14.05 Zandervoort Hotlap": a file name from what the replay is. */
 	static FString MakeReplayName(const FDateTime& When, const FString& Track, EApexGameMode Mode);
 
-	/** Recent replays kept before the oldest goes. */
-	static constexpr int32 MaxRecent = 10;
 	/** Shorter than this is not worth a file. */
 	static constexpr double MinSeconds = 10.0;
 	/** A recording stops growing past this much compressed data. */
@@ -135,7 +149,6 @@ private:
 	/** The file's bytes for what is on record. */
 	bool BuildFile(TArray<uint8>& OutBytes, FApexStreamHeader& OutHeader, FString& OutError) const;
 	FApexStreamRoster MakeRoster(const FApexSessionRoster& Roster, int32 Revision) const;
-	static void PruneRecent();
 
 	bool bRecording = false;
 	FApexStreamWriter Writer;
