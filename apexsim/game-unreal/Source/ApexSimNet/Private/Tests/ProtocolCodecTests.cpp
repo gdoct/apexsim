@@ -1545,6 +1545,15 @@ bool FApexProtocolLobbyStateDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("it has a site"), Track.bHasSite);
 			TestTrue(TEXT("its latitude"), FMath::IsNearlyEqual(Track.LatitudeDeg, 52.0786f, 1e-4f));
 			TestTrue(TEXT("its longitude"), FMath::IsNearlyEqual(Track.LongitudeDeg, -1.0169f, 1e-4f));
+			TestEqual(TEXT("on the sea when it does not say"), Track.AltitudeM, 0.0f);
+		}
+		FApexServerMessage High;
+		if (TestTrue(TEXT("a lobby with a track's height decodes"),
+				ApexProtocol::DecodeServerMessage(ApexGolden::S_LobbyStateTrackSiteAltitude, High, Error))
+			&& TestEqual(TEXT("one track"), High.LobbyState.TrackConfigs.Num(), 1))
+		{
+			TestTrue(TEXT("its site"), High.LobbyState.TrackConfigs[0].bHasSite);
+			TestEqual(TEXT("its height"), High.LobbyState.TrackConfigs[0].AltitudeM, 2240.0f);
 		}
 	}
 

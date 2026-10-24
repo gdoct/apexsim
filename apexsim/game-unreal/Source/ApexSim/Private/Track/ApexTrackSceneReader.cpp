@@ -430,6 +430,10 @@ bool FApexTrackSceneReader::LoadHeader(const FString& Path, FApexTrackSceneHeade
 			{
 				Header.LongitudeDeg = static_cast<float>(Value);
 			}
+			else if (Id == TEXT("altitude_m"))
+			{
+				Header.AltitudeM = static_cast<float>(Value);
+			}
 			continue;
 		}
 		if (Depth != 1)

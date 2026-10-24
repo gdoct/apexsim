@@ -300,6 +300,9 @@ async fn build_lobby_state_with(ctx: &GameLoopCtx, snapshot: LobbySnapshot) -> S
                 .collect(), // Send every 10th point
             latitude_deg: t.site().map(|s| s.0),
             longitude_deg: t.site().map(|s| s.1),
+            altitude_m: t
+                .site()
+                .and_then(|_| t.metadata.altitude_m.filter(|a| a.is_finite() && *a != 0.0)),
         })
         .collect();
 

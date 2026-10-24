@@ -715,6 +715,10 @@ struct APEXSIM_API FApexTrackCatalogRow : public FTableRowBase
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
 	float LongitudeDeg = 0.0f;
+
+	/** `metadata.altitude_m` of its export: the height above the sea, metres (0 when it does not say). */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Track")
+	float AltitudeM = 0.0f;
 };
 
 namespace ApexCatalog

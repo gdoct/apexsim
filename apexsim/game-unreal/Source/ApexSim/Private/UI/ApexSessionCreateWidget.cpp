@@ -2705,19 +2705,19 @@ void UApexSessionCreateWidget::RefreshSettings()
 		// The forecast as the server will follow it: the host's written one
 		// (kept to its sky, as the server keeps it), else the one laid out
 		// from the seed, over the circuit in the date's season.
-		float Latitude = ApexSky::DefaultLatitudeDeg;
-		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
+		ApexCreateSession::FClimateSite Site;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Site);
 		if (ForecastText)
 		{
 			FString Line;
 			if (AtSite.HasForecast())
 			{
-				const TArray<FApexForecastStep> Kept = ApexCreateSession::KeptToSky(AtSite, Latitude);
+				const TArray<FApexForecastStep> Kept = ApexCreateSession::KeptToSky(AtSite, Site);
 				Line = FString::Printf(TEXT("Written: %s"), *ApexCreateSession::ForecastLine(AtSite, ApexCreateSession::WrittenForecast(Kept),
 					FApexSessionConditions::MaxForecastSteps));
 				if (Kept != AtSite.Forecast)
 				{
-					Line += ApexCreateSession::IsWinter(AtSite, Latitude)
+					Line += ApexCreateSession::IsWinter(AtSite, Site)
 						? TEXT("  (a winter sky: its rain falls as snow)") : TEXT("  (no winter sky: its snow falls as rain)");
 				}
 			}
@@ -2732,7 +2732,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 			}
 			else
 			{
-				Line = ApexCreateSession::ForecastLine(AtSite, ApexCreateSession::Forecast(AtSite, AtSite.SkySeed, Latitude));
+				Line = ApexCreateSession::ForecastLine(AtSite, ApexCreateSession::Forecast(AtSite, AtSite.SkySeed, Site));
 				if (Line.IsEmpty())
 				{
 					Line = TEXT("No change through the day.");
@@ -2780,8 +2780,8 @@ void UApexSessionCreateWidget::RefreshSettings()
 	}
 
 	{
-		float AirLatitude = ApexSky::DefaultLatitudeDeg;
-		const int32 Air = ApexCreateSession::AirTempC(ConditionsAtSite(AirLatitude), AirLatitude);
+		ApexCreateSession::FClimateSite AirSite;
+		const int32 Air = ApexCreateSession::AirTempC(ConditionsAtSite(AirSite), AirSite);
 		if (AirAutoButton) { AirAutoButton->SetSelected(!Conditions.HasAirTemp()); }
 		if (AirValueText)  { AirValueText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), Air))); }
 		if (AirNoteText)
@@ -3074,9 +3074,9 @@ void UApexSessionCreateWidget::RefreshGridPreview()
 	}
 }
 
-FApexSessionConditions UApexSessionCreateWidget::ConditionsAtSite(float& OutLatitudeDeg) const
+FApexSessionConditions UApexSessionCreateWidget::ConditionsAtSite(ApexCreateSession::FClimateSite& OutSite) const
 {
-	OutLatitudeDeg = ApexSky::DefaultLatitudeDeg;
+	OutSite = ApexCreateSession::FClimateSite();
 	const UApexMenuFlowSubsystem* Flow = GetFlow();
 	if (!Flow)
 	{
@@ -3087,14 +3087,17 @@ FApexSessionConditions UApexSessionCreateWidget::ConditionsAtSite(float& OutLati
 	FApexTrackCatalogRow Row;
 	if (Flow->GetTrackCatalogRow(TrackId, Row) && Row.bHasLocation)
 	{
-		OutLatitudeDeg = Row.LatitudeDeg;
+		OutSite = Row.bHasGlobePosition
+			? ApexCreateSession::FClimateSite(Row.LatitudeDeg, Row.LongitudeDeg, Row.AltitudeM)
+			: ApexCreateSession::FClimateSite(Row.LatitudeDeg);
 	}
 	const UApexNetSubsystem* Net = GetNet();
 	const FApexTrackConfigSummary* Site = Net ? Net->GetCachedLobbyState().TrackConfigs.FindByPredicate(
 		[&TrackId](const FApexTrackConfigSummary& Track) { return Track.bHasSite && Track.Id.Equals(TrackId, ESearchCase::IgnoreCase); }) : nullptr;
 	if (Site)
 	{
-		OutLatitudeDeg = Site->LatitudeDeg;
+		// The server's site wins: the climate its session's air is resolved in.
+		OutSite = ApexCreateSession::FClimateSite(Site->LatitudeDeg, Site->LongitudeDeg, Site->AltitudeM);
 		C.SolarNoonMin = ApexSky::SolarNoonMinutes(Site->LatitudeDeg, Site->LongitudeDeg, C.HasDate() ? C.DayOfYear : ApexSky::ModelDayOfYear);
 	}
 	return C;
@@ -3108,9 +3111,9 @@ void UApexSessionCreateWidget::RefreshSkyPreview()
 		return;
 	}
 
-	float Latitude = ApexSky::DefaultLatitudeDeg;
-	const FApexSessionConditions C = ConditionsAtSite(Latitude);
-	const ApexCreateSession::FSkyLook Look = ApexCreateSession::Sky(C, Latitude);
+	ApexCreateSession::FClimateSite Site;
+	const FApexSessionConditions C = ConditionsAtSite(Site);
+	const ApexCreateSession::FSkyLook Look = ApexCreateSession::Sky(C, Site.LatitudeDeg);
 
 	const int32 Day = C.HasDate() ? C.DayOfYear : -1;
 	if (DateValue) { DateValue->SetText(FText::FromString(ApexCreateSession::DateLabel(Day))); }
@@ -3156,8 +3159,8 @@ void UApexSessionCreateWidget::RefreshSkyPreview()
 	}
 
 	const int32 Grip = ApexCreateSession::GripPercent(C.Weather);
-	if (SkyAirText)   { SkyAirText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), ApexCreateSession::AirTempC(C, Latitude)))); }
-	if (SkyTrackText) { SkyTrackText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), FMath::RoundToInt(ApexCreateSession::TrackTempC(C, Latitude))))); }
+	if (SkyAirText)   { SkyAirText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), ApexCreateSession::AirTempC(C, Site)))); }
+	if (SkyTrackText) { SkyTrackText->SetText(FText::FromString(FString::Printf(TEXT("%d °C"), FMath::RoundToInt(ApexCreateSession::TrackTempC(C, Site))))); }
 	if (SkyGripText)
 	{
 		SkyGripText->SetText(FText::FromString(FString::Printf(TEXT("%d %%"), Grip)));
@@ -4402,18 +4405,18 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		// Off auto, the figure starts at what auto would have said.
 		FApexSessionConditions& C = Flow->CreateConditions;
-		float Latitude = ApexSky::DefaultLatitudeDeg;
-		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
-		C.AirTempC = C.HasAirTemp() ? FApexSessionConditions::AutoAirTemp : ApexCreateSession::AirTempC(AtSite, Latitude);
+		ApexCreateSession::FClimateSite Site;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Site);
+		C.AirTempC = C.HasAirTemp() ? FApexSessionConditions::AutoAirTemp : ApexCreateSession::AirTempC(AtSite, Site);
 		Changed();
 		return;
 	}
 	if (Button == AirMinus || Button == AirPlus)
 	{
 		FApexSessionConditions& C = Flow->CreateConditions;
-		float Latitude = ApexSky::DefaultLatitudeDeg;
-		const FApexSessionConditions AtSite = ConditionsAtSite(Latitude);
-		C.AirTempC = FMath::Clamp(ApexCreateSession::AirTempC(AtSite, Latitude) + (Button == AirPlus ? 1 : -1),
+		ApexCreateSession::FClimateSite Site;
+		const FApexSessionConditions AtSite = ConditionsAtSite(Site);
+		C.AirTempC = FMath::Clamp(ApexCreateSession::AirTempC(AtSite, Site) + (Button == AirPlus ? 1 : -1),
 			FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC);
 		Changed();
 		return;

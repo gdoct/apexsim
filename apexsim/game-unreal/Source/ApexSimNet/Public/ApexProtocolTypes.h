@@ -1886,6 +1886,9 @@ struct APEXSIMNET_API FApexTrackConfigSummary
 	float LatitudeDeg = 0.0f;
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
 	float LongitudeDeg = 0.0f;
+	/** Its height above the sea, metres (`AltitudeM`, sent with the site off sea level; 0 otherwise). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Lobby")
+	float AltitudeM = 0.0f;
 };
 
 /** `LobbyStateData` (network.rs:174) — PascalCase keys. */

@@ -298,6 +298,77 @@ pub fn visibility_m(fog: f32) -> f32 {
 mod tests {
     use super::*;
 
+    /// The client's `ApexSim.UI.CreateSession.SeasonAir` figures, printed
+    /// from the server's own functions: weather, minutes, latitude,
+    /// longitude (NaN none), height, day (-1 none), solar noon (-1 none),
+    /// then `auto_air_temperature_c_at`, `resolve_at`'s air,
+    /// `snow_air_drop_c` and `is_winter` of the resolved conditions.
+    /// `cargo test --lib client_season_air_figures -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn client_season_air_figures() {
+        use crate::data::{SessionConditions, Weather};
+        let sites = [
+            ClimateSite::from(52.07),
+            ClimateSite::from(-37.85),
+            ClimateSite::from(50.0),
+            // Silverstone, Albert Park, Mexico City up its plateau, Bahrain.
+            ClimateSite {
+                latitude_deg: 52.07,
+                longitude_deg: Some(-1.02),
+                altitude_m: 150.0,
+            },
+            ClimateSite {
+                latitude_deg: -37.85,
+                longitude_deg: Some(144.97),
+                altitude_m: 0.0,
+            },
+            ClimateSite {
+                latitude_deg: 19.40,
+                longitude_deg: Some(-99.09),
+                altitude_m: 2240.0,
+            },
+            ClimateSite {
+                latitude_deg: 26.03,
+                longitude_deg: Some(50.51),
+                altitude_m: 0.0,
+            },
+        ];
+        for weather in [Weather::Sunny, Weather::HeavyRain, Weather::Snow] {
+            for minutes in [240u16, 900] {
+                for site in sites {
+                    for day in [None, Some(15u16), Some(196)] {
+                        for noon in [None, Some(726u16)] {
+                            let c = SessionConditions {
+                                weather,
+                                time_of_day_minutes: minutes,
+                                day_of_year: day,
+                                solar_noon_min: noon,
+                                ..Default::default()
+                            };
+                            let resolved = c.resolve_at(0, site);
+                            println!(
+                                "\t\t{{{}, {}, {:.2}f, {}f, {:.1}f, {}, {}, {:.4}f, {}, {:.4}f, {}}},",
+                                weather as u8,
+                                minutes,
+                                site.latitude_deg,
+                                site.longitude_deg
+                                    .map_or("NAN".to_string(), |l| format!("{l:.2}")),
+                                site.altitude_m,
+                                day.map_or(-1, i32::from),
+                                noon.map_or(-1, i32::from),
+                                c.auto_air_temperature_c_at(site),
+                                resolved.air_temp_c.unwrap_or(0),
+                                c.snow_air_drop_c(site),
+                                crate::conditions::is_winter(&resolved),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// The dew point against the tables; dew on a still clear night and
     /// none by day or in a breeze; fog only near saturation.
     #[test]

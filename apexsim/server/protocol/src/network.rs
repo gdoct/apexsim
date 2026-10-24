@@ -1529,6 +1529,12 @@ pub struct TrackConfigSummary {
     pub latitude_deg: Option<f32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub longitude_deg: Option<f32>,
+    /// The circuit's height above the sea, metres, with its site and when
+    /// its metadata names a height off sea level: what a dated session's air
+    /// is lowered by (`climate::LAPSE_C_PER_KM`), so the create screen's
+    /// preview reads the air the session will. Left off the wire otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub altitude_m: Option<f32>,
 }
 
 // --- Compact Telemetry ---
@@ -4189,6 +4195,7 @@ mod tests {
             centerline: vec![],
             latitude_deg: site.map(|s| s.0),
             longitude_deg: site.map(|s| s.1),
+            altitude_m: None,
         };
         let lobby = |t| {
             ServerMessage::LobbyState(LobbyStateData {
@@ -4221,6 +4228,23 @@ mod tests {
         }
         let none = rmp_serde::to_vec_named(&lobby(track(None))).unwrap();
         assert!(!String::from_utf8_lossy(&none).contains("LongitudeDeg"));
+        // A circuit up a mountain lists its height too
+        // (`ApexGolden::S_LobbyStateTrackSiteAltitude`).
+        let mut high = track(Some((19.4042, -99.0907)));
+        high.altitude_m = Some(2240.0);
+        let bytes = rmp_serde::to_vec_named(&lobby(high)).unwrap();
+        println!(
+            "S_LobbyStateTrackSiteAltitude: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::LobbyState(l) => assert_eq!(l.track_configs[0].altitude_m, Some(2240.0)),
+            _ => panic!("wrong message type"),
+        }
     }
 
     /// The lobby summaries carry each content file's checksum, and a client
@@ -4264,6 +4288,7 @@ mod tests {
                 centerline: vec![],
                 latitude_deg: None,
                 longitude_deg: None,
+                altitude_m: None,
             }],
             showcase_available: true,
             live_stream: true,

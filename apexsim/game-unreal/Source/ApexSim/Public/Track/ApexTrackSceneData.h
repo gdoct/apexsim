@@ -200,6 +200,8 @@ struct FApexTrackSceneHeader
 	TOptional<float> NorthYawDeg;
 	/** `metadata.longitude_deg` (degrees east): with the latitude, the circuit's pin on the menu's globe. */
 	TOptional<float> LongitudeDeg;
+	/** `metadata.altitude_m`: the circuit's height above the sea, metres, when the track names one. */
+	TOptional<float> AltitudeM;
 	/** Version 2: the mesh blob's file name, beside the manifest. */
 	FString MeshBlob;
 	/** Version 3: which importer wrote the export whole (`ac`); empty for a generated circuit. */

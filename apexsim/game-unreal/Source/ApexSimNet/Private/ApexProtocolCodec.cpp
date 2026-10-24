@@ -432,6 +432,10 @@ namespace
 				bOk = Reader.ReadFloat(Out.LongitudeDeg);
 				Out.bHasSite = bOk && FMath::IsFinite(Out.LongitudeDeg);
 			}
+			else if (Key == TEXT("AltitudeM"))
+			{
+				bOk = Reader.ReadFloat(Out.AltitudeM);
+			}
 			else if (Key == TEXT("Centerline"))
 			{
 				if (!ApexProtocol::ShouldParseCenterline())

@@ -291,6 +291,10 @@ pub struct UeMetadata {
     /// pin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub longitude_deg: Option<f32>,
+    /// Height above the sea, metres, when the track names one: what the
+    /// create screen lowers a dated session's air by, as the server does.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub altitude_m: Option<f32>,
 }
 
 /// How a material key should look. The commandlet generates one material
@@ -1333,6 +1337,7 @@ pub fn bake_all_with_options(
             latitude_deg: m.latitude_deg,
             north_yaw_deg: None,
             longitude_deg: m.longitude_deg,
+            altitude_m: m.altitude_m.filter(|a| a.is_finite()),
         })
         .unwrap_or_default();
     let georef = dem.and_then(|d| d.georef.as_ref());

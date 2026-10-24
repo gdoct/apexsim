@@ -17,6 +17,7 @@ class UTextBlock;
 class UHorizontalBox;
 class UApexSettingsSubsystem;
 class UVerticalBox;
+namespace ApexCreateSession { struct FClimateSite; }
 class UTexture2D;
 class UWidget;
 
@@ -127,7 +128,7 @@ private:
 	 * else the catalog row's). Only the preview reads these; a create never
 	 * sends a solar noon.
 	 */
-	FApexSessionConditions ConditionsAtSite(float& OutLatitudeDeg) const;
+	FApexSessionConditions ConditionsAtSite(ApexCreateSession::FClimateSite& OutSite) const;
 	void RefreshFooter();
 
 	/** Every control focus could land on now: the open tab's, the header's, the footer's. */

@@ -307,16 +307,130 @@ namespace ApexCreateSession
 		return 0.5f * Range * FMath::Cos(Phase);
 	}
 
-	/** `SessionConditions::season_offset_c`: how much warmer the date's season
-	 * makes the air than the model day's; exactly 0 with no date. */
-	inline float SeasonOffsetC(const FApexSessionConditions& C, float LatitudeDeg)
+	/**
+	 * `climate::ClimateSite`: where a circuit is as its weather sees it, its
+	 * latitude, its longitude when the track names one, its height. A bare
+	 * latitude is a site on the sea with the reference's climate.
+	 */
+	struct FClimateSite
+	{
+		float LatitudeDeg = ApexSky::DefaultLatitudeDeg;
+		bool bHasLongitude = false;
+		float LongitudeDeg = 0.0f;
+		float AltitudeM = 0.0f;
+
+		FClimateSite() = default;
+		FClimateSite(float InLatitudeDeg) : LatitudeDeg(InLatitudeDeg) {}
+		FClimateSite(float InLatitudeDeg, float InLongitudeDeg, float InAltitudeM)
+			: LatitudeDeg(InLatitudeDeg), bHasLongitude(true), LongitudeDeg(InLongitudeDeg), AltitudeM(InAltitudeM) {}
+	};
+
+	/** `climate::Climate`: a region's annual range over its latitude's, its mean over the latitude's, its wet season's share. */
+	struct FClimate
+	{
+		float RangeFactor = 1.0f;
+		float MeanOffsetC = 0.0f;
+		float WetSeason = 1.0f;
+	};
+
+	/** `climate::EQUATOR_MEAN_C`, `MEAN_DROP_AT_50_C`, `LAPSE_C_PER_KM`. */
+	constexpr float EquatorMeanC = 27.0f;
+	constexpr float MeanDropAt50C = 17.0f;
+	constexpr float LapseCPerKm = 5.0f;
+
+	/** `climate::sea_level_mean_c`: the annual mean at sea level over a latitude. */
+	inline float SeaLevelMeanC(float LatitudeDeg)
+	{
+		const float X = FMath::Min(FMath::Abs(LatitudeDeg), 90.0f) / 50.0f;
+		return EquatorMeanC - MeanDropAt50C * X * X;
+	}
+
+	/** `climate::climate_of`: the coarse map of where racing happens; the reference's without a longitude. */
+	inline FClimate ClimateOf(const FClimateSite& Site)
+	{
+		if (!Site.bHasLongitude || !FMath::IsFinite(Site.LongitudeDeg))
+		{
+			return FClimate();
+		}
+		const float Lat = Site.LatitudeDeg;
+		const float Lon = Site.LongitudeDeg;
+		auto Within = [](float Lo, float Hi, float V) { return V >= Lo && V < Hi; };
+		auto Region = [](float Range, float Mean, float Wet) { return FClimate{Range, Mean, Wet}; };
+		if ((Within(35.0f, 44.5f, Lat) && Within(-11.0f, -6.5f, Lon)) || (Within(44.5f, 62.0f, Lat) && Within(-11.0f, 7.0f, Lon)))
+		{
+			return Region(0.7f, 1.5f, 1.0f);   // the Atlantic edge of Europe
+		}
+		if (Within(35.0f, 44.5f, Lat) && Within(-6.5f, 26.0f, Lon))
+		{
+			return Region(1.15f, 0.0f, 1.0f);  // the Mediterranean
+		}
+		if (Within(44.5f, 62.0f, Lat) && Within(7.0f, 40.0f, Lon))
+		{
+			return Region(1.2f, 0.0f, 1.0f);   // central and eastern Europe
+		}
+		if (Within(12.0f, 32.0f, Lat) && Within(34.0f, 60.0f, Lon))
+		{
+			return Region(1.8f, 4.0f, 0.0f);   // the Gulf and Arabia
+		}
+		if (Within(32.0f, 45.0f, Lat) && Within(26.0f, 60.0f, Lon))
+		{
+			return Region(1.4f, -2.0f, 1.0f);  // Anatolia and the Caspian
+		}
+		if (Within(20.0f, 55.0f, Lat) && Within(100.0f, 146.0f, Lon))
+		{
+			return Region(1.8f, -3.0f, 1.0f);  // East Asia under the winter monsoon
+		}
+		if (Within(24.0f, 31.0f, Lat) && Within(-88.0f, -79.0f, Lon))
+		{
+			return Region(1.15f, 0.0f, 1.0f);  // Florida
+		}
+		if (Within(25.0f, 60.0f, Lat) && Within(-105.0f, -52.0f, Lon))
+		{
+			return Region(1.7f, -0.4f * FMath::Max(Lat - 30.0f, 0.0f), 1.0f);  // North America east of the Rockies
+		}
+		if (Within(30.0f, 50.0f, Lat) && Within(-125.0f, -117.0f, Lon))
+		{
+			return Region(0.7f, -2.0f, 1.0f);  // the Pacific coast
+		}
+		if (Within(30.0f, 50.0f, Lat) && Within(-117.0f, -105.0f, Lon))
+		{
+			return Region(1.8f, 0.0f, 1.0f);   // the interior west
+		}
+		if (FMath::Abs(Lat) < 25.0f)
+		{
+			return Region(0.6f, 0.0f, 1.0f);   // the rest of the tropics
+		}
+		if (Lat < -25.0f)
+		{
+			return Region(0.8f, 0.0f, 1.0f);   // the southern mid-latitudes
+		}
+		return FClimate();
+	}
+
+	/** `climate::season_c`: the season's air on `Day` against the year's mean, scaled by the climate's range. */
+	inline float SeasonC(int32 Day, const FClimateSite& Site)
+	{
+		return ClimateOf(Site).RangeFactor * SeasonAirC(Day, Site.LatitudeDeg);
+	}
+
+	/** `climate::mean_air_c`: the latitude's sea-level mean, the region's offset, the season, the lapse with height. */
+	inline float MeanAirC(int32 Day, const FClimateSite& Site)
+	{
+		return SeaLevelMeanC(Site.LatitudeDeg) + ClimateOf(Site).MeanOffsetC + SeasonC(Day, Site)
+			- LapseCPerKm * FMath::Max(Site.AltitudeM, 0.0f) / 1000.0f;
+	}
+
+	/** `SessionConditions::climate_offset_c`: how much warmer the date at a
+	 * site is than the reference day the weather's own air is filed at (the
+	 * model day at 50 N on the sea); exactly 0 with no date. */
+	inline float ClimateOffsetC(const FApexSessionConditions& C, const FClimateSite& Site)
 	{
 		if (!C.HasDate())
 		{
 			return 0.0f;
 		}
 		const int32 Day = FMath::Clamp(C.DayOfYear, 1, FApexSessionConditions::DaysPerYear);
-		return SeasonAirC(Day, LatitudeDeg) - SeasonAirC(ApexSky::ModelDayOfYear, LatitudeDeg);
+		return MeanAirC(Day, Site) - MeanAirC(ApexSky::ModelDayOfYear, FClimateSite());
 	}
 
 	/** `SessionConditions::auto_air_temperature_c`: 13 °C before dawn to 23 °C
@@ -347,38 +461,41 @@ namespace ApexCreateSession
 	}
 
 	/** `SessionConditions::auto_air_temperature_c_at`: the model day's air
-	 * moved by the date's season over a circuit `LatitudeDeg` north. Snow's
-	 * own air is the same near freezing in any month. */
-	inline float AutoAirTempCAt(const FApexSessionConditions& C, float LatitudeDeg)
+	 * moved to the date in the circuit's climate (ClimateOffsetC). Snow's
+	 * own air is the same near freezing in any month and place. */
+	inline float AutoAirTempCAt(const FApexSessionConditions& C, const FClimateSite& Site)
 	{
 		const float Own = AutoAirTempC(C);
-		return C.IsSnow() ? Own : Own + SeasonOffsetC(C, LatitudeDeg);
+		return C.IsSnow() ? Own : Own + ClimateOffsetC(C, Site);
 	}
 
 	/** `SessionConditions::snow_air_drop_c`: how far snow's air lies under
-	 * overcast's in the date's season (the snow line), never under 0. */
-	inline float SnowAirDropC(const FApexSessionConditions& C, float LatitudeDeg)
+	 * overcast's on the date at the site (the snow line), never under 0. */
+	inline float SnowAirDropC(const FApexSessionConditions& C, const FClimateSite& Site)
 	{
-		return FMath::Max(SnowAirDropBaseC + SeasonOffsetC(C, LatitudeDeg), 0.0f);
+		return FMath::Max(SnowAirDropBaseC + ClimateOffsetC(C, Site), 0.0f);
 	}
 
-	/** The air in whole degrees as the server resolves it over a circuit
-	 * `LatitudeDeg` north (`resolve_at`): the host's figure, else the
-	 * weather's in the date's season (Rust's `round`, half away from zero,
-	 * as `RoundHalfFromZero`). The latitude only matters with a date. */
-	inline int32 AirTempC(const FApexSessionConditions& C, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	/** The air in whole degrees as the server resolves it over a circuit at
+	 * `Site` (`resolve_at`): the host's figure, else the weather's on the
+	 * date in the circuit's climate (Rust's `round`, half away from zero, as
+	 * `RoundHalfFromZero`, held to the host's range). The site only matters
+	 * with a date. */
+	inline int32 AirTempC(const FApexSessionConditions& C, const FClimateSite& Site = FClimateSite())
 	{
 		return C.HasAirTemp()
 			? FMath::Clamp(C.AirTempC, FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC)
-			: static_cast<int32>(FMath::RoundHalfFromZero(AutoAirTempCAt(C, LatitudeDeg)));
+			: FMath::Clamp(static_cast<int32>(FMath::RoundHalfFromZero(AutoAirTempCAt(C, Site))),
+				FApexSessionConditions::MinAirTempC, FApexSessionConditions::MaxAirTempC);
 	}
 
 	/** `SessionConditions::track_temperature_c_at`: the air plus up to 20 °C
 	 * of sun through the cloud, under the circuit's sun on the session's
 	 * date; a wet track a degree under the air. */
-	inline float TrackTempC(const FApexSessionConditions& C, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	inline float TrackTempC(const FApexSessionConditions& C, const FClimateSite& Site = FClimateSite())
 	{
-		const float Air = static_cast<float>(AirTempC(C, LatitudeDeg));
+		const float LatitudeDeg = Site.LatitudeDeg;
+		const float Air = static_cast<float>(AirTempC(C, Site));
 		if (C.IsWet() || C.IsSnow())
 		{
 			return Air - 1.0f;
@@ -512,14 +629,14 @@ namespace ApexCreateSession
 	constexpr int32 ForecastMaxChanges = 400;
 
 	/** `conditions::is_winter`: snow, or overcast with the air under WinterBelowC
-	 * (the air as the server resolves it over a circuit `LatitudeDeg` north:
+	 * (the air as the server resolves it over a circuit at `Site`:
 	 * the host's figure, else the weather's in the date's season). A joined
 	 * session's conditions name their air, so the latitude is the create
 	 * screen's business only. */
-	inline bool IsWinter(const FApexSessionConditions& In, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	inline bool IsWinter(const FApexSessionConditions& In, const FClimateSite& Site = FClimateSite())
 	{
 		const FApexSessionConditions C = In.Clamped();
-		return C.IsSnow() || (C.Weather == EApexWeather::Overcast && static_cast<float>(AirTempC(C, LatitudeDeg)) < WinterBelowC);
+		return C.IsSnow() || (C.Weather == EApexWeather::Overcast && static_cast<float>(AirTempC(C, Site)) < WinterBelowC);
 	}
 
 	/** One change: from `AtS` seconds into the session the weather is `Weather`. */
@@ -538,7 +655,7 @@ namespace ApexCreateSession
 	 * back toward the host's pick; a winter sky swings between overcast and
 	 * snow instead.
 	 */
-	inline TArray<FForecastChange> Forecast(const FApexSessionConditions& In, uint64 Seed, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	inline TArray<FForecastChange> Forecast(const FApexSessionConditions& In, uint64 Seed, const FClimateSite& Site = FClimateSite())
 	{
 		TArray<FForecastChange> Out;
 		const FApexSessionConditions C = In.Clamped();
@@ -555,7 +672,7 @@ namespace ApexCreateSession
 			const float GapMin = GapLo + (GapHi - GapLo) * Hash01(Seed, 0xF00000ull + 3 * K);
 			return FMath::Max(GapMin * 60.0f / Scale, ForecastMinGapS);
 		};
-		if (IsWinter(C, LatitudeDeg))
+		if (IsWinter(C, Site))
 		{
 			const float HomeLean = C.IsSnow() ? 0.15f : -0.15f;
 			const float PSnow = FMath::Clamp(0.5f + 0.1f * (static_cast<float>(Level) - 2.0f) + HomeLean, 0.1f, 0.9f);
@@ -627,10 +744,10 @@ namespace ApexCreateSession
 	 * (`resolve_at`): a winter sky's rain falls as snow, a summer sky's snow
 	 * as light rain, then made valid again from the start's weather.
 	 */
-	inline TArray<FApexForecastStep> KeptToSky(const FApexSessionConditions& In, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	inline TArray<FApexForecastStep> KeptToSky(const FApexSessionConditions& In, const FClimateSite& Site = FClimateSite())
 	{
 		const FApexSessionConditions C = In.Clamped();
-		const bool bWinter = IsWinter(C, LatitudeDeg);
+		const bool bWinter = IsWinter(C, Site);
 		TArray<FApexForecastStep> Mapped = C.Forecast;
 		for (FApexForecastStep& Step : Mapped)
 		{
@@ -651,9 +768,9 @@ namespace ApexCreateSession
 	 * one (`HasForecast`, kept to its sky), else the one laid out from
 	 * `Seed` (empty when the sky holds).
 	 */
-	inline TArray<FForecastChange> SessionForecast(const FApexSessionConditions& C, uint64 Seed, float LatitudeDeg = ApexSky::DefaultLatitudeDeg)
+	inline TArray<FForecastChange> SessionForecast(const FApexSessionConditions& C, uint64 Seed, const FClimateSite& Site = FClimateSite())
 	{
-		return C.HasForecast() ? WrittenForecast(KeptToSky(C, LatitudeDeg)) : Forecast(C, Seed, LatitudeDeg);
+		return C.HasForecast() ? WrittenForecast(KeptToSky(C, Site)) : Forecast(C, Seed, Site);
 	}
 
 	/** A new step's minute: ForecastMinGapMin's steps of 4, 30 after the last step (or the start). */

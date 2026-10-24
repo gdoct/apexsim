@@ -326,17 +326,6 @@ the launcher import with the network off.
 
 ### 32. The sky's environment on the client
 
-- The create screen's AUTO air and humidity for a dated session are the
-  old latitude-only season (`ApexCreateSession::SeasonOffsetC`,
-  `AutoAirTempCAt`, a port of `season_air_c`); the server's
-  `resolve_at` now works them out in the circuit's climate
-  (`server/sim/src/climate.rs`: the latitude's mean, the region's swing,
-  the lapse with height, the tropics' wet season), so a dated create at
-  Bahrain or Mexico City previews an air the echo then corrects. Port
-  `climate::climate_offset_c` and `wet_season_pct` (needs the site's
-  altitude in `TrackConfigSummary`) and re-pin
-  `ApexSim.UI.CreateSession.SeasonAir` against
-  `the_climate_follows_the_circuit`.
 - Fog is drawn live (`FApexSkyNow::VisibilityM`, `ApexSky::FogDensityFor`
   in `DeriveLive`) but not in a recorded stream: carry the visibility in
   the spectator stream's state record (`StreamState::encode` and
@@ -350,8 +339,7 @@ the launcher import with the network off.
   as unfrozen until the server corrects it. Send it with `SnowRows` /
   `LaneSnow` (a byte more a cell) when the client draws ice off the line.
 
-**Check:** `ApexSim.UI.CreateSession.SeasonAir`; a dated create's preview
-against `SessionJoined.Conditions`; `-ApexAutoRace -ApexTimeOfDay=04:30
+**Check:** `-ApexAutoRace -ApexTimeOfDay=04:30
 -ApexWeather=sunny` with a calm wind shows a mist that lifts after sunrise
 at `-ApexTimeScale=30`.
 

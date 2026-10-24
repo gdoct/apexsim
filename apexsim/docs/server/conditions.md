@@ -238,7 +238,8 @@ evaporation (`SessionConditions::sun_elevation_at`), the client's
   race never needs the longitude. Before a session exists the create
   screen does: the lobby lists each track's site
   (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg`, `TrackConfig::site`,
-  left off for a track without a longitude), and the Conditions tab's Date
+  left off for a track without a longitude; `AltitudeM` beside them when
+  the YAML names a height off sea level), and the Conditions tab's Date
   row (late May, or the 15th of a month: `ApexCreateSession::DateChoices`,
   sent as `day_of_year`) stands the preview's sun over the circuit on that
   date at `ApexSky::SolarNoonMinutes`, a port of `solar_noon_minutes` and
@@ -644,19 +645,24 @@ See [protocol.md](protocol.md) for the append-only rules.
   `the_forecast_reference`). Picking a changeable sky gives the create a
   `sky_seed` of its own (`NewSkySeed`); ANOTHER rolls a new one; a sky that
   holds sends none.
-- The AUTO air is the server's undated `resolve_at` over the pending circuit
-  (`ConditionsAtSite`: its latitude and its solar noon on the picked date;
-  for a dated create it is the latitude-only season, not the circuit's
-  climate, which the join's echo then names: follow-ups #32):
-  `ApexCreateSession::AirTempC(C, Latitude)` from `AutoAirTempCAt` (the
-  model day's air peaking two hours after solar noon, moved by
-  `SeasonOffsetC`, a port of `season_air_c`; snow's own air unmoved) and
-  `SnowAirDropC`; `IsWinter` and the laid-out forecast read that air, so a
-  January overcast night previews the winter sky the server makes of it.
-  `ApexSim.UI.CreateSession.SeasonAir` pins them against figures printed by
-  the Rust for the conditions behind
-  `a_date_moves_the_air_with_the_season_and_no_date_is_late_may`. The sky
-  preview's air and asphalt use the same.
+- The AUTO air is the server's `resolve_at` over the pending circuit
+  (`ConditionsAtSite`: its site, `ApexCreateSession::FClimateSite`, and its
+  solar noon on the picked date). The site is the lobby's
+  (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg` / `AltitudeM`), else
+  the catalog row's from the export's metadata (`LatitudeDeg`, and with a
+  longitude `LongitudeDeg` and `AltitudeM`), else 50° N on the sea.
+  `ApexCreateSession::AirTempC(C, Site)` from `AutoAirTempCAt` (the model
+  day's air peaking two hours after solar noon, moved by `ClimateOffsetC`,
+  a port of `climate::climate_offset_c`: the latitude's sea-level mean, the
+  region's climate (`ClimateOf`, `climate_of`'s map), the season and the
+  lapse with height; snow's own air unmoved) and `SnowAirDropC`; `IsWinter`
+  and the laid-out forecast read that air, so a January overcast night
+  previews the winter sky the server makes of it.
+  `ApexSim.UI.CreateSession.SeasonAir` pins them against the figures
+  `climate::tests::client_season_air_figures` prints (bare latitudes and
+  four real sites: Silverstone, Albert Park, Mexico City at 2240 m,
+  Bahrain). The sky preview's air and asphalt use the same. The humidity is
+  not previewed.
 - ADD STEP writes a forecast: one row per step (at most 10), a minute
   stepper (5 minutes a press, the clock beside it when it runs) held a
   4-minute gap from its neighbours and the horizon, a weather stepper that

@@ -177,6 +177,7 @@ void UApexTrackContentSubsystem::Rescan()
 					Row.bHasGlobePosition = true;
 					Row.LongitudeDeg = Files.Header.LongitudeDeg.GetValue();
 				}
+				Row.AltitudeM = Files.Header.AltitudeM.Get(0.0f);
 				if (!Files.PreviewPath.IsEmpty())
 				{
 					Row.RuntimePreview = FImageUtils::ImportFileAsTexture2D(Files.PreviewPath);
