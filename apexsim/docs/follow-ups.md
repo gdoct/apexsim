@@ -345,15 +345,23 @@ at `-ApexTimeScale=30`.
 
 ### 35. Rewind in offline practice
 
-- The ring's memory is not measured: 61 whole-session copies (the AI's
-  speed plans and the drivers' ghost traces among them) for a full AI
-  field on a long track. Measure it with a counting allocator in the
-  determinism test; if it is large, leave the AI's plan caches out of the
-  snapshot as the track's lines are, after proving they are a pure function
-  of the static data (`a_restored_snapshot_replays_the_same_ticks` must
-  still hold).
+- The ring is large on a long circuit. Measured 2026-10-25
+  (`determinism_test::snapshot_memory`, ignored: a counting allocator in
+  the test binary, one human and the 15 AI practice seats after 60 s): one
+  snapshot is 4.15 MB at the Nordschleife (the ring of 61, 253 MB) and
+  1.16 MB at Monza (71 MB). The road state (`TrackConfig::road_state`, its
+  per-cell rubber, water, marbles and snow) is 1.97 MB and 0.55 MB of it,
+  about 95 bytes a metre; each car adds about 140 KB. The AI's speed and
+  power plans are per car config and small beside them; the ghost traces
+  are the humans' alone. The road state changes all over every few ticks
+  (cars lay rubber cell by cell, the road steps), so sharing it between
+  snapshots saves little. Choices: a byte budget for the ring (sparser
+  snapshots further back on a long circuit), or the road state kept at a
+  coarser interval than the cars and the restored one stepped forward
+  (determinism must still hold).
 
-**Check:** the figure, and the determinism test.
+**Check:** `snapshot_memory` against the figures above, and the
+determinism test.
 
 ### 36. Recorded sessions on the client
 

@@ -244,6 +244,67 @@ fn a_restored_snapshot_replays_the_same_ticks() {
     }
 }
 
+/// What one rewind snapshot holds (follow-ups #35): a full field, one human
+/// and 19 AI, on the longest circuit and on Monza, run long enough to fill
+/// the AI's plans, then one `snapshot` measured by the counting allocator,
+/// and the ring's 61 of them. Prints the figures; measures alone:
+/// `cargo test --test all snapshot_memory -- --ignored --nocapture
+/// --test-threads=1`.
+#[test]
+#[ignore]
+fn snapshot_memory() {
+    const AI_N: u8 = 19;
+    for stem in ["Mordschleife", "Monzarella"] {
+        let track = TrackLoader::load_from_file_with(
+            format!("../../../apexsim-content/tracks/default/{stem}/{stem}.yaml"),
+            RoadContactMode::Mesh,
+        )
+        .expect("a circuit");
+        let car = CarConfig::default();
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car.clone());
+        let ai: Vec<AiDriverProfile> = (0..AI_N)
+            .map(|i| {
+                let mut p = AiDriverProfile::new(format!("Mem AI {i}"), 70 + i % 30);
+                p.id = fixed_uuid(2000 + i as u128);
+                p
+            })
+            .collect();
+        let mut race = RaceSession::new(fixed_uuid(1), track.id, SessionKind::Practice, 20, 19, 2);
+        race.id = fixed_uuid(3);
+        let human = fixed_uuid(10);
+        let mut session = GameSession::with_ai_profiles(race, track, car_configs, ai);
+        session.add_player(human, car.id);
+        session.spawn_ai_drivers();
+        session.set_game_mode(GameMode::FreePractice);
+        let humans = [human];
+        let hz = session.tick_rate_hz() as u32;
+        for _ in 0..60 * hz {
+            scripted_tick(&mut session, &humans);
+        }
+        let before = alloc_count_live();
+        let road = session.track_config.road_state.clone();
+        let road_bytes = alloc_count_live() - before;
+        drop(road);
+        let before = alloc_count_live();
+        let snapshot = session.snapshot();
+        let one = alloc_count_live() - before;
+        println!("{stem}: the road state {:.2} MB", road_bytes as f64 / 1e6);
+        println!(
+            "{stem}: one snapshot {:.2} MB, the ring of 61 {:.1} MB ({} cars, tick {})",
+            one as f64 / 1e6,
+            61.0 * one as f64 / 1e6,
+            session.session.participants.len(),
+            snapshot.tick()
+        );
+        drop(snapshot);
+    }
+}
+
+fn alloc_count_live() -> isize {
+    crate::alloc_count::live_bytes()
+}
+
 /// The driver's rewind strikes every lap in progress at the point
 /// rewound to, and keeps the track's lines (left out of the snapshot).
 #[test]

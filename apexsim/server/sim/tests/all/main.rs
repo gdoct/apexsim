@@ -4,6 +4,11 @@
 //! every change.
 
 mod aero_test;
+mod alloc_count;
+
+#[global_allocator]
+static ALLOC: alloc_count::CountingAlloc = alloc_count::CountingAlloc;
+
 mod ai_race_start_test;
 mod air_test;
 mod brake_heat_test;
