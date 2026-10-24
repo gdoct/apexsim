@@ -104,12 +104,6 @@ the same `ApexProps` code.
   canopy as a slope, so no rule can tell a cutting from a tree line; it
   needs a bare-earth terrain model (Rhineland-Palatinate's DGM1) or a
   surveyed list of the cuttings, then a rock-face kit piece.
-- Nordschleife: the lap's bridges over the K 73, the B 257 (Quiddelbach,
-  Breidscheid), the L 92 and the L 93 are parapets only
-  (`track_bridge_10m`). The ground under the lap is not cut away, so the
-  road beneath is not there: it needs an `Underpass` for a dossier road in
-  `terrain.rs` (a slot under the deck, as at Suzuka), the road drawn in it,
-  and the AI survey.
 - Nordschleife: the marshal posts are numbered in lap order from the
   line, not with the real post numbers (OSM maps one, "Posten 44", by the
   GP circuit); a real list goes in a dossier table.

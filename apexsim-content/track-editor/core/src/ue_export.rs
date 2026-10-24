@@ -1150,6 +1150,11 @@ fn underpass_walls(field: &TerrainHeightfield, out: &mut Vec<WallSegment>) {
                     out,
                 );
             }
+            // Over a public road the course's own barriers carry on across
+            // the bridge (`groom`): no parapets.
+            if field.is_under_road(u.lower_road) {
+                continue;
+            }
             let (start, end) = u.deck_span_m;
             wall_polyline(
                 upper,
@@ -1211,8 +1216,9 @@ pub fn bake_all_with_options(
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
     let extra: Vec<&CenterlinePath> = lane.iter().collect();
+    let under_roads = crate::groom::under_road_paths(scene);
     let terrain = TerrainHeightfield::from_paths_with_dem(&path, &extra, dem)
-        .map(|t| t.with_water(&scene.water));
+        .map(|t| t.with_water(&scene.water).with_under_roads(&under_roads));
 
     let mut bake = Bake {
         ground: terrain.as_ref(),
@@ -1231,6 +1237,9 @@ pub fn bake_all_with_options(
 
     bake.road(&path);
     bake.edge_lines(&path, &lane_relation.edge_gaps);
+    for road in &under_roads {
+        bake.under_road(road);
+    }
     // Ground first, then the track, then what sits on it — the same layering
     // the viewport uses, so the export reads the way the editor looked.
     if let Some(field) = &terrain {
@@ -2738,6 +2747,25 @@ impl Bake<'_> {
         }
     }
 
+    /// A public road passing under the course: the road's own asphalt,
+    /// drawn only. No car is ever meant to be down there, so it is no part
+    /// of the server's road mesh; the ground sidecar has its height.
+    fn under_road(&mut self, road: &CenterlinePath) {
+        self.register("road", "road", [0.24, 0.24, 0.26, 1.0]);
+        self.strip(
+            road,
+            0.0,
+            road.total_length_m(),
+            STEP_M,
+            "road",
+            |s, _, out| {
+                out.push(ProfilePoint::lifted(s.width_left_m, 0.0));
+                out.push(ProfilePoint::lifted(-s.width_right_m, 0.0));
+            },
+            |_, _, p| p.2,
+        );
+    }
+
     fn pit_lane(&mut self, lane: &CenterlinePath, width_m: f32) {
         let key = "pit_lane";
         self.register(key, "pit_lane", [0.32, 0.32, 0.34, 1.0]);
@@ -3627,11 +3655,29 @@ impl Bake<'_> {
         }
 
         // The deck: the upper road's own ribbon is its top, so this is the
-        // parapets, the underside and the fascia down each side.
+        // parapets, the underside and the fascia down each side. Over a
+        // public road the dossier's bridge (`deck_track`, its own parapets
+        // and fascias) stands there, and only the underside is drawn.
         let (start, end) = u.deck_span_m;
         let top = -0.1;
         let depth = terrain::DECK_DEPTH_M;
         let over = terrain::DECK_OVERHANG_M;
+        if field.is_under_road(u.lower_road) {
+            self.shape(
+                &upper,
+                start,
+                end,
+                STEP_M,
+                STRUCTURE_KEY,
+                move |s, _, out| {
+                    out.extend([
+                        ProfilePoint::lifted(-(s.width_right_m + over + FASCIA_LEAN_M), -depth),
+                        ProfilePoint::lifted(s.width_left_m + over + FASCIA_LEAN_M, -depth),
+                    ]);
+                },
+            );
+            return;
+        }
         self.shape(
             &upper,
             start,

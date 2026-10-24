@@ -636,7 +636,20 @@ pub fn seating_terrain(
         .as_ref()
         .and_then(|pit| CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0));
     let extra: Vec<&CenterlinePath> = lane.iter().collect();
-    TerrainHeightfield::from_paths_with_dem(path, &extra, dem).map(|t| t.with_water(&scene.water))
+    TerrainHeightfield::from_paths_with_dem(path, &extra, dem).map(|t| {
+        t.with_water(&scene.water)
+            .with_under_roads(&under_road_paths(scene))
+    })
+}
+
+/// The centerlines of the scene's public roads under the course
+/// (`AtsScene::under_roads`), for [`TerrainHeightfield::with_under_roads`].
+pub fn under_road_paths(scene: &AtsScene) -> Vec<CenterlinePath> {
+    scene
+        .under_roads
+        .iter()
+        .filter_map(|r| CenterlinePath::from_polyline(&r.nodes, r.width_m / 2.0))
+        .collect()
 }
 
 /// Groom the whole scene: the pit lane is rebuilt first (entry, pit road,
@@ -1125,6 +1138,8 @@ pub fn groom_props_with_dem(
     if terrain.has_water() {
         trees.retain(|p| !stands_in_water(&terrain, p));
     }
+    // Nor on a road under the lap.
+    trees.retain(|p| !stands_on_under_road(&terrain, p));
     report.trees = trees.len();
     props.extend(adopt(
         "groom tree",
@@ -1153,6 +1168,22 @@ pub(crate) fn stands_in_water(terrain: &TerrainHeightfield, prop: &Prop) -> bool
     !terrain
         .nearest_track_point(prop.x, prop.y, BRIDGE_DECK_REACH_M + 20.0)
         .is_some_and(|(_, lat, half)| lat.abs() - half <= BRIDGE_DECK_REACH_M)
+}
+
+/// How far past a road under the lap's edge a prop still stands on it,
+/// metres.
+const UNDER_ROAD_PROP_CLEAR_M: f32 = 1.5;
+
+/// True for a prop that stands on a public road under the lap
+/// (`AtsScene::under_roads`) rather than on the lap's bridge over it. A
+/// bridge, a barrier and a sky prop are the lap's.
+pub(crate) fn stands_on_under_road(terrain: &TerrainHeightfield, prop: &Prop) -> bool {
+    !matches!(
+        prop.kind,
+        PropKind::Bridge | PropKind::Sky | PropKind::Barrier
+    ) && terrain
+        .under_road_at(prop.x, prop.y, UNDER_ROAD_PROP_CLEAR_M)
+        .is_some_and(|road_z| prop.z - road_z < terrain::OVERHEAD_M)
 }
 
 /// Snap every `board` prop onto the nearest barrier or tire wall within
@@ -2233,16 +2264,22 @@ fn lay_all_barriers(
         // the crossing. The lower road used to get no barrier anywhere
         // within the underpass's reach (250 m either way at Suzuka's
         // crossover), which left the approach open on both sides.
-        let at_underpass = terrain
-            .wall_relation(x, y)
-            .is_some_and(|(past_wall, lower_z)| {
-                if (road_z - lower_z).abs() <= terrain::OVERHEAD_M {
-                    let embanked = terrain.ground_height_at(x, y) - lower_z >= UNDERPASS_STEP_M;
-                    past_wall < 0.0 || (past_wall < BARRIER_CLEAR_M && embanked)
-                } else {
-                    past_wall < BARRIER_CLEAR_M
-                }
-            });
+        // Over a public road (`AtsScene::under_roads`) the course's own
+        // barrier runs on across the bridge where the bridge carries it
+        // (the deck there has no parapets of its own); a line further out
+        // stops at the slot.
+        let at_underpass =
+            terrain
+                .wall_relation_with_road(x, y)
+                .is_some_and(|(past_wall, lower_z, lower)| {
+                    if (road_z - lower_z).abs() <= terrain::OVERHEAD_M {
+                        let embanked = terrain.ground_height_at(x, y) - lower_z >= UNDERPASS_STEP_M;
+                        past_wall < 0.0 || (past_wall < BARRIER_CLEAR_M && embanked)
+                    } else {
+                        past_wall < BARRIER_CLEAR_M
+                            && !(terrain.is_under_road(lower) && terrain.within_deck_reach(x, y))
+                    }
+                });
         // In the water only a bridge's own edge takes a wall.
         if terrain.has_water()
             && terrain.in_water(x, y)

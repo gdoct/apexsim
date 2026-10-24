@@ -139,7 +139,8 @@ map anchor `at` / `from_at` + `to_at` (lon, lat); `kind`
 `span_building`), `sky_platform` (platforms cantilevered over the straight),
 `banked_oval` (the banked oval on piers), road-carrying
 `deck_arch`/`deck_wide` with `from_m`/`to_m` (ground left out of the span),
-the lap's own bridge over a road `deck_track` (parapets, ground kept), else
+the lap's own bridge over a road `deck_track` (parapets; the road under it
+becomes an `.ats` under-road, see [Underpasses](#underpasses)), else
 (`arch`) a tyre bridge; `brand` from the kit's fictional brands;
 `CROSSING_KINDS` renames the scan's kinds per circuit).
 `MANUAL_LANDMARKS` (`kind` must be one `dress.rs` maps to an asset, see its
@@ -528,6 +529,25 @@ abutment walls and the deck (parapets, fascia, material family `structure`);
 under the bridge. A heightfield cannot hold both levels, so a car that leaves
 the bridge past the parapet falls into the slot. Water and road bridges over
 it (Marina Bay) are in [circuits.md](circuits.md).
+
+**A public road under the lap** (the Nordschleife's bridges over the K 73,
+the B 257, the L 92 and the L 93; the GP circuit's Müllenbach link) is an
+underpass too. For each dossier `deck_track` crossing, `ats-dress`
+(`lay_under_roads`) takes the dossier road crossing the lap inside the span
+(the most major), joins its OSM ways end to end 200 m either way, cuts it
+short of where it comes back within the verge blend of the lap, and writes
+it to the `.ats` as an `under_road` with heights from
+`TerrainHeightfield::under_road_heights`: the ground, except under the deck,
+where it runs `UNDER_ROAD_DROP_M` (7 m) below the lowest point of the span
+and climbs back out at 8%. The terrain adds it with `with_under_roads`: a
+road the ground hugs but no height source of the field, so the land away
+from it is unchanged. The bake draws its asphalt (`road`, render only: it is
+no part of the road mesh) and the slot, walls and the deck's underside, but
+no parapets: the dossier's `track_bridge_10m` tiles are the bridge, the
+lap's own barrier line runs on across it (`ats-groom` keeps the cells
+within `UNDER_ROAD_DECK_REACH_M` of the edge, seated on the deck, and
+stops a line further out at the slot), and nothing else dressed or planted
+stands on the road below (`stands_on_under_road`).
 
 ### Road paint and the pit complex
 

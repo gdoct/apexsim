@@ -73,6 +73,12 @@ pub struct AtsScene {
     /// run-off out of a span, since there is no ground there.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub bridges: Vec<BridgeSpan>,
+    /// Public roads the course crosses on a bridge of its own (the
+    /// dossier's `deck_track` crossings: the Nordschleife over the B 257),
+    /// a few hundred metres of each, heights included. The terrain runs
+    /// each through an underpass slot under the deck and the bake draws it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub under_roads: Vec<UnderRoad>,
     /// How the kit is dressed on import: season and spectators.
     #[serde(default, skip_serializing_if = "Dressing::is_default")]
     pub dressing: Dressing,
@@ -94,6 +100,17 @@ pub struct Water {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     pub rings: Vec<Vec<[f32; 2]>>,
+}
+
+/// A road passing under the course: its centerline `[x, y, z]` in track
+/// space and its width. Laid by `ats-dress` from the layout dossier.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct UnderRoad {
+    pub id: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub nodes: Vec<[f32; 3]>,
+    pub width_m: f32,
 }
 
 /// A span of the course on a bridge over water, by station.
@@ -665,6 +682,7 @@ impl AtsScene {
             decals: Vec::new(),
             water: Vec::new(),
             bridges: Vec::new(),
+            under_roads: Vec::new(),
             dressing: Dressing::default(),
             external_sidecars: Vec::new(),
             next_id: 2,

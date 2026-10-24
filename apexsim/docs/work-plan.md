@@ -191,8 +191,6 @@ saw it, then a contact shadow under the car.
 *Source: follow-ups #6.*
 - 🟡 Marina Bay: corner names, the F1 pit building, a quay rail, catch fence.
 - 🟡 Stadium grandstands: bays and cap in `LayoutGrandstand`, the stair tower.
-- 🟡 Nordschleife bridges: an `Underpass` in `terrain.rs` for dossier roads
-  (as at Suzuka), the road drawn under it, then the AI survey.
 - 🟡 Nordschleife toll lanes' access lanes and car park.
 - 🔴 Nordschleife rock cuttings: needs bare-earth DGM1 data or a surveyed list,
   plus a rock-face kit piece.

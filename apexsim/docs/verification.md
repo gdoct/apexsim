@@ -159,6 +159,12 @@ an overpass, the gantry, the camp villages, a rail tag on its beam. From
 - The lookout tower on the Hohe Acht seen from the Hohe Acht section; the
   hillside letters seen from the Döttinger Höhe (or hidden by the trees
   between); Brünnchen's hedge colour.
+- The roads under the lap's bridges (K 73, B 257 at Quiddelbach and
+  Breidscheid, L 92, L 93; the GP circuit's and the 24h layout's Müllenbach
+  link too): the slot, its walls and the deck's underside under the
+  `track_bridge_10m` tiles, the asphalt down there, from the lap and from
+  beside the bridge; the rails crossing the bridge on the deck, not in the
+  slot.
 
 Run 2026-10-24 (`r6-nordschleife`): the overpass at 3964 m, the timing
 gantry, the camp villages (tents, caravans, flags), the K 73 bridge, the

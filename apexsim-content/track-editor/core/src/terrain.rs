@@ -129,6 +129,20 @@ const UNDERPASS_FADE_M: f32 = 12.0;
 /// crossing, meters.
 const UNDERPASS_REACH_M: f32 = 250.0;
 
+/// How far under the course a public road passing beneath it runs, from
+/// the lowest point of the bridge's span to the road below: 4.5 m of
+/// headroom under a 1.6 m deck, and some to spare.
+pub const UNDER_ROAD_DROP_M: f32 = 7.0;
+/// Either side of the deck the road beneath climbs back to the ground at
+/// this grade (m per m).
+const UNDER_ROAD_GRADE: f32 = 0.08;
+/// Half the stretch under the deck held at the full drop, metres.
+const UNDER_ROAD_FLAT_M: f32 = 12.0;
+/// How far past the course's edge its own bridge over a public road
+/// carries what stands on it: the barrier line (4.5 m out over the
+/// Nordschleife's bridges) and the signs behind it, metres.
+pub const UNDER_ROAD_DECK_REACH_M: f32 = 6.0;
+
 /// Softening in the road weights: a road inside its verge weighs
 /// `1 / HUG_EPS` against the terrain's 1, so the verge follows the road to
 /// within a millimetre while the weight stays finite (and the blend stays
@@ -254,6 +268,9 @@ pub struct TerrainHeightfield {
     water: Vec<WaterShape>,
     /// Height of the water surface, metres.
     water_level_m: f32,
+    /// Index of the first public road under the course
+    /// ([`Self::with_under_roads`]); every road from here on is one.
+    first_under_road: usize,
 }
 
 /// How far under the lowest road the water stands, metres.
@@ -507,6 +524,7 @@ impl TerrainHeightfield {
             far: dem.map(|d| d.outer.clone()),
             water: Vec::new(),
             water_level_m: 0.0,
+            first_under_road: all_paths.len(),
         };
         field.underpasses = field.find_underpasses();
         Some(field)
@@ -532,6 +550,138 @@ impl TerrainHeightfield {
             -WATER_BELOW_ROAD_M
         };
         self
+    }
+
+    /// Add the public roads the course crosses on bridges of its own
+    /// (`AtsScene::under_roads`). Each is a road the ground hugs like the
+    /// pit lane, but no height source of the terrain field: it shapes the
+    /// ground only within its verge blend, so a circuit's land is the same
+    /// with or without it away from the bridges. Where the course passes
+    /// over one it is an [`Underpass`] like any other. Nothing changes
+    /// for an empty list.
+    pub fn with_under_roads(mut self, paths: &[CenterlinePath]) -> Self {
+        if paths.is_empty() {
+            return self;
+        }
+        let mut bounds = self.road_bounds;
+        for p in paths {
+            let max_half_m = p
+                .samples()
+                .iter()
+                .map(|s| s.width_left_m.max(s.width_right_m))
+                .fold(0.0, f32::max);
+            for s in p.samples() {
+                bounds = (
+                    bounds.0.min(s.pos.0 - max_half_m),
+                    bounds.1.min(s.pos.1 - max_half_m),
+                    bounds.2.max(s.pos.0 + max_half_m),
+                    bounds.3.max(s.pos.1 + max_half_m),
+                );
+            }
+            self.roads.push(Road {
+                path: p.clone(),
+                max_half_m,
+            });
+        }
+        let max_half = self.roads.iter().map(|r| r.max_half_m).fold(0.0, f32::max);
+        // The index reaches the roads' ends; `road_bounds`, which places
+        // the ground sidecar, stays the course's own.
+        self.index = SegmentIndex::build(&self.roads, bounds);
+        self.search_radius_m = BLEND_END_M + max_half + 1.0;
+        self.underpasses = self.find_underpasses();
+        self
+    }
+
+    /// Whether road `road` is a public road under the course
+    /// ([`Self::with_under_roads`]).
+    pub fn is_under_road(&self, road: u32) -> bool {
+        road as usize >= self.first_under_road
+    }
+
+    /// The height of a public road under the course
+    /// ([`Self::with_under_roads`]) at a point within `margin` of its
+    /// edge, if there is one.
+    pub fn under_road_at(&self, x: f32, y: f32, margin: f32) -> Option<f32> {
+        if self.roads.len() <= self.first_under_road {
+            return None;
+        }
+        self.index
+            .gather(&self.roads, x, y, self.search_radius_m)
+            .into_iter()
+            .filter(|h| self.is_under_road(h.road))
+            .find_map(|h| {
+                let s = self.roads[h.road as usize].path.sample_at(h.station);
+                let half = if h.lat >= 0.0 {
+                    s.width_left_m
+                } else {
+                    s.width_right_m
+                };
+                (h.dist - half < margin).then_some(s.pos.2)
+            })
+    }
+
+    /// Whether something at height `z` over `(x, y)` stands on the course's
+    /// own bridge over a public road: inside the slot's walls, well above
+    /// the road below. It stands on the dossier's deck (`deck_track`), at
+    /// the course's height, not on the slot floor.
+    pub fn on_deck_over_under_road(&self, x: f32, y: f32, z: f32) -> bool {
+        self.roads.len() > self.first_under_road
+            && self
+                .wall_relation_with_road(x, y)
+                .is_some_and(|(past_wall, lower_z, lower)| {
+                    past_wall < 0.0 && self.is_under_road(lower) && z - lower_z > OVERHEAD_M
+                })
+            && self.within_deck_reach(x, y)
+    }
+
+    /// Whether `(x, y)` is within [`UNDER_ROAD_DECK_REACH_M`] of the
+    /// course's edge: on the course's own bridge, where there is one.
+    pub fn within_deck_reach(&self, x: f32, y: f32) -> bool {
+        self.nearest_track_point(x, y, UNDER_ROAD_DECK_REACH_M + 20.0)
+            .is_some_and(|(_, lat, half)| lat.abs() - half <= UNDER_ROAD_DECK_REACH_M)
+    }
+
+    /// Heights for a public road passing under the course, given its
+    /// centerline (evenly spaced points), the distance along it of the
+    /// crossing and the lowest height of the course over the bridge's
+    /// span. The road follows the ground (this field's, built without it)
+    /// except where that would take it within [`UNDER_ROAD_DROP_M`] of the
+    /// deck: under the bridge it runs that far below, and climbs back to
+    /// the ground at [`UNDER_ROAD_GRADE`] either side, smoothed so the
+    /// meeting is not a kink.
+    pub fn under_road_heights(
+        &self,
+        points: &[(f32, f32)],
+        crossing_m: f32,
+        over_z: f32,
+    ) -> Vec<f32> {
+        let mut along = Vec::with_capacity(points.len());
+        let mut d = 0.0f32;
+        for (i, p) in points.iter().enumerate() {
+            if i > 0 {
+                let q = points[i - 1];
+                d += ((p.0 - q.0).powi(2) + (p.1 - q.1).powi(2)).sqrt();
+            }
+            along.push(d);
+        }
+        let cap = |a: f32| {
+            over_z - UNDER_ROAD_DROP_M
+                + ((a - crossing_m).abs() - UNDER_ROAD_FLAT_M).max(0.0) * UNDER_ROAD_GRADE
+        };
+        let mut z: Vec<f32> = points
+            .iter()
+            .zip(&along)
+            .map(|(p, &a)| self.ground_height_at(p.0, p.1).min(cap(a)))
+            .collect();
+        // A few passes of a [1 2 1] filter round off where the ground meets
+        // the ramp; the ends stay on the ground and the drop is held.
+        for _ in 0..4 {
+            let prev = z.clone();
+            for i in 1..z.len().saturating_sub(1) {
+                z[i] = ((prev[i - 1] + 2.0 * prev[i] + prev[i + 1]) / 4.0).min(cap(along[i]));
+            }
+        }
+        z
     }
 
     /// Whether the scene has any water.
@@ -773,6 +923,12 @@ impl TerrainHeightfield {
     /// every wall, else how far past the wall line it is (negative inside
     /// the slot) and the lower road's centerline height there.
     pub fn wall_relation(&self, x: f32, y: f32) -> Option<(f32, f32)> {
+        self.wall_relation_with_road(x, y)
+            .map(|(past_wall, lower_z, _)| (past_wall, lower_z))
+    }
+
+    /// [`Self::wall_relation`], with the index of the road under the deck.
+    pub fn wall_relation_with_road(&self, x: f32, y: f32) -> Option<(f32, f32, u32)> {
         self.underpasses
             .iter()
             .filter(|u| u.reaches(x, y))
@@ -786,7 +942,11 @@ impl TerrainHeightfield {
                 } else {
                     sample.width_right_m
                 };
-                Some((hit.dist - half - UNDERPASS_WALL_GAP_M, sample.pos.2))
+                Some((
+                    hit.dist - half - UNDERPASS_WALL_GAP_M,
+                    sample.pos.2,
+                    u.lower_road,
+                ))
             })
     }
 
@@ -1509,6 +1669,65 @@ mod tests {
     fn field() -> TerrainHeightfield {
         let path = CenterlinePath::from_track(&hilly_loop()).unwrap();
         TerrainHeightfield::from_path(&path).unwrap()
+    }
+
+    #[test]
+    fn a_road_under_the_lap_runs_in_a_slot_and_leaves_the_land_alone() {
+        let path = CenterlinePath::from_track(&hilly_loop()).unwrap();
+        let bare = TerrainHeightfield::from_path(&path).unwrap();
+        // Across the near side of the loop at x = 200 (the spline bows it
+        // out a little), from 200 m before it to 200 m after.
+        let lap = path
+            .samples()
+            .iter()
+            .filter(|s| s.pos.1 < 150.0)
+            .min_by(|a, b| (a.pos.0 - 200.0).abs().total_cmp(&(b.pos.0 - 200.0).abs()))
+            .unwrap()
+            .pos;
+        let points: Vec<(f32, f32)> = (0..=80)
+            .map(|i| (200.0, lap.1 - 200.0 + 5.0 * i as f32))
+            .collect();
+        let z = bare.under_road_heights(&points, 200.0, lap.2);
+        assert!(
+            z[40] <= lap.2 - UNDER_ROAD_DROP_M + 1e-3,
+            "under the deck: {}",
+            z[40]
+        );
+        // Never above the ground, and on it where the ramp has climbed out.
+        for (p, z) in points.iter().zip(&z) {
+            assert!(*z <= bare.ground_height_at(p.0, p.1) + 1e-3);
+        }
+        let ground_end = bare.ground_height_at(points[80].0, points[80].1);
+        assert!(ground_end > lap.2 + 8.0 || (z[80] - ground_end).abs() < 1e-3);
+        let nodes: Vec<[f32; 3]> = points.iter().zip(&z).map(|(p, z)| [p.0, p.1, *z]).collect();
+        let road = CenterlinePath::from_polyline(&nodes, 3.5).unwrap();
+        let field = TerrainHeightfield::from_path(&path)
+            .unwrap()
+            .with_under_roads(&[road]);
+
+        let u = &field.underpasses()[0];
+        assert_eq!(field.underpasses().len(), 1);
+        assert!(field.is_under_road(u.lower_road) && u.upper_road == 0);
+        assert!(u.clearance_m >= UNDER_ROAD_DROP_M - 0.5);
+        // The slot floor is the road below, the deck edge the lap's.
+        assert!(field.ground_height_at(200.0, lap.1) < lap.2 - UNDER_ROAD_DROP_M + 0.5);
+        assert!(field.on_deck_over_under_road(200.0, lap.1 - 8.0, lap.2));
+        let below = (200.0, lap.1 - 60.0);
+        assert!(!field.on_deck_over_under_road(
+            below.0,
+            below.1,
+            field.ground_height_at(below.0, below.1)
+        ));
+        assert!(field.under_road_at(201.0, lap.1 - 100.0, 0.5).is_some());
+        // Away from it the ground is what it was.
+        for (x, y) in [(-300.0, -300.0), (100.0, 150.0), (400.0, 300.0)] {
+            assert_eq!(field.ground_height_at(x, y), bare.ground_height_at(x, y));
+        }
+        // And an empty list changes nothing at all.
+        let same = TerrainHeightfield::from_path(&path)
+            .unwrap()
+            .with_under_roads(&[]);
+        assert_eq!(same.underpasses(), bare.underpasses());
     }
 
     #[test]

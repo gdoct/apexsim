@@ -40,6 +40,9 @@ pub fn surface_height(
     pos: (f32, f32, f32),
 ) -> f32 {
     match terrain {
+        // On the course's own bridge over a public road the course's
+        // furniture stands on the deck, at the road's height.
+        Some(field) if field.on_deck_over_under_road(pos.0, pos.1, pos.2) => pos.2,
         Some(field) => field.ground_height_at(pos.0, pos.1),
         None => pos.2,
     }

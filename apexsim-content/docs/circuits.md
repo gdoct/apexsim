@@ -172,7 +172,8 @@ comment:
 - `MANUAL_CROSSINGS`: the lap's own bridges over the K 73, the B 257 at
   Quiddelbach and at Breidscheid, the L 92 and the L 93 (`deck_track`,
   `from_at` / `to_at` on the raceway way's ends: `bridge/track_bridge_10m`
-  tiled over the span, parapets just behind the rail) and the gantry on the
+  tiled over the span, parapets just behind the rail; the road under each
+  runs in an underpass slot, [track-pipeline.md](track-pipeline.md#underpasses)) and the gantry on the
   Döttinger Höhe a Touristenfahrten lap is timed to (`timing`,
   `bridge/timing_gantry`, a kit brand). `CROSSING_KINDS` makes OSM's two
   forest-track bridges over the lap (3965 m, 19702 m) `overpass`
@@ -207,8 +208,10 @@ the circuit has no pit sidecar (no pit stops).
 that leaves the road is more likely to be pinned against one.
 
 **Traps.**
-- The track bridges are parapets only: the ground under the lap is not cut
-  away, so the road it crosses is not there to see ([follow-ups.md](../../apexsim/docs/follow-ups.md)).
+- The roads under the lap's bridges come from the dossier's `roads`
+  (`ats-dress` lays them): a refit that moves or renames those ways moves
+  the slots. Over a slot the rails stand on the bridge; a car that clears
+  them falls to the road below.
 - The Nordschleife is wooded end to end: the DEM is a surface model and reads
   the canopy. Check a re-derived profile against the known relief (about
   300 m between Breidscheid and the Hohe Acht section) before trusting it.

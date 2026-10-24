@@ -246,7 +246,22 @@ pub fn dress_scene_with_dem(
     lay_water_and_bridges(scene, layout);
     // Seated on the ground the exporter will draw: see
     // `groom::seating_terrain`, which is shared so the two cannot drift.
+    // The roads under the lap's own bridges are laid on that ground
+    // first, then join it.
+    let mut ids: Vec<u64> = scene.under_roads.drain(..).map(|r| r.id).collect();
     let terrain = crate::groom::seating_terrain(&path, scene, dem)?;
+    ids.sort_unstable();
+    ids.reverse();
+    for (name, nodes, width_m) in lay_under_roads(&path, &terrain, layout) {
+        let id = ids.pop().unwrap_or_else(|| scene.alloc_id());
+        scene.under_roads.push(crate::ats::UnderRoad {
+            id,
+            name,
+            nodes,
+            width_m,
+        });
+    }
+    let terrain = terrain.with_under_roads(&crate::groom::under_road_paths(scene));
     let before = scene.props.len();
     // The ids of the props this pass replaces come back to it, lowest
     // first, so re-dressing an unchanged circuit rewrites the same file
@@ -405,6 +420,13 @@ pub fn dress_scene_with_dem(
             crate::groom::stands_in_water(&terrain, p)
         });
     }
+    // Nor on a road passing under the lap.
+    drop_laid(
+        &mut laid,
+        &mut report.skipped,
+        "on a road under the lap",
+        |p| crate::groom::stands_on_under_road(&terrain, p),
+    );
 
     // On a city circuit a tree, lamp, sign or planter is not inside a block
     // that was laid after the survey put it there (the buildings are pushed
@@ -2222,6 +2244,303 @@ fn lay_water_and_bridges(scene: &mut AtsScene, layout: &Layout) {
             });
         }
     }
+}
+
+/// How far along a road passing under the lap it is laid either side of
+/// the bridge, metres.
+const UNDER_ROAD_REACH_M: f32 = 200.0;
+/// Spacing of an under-road's nodes, metres.
+const UNDER_ROAD_NODE_M: f32 = 5.0;
+/// Endpoints of two dossier ways this close are one junction, metres.
+const WAY_JOIN_M: f32 = 0.5;
+/// Clear of the lap's edge a road beneath is cut short of, away from its
+/// own bridge, metres: past the lap's verge blend, so a road in a cutting
+/// never lowers the ground beside another leg of the lap.
+const UNDER_ROAD_CLEAR_M: f32 = crate::terrain::BLEND_END_M;
+
+/// Width of a dossier road by its kind, metres.
+fn road_width_m(kind: &str) -> f32 {
+    match kind {
+        "major" => 7.0,
+        "minor" => 6.0,
+        "service" => 4.5,
+        "track" => 3.5,
+        _ => 2.5,
+    }
+}
+
+/// Preference among the dossier's roads crossing under one bridge: the
+/// public road first.
+fn road_rank(kind: &str) -> u8 {
+    match kind {
+        "major" => 0,
+        "minor" => 1,
+        "service" => 2,
+        "track" => 3,
+        _ => 4,
+    }
+}
+
+fn polyline_length(line: &[[f32; 2]]) -> f32 {
+    line.windows(2)
+        .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+        .sum()
+}
+
+/// The public roads under the lap's own bridges (`deck_track`), from the
+/// dossier: for each bridge, the road crossing the lap inside its span
+/// (the most major, then the nearest its station), its OSM ways joined
+/// end to end for [`UNDER_ROAD_REACH_M`] either way and cut short of
+/// where it comes back near the lap, resampled every
+/// [`UNDER_ROAD_NODE_M`], with heights from
+/// [`TerrainHeightfield::under_road_heights`]. `(name, nodes, width)` per
+/// road.
+fn lay_under_roads(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    layout: &Layout,
+) -> Vec<(Option<String>, Vec<[f32; 3]>, f32)> {
+    let total = path.total_length_m();
+    let samples = path.samples();
+    let mut out = Vec::new();
+    for crossing in &layout.crossings {
+        if crossing.kind != "deck_track" {
+            continue;
+        }
+        let (Some(from), Some(to)) = (crossing.from_m, crossing.to_m) else {
+            continue;
+        };
+        let span = (to - from).rem_euclid(total);
+        let in_span = |station: f32| (station - from).rem_euclid(total) <= span;
+        // (rank, gap to the bridge's station, road, segment, along it, lap station)
+        let mut best: Option<(u8, f32, usize, usize, f32, f32)> = None;
+        for (ri, road) in layout.roads.iter().enumerate() {
+            for (j, seg) in road.line.windows(2).enumerate() {
+                for i in 0..samples.len() {
+                    let a = samples[i];
+                    if !in_span(a.station_m) {
+                        continue;
+                    }
+                    let b = samples[(i + 1) % samples.len()];
+                    let Some((t, u)) = segments_cross(
+                        (a.pos.0, a.pos.1),
+                        (b.pos.0, b.pos.1),
+                        (seg[0][0], seg[0][1]),
+                        (seg[1][0], seg[1][1]),
+                    ) else {
+                        continue;
+                    };
+                    let b_station = if i + 1 < samples.len() {
+                        b.station_m
+                    } else {
+                        total
+                    };
+                    let station = a.station_m + (b_station - a.station_m) * t;
+                    let gap = (station - crossing.station_m).rem_euclid(total);
+                    let gap = gap.min(total - gap);
+                    let key = (road_rank(&road.kind), gap, ri, j, u, station);
+                    if best.is_none_or(|b| (key.0, key.1) < (b.0, b.1)) {
+                        best = Some(key);
+                    }
+                }
+            }
+        }
+        let Some((_, _, ri, j, u, station)) = best else {
+            continue;
+        };
+        let road = &layout.roads[ri];
+        let width_m = road_width_m(&road.kind);
+        let (line, at) = joined_way(layout, ri, j, u);
+        let (points, at) = resample_around(&line, at, UNDER_ROAD_REACH_M, UNDER_ROAD_NODE_M);
+        let Some((points, at)) = short_of_the_lap(terrain, &points, at, station, span, width_m)
+        else {
+            continue;
+        };
+        // The lowest the lap gets over the bridge.
+        let mut over_z = f32::INFINITY;
+        let mut s = 0.0f32;
+        while s <= span {
+            over_z = over_z.min(path.sample_at((from + s).rem_euclid(total)).pos.2);
+            s += 1.0;
+        }
+        let z = terrain.under_road_heights(&points, at, over_z);
+        let nodes = points.iter().zip(z).map(|(p, z)| [p.0, p.1, z]).collect();
+        let name = crossing
+            .name
+            .as_deref()
+            .map(|n| n.trim_end_matches(" bridge").to_string())
+            .or_else(|| road.name.clone());
+        out.push((name, nodes, width_m));
+    }
+    out
+}
+
+/// Parameters `(t, u)` along `a-b` and `c-d` where the two cross.
+fn segments_cross(
+    a: (f32, f32),
+    b: (f32, f32),
+    c: (f32, f32),
+    d: (f32, f32),
+) -> Option<(f32, f32)> {
+    let r = (b.0 - a.0, b.1 - a.1);
+    let q = (d.0 - c.0, d.1 - c.1);
+    let den = r.0 * q.1 - r.1 * q.0;
+    if den.abs() < 1e-9 {
+        return None;
+    }
+    let t = ((c.0 - a.0) * q.1 - (c.1 - a.1) * q.0) / den;
+    let u = ((c.0 - a.0) * r.1 - (c.1 - a.1) * r.0) / den;
+    ((0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u)).then_some((t, u))
+}
+
+/// Way `ri` of the dossier's roads joined end to end with the ways that
+/// continue it (at each end the one turning least, the same kind first,
+/// never a turn past a right angle) until it reaches
+/// [`UNDER_ROAD_REACH_M`] past the point `u` along its segment `j`.
+/// Returns the polyline and how far along it that point is.
+fn joined_way(layout: &Layout, ri: usize, j: usize, u: f32) -> (Vec<[f32; 2]>, f32) {
+    use std::f32::consts::{FRAC_PI_2, PI, TAU};
+    let kind = layout.roads[ri].kind.as_str();
+    let mut used = vec![ri];
+    let mut line = layout.roads[ri].line.clone();
+    let mut at = polyline_length(&line[..=j]) + u * polyline_length(&line[j..=j + 1]);
+    for forward in [true, false] {
+        loop {
+            let reach = if forward {
+                polyline_length(&line) - at
+            } else {
+                at
+            };
+            if reach >= UNDER_ROAD_REACH_M {
+                break;
+            }
+            let n = line.len();
+            let (end, inner) = if forward {
+                (line[n - 1], line[n - 2])
+            } else {
+                (line[0], line[1])
+            };
+            let heading = (end[1] - inner[1]).atan2(end[0] - inner[0]);
+            // (another kind, turn, way, reversed)
+            let mut next: Option<(bool, f32, usize, bool)> = None;
+            for (k, other) in layout.roads.iter().enumerate() {
+                if used.contains(&k) || other.line.len() < 2 {
+                    continue;
+                }
+                let m = other.line.len();
+                for reversed in [false, true] {
+                    let (first, second) = if reversed {
+                        (other.line[m - 1], other.line[m - 2])
+                    } else {
+                        (other.line[0], other.line[1])
+                    };
+                    if (first[0] - end[0]).hypot(first[1] - end[1]) > WAY_JOIN_M {
+                        continue;
+                    }
+                    let onward = (second[1] - first[1]).atan2(second[0] - first[0]);
+                    let turn = ((onward - heading + PI).rem_euclid(TAU) - PI).abs();
+                    let key = (other.kind != kind, turn, k, reversed);
+                    if next.is_none_or(|b| (key.0, key.1) < (b.0, b.1)) {
+                        next = Some(key);
+                    }
+                }
+            }
+            let Some((_, turn, k, reversed)) = next else {
+                break;
+            };
+            if turn > FRAC_PI_2 {
+                break;
+            }
+            used.push(k);
+            // `more` runs on from the joined end.
+            let mut more = layout.roads[k].line.clone();
+            if reversed {
+                more.reverse();
+            }
+            if forward {
+                line.extend(more.into_iter().skip(1));
+            } else {
+                at += polyline_length(&more);
+                more.reverse();
+                more.pop();
+                more.extend(line);
+                line = more;
+            }
+        }
+    }
+    (line, at)
+}
+
+/// Points every `step` (or a little less) along `line` from `reach` before
+/// the point `at` along it to `reach` after, as far as the line goes, and
+/// how far along them `at` is.
+fn resample_around(line: &[[f32; 2]], at: f32, reach: f32, step: f32) -> (Vec<(f32, f32)>, f32) {
+    let total = polyline_length(line);
+    let start = (at - reach).max(0.0);
+    let end = (at + reach).min(total);
+    let point_at = |d: f32| {
+        let mut left = d;
+        for w in line.windows(2) {
+            let len = (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]);
+            if left <= len {
+                let t = if len > 0.0 { left / len } else { 0.0 };
+                return (
+                    w[0][0] + (w[1][0] - w[0][0]) * t,
+                    w[0][1] + (w[1][1] - w[0][1]) * t,
+                );
+            }
+            left -= len;
+        }
+        let last = line[line.len() - 1];
+        (last[0], last[1])
+    };
+    let count = (((end - start) / step).ceil() as usize).max(1);
+    let points = (0..=count)
+        .map(|i| point_at(start + (end - start) * i as f32 / count as f32))
+        .collect();
+    (points, at - start)
+}
+
+/// `points`, which pass under the lap `at` along them (at lap `station`),
+/// cut short of where they come back within [`UNDER_ROAD_CLEAR_M`] of the
+/// lap's edge away from the bridge: a junction with it, or another leg.
+/// `None` when too little is left either side of the bridge.
+fn short_of_the_lap(
+    terrain: &TerrainHeightfield,
+    points: &[(f32, f32)],
+    at: f32,
+    station: f32,
+    span: f32,
+    width_m: f32,
+) -> Option<(Vec<(f32, f32)>, f32)> {
+    let total = terrain.road_path(0).total_length_m();
+    let near_lap = |p: (f32, f32)| {
+        terrain
+            .nearest_track_point(p.0, p.1, 80.0)
+            .is_some_and(|(s, lat, half)| {
+                let gap = (s - station).rem_euclid(total);
+                let gap = gap.min(total - gap);
+                gap > span / 2.0 + 40.0 && lat.abs() - half < width_m / 2.0 + UNDER_ROAD_CLEAR_M
+            })
+    };
+    let mut along = vec![0.0f32; points.len()];
+    for i in 1..points.len() {
+        let (p, q) = (points[i], points[i - 1]);
+        along[i] = along[i - 1] + (p.0 - q.0).hypot(p.1 - q.1);
+    }
+    let cross = along.iter().rposition(|&a| a <= at)?;
+    let lo = (0..=cross)
+        .rev()
+        .find(|&i| near_lap(points[i]))
+        .map_or(0, |i| i + 1);
+    let hi = (cross + 1..points.len())
+        .find(|&i| near_lap(points[i]))
+        .map_or(points.len() - 1, |i| i - 1);
+    // At least 20 m either side of the crossing.
+    if lo > cross || hi <= cross || at - along[lo] < 20.0 || along[hi] - at < 20.0 {
+        return None;
+    }
+    Some((points[lo..=hi].to_vec(), at - along[lo]))
 }
 
 /// The brands the kit has artwork for (`props/board/brands`).

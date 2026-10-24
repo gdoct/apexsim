@@ -156,6 +156,7 @@ with empty `surfaces`). The server never reads it.
 | `decals` | Pictures painted on the road: `image` (`set/name`), `start_m`, `length_m`, `lat_m`, `width_m`, `reversed` |
 | `water` | Polygon rings in world metres, even-odd fill |
 | `bridges` | Station spans carried over water (bands and curbs are clipped out) |
+| `under_roads` | Public roads the lap crosses on a bridge of its own (`deck_track`): `name`, `nodes` (`[x,y,z]` world, 5 m apart), `width_m`. Laid by `ats-dress`; the terrain runs each through an underpass slot and the bake draws it |
 | `dressing` | `season` (`summer`/`autumn`) and `spectators` (bool) |
 | `external_sidecars` | Sidecars another tool wrote (`ground`, `curbs`, `walls`, `road`, `pit`) that `ats-export` must not overwrite |
 | `next_id` | Monotonic id counter |
