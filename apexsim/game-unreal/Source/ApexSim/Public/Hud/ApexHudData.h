@@ -309,8 +309,21 @@ struct APEXSIM_API FApexHudMemory
 		 */
 		float StintFromLaps = 0.0f;
 		int64 StintFromTick = -1;
+		/**
+		 * Where the car has been: its race distance (m) and the HUD clock
+		 * then, a sample every TrailSpacingM, the last TrailLaps laps of it.
+		 * A gap is the time since the car ahead passed where this one is.
+		 */
+		TArray<TPair<float, double>> Trail;
 	};
 	TMap<int32, FCarHistory> Cars;
+	static constexpr float TrailSpacingM = 10.0f;
+	static constexpr float TrailLaps = 2.2f;
+	/** The HUD clock at the last sample; a clock that runs back (a replay seek) drops every trail. */
+	double TrailClock = -1.0;
+
+	/** When the car was at this race distance, off its trail; false when the trail does not reach it. */
+	bool TimeAtDistance(int32 CarIndex, float DistanceM, double& OutSeconds) const;
 
 	/**
 	 * The running order as last taken, with each car's race distance (m) and
@@ -340,8 +353,8 @@ struct APEXSIM_API FApexHudMemory
 		Cars = MoveTemp(Kept);
 	}
 
-	/** Note this frame's pit stops and tyre changes, car by car. */
-	void SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM = 0.0f);
+	/** Note this frame's pit stops and tyre changes, car by car, and (with a clock and the track's length) where each car is. */
+	void SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM = 0.0f, double TimeSeconds = 0.0);
 
 	/**
 	 * Feed one telemetry frame's local car into the delta's reference. Driven

@@ -202,30 +202,18 @@ the client does not show all of them yet, and the server leaves a few edges.
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
 
-### 28. HUD panels on top of each other
+### 28. HUD panels: what is left
 
-Seen on 2026-10-20's verification runs (`out/verify/v-r13-phase`,
-`v-r12-go-out`, `v-r12-weekend-shootout`, `v-r13-blue`), on the layout in
-`hud/custom/layout.json`; the components a layout does not name take their
-region's place without looking at the panels pinned there.
+Panels no longer draw over each other while racing (`SeparatePanels`,
+[game/hud-modding.md](game/hud-modding.md#regions)) and the gaps are times
+off each car's trail.
 
-- The `race_phase` banner (FORMATION LAP · HOLD YOUR PLACE · NO
-  OVERTAKING, VIRTUAL SAFETY CAR · NO OVERTAKING · HOLD THE PACE) runs
-  under the `race_state` panel at the top right; only VSC ENDING and BLUE
-  FLAG are short enough to clear it.
-- In qualifying the timing panel (QUALIFYING, OUT LAP, the lap clock, BEST,
-  RECORD) draws over `damage` and `tyres` on the right.
-- The `conditions` panel, once added, sits under `damage`: its forecast
-  lines are cut ("…ain in 14:50") and the wind line clipped.
-- The standings' gap to the leader is the distance over the car's own
-  speed (`ApexHudData.cpp`, `gap_leader_s`), so a car slowing for a corner
-  shows more than the car behind it on a straight (P2 +34.5, P3 +28.0, P4
-  +30.0 in one frame) and the column jumps about.
+- The `conditions` panel cuts its long lines at its width ("Wind 9 km/h
+  from ahe…", the forecast's "…ain in 14:50"): wrap them, or a wider panel.
 - The qualifying results screen after a one-lap shoot-out shows a plain
   yellow block under LAP BY LAP.
 
-**Check:** the same runs, every panel clear of the others and the gaps in
-order down the standings.
+**Check:** `v-r12-weekend-shootout`, a run with the conditions panel on.
 
 ## P3: nice to have
 

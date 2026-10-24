@@ -1919,4 +1919,65 @@ bool FApexHudRainRadarTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudTrailGapTest, "ApexSim.Hud.Data.TrailGap", ApexTestFlags)
+
+bool FApexHudTrailGapTest::RunTest(const FString& Parameters)
+{
+	// Two cars on the same lap of a 5 km track, 60 m/s but 20 m/s through a
+	// slow corner from 1000 to 1300 m; the second runs exactly two seconds
+	// behind the first. Its gap reads two seconds all the way round, through
+	// the corner too (the ground between them over its speed read 2 to 6).
+	constexpr float Length = 5000.0f;
+	auto SpeedAt = [](double Station) { return Station >= 1000.0 && Station < 1300.0 ? 20.0 : 60.0; };
+	constexpr double Dt = 0.05;
+	TArray<double> Distance = {200.0};
+	TArray<double> Speed = {60.0};
+	for (int32 Step = 1; Step < 3000; ++Step)
+	{
+		const double V = SpeedAt(FMath::Fmod(Distance.Last(), static_cast<double>(Length)));
+		Distance.Add(Distance.Last() + V * Dt);
+		Speed.Add(V);
+	}
+	auto Car = [&](int32 Index, int32 Step)
+	{
+		const double D = Distance[Step] + Length;
+		return HudCar(Index, 1 + FMath::FloorToInt(D / Length), static_cast<float>(FMath::Fmod(D, static_cast<double>(Length))),
+			static_cast<float>(Speed[Step]));
+	};
+
+	FApexHudInputs In;
+	In.LocalCarIndex = 1;
+	In.TrackLengthM = Length;
+	In.LapLimit = 10;
+	In.GameMode = EApexGameMode::Race;
+	FApexHudMemory Memory;
+	constexpr int32 Behind = 40;  // two seconds of steps
+	double Worst = 0.0;
+	bool bCornerSeen = false;
+	for (int32 Step = Behind; Step < 2900; ++Step)
+	{
+		FApexTelemetryFrame Frame;
+		Frame.Cars.Add(Car(0, Step));
+		Frame.Cars.Add(Car(1, Step - Behind));
+		In.Frame = &Frame;
+		In.TimeSeconds = 1.0 + Step * Dt;
+		FApexHudData Data;
+		ApexHudData::Build(In, Memory, Data);
+		const TArray<FApexHudRecord>* Standings = Data.FindList(TEXT("standings"));
+		if (!Standings || Standings->Num() != 2 || Step < Behind + 100)
+		{
+			continue;
+		}
+		const double Gap = (*Standings)[1][TEXT("gap_leader_s")].AsNumber();
+		Worst = FMath::Max(Worst, FMath::Abs(Gap - 2.0));
+		bCornerSeen |= Speed[Step - Behind] < 30.0;
+		TestEqual(TEXT("the gap ahead says the same"), HudValue(Data, TEXT("gap.ahead_s")).AsNumber(), Gap, 1e-6);
+	}
+	TestTrue(TEXT("the follower went through the corner"), bCornerSeen);
+	// Within what a 10 m sample spacing gives at the corner's step from 60 to
+	// 20 m/s (about 0.06 s), where the old reading was 4 s out.
+	TestTrue(FString::Printf(TEXT("two seconds all the way round (worst %.3f s off)"), Worst), Worst < 0.1);
+	return true;
+}
+
 #endif

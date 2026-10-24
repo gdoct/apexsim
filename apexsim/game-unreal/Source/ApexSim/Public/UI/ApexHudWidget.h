@@ -81,6 +81,12 @@ public:
 	void BeginEditing();
 	void EndEditing();
 	bool IsEditing() const { return bEditing; }
+
+	/**
+	 * A panel of another screen that the HUD's panels move off while it is
+	 * shown (the qualifying timing sheet); held weakly, so it can simply go.
+	 */
+	static void KeepClearOf(UWidget* Widget);
 	/**
 	 * The editor lays out the scene that was up when it opened (a watched
 	 * hotlap's `hotlap_watch`) rather than the ordinary HUD.
@@ -198,6 +204,17 @@ private:
 	/** Each component's scale box, and its canvas slot when pinned; parallel to Components. */
 	TArray<UScaleBox*> ComponentWrappers;
 	TArray<UCanvasPanelSlot*> ComponentCanvasSlots;
+	/** How far SeparatePanels moved each component off another; parallel to Components. */
+	TArray<FVector2D> ComponentShift;
+
+	/**
+	 * No panel is drawn over another while racing: a shown panel that
+	 * overlaps one settled before it (pinned panels first, each in its
+	 * order, then the regions') is moved until it is clear: up or down,
+	 * away from the edge it is anchored to first, then sideways. The layout is
+	 * untouched, and the editor shows every panel where it is placed.
+	 */
+	void SeparatePanels();
 
 	FApexHudLayout Layout;
 	FString LayoutFile;

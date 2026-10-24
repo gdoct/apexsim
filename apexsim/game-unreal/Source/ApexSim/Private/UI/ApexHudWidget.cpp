@@ -423,6 +423,155 @@ void UApexHudWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 		}
 		UpdateNode(Root, Scope);
 	}
+	SeparatePanels();
+}
+
+namespace
+{
+	TArray<TWeakObjectPtr<UWidget>>& KeepClearWidgets()
+	{
+		static TArray<TWeakObjectPtr<UWidget>> Widgets;
+		return Widgets;
+	}
+}
+
+void UApexHudWidget::KeepClearOf(UWidget* Widget)
+{
+	TArray<TWeakObjectPtr<UWidget>>& Widgets = KeepClearWidgets();
+	Widgets.RemoveAll([](const TWeakObjectPtr<UWidget>& Held) { return !Held.IsValid(); });
+	Widgets.AddUnique(Widget);
+}
+
+void UApexHudWidget::SeparatePanels()
+{
+	const FVector2D Size = GetHudSize();
+	if (Size.X < 1.0 || Size.Y < 1.0 || ComponentShift.Num() != Components.Num())
+	{
+		return;
+	}
+	TArray<FSlateRect> Settled;
+	// Another screen's panels come first: they do not move.
+	for (const TWeakObjectPtr<UWidget>& Held : KeepClearWidgets())
+	{
+		const UWidget* Widget = Held.Get();
+		const UUserWidget* Screen = Widget ? Widget->GetTypedOuter<UUserWidget>() : nullptr;
+		// Shown: built into Slate, it and its screen not collapsed or hidden
+		// (the screen may sit inside another rather than on the viewport).
+		if (!Widget || !Widget->IsVisible() || !Widget->GetCachedWidget().IsValid() || !Screen || !Screen->IsVisible())
+		{
+			continue;
+		}
+		const FGeometry& Geometry = Widget->GetCachedGeometry();
+		const FVector2D AbsoluteSize = Geometry.GetAbsoluteSize();
+		if (AbsoluteSize.X >= 1.0 && AbsoluteSize.Y >= 1.0)
+		{
+			Settled.Add(FSlateRect(AbsoluteToHud(Geometry.GetAbsolutePosition()), AbsoluteToHud(Geometry.GetAbsolutePosition() + AbsoluteSize)));
+		}
+	}
+	// Pinned panels first, then the regions', each set in its order.
+	TArray<int32> Turn;
+	for (int32 Index = 0; Index < Components.Num(); ++Index)
+	{
+		Turn.Add(Index);
+	}
+	Turn.Sort([this](int32 A, int32 B)
+	{
+		const bool PinA = ComponentCanvasSlots.IsValidIndex(A) && ComponentCanvasSlots[A];
+		const bool PinB = ComponentCanvasSlots.IsValidIndex(B) && ComponentCanvasSlots[B];
+		if (PinA != PinB)
+		{
+			return PinA;
+		}
+		const FApexHudComponentDef& X = Components[A];
+		const FApexHudComponentDef& Y = Components[B];
+		return X.Order != Y.Order ? X.Order < Y.Order : X.Id < Y.Id;
+	});
+
+	constexpr float Gap = 6.0f;
+	for (const int32 Index : Turn)
+	{
+		FVector2D Shift = FVector2D::ZeroVector;
+		FSlateRect Rect;
+		const int32 Root = ComponentRoots[Index];
+		const bool bShown = !bEditing && Root != INDEX_NONE && Nodes[Root].LastVisible == 1 && GetComponentRect(Index, Rect);
+		if (bShown)
+		{
+			// Where the layout puts it: the rect drawn less the shift it was given.
+			Rect = Rect.OffsetBy(-ComponentShift[Index]);
+			// The edges it keeps to: its anchor when pinned, else its region's.
+			FVector2D Edge(0.5, 0.5);
+			if (const FApexHudPlacement* Pinned = Layout.Find(Components[Index].Id); Pinned && Pinned->bPinned)
+			{
+				Edge = Pinned->Anchor;
+			}
+			else
+			{
+				const FString& Region = Components[Index].Region;
+				Edge.X = Region.EndsWith(TEXT("left")) ? 0.0 : Region.EndsWith(TEXT("right")) ? 1.0 : 0.5;
+				Edge.Y = Region.StartsWith(TEXT("top")) ? 0.0 : Region.StartsWith(TEXT("bottom")) ? 1.0 : 0.5;
+			}
+			// Push one way past every panel in the road; false when it leaves the screen.
+			auto Push = [&](const FVector2D& Direction, FVector2D& OutShift)
+			{
+				FSlateRect Moved = Rect;
+				for (int32 Pass = 0; Pass < Settled.Num() + 1; ++Pass)
+				{
+					const FSlateRect* Hit = Settled.FindByPredicate([&Moved](const FSlateRect& Other)
+					{
+						return FSlateRect::DoRectanglesIntersect(Moved.ExtendBy(FMargin(-1.0f)), Other);
+					});
+					if (!Hit)
+					{
+						OutShift = Moved.GetTopLeft() - Rect.GetTopLeft();
+						return Moved.Left >= 0.0f && Moved.Top >= 0.0f && Moved.Right <= Size.X && Moved.Bottom <= Size.Y;
+					}
+					FVector2D Step = FVector2D::ZeroVector;
+					if (Direction.Y != 0.0)
+					{
+						Step.Y = Direction.Y > 0.0 ? Hit->Bottom + Gap - Moved.Top : Hit->Top - Gap - Moved.Bottom;
+					}
+					else
+					{
+						Step.X = Direction.X > 0.0 ? Hit->Right + Gap - Moved.Left : Hit->Left - Gap - Moved.Right;
+					}
+					Moved = Moved.OffsetBy(Step);
+				}
+				return false;
+			};
+			// Up or down first, away from the anchored edge (the nearer for a
+			// centred one); then sideways, away from the anchored side.
+			const double AwayY = Edge.Y < 0.5 ? 1.0 : -1.0;
+			const double AwayX = Edge.X < 0.5 ? 1.0 : -1.0;
+			TArray<FVector2D> Ways = {FVector2D(0.0, AwayY), FVector2D(0.0, -AwayY), FVector2D(AwayX, 0.0), FVector2D(-AwayX, 0.0)};
+			bool bPlaced = false;
+			if (FMath::IsNearlyEqual(Edge.Y, 0.5))
+			{
+				FVector2D Down, Up;
+				const bool bDown = Push(FVector2D(0.0, 1.0), Down);
+				const bool bUp = Push(FVector2D(0.0, -1.0), Up);
+				if (bDown || bUp)
+				{
+					Shift = bDown && (!bUp || FMath::Abs(Down.Y) <= FMath::Abs(Up.Y)) ? Down : Up;
+					bPlaced = true;
+				}
+				Ways.RemoveAt(0, 2);
+			}
+			for (int32 Way = 0; !bPlaced && Way < Ways.Num(); ++Way)
+			{
+				bPlaced = Push(Ways[Way], Shift);
+			}
+			if (!bPlaced)
+			{
+				Shift = FVector2D::ZeroVector;
+			}
+			Settled.Add(Rect.OffsetBy(Shift));
+		}
+		if (!Shift.Equals(ComponentShift[Index], 0.5) && ComponentWrappers[Index])
+		{
+			ComponentShift[Index] = Shift;
+			ComponentWrappers[Index]->SetRenderTranslation(Shift);
+		}
+	}
 }
 
 // --- Construction -------------------------------------------------------------
@@ -469,6 +618,7 @@ void UApexHudWidget::BuildHud()
 	ComponentRoots.Init(INDEX_NONE, Components.Num());
 	ComponentWrappers.Init(nullptr, Components.Num());
 	ComponentCanvasSlots.Init(nullptr, Components.Num());
+	ComponentShift.Init(FVector2D::ZeroVector, Components.Num());
 	TMap<FString, UPanelWidget*> RegionBoxes;
 
 	// Pinned components sit on a canvas over the regions, each with its anchor

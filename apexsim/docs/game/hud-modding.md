@@ -115,7 +115,12 @@ bands sit side by side (lowest `order` first, left to right); in `left`,
 the sides and 30 px from the top and bottom. A `"float": true` component is
 placed alone at its region's corner, offset by its `margin`, and moves nothing
 else (the virtual mirror is one). Keep `center` empty in anything meant for
-racing: it is the driver's sight line. Once a player moves a component in the
+racing: it is the driver's sight line. While racing no panel is drawn over
+another (`UApexHudWidget::SeparatePanels`): a panel that overlaps one
+settled before it (another screen's, such as the qualifying sheet, first;
+then pinned panels, then the regions', each in its `order`) is moved until
+it is clear, up or down away from the edge it keeps to, else sideways. The
+layout is not changed: the HUD editor shows every panel where it is placed. Once a player moves a component in the
 HUD editor, `layout.json` pins it and that wins over the region.
 
 ### Scenes
@@ -425,7 +430,7 @@ best laps apart (*null* while either car has no time).
 | `race.phase` | what the race is doing beyond green: `formation`, `pace_lap`, `vsc`, `vsc_ending`, `safety_car` or `sc_in_this_lap` (*null* otherwise) |
 | `race.phase_name` | the same for the screen: `FORMATION LAP`, `PACE LAP`, `VIRTUAL SAFETY CAR`, `VSC ENDING`, `SAFETY CAR`, `SAFETY CAR IN THIS LAP` (*null* otherwise) |
 | `gap.ahead_name`, `gap.behind_name` | the drivers either side (*null* at either end) |
-| `gap.ahead_s`, `gap.behind_s` | the gap to them at the local car's speed (*null* when the circuit's length is unknown) |
+| `gap.ahead_s`, `gap.behind_s` | the time between the local car and them, as `item.interval_s` reads it (*null* when the circuit's length is unknown) |
 
 ### Laps and timing
 
@@ -619,7 +624,7 @@ the furthest round; in qualifying by best lap, see `race.qualifying_order`).
 | `item.blue_flag` | race control shows the car the blue flag (a car a lap up close behind) |
 | `item.yellow` | the yellow ahead of the car, as `flag.yellow` |
 | `item.lap` | lap, as `lap.display` |
-| `item.gap_leader_s` | seconds behind the leader (*null* for the leader, or when the length is unknown); in qualifying the best lap's gap to pole |
+| `item.gap_leader_s` | seconds behind the leader: how long ago the leader was where this car is now, off the trail of race distance and time the HUD keeps for every car (a sample every 10 m, the last 2.2 laps); until the trail reaches back, the ground between them over this car's speed (*null* for the leader, or when the length is unknown); in qualifying the best lap's gap to pole |
 | `item.interval_s` | seconds behind the car one place ahead (*null* as above) |
 | `item.laps_down` | whole laps behind the leader |
 | `item.gap_s` | seconds behind the local car (negative: ahead) |

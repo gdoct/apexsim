@@ -32,6 +32,7 @@
 #include "UObject/UObjectIterator.h"
 #include "UI/ApexButtonWidget.h"
 #include "UI/ApexColourVision.h"
+#include "UI/ApexHudWidget.h"
 #include "UI/ApexStepperWidget.h"
 #include "UI/ApexUIStyle.h"
 
@@ -366,6 +367,8 @@ void UApexHotlapWidget::NativeOnInitialized()
 	BoardSlot->SetPadding(FMargin(0.0f, CardInset, CardInset, CardInset));
 
 	TimingPanel = BuildTimingPanel();
+	// The race HUD's right-hand panels make room for the sheet.
+	UApexHudWidget::KeepClearOf(TimingPanel);
 	UOverlaySlot* SheetSlot = Layers->AddChildToOverlay(TimingPanel);
 	SheetSlot->SetHorizontalAlignment(HAlign_Right);
 	SheetSlot->SetVerticalAlignment(VAlign_Center);

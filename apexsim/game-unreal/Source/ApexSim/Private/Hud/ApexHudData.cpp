@@ -1,5 +1,6 @@
 #include "Hud/ApexHudData.h"
 
+#include "Algo/BinarySearch.h"
 #include "Catalog/ApexCatalogRows.h"
 
 #include "UI/ApexCreateSessionModel.h"
@@ -248,8 +249,46 @@ float ApexHudData::LapsRun(int32 CurrentLap, float TrackProgressM, float TrackLe
 	return static_cast<float>(FMath::Max(CurrentLap, 1) - 1) + Share;
 }
 
-void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM)
+bool FApexHudMemory::TimeAtDistance(int32 CarIndex, float DistanceM, double& OutSeconds) const
 {
+	const FCarHistory* History = Cars.Find(CarIndex);
+	if (!History || History->Trail.Num() < 2)
+	{
+		return false;
+	}
+	const TArray<TPair<float, double>>& Trail = History->Trail;
+	if (DistanceM < Trail[0].Key || DistanceM > Trail.Last().Key)
+	{
+		return false;
+	}
+	// The first sample at or past the distance, and the one before it.
+	const int32 Upper = Algo::LowerBoundBy(Trail, DistanceM, [](const TPair<float, double>& Sample) { return Sample.Key; });
+	if (Upper <= 0)
+	{
+		OutSeconds = Trail[0].Value;
+		return true;
+	}
+	const TPair<float, double>& A = Trail[Upper - 1];
+	const TPair<float, double>& B = Trail[FMath::Min(Upper, Trail.Num() - 1)];
+	const float Span = B.Key - A.Key;
+	OutSeconds = Span > KINDA_SMALL_NUMBER ? A.Value + (B.Value - A.Value) * (DistanceM - A.Key) / Span : A.Value;
+	return true;
+}
+
+void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM, double TimeSeconds)
+{
+	const bool bTrail = TimeSeconds > 0.0 && TrackLengthM > 0.0f;
+	if (bTrail && TimeSeconds < TrailClock)
+	{
+		for (TPair<int32, FCarHistory>& Entry : Cars)
+		{
+			Entry.Value.Trail.Reset();
+		}
+	}
+	if (bTrail)
+	{
+		TrailClock = TimeSeconds;
+	}
 	// A race under way past its formation or pace lap: where the server's
 	// stints are counted from.
 	const bool bRaceGreen = Frame.GameMode == EApexGameMode::Race && Frame.SessionState == EApexSessionState::Racing
@@ -309,6 +348,33 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLe
 			History->StintFromTick = Frame.ServerTick;
 		}
 		History->bWasServicing = Car.bPitServicing;
+		// The trail runs forward only: a car going back (a spin, reversing out
+		// of a barrier) adds nothing until it is past its last sample again.
+		if (bTrail)
+		{
+			const float Distance = ApexRace::RaceDistanceM(Car.CurrentLap, Car.TrackProgress, TrackLengthM);
+			TArray<TPair<float, double>>& Trail = History->Trail;
+			if (Trail.IsEmpty() || Distance >= Trail.Last().Key + TrailSpacingM)
+			{
+				Trail.Emplace(Distance, TimeSeconds);
+				const float Keep = Distance - TrailLaps * TrackLengthM;
+				int32 Old = 0;
+				while (Old < Trail.Num() - 2 && Trail[Old].Key < Keep)
+				{
+					++Old;
+				}
+				if (Old > 0)
+				{
+					Trail.RemoveAt(0, Old, EAllowShrinking::No);
+				}
+			}
+			else if (Distance < Trail.Last().Key - TrackLengthM * 0.5f)
+			{
+				// Moved back half a lap at once: a recovery or a new session's grid.
+				Trail.Reset();
+				Trail.Emplace(Distance, TimeSeconds);
+			}
+		}
 		if (Car.Compound >= 0)
 		{
 			History->Compound = Car.Compound;
@@ -771,7 +837,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 	// --- Standings ----------------------------------------------------------
 
-	Memory.SampleField(Frame, In.TrackLengthM);
+	Memory.SampleField(Frame, In.TrackLengthM, In.TimeSeconds);
 
 	// Without a catalog length the stations still order cars within a lap; the
 	// nominal length only has to dwarf any real station so a completed lap
@@ -918,6 +984,22 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 	}
 	const bool bMultiClass = ClassCounts.Num() > 1;
 
+	// The time between two cars of the order, the one at Ahead in front: how
+	// long ago it passed where the other is now, off its trail, at the moment
+	// the order was taken. Without a trail that reaches back (the first
+	// seconds, a car laps ahead) the ground between them over the one
+	// behind's speed.
+	auto TimeGap = [&Order, &Memory, &In](int32 Ahead, int32 Behind)
+	{
+		double PassedAt = 0.0;
+		const double TakenAt = Memory.StandingsTakenAt >= 0.0 ? Memory.StandingsTakenAt : In.TimeSeconds;
+		if (In.TimeSeconds > 0.0 && Memory.TimeAtDistance(Order[Ahead].Car->CarIndex, Order[Behind].Progress, PassedAt))
+		{
+			return FMath::Max(0.0, TakenAt - PassedAt);
+		}
+		return static_cast<double>((Order[Ahead].Progress - Order[Behind].Progress) / Order[Behind].Speed);
+	};
+
 	TArray<FApexHudRecord>& Standings = Out.Lists.FindOrAdd(TEXT("standings"));
 	Standings.Reset(Order.Num());
 	for (int32 Place = 0; Place < Order.Num(); ++Place)
@@ -951,18 +1033,19 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		}
 		else
 		{
-			// Gaps are a time, not a distance: how long the car behind would
-			// take, at its current speed, to cover the ground between them.
+			// Gaps are a time, not a distance (TimeGap): how long ago the car
+			// ahead was where the one behind is.
 			Row.Add(TEXT("gap_leader_s"), bLengthKnown && Place > 0
-				? FApexHudValue::Of((Order[0].Progress - Entry.Progress) / Entry.Speed)
+				? FApexHudValue::Of(TimeGap(0, Place))
 				: FApexHudValue());
+			// To the local car: positive for a car behind it, negative ahead.
 			Row.Add(TEXT("gap_s"), bLengthKnown && LocalPlace >= 0
-				? FApexHudValue::Of((Order[LocalPlace].Progress - Entry.Progress) / Order[LocalPlace].Speed)
+				? FApexHudValue::Of(Place == LocalPlace ? 0.0 : Place > LocalPlace ? TimeGap(LocalPlace, Place) : -TimeGap(Place, LocalPlace))
 				: FApexHudValue());
 			// The car directly ahead on the road of the order, the way a
 			// timing tower reads: the leader has none.
 			Row.Add(TEXT("interval_s"), bLengthKnown && Place > 0
-				? FApexHudValue::Of((Order[Place - 1].Progress - Entry.Progress) / Entry.Speed)
+				? FApexHudValue::Of(TimeGap(Place - 1, Place))
 				: FApexHudValue());
 			Row.Add(TEXT("laps_down"), FApexHudValue::Of(bLengthKnown && Place > 0 && Car.FinishPosition <= 0
 				? FMath::Max(0, FMath::FloorToInt((Order[0].Progress - Entry.Progress) / In.TrackLengthM))
@@ -1045,7 +1128,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		}
 		else if (bThere && bLengthKnown)
 		{
-			Gap = FApexHudValue::Of(FMath::Abs(Order[OtherPlace].Progress - Order[LocalPlace].Progress) / Order[LocalPlace].Speed);
+			Gap = FApexHudValue::Of(OtherPlace < LocalPlace ? TimeGap(OtherPlace, LocalPlace) : TimeGap(LocalPlace, OtherPlace));
 		}
 		Out.Values.FindOrAdd(FName(FString(Prefix) + TEXT("_s"))) = Gap;
 	};
