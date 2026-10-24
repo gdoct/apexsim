@@ -6,6 +6,14 @@ day they landed (`git show <hash>` for the change). The open items are in
 backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md),
 [verification.md](verification.md)). Add a date's section when items land.
 
+## 2026-10-25
+
+- **A7** — the imported F1s' contact found: side by side under the dodge, from their handling (`58c0eb48`)
+- **Follow-ups #28**
+  - no HUD panel drawn over another; gaps off each car's trail (`3abd877e`)
+  - the conditions panel's lines wrap; one lap is no chart (`a1a45607`)
+- **N7** — a season round's own rules on a line under its name (`49f4d4b0`)
+
 ## 2026-10-24
 
 - **A3**
