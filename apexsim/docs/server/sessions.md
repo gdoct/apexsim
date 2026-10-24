@@ -1691,7 +1691,10 @@ client a `resume_token`; a client that connects again with it in
   (`away_input`, steering aid off as after the flag), or parks it in its
   garage in a hotlap or qualifying session. In a race the server plans and
   drives the car's stops as an AI's (`plan_ai_stops`, out to the lane's
-  end), so a long race does not run its tank or tyres out. The roster marks
+  end), so a long race does not run its tank or tyres out, and it decides
+  as the AI does (`update_racecraft`, the cool-down driver's profile): a
+  held car put into a wall backs out, and is put back after
+  `RESET_AFTER_S` off the road, as is a debug stand-in's. The roster marks
   the car `Away`, so the other drivers' towers show it. A lap the server
   drives is never a record. The lobby keeps the seat counted (`LobbyManager::hold_seat`), so
   the session is not given away beyond its size. A held seat's player is

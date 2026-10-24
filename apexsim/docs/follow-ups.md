@@ -450,10 +450,4 @@ the same files.
   in `Private/UI`): their rows mostly centre their own children, so look
   at each screen before moving it to the helper.
 
-- An away driver's held car (`GameSession::away`, driven on the
-  cool-down driver's input) gets no racecraft: put into a wall while its
-  driver is gone, it is never backed out or put back. The debug stand-in
-  now has it (`update_racecraft`'s stand-in profiles); an away car would
-  want the put-back at least, judged against the cool-down pace.
-
 **Check:** server and client build and tests.

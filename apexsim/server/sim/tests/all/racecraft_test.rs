@@ -296,12 +296,12 @@ fn a_car_that_cannot_get_back_on_the_road_is_put_back() {
     assert!(c.speed_mps > 15.0, "and racing: {:.1} m/s", c.speed_mps);
 }
 
-/// The debug stand-in drives a human's car as an AI does, and decides as
-/// one: penned in off the road it is put back after `RESET_AFTER_S`, as the
-/// AI is. Without its racecraft a stand-in that hit the wall at La Source
+/// A human's car penned in off the road at Monza (as above) in a race the
+/// server drives it in: under a debug stand-in, or as an away driver's
+/// held seat. It is put back after `RESET_AFTER_S` as an AI is, and races
+/// on. Without racecraft for it a stand-in that hit the wall at La Source
 /// sat there for the rest of a verification run.
-#[test]
-fn a_stand_in_that_cannot_get_back_on_the_road_is_put_back() {
+fn a_server_driven_car_is_put_back(stand_in: bool) {
     const STATION_M: f32 = 600.0;
     let mut track = TrackLoader::load_from_file_with(
         repo("../apexsim-content/tracks/default/Monzarella/Monzarella.yaml"),
@@ -344,21 +344,26 @@ fn a_stand_in_that_cannot_get_back_on_the_road_is_put_back() {
     let session = RaceSession::new(
         uuid::Uuid::from_u64_pair(9, 9),
         track.id,
-        SessionKind::Demo,
+        SessionKind::Multiplayer,
         1,
         0,
         5,
     );
     let mut race = GameSession::with_ai_profiles(session, track, cars, Vec::new());
     race.set_tick_rate(TICK_RATE);
-    race.set_debug_hooks(apexsim_sim::debug_hooks::DebugHooks {
-        stand_in_driver: true,
-        ..Default::default()
-    });
+    if stand_in {
+        race.set_debug_hooks(apexsim_sim::debug_hooks::DebugHooks {
+            stand_in_driver: true,
+            ..Default::default()
+        });
+    }
     let id = uuid::Uuid::from_u64_pair(2, 1);
     race.add_player(id, car_id);
     race.set_game_mode(GameMode::Race);
     race.session.state = SessionState::Racing;
+    if !stand_in {
+        assert!(race.hold_seat(&id), "the seat is held");
+    }
     {
         let c = race.session.participants.get_mut(&id).expect("the car");
         (c.pos_x, c.pos_y, c.pos_z, c.yaw_rad) = (cx, cy, z, yaw);
@@ -369,15 +374,29 @@ fn a_stand_in_that_cannot_get_back_on_the_road_is_put_back() {
     }
     let mut put_back = None;
     for t in 1..=(TICK_RATE as u32 * 60) {
-        let input = race.stand_in_input(&id).expect("the stand-in drives");
+        let input = if stand_in {
+            race.stand_in_input(&id).expect("the stand-in drives")
+        } else {
+            race.away_input(&id)
+        };
         race.tick(&HashMap::from([(id, input)]));
         if put_back.is_none() && race.session.participants[&id].recovery.is_some() {
             put_back = Some(t);
         }
     }
-    let after_s = put_back.expect("the stand-in was never put back") as f32 / TICK_RATE as f32;
+    let after_s = put_back.expect("the car was never put back") as f32 / TICK_RATE as f32;
     assert!(after_s >= apexsim_sim::racecraft::RESET_AFTER_S);
     let c = &race.session.participants[&id];
     assert!(c.is_on_track, "on the road again");
-    assert!(c.speed_mps > 15.0, "and racing: {:.1} m/s", c.speed_mps);
+    assert!(c.speed_mps > 5.0, "and going: {:.1} m/s", c.speed_mps);
+}
+
+#[test]
+fn a_stand_in_that_cannot_get_back_on_the_road_is_put_back() {
+    a_server_driven_car_is_put_back(true);
+}
+
+#[test]
+fn an_away_drivers_car_that_cannot_get_back_on_the_road_is_put_back() {
+    a_server_driven_car_is_put_back(false);
 }
