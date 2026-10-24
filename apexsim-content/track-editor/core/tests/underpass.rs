@@ -127,7 +127,7 @@ fn sample_points(mesh: &UeMesh) -> Vec<(f32, f32, f32)> {
         ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0, (a.2 + b.2) / 2.0)
     };
     let mut out = Vec::new();
-    for tri in mesh.indices.chunks_exact(3) {
+    for tri in mesh.indices.as_chunks::<3>().0 {
         let (a, b, c) = (at(tri[0]), at(tri[1]), at(tri[2]));
         let centroid = (
             (a.0 + b.0 + c.0) / 3.0,
@@ -274,7 +274,7 @@ fn the_deck_underside_faces_down_at_the_road_below() {
         .iter()
         .filter(|m| m.material_key == "structure_concrete")
     {
-        for tri in mesh.indices.chunks_exact(3) {
+        for tri in mesh.indices.as_chunks::<3>().0 {
             let n = tri[0] as usize * 3;
             // A deck quad is the deck's full width, so test its centroid.
             let centroid = |axis: usize| {

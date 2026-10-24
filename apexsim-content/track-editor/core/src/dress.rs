@@ -364,7 +364,11 @@ pub fn dress_scene_with_dem(
         match lay_landmark(&path, &terrain, landmark) {
             Ok(Some(mut prop)) => {
                 report.landmarks += 1;
-                let stamp = if landmark.pit_roof { PIT_ROOF_STAMP } else { "landmark" };
+                let stamp = if landmark.pit_roof {
+                    PIT_ROOF_STAMP
+                } else {
+                    "landmark"
+                };
                 prop.source = Some(format!("{stamp} {}", name_of(&landmark.name)));
                 laid.push(prop);
             }
@@ -378,7 +382,13 @@ pub fn dress_scene_with_dem(
     for (i, line) in layout.banking.iter().enumerate() {
         let props = lay_banking(&path, &terrain, line);
         report.landmarks += usize::from(!props.is_empty());
-        laid.extend(stamped(props, format!("banking {}", line.name.clone().unwrap_or_else(|| i.to_string()))));
+        laid.extend(stamped(
+            props,
+            format!(
+                "banking {}",
+                line.name.clone().unwrap_or_else(|| i.to_string())
+            ),
+        ));
     }
 
     // Anything the circuit has of its own is respected: a venue with its
@@ -478,7 +488,11 @@ pub fn dress_scene_with_dem(
             &mut laid,
             &mut report.skipped,
             "in the pit lane or where its garages stand",
-            |p| !matches!(p.kind, PropKind::Bridge | PropKind::Sky) && !on_roof(p) && zone.blocks(&path, p),
+            |p| {
+                !matches!(p.kind, PropKind::Bridge | PropKind::Sky)
+                    && !on_roof(p)
+                    && zone.blocks(&path, p)
+            },
         );
     }
 
@@ -710,18 +724,29 @@ fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
 /// outside of the curve, the ones within [`BANKING_ROAD_CLEAR_M`] of the
 /// circuit's road left out (where the oval meets the lap, or the span
 /// over it stands).
-fn lay_banking(path: &CenterlinePath, terrain: &TerrainHeightfield, line: &crate::layout::Line) -> Vec<Prop> {
+fn lay_banking(
+    path: &CenterlinePath,
+    terrain: &TerrainHeightfield,
+    line: &crate::layout::Line,
+) -> Vec<Prop> {
     let pts = &line.line;
     // Which way the line turns overall: left turns put the centre on the
     // left, so the outside, the module's +Y, is on the right.
     let turn: f32 = pts
         .windows(3)
         .map(|w| {
-            let (a, b) = ((w[1][0] - w[0][0], w[1][1] - w[0][1]), (w[2][0] - w[1][0], w[2][1] - w[1][1]));
+            let (a, b) = (
+                (w[1][0] - w[0][0], w[1][1] - w[0][1]),
+                (w[2][0] - w[1][0], w[2][1] - w[1][1]),
+            );
             a.0 * b.1 - a.1 * b.0
         })
         .sum();
-    let flip = if turn > 0.0 { std::f32::consts::PI } else { 0.0 };
+    let flip = if turn > 0.0 {
+        std::f32::consts::PI
+    } else {
+        0.0
+    };
     let mut out = Vec::new();
     let mut carry = BANKING_MODULE_M / 2.0;
     for seg in pts.windows(2) {
@@ -730,7 +755,10 @@ fn lay_banking(path: &CenterlinePath, terrain: &TerrainHeightfield, line: &crate
         let heading = (b[1] - a[1]).atan2(b[0] - a[0]);
         let mut d = carry;
         while d < len {
-            let (x, y) = (a[0] + (b[0] - a[0]) * d / len, a[1] + (b[1] - a[1]) * d / len);
+            let (x, y) = (
+                a[0] + (b[0] - a[0]) * d / len,
+                a[1] + (b[1] - a[1]) * d / len,
+            );
             d += BANKING_MODULE_M;
             let (sample, lat) = nearest_cross_section(path, x, y);
             let side = if lat >= 0.0 { Side::Left } else { Side::Right };
@@ -763,7 +791,9 @@ const PIT_ROOF_STAMP: &str = "pit roof";
 /// A prop the dressing pass stood on the pit building's roof, which
 /// grooming leaves where it is.
 pub fn on_the_pit_roof(prop: &Prop) -> bool {
-    prop.source.as_deref().is_some_and(|s| s.starts_with(PIT_ROOF_STAMP))
+    prop.source
+        .as_deref()
+        .is_some_and(|s| s.starts_with(PIT_ROOF_STAMP))
 }
 
 /// How high the pit building's roof stands over the ground: the generated
@@ -1185,7 +1215,9 @@ impl PitZone {
         let (from, to) = self.row.unwrap_or((0.0, self.lane.total_length_m()));
         (0..n)
             .map(|k| {
-                let sample = self.lane.sample_at(from + (to - from) * (k as f32 + 0.5) / n as f32);
+                let sample = self
+                    .lane
+                    .sample_at(from + (to - from) * (k as f32 + 0.5) / n as f32);
                 let p = offset_point(&sample, self.garage_side * (self.half + PIT_ROOF_SPOT_M));
                 (p.0, p.1)
             })
@@ -1421,7 +1453,11 @@ fn lay_stand(
         let (sample, lat) = nearest_cross_section(path, x, y);
         let side = if lat >= 0.0 { Side::Left } else { Side::Right };
         let runoff = runoff_reach(surfaces, path.total_length_m(), sample.station_m, side);
-        let mut clear = STAND_ROAD_CLEAR_M.max(if runoff > 0.0 { runoff + STAND_RUNOFF_CLEAR_M } else { 0.0 });
+        let mut clear = STAND_ROAD_CLEAR_M.max(if runoff > 0.0 {
+            runoff + STAND_RUNOFF_CLEAR_M
+        } else {
+            0.0
+        });
         if asset == "grass_bank_10m" {
             clear = clear.max(BANK_ROAD_CLEAR_M);
         }
@@ -1492,7 +1528,8 @@ fn standing_crowd(
             if roll(x, y, 700 + salt) < r as f32 * 0.25 {
                 continue;
             }
-            let along = -len / 2.0 + (i as f32 + 0.2 + 0.6 * roll(x, y, 800 + salt)) * len / per_row as f32;
+            let along =
+                -len / 2.0 + (i as f32 + 0.2 + 0.6 * roll(x, y, 800 + salt)) * len / per_row as f32;
             let back = (r as f32 + 0.25 + 0.5 * roll(x, y, 900 + salt)) * GA_ROW_M;
             let px = x + along_dir.1 * along + away.0 * back;
             let py = y + along_dir.0 * along + away.1 * back;
@@ -1915,7 +1952,9 @@ fn lay_structure(
         worst
     };
     let footprint_gap = |front: (f32, f32), row: &[usize]| -> f32 {
-        row.iter().map(|&i| unit_gap(front, i)).fold(f32::MAX, f32::min)
+        row.iter()
+            .map(|&i| unit_gap(front, i))
+            .fold(f32::MAX, f32::min)
     };
     let mapped_front = (front_x, front_y);
     let mut pushed = 0.0f32;
@@ -1964,7 +2003,10 @@ fn lay_structure(
         })
     };
     let clear_units = |front: (f32, f32)| -> Vec<usize> {
-        row.iter().copied().filter(|&i| !on_runoff(front, i)).collect()
+        row.iter()
+            .copied()
+            .filter(|&i| !on_runoff(front, i))
+            .collect()
     };
     let mut kept = clear_units((front_x, front_y));
     // A row the apron takes whole is a big building beside a corner, not a
@@ -3789,7 +3831,13 @@ mod surroundings {
                 let r = reach + roll(cx, cy, 61 + k as u32) * 4.0;
                 let (x, y) = (cx + a.cos() * r, cy + a.sin() * r);
                 let (sample, _) = nearest_cross_section(ctx.path, x, y);
-                if let Some(prop) = ctx.place(PropKind::Misc, "crowd_group", x, y, Some(sample.heading_rad)) {
+                if let Some(prop) = ctx.place(
+                    PropKind::Misc,
+                    "crowd_group",
+                    x,
+                    y,
+                    Some(sample.heading_rad),
+                ) {
                     out.push(prop);
                 }
             }
@@ -3838,10 +3886,18 @@ mod surroundings {
                 // Its marshal, a couple of metres up the road from the
                 // post, facing the track.
                 let (sin, cos) = sample.heading_rad.sin_cos();
-                let (fx, fy) = (point.0 - cos * MARSHAL_FIGURE_AHEAD_M, point.1 - sin * MARSHAL_FIGURE_AHEAD_M);
-                if let Some(figure) =
-                    ctx.place_clear(PropKind::Misc, "marshal_figure", fx, fy, Some(sample.heading_rad), TRACKSIDE_CLEAR_M)
-                {
+                let (fx, fy) = (
+                    point.0 - cos * MARSHAL_FIGURE_AHEAD_M,
+                    point.1 - sin * MARSHAL_FIGURE_AHEAD_M,
+                );
+                if let Some(figure) = ctx.place_clear(
+                    PropKind::Misc,
+                    "marshal_figure",
+                    fx,
+                    fy,
+                    Some(sample.heading_rad),
+                    TRACKSIDE_CLEAR_M,
+                ) {
                     out.push(figure);
                 }
             }
@@ -4197,7 +4253,10 @@ mod tests {
         small.area_m2 = 400.0;
         assert_eq!(building_asset(&small, false).0, "clubhouse");
         for asset in ["office_block", "venue_hall"] {
-            assert!(props::find(PropKind::Building, asset).is_some(), "{asset} is in the kit");
+            assert!(
+                props::find(PropKind::Building, asset).is_some(),
+                "{asset} is in the kit"
+            );
         }
     }
 
@@ -4220,7 +4279,11 @@ mod tests {
             .collect();
         assert!(!laid.is_empty(), "{:?}", report.skipped);
         for p in &laid {
-            assert!(nearest_cross_section(&path, p.x, p.y).1 > 0.0, "a block outside the hairpin at {}", p.x);
+            assert!(
+                nearest_cross_section(&path, p.x, p.y).1 > 0.0,
+                "a block outside the hairpin at {}",
+                p.x
+            );
         }
 
         // A roof outline (a stand's canopy) is not trimmed into a row.
@@ -4228,7 +4291,11 @@ mod tests {
         layout.structures[0].osm_building = Some("roof".to_string());
         let report = dress_scene(&track, &mut roofed, &layout).unwrap();
         assert!(building_lats(&track, &roofed).is_empty());
-        assert!(report.skipped.iter().any(|s| s.contains("across the road")), "{:?}", report.skipped);
+        assert!(
+            report.skipped.iter().any(|s| s.contains("across the road")),
+            "{:?}",
+            report.skipped
+        );
     }
 
     /// A building the apron takes whole is stepped back off it rather than
@@ -4257,7 +4324,10 @@ mod tests {
         let lats = building_lats(&track, &scene);
         assert!(!lats.is_empty(), "{:?}", report.skipped);
         for lat in &lats {
-            assert!(*lat <= -(6.0 + 30.0) + 0.1, "a building front at lateral {lat} m: {lats:?}");
+            assert!(
+                *lat <= -(6.0 + 30.0) + 0.1,
+                "a building front at lateral {lat} m: {lats:?}"
+            );
         }
     }
 
@@ -4297,7 +4367,10 @@ mod tests {
             ("fuel_station", PropKind::Building, "fuel_station_canopy"),
             ("cauldron", PropKind::Misc, "cauldron"),
         ] {
-            assert!(props::find(prop_kind, asset).is_some(), "{asset} is in the kit");
+            assert!(
+                props::find(prop_kind, asset).is_some(),
+                "{asset} is in the kit"
+            );
             let track = track();
             let mut scene = scene(&track);
             let mut layout = layout();
@@ -4609,7 +4682,11 @@ mod tests {
         }];
         let mut scene = scene(&track);
         dress_scene(&track, &mut scene, &layout).unwrap();
-        let mods: Vec<_> = scene.props.iter().filter(|p| p.asset == "banked_oval_10m").collect();
+        let mods: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "banked_oval_10m")
+            .collect();
         assert!(mods.len() >= 20, "{} modules", mods.len());
         // The arc turns left (centre at +y), so its outside is on the
         // right: the module's +Y must point away from the centre.
@@ -4617,7 +4694,10 @@ mod tests {
         for m in &mods {
             let plus_y = (-m.yaw_rad.sin(), m.yaw_rad.cos());
             let out = (m.x - centre.0, m.y - centre.1);
-            assert!(plus_y.0 * out.0 + plus_y.1 * out.1 > 0.0, "a module's high side faces the centre");
+            assert!(
+                plus_y.0 * out.0 + plus_y.1 * out.1 > 0.0,
+                "a module's high side faces the centre"
+            );
         }
     }
 
@@ -4633,13 +4713,22 @@ mod tests {
         layout.stands = vec![ga];
         let mut scene = scene(&track);
         dress_scene(&track, &mut scene, &layout).unwrap();
-        let laid: Vec<_> = scene.props.iter().filter(|p| p.source.as_deref() == Some("stand GA1")).collect();
+        let laid: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.source.as_deref() == Some("stand GA1"))
+            .collect();
         assert!(laid.len() >= 20, "{} groups", laid.len());
-        assert!(laid.iter().all(|p| p.kind == PropKind::Misc && p.asset == "crowd_group"));
+        assert!(laid
+            .iter()
+            .all(|p| p.kind == PropKind::Misc && p.asset == "crowd_group"));
         let path = CenterlinePath::from_track(&track).unwrap();
         for p in &laid {
             let lat = nearest_cross_section(&path, p.x, p.y).1;
-            assert!(lat < -(6.0 + BANK_ROAD_CLEAR_M) + 0.5, "a group at lateral {lat}");
+            assert!(
+                lat < -(6.0 + BANK_ROAD_CLEAR_M) + 0.5,
+                "a group at lateral {lat}"
+            );
         }
     }
 
@@ -4658,7 +4747,14 @@ mod tests {
         layout.stands = vec![wrong];
         let report = dress_scene(&track, &mut scene(&track), &layout).unwrap();
         assert_eq!(report.stands, 1, "{:?}", report.skipped);
-        assert!(report.checks.iter().any(|c| c.contains("far side of a leg")), "{:?}", report.checks);
+        assert!(
+            report
+                .checks
+                .iter()
+                .any(|c| c.contains("far side of a leg")),
+            "{:?}",
+            report.checks
+        );
         layout.stands = vec![right];
         let report = dress_scene(&track, &mut scene(&track), &layout).unwrap();
         assert_eq!(report.stands, 1, "{:?}", report.skipped);
@@ -4771,7 +4867,10 @@ mod tests {
             let mut s = stand("x", vec![[0.0, 0.0], [40.0, 0.0]], 30.0, true);
             s.family = Some(family.to_string());
             assert_eq!(stand_family(&s), asset, "{family}");
-            assert!(props::find(PropKind::Grandstand, asset).is_some(), "{asset} is in the kit");
+            assert!(
+                props::find(PropKind::Grandstand, asset).is_some(),
+                "{asset} is in the kit"
+            );
         }
     }
 
@@ -4814,15 +4913,31 @@ mod tests {
         };
         layout.landmarks = vec![screen(250.0, -33.0)];
         dress_scene(&track, &mut scene, &layout).unwrap();
-        let screens: Vec<_> = scene.props.iter().filter(|p| p.asset == "video_screen").collect();
+        let screens: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "video_screen")
+            .collect();
         assert_eq!(screens.len(), 1);
         assert!(on_the_pit_roof(screens[0]));
         let garage = props::resolve(PropKind::Pit, "garage_6m").unwrap().height_m;
-        assert!(screens[0].z >= garage - 0.5, "on the roof: z {}", screens[0].z);
+        assert!(
+            screens[0].z >= garage - 0.5,
+            "on the roof: z {}",
+            screens[0].z
+        );
         let before = screens[0].clone();
         crate::groom::groom_props(&track, &mut scene).unwrap();
-        let after = scene.props.iter().find(|p| p.asset == "video_screen").unwrap();
-        assert_eq!((after.x, after.y, after.z), (before.x, before.y, before.z), "grooming leaves it on the roof");
+        let after = scene
+            .props
+            .iter()
+            .find(|p| p.asset == "video_screen")
+            .unwrap();
+        assert_eq!(
+            (after.x, after.y, after.z),
+            (before.x, before.y, before.z),
+            "grooming leaves it on the roof"
+        );
     }
 
     #[test]
@@ -4902,8 +5017,18 @@ mod tests {
         });
         // 13 m beyond the lane's centre: behind the lane where it leaves
         // the road, and over the garages where they stand, mid-lane.
-        layout.stands.push(stand("Entry", vec![[105.0, -35.0], [145.0, -35.0]], 10.0, false));
-        layout.stands.push(stand("Terrace", vec![[220.0, -35.0], [280.0, -35.0]], 10.0, false));
+        layout.stands.push(stand(
+            "Entry",
+            vec![[105.0, -35.0], [145.0, -35.0]],
+            10.0,
+            false,
+        ));
+        layout.stands.push(stand(
+            "Terrace",
+            vec![[220.0, -35.0], [280.0, -35.0]],
+            10.0,
+            false,
+        ));
         let report = dress_scene(&track, &mut scene, &layout).unwrap();
         let laid = |name: &str| {
             scene
@@ -4915,7 +5040,10 @@ mod tests {
         assert!(laid("Entry") > 0, "{:?}", report.skipped);
         assert_eq!(laid("Terrace"), 0);
         assert!(
-            report.skipped.iter().any(|s| s.starts_with("stand Terrace: over the garage row")),
+            report
+                .skipped
+                .iter()
+                .any(|s| s.starts_with("stand Terrace: over the garage row")),
             "{:?}",
             report.skipped
         );

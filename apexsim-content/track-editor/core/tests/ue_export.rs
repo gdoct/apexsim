@@ -244,7 +244,7 @@ fn winding_matches_unreals_front_face_convention() {
             "{}: not a triangle list",
             mesh.name
         );
-        for tri in mesh.indices.chunks_exact(3) {
+        for tri in mesh.indices.as_chunks::<3>().0 {
             let (a, b, c) = (tri[0], tri[1], tri[2]);
             let Some(unreal_normal) = unreal_face_normal(mesh, a, b, c) else {
                 continue;
@@ -273,7 +273,13 @@ fn curbs_are_raised_above_the_track() {
     assert!(!curb_meshes.is_empty(), "no curb meshes were baked");
 
     for mesh in curb_meshes {
-        let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
+        let heights: Vec<f32> = mesh
+            .positions
+            .as_chunks::<3>()
+            .0
+            .iter()
+            .map(|p| p[2])
+            .collect();
         let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
         let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
         assert!(
@@ -300,7 +306,7 @@ fn road_normals_follow_the_surface_rather_than_pointing_straight_up() {
 
     let mut tilted = 0usize;
     for mesh in &road {
-        for n in mesh.normals.chunks_exact(3) {
+        for n in mesh.normals.as_chunks::<3>().0 {
             let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
             assert!((len - 1.0).abs() < 0.01, "normal not unit length: {n:?}");
             assert!(n[2] > 0.0, "road normal points downward: {n:?}");
@@ -789,7 +795,7 @@ fn ground_terrain_is_baked_under_the_scene() {
     // that with its margin (positions are UE centimeters).
     let xs: Vec<f32> = ground
         .iter()
-        .flat_map(|m| m.positions.chunks_exact(3).map(|p| p[0]))
+        .flat_map(|m| m.positions.as_chunks::<3>().0.iter().map(|p| p[0]))
         .collect();
     let min_x = xs.iter().copied().fold(f32::MAX, f32::min);
     let max_x = xs.iter().copied().fold(f32::MIN, f32::max);
@@ -824,7 +830,7 @@ fn edge_lines_run_the_length_of_both_road_edges() {
     // each side emits one ~4-vertex quad per meter of station.
     let us: Vec<f32> = lines
         .iter()
-        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .flat_map(|m| m.uvs.as_chunks::<2>().0.iter().map(|uv| uv[0]))
         .collect();
     let min_u = us.iter().copied().fold(f32::MAX, f32::min);
     let max_u = us.iter().copied().fold(f32::MIN, f32::max);
@@ -872,7 +878,7 @@ fn monza_grid_boxes_end_60_m_before_the_line() {
         .meshes
         .iter()
         .filter(|m| m.material_key.starts_with("marking_grid_slot_"))
-        .flat_map(|m| m.uvs.chunks_exact(2).map(|uv| uv[0]))
+        .flat_map(|m| m.uvs.as_chunks::<2>().0.iter().map(|uv| uv[0]))
         .collect();
     assert!(!us.is_empty(), "no grid box paint");
     // Spans behind the line wrap past the lap length; those ahead of it
@@ -1941,7 +1947,7 @@ fn every_real_track_bakes() {
             // make wide runoff patches fold back through the centre of
             // curvature. Check the winding on the shipped geometry, not
             // just on the synthetic track.
-            for tri in mesh.indices.chunks_exact(3) {
+            for tri in mesh.indices.as_chunks::<3>().0 {
                 let (a, b, c) = (tri[0], tri[1], tri[2]);
                 let Some(unreal_normal) = unreal_face_normal(mesh, a, b, c) else {
                     continue;
@@ -2093,7 +2099,7 @@ fn ground_tessellation_is_finest_beside_the_road() {
     let mut near_cells = 0;
     let mut ring_cells = 0;
     for mesh in baked.meshes.iter().filter(|m| m.material_key == "ground") {
-        for tri in mesh.indices.chunks_exact(3) {
+        for tri in mesh.indices.as_chunks::<3>().0 {
             let p: Vec<[f64; 3]> = tri.iter().map(|&i| vertex(mesh, i)).collect();
             // Positions are UE centimetres with Y mirrored; the grid is
             // axis aligned either way, and a quad's two straight edges are
@@ -2335,7 +2341,7 @@ fn road_decals_bake_as_pictures_on_the_road() {
 
     let (mut u_lo, mut u_hi, mut v_lo, mut v_hi) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
     for mesh in &meshes {
-        for uv in mesh.uvs.chunks_exact(2) {
+        for uv in mesh.uvs.as_chunks::<2>().0 {
             u_lo = u_lo.min(uv[0]);
             u_hi = u_hi.max(uv[0]);
             v_lo = v_lo.min(uv[1]);
@@ -2357,15 +2363,19 @@ fn road_decals_bake_as_pictures_on_the_road() {
     let mesh = meshes[0];
     let far: Vec<f32> = mesh
         .uvs
-        .chunks_exact(2)
-        .zip(mesh.positions.chunks_exact(3))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .zip(mesh.positions.as_chunks::<3>().0)
         .filter(|(uv, _)| uv[1] < 0.01)
         .map(|(_, p)| p[0])
         .collect();
     let near: Vec<f32> = mesh
         .uvs
-        .chunks_exact(2)
-        .zip(mesh.positions.chunks_exact(3))
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .zip(mesh.positions.as_chunks::<3>().0)
         .filter(|(uv, _)| uv[1] > 0.99)
         .map(|(_, p)| p[0])
         .collect();
@@ -2375,7 +2385,13 @@ fn road_decals_bake_as_pictures_on_the_road() {
     );
 
     // Paint, not a plank: the heights change along the slope.
-    let heights: Vec<f32> = mesh.positions.chunks_exact(3).map(|p| p[2]).collect();
+    let heights: Vec<f32> = mesh
+        .positions
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .map(|p| p[2])
+        .collect();
     let lo = heights.iter().copied().fold(f32::INFINITY, f32::min);
     let hi = heights.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     assert!(

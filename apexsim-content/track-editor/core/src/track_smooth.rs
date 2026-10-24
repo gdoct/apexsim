@@ -1034,8 +1034,8 @@ mod tests {
         }
         // The wobble is mostly gone mid-straight...
         let left: Vec<f32> = track.nodes.iter().map(|n| n.width_left.unwrap()).collect();
-        for i in 10..50 {
-            assert!((left[i] - 5.0).abs() < 0.08, "node {i}: {}", left[i]);
+        for (i, w) in left.iter().enumerate().take(50).skip(10) {
+            assert!((w - 5.0).abs() < 0.08, "node {i}: {w}");
         }
         // ...and the road still widens by its 2 m a side.
         assert!((left[100] - 7.0).abs() < 0.08, "{}", left[100]);

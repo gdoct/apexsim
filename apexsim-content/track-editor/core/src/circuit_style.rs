@@ -355,11 +355,9 @@ impl CircuitStyle {
             .rsplit_once('.')
             .map_or(scene.source_track.as_str(), |(stem, _)| stem);
         match stem {
-            "BrandsScratch" | "ChillyVilleneuve" | "Gnocchi" | "Hockeyheimring" | "Hungoverring"
-            | "Interlaggos" | "Lemons" | "Monzarella" | "Nuerburgerring" | "Nuerburgerring24"
-            | "Oskarsleben" => {
-                Some("garage_upper_6m")
-            }
+            "BrandsScratch" | "ChillyVilleneuve" | "Gnocchi" | "Hockeyheimring"
+            | "Hungoverring" | "Interlaggos" | "Lemons" | "Monzarella" | "Nuerburgerring"
+            | "Nuerburgerring24" | "Oskarsleben" => Some("garage_upper_6m"),
             "Bahrainless" => Some("garage_roof_membrane_6m"),
             _ => None,
         }
@@ -418,10 +416,16 @@ mod tests {
         assert_eq!(r.barrier(BarrierKind::Concrete), BarrierKind::Concrete);
         // Park circuits wall the straights, club circuits stack tyres, and
         // the Nordschleife is guard rail.
-        assert_eq!(Rail::Park.barrier(BarrierKind::ArmcoFence), BarrierKind::Concrete);
+        assert_eq!(
+            Rail::Park.barrier(BarrierKind::ArmcoFence),
+            BarrierKind::Concrete
+        );
         assert_eq!(Rail::Park.barrier(BarrierKind::Tecpro), BarrierKind::Tecpro);
         assert_eq!(Rail::Club.barrier(BarrierKind::Tecpro), BarrierKind::Tyres);
-        assert_eq!(Rail::Vangrail.barrier(BarrierKind::Tyres), BarrierKind::Armco);
+        assert_eq!(
+            Rail::Vangrail.barrier(BarrierKind::Tyres),
+            BarrierKind::Armco
+        );
         assert_eq!(CircuitStyle::for_stem("Gnocchi").rail, Rail::Park);
         assert_eq!(CircuitStyle::for_stem("BrandsScratch").rail, Rail::Club);
         assert_eq!(CircuitStyle::STREET.ground, Ground::Paved);

@@ -4534,12 +4534,10 @@ pub(crate) fn garage_row_span(
     let lane = CenterlinePath::from_polyline(&pit.nodes, pit.width_m / 2.0)?;
     let relation = LaneRelation::resolve(path, &lane, Some(terrain));
     let layout = pit_layout(&lane, pit.width_m, pit.box_count, &relation, Some(terrain));
-    (layout.boxes > 0).then(|| {
-        (
-            layout.row_start,
-            layout.row_start + layout.boxes as f32 * PIT_MODULE_M,
-        )
-    })
+    (layout.boxes > 0).then_some((
+        layout.row_start,
+        layout.row_start + layout.boxes as f32 * PIT_MODULE_M,
+    ))
 }
 
 /// Where the pit exit light and the speed-limit board stand: on the
@@ -4570,7 +4568,12 @@ fn pit_signs(lane: &CenterlinePath, width_m: f32, side: f32, layout: &PitLayout)
 
 /// The garage the podium stands on: the one nearest the road at the
 /// dossier's `podium_m`, or the middle of the row.
-fn podium_box(path: &CenterlinePath, lane: &CenterlinePath, layout: &PitLayout, podium_m: Option<f32>) -> u32 {
+fn podium_box(
+    path: &CenterlinePath,
+    lane: &CenterlinePath,
+    layout: &PitLayout,
+    podium_m: Option<f32>,
+) -> u32 {
     let middle = layout.boxes / 2;
     let Some(station) = podium_m else {
         return middle;
@@ -4579,7 +4582,9 @@ fn podium_box(path: &CenterlinePath, lane: &CenterlinePath, layout: &PitLayout, 
     (0..layout.boxes)
         .min_by(|&a, &b| {
             let d = |i: u32| {
-                let p = lane.sample_at(layout.row_start + (i as f32 + 0.5) * PIT_MODULE_M).pos;
+                let p = lane
+                    .sample_at(layout.row_start + (i as f32 + 0.5) * PIT_MODULE_M)
+                    .pos;
                 (p.0 - at.0).hypot(p.1 - at.1)
             };
             d(a).total_cmp(&d(b))
@@ -4594,6 +4599,7 @@ fn podium_box(path: &CenterlinePath, lane: &CenterlinePath, layout: &PitLayout, 
 /// `pit/pit_wall_6m` along the road side of the lane over the box span and
 /// `pit/pit_wall_plain_6m` over the rest of the parallel road. Nothing on
 /// the entry and exit tapers, where the lane merges with the road.
+#[allow(clippy::too_many_arguments)]
 fn bake_pit_complex(
     lane: &CenterlinePath,
     width_m: f32,
@@ -5041,10 +5047,19 @@ mod pit_tests {
         let path = CenterlinePath::from_polyline(&road, 6.0).unwrap();
         let lane_pts: Vec<[f32; 3]> = (0..=40).map(|i| [i as f32 * 25.0, -20.0, 0.0]).collect();
         let lane = CenterlinePath::from_polyline(&lane_pts, 4.0).unwrap();
-        let layout = PitLayout { limit_start: 100.0, limit_end: 700.0, row_start: 200.0, boxes: 20 };
+        let layout = PitLayout {
+            limit_start: 100.0,
+            limit_end: 700.0,
+            row_start: 200.0,
+            boxes: 20,
+        };
         assert_eq!(podium_box(&path, &lane, &layout, None), 10);
         assert_eq!(podium_box(&path, &lane, &layout, Some(205.0)), 0);
         assert_eq!(podium_box(&path, &lane, &layout, Some(316.0)), 19);
-        assert_eq!(podium_box(&path, &lane, &layout, Some(900.0)), 19, "past the row: its end");
+        assert_eq!(
+            podium_box(&path, &lane, &layout, Some(900.0)),
+            19,
+            "past the row: its end"
+        );
     }
 }

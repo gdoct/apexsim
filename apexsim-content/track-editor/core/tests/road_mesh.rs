@@ -157,11 +157,14 @@ struct MeshContact {
 }
 
 /// The file as the server reads it, with its question, by brute force.
+/// A kept triangle: its corners, unit normal, plane offset and surface.
+type KeptTriangle = ([[f32; 3]; 3], [f32; 3], f32, u16);
+
 struct RoadMesh {
     file: RoadMeshFile,
     /// Triangles kept (with a footprint), wound counter-clockwise, with
     /// their unit normal and plane offset.
-    kept: Vec<([[f32; 3]; 3], [f32; 3], f32, u16)>,
+    kept: Vec<KeptTriangle>,
     dropped: usize,
 }
 
@@ -192,7 +195,7 @@ impl RoadMesh {
                 u[0] * w[1] - u[1] * w[0],
             ];
             let len = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
-            if !(len > 0.0) || n[2] <= 0.0 {
+            if len.is_nan() || len <= 0.0 || n[2] <= 0.0 {
                 dropped += 1;
                 continue;
             }

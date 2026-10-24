@@ -3049,9 +3049,10 @@ fn lay_tree_rows(
                 }
                 let blocked = slabs.iter().any(|p| {
                     let clear = match p.kind {
-                        PropKind::Building | PropKind::Grandstand | PropKind::Pit | PropKind::Attraction => {
-                            TREE_ROW_STAND_CLEAR_M
-                        }
+                        PropKind::Building
+                        | PropKind::Grandstand
+                        | PropKind::Pit
+                        | PropKind::Attraction => TREE_ROW_STAND_CLEAR_M,
                         PropKind::Sky => return false,
                         _ => TREE_PROP_CLEAR_M,
                     };
@@ -3320,11 +3321,15 @@ mod tests {
         assert!(!planted(Flora::Temperate, Some("needleleaved")).contains(&"poplar"));
         assert!(planted(Flora::Mediterranean, None).contains(&"stone_pine_l"));
         assert!(planted(Flora::Australian, Some("broadleaved")).contains(&"eucalypt_l"));
-        assert!(!planted(Flora::Subtropical, None).iter().any(|a| NEEDLELEAF.contains(a)));
+        assert!(!planted(Flora::Subtropical, None)
+            .iter()
+            .any(|a| NEEDLELEAF.contains(a)));
         assert!(planted(Flora::Desert, None).contains(&"date_palm_l"));
         // Scrub is bushes, whatever the climate.
         for flora in [Flora::Temperate, Flora::Desert, Flora::Mediterranean] {
-            assert!(planted(flora, Some("scrub")).iter().all(|a| *a == "bush_cluster"));
+            assert!(planted(flora, Some("scrub"))
+                .iter()
+                .all(|a| *a == "bush_cluster"));
         }
         // The pass owns what it plants, and the kit has it.
         for asset in DESERT
@@ -3792,7 +3797,12 @@ mod tests {
         // A wood far from the row, so the belt grows only there.
         layout.woods = vec![Wood {
             leaf: "broadleaved".to_string(),
-            ring: vec![[300.0, 600.0], [400.0, 600.0], [400.0, 700.0], [300.0, 700.0]],
+            ring: vec![
+                [300.0, 600.0],
+                [400.0, 600.0],
+                [400.0, 700.0],
+                [300.0, 700.0],
+            ],
         }];
         layout.tree_rows = vec![crate::layout::Line {
             kind: "tree_row".to_string(),
@@ -4137,8 +4147,14 @@ mod tests {
     fn a_kink_in_the_approach_keeps_a_corners_boards() {
         let mut track = track();
         // A 2.5 m sideways bump over x 600..700 on the first straight.
-        track.nodes.retain(|n| !(n.y == 0.0 && n.x > 600.0 && n.x < 700.0));
-        let at = track.nodes.iter().position(|n| n.y == 0.0 && n.x == 700.0).unwrap();
+        track
+            .nodes
+            .retain(|n| !(n.y == 0.0 && n.x > 600.0 && n.x < 700.0));
+        let at = track
+            .nodes
+            .iter()
+            .position(|n| n.y == 0.0 && n.x == 700.0)
+            .unwrap();
         for i in (1..20).rev() {
             let x = 600.0 + i as f32 * 5.0;
             let y = 1.25 * (1.0 - (std::f32::consts::TAU * (x - 600.0) / 100.0).cos());
@@ -4149,10 +4165,16 @@ mod tests {
             .step_by(5)
             .map(|x| curvature_at(&path, x as f32).abs())
             .fold(0.0, f32::max);
-        assert!(peak > CORNER_KAPPA && peak < BOARD_APPROACH_KAPPA, "kink radius {}", 1.0 / peak);
+        assert!(
+            peak > CORNER_KAPPA && peak < BOARD_APPROACH_KAPPA,
+            "kink radius {}",
+            1.0 / peak
+        );
         let corners = braking_corners(&path);
         assert!(
-            corners.iter().any(|c| (c.entry_m() - 800.0).abs() < 40.0 && c.boards.len() >= 2),
+            corners
+                .iter()
+                .any(|c| (c.entry_m() - 800.0).abs() < 40.0 && c.boards.len() >= 2),
             "{corners:?}"
         );
     }
