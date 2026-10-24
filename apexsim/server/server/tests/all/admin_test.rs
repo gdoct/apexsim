@@ -1246,6 +1246,38 @@ async fn incidents_are_listed_cleared_by_a_steward_and_kept_with_the_replay() {
         .iter()
         .any(|i| i["kind"] == "penalty_cleared"));
 
+    // And gives one of their own: a stop-go held 12 s, owed where it can
+    // be served, else added at once as race control's own would be.
+    let give = format!("/api/sessions/{id}/penalties/{a}/give");
+    let bad = post(&d, &give, &serde_json::json!({ "kind": "fine" })).await;
+    assert_eq!(bad.status, 400, "{}", bad.body);
+    let given = post(
+        &d,
+        &give,
+        &serde_json::json!({ "kind": "stop_go", "seconds": 12 }),
+    )
+    .await;
+    assert_eq!(given.status, 200, "{}", given.body);
+    let live = get(&d, &format!("/api/sessions/{id}/incidents"))
+        .await
+        .json();
+    let penalties = live["penalties"].as_array().unwrap();
+    assert_eq!(penalties.len(), 1);
+    assert_eq!(penalties[0]["offence"], "steward");
+    let owed = (
+        &penalties[0]["penalty"],
+        &penalties[0]["seconds"],
+        &penalties[0]["status"],
+    ) == (&"stop_go".into(), &12.into(), &"owed".into());
+    let added = (
+        &penalties[0]["penalty"],
+        &penalties[0]["seconds"],
+        &penalties[0]["status"],
+    ) == (&"time".into(), &32.into(), &"added".into());
+    assert!(owed || added, "{}", penalties[0]);
+    let path = format!("/api/sessions/{id}/penalties/{a}/0/clear");
+    assert_eq!(post(&d, &path, &serde_json::json!({})).await.status, 200);
+
     // The game gets the same list on asking, from the race it watches:
     // each car by its roster index and name, the green's tick to count
     // the race's seconds from.

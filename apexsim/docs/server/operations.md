@@ -323,7 +323,12 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   game has the same list on its results screen
   ([client](../game/client.md#session-results-uiapexsessionresultswidgetcpp)). In a running race CLEAR
   takes a penalty back (`POST /api/sessions/<id>/penalties/<car>/<index>/clear`,
-  the index in the order given; 409 when there is none).
+  the index in the order given; 409 when there is none), and the row above
+  the list gives one: a car, Time / Drive-through / Stop-go and the seconds
+  (1-60), confirmed in a dialog (`POST
+  /api/sessions/<id>/penalties/<car>/give` with `{"kind": "time" |
+  "drive_through" | "stop_go", "seconds": n}`; 409 outside a race or for a
+  car past the flag).
 - **Content** (`content.rs`): every car and track can be switched off (kept
   in `[admin] content_file`): the lobby leaves it out, a select or create
   naming it is refused with `Error 403`, and the AI field is never dealt it

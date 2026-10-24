@@ -880,6 +880,7 @@ for an offence the rules leave out.
 | Jump start (0), found by the false-start watch, given at the green | `jump_start` | drive-through |
 | Pass under a yellow (1), from the flags, given `YELLOW_PASS_HANDBACK_S` (10 s) after the pass if the passer is still ahead; handed back within it (the passed car ahead again), it is forgiven, and the order swapping back and forth is one pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
 | Out of a manual pit lane past the red exit light (2): across the last limit line while `pit::exit_closed`, not on the pit route | `pit_exit_penalty` | stop-go, `PIT_EXIT_STOP_GO_S` (10 s) |
+| A steward's decision (3), given from the dashboard (`GameSession::give_penalty`), in a race, to a car not yet past the flag | none: it stands under any rules | the steward's: a time penalty or a stop-go of 1 to `STEWARD_MAX_S` (60) s, or a drive-through |
 
 - **Time** penalties are counted at once (`PenaltyStatus::Added`).
 - **Drive-through and stop-go** are owed and served in the pit lane within
@@ -942,9 +943,12 @@ detected, so not listed.
   tick the recording began on).
 - **Stewards**: the dashboard's Incidents view ([operations](operations.md#admin-dashboard))
   lists a running race's from the live session and a finished one's from
-  the file, opens the replay at an incident, and clears a penalty
-  (`clear_penalty`: gone from the car's list, owed or added; the roster
-  goes out again without it, and an AI coming in only to serve it stays out).
+  the file, opens the replay at an incident, gives a penalty
+  (`give_penalty`: `Offence::Steward`, the kind and seconds the steward
+  picks, served or added as race control's own; the client names it
+  STEWARDS' DECISION) and clears one (`clear_penalty`: gone from the car's
+  list, owed or added; the roster goes out again without it, and an AI
+  coming in only to serve it stays out).
 - **In the game**: `RequestIncidents` from anyone in the session (driver
   or spectator) is answered with `Incidents` (`incident_report::wire`):
   the session's tick rate and green, and each incident (the latest

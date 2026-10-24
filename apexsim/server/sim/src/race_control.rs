@@ -72,6 +72,8 @@ pub const SERVE_WITHIN_LAPS: u16 = 3;
 /// there is no pit lane) adds to the race time, s; a stop-go adds this and
 /// its hold.
 pub const DRIVE_THROUGH_TIME_S: u16 = 20;
+/// The most a steward's time penalty adds, or a stop-go holds, s.
+pub const STEWARD_MAX_S: u16 = 60;
 /// A car that passed another under a yellow has this long to hand the
 /// place back: still ahead of it after this, it is penalised; behind it
 /// again, the pass is forgiven. The order swapping back and forth within
@@ -119,6 +121,9 @@ pub enum Offence {
     YellowPass = 1,
     /// Left a manual pit lane past its red exit light.
     PitExitRed = 2,
+    /// A steward's decision (`GameSession::give_penalty`): whatever the
+    /// steward judged, paid as they chose.
+    Steward = 3,
 }
 
 /// How a penalty is paid.
@@ -169,6 +174,29 @@ impl Penalty {
             Offence::JumpStart => (PenaltyKind::DriveThrough, 0),
             Offence::YellowPass => (PenaltyKind::Time, YELLOW_PASS_PENALTY_S),
             Offence::PitExitRed => (PenaltyKind::StopGo, PIT_EXIT_STOP_GO_S),
+            // A steward names the kind (`Penalty::given`); a bare one is
+            // the yellow pass's.
+            Offence::Steward => (PenaltyKind::Time, YELLOW_PASS_PENALTY_S),
+        };
+        Self::given(offence, kind, seconds, lap, tick, can_serve)
+    }
+
+    /// A penalty of `kind` for `offence`: `seconds` added for a time
+    /// penalty, held for a stop-go, none for a drive-through. Owed while
+    /// it is to be served in the lane, added as time at once where it
+    /// cannot be (`can_serve`).
+    pub fn given(
+        offence: Offence,
+        kind: PenaltyKind,
+        seconds: u16,
+        lap: u16,
+        tick: u32,
+        can_serve: bool,
+    ) -> Penalty {
+        let seconds = if kind == PenaltyKind::DriveThrough {
+            0
+        } else {
+            seconds
         };
         let mut penalty = Penalty {
             offence,

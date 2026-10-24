@@ -4105,6 +4105,8 @@ impl RaceRules {
             Offence::JumpStart => self.jump_start,
             Offence::YellowPass => self.yellow_penalty,
             Offence::PitExitRed => self.pit_exit_penalty,
+            // A steward's decision stands under any rules.
+            Offence::Steward => true,
         }
     }
 

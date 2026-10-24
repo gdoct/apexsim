@@ -196,6 +196,12 @@ pub async fn handle(
                 _ => error(StatusCode::BAD_REQUEST, "bad id"),
             }
         }
+        (&Method::POST, ["sessions", id, "penalties", car, "give"]) => {
+            match (id.parse::<Uuid>(), car.parse::<Uuid>()) {
+                (Ok(id), Ok(car)) => give_penalty(ctx, id, car, &body).await,
+                _ => error(StatusCode::BAD_REQUEST, "bad id"),
+            }
+        }
         (&Method::GET, ["replays", file]) => replay_download(ctx, file).await,
         (&Method::GET, ["logs"]) => logs(&q),
         (&Method::GET, ["logs", "download"]) => logs_download(&q),
@@ -822,6 +828,47 @@ async fn clear_penalty(ctx: &AdminContext, id: SessionId, car: PlayerId, index: 
                 "Admin cleared a {:?} penalty ({:?}) in session {}",
                 p.kind,
                 p.offence,
+                id
+            );
+            ok(json!({ "ok": true }))
+        }
+        Err(why) => error(StatusCode::CONFLICT, why),
+    }
+}
+
+/// A steward gives a car a penalty (`GameSession::give_penalty`): the body
+/// names the `kind` ("time", "drive_through", "stop_go") and the `seconds`
+/// of a time penalty or a stop-go's hold; the roster goes out again with it.
+async fn give_penalty(ctx: &AdminContext, id: SessionId, car: PlayerId, body: &Bytes) -> Resp {
+    use crate::race_control::PenaltyKind;
+    let v: Value = serde_json::from_slice(body).unwrap_or(Value::Null);
+    let kind = match v.get("kind").and_then(|k| k.as_str()) {
+        Some("time") => PenaltyKind::Time,
+        Some("drive_through") => PenaltyKind::DriveThrough,
+        Some("stop_go") => PenaltyKind::StopGo,
+        _ => {
+            return error(
+                StatusCode::BAD_REQUEST,
+                "kind: time, drive_through or stop_go",
+            )
+        }
+    };
+    let seconds = v
+        .get("seconds")
+        .and_then(|s| s.as_u64())
+        .unwrap_or(5)
+        .min(u16::MAX as u64) as u16;
+    let mut st = ctx.state.write().await;
+    let Some(gs) = st.sessions.get_mut(&id) else {
+        return error(StatusCode::NOT_FOUND, "no such session");
+    };
+    match gs.give_penalty(&car, kind, seconds) {
+        Ok(p) => {
+            drop(st);
+            tracing::info!(
+                "Admin gave a {:?} penalty ({} s) in session {}",
+                p.kind,
+                p.seconds,
                 id
             );
             ok(json!({ "ok": true }))

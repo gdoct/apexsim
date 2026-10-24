@@ -3620,6 +3620,49 @@ impl GameSession {
         self.roster_dirty = true;
     }
 
+    /// A steward gives `player_id` a penalty of `kind` (a time penalty of
+    /// `seconds`, a drive-through, or a stop-go held `seconds`), whatever
+    /// the session's rules penalise: owed, or added as time at once where
+    /// it cannot be served (no pit lane, too few laps left). The seconds are
+    /// held to [`crate::race_control::STEWARD_MAX_S`]; refused for a car not
+    /// in the race, one past the flag, or outside a race.
+    pub fn give_penalty(
+        &mut self,
+        player_id: &PlayerId,
+        kind: crate::race_control::PenaltyKind,
+        seconds: u16,
+    ) -> Result<crate::race_control::Penalty, &'static str> {
+        if self.session.game_mode != GameMode::Race {
+            return Err("Penalties are given in a race");
+        }
+        let state = self
+            .session
+            .participants
+            .get(player_id)
+            .ok_or("No such car in the session")?;
+        if state.finish_position.is_some() {
+            return Err("The car has taken the flag");
+        }
+        let can_serve = self.track_config.pit_lane.is_some()
+            && self.laps_left(state) >= crate::race_control::SERVE_WITHIN_LAPS as u32;
+        let penalty = crate::race_control::Penalty::given(
+            crate::race_control::Offence::Steward,
+            kind,
+            seconds.clamp(1, crate::race_control::STEWARD_MAX_S),
+            state.current_lap,
+            self.session.current_tick,
+            can_serve,
+        );
+        info!(
+            "Session {}: a steward penalised the car on slot {}: {:?} {} s",
+            self.session.id, state.grid_position, penalty.kind, penalty.seconds
+        );
+        self.incidents.note_penalty(*player_id, &penalty);
+        self.penalties.entry(*player_id).or_default().push(penalty);
+        self.roster_dirty = true;
+        Ok(penalty)
+    }
+
     /// A steward takes back `player_id`'s penalty at `index` (in the order
     /// given, as the roster lists them): it is gone from the car's list,
     /// owed or added, and the incident list says so. Returns the penalty.

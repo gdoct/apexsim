@@ -1066,7 +1066,12 @@ PAGES.incidents = el => {
     const pen = $('#inc-pen');
     pen.hidden = !report.live;
     if (report.live) {
-      pen.innerHTML = `<div class="panel-head"><span class="eyebrow">PENALTIES · A STEWARD MAY TAKE ONE BACK</span></div>` +
+      pen.innerHTML = `<div class="panel-head"><span class="eyebrow">PENALTIES · A STEWARD MAY GIVE ONE OR TAKE ONE BACK</span></div>` +
+        `<div class="row" style="grid-template-columns:minmax(160px,1fr) 170px 90px 110px">
+          <select class="input" id="give-car" style="height:36px">${(report.cars || []).map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
+          <select class="input" id="give-kind" style="height:36px"><option value="time">Time</option><option value="drive_through">Drive-through</option><option value="stop_go">Stop-go</option></select>
+          <input class="input" id="give-s" type="number" min="1" max="60" value="5" title="Seconds added, or a stop-go's hold" style="height:36px">
+          <button class="btn sm" style="justify-self:end" data-give="1">GIVE</button></div>` +
         ((report.penalties || []).map(p => `<div class="row" style="grid-template-columns:minmax(160px,1fr) minmax(200px,1.4fr) 60px 90px 110px">
           <span class="name" style="font-size:17px">${esc(nameOf(p.car))}</span>
           <span>${esc(words(p.penalty))}${p.seconds ? ' ' + p.seconds + ' s' : ''} · ${esc(words(p.offence))}</span>
@@ -1094,6 +1099,21 @@ PAGES.incidents = el => {
   el.addEventListener('click', async e => {
     const copy = e.target.closest('[data-copy]');
     if (copy) { e.stopPropagation(); try { await navigator.clipboard.writeText(copy.dataset.copy); toast('Copied'); } catch (_) { toast('Select the command and copy it', true); } return; }
+    if (e.target.closest('[data-give]')) {
+      const car = $('#give-car') && $('#give-car').value;
+      if (!car) return;
+      const kind = $('#give-kind').value;
+      const seconds = Math.max(1, Math.min(60, +$('#give-s').value || 5));
+      const what = kind === 'time' ? seconds + ' s added' : kind === 'stop_go' ? 'a stop-go held ' + seconds + ' s' : 'a drive-through';
+      const r = await modal({ eyebrow: 'GIVE PENALTY', title: 'Penalise ' + nameOf(car) + '?', body: 'A steward\'s decision: ' + what + '. A drive-through or stop-go not served within its laps is added as time, as race control\'s own.', confirm: 'GIVE' });
+      if (!r.ok) return;
+      try {
+        await api(`/api/sessions/${pick.slice(5)}/penalties/${car}/give`, { method: 'POST', body: { kind, seconds } });
+        toast('Penalty given');
+        load();
+      } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+      return;
+    }
     const clear = e.target.closest('[data-clear]');
     if (clear) {
       const r = await modal({ eyebrow: 'CLEAR PENALTY', title: 'Take back ' + clear.dataset.name + "'s penalty?", body: 'It is gone from the car at once: owed, it need not be served; added, its seconds come off the race time.', confirm: 'CLEAR', danger: true });

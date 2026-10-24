@@ -2133,6 +2133,8 @@ namespace ApexPenalty
 	inline constexpr int32 JumpStart = 0;
 	inline constexpr int32 YellowPass = 1;
 	inline constexpr int32 PitExitRed = 2;
+	/** A steward's decision, given from the dashboard. */
+	inline constexpr int32 Steward = 3;
 	/** How it is paid (`PenaltyKind`). */
 	inline constexpr int32 Time = 0;
 	inline constexpr int32 DriveThrough = 1;

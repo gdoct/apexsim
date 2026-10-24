@@ -124,6 +124,7 @@ namespace
 		const TCHAR* What = Penalty.Reason == ApexPenalty::JumpStart ? TEXT("JUMP START")
 			: Penalty.Reason == ApexPenalty::YellowPass ? TEXT("OVERTAKING UNDER YELLOW")
 			: Penalty.Reason == ApexPenalty::PitExitRed ? TEXT("PIT EXIT ON RED")
+			: Penalty.Reason == ApexPenalty::Steward ? TEXT("STEWARDS' DECISION")
 			: TEXT("RACE CONTROL");
 		return FString::Printf(TEXT("%s: %s"), *HudPenaltyKind(Penalty), What);
 	}

@@ -1423,6 +1423,18 @@ bool FApexHudDataPenaltiesTest::RunTest(const FString& Parameters)
 	}
 	TestTrue(TEXT("the local row"), bSeen);
 
+	// A steward's stop-go: named as the stewards' decision.
+	FApexPenalty Steward;
+	Steward.Reason = ApexPenalty::Steward;
+	Steward.Kind = ApexPenalty::StopGo;
+	Steward.Seconds = 10;
+	Steward.Lap = 2;
+	Roster.Entries[0].Penalties.Add(Steward);
+	In.TimeSeconds += 1.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("the stewards' toast"), HudValue(Data, TEXT("penalty.latest")).AsString().EndsWith(TEXT(": STEWARDS' DECISION")));
+	Roster.Entries[0].Penalties.Pop();
+
 	// A HUD first opened on a car with a penalty does not toast it.
 	FApexHudMemory Fresh;
 	ApexHudData::Build(In, Fresh, Data);

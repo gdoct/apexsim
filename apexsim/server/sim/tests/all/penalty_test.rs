@@ -137,3 +137,32 @@ fn a_penalty_the_rules_do_not_name_is_not_given() {
     race.penalise(id, Offence::YellowPass);
     assert!(!race.penalties.contains_key(&id));
 }
+
+#[test]
+fn a_steward_gives_a_penalty_under_any_rules() {
+    let Some(mut race) = race() else { return };
+    // No rule names an offence: the steward's stands anyway.
+    race.set_race_rules(RaceRules::default());
+    for _ in 0..(TICK_RATE as u32 * 5) {
+        tick(&mut race);
+    }
+    let id = *race.session.participants.keys().next().unwrap();
+    let time = race.give_penalty(&id, PenaltyKind::Time, 7).expect("given");
+    assert_eq!(time.offence, Offence::Steward);
+    assert_eq!(time.status, PenaltyStatus::Added);
+    assert_eq!(race.penalty_seconds(&id), 7);
+    // A stop-go is owed, its hold held to the steward's most.
+    let stop = race
+        .give_penalty(&id, PenaltyKind::StopGo, 600)
+        .expect("given");
+    assert_eq!(stop.status, PenaltyStatus::Owed);
+    assert_eq!(stop.seconds, apexsim_sim::race_control::STEWARD_MAX_S);
+    assert_eq!(race.owed_penalty(&id), Some(PenaltyKind::StopGo));
+    assert!(race.roster_is_dirty(), "the roster tells it");
+    // Taken back as any other.
+    race.clear_penalty(&id, 1).expect("cleared");
+    assert_eq!(race.owed_penalty(&id), None);
+    // Outside a race there is none to give.
+    race.set_game_mode(GameMode::Qualification);
+    assert!(race.give_penalty(&id, PenaltyKind::Time, 5).is_err());
+}

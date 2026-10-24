@@ -223,8 +223,6 @@ the client does not show all of them yet, and the server leaves a few edges.
   Blind crests make a lift for a car out of sight cost more than it saves;
   a third try would start from line of sight on the Nordschleife
   (`SURVEY_TRACKS=Mordschleife SURVEY_EVENTS=1`).
-- A steward clears a penalty but cannot give one: that needs an `Offence`
-  of its own, a new `Reason` in `RosterEntry.Penalties` the client names.
 
 **Check:** a formation lap and a rolling start on screen with a human in
 the field, a jump start and a red-light exit served; `race_start_test`,
