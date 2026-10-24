@@ -55,6 +55,7 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 - **N7**
   - championships over race events, standings by proved driver id (`accbe12b`)
   - the offline season's fastest-lap point and each round's own rules (`7a06b879`)
+  - a fastest-lap rule per championship, the standings in a round's lobby and results (`d5130c89`)
 - **R3**
   - race events kept across server restarts (`8f2ee7a2`)
   - an event's AI entries keep their identities and levels (`595cd155`)
@@ -67,6 +68,7 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
   - fixed stint lengths (`e7e8ba83`)
   - a qualifying HUD, the standings by best lap (`263cde83`)
   - marshals and a recovery tractor at a stopped car (`74ecbcff`)
+  - practice and qualifying cap the aids of their own (`6ef2974c`)
 - **S3**
   - dew on a still clear night and a radiation fog (`8ef91a9b`)
   - the packed pit lane and the half-melted run-off glaze on a cold night (`44e44c11`)
