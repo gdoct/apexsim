@@ -4,7 +4,10 @@
 // Flow (see README.md): splash with progress bar -> environment / config /
 // content checks on a worker thread -> buttons enable.
 //
-// Build: bootstrap\build.bat  ->  bootstrap\out\launcher.exe
+// Build: launcher\build.bat  ->  launcher\out\launcher.exe
+//
+// Modules: env (where the install is), content (Manage content) with ac_import
+// (the Assetto Corsa importers), ui (secondary windows), process, unblock.
 
 #ifndef UNICODE
 #define UNICODE
@@ -20,7 +23,6 @@
 #include <windowsx.h>
 #include <commctrl.h>
 #include <shellapi.h>
-#include <shobjidl.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -36,6 +38,10 @@ namespace Gdiplus { using std::min; using std::max; }
 #include <objidl.h>
 #include <gdiplus.h>
 
+#include "content.h"
+#include "env.h"
+#include "text.h"
+#include "ui.h"
 #include "unblock.h"
 
 #pragma comment(lib, "user32.lib")
@@ -51,164 +57,6 @@ namespace fs = std::filesystem;
 
 static const wchar_t* kTroubleshootUrl = L"https://gdoct.github.io/apexsim";
 static const unsigned short kServerPort = 9000;  // the default server port
-
-// ---------------------------------------------------------------- text utils
-
-static std::wstring Widen(const std::string& s)
-{
-    if (s.empty()) return {};
-    int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
-    std::wstring w(n, 0);
-    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), &w[0], n);
-    return w;
-}
-
-static std::string Narrow(const std::wstring& w)
-{
-    if (w.empty()) return {};
-    int n = WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), nullptr, 0, nullptr, nullptr);
-    std::string s(n, 0);
-    WideCharToMultiByte(CP_UTF8, 0, w.data(), (int)w.size(), &s[0], n, nullptr, nullptr);
-    return s;
-}
-
-static std::string Trim(const std::string& s)
-{
-    size_t a = s.find_first_not_of(" \t\r\n");
-    if (a == std::string::npos) return {};
-    size_t b = s.find_last_not_of(" \t\r\n");
-    return s.substr(a, b - a + 1);
-}
-
-static std::wstring GetText(HWND h)
-{
-    int n = GetWindowTextLengthW(h);
-    std::wstring s(n + 1, 0);
-    GetWindowTextW(h, &s[0], n + 1);
-    s.resize(n);
-    return s;
-}
-
-static bool EndsWithI(const std::wstring& s, const std::wstring& suffix)
-{
-    return s.size() >= suffix.size() &&
-           _wcsicmp(s.c_str() + s.size() - suffix.size(), suffix.c_str()) == 0;
-}
-
-// -------------------------------------------------------------- installation
-
-struct Env
-{
-    bool found = false;     // a game install or a source checkout was located
-    bool release = false;   // packaged layout (Game\, Server\) vs. the repo
-    fs::path root;
-    fs::path gameExe, playScript, serverExe, serverDir, settings, scripts;
-    fs::path importerDir;   // holds ac_import.py, ac_car_import.py and importer-requirements.txt
-    fs::path carsDefault, carsCustom, wheels, hudDefault, hudCustom, tracksDefault, tracksCustom;
-    fs::path contentRoot;   // a checkout's apexsim-content, handed to its server as APEXSIM_CONTENT
-    bool tracksAreExports = false;  // packaged tracks are .uescene.json, the repo's are .yaml
-};
-
-static bool Exists(const fs::path& p)
-{
-    std::error_code ec;
-    return fs::exists(p, ec);
-}
-
-// Walk up from the launcher's own folder: it may sit at the root of a release
-// folder (beside Game\ and Server\), inside Game\, or in the repo's bootstrap\.
-static Env Locate()
-{
-    Env e;
-    wchar_t buf[MAX_PATH * 2];
-    GetModuleFileNameW(nullptr, buf, (DWORD)std::size(buf));
-    fs::path d = fs::path(buf).parent_path();
-    e.root = d;
-
-    for (int i = 0; i < 5; ++i)
-    {
-        if (Exists(d / L"Game" / L"ApexSim.exe"))
-        {
-            e.found = e.release = true;
-            e.root = d;
-            fs::path game = d / L"Game";
-            e.gameExe = game / L"ApexSim.exe";
-            e.serverExe = d / L"Server" / L"apexsim-server.exe";
-            e.serverDir = d / L"Server";
-            e.settings = game / L"settings.yml";
-            e.carsDefault = game / L"Cars" / L"default";
-            e.carsCustom = game / L"Cars" / L"custom";
-            e.wheels = game / L"Wheels";
-            e.hudDefault = game / L"Hud" / L"default";
-            e.hudCustom = game / L"Hud" / L"custom";
-            e.tracksDefault = game / L"Tracks";
-            e.importerDir = d / L"Tools" / L"importer";
-            e.tracksAreExports = true;
-            break;
-        }
-        // A source checkout: the code root (server\, scripts\, hud\) with the
-        // content root, apexsim-content, beside it.
-        fs::path content = (d / L".." / L"apexsim-content").lexically_normal();
-        if (Exists(d / L"server") && Exists(content / L"cars"))
-        {
-            e.found = true;
-            e.root = d;
-            // The repo launches through play_editor.ps1 (builds, then runs the editor
-            // build with -game); there is no packaged ApexSim.exe to start.
-            e.playScript = d / L"scripts" / L"play_editor.ps1";
-            e.serverExe = d / L"server" / L"server" / L"target" / L"release" / L"apexsim-server.exe";
-            // server.toml here is the release one (content\ beside the exe), so the
-            // server is pointed at the content root through APEXSIM_CONTENT.
-            e.serverDir = d;
-            e.contentRoot = content;
-            e.settings = d / L"game-unreal" / L"settings.yml";
-            e.scripts = d / L"scripts";
-            e.importerDir = content / L"tools";
-            e.carsDefault = content / L"cars" / L"default";
-            e.carsCustom = content / L"cars" / L"custom";
-            e.wheels = content / L"wheels";
-            e.hudDefault = d / L"hud" / L"default";
-            e.hudCustom = d / L"hud" / L"custom";
-            e.tracksDefault = content / L"tracks" / L"default";
-            e.tracksCustom = content / L"tracks" / L"custom";
-            break;
-        }
-        if (!d.has_parent_path() || d.parent_path() == d) break;
-        d = d.parent_path();
-    }
-    return e;
-}
-
-// The client's version: release.json's "version" beside Game\ in a package (written
-// by build_release.ps1), else ProjectVersion from DefaultGame.ini in a checkout.
-static std::wstring ReadVersion(const Env& e)
-{
-    std::ifstream f(e.release ? e.root / L"release.json" : e.root / L"game-unreal" / L"Config" / L"DefaultGame.ini");
-    std::string line;
-    while (f && std::getline(f, line))
-    {
-        std::string v;
-        if (e.release)
-        {
-            size_t k = line.find("\"version\"");
-            if (k == std::string::npos) continue;
-            size_t a = line.find('"', line.find(':', k) + 1);
-            size_t b = a == std::string::npos ? a : line.find('"', a + 1);
-            if (b == std::string::npos) continue;
-            v = line.substr(a + 1, b - a - 1);
-        }
-        else
-        {
-            std::string t = Trim(line);
-            if (t.rfind("ProjectVersion", 0) != 0) continue;
-            size_t eq = t.find('=');
-            if (eq == std::string::npos) continue;
-            v = Trim(t.substr(eq + 1));
-        }
-        if (!v.empty()) return Widen(v);
-    }
-    return {};
-}
 
 // ------------------------------------------------------------------ settings
 // The same flat two-level YAML subset UApexBootSettingsSubsystem reads, written
@@ -387,65 +235,6 @@ static bool SaveSettings(const fs::path& path, const Settings& s)
     return (bool)f;
 }
 
-// ------------------------------------------------------------------- content
-
-struct Item { std::wstring name, origin; };
-
-static void AddDirs(std::vector<Item>& v, const fs::path& dir, const wchar_t* origin)
-{
-    std::error_code ec;
-    for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
-    {
-        std::error_code e2;
-        if (!it->is_directory(e2)) continue;
-        std::wstring n = it->path().filename().wstring();
-        if (!n.empty() && n[0] != L'_' && n[0] != L'.') v.push_back({ n, origin });
-    }
-}
-
-static void AddFiles(std::vector<Item>& v, const fs::path& dir, const std::wstring& suffix, const wchar_t* origin)
-{
-    std::error_code ec;
-    for (fs::directory_iterator it(dir, ec), end; !ec && it != end; it.increment(ec))
-    {
-        std::error_code e2;
-        if (!it->is_regular_file(e2)) continue;
-        std::wstring n = it->path().filename().wstring();
-        if (EndsWithI(n, suffix)) v.push_back({ n.substr(0, n.size() - suffix.size()), origin });
-    }
-}
-
-enum Tab { TabTracks, TabCars, TabHud, TabWheels, TabCount };
-
-static std::vector<Item> ListContent(const Env& e, int tab)
-{
-    std::vector<Item> v;
-    switch (tab)
-    {
-    case TabTracks:
-        if (e.tracksAreExports) AddFiles(v, e.tracksDefault, L".uescene.json", L"installed");
-        else { AddDirs(v, e.tracksDefault, L"default"); AddDirs(v, e.tracksCustom, L"custom"); }  // a track is a folder
-        break;
-    case TabCars: AddDirs(v, e.carsDefault, L"default"); AddDirs(v, e.carsCustom, L"custom"); break;
-    case TabHud: AddDirs(v, e.hudDefault, L"default"); AddDirs(v, e.hudCustom, L"custom"); break;
-    case TabWheels: AddFiles(v, e.wheels, L".glb", L"installed"); break;
-    }
-    std::sort(v.begin(), v.end(), [](const Item& a, const Item& b) { return _wcsicmp(a.name.c_str(), b.name.c_str()) < 0; });
-    return v;
-}
-
-// Where "Open folder" goes: the folder a player drops their own content into.
-static fs::path TabFolder(const Env& e, int tab)
-{
-    switch (tab)
-    {
-    case TabTracks: return e.tracksAreExports ? e.tracksDefault : e.tracksCustom;
-    case TabCars: return e.carsCustom;
-    case TabHud: return e.hudCustom;
-    default: return e.wheels;
-    }
-}
-
 // ----------------------------------------------------------------- app state
 
 enum
@@ -461,7 +250,6 @@ struct App
     Env env;
     Settings settings;
     HWND hwnd = nullptr;
-    HWND modeless = nullptr;  // secondary window that wants IsDialogMessage
     int dpi = 96;
     std::wstring status = L"Starting...", note, version, versionFound;
     float target = 0, shown = 0;
@@ -473,14 +261,6 @@ struct App
 } g;
 
 static int S(int v) { return MulDiv(v, g.dpi, 96); }
-
-static HFONT MakeUiFont(int dpi)
-{
-    NONCLIENTMETRICSW ncm = { sizeof ncm };
-    if (!SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof ncm, &ncm, 0, dpi))
-        SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof ncm, &ncm, 0);
-    return CreateFontIndirectW(&ncm.lfMessageFont);
-}
 
 // ------------------------------------------------------------------- worker
 
@@ -919,52 +699,6 @@ static void Paint(HDC hdc, int W, int H)
 
 // ---------------------------------------------------------------- dialogs
 
-static void CenterOn(HWND w, HWND owner)
-{
-    RECT r, o;
-    GetWindowRect(w, &r);
-    GetWindowRect(owner, &o);
-    int x = o.left + ((o.right - o.left) - (r.right - r.left)) / 2;
-    int y = o.top + ((o.bottom - o.top) - (r.bottom - r.top)) / 2;
-    SetWindowPos(w, nullptr, x, y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
-}
-
-static HWND Ctl(HWND parent, const wchar_t* cls, const wchar_t* text, DWORD style, int x, int y, int w, int h, int id, int dpi)
-{
-    return CreateWindowExW(0, cls, text, WS_CHILD | WS_VISIBLE | style, MulDiv(x, dpi, 96), MulDiv(y, dpi, 96),
-                           MulDiv(w, dpi, 96), MulDiv(h, dpi, 96), parent, (HMENU)(INT_PTR)id,
-                           GetModuleHandleW(nullptr), nullptr);
-}
-
-static void SetFontAll(HWND parent, HFONT f)
-{
-    EnumChildWindows(parent, [](HWND c, LPARAM lp) -> BOOL { SendMessageW(c, WM_SETFONT, (WPARAM)lp, TRUE); return TRUE; }, (LPARAM)f);
-}
-
-static HWND CreateDialogWindow(const wchar_t* cls, const wchar_t* title, int w, int h, int dpi)
-{
-    RECT r = { 0, 0, MulDiv(w, dpi, 96), MulDiv(h, dpi, 96) };
-    DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
-    AdjustWindowRectExForDpi(&r, style, FALSE, WS_EX_CONTROLPARENT, dpi);
-    HWND owner = g.hwnd;
-    EnableWindow(owner, FALSE);
-    HWND hw = CreateWindowExW(WS_EX_CONTROLPARENT, cls, title, style, 0, 0, r.right - r.left, r.bottom - r.top,
-                              owner, nullptr, GetModuleHandleW(nullptr), nullptr);
-    if (!hw) { EnableWindow(owner, TRUE); return nullptr; }
-    CenterOn(hw, owner);
-    ShowWindow(hw, SW_SHOW);
-    g.modeless = hw;
-    return hw;
-}
-
-static void CloseDialogWindow(HWND hw)
-{
-    g.modeless = nullptr;
-    EnableWindow(g.hwnd, TRUE);
-    SetForegroundWindow(g.hwnd);
-    DestroyWindow(hw);
-}
-
 // ---- Edit configuration
 
 enum { IdHost = 200, IdPort, IdRes, IdMode, IdLimit, IdScreens, IdApi, IdVsync };
@@ -1066,412 +800,6 @@ static LRESULT CALLBACK ConfigProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcW(hw, msg, wp, lp);
 }
 
-// ---- Manage content
-
-enum { IdTab = 100, IdList, IdInfo, IdImport, IdOpen, IdPack };
-static HFONT gContentFont;
-static HANDLE gImport;  // a running import, so the list refreshes when it ends
-
-static fs::path PickFolder(HWND owner, const wchar_t* title)
-{
-    static bool com = false;
-    if (!com) { CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); com = true; }
-    fs::path result;
-    IFileOpenDialog* d = nullptr;
-    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&d))))
-    {
-        DWORD opts = 0;
-        d->GetOptions(&opts);
-        d->SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
-        d->SetTitle(title);
-        if (SUCCEEDED(d->Show(owner)))
-        {
-            IShellItem* it = nullptr;
-            if (SUCCEEDED(d->GetResult(&it)))
-            {
-                PWSTR p = nullptr;
-                if (SUCCEEDED(it->GetDisplayName(SIGDN_FILESYSPATH, &p))) { result = p; CoTaskMemFree(p); }
-                it->Release();
-            }
-        }
-        d->Release();
-    }
-    return result;
-}
-
-// A content pack (.apxpack) to install, or empty.
-static fs::path PickPack(HWND owner)
-{
-    static bool com = false;
-    if (!com) { CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); com = true; }
-    fs::path result;
-    IFileOpenDialog* d = nullptr;
-    if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&d))))
-    {
-        COMDLG_FILTERSPEC filter[] = { { L"ApexSim content pack", L"*.apxpack" } };
-        d->SetFileTypes(1, filter);
-        d->SetTitle(L"Install a content pack");
-        if (SUCCEEDED(d->Show(owner)))
-        {
-            IShellItem* it = nullptr;
-            if (SUCCEEDED(d->GetResult(&it)))
-            {
-                PWSTR p = nullptr;
-                if (SUCCEEDED(it->GetDisplayName(SIGDN_FILESYSPATH, &p))) { result = p; CoTaskMemFree(p); }
-                it->Release();
-            }
-        }
-        d->Release();
-    }
-    return result;
-}
-
-static bool RunCapture(const std::wstring& line, std::string& out, DWORD timeoutMs);
-static void PopulateList(HWND hw);
-
-// Install a pack with the server's own installer (apexsim-server content install,
-// Server\CMDLINE: it checks the pack whole before it writes), and say what it did.
-static void InstallPack(HWND hw)
-{
-    if (!g.env.release || !Exists(g.env.serverExe))
-    {
-        MessageBoxW(hw, L"Content packs install into a release package (its Server and Game folders).",
-                    L"Install a content pack", MB_OK | MB_ICONINFORMATION);
-        return;
-    }
-    fs::path pack = PickPack(hw);
-    if (pack.empty()) return;
-    std::wstring line = L"\"" + g.env.serverExe.wstring() + L"\" content install \"" + pack.wstring() + L"\"";
-    std::string out;
-    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    bool ran = RunCapture(line, out, 120000);
-    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
-    std::wstring text = Widen(Trim(out));
-    bool ok = ran && text.find(L"apexsim-server:") == std::wstring::npos && text.find(L"\"version\"") != std::wstring::npos;
-    std::wstring m = ok ? L"Installed " + pack.filename().wstring() + L". Restart the game and the server to use it."
-                        : L"Could not install " + pack.filename().wstring() + L":\n\n" + (ran ? text : L"the server's installer did not start");
-    MessageBoxW(hw, m.c_str(), L"Install a content pack", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
-    PopulateList(hw);
-}
-
-static void PopulateList(HWND hw)
-{
-    HWND tab = GetDlgItem(hw, IdTab), list = GetDlgItem(hw, IdList);
-    int t = TabCtrl_GetCurSel(tab);
-    std::vector<Item> items = ListContent(g.env, t);
-    ListView_DeleteAllItems(list);
-    int def = 0, cust = 0;
-    for (size_t i = 0; i < items.size(); ++i)
-    {
-        LVITEMW li = {};
-        li.mask = LVIF_TEXT;
-        li.iItem = (int)i;
-        li.pszText = const_cast<wchar_t*>(items[i].name.c_str());
-        ListView_InsertItem(list, &li);
-        ListView_SetItemText(list, (int)i, 1, const_cast<wchar_t*>(items[i].origin.c_str()));
-        (items[i].origin == L"custom" ? cust : def)++;
-    }
-    static const wchar_t* names[] = { L"tracks", L"cars", L"HUD components", L"wheels" };
-    std::wstring info = std::to_wstring(items.size()) + L" " + names[t];
-    if (cust) info += L"  (" + std::to_wstring(cust) + L" custom)";
-    if (items.empty()) info += L" - nothing found in " + TabFolder(g.env, t).wstring();
-    SetWindowTextW(GetDlgItem(hw, IdInfo), info.c_str());
-    EnableWindow(GetDlgItem(hw, IdImport), t == TabTracks || t == TabCars);
-}
-
-enum ImportKind { ImpNone, ImpCar, ImpTrack, ImpCars, ImpTracks };
-
-static ImportKind DetectKind(HWND hw, const fs::path& dir)
-{
-    std::wstring n = dir.filename().wstring();
-    if (_wcsicmp(n.c_str(), L"cars") == 0) return ImpCars;
-    if (_wcsicmp(n.c_str(), L"tracks") == 0) return ImpTracks;
-    if (Exists(dir / L"data.acd") || Exists(dir / L"ui" / L"ui_car.json")) return ImpCar;
-    if (Exists(dir / L"ui" / L"ui_track.json") || Exists(dir / L"ai")) return ImpTrack;
-    int r = MessageBoxW(hw, L"Is this folder a car or a track?\n\nYes = car, No = track", L"Import from Assetto Corsa",
-                        MB_YESNOCANCEL | MB_ICONQUESTION);
-    return r == IDYES ? ImpCar : r == IDNO ? ImpTrack : ImpNone;
-}
-
-// ---- Python for the importers
-//
-// The importers are Python (numpy, Pillow, PyYAML, msgpack). The launcher looks for
-// a Python 3.11+, keeps the packages in a venv of its own under %LOCALAPPDATA%
-// (made on first use, redone when importer-requirements.txt changes) and runs the
-// import in a console so the player sees the setup and the report.
-
-static const int kMinPython = 311;  // 3.11: what the importers are written and tested on
-
-// Runs a command line without a window and returns its stdout; false if it did not start.
-static bool RunCapture(const std::wstring& line, std::string& out, DWORD timeoutMs)
-{
-    SECURITY_ATTRIBUTES sa = { sizeof sa, nullptr, TRUE };
-    HANDLE rd = nullptr, wr = nullptr;
-    if (!CreatePipe(&rd, &wr, &sa, 0)) return false;
-    SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);
-    STARTUPINFOW si = { sizeof si };
-    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
-    si.wShowWindow = SW_HIDE;
-    si.hStdOutput = wr;
-    si.hStdError = wr;
-    si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-    PROCESS_INFORMATION pi = {};
-    std::wstring cmd = line;
-    BOOL ok = CreateProcessW(nullptr, &cmd[0], nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
-    CloseHandle(wr);
-    if (!ok) { CloseHandle(rd); return false; }
-    CloseHandle(pi.hThread);
-    out.clear();
-    // The output is a few bytes, far under the pipe's buffer, so waiting first cannot block it;
-    // a hung interpreter is cut off after the timeout.
-    if (WaitForSingleObject(pi.hProcess, timeoutMs) == WAIT_TIMEOUT) TerminateProcess(pi.hProcess, 1);
-    char buf[256];
-    DWORD n = 0;
-    while (PeekNamedPipe(rd, nullptr, 0, nullptr, &n, nullptr) && n && ReadFile(rd, buf, sizeof buf, &n, nullptr) && n)
-        out.append(buf, n);
-    CloseHandle(rd);
-    CloseHandle(pi.hProcess);
-    return true;
-}
-
-// The command that starts a Python of at least kMinPython ("py -3", "python", ...), and
-// the highest too-old version seen (0 when none). The Microsoft Store's python.exe stub
-// prints nothing and exits non-zero, so it simply does not count.
-static bool FindPython(std::wstring& command, int& tooOld)
-{
-    static const wchar_t* candidates[] = { L"py -3", L"python", L"python3" };
-    tooOld = 0;
-    for (const wchar_t* c : candidates)
-    {
-        std::string out;
-        std::wstring line = std::wstring(c) + L" -c \"import sys;print(sys.version_info[0]*100+sys.version_info[1])\"";
-        if (!RunCapture(line, out, 15000)) continue;
-        int v = atoi(out.c_str());
-        if (v >= kMinPython) { command = c; return true; }
-        if (v > tooOld) tooOld = v;
-    }
-    return false;
-}
-
-static void ExplainNoPython(HWND hw, int tooOld)
-{
-    std::wstring m = tooOld
-        ? L"Importing needs Python 3.11 or newer. Python " + std::to_wstring(tooOld / 100) + L"." + std::to_wstring(tooOld % 100) +
-              L" is installed, which is too old.\n\n"
-        : L"Importing needs Python 3.11 or newer, and none was found on this PC.\n\n";
-    m += L"Install it from python.org/downloads (3.12 is a good choice). In the installer, leave the \"py launcher\" ticked "
-         L"or tick \"Add python.exe to PATH\", then try again. Nothing else needs installing by hand: the launcher sets up "
-         L"the importer's packages itself the first time (this needs an internet connection).\n\n"
-         L"Open the download page now?";
-    if (MessageBoxW(hw, m.c_str(), L"Import from Assetto Corsa", MB_YESNO | MB_ICONINFORMATION) == IDYES)
-        ShellExecuteW(hw, L"open", L"https://www.python.org/downloads/windows/", nullptr, nullptr, SW_SHOWNORMAL);
-}
-
-static std::string ReadAll(const fs::path& p)
-{
-    std::ifstream f(p, std::ios::binary);
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
-}
-
-static fs::path VenvDir()
-{
-    wchar_t buf[MAX_PATH];
-    DWORD n = GetEnvironmentVariableW(L"LOCALAPPDATA", buf, (DWORD)std::size(buf));
-    fs::path base = (n && n < std::size(buf)) ? fs::path(buf) : fs::temp_directory_path();
-    return base / L"ApexSim" / L"importer-venv";
-}
-
-static void StartImport(HWND hw)
-{
-    if (gImport) { MessageBoxW(hw, L"An import is already running.", L"Import", MB_OK | MB_ICONINFORMATION); return; }
-    int tab = TabCtrl_GetCurSel(GetDlgItem(hw, IdTab));
-    const fs::path& tools = g.env.importerDir;
-    fs::path req = tools / L"importer-requirements.txt";
-    if (tools.empty() || !Exists(tools / L"ac_import.py") || !Exists(req))
-    {
-        MessageBoxW(hw,
-            L"This installation does not include the importer (Tools\\importer).\n\n"
-            L"Download a release that includes it, or run the importer from a source checkout.",
-            L"Import from Assetto Corsa", MB_OK | MB_ICONINFORMATION);
-        return;
-    }
-    std::wstring py;
-    int tooOld = 0;
-    SetCursor(LoadCursorW(nullptr, IDC_WAIT));
-    bool havePython = FindPython(py, tooOld);
-    SetCursor(LoadCursorW(nullptr, IDC_ARROW));
-    if (!havePython) { ExplainNoPython(hw, tooOld); return; }
-
-    fs::path dir = PickFolder(hw, tab == TabCars ? L"Select an Assetto Corsa car folder (or content\\cars)"
-                                                 : L"Select an Assetto Corsa track folder (or content\\tracks)");
-    if (dir.empty()) return;
-    ImportKind k = DetectKind(hw, dir);
-    if (k == ImpNone) return;
-
-    bool car = (k == ImpCar || k == ImpCars), all = (k == ImpCars || k == ImpTracks);
-    std::wstring d = dir.wstring();
-    while (d.size() > 3 && (d.back() == L'\\' || d.back() == L'/')) d.pop_back();  // a trailing \ would escape the quote
-
-    fs::path venv = VenvDir();
-    fs::path venvPy = venv / L"Scripts" / L"python.exe";
-    fs::path stamp = venv / L"importer-requirements.installed.txt";
-    // A release carries the packages as wheels for each Python it supports
-    // (Tools\importer\wheels), so a PC with no internet can import too;
-    // PyPI is the fallback, for a Python the wheels do not cover.
-    fs::path wheels = tools / L"wheels";
-    std::error_code wheelsError;
-    bool haveWheels = fs::is_directory(wheels, wheelsError);
-    bool haveVenv = Exists(venvPy);
-    bool upToDate = haveVenv && Exists(stamp) && ReadAll(stamp) == ReadAll(req);
-
-    // One console line: set up if needed, then import. `&&` stops at the first failure and the
-    // console stays open (pause) so the report or the error can be read. /S makes cmd strip
-    // exactly the outer quotes.
-    const std::wstring q = L"\"";
-    std::wstring line;
-    if (!upToDate)
-    {
-        line += haveWheels
-            ? L"echo Setting up the importer (first use or updated requirements)... && "
-            : L"echo Setting up the importer (first use or updated requirements; needs an internet connection)... && ";
-        line += L"echo If this fails, delete " + q + venv.wstring() + q + L" and try again. && ";
-        if (!haveVenv) line += py + L" -m venv " + q + venv.wstring() + q + L" && ";
-        const std::wstring pip = q + venvPy.wstring() + q + L" -m pip install --disable-pip-version-check ";
-        const std::wstring fromIndex = pip + L"-r " + q + req.wstring() + q;
-        if (haveWheels)
-        {
-            line += L"(" + pip + L"--no-index --find-links " + q + wheels.wstring() + q + L" -r " + q + req.wstring() + q +
-                L" || " + fromIndex + L") && ";
-        }
-        else
-        {
-            line += fromIndex + L" && ";
-        }
-        line += L"copy /Y " + q + req.wstring() + q + L" " + q + stamp.wstring() + q + L" >nul && ";
-    }
-    line += q + venvPy.wstring() + q + L" " + q + (tools / (car ? L"ac_car_import.py" : L"ac_import.py")).wstring() + q + L" ";
-    if (g.env.release) line += L"--root " + q + g.env.root.wstring() + q + L" ";  // into this install's Game and Server
-    line += all ? L"--all " : L"";
-    line += q + d + q;
-    std::wstring cmd = L"cmd.exe /S /C \"" + line + L" & echo. & pause\"";
-
-    STARTUPINFOW si = { sizeof si };
-    si.lpTitle = const_cast<wchar_t*>(L"ApexSim import");
-    PROCESS_INFORMATION pi = {};
-    if (!CreateProcessW(nullptr, &cmd[0], nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE, nullptr, g.env.root.c_str(), &si, &pi))
-    {
-        MessageBoxW(hw, L"Could not start the importer.", L"Import", MB_OK | MB_ICONERROR);
-        return;
-    }
-    CloseHandle(pi.hThread);
-    gImport = pi.hProcess;
-    SetWindowTextW(GetDlgItem(hw, IdInfo), L"Importing... see the console window. This list refreshes when it closes.");
-    SetTimer(hw, 1, 500, nullptr);
-}
-
-static void LayoutContent(HWND hw)
-{
-    RECT c;
-    GetClientRect(hw, &c);
-    int m = S(10);
-    HWND tab = GetDlgItem(hw, IdTab);
-    SetWindowPos(tab, nullptr, m, m, c.right - 2 * m, c.bottom - S(100), SWP_NOZORDER);
-    RECT r = { 0, 0, c.right - 2 * m, c.bottom - S(100) };
-    TabCtrl_AdjustRect(tab, FALSE, &r);
-    HWND list = GetDlgItem(hw, IdList);
-    // The list sits over the tab control's page, so keep it above it in z-order.
-    SetWindowPos(list, HWND_TOP, m + r.left, m + r.top, r.right - r.left, r.bottom - r.top, 0);
-    int w = r.right - r.left - GetSystemMetrics(SM_CXVSCROLL) - S(4);
-    ListView_SetColumnWidth(list, 0, w * 7 / 10);
-    ListView_SetColumnWidth(list, 1, w * 3 / 10);
-    SetWindowPos(GetDlgItem(hw, IdInfo), nullptr, m, c.bottom - S(84), c.right - 2 * m, S(36), SWP_NOZORDER);
-    int by = c.bottom - S(44), bh = S(32);
-    SetWindowPos(GetDlgItem(hw, IdImport), nullptr, m, by, S(190), bh, SWP_NOZORDER);
-    SetWindowPos(GetDlgItem(hw, IdOpen), nullptr, m + S(200), by, S(120), bh, SWP_NOZORDER);
-    SetWindowPos(GetDlgItem(hw, IdPack), nullptr, m + S(330), by, S(150), bh, SWP_NOZORDER);
-    SetWindowPos(GetDlgItem(hw, IDCANCEL), nullptr, c.right - m - S(100), by, S(100), bh, SWP_NOZORDER);
-}
-
-static LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
-{
-    switch (msg)
-    {
-    case WM_CREATE:
-    {
-        int dpi = g.dpi;
-        gContentFont = MakeUiFont(dpi);
-        HWND tab = Ctl(hw, WC_TABCONTROLW, L"", WS_TABSTOP | WS_CLIPSIBLINGS, 0, 0, 10, 10, IdTab, dpi);
-        const wchar_t* names[] = { L"Tracks", L"Cars", L"HUD", L"Wheels" };
-        for (int i = 0; i < TabCount; ++i)
-        {
-            TCITEMW ti = {};
-            ti.mask = TCIF_TEXT;
-            ti.pszText = const_cast<wchar_t*>(names[i]);
-            TabCtrl_InsertItem(tab, i, &ti);
-        }
-        HWND list = Ctl(hw, WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP | WS_CLIPSIBLINGS,
-                        0, 0, 10, 10, IdList, dpi);
-        ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
-        LVCOLUMNW col = {};
-        col.mask = LVCF_TEXT | LVCF_WIDTH;
-        col.cx = 100;
-        col.pszText = const_cast<wchar_t*>(L"Name");
-        ListView_InsertColumn(list, 0, &col);
-        col.pszText = const_cast<wchar_t*>(L"Source");
-        ListView_InsertColumn(list, 1, &col);
-        Ctl(hw, L"STATIC", L"", 0, 0, 0, 10, 10, IdInfo, dpi);
-        Ctl(hw, L"BUTTON", L"Import from Assetto Corsa...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdImport, dpi);
-        Ctl(hw, L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdOpen, dpi);
-        Ctl(hw, L"BUTTON", L"Install pack...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdPack, dpi);
-        Ctl(hw, L"BUTTON", L"Close", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IDCANCEL, dpi);
-        SetFontAll(hw, gContentFont);
-        LayoutContent(hw);
-        PopulateList(hw);
-        return 0;
-    }
-    case WM_NOTIFY:
-    {
-        NMHDR* nm = (NMHDR*)lp;
-        if (nm->idFrom == IdTab && nm->code == TCN_SELCHANGE) PopulateList(hw);
-        return 0;
-    }
-    case WM_COMMAND:
-        switch (LOWORD(wp))
-        {
-        case IDCANCEL: CloseDialogWindow(hw); return 0;
-        case IdImport: StartImport(hw); return 0;
-        case IdPack: InstallPack(hw); return 0;
-        case IdOpen:
-        {
-            fs::path p = TabFolder(g.env, TabCtrl_GetCurSel(GetDlgItem(hw, IdTab)));
-            std::error_code ec;
-            fs::create_directories(p, ec);
-            ShellExecuteW(hw, L"open", p.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-            return 0;
-        }
-        }
-        break;
-    case WM_TIMER:
-        if (gImport && WaitForSingleObject(gImport, 0) == WAIT_OBJECT_0)
-        {
-            CloseHandle(gImport);
-            gImport = nullptr;
-            KillTimer(hw, 1);
-            PopulateList(hw);
-            std::wstring t = GetText(GetDlgItem(hw, IdInfo));
-            SetWindowTextW(GetDlgItem(hw, IdInfo), (t + L"\nImport finished. Restart the game to see it.").c_str());
-        }
-        return 0;
-    case WM_CLOSE: CloseDialogWindow(hw); return 0;
-    case WM_NCDESTROY:
-        if (gContentFont) { DeleteObject(gContentFont); gContentFont = nullptr; }
-        break;
-    }
-    return DefWindowProcW(hw, msg, wp, lp);
-}
-
 // -------------------------------------------------------------- main window
 
 static void Activate(int i)
@@ -1482,8 +810,8 @@ static void Activate(int i)
     case BtnLaunch: g.menuOpen = false; LaunchAsync(false); break;
     case BtnArrow: g.menuOpen = !g.menuOpen; break;
     case BtnServer: g.menuOpen = false; LaunchAsync(true); break;
-    case BtnConfig: CreateDialogWindow(L"ApexCfg", L"Edit configuration", 460, 412, g.dpi); break;
-    case BtnContent: CreateDialogWindow(L"ApexContent", L"Manage content", 640, 500, g.dpi); break;
+    case BtnConfig: CreateDialogWindow(g.hwnd, L"ApexCfg", L"Edit configuration", 460, 412, g.dpi); break;
+    case BtnContent: OpenContentWindow(g.hwnd, g.env, g.dpi); break;
     case BtnShow:
     {
         Settings n = g.settings;
@@ -1687,7 +1015,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int)
     };
     reg(L"ApexLauncher", MainProc, nullptr);
     reg(L"ApexCfg", ConfigProc, (HBRUSH)(COLOR_BTNFACE + 1));
-    reg(L"ApexContent", ContentProc, (HBRUSH)(COLOR_BTNFACE + 1));
+    reg(kContentWindowClass, ContentProc, (HBRUSH)(COLOR_BTNFACE + 1));
 
     g.dpi = (int)GetDpiForSystem();
     Layout();
@@ -1715,7 +1043,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, PWSTR, int)
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0)
     {
-        if (g.modeless && IsDialogMessageW(g.modeless, &m)) continue;
+        if (HWND d = ActiveDialog(); d && IsDialogMessageW(d, &m)) continue;
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
