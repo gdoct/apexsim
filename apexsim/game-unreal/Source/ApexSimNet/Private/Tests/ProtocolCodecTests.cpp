@@ -122,6 +122,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeRequestIncidents(),
 		ApexGolden::C_RequestIncidents);
 
+	CheckBytes(TEXT("RequestEventSheets"),
+		ApexProtocol::EncodeRequestEventSheets(TEXT("autumn-cup")),
+		ApexGolden::C_RequestEventSheets);
+
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
@@ -1245,6 +1249,38 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Rewound.Tick"), Message.Rewound.Tick, 4200u);
 			TestEqual(TEXT("Rewound.FromTick"), Message.Rewound.FromTick, 8610u);
 			TestEqual(TEXT("Rewound.HoldMs"), Message.Rewound.HoldMs, 3000u);
+		}
+	}
+
+	{
+		// A race event's sheets: practice, the combined qualifying sheet, the race.
+		FApexServerMessage Message;
+		if (Decode(TEXT("EventSheets"), ApexGolden::S_EventSheets, Message))
+		{
+			const FApexEventSheets& Sheets = Message.EventSheets;
+			TestEqual(TEXT("EventSheets type"), Message.Type, EApexServerMessageType::EventSheets);
+			TestTrue(TEXT("EventSheets decoded"), Sheets.bValid);
+			TestEqual(TEXT("Id"), Sheets.Id, FString(TEXT("autumn-cup")));
+			TestEqual(TEXT("TrackId"), Sheets.TrackId, FString(TEXT("01234567-89ab-cdef-0123-456789abcdef")));
+			TestEqual(TEXT("Phase"), Sheets.Phase, 4);
+			if (TestEqual(TEXT("Phases.Num"), Sheets.Phases.Num(), 3))
+			{
+				TestEqual(TEXT("practice"), Sheets.Phases[0].Phase, 1);
+				TestEqual(TEXT("practice best"), Sheets.Phases[0].Lines[0].BestLapMs, 81234);
+				TestEqual(TEXT("no practice replay"), Sheets.Phases[0].Replays.Num(), 0);
+				const FApexEventSheet& Quali = Sheets.Phases[1];
+				TestEqual(TEXT("a replay a round"), Quali.Replays.Num(), 2);
+				TestEqual(TEXT("Q2's replay"), Quali.Replays[1], FString(TEXT("replay_q2.apxs")));
+				TestTrue(TEXT("pole: AI"), Quali.Lines[0].bAi);
+				TestEqual(TEXT("out in Q1"), Quali.Lines[1].KnockedOutIn, 1);
+				TestEqual(TEXT("CarId"), Quali.Lines[1].CarId, FString(TEXT("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")));
+				const FApexEventSheet& Race = Sheets.Phases[2];
+				TestEqual(TEXT("FinishedAt"), Race.FinishedAt, static_cast<int64>(1793180000));
+				TestEqual(TEXT("race time"), Race.Lines[0].RaceTimeMs, 812345);
+				TestEqual(TEXT("finished"), Race.Lines[0].Status, FString(TEXT("finished")));
+				TestEqual(TEXT("retired"), Race.Lines[1].Status, FString(TEXT("retired")));
+				TestEqual(TEXT("laps"), Race.Lines[1].Laps, 6);
+			}
 		}
 	}
 

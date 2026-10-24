@@ -278,6 +278,7 @@ void UApexSessionBrowserWidget::NativeConstruct()
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexSessionBrowserWidget::HandleLobbyStateUpdated);
+		EventSheetsHandle = Net->OnEventSheets.AddUObject(this, &UApexSessionBrowserWidget::HandleEventSheets);
 	}
 }
 
@@ -286,6 +287,7 @@ void UApexSessionBrowserWidget::NativeDestruct()
 	if (UApexNetSubsystem* Net = GetNet())
 	{
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexSessionBrowserWidget::HandleLobbyStateUpdated);
+		Net->OnEventSheets.Remove(EventSheetsHandle);
 	}
 	Super::NativeDestruct();
 }
@@ -391,6 +393,7 @@ void UApexSessionBrowserWidget::SetFilter(ApexBrowser::EFilter InFilter)
 	// A different set of rows, from the top.
 	Shown.Reset();
 	ShownEvents.Reset();
+	SheetsEventId.Reset();
 	LastFocused = 0;
 	if (Filter == ApexBrowser::EFilter::Recorded)
 	{
@@ -555,8 +558,7 @@ void UApexSessionBrowserWidget::RebuildRecordingRows()
 
 void UApexSessionBrowserWidget::WatchRecording(int32 Index)
 {
-	const UApexNetSubsystem* Net = GetNet();
-	if (!Recordings.IsValidIndex(Index) || bDownloading || !Net)
+	if (!Recordings.IsValidIndex(Index))
 	{
 		return;
 	}
@@ -566,7 +568,22 @@ void UApexSessionBrowserWidget::WatchRecording(int32 Index)
 		ShowToast(TEXT("A recording from before streams: it cannot be watched here"), true);
 		return;
 	}
-	const FString Path = UApexReplayRecorder::ReplayDirectory() / R.File;
+	WatchRecordingFile(R.File);
+}
+
+void UApexSessionBrowserWidget::WatchRecordingFile(const FString& File)
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (File.IsEmpty() || bDownloading || !Net)
+	{
+		return;
+	}
+	if (Net->GetCachedLobbyState().RecordingsPort <= 0)
+	{
+		ShowToast(TEXT("This server does not share its recordings"), true);
+		return;
+	}
+	const FString Path = UApexReplayRecorder::ReplayDirectory() / File;
 	if (IFileManager::Get().FileExists(*Path))
 	{
 		if (UApexRootWidget* Root = GetRoot())
@@ -576,10 +593,13 @@ void UApexSessionBrowserWidget::WatchRecording(int32 Index)
 		return;
 	}
 	bDownloading = true;
-	RebuildRecordingRows();
+	if (Filter == ApexBrowser::EFilter::Recorded)
+	{
+		RebuildRecordingRows();
+	}
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 	Request->SetURL(FString::Printf(TEXT("http://%s:%d/recordings/%s"), *Net->GetServerHost(),
-		Net->GetCachedLobbyState().RecordingsPort, *R.File));
+		Net->GetCachedLobbyState().RecordingsPort, *File));
 	Request->SetVerb(TEXT("GET"));
 	Request->SetTimeout(120.0f);
 	TWeakObjectPtr<UApexSessionBrowserWidget> Weak(this);
@@ -593,7 +613,10 @@ void UApexSessionBrowserWidget::WatchRecording(int32 Index)
 		Self->bDownloading = false;
 		const bool bGot = bOk && Response.IsValid() && Response->GetResponseCode() == 200 && Response->GetContent().Num() > 8
 			&& FFileHelper::SaveArrayToFile(Response->GetContent(), *Path);
-		Self->RebuildRecordingRows();
+		if (Self->Filter == ApexBrowser::EFilter::Recorded)
+		{
+			Self->RebuildRecordingRows();
+		}
 		if (!bGot)
 		{
 			Self->ShowToast(TEXT("The recording could not be fetched"), true);
@@ -624,7 +647,11 @@ void UApexSessionBrowserWidget::RefreshList()
 	}
 	if (Filter == ApexBrowser::EFilter::Events)
 	{
-		RefreshEventRows();
+		// An event's sheets stay until Back; the events list follows the lobby.
+		if (SheetsEventId.IsEmpty())
+		{
+			RefreshEventRows();
+		}
 		return;
 	}
 
@@ -866,14 +893,194 @@ void UApexSessionBrowserWidget::ApplyEventRow(int32 Index, int64 Now)
 
 	if (WatchButtons.IsValidIndex(Index))
 	{
-		FApexButtonSpec WatchSpec;
-		WatchSpec.Label = TEXT("Watch");
-		WatchSpec.Variant = Session && Session->IsWatchable() ? EApexButtonVariant::Ghost : EApexButtonVariant::Locked;
-		WatchSpec.bCentreLabel = true;
-		WatchSpec.LabelSize = 16.0f;
-		WatchSpec.Height = RowHeight;
-		WatchSpec.ActionId = ActionBrowserWatch;
-		WatchButtons[Index]->Setup(WatchSpec);
+		// The weekend's sheets so far: practice, qualifying, the race.
+		FApexButtonSpec SheetsSpec;
+		SheetsSpec.Label = TEXT("Sheets");
+		SheetsSpec.Variant = EApexButtonVariant::Ghost;
+		SheetsSpec.bCentreLabel = true;
+		SheetsSpec.LabelSize = 16.0f;
+		SheetsSpec.Height = RowHeight;
+		SheetsSpec.ActionId = ActionBrowserWatch;
+		WatchButtons[Index]->Setup(SheetsSpec);
+	}
+}
+
+void UApexSessionBrowserWidget::OpenSheets(int32 Index)
+{
+	UApexNetSubsystem* Net = GetNet();
+	if (!ShownEvents.IsValidIndex(Index) || !Net)
+	{
+		return;
+	}
+	if (!Net->RequestEventSheets(ShownEvents[Index].Id))
+	{
+		ShowToast(TEXT("Not connected"), true);
+		return;
+	}
+	SheetsEventId = ShownEvents[Index].Id;
+	LastFocused = 0;
+	RebuildSheetRows();
+}
+
+void UApexSessionBrowserWidget::CloseSheets()
+{
+	SheetsEventId.Reset();
+	SheetRowReplay.Reset();
+	ShownEvents.Reset();
+	LastFocused = 0;
+	List->ClearChildren();
+	Rows.Reset();
+	WatchButtons.Reset();
+	RefreshEventRows();
+	if (IsActiveScreen())
+	{
+		FocusDefault();
+	}
+}
+
+void UApexSessionBrowserWidget::HandleEventSheets(const FApexEventSheets& Sheets)
+{
+	if (!SheetsEventId.IsEmpty() && Sheets.Id == SheetsEventId)
+	{
+		RebuildSheetRows();
+	}
+}
+
+bool UApexSessionBrowserWidget::HandleBack()
+{
+	if (!SheetsEventId.IsEmpty())
+	{
+		CloseSheets();
+		return true;
+	}
+	return Super::HandleBack();
+}
+
+void UApexSessionBrowserWidget::RebuildSheetRows()
+{
+	using namespace ApexUI;
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !List)
+	{
+		return;
+	}
+	const bool bHadFocus = HasFocusedDescendants() || HasAnyUserFocus();
+	List->ClearChildren();
+	Rows.Reset();
+	WatchButtons.Reset();
+	SheetRowReplay.Reset();
+	const FApexEventSheets& Sheets = Net->GetEventSheets();
+	const bool bHere = Sheets.bValid && Sheets.Id == SheetsEventId;
+	const bool bCanFetch = Net->GetCachedLobbyState().RecordingsPort > 0;
+	const UApexMenuFlowSubsystem* Flow = GetFlow();
+	auto AddRow = [this](UApexButtonWidget* Row, UApexButtonWidget* Right, int32 Index, float Gap)
+	{
+		UHorizontalBox* Line = WidgetTree->ConstructWidget<UHorizontalBox>();
+		AddH(Line, Row, FMargin(), VAlign_Center, 1.0f);
+		if (Right)
+		{
+			AddH(Line, MakeSized(*WidgetTree, Right, WatchWidth, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f), VAlign_Center);
+		}
+		List->AddChild(Line);
+		if (UScrollBoxSlot* LineSlot = Cast<UScrollBoxSlot>(Line->Slot))
+		{
+			LineSlot->SetPadding(FMargin(0.0f, Index == 0 ? 0.0f : Gap, 0.0f, 0.0f));
+		}
+	};
+	if (bHere)
+	{
+		for (const FApexEventSheet& Sheet : Sheets.Phases)
+		{
+			// The phase: when it was kept, who led it, and its replays.
+			UApexButtonWidget* Head = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			Head->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+			const FString Name = ApexEventLabels::PhaseName(Sheet.Phase);
+			TArray<FString> Parts;
+			Parts.Add(FString::Printf(TEXT("kept %s"), *LocalClock(Sheet.FinishedAt)));
+			Parts.Add(ApexEventLabels::SheetHeadline(Sheet));
+			if (Sheet.Replays.Num() > 1)
+			{
+				Parts.Add(FString::Printf(TEXT("%d rounds recorded: Watch plays the last"), Sheet.Replays.Num()));
+			}
+			FApexButtonSpec HeadSpec;
+			HeadSpec.Label = Name.IsEmpty() ? FString(TEXT("Session")) : Name;
+			HeadSpec.SubLabel = FString::Join(Parts, TEXT("  ·  "));
+			HeadSpec.Badge = Sheet.Replays.IsEmpty() ? FString(TEXT("No replay")) : FString(TEXT("Recorded"));
+			HeadSpec.BadgeColour = Sheet.Replays.IsEmpty() ? Palette::TextMuted : Palette::Accent;
+			HeadSpec.Variant = EApexButtonVariant::Panel;
+			HeadSpec.LabelSize = 20.0f;
+			HeadSpec.Height = RowHeight;
+			HeadSpec.ActionId = ActionBrowserRow;
+			Head->Setup(HeadSpec);
+			UApexButtonWidget* Watch = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			Watch->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+			FApexButtonSpec WatchSpec;
+			WatchSpec.Label = TEXT("Watch");
+			WatchSpec.Variant = !Sheet.Replays.IsEmpty() && bCanFetch ? EApexButtonVariant::Ghost : EApexButtonVariant::Locked;
+			WatchSpec.bCentreLabel = true;
+			WatchSpec.LabelSize = 16.0f;
+			WatchSpec.Height = RowHeight;
+			WatchSpec.ActionId = ActionBrowserWatch;
+			Watch->Setup(WatchSpec);
+			AddRow(Head, Watch, Rows.Num(), 18.0f);
+			Rows.Add(Head);
+			WatchButtons.Add(Watch);
+			SheetRowReplay.Add(Sheet.Replays.IsEmpty() ? FString() : Sheet.Replays.Last());
+
+			for (const FApexEventSheetLine& L : Sheet.Lines)
+			{
+				FApexCarCatalogRow Car;
+				// The catalog's display name; the server's own name never goes on screen.
+				const FString CarName = Flow && Flow->GetCarCatalogRow(L.CarId, Car) && !Car.DisplayName.IsEmpty()
+					? Car.DisplayName : FString(TEXT("a car not installed here"));
+				TArray<FString> LineParts;
+				LineParts.Add(CarName);
+				LineParts.Add(ApexEventLabels::SheetTime(L, Sheet.Phase));
+				if (const FString Notes = ApexEventLabels::SheetNotes(L); !Notes.IsEmpty())
+				{
+					LineParts.Add(Notes);
+				}
+				UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+				Row->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+				FApexButtonSpec Spec;
+				Spec.Label = FString::Printf(TEXT("P%d   %s"), L.Position, *L.Name);
+				Spec.SubLabel = FString::Join(LineParts, TEXT("  ·  "));
+				Spec.Variant = EApexButtonVariant::Panel;
+				Spec.LabelSize = 16.0f;
+				Spec.Height = 52.0f;
+				Spec.ActionId = ActionBrowserRow;
+				Row->Setup(Spec);
+				AddRow(Row, nullptr, Rows.Num(), 4.0f);
+				Rows.Add(Row);
+				WatchButtons.Add(nullptr);
+				SheetRowReplay.Add(FString());
+			}
+		}
+	}
+	LastFocused = Rows.Num() > 0 ? FMath::Clamp(LastFocused, 0, Rows.Num() - 1) : 0;
+	if (CountText)
+	{
+		CountText->SetText(FText::FromString(bHere
+			? FString::Printf(TEXT("%s  ·  %d SHEET%s"), *Sheets.Name.ToUpper(), Sheets.Phases.Num(), Sheets.Phases.Num() == 1 ? TEXT("") : TEXT("S"))
+			: FString(TEXT("SHEETS"))));
+	}
+	if (StatusLine)
+	{
+		const FString Status = !bHere ? FString(TEXT("ASKING THE SERVER FOR THE SHEETS"))
+			: bDownloading ? FString(TEXT("FETCHING THE RECORDING"))
+			: !bCanFetch ? FString(TEXT("ESC: BACK TO THE EVENTS  ·  THIS SERVER DOES NOT SHARE ITS RECORDINGS"))
+			: FString(TEXT("ESC: BACK TO THE EVENTS  ·  WATCH PLAYS A PHASE'S REPLAY, FETCHED INTO YOUR REPLAYS FIRST"));
+		StatusLine->SetText(FText::FromString(Status));
+		StatusLine->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (EmptyText)
+	{
+		EmptyText->SetText(FText::FromString(TEXT("No phase of this event has been run yet.")));
+		EmptyText->SetVisibility(bHere && Sheets.Phases.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (IsActiveScreen() && bHadFocus)
+	{
+		FocusDefault();
 	}
 }
 
@@ -902,7 +1109,7 @@ void UApexSessionBrowserWidget::JoinEvent(int32 Index)
 void UApexSessionBrowserWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 {
 	Super::NativeTick(MyGeometry, InDeltaTime);
-	if (Filter != ApexBrowser::EFilter::Events)
+	if (Filter != ApexBrowser::EFilter::Events || !SheetsEventId.IsEmpty())
 	{
 		return;
 	}
@@ -1061,7 +1268,14 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	}
 	if (Button == HeaderBackButton)
 	{
-		GoBack();
+		if (!SheetsEventId.IsEmpty())
+		{
+			CloseSheets();
+		}
+		else
+		{
+			GoBack();
+		}
 	}
 	else if (Button == RefreshAction)
 	{
@@ -1086,6 +1300,14 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 		{
 			WatchRecording(RowAt);
 		}
+		else if (Filter == ApexBrowser::EFilter::Events && !SheetsEventId.IsEmpty())
+		{
+			// A phase's header plays its replay; a car's line does nothing.
+			if (SheetRowReplay.IsValidIndex(RowAt) && !SheetRowReplay[RowAt].IsEmpty())
+			{
+				WatchRecordingFile(SheetRowReplay[RowAt]);
+			}
+		}
 		else if (Filter == ApexBrowser::EFilter::Events)
 		{
 			JoinEvent(RowAt);
@@ -1098,13 +1320,16 @@ void UApexSessionBrowserWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (const int32 WatchAt = ApexNav::IndexOf(WatchButtons, Button); WatchAt != INDEX_NONE)
 	{
 		LastFocused = WatchAt;
-		if (Filter == ApexBrowser::EFilter::Events)
+		if (Filter == ApexBrowser::EFilter::Events && !SheetsEventId.IsEmpty())
 		{
-			const FApexSessionSummary* Session = ShownEvents.IsValidIndex(WatchAt) ? EventSession(ShownEvents[WatchAt]) : nullptr;
-			if (UApexRootWidget* Root = Session && Session->IsWatchable() ? GetRoot() : nullptr)
+			if (SheetRowReplay.IsValidIndex(WatchAt))
 			{
-				Root->WatchSession(Session->Id);
+				WatchRecordingFile(SheetRowReplay[WatchAt]);
 			}
+		}
+		else if (Filter == ApexBrowser::EFilter::Events)
+		{
+			OpenSheets(WatchAt);
 		}
 		else
 		{

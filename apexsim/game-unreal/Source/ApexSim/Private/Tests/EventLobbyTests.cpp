@@ -112,4 +112,45 @@ bool FApexEventScheduleLabelsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexEventSheetLabelsTest,
+	"ApexSim.UI.EventLobby.Sheets",
+	ApexTestFlags)
+
+bool FApexEventSheetLabelsTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexEventLabels;
+	TestEqual(TEXT("a lap"), Ms(81234), FString(TEXT("1:21.234")));
+	TestEqual(TEXT("past an hour"), Ms(3723456), FString(TEXT("1:02:03.456")));
+	TestEqual(TEXT("none"), Ms(0), FString(TEXT("—")));
+
+	FApexEventSheetLine Ada;
+	Ada.Name = TEXT("Ada");
+	Ada.Laps = 10;
+	Ada.BestLapMs = 80100;
+	Ada.RaceTimeMs = 812345;
+	Ada.Status = TEXT("finished");
+	TestEqual(TEXT("race: the time"), SheetTime(Ada, 3), FString(TEXT("13:32.345")));
+	TestEqual(TEXT("practice: the best lap"), SheetTime(Ada, 1), FString(TEXT("1:20.100")));
+	FApexEventSheetLine Bea;
+	Bea.Name = TEXT("Bea");
+	Bea.Laps = 1;
+	Bea.Status = TEXT("retired");
+	Bea.bAi = true;
+	Bea.KnockedOutIn = 2;
+	TestEqual(TEXT("race: retired"), SheetTime(Bea, 3), FString(TEXT("RETIRED")));
+	TestEqual(TEXT("no lap"), SheetTime(Bea, 2), FString(TEXT("no time")));
+	TestEqual(TEXT("notes"), SheetNotes(Bea), FString(TEXT("1 lap · out in Q2 · AI")));
+	TestEqual(TEXT("no notes"), SheetNotes(FApexEventSheetLine()), FString());
+
+	FApexEventSheet Race;
+	Race.Phase = 3;
+	Race.Lines = { Ada, Bea };
+	TestEqual(TEXT("race headline"), SheetHeadline(Race), FString(TEXT("won by Ada in 13:32.345")));
+	Race.Phase = 2;
+	TestEqual(TEXT("qualifying headline"), SheetHeadline(Race), FString(TEXT("pole Ada 1:20.100")));
+	TestEqual(TEXT("empty"), SheetHeadline(FApexEventSheet()), FString(TEXT("nobody took part")));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

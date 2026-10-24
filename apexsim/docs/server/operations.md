@@ -274,7 +274,9 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   (each with REMOVE), its schedule (each phase's start in the browser's
   local time, empty for one started by hand, how many minutes ahead it
   opens and the break between knockout rounds, SAVE SCHEDULE; an edit
-  survives the list's repaint) and every finished phase's results, and the
+  survives the list's repaint) and every finished phase's results (each
+  phase's replays as REPLAY links, `/api/replays/<file>`; EXPORT JSON and
+  EXPORT CSV for the weekend's sheets), and the
   form under it makes one from a name, the entry rule, a hosted session's
   settings and an optional schedule. A scheduled event's phase column says
   when it starts ("STARTS IN 12M 05S"). The API under it: `GET /api/events` and
@@ -283,7 +285,9 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   settings>, "entries_open", "schedule": { "practice_at", "qualifying_at",
   "race_at", "open_minutes", "round_break_s" } }` makes one (id the name's
   slug; the times Unix s, each optional); `/api/events/<id>/schedule` with
-  a schedule replaces it;
+  a schedule replaces it; `GET /api/events/<id>/sheets.json` and
+  `/sheets.csv` download the weekend's sheets (the event JSON also carries
+  `replays`, each kept phase's recordings);
   `POST /api/events/<id>/open` opens its session (and keeps it open across
   restarts), `/start` starts that session (its next phase), `/advance`
   moves it on between phases (recording the one finished), `/close` ends
@@ -390,7 +394,9 @@ let a driver who lost their install take their id back with a new key),
 `results/*.json` and `*.csv` (a finished race's classification),
 `results/*.incidents.json` (its incident list,
 [sessions](sessions.md#incidents)),
-`events/<id>.json` (each event: its spec, entries, AI field, phase and results),
+`events/<id>.json` (each event: its spec, entries, AI field, phase and results)
+and, once a phase is kept, `events/<id>.sheets.json` and `.sheets.csv` (the
+weekend's sheets),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated

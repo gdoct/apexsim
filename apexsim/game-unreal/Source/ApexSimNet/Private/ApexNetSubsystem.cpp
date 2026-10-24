@@ -803,6 +803,17 @@ void UApexNetSubsystem::RequestIncidents()
 	SendPayload(ApexProtocol::EncodeRequestIncidents());
 }
 
+bool UApexNetSubsystem::RequestEventSheets(const FString& EventId)
+{
+	if (ConnectionState != EApexConnectionState::Authenticated || EventId.IsEmpty())
+	{
+		return false;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestEventSheets %s"), *EventId);
+	SendPayload(ApexProtocol::EncodeRequestEventSheets(EventId));
+	return true;
+}
+
 bool UApexNetSubsystem::CanRewind() const
 {
 	if (CurrentSessionId.IsEmpty() || bSessionSpectator || CurrentSessionKind != EApexSessionKind::Practice)
@@ -1673,6 +1684,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			UE_LOG(LogApexSimNet, Log, TEXT("<- Incidents: %d"), CurrentIncidents.Incidents.Num());
 			OnIncidents.Broadcast(CurrentIncidents);
 		}
+		break;
+
+	case EApexServerMessageType::EventSheets:
+		CurrentEventSheets = Message.EventSheets;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- EventSheets %s: %d phases"), *CurrentEventSheets.Id, CurrentEventSheets.Phases.Num());
+		OnEventSheets.Broadcast(CurrentEventSheets);
 		break;
 
 	case EApexServerMessageType::Rewound:

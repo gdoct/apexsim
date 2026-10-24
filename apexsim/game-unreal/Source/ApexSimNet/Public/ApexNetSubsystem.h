@@ -48,6 +48,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnSpectatorRecords, TArrayView<const ui
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRewound, const FApexRewound&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnIncidents, const FApexIncidents&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnEventSheets, const FApexEventSheets&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnLiveryChunk, const FApexLiveryChunk&);
 
@@ -404,6 +405,9 @@ public:
 	/** The race's incident list arrived (`Incidents`, answering RequestIncidents). */
 	FApexOnIncidents OnIncidents;
 
+	/** A race event's sheets arrived (`EventSheets`, answering RequestEventSheets). */
+	FApexOnEventSheets OnEventSheets;
+
 	/**
 	 * Every chunk of a track's physics bundle as it arrives, answering
 	 * RequestTrackBundleChunk (the prediction subsystem asks and assembles,
@@ -598,6 +602,15 @@ public:
 	void RequestIncidents();
 	/** The incident list last received for the session this client is in; not bValid before one. */
 	const FApexIncidents& GetIncidents() const { return CurrentIncidents; }
+
+	/**
+	 * Ask for a race event's sheets (`RequestEventSheets`: practice, the
+	 * combined qualifying sheet, the race, each phase's replays): they
+	 * arrive as GetEventSheets and OnEventSheets. False when not connected.
+	 */
+	bool RequestEventSheets(const FString& EventId);
+	/** The sheets last received; not bValid before any. */
+	const FApexEventSheets& GetEventSheets() const { return CurrentEventSheets; }
 
 	/** In a practice session as its only human driver: what the server lets rewind. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -1113,6 +1126,7 @@ private:
 	FApexSessionEvent CurrentEvent;
 	/** The session's incident list, as last asked for; reset with the session. */
 	FApexIncidents CurrentIncidents;
+	FApexEventSheets CurrentEventSheets;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;

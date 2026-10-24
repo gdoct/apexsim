@@ -728,7 +728,8 @@ PAGES.events = el => {
         <span class="muted">LIVERY ${x.livery}</span><span class="sm-mono" title="the driver's proved id">${esc(x.driver_id)}</span>
         <button class="btn sm quiet" style="justify-self:end" data-ev="${esc(e.id)}" data-act="remove" data-driver="${esc(x.driver_id)}" data-name="${esc(x.name)}">REMOVE</button></div>`).join('')
       || `<div class="muted">Nobody entered yet. ${e.entries_open ? 'A driver who joins the event’s session with their driver key is entered in the car and livery they join with.' : 'Entries are closed.'}</div>`;
-    const results = e.results.map(r => `<div style="margin-top:12px"><div class="eyebrow">${esc((PHASES[r.phase] || r.phase).toUpperCase())}${r.finished_at ? ' · ' + fmtDate(r.finished_at) : ''}</div>
+    const replays = (i) => ((e.replays || [])[i] || []).map((f, n, all) => `<a class="btn sm quiet" href="/api/replays/${encodeURIComponent(f)}" download title="${esc(f)}">REPLAY${all.length > 1 ? ' ' + (r => r.phase === 'qualifying' ? 'Q' + (n + 1) : n + 1)(e.results[i]) : ''}</a>`).join(' ');
+    const results = e.results.map((r, i) => `<div style="margin-top:12px"><div class="eyebrow" style="display:flex;gap:10px;align-items:center">${esc((PHASES[r.phase] || r.phase).toUpperCase())}${r.finished_at ? ' · ' + fmtDate(r.finished_at) : ''} ${replays(i)}</div>
         ${r.lines.map(l => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) minmax(120px,1fr) 60px 110px 90px;padding:5px 0">
           <span class="muted">${l.position}</span><span class="name" style="font-size:17px">${esc(l.name)}${l.driver_id ? '' : ' <span class="sm-mono">AI</span>'}</span>
           <span style="font-family:var(--sans);font-size:17px">${esc(carName(l.car_id))}</span><span>${l.laps || '—'}</span>
@@ -737,6 +738,9 @@ PAGES.events = el => {
         ${scheduleForm(e.spec, draft[e.id] || e.schedule || {})}<div class="acts-row"><button class="btn sm primary" data-ev="${esc(e.id)}" data-act="schedule">SAVE SCHEDULE</button></div></div>`;
     return `<div style="padding:4px 16px 16px 16px"><div class="eyebrow">ENTRIES · ${e.entries.length} / ${slots(e)} · ${e.entries_open ? 'OPEN' : 'CLOSED'}</div>${entries}
       ${schedule}
+      ${results ? `<div class="acts-row" style="justify-content:flex-start;margin-top:14px"><span class="eyebrow">THE WEEKEND'S SHEETS</span>
+        <a class="btn sm" href="/api/events/${encodeURIComponent(e.id)}/sheets.json" download>EXPORT JSON</a>
+        <a class="btn sm" href="/api/events/${encodeURIComponent(e.id)}/sheets.csv" download>EXPORT CSV</a></div>` : ''}
       ${results || '<div class="muted" style="margin-top:12px">No phase finished yet.</div>'}</div>`;
   }
   function paintList() {

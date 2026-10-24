@@ -191,6 +191,16 @@ async fn run_out_the_clock(server: &ServerHandle, session: SessionId) {
     gs.session.state = SessionState::Finished;
 }
 
+/// The event store as a restarted server opens it.
+struct EventStoreReads;
+
+impl EventStoreReads {
+    /// True when the folder loads as exactly one event.
+    fn loads(dir: &std::path::Path) -> bool {
+        apexsim_server::events::EventStore::open(dir).list().len() == 1
+    }
+}
+
 fn session_of(event: &Value) -> SessionId {
     event["session"].as_str().unwrap().parse().unwrap()
 }
@@ -444,6 +454,63 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
         )
         .unwrap();
         assert_eq!(stored["phase"], "done");
+
+        // The weekend's sheets: kept beside the event as JSON and CSV,
+        // exported from the dashboard, and sent to a client that asks.
+        let records = dir.path().join("records/events");
+        let csv = std::fs::read_to_string(records.join("autumn-cup.sheets.csv")).unwrap();
+        assert!(csv.starts_with("phase,position,name,driver_id"), "{csv}");
+        assert_eq!(
+            csv.lines().filter(|l| l.starts_with("practice,")).count(),
+            4
+        );
+        assert_eq!(
+            csv.lines().filter(|l| l.starts_with("qualifying,")).count(),
+            4
+        );
+        assert_eq!(csv.lines().filter(|l| l.starts_with("race,")).count(), 4);
+        let json: Value =
+            serde_json::from_slice(&std::fs::read(records.join("autumn-cup.sheets.json")).unwrap())
+                .unwrap();
+        assert_eq!(json["phases"].as_array().unwrap().len(), 3);
+        assert!(
+            EventStoreReads::loads(&records),
+            "the sheets beside it are not read as events"
+        );
+        let (status, _) = api(http, "GET", "/api/events/autumn-cup/sheets.csv", None).await;
+        assert_eq!(status, 200);
+        a.send(&ClientMessage::RequestEventSheets {
+            event_id: "autumn-cup".into(),
+        })
+        .await;
+        let sheets = a
+            .until(|m| match m {
+                ServerMessage::EventSheets(d) => Some(d.clone()),
+                _ => None,
+            })
+            .await
+            .expect("the sheets");
+        assert_eq!(sheets.name, "Autumn Cup");
+        assert_eq!(sheets.phase, 4);
+        let phases: Vec<u8> = sheets.phases.iter().map(|p| p.phase).collect();
+        assert_eq!(phases, [1, 2, 3]);
+        let quali = &sheets.phases[1].lines;
+        assert_eq!(
+            (quali[0].name.as_str(), quali[0].best_lap_ms),
+            ("Bea", 80_000)
+        );
+        assert!(quali[1].ai, "the AI driver who qualified second");
+        a.send(&ClientMessage::RequestEventSheets {
+            event_id: "no-such-cup".into(),
+        })
+        .await;
+        let code = a
+            .until(|m| match m {
+                ServerMessage::Error { code, .. } => Some(*code),
+                _ => None,
+            })
+            .await;
+        assert_eq!(code, Some(404));
         drop((a, b, d));
         server.shutdown().await;
     })

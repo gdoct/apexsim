@@ -78,14 +78,13 @@ advances it, and a restart opens it again at its next phase, the race
 gridded from the stored qualifying (see
 [sessions](server/sessions.md#events-across-restarts)); a schedule starts
 each phase at its time, whoever is there, a late driver going out from the
-pit lane.
+pit lane; the weekend's sheets are kept as one record, exported, and
+browsable in the client with each phase's replay.
 
 | Gap | Effort | Impact |
 |---|---|---|
 | An event ([sessions](server/sessions.md#events-across-restarts)) keeps finished phases only: a phase under way when the server stops is run again from its start (a knockout from Q1), and the session's own state (the cars, a round's laps) is not persisted. | Med | Low |
 | Assists are the session's for every phase of a weekend (practice and qualifying name their own damage rule, lengths and sky): the client learns `AllowedAssists` only from `SessionJoined`, so a phase's own assists need them sent again (in `WeekendState`, as its `Damage` is) and the client's Assists locks refreshed on it. | Low | Low |
-| No weekend results record: practice times, the combined qualifying sheet (stored) and the race classification are not kept together as one record, shown in the client or exported. | Med | Med |
-| Replays and the timing board are per session; an event's replays and sheets should be browsable together. | Low | Low |
 
 ## Assetto Corsa imports
 

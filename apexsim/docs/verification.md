@@ -628,6 +628,14 @@ the pit autopilot into a race already running. Also the dashboard's
 Events view: a row's schedule fields in local time, SAVE SCHEDULE, and
 "STARTS IN …" under the phase.
 
+`r3s-event-sheets` (an event over, a made-up weekend kept): the EVENTS
+list's Sheets button opening the sheets in the list, PRACTICE /
+QUALIFYING / RACE headers with when each was kept and its headline, each
+car's line with the car's display name, its time and its notes (out in Q1,
+RETIRED, AI), Esc back to the events. By hand on a server that records
+races: a real weekend's Watch fetching the phase's replay and playing it,
+and the dashboard's REPLAY links and EXPORT JSON / CSV.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

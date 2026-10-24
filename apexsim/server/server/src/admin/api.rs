@@ -137,6 +137,9 @@ pub async fn handle(
         },
         (&Method::GET, ["events"]) => events_list(ctx).await,
         (&Method::GET, ["events", id]) => event_detail(ctx, id).await,
+        (&Method::GET, ["events", id, file @ ("sheets.json" | "sheets.csv")]) => {
+            event_sheets(ctx, id, file).await
+        }
         (&Method::POST, ["events"]) => event_create(ctx, &body).await,
         (
             &Method::POST,
@@ -1239,6 +1242,10 @@ async fn event_json(ctx: &AdminContext, event: &crate::events::Event) -> Value {
         .get(&event.spec.track_id)
         .map(|t| t.name.clone()));
     v["next_start"] = json!(event.next_start());
+    // Each kept phase's replays (the session's recordings), for its links.
+    if !event.results.is_empty() {
+        v["replays"] = json!(crate::events::phase_replays(event, st.replay.dir()));
+    }
     v["schedule"] = serde_json::to_value(&event.schedule).unwrap_or(Value::Null);
     v
 }
@@ -1250,6 +1257,32 @@ async fn events_list(ctx: &AdminContext) -> Resp {
         out.push(event_json(ctx, event).await);
     }
     ok(json!({ "events": out }))
+}
+
+/// The weekend's sheets as one file: JSON or CSV, as they are kept beside
+/// the event's file.
+async fn event_sheets(ctx: &AdminContext, id: &str, file: &str) -> Resp {
+    let Some(event) = ctx.state.read().await.events.get(id) else {
+        return error(StatusCode::NOT_FOUND, "no such event");
+    };
+    let (body, kind) = if file.ends_with(".csv") {
+        (crate::events::sheets_csv(&event), "text/csv; charset=utf-8")
+    } else {
+        (
+            serde_json::to_string_pretty(&crate::events::sheets_json(&event)).unwrap_or_default(),
+            "application/json",
+        )
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, kind)
+        .header(
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}.{}\"", event.id, file),
+        )
+        .header(header::CACHE_CONTROL, "no-store")
+        .body(Full::new(Bytes::from(body)))
+        .expect("static response construction cannot fail")
 }
 
 async fn event_detail(ctx: &AdminContext, id: &str) -> Resp {

@@ -35,7 +35,6 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
-| R3 | Race events across days (results record; identity, persistence, schedule and AI entries built) | Race rules (epic) | P2 | 🟡 | M | 4 |
 | N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
@@ -124,34 +123,6 @@ Bundle by module, each judged by the survey:
 - **Mistakes and fatigue:** self-made spins, cockpit heat, driver swaps.
 
 ### Race rules and sessions
-
-#### R3. Race events across days — P2 · 🟡 · L (epic)
-*Source: simulation-gaps, race weekends.*
-
-**What:** An event keeps a weekend across restarts (built 2026-10-23:
-`events.rs`, `records/events/<id>.json`, run from the dashboard's API;
-[sessions](server/sessions.md#events-across-restarts)), its AI field
-fixed for the event, run from the dashboard's Events view; the client is
-told a session is an event's (`SessionJoined.Event`); a schedule starts
-each phase on time and the lobby lists the events with a countdown. No
-combined results record shown to players. Drivers are known
-across connections (each profile's id, proved by its Ed25519 key,
-`driver_keys.rs`).
-**Outcome:** Real league-style weekends: practice Friday, qualifying
-Saturday, race Sunday, same drivers, results kept.
-**Implementation, in phases:**
-1. *Stable driver identity*: built (a key per profile, trust on first use
-   per server).
-2. *Event entity + persistence*: built (entries by proved id with car and
-   livery fixed, phases and results, resumed at the next phase after a
-   restart), run from the dashboard's Events view, named in the client's
-   lobby with its phase.
-3. *Schedule*: built (sessions open and start on time, the browser's
-   Events list and the lobby's countdown, late joiners from the pit lane).
-4. *AI entries* with fixed identities and levels across days: built
-   (server side; `Event::ai`).
-5. *Weekend results record*, browsable replays and sheets.
-**Watch out:** keep the sim path free of persistence reads.
 
 #### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
 - Assists per weekend phase — bundle with B2.
@@ -303,8 +274,9 @@ Not in any backlog before this plan; each is a package in
 **Built 2026-10-23:** the offline season against the AI (calendar, class
 and car, points preset, drop rounds, drivers' and cars' standings, saved in
 the profile; its screens judged good from the `n7-season` shots).
-**Left:** league seasons online, on R3's persistence (phase 2) and the
-proved driver ids (phase 1, built); a fastest-lap point; per-round rules.
+**Left:** league seasons online, on the race events kept across restarts
+([sessions](server/sessions.md#events-across-restarts)) and the proved
+driver ids; a fastest-lap point; per-round rules.
 
 #### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.
@@ -402,8 +374,8 @@ What only you can do, roughly in the order it pays off:
 
 ## 5. Parked / recommended to drop
 
-- **Driver / safety rating** — depends on R3 phase 1 (identity) and R2; the local profiles' stats (N15) are built.
-- **Shared leaderboards** — depends on R3 identity plus a service and trust model.
+- **Driver / safety rating** — depends on the proved driver ids (built) and R2; the local profiles' stats (N15) are built.
+- **Shared leaderboards** — depends on the proved driver ids plus a service and trust model.
 - **More screens** (five-wide, telemetry monitor) — no demand signal yet.
 - **Public server list (N8)** — parked 2026-10-18; players join known hosts.
 - **Windows on Arm** — parked until x64 emulation or a native build is worth it.

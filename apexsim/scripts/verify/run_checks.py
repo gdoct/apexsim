@@ -51,7 +51,9 @@ opens its session at that phase as it does after a restart
 (docs/server/sessions.md, "Events across restarts"). Its results are
 empty: a race resumed so grids by the slots. `starts_in_s` gives that
 phase a start time on its schedule, that many seconds after the seeding:
-the server starts it then, whoever is there.
+the server starts it then, whoever is there. `sheets: true` keeps a made-up
+weekend's results for every phase before `phase` (all three for `done`):
+four drivers, one an AI, so the browser's Sheets have something to show.
 
 A sitting (`--sit <block>`, scripts/verify/sittings.yml) is the same
 launch with a human driving: docs/wheel-sitting.md. No shots and no time
@@ -190,6 +192,34 @@ def content_id(kind: str, name: str) -> str:
     raise SystemExit(f"server.event: no {kind} {name} in {content}")
 
 
+def made_up_sheets(phase: str, car_id: str) -> list:
+    """Every phase before `phase` kept, for `server.event.sheets`."""
+    import time
+    now = int(time.time())
+    names = ["Ada Quick", "Bea Steady", "Cy Late", "Dee Bot"]
+    order = ["practice", "qualifying", "race"]
+    done = order[:order.index(phase)] if phase in order else order
+    out = []
+    for n, kept in enumerate(done):
+        lines = []
+        for i, name in enumerate(names if n % 2 == 0 else list(reversed(names))):
+            line = {"position": i + 1, "name": name, "car_id": car_id, "laps": 5 + i,
+                    "best_lap_ms": 81_000 + 350 * i}
+            if name == "Dee Bot":
+                line["ai"] = 4
+            else:
+                line["driver_id"] = f"00000000-0000-4000-8000-00000000000{i + 1}"
+            if kept == "qualifying" and i >= 2:
+                line["knocked_out_in"] = 1
+            if kept == "race":
+                line["status"] = "retired" if i == 3 else "finished"
+                if i < 3:
+                    line["race_time_ms"] = 420_000 + 2_500 * i
+            lines.append(line)
+        out.append({"phase": kept, "finished_at": now - 3600 * (len(done) - n), "lines": lines})
+    return out
+
+
 def seed_event(work: Path, event: dict) -> None:
     """`server.event`: a kept race event at its phase, opened, for the server
     to open a session for as it starts."""
@@ -220,6 +250,10 @@ def seed_event(work: Path, event: dict) -> None:
     if event.get("starts_in_s") is not None:
         import time
         kept["schedule"] = {f"{phase}_at": int(time.time()) + int(event["starts_in_s"]), "open_minutes": 60}
+    if event.get("sheets"):
+        kept["results"] = made_up_sheets(phase, spec["car_id"])
+        if phase == "done":
+            kept["opened"] = False
     folder = work / "records" / "events"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{slug}.json").write_text(json.dumps(kept, indent=2), encoding="utf-8")

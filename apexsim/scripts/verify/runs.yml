@@ -7972,6 +7972,36 @@ runs:
         label: "out of the pit lane"
         checks: "R3 late joiner: the pit autopilot driving the car out of the lane, then the player's car racing"
 
+  - id: r3s-event-sheets
+    about: "R3. A race event's weekend sheets in the session browser"
+    # The event is over, its practice, qualifying and race kept (made up by
+    # the seeding: four drivers, one an AI, two out in Q1, one retired).
+    server:
+      event:
+        name: "Sheet Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: done
+        practice_min: 5
+        qualifying_min: 5
+        ai: 3
+        sheets: true
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Click Browse sessions"]
+      9: ["apexsim.ui.Click EVENTS", "apexsim.ui.Texts"]
+      11: ["apexsim.ui.Click Sheets"]
+      13: ["apexsim.ui.Texts"]
+    shots:
+      - at: 10
+        label: "browser, EVENTS: the event over"
+        checks: "R3 sheets: Sheet Cup listed, Over, with a Sheets button"
+      - at: 14
+        label: "the sheets"
+        checks: "R3 sheets: PRACTICE, QUALIFYING, RACE headers (kept <day time>, fastest / pole / won by), each car's line with the car's display name, time and notes (out in Q1, RETIRED, AI); Watch dim (no recordings)"
+
   - id: r3c-incidents
     about: "N19. The race's incident list on the results screen, and the jump into the replay"
     # Two laps with a full field from a standing start: contacts and track

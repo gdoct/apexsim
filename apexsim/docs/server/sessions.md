@@ -32,7 +32,9 @@ belong to these rules are described briefly beside them.
 - `server/server/src/events.rs`: events kept across restarts (`Event`,
   `EventStore`, `finished_phase`, `open_session`, `run_once`), their
   schedule (`EventSchedule`, `schedule_step`, `run_schedule`) and the
-  lobby's list (`EventStore::lobby_events`); `GameSession::on_schedule`
+  lobby's list (`EventStore::lobby_events`), the weekend's sheets
+  (`sheets_json`, `sheets_csv`, `phase_replays`, `sheets_data`);
+  `GameSession::on_schedule`
   and `seat_late_in_pits` in the sim
 - `server/sim/src/tyre_sets.rs`: `TyreSet`, `CarTyres` (the tyre rules,
   "Tyre sets")
@@ -1427,7 +1429,8 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   `knocked_out_in`); the race its classification (`GameSession::classification`:
   laps, best lap, race time, status). Each line names a human by
   `driver_id` and an AI car by `ai`, its 1-based place in the seating
-  order (what `@ai:N` names). A phase counts once the session is
+  order (what `@ai:N` names), with its car's id and name (`car_name`). Each
+  kept phase names the session it ran in (`PhaseResult::session`). A phase counts once the session is
   `Finished` in it (qualifying: the final round ranked); recorded by the
   event runner and by every advance (`hosted::advance` records before it
   moves on), and then the event is at its next phase. The race recorded,
@@ -1459,6 +1462,25 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   (qualifying from Q1): only finished phases are kept. Ending an event's
   session (STOP) ends this sitting; the runner opens it again at its phase.
   RESTART is refused for an event's session.
+- **The weekend's sheets** are one record: practice times, the combined
+  qualifying sheet and the race classification as kept, written beside the
+  event's file on every change once a phase is kept, as JSON
+  (`<id>.sheets.json`, `events::sheets_json`: the event's id, name, track
+  and phase and every kept phase) and CSV (`<id>.sheets.csv`,
+  `events::sheets_csv`: a line per car per phase, `phase,position,name,
+  driver_id,ai_id,car,laps,best_lap_ms,race_time_ms,status,knocked_out_in`),
+  as a race's results are; the store reads only `<id>.json` back. Each
+  phase's replays are the recordings of the session it ran in
+  (`events::phase_replays`: `replay_<session>_<unix>.apxs` written after the
+  phase before it in that session was kept and up to a minute after it was;
+  a qualifying phase has one a round). A client asks with
+  `RequestEventSheets { event_id }` and is answered with `EventSheets`
+  (`EventSheetsData { Id, Name, TrackId, Phase, Phases }`, each
+  `EventSheetData { Phase, FinishedAt, Lines, Replays }`, each line
+  `EventSheetLine { Position, Name, CarId, Ai, Laps, BestLapMs, RaceTimeMs,
+  Status, KnockedOutIn }`; `events::sheets_data`), or `Error 404` for no
+  such event; anyone connected may ask, in a session or not. The
+  dashboard exports both files and links each phase's replays.
 - **A schedule** (`Event::schedule`, `EventSchedule { practice_at,
   qualifying_at, race_at, open_minutes, round_break_s }`, left out of the
   file when no phase has a time) gives phases real start times, Unix s

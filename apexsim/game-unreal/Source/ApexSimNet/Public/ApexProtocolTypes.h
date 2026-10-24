@@ -4068,6 +4068,52 @@ enum class EApexServerMessageType : uint8
 	Incidents,
 	/** A chunk of a player's own livery, asked for with RequestLivery (`LiveryChunk`). */
 	LiveryChunk,
+
+	/** A race event's sheets, asked for with RequestEventSheets (`EventSheets`). */
+	EventSheets,
+};
+
+/** `EventSheetLine` (network.rs): a car's line in one of a race event's sheets. */
+struct FApexEventSheetLine
+{
+	int32 Position = 0;
+	FString Name;
+	/** Its car (the catalog row names it on screen). */
+	FString CarId;
+	bool bAi = false;
+	int32 Laps = 0;
+	/** Best lap, ms; 0 for none. Qualifying: the lap of the round that placed the car. */
+	int32 BestLapMs = 0;
+	/** The race: green to flag, ms; 0 otherwise. */
+	int32 RaceTimeMs = 0;
+	/** The race: finished, running or retired; empty otherwise. */
+	FString Status;
+	/** Qualifying: the knockout round it went out in; 0 in the final. */
+	int32 KnockedOutIn = 0;
+};
+
+/** `EventSheetData` (network.rs): one kept phase of a race event. */
+struct FApexEventSheet
+{
+	/** 1 practice, 2 qualifying, 3 race. */
+	int32 Phase = 0;
+	/** When it was kept, Unix s. */
+	int64 FinishedAt = 0;
+	TArray<FApexEventSheetLine> Lines;
+	/** Its recordings on the server (`/recordings/<file>`), a qualifying round each, in order. */
+	TArray<FString> Replays;
+};
+
+/** `EventSheetsData` (network.rs): a race event's weekend sheets, answering RequestEventSheets. */
+struct FApexEventSheets
+{
+	FString Id;
+	FString Name;
+	FString TrackId;
+	/** The phase the event is at (FApexLobbyEvent::Phase). */
+	int32 Phase = 0;
+	TArray<FApexEventSheet> Phases;
+	bool bValid = false;
 };
 
 /** `IncidentData::kind` and the codes beside it (network.rs `INCIDENT_*`). */
@@ -4295,6 +4341,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexRewound Rewound;
 	/** Incidents. */
 	FApexIncidents Incidents;
+	/** EventSheets. */
+	FApexEventSheets EventSheets;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

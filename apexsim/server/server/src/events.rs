@@ -38,6 +38,9 @@ pub const EVENTS_DIR: &str = "events";
 pub const EVENT_FILE_VERSION: u32 = 1;
 /// The longest event name kept.
 pub const MAX_EVENT_NAME: usize = 60;
+/// The weekend's sheets beside an event's file: `<id>.sheets.json` and
+/// `<id>.sheets.csv`.
+pub const SHEETS_STEM: &str = "sheets";
 
 /// Where an event stands: the phase it runs next (or is running).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -218,6 +221,9 @@ pub struct ResultLine {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai_id: Option<PlayerId>,
     pub car_id: CarConfigId,
+    /// The car's name as the server knows it (the sheets' export).
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub car_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub best_lap_ms: Option<u32>,
     #[serde(default)]
@@ -252,6 +258,10 @@ pub struct PhaseResult {
     #[serde(default)]
     pub finished_at: u64,
     pub lines: Vec<ResultLine>,
+    /// The session it was run in: its recordings are this phase's replays
+    /// ([`phase_replays`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<SessionId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -441,6 +451,11 @@ pub fn finished_phase(gs: &GameSession) -> Option<(EventPhase, Vec<ResultLine>)>
                 .map(|i| (i + 1).min(u8::MAX as usize) as u8),
             ai_id: gs.is_ai_player(id).then_some(*id),
             car_id: state.car_config_id,
+            car_name: gs
+                .car_configs
+                .get(&state.car_config_id)
+                .map(|c| c.name.clone())
+                .unwrap_or_default(),
             best_lap_ms: state.best_lap_time_ms.filter(|ms| *ms > 0),
             laps: gs.laps_completed(id),
             race_time_ms: None,
@@ -497,6 +512,144 @@ pub fn finished_phase(gs: &GameSession) -> Option<(EventPhase, Vec<ResultLine>)>
             .collect(),
     };
     Some((phase, lines))
+}
+
+impl EventPhase {
+    /// Its name in the sheets: practice, qualifying, race.
+    pub fn name(self) -> &'static str {
+        match self {
+            EventPhase::Practice => "practice",
+            EventPhase::Qualifying => "qualifying",
+            EventPhase::Race => "race",
+            EventPhase::Done => "done",
+        }
+    }
+}
+
+/// The weekend's sheets as one record: practice times, the combined
+/// qualifying sheet and the race classification, each phase as it was
+/// kept (`<id>.sheets.json`).
+pub fn sheets_json(event: &Event) -> serde_json::Value {
+    serde_json::json!({
+        "id": event.id,
+        "name": event.name,
+        "track_id": event.spec.track_id,
+        "phase": event.phase,
+        "phases": event.results,
+    })
+}
+
+/// The sheets as CSV, a line per car per phase (`<id>.sheets.csv`).
+pub fn sheets_csv(event: &Event) -> String {
+    let mut out = String::from(
+        "phase,position,name,driver_id,ai_id,car,laps,best_lap_ms,race_time_ms,status,knocked_out_in\n",
+    );
+    let quoted = |s: &str| format!("\"{}\"", s.replace('"', "\"\""));
+    let opt = |v: Option<u32>| v.map_or(String::new(), |v| v.to_string());
+    for result in &event.results {
+        for l in &result.lines {
+            out.push_str(&format!(
+                "{},{},{},{},{},{},{},{},{},{},{}\n",
+                result.phase.name(),
+                l.position,
+                quoted(&l.name),
+                l.driver_id.map(|d| d.to_string()).unwrap_or_default(),
+                l.ai_id.map(|d| d.to_string()).unwrap_or_default(),
+                quoted(&l.car_name),
+                l.laps,
+                opt(l.best_lap_ms),
+                opt(l.race_time_ms),
+                l.status.as_deref().unwrap_or(""),
+                l.knocked_out_in.map(|r| r.to_string()).unwrap_or_default(),
+            ));
+        }
+    }
+    out
+}
+
+/// Each kept phase's replays, in `event.results` order: the recordings
+/// (`replay_<session>_<unix>.apxs`, `stream_recorder`) of the session it
+/// was run in, written after the phase before it in that session was kept
+/// and no later than a minute after it was. A qualifying phase has one a
+/// round. Names only, newest last; empty without a session or a recording.
+pub fn phase_replays(event: &Event, replay_dir: &std::path::Path) -> Vec<Vec<String>> {
+    let files: Vec<(SessionId, u64, String)> = std::fs::read_dir(replay_dir)
+        .map(|read| {
+            read.filter_map(|e| e.ok())
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().into_owned();
+                    let stem = name.strip_prefix("replay_")?.strip_suffix(".apxs")?;
+                    let (session, unix) = stem.rsplit_once('_')?;
+                    Some((session.parse().ok()?, unix.parse().ok()?, name.clone()))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut out = Vec::with_capacity(event.results.len());
+    for (i, result) in event.results.iter().enumerate() {
+        let Some(session) = result.session else {
+            out.push(Vec::new());
+            continue;
+        };
+        // The phase before it in the same session ends its window.
+        let after = event.results[..i]
+            .iter()
+            .filter(|r| r.session == Some(session))
+            .map(|r| r.finished_at + 2)
+            .max()
+            .unwrap_or(0);
+        let mut mine: Vec<(u64, String)> = files
+            .iter()
+            .filter(|(s, t, _)| *s == session && *t > after && *t <= result.finished_at + 60)
+            .map(|(_, t, n)| (*t, n.clone()))
+            .collect();
+        mine.sort();
+        out.push(mine.into_iter().map(|(_, n)| n).collect());
+    }
+    out
+}
+
+/// An event's sheets as `EventSheets` sends them (`RequestEventSheets`),
+/// with each phase's replays from `replay_dir`.
+pub fn sheets_data(
+    event: &Event,
+    replay_dir: Option<&std::path::Path>,
+) -> crate::network::EventSheetsData {
+    use crate::network::{EventSheetData, EventSheetLine, EventSheetsData};
+    let replays = replay_dir
+        .map(|dir| phase_replays(event, dir))
+        .unwrap_or_default();
+    EventSheetsData {
+        id: event.id.clone(),
+        name: event.name.clone(),
+        track_id: event.spec.track_id,
+        phase: event.phase.wire(),
+        phases: event
+            .results
+            .iter()
+            .enumerate()
+            .map(|(i, r)| EventSheetData {
+                phase: r.phase.wire(),
+                finished_at: r.finished_at,
+                lines: r
+                    .lines
+                    .iter()
+                    .map(|l| EventSheetLine {
+                        position: l.position,
+                        name: l.name.clone(),
+                        car_id: l.car_id,
+                        ai: l.driver_id.is_none(),
+                        laps: l.laps,
+                        best_lap_ms: l.best_lap_ms.unwrap_or(0),
+                        race_time_ms: l.race_time_ms.unwrap_or(0),
+                        status: l.status.clone().unwrap_or_default(),
+                        knocked_out_in: l.knocked_out_in.unwrap_or(0),
+                    })
+                    .collect(),
+                replays: replays.get(i).cloned().unwrap_or_default(),
+            })
+            .collect(),
+    }
 }
 
 /// What an event says to a driver joining its session.
@@ -596,6 +749,22 @@ impl EventStore {
         if let Err(e) = written {
             warn!("Cannot write the event {}: {}", path.display(), e);
         }
+        if event.results.is_empty() {
+            return;
+        }
+        // The weekend's sheets beside it, as the race results are kept.
+        let sheets = serde_json::to_vec_pretty(&sheets_json(event))
+            .map_err(std::io::Error::other)
+            .and_then(|json| {
+                std::fs::write(dir.join(format!("{}.{SHEETS_STEM}.json", event.id)), json)?;
+                std::fs::write(
+                    dir.join(format!("{}.{SHEETS_STEM}.csv", event.id)),
+                    sheets_csv(event),
+                )
+            });
+        if let Err(e) = sheets {
+            warn!("Cannot write the sheets of event {}: {}", event.id, e);
+        }
     }
 
     /// Every event, by id.
@@ -652,6 +821,9 @@ impl EventStore {
         drop(inner);
         if let Some(dir) = &self.dir {
             let _ = std::fs::remove_file(dir.join(format!("{id}.json")));
+            for ext in ["json", "csv"] {
+                let _ = std::fs::remove_file(dir.join(format!("{id}.{SHEETS_STEM}.{ext}")));
+            }
         }
         Some(gone)
     }
@@ -819,6 +991,7 @@ impl EventStore {
                 phase,
                 finished_at: now,
                 lines,
+                session: Some(session),
             });
             event.phase = event.after(phase);
             if event.phase == EventPhase::Done {
@@ -1235,6 +1408,85 @@ mod tests {
     }
 
     #[test]
+    fn each_phase_finds_the_replays_of_its_own_session_and_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let (one, two) = (uuid::Uuid::from_u128(1), uuid::Uuid::from_u128(2));
+        for name in [
+            format!("replay_{one}_1000.apxs"),
+            format!("replay_{one}_1700.apxs"),
+            format!("replay_{one}_1900.apxs"),
+            format!("replay_{one}_1000.meta.json"),
+            format!("replay_{two}_5000.apxs"),
+            "notes.txt".to_string(),
+        ] {
+            std::fs::write(dir.path().join(name), b"x").unwrap();
+        }
+        let mut event = Event::new("e".into(), "E".into(), spec(None), true, 0);
+        let kept = |phase, finished_at, session| PhaseResult {
+            phase,
+            finished_at,
+            lines: Vec::new(),
+            session,
+        };
+        event.results = vec![
+            kept(EventPhase::Practice, 1001, Some(one)),
+            kept(EventPhase::Qualifying, 1900, Some(one)),
+            kept(EventPhase::Race, 5000, Some(two)),
+        ];
+        let replays = phase_replays(&event, dir.path());
+        assert_eq!(replays[0], vec![format!("replay_{one}_1000.apxs")]);
+        assert_eq!(
+            replays[1],
+            vec![
+                format!("replay_{one}_1700.apxs"),
+                format!("replay_{one}_1900.apxs")
+            ],
+            "a replay a round"
+        );
+        assert_eq!(replays[2], vec![format!("replay_{two}_5000.apxs")]);
+        event.results[2].session = None;
+        assert!(phase_replays(&event, dir.path())[2].is_empty());
+    }
+
+    #[test]
+    fn the_sheets_are_one_record_and_a_csv() {
+        let mut event = Event::new("cup".into(), "Cup".into(), spec(None), true, 0);
+        event.results.push(PhaseResult {
+            phase: EventPhase::Race,
+            finished_at: 9,
+            lines: vec![ResultLine {
+                position: 1,
+                name: "Ada \"Quick\"".into(),
+                driver_id: Some(uuid::Uuid::from_u128(11)),
+                ai: None,
+                ai_id: None,
+                car_id: uuid::Uuid::from_u128(2),
+                car_name: "GT".into(),
+                best_lap_ms: Some(80_000),
+                laps: 3,
+                race_time_ms: Some(250_000),
+                status: Some("finished".into()),
+                knocked_out_in: None,
+            }],
+            session: None,
+        });
+        let csv = sheets_csv(&event);
+        let line = csv.lines().nth(1).unwrap();
+        assert_eq!(
+            line,
+            format!(
+                "race,1,\"Ada \"\"Quick\"\"\",{},,\"GT\",3,80000,250000,finished,",
+                uuid::Uuid::from_u128(11)
+            )
+        );
+        let json = sheets_json(&event);
+        assert_eq!(json["phases"][0]["lines"][0]["car_name"], "GT");
+        let wire = sheets_data(&event, None);
+        assert_eq!(wire.phases[0].lines[0].race_time_ms, 250_000);
+        assert!(!wire.phases[0].lines[0].ai);
+    }
+
+    #[test]
     fn the_race_grids_by_the_stored_qualifying() {
         let mut event = Event::new("e".into(), "E".into(), spec(None), true, 0);
         let line = |position, driver_id, ai| ResultLine {
@@ -1244,6 +1496,7 @@ mod tests {
             ai,
             ai_id: None,
             car_id: uuid::Uuid::from_u128(2),
+            car_name: String::new(),
             best_lap_ms: None,
             laps: 0,
             race_time_ms: None,
@@ -1253,6 +1506,7 @@ mod tests {
         let a = uuid::Uuid::from_u128(11);
         event.results.push(PhaseResult {
             phase: EventPhase::Qualifying,
+            session: None,
             finished_at: 0,
             lines: vec![
                 line(1, None, Some(2)),

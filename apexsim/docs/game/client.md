@@ -188,8 +188,19 @@ name, its phase ("Race next", or "Race" while it is driven), when it starts
 on the player's own clock, the entries against the seats, and a badge
 (`ApexEventLabels::Badge`): "In 4:59" counting down once a second while its
 time is to come, else Under way, Open, Not open or Over. Enter joins its
-session once one is open (as a row of All does); Watch watches it while a
-phase is driven.
+session once one is open (as a row of All does). Right from a row is
+**Sheets**: the weekend's sheets so far, asked of the server
+(`UApexNetSubsystem::RequestEventSheets`, `OnEventSheets`), in the list in
+place of the events until Back (Esc or the header's Back) returns to them.
+Each kept phase is a header row (PRACTICE, QUALIFYING, RACE; when it was
+kept on the player's clock; "fastest Ada 1:21.234", "pole …", "won by … in
+…", `ApexEventLabels::SheetHeadline`; badged Recorded or No replay) with
+Watch, which fetches the phase's last recording from the server's
+`/recordings` into the Replays folder and plays it (as Recorded does;
+Enter on the header does the same), then a row per car: its place and
+name, the car's display name, its time (`SheetTime`: the race's time, or
+RETIRED / RUNNING, else the best lap) and notes (`SheetNotes`: laps, out in
+Qn, AI).
 
 ### Session lobby (`UI/ApexSessionLobbyWidget.cpp`)
 
@@ -216,9 +227,10 @@ proved driver key, not entered with entries closed, the entry list full,
 a livery change) are sentences saying what happened, any other 403 is the
 server's reason as a sentence, and the rest keep their code.
 
-Checks: `ApexSim.UI.EventLobby.Labels`, `ApexSim.UI.EventLobby.Schedule`,
+Checks: `ApexSim.UI.EventLobby.Labels`, `.Schedule` and `.Sheets`,
 `ApexSim.Net.ServerErrors`, `ApexSim.Net.Protocol.GoldenDecode`
-(`S_SessionJoinedEvent`) and `LobbyStateDecode` (`S_LobbyStateEvents`).
+(`S_SessionJoinedEvent`, `S_EventSheets`), `GoldenEncode`
+(`C_RequestEventSheets`) and `LobbyStateDecode` (`S_LobbyStateEvents`).
 
 ### Session results (`UI/ApexSessionResultsWidget.cpp`)
 

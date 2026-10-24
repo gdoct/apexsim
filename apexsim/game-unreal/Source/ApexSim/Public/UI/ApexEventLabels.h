@@ -179,6 +179,83 @@ namespace ApexEventLabels
 		});
 	}
 
+	/** Milliseconds as a lap or race time: 1:21.234, 1:02:03.456 past an hour; an em dash for none. */
+	inline FString Ms(int32 Ms)
+	{
+		if (Ms <= 0)
+		{
+			return TEXT("—");
+		}
+		const int32 Hours = Ms / 3600000;
+		const int32 Minutes = Ms / 60000 % 60;
+		const int32 Seconds = Ms / 1000 % 60;
+		const int32 Millis = Ms % 1000;
+		return Hours > 0 ? FString::Printf(TEXT("%d:%02d:%02d.%03d"), Hours, Minutes, Seconds, Millis)
+			: FString::Printf(TEXT("%d:%02d.%03d"), Minutes, Seconds, Millis);
+	}
+
+	/**
+	 * A sheet line's time: the race's time from the green for a finisher,
+	 * its status for any other car (RETIRED, RUNNING); else the best lap,
+	 * "no time" for none.
+	 */
+	inline FString SheetTime(const FApexEventSheetLine& Line, int32 Phase)
+	{
+		if (Phase == 3)
+		{
+			if (!Line.Status.IsEmpty() && Line.Status != TEXT("finished"))
+			{
+				return Line.Status.ToUpper();
+			}
+			if (Line.RaceTimeMs > 0)
+			{
+				return Ms(Line.RaceTimeMs);
+			}
+		}
+		return Line.BestLapMs > 0 ? Ms(Line.BestLapMs) : FString(TEXT("no time"));
+	}
+
+	/**
+	 * What follows a sheet line's time: its laps, "out in Q1" for a car
+	 * knocked out, AI for an AI driver ("12 laps · out in Q1 · AI").
+	 */
+	inline FString SheetNotes(const FApexEventSheetLine& Line)
+	{
+		TArray<FString> Parts;
+		if (Line.Laps > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d lap%s"), Line.Laps, Line.Laps == 1 ? TEXT("") : TEXT("s")));
+		}
+		if (Line.KnockedOutIn > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("out in Q%d"), Line.KnockedOutIn));
+		}
+		if (Line.bAi)
+		{
+			Parts.Add(TEXT("AI"));
+		}
+		return FString::Join(Parts, TEXT(" · "));
+	}
+
+	/**
+	 * A kept phase's header: "fastest Ada 1:21.234" for practice, "pole Bea
+	 * 1:20.000" for qualifying, "won by Ada in 13:32.345" for the race.
+	 */
+	inline FString SheetHeadline(const FApexEventSheet& Sheet)
+	{
+		if (Sheet.Lines.IsEmpty())
+		{
+			return TEXT("nobody took part");
+		}
+		const FApexEventSheetLine& First = Sheet.Lines[0];
+		switch (Sheet.Phase)
+		{
+		case 1:  return FString::Printf(TEXT("fastest %s %s"), *First.Name, *SheetTime(First, 1));
+		case 2:  return FString::Printf(TEXT("pole %s %s"), *First.Name, *SheetTime(First, 2));
+		default: return FString::Printf(TEXT("won by %s in %s"), *First.Name, *SheetTime(First, 3));
+		}
+	}
+
 	/** The line under the start button while the server has the event's next phase to start. */
 	inline FString WaitingLine(const FApexSessionEvent& Event, EApexWeekendPhase WeekendPhase)
 	{

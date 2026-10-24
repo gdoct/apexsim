@@ -84,6 +84,8 @@ public:
 	virtual void OnScreenActivated() override;
 	virtual void FocusDefault() override;
 	virtual bool HandleNavigation(EUINavigation Direction, UWidget* Source) override;
+	/** Back from an event's sheets is the Events list. */
+	virtual bool HandleBack() override;
 
 protected:
 	virtual void NativeOnInitialized() override;
@@ -106,6 +108,13 @@ private:
 	void JoinEvent(int32 Index);
 	/** The listed session open for `Event`, or null. */
 	const FApexSessionSummary* EventSession(const FApexLobbyEvent& Event) const;
+	/** An event's sheets in the list (asked of the server), and back to the events. */
+	void OpenSheets(int32 Index);
+	void CloseSheets();
+	void RebuildSheetRows();
+	void HandleEventSheets(const FApexEventSheets& Sheets);
+	/** Watch one of the server's recordings by its file name: fetched into the Replays folder first. */
+	void WatchRecordingFile(const FString& File);
 	void Watch(int32 Index);
 	void Refresh();
 	/** Show another filter (the row of pills, F or pad X). */
@@ -139,6 +148,11 @@ private:
 	/** The events the Events list shows, in their order, and the second its countdowns were last set for. */
 	TArray<FApexLobbyEvent> ShownEvents;
 	int64 EventsSecond = 0;
+	/** The event whose sheets the list shows; empty for the events themselves. */
+	FString SheetsEventId;
+	/** Per sheet row: the replay its Watch plays (a phase's last), empty for none. */
+	TArray<FString> SheetRowReplay;
+	FDelegateHandle EventSheetsHandle;
 	int32 LastFocused = 0;
 
 	UPROPERTY(Transient) TObjectPtr<UApexSegmentedWidget> FilterPills;

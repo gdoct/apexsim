@@ -1941,6 +1941,109 @@ namespace
 		return true;
 	}
 
+	/** `EventSheetLine` (network.rs): PascalCase keys. */
+	bool ParseEventSheetLine(FMsgPackReader& Reader, FApexEventSheetLine& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Position"))          { bOk = Reader.ReadUInt64(Raw); Out.Position = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
+			else if (Key == TEXT("Name"))         { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("CarId"))        { bOk = Reader.ReadString(Out.CarId); }
+			else if (Key == TEXT("Ai"))           { bOk = Reader.ReadBool(Out.bAi); }
+			else if (Key == TEXT("Laps"))         { bOk = Reader.ReadUInt64(Raw); Out.Laps = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
+			else if (Key == TEXT("BestLapMs"))    { bOk = Reader.ReadUInt64(Raw); Out.BestLapMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("RaceTimeMs"))   { bOk = Reader.ReadUInt64(Raw); Out.RaceTimeMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("Status"))       { bOk = Reader.ReadString(Out.Status); }
+			else if (Key == TEXT("KnockedOutIn")) { bOk = Reader.ReadUInt64(Raw); Out.KnockedOutIn = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else                                  { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool ParseStringElement(FMsgPackReader& Reader, FString& Out)
+	{
+		return Reader.ReadString(Out);
+	}
+
+	/** `EventSheetData` (network.rs): PascalCase keys. */
+	bool ParseEventSheet(FMsgPackReader& Reader, FApexEventSheet& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Phase"))           { bOk = Reader.ReadUInt64(Raw); Out.Phase = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("FinishedAt")) { bOk = Reader.ReadUInt64(Raw); Out.FinishedAt = static_cast<int64>(FMath::Min<uint64>(Raw, static_cast<uint64>(MAX_int64))); }
+			else if (Key == TEXT("Lines"))      { bOk = ParseArrayOf(Reader, Out.Lines, &ParseEventSheetLine); }
+			else if (Key == TEXT("Replays"))    { bOk = ParseArrayOf(Reader, Out.Replays, &ParseStringElement); }
+			else                                { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/** `EventSheetsData` (network.rs): PascalCase keys. */
+	bool ParseEventSheets(FMsgPackReader& Reader, FApexEventSheets& Out)
+	{
+		int32 FieldCount = 0;
+		if (!Reader.ReadMapHeader(FieldCount))
+		{
+			return false;
+		}
+		Out = FApexEventSheets();
+		for (int32 i = 0; i < FieldCount; ++i)
+		{
+			FString Key;
+			if (!Reader.ReadString(Key))
+			{
+				return false;
+			}
+			bool bOk = true;
+			uint64 Raw = 0;
+			if (Key == TEXT("Id"))           { bOk = Reader.ReadString(Out.Id); }
+			else if (Key == TEXT("Name"))    { bOk = Reader.ReadString(Out.Name); }
+			else if (Key == TEXT("TrackId")) { bOk = Reader.ReadString(Out.TrackId); }
+			else if (Key == TEXT("Phase"))   { bOk = Reader.ReadUInt64(Raw); Out.Phase = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("Phases"))  { bOk = ParseArrayOf(Reader, Out.Phases, &ParseEventSheet); }
+			else                             { bOk = Reader.SkipValue(); }
+			if (!bOk)
+			{
+				return false;
+			}
+		}
+		Out.bValid = true;
+		return true;
+	}
+
 	/** `TrackBundleChunkData` (network.rs): PascalCase keys, the chunk as a bin. */
 	bool ParseTrackBundleChunk(FMsgPackReader& Reader, FApexTrackBundleChunk& Out)
 	{
@@ -3634,6 +3737,8 @@ namespace
 		if (Variant == TEXT("Incidents"))          { return EApexServerMessageType::Incidents; }
 		if (Variant == TEXT("LiveryChunk"))        { return EApexServerMessageType::LiveryChunk; }
 
+		if (Variant == TEXT("EventSheets"))        { return EApexServerMessageType::EventSheets; }
+
 		// The named-encoding `Telemetry` is only used for server-side replays;
 		// the wire carries TelemetryCompact.
 		if (Variant == TEXT("Telemetry"))
@@ -3713,6 +3818,9 @@ namespace
 			return ParseIncidents(Reader, Out.Incidents);
 		case EApexServerMessageType::LiveryChunk:
 			return ParseLiveryChunk(Reader, Out.LiveryChunk);
+
+		case EApexServerMessageType::EventSheets:
+			return ParseEventSheets(Reader, Out.EventSheets);
 
 		case EApexServerMessageType::Showcases:
 			return ParseShowcases(Reader, Out.Showcases);
@@ -4456,6 +4564,15 @@ namespace ApexProtocol
 	TArray<uint8> EncodeRequestGhost() { return EncodeUnitVariant("RequestGhost"); }
 
 	TArray<uint8> EncodeRequestIncidents() { return EncodeUnitVariant("RequestIncidents"); }
+
+	TArray<uint8> EncodeRequestEventSheets(const FString& EventId)
+	{
+		FMsgPackWriter Writer(64);
+		BeginDataVariant(Writer, "RequestEventSheets", 1);
+		Writer.WriteString("event_id");
+		Writer.WriteString(EventId);
+		return MoveTemp(Writer.GetBuffer());
+	}
 
 	TArray<uint8> EncodeRequestTrackBundle(uint32 Crc, int32 Chunk)
 	{

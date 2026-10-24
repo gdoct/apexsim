@@ -255,6 +255,9 @@ pub(crate) async fn handle_message(
         ClientMessage::RequestIncidents => {
             handle_request_incidents(ctx, connection_id).await;
         }
+        ClientMessage::RequestEventSheets { event_id } => {
+            handle_request_event_sheets(ctx, connection_id, &event_id).await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,
@@ -1958,6 +1961,31 @@ async fn handle_request_incidents(ctx: &GameLoopCtx, connection_id: ConnectionId
             ctx.send_error(connection_id, 404, "Session not found")
                 .await
         }
+    }
+}
+
+/// A race event's sheets (`crate::events::sheets_data`), with each kept
+/// phase's replays from the server's recordings; anyone connected may ask.
+async fn handle_request_event_sheets(ctx: &GameLoopCtx, connection_id: ConnectionId, id: &str) {
+    let data = {
+        let state = ctx.state.read().await;
+        state.events.get(id).map(|event| {
+            let dir = state.replay.dir().to_path_buf();
+            (event, dir)
+        })
+    };
+    match data {
+        Some((event, dir)) => {
+            let data =
+                tokio::task::spawn_blocking(move || crate::events::sheets_data(&event, Some(&dir)))
+                    .await;
+            if let Ok(data) = data {
+                let _ = ctx
+                    .send(connection_id, ServerMessage::EventSheets(data))
+                    .await;
+            }
+        }
+        None => ctx.send_error(connection_id, 404, "No such event").await,
     }
 }
 
