@@ -511,6 +511,13 @@ pub struct RosterRow {
     /// The driver's own livery, the hash of the package the server keeps
     /// (`set_own_livery`); empty for none.
     pub own_livery: String,
+    /// Under a rule that counts tyre sets (`set_limits`): the new slick
+    /// sets the car may still take; `None` without one.
+    pub new_sets_left: Option<u8>,
+    /// With no new set left, the next run goes out on a used one
+    /// (`tyre_sets::CarTyres::take_used`): its most worn tyre's wear,
+    /// percent. `None` when the next run goes out new.
+    pub used_set_wear: Option<u8>,
 }
 
 /// A session's state at one tick, to rewind to (`GameSession::snapshot`,
@@ -4516,6 +4523,10 @@ impl GameSession {
         *state = fresh;
         // The lap the car was on is abandoned with it.
         self.lap_traces.remove(player_id);
+        // A set kept or taken: the roster tells its sets again.
+        if counts_sets {
+            self.roster_dirty = true;
+        }
         Ok(())
     }
 
@@ -5692,6 +5703,47 @@ impl GameSession {
             && rules.weekend_tyre_sets > 0)
             .then_some(rules.weekend_tyre_sets);
         (qualifying, weekend)
+    }
+
+    /// What a car's garage has for its next run under the rules that count
+    /// sets: the new slick sets it may still take (the tighter of the
+    /// limits), and with none left the wear of the used set that goes on.
+    /// `(None, None)` without such a rule.
+    fn tyre_set_outlook(&self, state: &CarState) -> (Option<u8>, Option<u8>) {
+        let (qualifying, weekend) = self.set_limits();
+        if qualifying.is_none() && weekend.is_none() {
+            return (None, None);
+        }
+        let car = self.tyre_sets.get(&state.player_id);
+        let taken_q = car.map_or(0, |c| c.new_in_qualifying);
+        let taken_w = car.map_or(0, |c| c.new_in_weekend);
+        let left = [
+            qualifying.map(|n| n.saturating_sub(taken_q)),
+            weekend.map(|n| n.saturating_sub(taken_w)),
+        ]
+        .into_iter()
+        .flatten()
+        .min();
+        if left != Some(0) {
+            return (left, None);
+        }
+        let Some(config) = simulated_config(&self.car_configs, &self.tuned_configs, state) else {
+            return (left, None);
+        };
+        let tyre = &config.tire_config;
+        let compound = self.car_setup(&state.player_id).compound_index_for(
+            tyre,
+            self.track_config.track_surface.water,
+            crate::road_state::RoadState::line_snow_of(&self.track_config),
+        );
+        // A treaded tyre always goes out new.
+        if !crate::tyre_sets::counted(tyre, compound) {
+            return (left, None);
+        }
+        let wear = car
+            .and_then(|c| c.peek_used(compound))
+            .map(|s| s.worst_wear().round().clamp(0.0, 100.0) as u8);
+        (left, wear)
     }
 
     /// The front of the qualifying classification starts the race on the
@@ -8094,6 +8146,7 @@ impl GameSession {
                     .or_else(|| names.get(player_id).cloned())
                     .unwrap_or_else(|| format!("Player-{}", &player_id.to_string()[..8]));
                 let livery = liveries.get(player_id).copied().unwrap_or(0);
+                let sets = self.tyre_set_outlook(state);
                 RosterRow {
                     car_index: idx as u8,
                     player_id: *player_id,
@@ -8121,6 +8174,8 @@ impl GameSession {
                         .get(player_id)
                         .cloned()
                         .unwrap_or_default(),
+                    new_sets_left: sets.0,
+                    used_set_wear: sets.1,
                 }
             })
             .collect()

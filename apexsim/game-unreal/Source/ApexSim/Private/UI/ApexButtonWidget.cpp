@@ -109,6 +109,7 @@ void UApexButtonWidget::Setup(const FApexButtonSpec& InSpec)
 
 	// A spec line under the label turns the label cell into a stack.
 	UWidget* LabelCell = LabelText;
+	SubLabelText = nullptr;
 	if (!Spec.SubLabel.IsEmpty())
 	{
 		UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
@@ -213,6 +214,22 @@ void UApexButtonWidget::SetLabel(const FString& InLabel)
 	ApplyState();
 }
 
+void UApexButtonWidget::SetSubLabel(const FString& InSubLabel)
+{
+	if (Spec.SubLabel == InSubLabel)
+	{
+		return;
+	}
+	const bool bPresenceChanged = Spec.SubLabel.IsEmpty() != InSubLabel.IsEmpty();
+	Spec.SubLabel = InSubLabel;
+	if (bPresenceChanged)
+	{
+		Setup(Spec);
+		return;
+	}
+	ApplyState();
+}
+
 void UApexButtonWidget::SetSelected(bool bInSelected)
 {
 	if (bSelected == bInSelected)
@@ -309,6 +326,16 @@ void UApexButtonWidget::ApplyState()
 	LabelText->SetText(FText::FromString(bIsPrimary ? Spec.Label.ToUpper() : Spec.Label));
 	LabelText->SetFont(ApexUI::Font::Display(LabelSize, bIsPrimary ? 30 : 0));
 	LabelText->SetColorAndOpacity(FSlateColor(LabelColour));
+
+	if (SubLabelText)
+	{
+		SubLabelText->SetText(FText::FromString(Spec.SubLabel.ToUpper()));
+		// On the accent fill the muted grey does not read: the label's ink, softer.
+		if (bIsPrimary)
+		{
+			SubLabelText->SetColorAndOpacity(FSlateColor(LabelColour.CopyWithNewOpacity(0.75f)));
+		}
+	}
 
 	BadgeText->SetText(FText::FromString(Spec.Badge.ToUpper()));
 	BadgeText->SetColorAndOpacity(FSlateColor(

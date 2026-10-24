@@ -242,7 +242,7 @@ none outside qualifying and in a plain shoot-out).
 `UApexNetSubsystem::GetQualifyingLapsLeft` takes the allowance less the
 local car's `QualifyingLaps` (`GetQualifyingTimedLaps`; -1 with no
 allowance, outside `Qualification` and in a shoot-out): GO OUT carries "2 timed
-laps left" and reads LAP ALLOWANCE USED, disabled, at none, and the HUD's
+laps left" on the line under its label and reads LAP ALLOWANCE USED, disabled, at none, and the HUD's
 `qualifying.laps_left` drives the race state's Laps left panel.
 `-ApexLapAllowance=N` sets it for an auto race.
 
@@ -387,6 +387,14 @@ and a stop each fit one. The rules that count sets (`race_rules` keys) keep
 each car's sets on the session (`GameSession::tyre_sets`,
 `tyre_sets::CarTyres`); only slicks are counted, so a treaded tyre
 (intermediate, wet, snow) is always new and rain never strands a car.
+Under such a rule each car's roster row says what its garage has for the
+next run (`GameSession::tyre_set_outlook`): `RosterEntry.NewSetsLeft`, the
+new slick sets it may still take (the tighter of the limits that hold),
+and at none `UsedSetWear`, the most worn tyre of the used set
+`CarTyres::peek_used` picks for the setup's compound; both are left off
+the wire without a rule, and the roster goes out again after every trip
+to or from the garage. GO OUT's line under its label reads "2 new sets left"
+or "used set · 12% worn" after the timed laps left.
 
 - **Qualifying tyre allowance** (`qualifying_tyre_sets` N): in
   `Qualification` a car may go out on a new slick set N times; every

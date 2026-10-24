@@ -81,6 +81,16 @@ impl CarTyres {
     /// kept set of `compound`, else the least worn kept set. Taken out of
     /// the garage. `None` with nothing kept.
     pub fn take_used(&mut self, compound: u8) -> Option<TyreSet> {
+        let index = self.used_index(compound)?;
+        Some(self.kept.remove(index))
+    }
+
+    /// The set [`Self::take_used`] would take, left in the garage.
+    pub fn peek_used(&self, compound: u8) -> Option<&TyreSet> {
+        self.used_index(compound).map(|i| &self.kept[i])
+    }
+
+    fn used_index(&self, compound: u8) -> Option<usize> {
         let least = |only: Option<u8>| {
             self.kept
                 .iter()
@@ -91,8 +101,7 @@ impl CarTyres {
                 })
                 .map(|(i, _)| i)
         };
-        let index = least(Some(compound)).or_else(|| least(None))?;
-        Some(self.kept.remove(index))
+        least(Some(compound)).or_else(|| least(None))
     }
 }
 
@@ -117,6 +126,7 @@ mod tests {
             kept: vec![set(1, 9.0), set(2, 1.0), set(1, 4.0)],
             ..Default::default()
         };
+        assert_eq!(car.peek_used(1), Some(&set(1, 4.0)));
         assert_eq!(car.take_used(1), Some(set(1, 4.0)));
         assert_eq!(car.take_used(1), Some(set(1, 9.0)));
         // None of that compound left: the least worn of any.

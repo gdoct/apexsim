@@ -152,6 +152,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|UI")
 	void SetLabel(const FString& InLabel);
 
+	/** The line under the label; adding or removing it rebuilds the button. */
+	void SetSubLabel(const FString& InSubLabel);
+
 	const FString& GetLabel() const { return Spec.Label; }
 
 	/**

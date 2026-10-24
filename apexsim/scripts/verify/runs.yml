@@ -1818,6 +1818,32 @@ runs:
       - {at: 300, label: "allowance used: in the garage", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
       - {at: 330, label: "", checks: "LAP ALLOWANCE USED, GO OUT disabled"}
 
+  # Qualifying with a tyre allowance of two: GO OUT's badge counts the new
+  # sets down, then names the used set the next run goes out on.
+  - id: r12-tyre-sets
+    about: "R12. Qualifying with a tyre allowance of two: the garage's sets"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexMode=6
+      - -ApexQualifyingTyreSets=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+    exec:
+      14: ["apexsim.hotlap.Out"]
+      40: ["apexsim.hotlap.Garage"]
+      48: ["apexsim.hotlap.Out"]
+      74: ["apexsim.hotlap.Garage"]
+    shots:
+      - {at: 12, label: "garage: two new sets", checks: "GO OUT's badge: 2 new sets left"}
+      - {at: 45, label: "back in after a run", checks: "GO OUT's badge: 1 new set left"}
+      - {at: 80, label: "both new sets used", checks: "GO OUT's badge: used set · N% worn"}
+
   # A written forecast made by an auto race, echoed and laid out on the HUD.
   - id: r12-forecast-hud
     about: "R12. A written forecast in the HUD's conditions and outlook"

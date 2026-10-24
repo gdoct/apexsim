@@ -2246,6 +2246,21 @@ struct APEXSIMNET_API FApexRosterEntry
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	FString OwnLivery;
 
+	/**
+	 * Under a rule that counts tyre sets (the qualifying allowance, a
+	 * weekend's allocation): the new slick sets this car may still take
+	 * (`NewSetsLeft`); -1 without one, or from an older server.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 NewSetsLeft = -1;
+
+	/**
+	 * With no new set left, the next run goes out on a used one: its most
+	 * worn tyre's wear, percent (`UsedSetWear`); -1 when it goes out new.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 UsedSetWear = -1;
+
 	/** The seconds its penalties add to its race time (those Added). */
 	int32 PenaltySeconds() const
 	{

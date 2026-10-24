@@ -1347,6 +1347,8 @@ namespace
 			else if (Key == TEXT("MissedStops")) { bOk = Reader.ReadBool(Out.bMissedStops); }
 			else if (Key == TEXT("QualifyingLaps")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLaps = static_cast<int32>(Raw); }
 			else if (Key == TEXT("OwnLivery"))  { bOk = Reader.ReadString(Out.OwnLivery); }
+			else if (Key == TEXT("NewSetsLeft")) { bOk = Reader.ReadUInt64(Raw); Out.NewSetsLeft = static_cast<int32>(Raw); }
+			else if (Key == TEXT("UsedSetWear")) { bOk = Reader.ReadUInt64(Raw); Out.UsedSetWear = static_cast<int32>(Raw); }
 			else if (Key == TEXT("Penalties"))
 			{
 				int32 Count = 0;

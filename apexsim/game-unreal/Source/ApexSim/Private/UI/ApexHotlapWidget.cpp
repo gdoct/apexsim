@@ -478,6 +478,24 @@ void UApexHotlapWidget::RefreshQualifyingClock()
 			: Left >= 3600 ? FString::Printf(TEXT("%s · %d:%02d:%02d LEFT"), *Name, Left / 3600, Left / 60 % 60, Left % 60)
 			: FString::Printf(TEXT("%s · %d:%02d LEFT"), *Name, Left / 60, Left % 60)));
 	}
+	// Under a rule that counts tyre sets: the new sets left, or the used
+	// set the next run goes out on.
+	FString SetsText;
+	for (const FApexRosterEntry& Entry : Net->GetSessionRoster().Entries)
+	{
+		if (Entry.CarIndex != Net->GetLocalCarIndex())
+		{
+			continue;
+		}
+		if (Entry.UsedSetWear >= 0)
+		{
+			SetsText = FString::Printf(TEXT("used set · %d%% worn"), Entry.UsedSetWear);
+		}
+		else if (Entry.NewSetsLeft >= 0)
+		{
+			SetsText = FString::Printf(TEXT("%d new set%s left"), Entry.NewSetsLeft, Entry.NewSetsLeft == 1 ? TEXT("") : TEXT("s"));
+		}
+	}
 	// A shoot-out sends each car out in its turn: the button is the waiting display's.
 	const FString ShootoutLabel = bShootout
 		? ApexBoard::ShootoutCall(ApexBoard::Shootout(Net->GetShootoutState(), Net->GetSessionRoster().Entries, Net->GetLocalCarIndex()))
@@ -495,9 +513,21 @@ void UApexHotlapWidget::RefreshQualifyingClock()
 			: bShootout ? (ShootoutLabel.IsEmpty() ? FString(TEXT("WAIT FOR YOUR TURN")) : ShootoutLabel)
 			: bAllowanceUsed ? FString(TEXT("LAP ALLOWANCE USED"))
 			: FString(TEXT("GO OUT FOR A LAP")));
-		Button->SetBadge(LapsLeft > 0 && !Out && !bFlag && !bShootout
-			? FString::Printf(TEXT("%d timed lap%s left"), LapsLeft, LapsLeft == 1 ? TEXT("") : TEXT("s")) : FString(),
-			InkMuted);
+		TArray<FString> Badge;
+		if (!Out && !bFlag && !bShootout)
+		{
+			if (LapsLeft > 0)
+			{
+				Badge.Add(FString::Printf(TEXT("%d timed lap%s left"), LapsLeft, LapsLeft == 1 ? TEXT("") : TEXT("s")));
+			}
+			if (!SetsText.IsEmpty() && !bAllowanceUsed)
+			{
+				Badge.Add(SetsText);
+			}
+		}
+		// Under the label: beside it the counts ran into the words.
+		Button->SetBadge(FString(), InkMuted);
+		Button->SetSubLabel(FString::Join(Badge, TEXT(" · ")));
 	}
 	RefreshShootout();
 }
@@ -1865,6 +1895,7 @@ void UApexHotlapWidget::ApplyQualifyingRows()
 			: bQualifying ? TEXT("GO OUT FOR A LAP") : TEXT("GO OUT ON TRACK"));
 		GoOutButton->SetIsEnabled(true);
 		GoOutButton->SetBadge(FString(), InkMuted);
+		GoOutButton->SetSubLabel(FString());
 	}
 	if (bQualifying)
 	{

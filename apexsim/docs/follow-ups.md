@@ -232,21 +232,6 @@ the field, a jump start and a red-light exit served; `race_start_test`,
 
 ## P3: nice to have
 
-### 34. The tyre, parc fermé and stint rules on the client
-
-The race rules' tyre, parc fermé and stint keys run on the server and the
-client sends, shows and follows them
-([server/sessions.md](server/sessions.md#tyre-sets)); left:
-
-- The qualifying garage does not say how many new sets are left or which
-  set GO OUT fits: the server sends nothing of a car's sets
-  (`GameSession::tyre_sets`); a roster or `HotlapState` field with the
-  new sets left and the set going out would carry it.
-
-**Check:** a qualifying session made from the create screen with an
-allowance of 1: the second run goes out on the used set (the HUD's tyre
-wear), and with the start rule pole's race begins on it.
-
 ### 11. Content tooling
 
 - **(bug, not reproduced)** On 2026-10-14, with most showcases stale, an

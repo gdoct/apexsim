@@ -2390,6 +2390,16 @@ pub struct RosterEntry {
     /// the car wears one of its own.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub own_livery: String,
+    /// Under a rule that counts tyre sets (the qualifying allowance, a
+    /// weekend's allocation): the new slick sets this car may still take.
+    /// Left off the wire without one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub new_sets_left: Option<u8>,
+    /// With no new set left, the next run goes out on a used one: its
+    /// most worn tyre's wear, percent. Left off the wire when the next run
+    /// goes out new.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub used_set_wear: Option<u8>,
 }
 
 /// One penalty (`race_control::Penalty`) as a roster carries it.
@@ -6493,6 +6503,8 @@ mod tests {
                 qualifying_laps: 0,
                 penalties: Vec::new(),
                 own_livery: String::new(),
+                new_sets_left: None,
+                used_set_wear: None,
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -6722,6 +6734,8 @@ mod tests {
                     },
                 ],
                 own_livery: String::new(),
+                new_sets_left: None,
+                used_set_wear: None,
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -8931,6 +8945,8 @@ mod tests {
                 qualifying_laps: 0,
                 penalties: Vec::new(),
                 own_livery: String::new(),
+                new_sets_left: None,
+                used_set_wear: None,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -9088,6 +9104,8 @@ mod tests {
             qualifying_laps: 0,
             penalties: Vec::new(),
             own_livery: String::new(),
+            new_sets_left: None,
+            used_set_wear: None,
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();
@@ -9184,6 +9202,8 @@ mod tests {
             qualifying_laps: 0,
             penalties: Vec::new(),
             own_livery: own_livery.to_string(),
+            new_sets_left: None,
+            used_set_wear: None,
         };
         let plain = rmp_serde::to_vec_named(&entry("")).unwrap();
         assert!(!String::from_utf8_lossy(&plain).contains("OwnLivery"));
@@ -9195,6 +9215,56 @@ mod tests {
         println!("S_SessionRosterOwnLivery: {}", hex(&roster_bytes));
         match rmp_serde::from_slice::<ServerMessage>(&roster_bytes).unwrap() {
             ServerMessage::SessionRoster(data) => assert_eq!(data.entries[0].own_livery, hash),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
+    /// A roster row under a rule that counts tyre sets: no new set left,
+    /// the next run on a used one 37% worn
+    /// (`ApexGolden::S_SessionRosterTyreSets`):
+    /// `cargo test roster_tyre_sets_wire_format -- --nocapture`.
+    #[test]
+    fn test_roster_tyre_sets_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let entry = |new_sets_left, used_set_wear| RosterEntry {
+            car_index: 0,
+            player_id: Uuid::from_u128(1),
+            player_name: "Player".to_string(),
+            is_ai: false,
+            car_config_id: Uuid::parse_str("99999999-8888-7777-6666-555555555555").unwrap(),
+            livery: 0,
+            away: false,
+            grid_slot: 1,
+            ready: false,
+            dnq: false,
+            missed_stops: false,
+            qualifying_laps: 0,
+            penalties: Vec::new(),
+            own_livery: String::new(),
+            new_sets_left,
+            used_set_wear,
+        };
+        // Without a rule neither key is on the wire.
+        let plain = rmp_serde::to_vec_named(&entry(None, None)).unwrap();
+        let text = String::from_utf8_lossy(&plain);
+        assert!(!text.contains("NewSetsLeft") && !text.contains("UsedSetWear"));
+        let roster = ServerMessage::SessionRoster(SessionRosterData {
+            session_id: Uuid::parse_str("01234567-89ab-cdef-0123-456789abcdef").unwrap(),
+            entries: vec![entry(Some(0), Some(37))],
+        });
+        let bytes = rmp_serde::to_vec_named(&roster).unwrap();
+        println!("S_SessionRosterTyreSets: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::SessionRoster(data) => {
+                assert_eq!(data.entries[0].new_sets_left, Some(0));
+                assert_eq!(data.entries[0].used_set_wear, Some(37));
+            }
             other => panic!("Wrong message type: {other:?}"),
         }
     }

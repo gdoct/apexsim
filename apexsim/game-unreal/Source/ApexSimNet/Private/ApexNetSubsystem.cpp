@@ -1575,8 +1575,19 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 				It.RemoveCurrent();
 			}
 		}
-		UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s"),
-			CachedRoster.Entries.Num(), *CachedRoster.SessionId);
+		{
+			// The local car's tyre sets, under a rule that counts them.
+			FString Sets;
+			for (const FApexRosterEntry& Entry : CachedRoster.Entries)
+			{
+				if (Entry.PlayerId.Equals(PlayerId, ESearchCase::IgnoreCase) && Entry.NewSetsLeft >= 0)
+				{
+					Sets = FString::Printf(TEXT(" new_sets_left=%d used_set_wear=%d"), Entry.NewSetsLeft, Entry.UsedSetWear);
+				}
+			}
+			UE_LOG(LogApexSimNet, Log, TEXT("<- SessionRoster %d car(s) for session %s%s"),
+				CachedRoster.Entries.Num(), *CachedRoster.SessionId, *Sets);
+		}
 		OnSessionRosterUpdated.Broadcast(CachedRoster);
 		break;
 

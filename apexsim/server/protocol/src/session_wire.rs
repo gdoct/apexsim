@@ -272,6 +272,8 @@ impl From<RosterRow> for RosterEntry {
             qualifying_laps: r.qualifying_laps,
             penalties: r.penalties.iter().map(PenaltyData::from).collect(),
             own_livery: r.own_livery,
+            new_sets_left: r.new_sets_left,
+            used_set_wear: r.used_set_wear,
         }
     }
 }

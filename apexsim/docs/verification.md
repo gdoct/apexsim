@@ -330,6 +330,11 @@ limits, as in [server/sessions.md](server/sessions.md).
   from them running under them (a rolling start or a formation lap, the
   reverse grid on the grid, a safety car), and the pad walk
   (`ApexSim.UI.PadWalk`) over the rows.
+- The garage's tyre sets (`r12-tyre-sets`: an allowance of two, the car
+  sent out and brought in twice): shot 2026-10-25, GO OUT reading "1 NEW
+  SET LEFT" under its label after a run; the log's roster lines go 2, 1,
+  then 0 with the used set's wear. The third shot (the used set named on
+  the button) was lost to a GPU hang (follow-ups #12): shoot it again.
 - A weekend phase's own allowed aids (`r12-weekend-assists`): the Assists
   tab opened in a Pro practice with every row locked, shot 2026-10-25:
   every row OFF IN THIS SESSION, no racing line in the garage. Still to

@@ -2454,6 +2454,15 @@ bool FApexProtocolOwnLiveryTest::RunTest(const FString& Parameters)
 	if (ApexProtocol::DecodeServerMessage(ApexGolden::S_SessionRosterPenalties, Plain, Error) && Plain.Roster.Entries.Num() > 0)
 	{
 		TestTrue(TEXT("no OwnLivery from a roster without it"), Plain.Roster.Entries[0].OwnLivery.IsEmpty());
+		TestEqual(TEXT("no tyre-set rule: NewSetsLeft -1"), Plain.Roster.Entries[0].NewSetsLeft, -1);
+		TestEqual(TEXT("no tyre-set rule: UsedSetWear -1"), Plain.Roster.Entries[0].UsedSetWear, -1);
+	}
+	FApexServerMessage Sets;
+	if (TestTrue(TEXT("Roster with tyre sets decodes"), ApexProtocol::DecodeServerMessage(ApexGolden::S_SessionRosterTyreSets, Sets, Error))
+		&& TestEqual(TEXT("one entry"), Sets.Roster.Entries.Num(), 1))
+	{
+		TestEqual(TEXT("NewSetsLeft"), Sets.Roster.Entries[0].NewSetsLeft, 0);
+		TestEqual(TEXT("UsedSetWear"), Sets.Roster.Entries[0].UsedSetWear, 37);
 	}
 
 	// The package: packed to livery.rs's bytes, and read back.

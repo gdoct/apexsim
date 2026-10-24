@@ -404,6 +404,7 @@ The printing tests, by area (`cargo test -- <a> <b> --nocapture` runs several):
 | Reconnect, profiles | `rejoin_wire_format` (`Authenticate.resume_token`, `AuthSuccess.ResumeToken`, `RejoinAvailable`, `GiveUpSeat`; `C_AuthenticateProfile`: `Authenticate.driver_id`; `C_AuthenticateKey`, `S_AuthSuccessChallenge`, `C_ProveDriverKey`: the key handshake) |
 | Records | `grid_wire_format` also prints `S_QualifyingResults` and `S_Leaderboard`, each with a line carrying its `DriverId` |
 | Roster | `roster_wire_format` (`RosterEntry.Away`, `RosterEntry.GridSlot`, `RosterEntry.Dnq`, `RosterEntry.QualifyingLaps`) |
+| Tyre sets | `roster_tyre_sets_wire_format` (`RosterEntry.NewSetsLeft`, `RosterEntry.UsedSetWear`: `S_SessionRosterTyreSets`) |
 | Own liveries | `own_livery_wire_format` (`UploadLivery`, `RequestLivery`, `LiveryChunk` with and without its chunk, `RosterEntry.OwnLivery`), `livery_package_wire_format` (livery.rs: `C_LiveryPackage`) |
 | The race's grid | `ready_grid_wire_format` (`OpenGrid`, `SetReady`, `SetLivery`, `GameModeChanged { Grid }`, `RosterEntry.Ready`) |
 | Lobby | `track_site_wire_format` (`TrackConfigSummary.LatitudeDeg` / `LongitudeDeg`) |

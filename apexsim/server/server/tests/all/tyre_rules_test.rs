@@ -56,6 +56,16 @@ fn session(ai: usize, rules: RaceRules) -> (GameSession, PlayerId, Vec<PlayerId>
     (gs, host, ai_ids)
 }
 
+/// What the roster tells of the car's sets: new sets left, a used set's wear.
+fn sets(gs: &GameSession, id: &PlayerId) -> (Option<u8>, Option<u8>) {
+    let row = gs
+        .roster_rows(&HashMap::new())
+        .into_iter()
+        .find(|r| r.player_id == *id)
+        .expect("a roster row");
+    (row.new_sets_left, row.used_set_wear)
+}
+
 fn wear(gs: &GameSession, id: &PlayerId) -> [f32; 4] {
     gs.session.participants[id]
         .tires
@@ -87,6 +97,7 @@ fn past_the_allowance_a_car_goes_out_on_its_least_worn_used_set() {
     gs.set_game_mode(GameMode::Qualification);
     assert!(gs.session.participants[&host].in_garage);
 
+    assert_eq!(sets(&gs, &host), (Some(2), None), "two new sets to come");
     // Two new sets: each run out of the garage starts on one.
     for worn in [30.0, 12.0] {
         gs.hotlap_relocate(&host, HotlapDestination::Track, false)
@@ -96,7 +107,10 @@ fn past_the_allowance_a_car_goes_out_on_its_least_worn_used_set() {
         gs.hotlap_relocate(&host, HotlapDestination::Garage, false)
             .expect("in");
     }
-    // Spent: the least worn used set goes back on, then the other.
+    // Spent: the roster says the next run is on the 12% set.
+    assert_eq!(sets(&gs, &host), (Some(0), Some(12)));
+    assert!(gs.roster_is_dirty(), "the roster goes out again");
+    // The least worn used set goes back on, then the other.
     gs.hotlap_relocate(&host, HotlapDestination::Track, false)
         .expect("out");
     assert_eq!(wear(&gs, &host), [12.0; 4], "the least worn used set");
@@ -127,6 +141,7 @@ fn past_the_allowance_a_car_goes_out_on_its_least_worn_used_set() {
 fn without_an_allowance_every_run_is_on_a_new_set() {
     let (mut gs, host, _) = session(0, RaceRules::default());
     gs.set_game_mode(GameMode::Qualification);
+    assert_eq!(sets(&gs, &host), (None, None), "no rule, nothing to tell");
     for _ in 0..3 {
         gs.hotlap_relocate(&host, HotlapDestination::Track, false)
             .unwrap();
