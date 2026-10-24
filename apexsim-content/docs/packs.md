@@ -112,17 +112,25 @@ belongs to the deeper one; a file in no item is listed as ignored, and
 `__MACOSX/`, `.DS_Store`, `Thumbs.db` and `desktop.ini` are dropped.
 A track is baked before it is packed (a release has no pipeline): its
 `.uemesh` is required, a missing one of the five sidecars (`ground`,
-`curbs`, `walls`, `road`, `pit`) is a warning. Refused before anything is
-written: a path that is absolute or climbs out with `..`, a name that is not
-letters, digits, `-` and `_` (or starts with `_`), two items of one kind and
-name, a track named as a shipped track, a car `id` or `track_id` missing or
-already held by another item (both sides would ignore it), and a pack with
-no item at all.
+`curbs`, `walls`, `road`, `pit`) is a warning on that track.
+
+A whole pack is refused for a path that is absolute or climbs out with
+`..`, two items of one kind and name, and no item at all. One item cannot
+be installed, while the rest of the pack can, when its name is not
+letters, digits, `-` and `_` (or starts with `_`), a track has no
+`.uemesh`, a track is named as a shipped track, or a car `id` or
+`track_id` is missing or already held by another item (both sides would
+ignore it).
 
 `apexsim-server content install <file>.acp` installs one, into a release
 (`--root`, by default the server's own) or a checkout (`--checkout
-<apexsim>`); `--dry-run` prints what it holds and where it would go. The
-launcher's Manage content > Install pack... runs both, asking first. Where
+<apexsim>`): every item, or only those named by `--only <kind>:<name>`
+(`car:my-gt3`, `track:Ring`, `hud:gauge`, repeated). Installing an item
+that cannot be installed stops the install before anything is written.
+`--dry-run` lists every item with what it would replace, its warnings and,
+for one that cannot be installed, why. The launcher's Manage content >
+Install pack... shows that list with a tick box per item (those that cannot
+be installed unticked and locked) and installs the ticked ones. Where
 each item goes is in [../../apexsim/MODDING.md](../../apexsim/MODDING.md)
 ("Where things go"): an item replaces the player's own of its name (its
 folders emptied first), and a HUD component named as a shipped one

@@ -54,6 +54,12 @@ pub struct AcpItem {
     /// A track's export, relative to the folder the game reads tracks from
     /// (`<Stem>.uemesh`, `<Stem>.textures/road.png`); empty for the others.
     pub export: Vec<(String, Vec<u8>)>,
+    /// Why this item cannot be installed (a name that is not a plain
+    /// folder name, a track without its mesh); the rest of the pack can.
+    pub problem: Option<String>,
+    /// What is missing but does not stop the install (a track without one
+    /// of its sidecars).
+    pub warnings: Vec<String>,
 }
 
 /// What a loose pack holds.
@@ -63,9 +69,6 @@ pub struct Acp {
     pub items: Vec<AcpItem>,
     /// Files in no item, by their path in the zip.
     pub ignored: Vec<String>,
-    /// What is missing but does not stop the install (a track without a
-    /// sidecar the server would bake on first use).
-    pub warnings: Vec<String>,
 }
 
 /// Why a loose pack cannot be installed.
@@ -220,6 +223,8 @@ pub fn classify(entries: Vec<(String, Vec<u8>)>, pack_stem: &str) -> Result<Acp,
             name: stem.clone(),
             files: Vec::new(),
             export: Vec::new(),
+            problem: None,
+            warnings: Vec::new(),
         });
     }
     for (kind, dir) in &roots {
@@ -232,6 +237,8 @@ pub fn classify(entries: Vec<(String, Vec<u8>)>, pack_stem: &str) -> Result<Acp,
             name,
             files: Vec::new(),
             export: Vec::new(),
+            problem: None,
+            warnings: Vec::new(),
         });
     }
 
@@ -263,30 +270,29 @@ pub fn classify(entries: Vec<(String, Vec<u8>)>, pack_stem: &str) -> Result<Acp,
         }
     }
 
-    for item in &items {
+    for item in &mut items {
         if !valid_name(&item.name) {
-            return Err(AcpError(format!(
-                "the {} {:?} needs a folder name of letters, digits, - and _ only",
-                item.kind.label(),
+            item.problem = Some(format!(
+                "{:?} is not a folder name of letters, digits, - and _ only",
                 item.name
-            )));
+            ));
+            continue;
         }
-    }
-    for item in items.iter().filter(|i| i.kind == AcpKind::Track) {
+        if item.kind != AcpKind::Track {
+            continue;
+        }
         let stem = &item.name;
         if !item
             .export
             .iter()
             .any(|(p, _)| *p == format!("{stem}.uemesh"))
         {
-            return Err(AcpError(format!(
-                "the track {stem} has no {stem}.uemesh beside its {stem}.uescene.json"
-            )));
+            item.problem = Some(format!("no {stem}.uemesh beside its {stem}.uescene.json"));
         }
         for sidecar in TRACK_SIDECARS {
             let name = format!("{stem}.{sidecar}.msgpack");
             if !item.files.iter().any(|(p, _)| *p == name) {
-                acp.warnings.push(format!("the track {stem} has no {name}"));
+                item.warnings.push(format!("no {name}"));
             }
         }
     }
@@ -456,7 +462,7 @@ mod tests {
             ]
         );
         assert_eq!(acp.ignored, ["server/Ring/notes.md"]);
-        assert!(acp.warnings.is_empty());
+        assert!(track.warnings.is_empty() && track.problem.is_none());
     }
 
     #[test]
@@ -471,7 +477,7 @@ mod tests {
             names(&acp.items[0].export),
             ["Ring.uemesh", "Ring.uescene.json"]
         );
-        assert_eq!(acp.warnings.len(), TRACK_SIDECARS.len());
+        assert_eq!(acp.items[0].warnings.len(), TRACK_SIDECARS.len());
     }
 
     #[test]
@@ -481,9 +487,15 @@ mod tests {
     }
 
     #[test]
-    fn a_track_without_its_mesh_is_refused() {
-        let err = classify(entries(&["Ring.yaml", "Ring.uescene.json"]), "pack").unwrap_err();
-        assert!(err.0.contains("Ring.uemesh"), "{err}");
+    fn a_track_without_its_mesh_is_an_item_that_cannot_be_installed() {
+        let acp = classify(
+            entries(&["Ring.yaml", "Ring.uescene.json", "car/car.toml"]),
+            "pack",
+        )
+        .unwrap();
+        assert!(acp.items[0].problem.is_none(), "the car is fine");
+        let problem = acp.items[1].problem.as_deref().unwrap();
+        assert!(problem.contains("Ring.uemesh"), "{problem}");
     }
 
     #[test]
@@ -503,9 +515,10 @@ mod tests {
     }
 
     #[test]
-    fn a_folder_name_that_is_not_a_plain_name_is_refused() {
-        let err = classify(entries(&["my car/car.toml"]), "pack").unwrap_err();
-        assert!(err.0.contains("folder name"), "{err}");
+    fn a_folder_name_that_is_not_a_plain_name_cannot_be_installed() {
+        let acp = classify(entries(&["my car/car.toml"]), "pack").unwrap();
+        let problem = acp.items[0].problem.as_deref().unwrap();
+        assert!(problem.contains("folder name"), "{problem}");
     }
 
     #[test]

@@ -109,11 +109,23 @@ struct Plan<'a> {
     to: Vec<PathBuf>,
 }
 
-/// One item as the report gives it.
+/// One item as the report gives it. `id`, `label`, `note` and `refused`
+/// are always strings, so a reader without a JSON parser can line them up.
 #[derive(Debug, Clone, Serialize)]
 pub struct ItemReport {
+    /// `<kind>:<name>` (`car:my-gt3`), what `--only` takes.
+    pub id: String,
     pub kind: &'static str,
     pub name: String,
+    /// `Car my-gt3`, for a person to read.
+    pub label: String,
+    /// What else to know: what it replaces, its warnings; empty when nothing.
+    pub note: String,
+    /// Why it cannot be installed; empty when it can.
+    pub refused: String,
+    /// Picked for this install (every item without `--only`).
+    pub selected: bool,
+    pub warnings: Vec<String>,
     pub files: usize,
     /// The player's own item of this name was there and is replaced.
     pub replaces: bool,
@@ -128,10 +140,10 @@ pub struct ItemReport {
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub installed: bool,
+    /// Every item of the pack, picked or not.
     pub items: Vec<ItemReport>,
     pub ignored: Vec<String>,
-    pub warnings: Vec<String>,
-    /// The items, one per line, for a person to read.
+    /// The picked items, one per line, for a person to read.
     pub summary: String,
 }
 
@@ -344,23 +356,41 @@ fn display(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-/// Install the loose pack at `pack_path` into `layout`; with `dry_run`,
-/// only say what that would do. Everything is checked before anything is
-/// written.
-pub fn install(layout: &Layout, pack_path: &Path, dry_run: bool) -> Result<Report, String> {
-    let Acp {
-        items,
-        ignored,
-        warnings,
-    } = acp::read(pack_path).map_err(|e| e.to_string())?;
-    if let Some(why) = items.iter().find_map(|item| refusal(layout, item)) {
-        return Err(why);
+/// Install the loose pack at `pack_path` into `layout`: the items `only`
+/// names (`car:my-gt3`, any case), or every item when it is empty. With
+/// `dry_run`, only say what that would do, refusals included. Everything
+/// is checked before anything is written; a picked item that cannot be
+/// installed stops the install, one left out does not.
+pub fn install(
+    layout: &Layout,
+    pack_path: &Path,
+    dry_run: bool,
+    only: &[String],
+) -> Result<Report, String> {
+    let Acp { items, ignored } = acp::read(pack_path).map_err(|e| e.to_string())?;
+    let id_of = |item: &AcpItem| format!("{}:{}", item.kind.label(), item.name);
+    for wanted in only {
+        if !items.iter().any(|i| id_of(i).eq_ignore_ascii_case(wanted)) {
+            return Err(format!("the pack holds no {wanted}"));
+        }
     }
+    let selected: Vec<bool> = items
+        .iter()
+        .map(|i| only.is_empty() || only.iter().any(|w| id_of(i).eq_ignore_ascii_case(w)))
+        .collect();
     let plans: Vec<Plan> = items.iter().map(|item| plan_item(layout, item)).collect();
 
     let mut rows = Vec::new();
     let mut summary = Vec::new();
-    for (item, plan) in items.iter().zip(&plans) {
+    for ((item, plan), &picked) in items.iter().zip(&plans).zip(&selected) {
+        let refused = item
+            .problem
+            .clone()
+            .or_else(|| refusal(layout, item))
+            .unwrap_or_default();
+        if picked && !refused.is_empty() && !dry_run {
+            return Err(format!("{} {}: {refused}", item.kind.label(), item.name));
+        }
         let replaces = exists_any(plan);
         let overrides_default =
             item.kind == AcpKind::Hud && layout.hud_dir("default").join(&item.name).is_dir();
@@ -369,16 +399,31 @@ pub fn install(layout: &Layout, pack_path: &Path, dry_run: bool) -> Result<Repor
             AcpKind::Track => "Track",
             AcpKind::Hud => "HUD component",
         };
-        let mut line = format!("{what} {}", item.name);
+        let label = format!("{what} {}", item.name);
+        let mut notes: Vec<String> = Vec::new();
         if replaces {
-            line.push_str(" (replaces your own)");
+            notes.push("replaces your own".into());
         } else if overrides_default {
-            line.push_str(" (replaces the shipped one)");
+            notes.push("replaces the shipped one".into());
         }
-        summary.push(line);
+        notes.extend(item.warnings.iter().cloned());
+        let note = notes.join("; ");
+        if picked {
+            summary.push(if note.is_empty() {
+                label.clone()
+            } else {
+                format!("{label} ({note})")
+            });
+        }
         rows.push(ItemReport {
+            id: id_of(item),
             kind: item.kind.label(),
             name: item.name.clone(),
+            label,
+            note,
+            refused,
+            selected: picked,
+            warnings: item.warnings.clone(),
             files: item.files.len() + item.export.len(),
             replaces,
             overrides_default,
@@ -387,7 +432,7 @@ pub fn install(layout: &Layout, pack_path: &Path, dry_run: bool) -> Result<Repor
     }
 
     if !dry_run {
-        for plan in &plans {
+        for (plan, _) in plans.iter().zip(&selected).filter(|(_, &picked)| picked) {
             for dir in &plan.clear_dirs {
                 if dir.is_dir() {
                     std::fs::remove_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -407,7 +452,6 @@ pub fn install(layout: &Layout, pack_path: &Path, dry_run: bool) -> Result<Repor
         installed: !dry_run,
         items: rows,
         ignored,
-        warnings,
         summary: summary.join("\n"),
     })
 }
@@ -476,7 +520,7 @@ mod tests {
         let path = pack(&root, "stuff.acp", &files);
         let layout = Layout::Release(root.clone());
 
-        let dry = install(&layout, &path, true).unwrap();
+        let dry = install(&layout, &path, true, &[]).unwrap();
         assert!(!dry.installed);
         assert!(
             !root.join("Game/Cars/custom/my-car").exists(),
@@ -484,10 +528,13 @@ mod tests {
         );
         assert_eq!(
             dry.summary,
-            "Car my-car\nTrack Ring\nHUD component my_gauge\nHUD component standings (replaces the shipped one)"
+            "Car my-car\n\
+             Track Ring (no Ring.ground.msgpack; no Ring.curbs.msgpack; no Ring.walls.msgpack; no Ring.pit.msgpack)\n\
+             HUD component my_gauge\n\
+             HUD component standings (replaces the shipped one)"
         );
 
-        let done = install(&layout, &path, false).unwrap();
+        let done = install(&layout, &path, false, &[]).unwrap();
         assert!(done.installed);
         assert_eq!(
             std::fs::read(root.join("Game/Cars/custom/my-car/body.glb")).unwrap(),
@@ -513,15 +560,13 @@ mod tests {
         assert!(root
             .join("Game/Hud/custom/standings/component.json")
             .is_file());
-        assert!(done
-            .warnings
-            .iter()
-            .any(|w| w.contains("Ring.ground.msgpack")));
+        let ring = done.items.iter().find(|i| i.id == "track:Ring").unwrap();
+        assert_eq!(ring.warnings.len(), 4, "{:?}", ring.warnings);
 
         // Installed again: the player's own items are replaced, a file the
         // new version dropped does not linger.
         std::fs::write(root.join("Game/Cars/custom/my-car/old.png"), "x").unwrap();
-        let again = install(&layout, &path, false).unwrap();
+        let again = install(&layout, &path, false, &[]).unwrap();
         assert!(again.items.iter().all(|i| i.replaces));
         assert!(!root.join("Game/Cars/custom/my-car/old.png").exists());
         let _ = std::fs::remove_dir_all(&root);
@@ -560,11 +605,51 @@ mod tests {
             ),
         ];
         for (name, files, expected) in cases {
-            let err = install(&layout, &pack(&root, name, &files), false).unwrap_err();
+            let err = install(&layout, &pack(&root, name, &files), false, &[]).unwrap_err();
             assert!(err.contains(expected), "{name}: {err}");
         }
         assert!(!root.join("Game/Cars/custom").exists());
         assert!(!root.join("Server/content/tracks/custom").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn only_the_picked_items_install_and_one_left_out_may_be_refused() {
+        let root = release();
+        let layout = Layout::Release(root.clone());
+        let path = pack(
+            &root,
+            "mixed.acp",
+            &[
+                ("mine/car.toml", "id = \"dddd\"\n"),
+                ("copy/car.toml", "id = \"aaaa\"\n"),
+                ("hud/gauge/component.json", "{}"),
+            ],
+        );
+        let dry = install(&layout, &path, true, &[]).unwrap();
+        let refused: Vec<(&str, bool)> = dry
+            .items
+            .iter()
+            .map(|i| (i.id.as_str(), i.refused.is_empty()))
+            .collect();
+        assert_eq!(
+            refused,
+            [("car:copy", false), ("car:mine", true), ("hud:gauge", true)]
+        );
+        assert!(
+            install(&layout, &path, false, &[]).is_err(),
+            "all of it: copy is refused"
+        );
+
+        let only = ["CAR:mine".to_string(), "hud:gauge".to_string()];
+        let done = install(&layout, &path, false, &only).unwrap();
+        assert_eq!(done.summary, "Car mine\nHUD component gauge");
+        assert!(root.join("Game/Cars/custom/mine/car.toml").is_file());
+        assert!(!root.join("Game/Cars/custom/copy").exists());
+        assert!(root.join("Game/Hud/custom/gauge/component.json").is_file());
+
+        let err = install(&layout, &path, true, &["track:nope".to_string()]).unwrap_err();
+        assert!(err.contains("holds no track:nope"), "{err}");
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -577,7 +662,7 @@ mod tests {
         let layout = Layout::checkout(&code).unwrap();
         let mut files = vec![("car.toml", "id = \"ffff\"\n")];
         files.extend(RING);
-        install(&layout, &pack(&base, "Their Car.acp", &files), false).unwrap();
+        install(&layout, &pack(&base, "Their Car.acp", &files), false, &[]).unwrap();
         let content = base.join("apexsim-content");
         assert!(content.join("cars/custom/Their-Car/car.toml").is_file());
         assert!(content.join("tracks/custom/Ring/Ring.yaml").is_file());

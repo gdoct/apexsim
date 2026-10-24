@@ -7,6 +7,7 @@
 namespace fs = std::filesystem;
 
 static HWND gModeless;  // the open dialog window
+static const wchar_t* kPrevDialog = L"ApexPrevDialog";  // the dialog window open under it
 
 HFONT MakeUiFont(int dpi)
 {
@@ -49,6 +50,8 @@ HWND CreateDialogWindow(HWND owner, const wchar_t* cls, const wchar_t* title, in
     if (!hw) { EnableWindow(owner, TRUE); return nullptr; }
     CenterOn(hw, owner);
     ShowWindow(hw, SW_SHOW);
+    // A dialog opened from another one hands the message loop back to it on close.
+    SetPropW(hw, kPrevDialog, gModeless);
     gModeless = hw;
     return hw;
 }
@@ -56,7 +59,7 @@ HWND CreateDialogWindow(HWND owner, const wchar_t* cls, const wchar_t* title, in
 void CloseDialogWindow(HWND hw)
 {
     HWND owner = GetWindow(hw, GW_OWNER);
-    gModeless = nullptr;
+    gModeless = (HWND)RemovePropW(hw, kPrevDialog);
     EnableWindow(owner, TRUE);
     SetForegroundWindow(owner);
     DestroyWindow(hw);

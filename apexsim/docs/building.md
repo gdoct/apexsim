@@ -461,8 +461,8 @@ them, not installed, as one loose pack, `content\content.acp`
 ([../../apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md#loose-packs-acp)):
 `cars/<folder>/` as `Game\Cars` ships a car, `tracks/<Stem>/` with the
 server's files and the export and preview in `tracks/<Stem>/game/`. The
-launcher's Manage content > Install pack... puts them in the `custom/`
-folders. A pack carries no class wheels, so `Game\Wheels` holds the pack
+launcher's Manage content > Install pack... puts the ones the player ticks
+in the `custom/` folders. A pack carries no class wheels, so `Game\Wheels` holds the pack
 cars' wheels as well. `-AllContent` installs every car and circuit and makes
 no pack; `custom/` content is never packed. No showcase or track guide ships: the game renders the
 showcases of `Game\showcase.yml` and makes a circuit's guide when it is

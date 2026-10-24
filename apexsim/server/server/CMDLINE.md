@@ -41,7 +41,7 @@ The server does not start; the result is JSON on stdout, an error is
 `apexsim-server: <message>` on stderr with exit code 1.
 
 ```
-apexsim-server content install <PACK> [--root <INSTALL> | --checkout <CODE>] [--dry-run]
+apexsim-server content install <PACK> [--root <INSTALL> | --checkout <CODE>] [--dry-run] [--only <KIND:NAME>]...
 apexsim-server content list [--root <INSTALL>]
 apexsim-server content verify [--root <INSTALL>]
 ```
@@ -49,7 +49,7 @@ apexsim-server content verify [--root <INSTALL>]
 | Command | What it does |
 |---|---|
 | `install` | Read the `.apxpack` whole (every file against its hash, every path inside the item, the format levels against what this build reads), empty the item's own folders, write `server/...` under `Server/content/` and `game/...` under `Game/`, keep the pack in `Content/packs/` and record it in `Content/installed.json`. Prints the recorded entry. |
-| `install` a `.acp` | A loose pack ([packs.md](../../../apexsim-content/docs/packs.md#loose-packs-acp)): its cars, tracks and HUD components written into the `custom/` folders of a release (`--root`) or of a checkout (`--checkout`, the code root with `apexsim-content` beside it), each replacing the player's own item of its name. Refused, with nothing written, when an item reuses a shipped track's stem or another item's id. `--dry-run` writes nothing. Prints `items` (kind, name, files, `replaces`, the folders written to), `ignored`, `warnings` and `summary`, one line per item. |
+| `install` a `.acp` | A loose pack ([packs.md](../../../apexsim-content/docs/packs.md#loose-packs-acp)): its cars, tracks and HUD components written into the `custom/` folders of a release (`--root`) or of a checkout (`--checkout`, the code root with `apexsim-content` beside it), each replacing the player's own item of its name. `--only <KIND:NAME>` (`car:<folder>`, `track:<Stem>`, `hud:<id>`, any case, repeated) installs only those items; without it, every item. Refused, with nothing written, when an installed item cannot be (it reuses a shipped track's stem or another item's id, has no `.uemesh`, ...); an item left out does not matter. `--dry-run` writes nothing and lists every item. Prints `items`, each with `id` (what `--only` takes), `kind`, `name`, `label`, `note` (what it replaces, its warnings), `refused` (why it cannot be installed; empty when it can; these four always strings), `selected`, `warnings`, `files`, `replaces` and `to` (the folders written to); then `ignored`, and `summary`, one line per selected item. |
 | `list` | Print `Content/installed.json`. |
 | `verify` | Check every installed pack's files on disk against the pack kept for it; exit 1 when one is missing or changed. |
 

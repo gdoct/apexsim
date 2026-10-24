@@ -868,10 +868,11 @@ Mandarina Bay.
 **Last, with the network off.**
 
 - The launcher's Install pack... with an `.acp`, never clicked by hand: the
-  dry-run question, the install, then the car, track and HUD component in
-  the game and on the server (the installer and the launcher's reading of
-  its report were checked from the command line on Laguna Seca and the
-  SF70H). Then a release's `content\content.acp` (every default car and
+  item list (ticking, a refused item locked), the install of some items,
+  then the car, track and HUD component in the game and on the server (the
+  installer, `--only` and the launcher's reading of its report were checked
+  from the command line on Laguna Seca and the SF70H, the list's ticking
+  driven by a harness). Then a release's `content\content.acp` (every default car and
   circuit outside the starter set) installed the same way, and a pack
   circuit and car raced.
 - The launcher's AC import button, never clicked by hand, and the import

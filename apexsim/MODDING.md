@@ -257,9 +257,10 @@ An `.acp` is a zip of your own cars, tracks and HUD components, renamed to
 its `component.json`), or a baked track (its YAML and sidecars plus its
 export, `<Stem>.uescene.json`, `.uemesh`, `.png` and `.textures/`); one pack
 may hold several. Whoever gets it opens the launcher's **Manage content >
-Install pack...**, which shows what the pack holds and puts each item in
-the `custom/` folders above, on both the server's and the game's side, in
-an installed game or a checkout. An item replaces your own of the same
+Install pack...**, which lists what the pack holds with a tick box each and
+puts the ticked items in the `custom/` folders above, on both the server's
+and the game's side, in an installed game or a checkout. An item that
+cannot be installed is listed unticked with the reason. An item replaces your own of the same
 name. A car or track reusing another's `id` / `track_id` is refused: give a
 copy its own. The exact rules are in
 [apexsim-content/docs/packs.md](../apexsim-content/docs/packs.md#loose-packs-acp);

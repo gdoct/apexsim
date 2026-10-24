@@ -45,6 +45,10 @@ enum ContentCommand {
         /// An .acp: say what it holds and where it would go, write nothing
         #[arg(long)]
         dry_run: bool,
+        /// An .acp: install only this item (`car:<name>`, `track:<Stem>`,
+        /// `hud:<id>`); repeat for more. Default: every item
+        #[arg(long, value_name = "KIND:NAME")]
+        only: Vec<String>,
     },
     /// List the installed packs
     List {
@@ -69,6 +73,7 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
                 root,
                 checkout,
                 dry_run,
+                only,
             } => {
                 use apexsim_formats::pack::acp::ACP_EXTENSION;
                 use apexsim_server::content_acp::{self, Layout};
@@ -80,11 +85,11 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
                         Some(code) => Layout::checkout(&code)?,
                         None => Layout::Release(content_pack::install_root(root)?),
                     };
-                    let report = content_acp::install(&layout, &pack, dry_run)?;
+                    let report = content_acp::install(&layout, &pack, dry_run, &only)?;
                     return serde_json::to_value(report).map_err(|e| e.to_string());
                 }
-                if checkout.is_some() || dry_run {
-                    return Err("--checkout and --dry-run are for .acp packs".into());
+                if checkout.is_some() || dry_run || !only.is_empty() {
+                    return Err("--checkout, --dry-run and --only are for .acp packs".into());
                 }
                 let root = content_pack::install_root(root)?;
                 let entry = content_pack::install(&root, &pack)?;

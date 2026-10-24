@@ -16,7 +16,8 @@ HWND Ctl(HWND parent, const wchar_t* cls, const wchar_t* text, DWORD style, int 
 void SetFontAll(HWND parent, HFONT f);
 
 // A captioned window of class cls, w x h at 96 dpi, centred on owner, which is
-// disabled until CloseDialogWindow. Only one is open at a time.
+// disabled until CloseDialogWindow. One may be opened from another (owner is
+// then the first); closing it makes the first the active one again.
 HWND CreateDialogWindow(HWND owner, const wchar_t* cls, const wchar_t* title, int w, int h, int dpi);
 void CloseDialogWindow(HWND hw);
 // The open dialog window, for IsDialogMessage in the message loop; null when none.
