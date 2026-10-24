@@ -30,6 +30,10 @@ class UWidget;
  * ideal lap. Its primary action is the host's: start the race, which grids
  * from this classification.
  *
+ * After a race of an event that is a championship's round, the side panel
+ * shows the championship's standings (top three and the player's line);
+ * the server sends them again once it has kept the race, so they count it.
+ *
  * After a race, Incidents turns the table into the race's incident list as
  * the server keeps it for stewards (`RequestIncidents`): each row a contact,
  * a pass under yellow, a track-limits strike or a penalty, and activating
@@ -113,6 +117,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> TableBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> SummaryBox;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> LapChartBox;
+	/** After a championship round's race: the standings, the race counted once the server has kept it (ApexChampionshipPanel). */
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> ChampionshipBox;
+	FDelegateHandle ChampionshipsHandle;
+	void RefreshChampionships();
 
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveAgainButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackToLobbyButton;

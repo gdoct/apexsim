@@ -2087,6 +2087,9 @@ namespace
 			else if (Key == TEXT("Name"))   { bOk = Reader.ReadString(Out.Name); }
 			else if (Key == TEXT("Phase"))  { bOk = Reader.ReadUInt64(Raw); Out.Phase = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
 			else if (Key == TEXT("Raced"))  { bOk = Reader.ReadBool(Out.bRaced); }
+			else if (Key == TEXT("FastestLap"))       { bOk = Reader.ReadString(Out.FastestLap); }
+			else if (Key == TEXT("FastestLapMs"))     { bOk = Reader.ReadUInt64(Raw); Out.FastestLapMs = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
+			else if (Key == TEXT("FastestLapScored")) { bOk = Reader.ReadBool(Out.bFastestLapScored); }
 			else                            { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2119,6 +2122,7 @@ namespace
 			else if (Key == TEXT("Points"))  { bOk = Reader.ReadUInt64(Raw); Out.Points = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_int32)); }
 			else if (Key == TEXT("Wins"))    { bOk = Reader.ReadUInt64(Raw); Out.Wins = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
 			else if (Key == TEXT("Results")) { bOk = ParseArrayOf(Reader, Out.Results, &ParseIntElement); }
+			else if (Key == TEXT("FastestLaps")) { bOk = Reader.ReadUInt64(Raw); Out.FastestLaps = static_cast<int32>(FMath::Min<uint64>(Raw, MAX_uint16)); }
 			else                             { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -2144,10 +2148,13 @@ namespace
 				return false;
 			}
 			bool bOk = true;
+			uint64 Raw = 0;
 			if (Key == TEXT("Id"))             { bOk = Reader.ReadString(Out.Id); }
 			else if (Key == TEXT("Name"))      { bOk = Reader.ReadString(Out.Name); }
 			else if (Key == TEXT("Rounds"))    { bOk = ParseArrayOf(Reader, Out.Rounds, &ParseChampionshipRound); }
 			else if (Key == TEXT("Standings")) { bOk = ParseArrayOf(Reader, Out.Standings, &ParseChampionshipStanding); }
+			else if (Key == TEXT("FastestLapPoints"))   { bOk = Reader.ReadUInt64(Raw); Out.FastestLapPoints = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("FastestLapAnyPlace")) { bOk = Reader.ReadBool(Out.bFastestLapAnyPlace); }
 			else                               { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{

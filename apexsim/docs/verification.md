@@ -661,6 +661,21 @@ the events: its standings, SAVE / DELETE, a new one from the form.
 
 Run 2026-10-24: EVENTS showed Clock Cup with RACE NEXT, its start time and an IN m:ss badge stepping down, the lobby THE RACE STARTS IN, and the race counted in on time (`r3s-event-schedule`); a race under way took the late driver, held in the pit box (HELD) and driven out by the autopilot (`r3s-event-late`); the sheets showed PRACTICE, QUALIFYING (OUT IN Q1) and RACE with their lines (`r3s-event-sheets`); LEAGUES showed Autumn Series with Ada Quick leading on 25 points (`n7-leagues`). By hand: the dashboard's schedule and championship panels.
 
+`n7-round-standings` (an event at its race, the second round of a
+championship whose first, made up, is over, a point for the fastest lap):
+the lobby's side panel with CHAMPIONSHIP, Autumn Series, ROUND 2 OF 3 ·
+AFTER 1 ROUND, the fastest-lap rule and the standings (P1 Ada Quick with
+1W 1FL 26 PTS, the AI driver marked AI). By hand on a server with a
+championship over an event: the race of a round run to the flag, the
+results screen's side panel showing the standings before the race, then
+within a second or two of the session's end AFTER 2 ROUNDS with the race
+counted and its fastest lap ("fastest lap … · +1 pt"); the player's own
+line in the accent colour below the top three when they are further down;
+the dashboard's championship form with FASTEST LAP POINTS and FASTEST LAP
+SCORES, SAVE keeping them, and FL in the standings.
+
+By hand: a league season with two humans across two server restarts, the standings adding up both drivers by their proved ids.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

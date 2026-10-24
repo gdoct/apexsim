@@ -211,7 +211,7 @@ it and on Refresh (`UApexNetSubsystem::RequestChampionships`,
 `OnChampionships`): a row a championship (its name, "2 / 3 rounds raced ·
 leader Ada 43 pts", `ApexEventLabels::ChampionshipLine`, and its rounds by
 event name) and under it a row per driver, best first ("P1 Ada", "43 pts ·
-2 wins · R1 P1 · R2 P3 · R3 —", `StandingLine`).
+2 wins · R1 P1 · R2 P3 · R3 — · 1 fastest lap", `StandingLine`).
 
 ### Session lobby (`UI/ApexSessionLobbyWidget.cpp`)
 
@@ -232,19 +232,47 @@ from the listed event's `StartsAt`): it starts then whoever is there. The
 race's laps there are the listed session's, not the player's own create
 settings.
 
+An event that is a round of one or more championships
+([sessions.md](../server/sessions.md#championships)) shows each one's
+standings in the side panel under the host controls
+(`UI/ApexChampionshipPanel.cpp`, `ApexChampionshipPanel::Fill`): CHAMPIONSHIP,
+its name, "ROUND 2 OF 3 · AFTER 1 ROUND" (`ApexEventLabels::StandingsCaption`),
+its fastest-lap rule ("+1 pt for the fastest lap on a points finish",
+`FastestLapRule`) and, once this round is raced, its fastest lap ("fastest
+lap Ada 1:21.234 · +1 pt", `FastestLapLine`), then the first five
+standings and the player's own line after them when it is further down
+(`ShownStandings`), each "P7 Ada … 1W 1FL 26 PTS", the player's in the
+accent colour. The championships come from `RequestChampionships`, which
+the net subsystem sends on every `SessionJoined` that names an event, and
+they are filtered by the event's id (`ChampionshipsOfEvent`); the panel
+redraws on `OnChampionships`. The player's line is the human standing of
+the name they race under (`OwnStanding`): the wire names no driver id, so a
+driver renamed since their last round is found once they race under the
+new name.
+
 A server `Error` is a toast (`UApexRootWidget::HandleServerError`,
 `ApexServerError::Describe`): a race event's refusals (joining without a
 proved driver key, not entered with entries closed, the entry list full,
 a livery change) are sentences saying what happened, any other 403 is the
 server's reason as a sentence, and the rest keep their code.
 
-Checks: `ApexSim.UI.EventLobby.Labels`, `.Schedule` and `.Sheets`,
-`ApexSim.Net.ServerErrors`, `ApexSim.Net.Protocol.GoldenDecode`
-(`S_SessionJoinedEvent`, `S_EventSheets`, `S_Championships`), `GoldenEncode`
+Checks: `ApexSim.UI.EventLobby.Labels`, `.Schedule`, `.Sheets` and
+`.Championship`, `ApexSim.Net.ServerErrors`, `ApexSim.Net.Protocol.GoldenDecode`
+(`S_SessionJoinedEvent`, `S_EventSheets`, `S_Championships`,
+`S_ChampionshipsFastestLap`), `GoldenEncode`
 (`C_RequestEventSheets`, `C_RequestChampionships`) and `LobbyStateDecode`
 (`S_LobbyStateEvents`).
 
 ### Session results (`UI/ApexSessionResultsWidget.cpp`)
+
+After the race of an event that is a championship's round, the side panel
+shows the championship's standings under the lap chart as the lobby does
+(`ApexChampionshipPanel::Fill`, the first three and the player's line; not
+on a practice or qualifying sheet). The server sends `Championships` to
+the session once it has kept the race (about a second after the session
+is finished), and the panel redraws then: until it does, the caption says
+the table is after the rounds before ("AFTER 1 ROUND"), after it the race
+just run is counted ("AFTER 2 ROUNDS") with its fastest lap.
 
 After a race the client is still in, the side panel's **Incidents** turns
 the table into the race's incident list as the server keeps it for stewards

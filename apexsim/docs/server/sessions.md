@@ -1562,12 +1562,16 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
 
 A **championship** groups race events as its rounds and adds up their
 races' points (`server/server/src/championships.rs`): `Championship { id,
-name, events, points }`, kept in `<records>/championships/<id>.json`
+name, events, points, fastest_lap_points, fastest_lap_any_place }`, kept in `<records>/championships/<id>.json`
 (`ChampionshipStore`; the id the name's slug as an event's is). `events` are
 event ids in round order (each once, at most `MAX_ROUNDS` 30; an id with no
 event is a round still to be made), `points` the points by place, 1st
 first (`DEFAULT_POINTS` 25, 18, 15, 12, 10, 8, 6, 4, 2, 1 when none is
-given; a place past the table scores nothing).
+given; a place past the table scores nothing). `fastest_lap_points` (0 to
+`MAX_FASTEST_LAP_POINTS` 5; 0, the default, is no bonus) are added for
+each round's fastest lap; `fastest_lap_any_place` (false by default) says
+whether they need a points finish. Both are left out of the file at their
+defaults, so a file from before them reads, scores and writes as it did.
 
 **Standings** (`championships::standings`) are worked out whenever they
 are asked for, from each round's kept race result (its classification,
@@ -1577,17 +1581,38 @@ shown); an AI driver by name, since an event's AI ids are its own. A car
 classified retired keeps its place in the round and scores nothing; a
 win is 1st and not retired. The table is ordered by points, then wins,
 then the better places in turn (count-back), then the name; each
-standing carries its place in every round (0 for none). A round whose
+standing carries its place in every round (0 for none) and the rounds
+whose fastest-lap points it scored (`fastest_laps`). A round whose
 event is not raced yet, or no longer exists, counts nothing.
+
+**The fastest lap** (`championships::fastest_lap`) is a raced round's
+lowest best lap in the kept classification, a retired car's included: it
+is named on the round whoever holds it, whatever the rule. On equal laps
+the better-placed car holds it (the kept result has no time for when a
+lap was set). It scores `fastest_lap_points` when there are any, its
+holder is not retired, and, unless `fastest_lap_any_place`, their place
+scored points; else nobody scores them (they do not pass to the next
+fastest). They count in the points before the count-back, which is
+unchanged.
 
 The dashboard makes, edits and deletes them in the Events view
 ([operations.md](operations.md#admin-dashboard)); a client asks with
 `RequestChampionships` and is answered with `Championships`
 (`ChampionshipsData { Championships }`, each `ChampionshipData { Id, Name,
-Rounds, Standings }`, `ChampionshipRoundData { EventId, Name, Phase,
-Raced }`, `ChampionshipStandingData { Position, Name, Ai, Points, Wins,
-Results }`; `ChampionshipStore::wire`), shown in the session browser's
+Rounds, Standings, FastestLapPoints, FastestLapAnyPlace }`,
+`ChampionshipRoundData { EventId, Name, Phase, Raced, FastestLap,
+FastestLapMs, FastestLapScored }` (the holder by name),
+`ChampionshipStandingData { Position, Name, Ai, Points, Wins, Results,
+FastestLaps }`; `ChampionshipStore::wire`; the fastest-lap fields left off
+at their defaults), shown in the session browser's
 LEAGUES list ([client.md](../game/client.md#session-browser-uiapexsessionbrowserwidgetcpp)).
+Once an event's race is kept (by the event runner or a dashboard
+advance) and the event is a round of any championship, the server sends
+`Championships` unasked to that session's humans and spectators
+(`championships::push_after_race`), so the client's results screen shows
+standings that count the race just run; the client asks for them itself
+on joining an event's session, for its lobby
+([client.md](../game/client.md#session-lobby-uiapexsessionlobbywidgetcpp)).
 The offline season against the AI is the client's own
 ([client.md](../game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)).
 

@@ -976,17 +976,24 @@ pub struct ChampionshipsData {
 }
 
 /// A championship: its rounds (race events) and its standings, best first.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChampionshipData {
     pub id: String,
     pub name: String,
     pub rounds: Vec<ChampionshipRoundData>,
     pub standings: Vec<ChampionshipStandingData>,
+    /// Points for a round's fastest lap (0 to 5); left off at 0, no bonus.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub fastest_lap_points: u8,
+    /// The fastest lap scores whatever the place (a car not retired);
+    /// left off when it needs a points finish.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fastest_lap_any_place: bool,
 }
 
 /// A championship's round: a race event.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChampionshipRoundData {
     pub event_id: String,
@@ -998,10 +1005,19 @@ pub struct ChampionshipRoundData {
     /// Its race has been run and kept; left off when not.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub raced: bool,
+    /// Who set the race's fastest lap (their name); left off when none.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub fastest_lap: String,
+    /// The race's fastest lap, ms; left off when none.
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub fastest_lap_ms: u32,
+    /// The fastest lap's holder scored its points; left off when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fastest_lap_scored: bool,
 }
 
 /// A driver's place in a championship.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ChampionshipStandingData {
     pub position: u16,
@@ -1016,6 +1032,9 @@ pub struct ChampionshipStandingData {
     /// The finishing place in each round, in round order; 0 for none.
     #[serde(default)]
     pub results: Vec<u16>,
+    /// Rounds whose fastest-lap points they scored; left off at 0.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub fastest_laps: u16,
 }
 
 /// A race event as the lobby lists it (`LobbyState.Events`).
@@ -3974,6 +3993,35 @@ mod tests {
             0x74, 0x73, 0x12, 0xA4, 0x57, 0x69, 0x6E, 0x73, 0x00, 0xA7, 0x52, 0x65, 0x73, 0x75,
             0x6C, 0x74, 0x73, 0x92, 0x02, 0x00,
         ];
+        const GOLDEN_S_FASTEST: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x68, 0x61, 0x6D, 0x70, 0x69, 0x6F,
+            0x6E, 0x73, 0x68, 0x69, 0x70, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x81, 0xAD, 0x43,
+            0x68, 0x61, 0x6D, 0x70, 0x69, 0x6F, 0x6E, 0x73, 0x68, 0x69, 0x70, 0x73, 0x91, 0x86,
+            0xA2, 0x49, 0x64, 0xAD, 0x61, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x2D, 0x73, 0x65, 0x72,
+            0x69, 0x65, 0x73, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xAD, 0x41, 0x75, 0x74, 0x75, 0x6D,
+            0x6E, 0x20, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0xA6, 0x52, 0x6F, 0x75, 0x6E, 0x64,
+            0x73, 0x92, 0x87, 0xA7, 0x45, 0x76, 0x65, 0x6E, 0x74, 0x49, 0x64, 0xA7, 0x72, 0x6F,
+            0x75, 0x6E, 0x64, 0x2D, 0x31, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA7, 0x52, 0x6F, 0x75,
+            0x6E, 0x64, 0x20, 0x31, 0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x04, 0xA5, 0x52, 0x61,
+            0x63, 0x65, 0x64, 0xC3, 0xAA, 0x46, 0x61, 0x73, 0x74, 0x65, 0x73, 0x74, 0x4C, 0x61,
+            0x70, 0xA3, 0x42, 0x6F, 0x74, 0xAC, 0x46, 0x61, 0x73, 0x74, 0x65, 0x73, 0x74, 0x4C,
+            0x61, 0x70, 0x4D, 0x73, 0xCE, 0x00, 0x01, 0x3D, 0x52, 0xB0, 0x46, 0x61, 0x73, 0x74,
+            0x65, 0x73, 0x74, 0x4C, 0x61, 0x70, 0x53, 0x63, 0x6F, 0x72, 0x65, 0x64, 0xC3, 0x83,
+            0xA7, 0x45, 0x76, 0x65, 0x6E, 0x74, 0x49, 0x64, 0xA7, 0x72, 0x6F, 0x75, 0x6E, 0x64,
+            0x2D, 0x32, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA7, 0x52, 0x6F, 0x75, 0x6E, 0x64, 0x20,
+            0x32, 0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x01, 0xA9, 0x53, 0x74, 0x61, 0x6E, 0x64,
+            0x69, 0x6E, 0x67, 0x73, 0x92, 0x85, 0xA8, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F,
+            0x6E, 0x01, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA3, 0x41, 0x64, 0x61, 0xA6, 0x50, 0x6F,
+            0x69, 0x6E, 0x74, 0x73, 0x19, 0xA4, 0x57, 0x69, 0x6E, 0x73, 0x01, 0xA7, 0x52, 0x65,
+            0x73, 0x75, 0x6C, 0x74, 0x73, 0x92, 0x01, 0x00, 0x87, 0xA8, 0x50, 0x6F, 0x73, 0x69,
+            0x74, 0x69, 0x6F, 0x6E, 0x02, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA3, 0x42, 0x6F, 0x74,
+            0xA2, 0x41, 0x69, 0xC3, 0xA6, 0x50, 0x6F, 0x69, 0x6E, 0x74, 0x73, 0x13, 0xA4, 0x57,
+            0x69, 0x6E, 0x73, 0x00, 0xA7, 0x52, 0x65, 0x73, 0x75, 0x6C, 0x74, 0x73, 0x92, 0x02,
+            0x00, 0xAB, 0x46, 0x61, 0x73, 0x74, 0x65, 0x73, 0x74, 0x4C, 0x61, 0x70, 0x73, 0x01,
+            0xB0, 0x46, 0x61, 0x73, 0x74, 0x65, 0x73, 0x74, 0x4C, 0x61, 0x70, 0x50, 0x6F, 0x69,
+            0x6E, 0x74, 0x73, 0x01, 0xB2, 0x46, 0x61, 0x73, 0x74, 0x65, 0x73, 0x74, 0x4C, 0x61,
+            0x70, 0x41, 0x6E, 0x79, 0x50, 0x6C, 0x61, 0x63, 0x65, 0xC3,
+        ];
         let asked = rmp_serde::to_vec_named(&ClientMessage::RequestChampionships).unwrap();
         print_golden("C_RequestChampionships", &asked);
         assert!(matches!(
@@ -3990,12 +4038,14 @@ mod tests {
                         name: "Round 1".into(),
                         phase: 4,
                         raced: true,
+                        ..Default::default()
                     },
                     ChampionshipRoundData {
                         event_id: "round-2".into(),
                         name: "Round 2".into(),
                         phase: 1,
                         raced: false,
+                        ..Default::default()
                     },
                 ],
                 standings: vec![
@@ -4006,6 +4056,7 @@ mod tests {
                         points: 25,
                         wins: 1,
                         results: vec![1, 0],
+                        ..Default::default()
                     },
                     ChampionshipStandingData {
                         position: 2,
@@ -4014,8 +4065,10 @@ mod tests {
                         points: 18,
                         wins: 0,
                         results: vec![2, 0],
+                        ..Default::default()
                     },
                 ],
+                ..Default::default()
             }],
         };
         let bytes = rmp_serde::to_vec_named(&ServerMessage::Championships(data.clone())).unwrap();
@@ -4026,6 +4079,26 @@ mod tests {
         }
         assert_eq!(asked, GOLDEN_C);
         assert_eq!(bytes, GOLDEN_S);
+
+        // The fastest-lap rule and who scored it (`S_ChampionshipsFastestLap`):
+        // a point for any place, set by the AI driver in round 1.
+        let mut fastest = data.clone();
+        let series = &mut fastest.championships[0];
+        series.fastest_lap_points = 1;
+        series.fastest_lap_any_place = true;
+        series.rounds[0].fastest_lap = "Bot".into();
+        series.rounds[0].fastest_lap_ms = 81_234;
+        series.rounds[0].fastest_lap_scored = true;
+        series.standings[1].points = 19;
+        series.standings[1].fastest_laps = 1;
+        let bytes =
+            rmp_serde::to_vec_named(&ServerMessage::Championships(fastest.clone())).unwrap();
+        print_golden("S_ChampionshipsFastestLap", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::Championships(d) => assert_eq!(d, fastest),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        assert_eq!(bytes, GOLDEN_S_FASTEST);
     }
 
     /// A listed session names its race rules, and a lobby says when the

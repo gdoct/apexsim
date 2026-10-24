@@ -1069,8 +1069,15 @@ pub(crate) async fn run_once(
             let st = ctx.state.read().await;
             match st.sessions.get(&session) {
                 Some(gs) => {
-                    store.note_finished(session, gs, now);
+                    let recorded = store.note_finished(session, gs, now);
                     drop(st);
+                    if recorded
+                        && store
+                            .get(&event.id)
+                            .is_some_and(|e| e.phase == EventPhase::Done)
+                    {
+                        crate::championships::push_after_race(ctx, session, &event.id).await;
+                    }
                     run_schedule(ctx, store, &event.id, session, now).await;
                     continue;
                 }

@@ -16,6 +16,7 @@
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexChampionshipPanel.h"
 #include "UI/ApexCreateSessionModel.h"
 #include "UI/ApexEventLabels.h"
 #include "UI/ApexNavigation.h"
@@ -74,6 +75,7 @@ void UApexSessionLobbyWidget::NativeConstruct()
 		Net->OnCountdownUpdate.AddDynamic(this, &UApexSessionLobbyWidget::HandleCountdownUpdate);
 		Net->OnGameModeChanged.AddDynamic(this, &UApexSessionLobbyWidget::HandleGameModeChanged);
 		ChatHandle = Net->OnChat.AddWeakLambda(this, [this](const FApexChatLine&) { RefreshChat(); });
+		ChampionshipsHandle = Net->OnChampionships.AddWeakLambda(this, [this](const FApexChampionships&) { RefreshChampionships(); });
 	}
 }
 
@@ -86,6 +88,7 @@ void UApexSessionLobbyWidget::NativeDestruct()
 		Net->OnCountdownUpdate.RemoveDynamic(this, &UApexSessionLobbyWidget::HandleCountdownUpdate);
 		Net->OnGameModeChanged.RemoveDynamic(this, &UApexSessionLobbyWidget::HandleGameModeChanged);
 		Net->OnChat.Remove(ChatHandle);
+		Net->OnChampionships.Remove(ChampionshipsHandle);
 	}
 	Super::NativeDestruct();
 }
@@ -230,6 +233,10 @@ UWidget* UApexSessionLobbyWidget::BuildSidePanel()
 	ApexUI::AddV(HostControlsBox, CountdownButton);
 
 	ApexUI::AddV(Column, HostControlsBox);
+
+	// A championship round: its standings, top five and the player's line.
+	ChampionshipBox = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(Column, ChampionshipBox, FMargin(0.0f, 26.0f, 0.0f, 0.0f));
 	ApexUI::AddV(Column, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
 
 	NotReadyText = ApexUI::MakeText(*WidgetTree, FString(), ApexUI::Font::Mono(10.0f, 100), ApexUI::Palette::Accent);
@@ -297,6 +304,18 @@ void UApexSessionLobbyWidget::RefreshAll()
 	RefreshGrid();
 	RefreshSidePanel();
 	RefreshChat();
+	RefreshChampionships();
+}
+
+void UApexSessionLobbyWidget::RefreshChampionships()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!ChampionshipBox || !Net)
+	{
+		return;
+	}
+	const bool bAny = ApexChampionshipPanel::Fill(*WidgetTree, *ChampionshipBox, *Net);
+	ChampionshipBox->SetVisibility(bAny ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 void UApexSessionLobbyWidget::RefreshChat()

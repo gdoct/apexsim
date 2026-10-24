@@ -8073,6 +8073,36 @@ runs:
         label: "browser, LEAGUES: the championship and its standings"
         checks: "N7: Autumn Series, 1 / 2 rounds raced · leader Ada Quick 25 pts, R1 Sheet Cup · R2 round-two; P1 Ada Quick 25 pts · 1 win · R1 P1 · R2 —; Dee Bot marked AI with no points (retired)"
 
+  - id: n7-round-standings
+    about: "N7. A championship round's lobby shows the standings so far, with the fastest-lap rule"
+    # The event is the second round of a championship whose first ("Opening
+    # Cup", made up and over: Ada Quick won it with the fastest lap, Dee Bot
+    # retired) is kept; a point for the fastest lap on a points finish.
+    server:
+      event:
+        name: "Round Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: race
+        practice_min: 5
+        qualifying_min: 5
+        ai: 3
+        laps: 2
+        championship: "Autumn Series"
+        championship_raced_round: true
+        fastest_lap_points: 1
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Click Browse sessions"]
+      14: ["apexsim.ui.Click Shiverstone Circuit"]
+      22: ["apexsim.ui.Texts"]
+    shots:
+      - at: 24
+        label: "lobby: the championship's standings"
+        checks: "N7: the side panel's CHAMPIONSHIP, Autumn Series, ROUND 2 OF 3 · AFTER 1 ROUND, +1 pt for the fastest lap on a points finish; P1 Ada Quick 1W 1FL 26 PTS, P2 Bea Steady 18 PTS, P3 Cy Late 15 PTS, P4 AI · Dee Bot 0 PTS (top five)"
+
   - id: r3c-incidents
     about: "N19. The race's incident list on the results screen, and the jump into the replay"
     # Two laps with a full field from a standing start: contacts and track

@@ -306,11 +306,23 @@ pub(crate) async fn advance(ctx: &GameLoopCtx, id: SessionId) -> Result<&'static
     };
     // An event keeps the phase just finished before the next one begins.
     gs.settle_weekend();
-    events.note_finished(id, gs, super::schedule::unix_now());
-    gs.advance_weekend().map_err(str::to_string)?;
+    let raced = events
+        .note_finished(id, gs, super::schedule::unix_now())
+        .then(|| events.event_of_session(id))
+        .flatten()
+        .filter(|e| {
+            events
+                .get(e)
+                .is_some_and(|e| e.phase == crate::events::EventPhase::Done)
+        });
+    let advanced = gs.advance_weekend().map_err(str::to_string);
     let mode = gs.session.game_mode;
     let players = audience(&st, id).await;
     drop(st);
+    if let Some(event) = raced {
+        crate::championships::push_after_race(ctx, id, &event).await;
+    }
+    advanced?;
     send_to(ctx, &players, ServerMessage::GameModeChanged { mode }).await;
     info!("Admin advanced session {} to {:?}", id, mode);
     Ok(mode_name(mode))

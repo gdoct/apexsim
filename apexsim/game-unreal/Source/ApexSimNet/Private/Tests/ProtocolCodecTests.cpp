@@ -1331,6 +1331,30 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 					TestEqual(TEXT("results"), Series.Standings[1].Results.Num(), 2);
 					TestEqual(TEXT("second in round 1"), Series.Standings[1].Results[0], 2);
 				}
+				TestEqual(TEXT("no fastest-lap points"), Series.FastestLapPoints, 0);
+				TestTrue(TEXT("no fastest lap named"), Series.Rounds[0].FastestLap.IsEmpty());
+			}
+		}
+	}
+
+	{
+		// The fastest-lap rule and who scored it: a point at any place, the AI driver's lap in round 1.
+		FApexServerMessage Message;
+		if (Decode(TEXT("ChampionshipsFastestLap"), ApexGolden::S_ChampionshipsFastestLap, Message)
+			&& TestEqual(TEXT("one championship"), Message.Championships.Championships.Num(), 1))
+		{
+			const FApexChampionship& Series = Message.Championships.Championships[0];
+			TestEqual(TEXT("FastestLapPoints"), Series.FastestLapPoints, 1);
+			TestTrue(TEXT("FastestLapAnyPlace"), Series.bFastestLapAnyPlace);
+			if (TestEqual(TEXT("rounds"), Series.Rounds.Num(), 2) && TestEqual(TEXT("standings"), Series.Standings.Num(), 2))
+			{
+				TestEqual(TEXT("FastestLap"), Series.Rounds[0].FastestLap, FString(TEXT("Bot")));
+				TestEqual(TEXT("FastestLapMs"), Series.Rounds[0].FastestLapMs, 81234);
+				TestTrue(TEXT("FastestLapScored"), Series.Rounds[0].bFastestLapScored);
+				TestFalse(TEXT("round 2 none"), Series.Rounds[1].bFastestLapScored);
+				TestEqual(TEXT("Bot's points"), Series.Standings[1].Points, 19);
+				TestEqual(TEXT("FastestLaps"), Series.Standings[1].FastestLaps, 1);
+				TestEqual(TEXT("Ada none"), Series.Standings[0].FastestLaps, 0);
 			}
 		}
 	}

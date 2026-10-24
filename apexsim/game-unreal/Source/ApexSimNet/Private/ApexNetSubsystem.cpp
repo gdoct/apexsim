@@ -1430,6 +1430,9 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 			if (CurrentEvent.IsEvent())
 			{
 				UE_LOG(LogApexSimNet, Log, TEXT("<- SessionJoined Event=%s (%s) Phase=%d"), *CurrentEvent.Id, *CurrentEvent.Name, CurrentEvent.Phase);
+				// The lobby and the results show the championships this event
+				// is a round of; the server sends them again once its race is kept.
+				RequestChampionships();
 			}
 			OnSessionJoined.Broadcast(CurrentSessionId, Message.GridPosition);
 

@@ -286,11 +286,120 @@ namespace ApexEventLabels
 			const int32 Place = Standing.Results[Round];
 			Parts.Add(Place > 0 ? FString::Printf(TEXT("R%d P%d"), Round + 1, Place) : FString::Printf(TEXT("R%d —"), Round + 1));
 		}
+		if (Standing.FastestLaps > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d fastest lap%s"), Standing.FastestLaps, Standing.FastestLaps == 1 ? TEXT("") : TEXT("s")));
+		}
 		if (Standing.bAi)
 		{
 			Parts.Add(TEXT("AI"));
 		}
 		return FString::Join(Parts, TEXT(" · "));
+	}
+
+	/** The championships the event EventId is a round of, in the order the server sends them. */
+	inline TArray<const FApexChampionship*> ChampionshipsOfEvent(const FApexChampionships& All, const FString& EventId)
+	{
+		TArray<const FApexChampionship*> Out;
+		if (EventId.IsEmpty())
+		{
+			return Out;
+		}
+		for (const FApexChampionship& Champ : All.Championships)
+		{
+			if (Champ.Rounds.ContainsByPredicate([&EventId](const FApexChampionshipRound& Round) { return Round.EventId == EventId; }))
+			{
+				Out.Add(&Champ);
+			}
+		}
+		return Out;
+	}
+
+	/**
+	 * The player's standing: a human line under the name they race under
+	 * (the wire names no driver id; a standing carries the name last raced
+	 * under). INDEX_NONE when they have not scored a round yet.
+	 */
+	inline int32 OwnStanding(const FApexChampionship& Champ, const FString& PlayerName)
+	{
+		return PlayerName.IsEmpty() ? INDEX_NONE : Champ.Standings.IndexOfByPredicate([&PlayerName](const FApexChampionshipStanding& Standing)
+		{
+			return !Standing.bAi && Standing.Name.Equals(PlayerName, ESearchCase::IgnoreCase);
+		});
+	}
+
+	/** The standings a short table shows, as indices: the first Top, and the player's own line after them when it is further down. */
+	inline TArray<int32> ShownStandings(const FApexChampionship& Champ, const FString& PlayerName, int32 Top)
+	{
+		TArray<int32> Out;
+		for (int32 Index = 0; Index < Champ.Standings.Num() && Index < Top; ++Index)
+		{
+			Out.Add(Index);
+		}
+		const int32 Own = OwnStanding(Champ, PlayerName);
+		if (Own != INDEX_NONE && !Out.Contains(Own))
+		{
+			Out.Add(Own);
+		}
+		return Out;
+	}
+
+	/**
+	 * Where the event stands in the championship and what the standings
+	 * count: "ROUND 2 OF 3 · AFTER 1 ROUND", "ROUND 1 OF 3 · NOTHING RACED
+	 * YET".
+	 */
+	inline FString StandingsCaption(const FApexChampionship& Champ, const FString& EventId)
+	{
+		int32 Raced = 0;
+		int32 Round = 0;
+		for (int32 Index = 0; Index < Champ.Rounds.Num(); ++Index)
+		{
+			Raced += Champ.Rounds[Index].bRaced ? 1 : 0;
+			if (Round == 0 && Champ.Rounds[Index].EventId == EventId)
+			{
+				Round = Index + 1;
+			}
+		}
+		const FString Counted = Raced == 0 ? FString(TEXT("NOTHING RACED YET"))
+			: FString::Printf(TEXT("AFTER %d ROUND%s"), Raced, Raced == 1 ? TEXT("") : TEXT("S"));
+		return Round > 0 ? FString::Printf(TEXT("ROUND %d OF %d · %s"), Round, Champ.Rounds.Num(), *Counted) : Counted;
+	}
+
+	/** The event's round in the championship; null when it is not one. */
+	inline const FApexChampionshipRound* RoundOf(const FApexChampionship& Champ, const FString& EventId)
+	{
+		return Champ.Rounds.FindByPredicate([&EventId](const FApexChampionshipRound& Round) { return Round.EventId == EventId; });
+	}
+
+	/**
+	 * A raced round's fastest lap: "fastest lap Bot 1:21.234 · +1 pt" when
+	 * it scored, without the points when it did not (or the championship
+	 * gives none); empty when the round has none.
+	 */
+	inline FString FastestLapLine(const FApexChampionship& Champ, const FApexChampionshipRound& Round)
+	{
+		if (Round.FastestLap.IsEmpty() || Round.FastestLapMs <= 0)
+		{
+			return FString();
+		}
+		FString Line = FString::Printf(TEXT("fastest lap %s %s"), *Round.FastestLap, *Ms(Round.FastestLapMs));
+		if (Round.bFastestLapScored && Champ.FastestLapPoints > 0)
+		{
+			Line += FString::Printf(TEXT(" · +%d pt%s"), Champ.FastestLapPoints, Champ.FastestLapPoints == 1 ? TEXT("") : TEXT("s"));
+		}
+		return Line;
+	}
+
+	/** The championship's fastest-lap rule: "+1 pt for the fastest lap on a points finish"; empty when it gives none. */
+	inline FString FastestLapRule(const FApexChampionship& Champ)
+	{
+		if (Champ.FastestLapPoints <= 0)
+		{
+			return FString();
+		}
+		return FString::Printf(TEXT("+%d pt%s for the fastest lap %s"), Champ.FastestLapPoints, Champ.FastestLapPoints == 1 ? TEXT("") : TEXT("s"),
+			Champ.bFastestLapAnyPlace ? TEXT("at any place") : TEXT("on a points finish"));
 	}
 
 	/** The line under the start button while the server has the event's next phase to start. */

@@ -289,12 +289,17 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   `/sheets.csv` download the weekend's sheets (the event JSON also carries
   `replays`, each kept phase's recordings); under the events, the
   championships ([sessions.md](sessions.md#championships)): each with its
-  rounds, its standings (place, driver, points, wins, the place in each
-  round) and its rounds and points table to edit (SAVE, DELETE), and a form
-  for a new one (name, event ids in round order, points); the API is
+  rounds (each raced one with its fastest lap: who, the time, "+" when it
+  scored), its standings (place, driver, points, wins, FL: the rounds whose
+  fastest-lap points they scored, the place in each round) and its rounds,
+  points table and fastest-lap rule to edit (SAVE, DELETE), and a form for
+  a new one (name, event ids in round order, points, FASTEST LAP POINTS
+  0-5, FASTEST LAP SCORES on a points finish or at any place); the API is
   `GET /api/championships` (each with `rounds` and `standings`), `POST
-  /api/championships` with `{ "name", "events", "points" }`, `POST
-  /api/championships/<id>` with `events` and/or `points`, and `DELETE
+  /api/championships` with `{ "name", "events", "points",
+  "fastest_lap_points", "fastest_lap_any_place" }`, `POST
+  /api/championships/<id>` with any of `events`, `points` and the two
+  fastest-lap keys (one left out keeps its value), and `DELETE
   /api/championships/<id>`;
   `POST /api/events/<id>/open` opens its session (and keeps it open across
   restarts), `/start` starts that session (its next phase), `/advance`

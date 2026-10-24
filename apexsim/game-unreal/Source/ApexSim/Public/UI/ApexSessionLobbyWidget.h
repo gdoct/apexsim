@@ -82,6 +82,10 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> StartAction;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> NotReadyText;
 	UPROPERTY(Transient) TObjectPtr<UVerticalBox> HostControlsBox;
+	/** The standings of the championships a race event's session is a round of (ApexChampionshipPanel). */
+	UPROPERTY(Transient) TObjectPtr<UVerticalBox> ChampionshipBox;
+	FDelegateHandle ChampionshipsHandle;
+	void RefreshChampionships();
 
 	/** Countdown length the host picks, cycled through a few sensible values. */
 	int32 CountdownSeconds = 10;

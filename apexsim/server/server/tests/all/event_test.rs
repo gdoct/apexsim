@@ -416,6 +416,24 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             );
         }
 
+        // A championship over this event and one still to be made: points
+        // by place and one for the fastest lap, the humans by their proved
+        // ids.
+        let (status, made) = api(
+            http,
+            "POST",
+            "/api/championships",
+            Some(&serde_json::json!({
+                "name": "Autumn Series",
+                "events": ["autumn-cup", "winter-cup"],
+                "points": [10, 6, 4, 2],
+                "fastest_lap_points": 1,
+            })),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+        assert_eq!(made["championship"]["fastest_lap_points"], 1);
+
         // Straight to the race's grid: practice and qualifying are done.
         let (status, raced) = api(http, "POST", "/api/events/autumn-cup/start", None).await;
         assert_eq!(
@@ -428,12 +446,41 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             let gs = st.sessions.get_mut(&session).unwrap();
             assert_eq!(gs.session.game_mode, GameMode::Grid);
             assert_eq!(gs.session.participants[&b.player_id].grid_position, 1);
-            // The race run and over.
+            // The race run and over, Ada with its fastest lap.
+            for (id, ms) in [(a.player_id, 79_000), (b.player_id, 80_000)] {
+                gs.session
+                    .participants
+                    .get_mut(&id)
+                    .unwrap()
+                    .best_lap_time_ms = Some(ms);
+            }
             gs.session.game_mode = GameMode::Race;
             gs.session.state = SessionState::Finished;
         }
         let event = wait_event(http, "the race recorded", |e| e["phase"] == "done").await;
         assert_eq!(event["opened"], false);
+        // The race kept, the session is sent the standings that count it
+        // unasked (`championships::push_after_race`).
+        let pushed = b
+            .until(|m| match m {
+                ServerMessage::Championships(d) => Some(d.clone()),
+                _ => None,
+            })
+            .await
+            .expect("the standings after the race");
+        let series = &pushed.championships[0];
+        assert_eq!(series.fastest_lap_points, 1);
+        assert!(series.rounds[0].raced);
+        assert_eq!(
+            (
+                series.rounds[0].fastest_lap.as_str(),
+                series.rounds[0].fastest_lap_ms,
+                series.rounds[0].fastest_lap_scored
+            ),
+            ("Ada", 79_000, true)
+        );
+        let ada = series.standings.iter().find(|s| s.name == "Ada").unwrap();
+        assert_eq!(ada.fastest_laps, 1);
         let phases: Vec<&str> = event["results"]
             .as_array()
             .unwrap()
@@ -512,20 +559,6 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             .await;
         assert_eq!(code, Some(404));
 
-        // A championship over this event and one still to be made: points
-        // by place, the humans by their proved ids.
-        let (status, made) = api(
-            http,
-            "POST",
-            "/api/championships",
-            Some(&serde_json::json!({
-                "name": "Autumn Series",
-                "events": ["autumn-cup", "winter-cup"],
-                "points": [10, 6, 4, 2],
-            })),
-        )
-        .await;
-        assert_eq!(status, 200, "{made}");
         let (status, listed) = api(http, "GET", "/api/championships", None).await;
         assert_eq!(status, 200);
         let series = &listed["championships"][0];
@@ -535,7 +568,7 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
         let table = series["standings"].as_array().unwrap();
         assert_eq!(table.len(), 4);
         let scored: u64 = table.iter().map(|s| s["points"].as_u64().unwrap()).sum();
-        assert!(scored > 0 && scored <= 22, "{table:?}");
+        assert_eq!(scored, 23, "10 + 6 + 4 + 2 and the fastest lap: {table:?}");
         a.send(&ClientMessage::RequestChampionships).await;
         let wire = a
             .until(|m| match m {

@@ -1470,6 +1470,29 @@ struct ChampionshipBody {
     events: Option<Vec<String>>,
     #[serde(default)]
     points: Option<Vec<u16>>,
+    /// Points for a round's fastest lap, 0 to 5 (`Championship::fastest_lap_points`).
+    #[serde(default)]
+    fastest_lap_points: Option<u8>,
+    /// The fastest lap scores at any place, not only a points finish.
+    #[serde(default)]
+    fastest_lap_any_place: Option<bool>,
+}
+
+impl ChampionshipBody {
+    /// The fastest-lap rule this body asks for over `current`; none when
+    /// it names neither field.
+    fn fastest_lap(
+        &self,
+        current: crate::championships::FastestLapRule,
+    ) -> Option<crate::championships::FastestLapRule> {
+        if self.fastest_lap_points.is_none() && self.fastest_lap_any_place.is_none() {
+            return None;
+        }
+        Some(crate::championships::FastestLapRule {
+            points: self.fastest_lap_points.unwrap_or(current.points),
+            any_place: self.fastest_lap_any_place.unwrap_or(current.any_place),
+        })
+    }
 }
 
 async fn championship_create(ctx: &AdminContext, body: &Bytes) -> Resp {
@@ -1481,10 +1504,12 @@ async fn championship_create(ctx: &AdminContext, body: &Bytes) -> Resp {
         return error(StatusCode::BAD_REQUEST, "the championship needs a name");
     }
     let store = std::sync::Arc::clone(&ctx.state.read().await.championships);
+    let rule = new.fastest_lap(Default::default()).unwrap_or_default();
     let c = store.create(
         &new.name,
         new.events.unwrap_or_default(),
         new.points.unwrap_or_default(),
+        rule,
         unix_now(),
     );
     tracing::info!("Admin created championship {} ({})", c.id, c.name);
@@ -1497,7 +1522,13 @@ async fn championship_update(ctx: &AdminContext, id: &str, body: &Bytes) -> Resp
         Err(e) => return error(StatusCode::BAD_REQUEST, &format!("championship: {}", e)),
     };
     let store = std::sync::Arc::clone(&ctx.state.read().await.championships);
-    match store.update(id, change.events, change.points) {
+    let rule = store.get(id).and_then(|c| {
+        change.fastest_lap(crate::championships::FastestLapRule {
+            points: c.fastest_lap_points,
+            any_place: c.fastest_lap_any_place,
+        })
+    });
+    match store.update(id, change.events, change.points, rule) {
         Some(c) => ok(json!({ "ok": true, "championship": c })),
         None => error(StatusCode::NOT_FOUND, "no such championship"),
     }

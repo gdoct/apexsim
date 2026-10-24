@@ -168,4 +168,92 @@ bool FApexEventSheetLabelsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexEventChampionshipPanelTest,
+	"ApexSim.UI.EventLobby.Championship",
+	ApexTestFlags)
+
+bool FApexEventChampionshipPanelTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexEventLabels;
+	// Two championships, the event a round of the second only.
+	FApexChampionships All;
+	All.Championships.SetNum(2);
+	All.Championships[0].Name = TEXT("Spring Series");
+	All.Championships[0].Rounds.SetNum(1);
+	All.Championships[0].Rounds[0].EventId = TEXT("spring-cup");
+	FApexChampionship& Series = All.Championships[1];
+	Series.Name = TEXT("Autumn Series");
+	Series.FastestLapPoints = 1;
+	Series.Rounds.SetNum(3);
+	Series.Rounds[0].EventId = TEXT("round-1");
+	Series.Rounds[0].bRaced = true;
+	Series.Rounds[1].EventId = TEXT("autumn-cup");
+	Series.Rounds[2].EventId = TEXT("round-3");
+	for (int32 Place = 1; Place <= 8; ++Place)
+	{
+		FApexChampionshipStanding Standing;
+		Standing.Position = Place;
+		Standing.Name = FString::Printf(TEXT("Driver %d"), Place);
+		Standing.Points = 30 - Place;
+		Series.Standings.Add(Standing);
+	}
+	Series.Standings[6].Name = TEXT("Ada");
+	// An AI driver of the player's name is not the player.
+	Series.Standings[2].Name = TEXT("Ada");
+	Series.Standings[2].bAi = true;
+
+	const TArray<const FApexChampionship*> Of = ChampionshipsOfEvent(All, TEXT("autumn-cup"));
+	if (TestEqual(TEXT("one championship has the round"), Of.Num(), 1))
+	{
+		TestEqual(TEXT("which"), Of[0]->Name, FString(TEXT("Autumn Series")));
+	}
+	TestEqual(TEXT("no event, none"), ChampionshipsOfEvent(All, FString()).Num(), 0);
+	TestEqual(TEXT("own line: the human of that name"), OwnStanding(Series, TEXT("ada")), 6);
+	TestEqual(TEXT("not scored yet"), OwnStanding(Series, TEXT("Bea")), INDEX_NONE);
+	const auto Joined = [](const TArray<int32>& Indices)
+	{
+		TArray<FString> Parts;
+		for (const int32 Index : Indices)
+		{
+			Parts.Add(FString::FromInt(Index));
+		}
+		return FString::Join(Parts, TEXT(","));
+	};
+	TestEqual(TEXT("top five and the player's line"), Joined(ShownStandings(Series, TEXT("Ada"), 5)), FString(TEXT("0,1,2,3,4,6")));
+	TestEqual(TEXT("the player in the top five: no extra line"), Joined(ShownStandings(Series, TEXT("Driver 2"), 5)), FString(TEXT("0,1,2,3,4")));
+	TestEqual(TEXT("caption before the race"), StandingsCaption(Series, TEXT("autumn-cup")), FString(TEXT("ROUND 2 OF 3 · AFTER 1 ROUND")));
+	TestEqual(TEXT("the rule"), FastestLapRule(Series), FString(TEXT("+1 pt for the fastest lap on a points finish")));
+
+	// The race kept: counted, its fastest lap named and scored.
+	FApexChampionshipRound& Round = Series.Rounds[1];
+	Round.bRaced = true;
+	Round.FastestLap = TEXT("Ada");
+	Round.FastestLapMs = 81234;
+	Round.bFastestLapScored = true;
+	TestEqual(TEXT("caption after the race"), StandingsCaption(Series, TEXT("autumn-cup")), FString(TEXT("ROUND 2 OF 3 · AFTER 2 ROUNDS")));
+	if (TestNotNull(TEXT("the event's round"), RoundOf(Series, TEXT("autumn-cup"))))
+	{
+		TestEqual(TEXT("fastest lap scored"), FastestLapLine(Series, *RoundOf(Series, TEXT("autumn-cup"))),
+			FString(TEXT("fastest lap Ada 1:21.234 · +1 pt")));
+	}
+	Round.bFastestLapScored = false;
+	TestEqual(TEXT("fastest lap not scored"), FastestLapLine(Series, Round), FString(TEXT("fastest lap Ada 1:21.234")));
+	TestEqual(TEXT("no fastest lap"), FastestLapLine(Series, Series.Rounds[2]), FString());
+	Series.bFastestLapAnyPlace = true;
+	Series.FastestLapPoints = 2;
+	TestEqual(TEXT("any place"), FastestLapRule(Series), FString(TEXT("+2 pts for the fastest lap at any place")));
+	Series.FastestLapPoints = 0;
+	TestEqual(TEXT("no rule"), FastestLapRule(Series), FString());
+	TestEqual(TEXT("nothing raced"), StandingsCaption(All.Championships[0], TEXT("spring-cup")), FString(TEXT("ROUND 1 OF 1 · NOTHING RACED YET")));
+
+	FApexChampionshipStanding Fast;
+	Fast.Points = 26;
+	Fast.FastestLaps = 1;
+	Fast.Results = { 1 };
+	Fast.Wins = 1;
+	TestEqual(TEXT("a standing's fastest laps"), StandingLine(Fast), FString(TEXT("26 pts · 1 win · R1 P1 · 1 fastest lap")));
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -774,25 +774,33 @@ PAGES.events = el => {
   let champs = [];
   function paintChamps() {
     const ids = events.map(e => e.id).join(', ');
-    const table = c => c.standings.length ? `<div class="row head" style="grid-template-columns:36px minmax(140px,220px) 70px 50px ${c.rounds.map(() => '44px').join(' ')}"><span>POS</span><span>DRIVER</span><span>PTS</span><span>WINS</span>${c.rounds.map((r, i) => `<span title="${esc(r.name || r.event_id)}">R${i + 1}</span>`).join('')}</div>` +
-      c.standings.map((s, i) => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) 70px 50px ${c.rounds.map(() => '44px').join(' ')};padding:5px 0">
+    const cols = c => `36px minmax(140px,220px) 70px 50px 40px ${c.rounds.map(() => '44px').join(' ')}`;
+    const table = c => c.standings.length ? `<div class="row head" style="grid-template-columns:${cols(c)}"><span>POS</span><span>DRIVER</span><span>PTS</span><span>WINS</span><span title="Rounds whose fastest-lap points they scored">FL</span>${c.rounds.map((r, i) => `<span title="${esc(r.name || r.event_id)}">R${i + 1}</span>`).join('')}</div>` +
+      c.standings.map((s, i) => `<div class="row" style="grid-template-columns:${cols(c)};padding:5px 0">
         <span class="muted">${i + 1}</span><span class="name" style="font-size:17px">${esc(s.name)}${s.entrant.ai !== undefined ? ' <span class="sm-mono">AI</span>' : ''}</span>
-        <span>${s.points}</span><span class="muted">${s.wins}</span>${s.results.map(p => `<span class="${p === 1 ? 'sb' : 'muted'}">${p || '—'}</span>`).join('')}</div>`).join('')
+        <span>${s.points}</span><span class="muted">${s.wins}</span><span class="muted">${s.fastest_laps || '—'}</span>${s.results.map(p => `<span class="${p === 1 ? 'sb' : 'muted'}">${p || '—'}</span>`).join('')}</div>`).join('')
       : '<div class="muted">No round raced yet.</div>';
+    // A raced round's fastest lap: who, the time, and whether it scored.
+    const fl = r => r.fastest_lap ? ` (fastest ${esc(r.fastest_lap.name)} ${fmtLap(r.fastest_lap.ms)}${r.fastest_lap.scored ? ' +' : ''})` : '';
+    // The fastest-lap rule's fields, filled from a championship or empty for a new one.
+    const flFields = c => `<label class="field"><span class="eyebrow">FASTEST LAP POINTS (0–5, 0 NONE)</span><input class="input" type="number" min="0" max="5" data-c="flp" value="${c ? (c.fastest_lap_points || 0) : 0}"></label>
+          <label class="field"><span class="eyebrow">FASTEST LAP SCORES</span><select class="input" data-c="flany"><option value="0"${c && c.fastest_lap_any_place ? '' : ' selected'}>ON A POINTS FINISH</option><option value="1"${c && c.fastest_lap_any_place ? ' selected' : ''}>AT ANY PLACE (NOT RETIRED)</option></select></label>`;
     $('#ch-panel').innerHTML = `<div class="panel-head"><span class="eyebrow">CHAMPIONSHIPS · ROUNDS ARE EVENTS, POINTS BY PLACE, DRIVERS BY THEIR PROVED ID</span></div>
       <div style="padding:4px 16px 16px 16px">${champs.map(c => `<div style="margin-top:14px" data-ch="${esc(c.id)}">
         <div style="display:flex;gap:12px;align-items:baseline"><span class="name">${esc(c.name)}</span><span class="sm-mono">${esc(c.id)}</span>
           <span class="muted">${c.rounds.filter(r => r.raced).length} / ${c.rounds.length} ROUNDS RACED</span></div>
-        <div class="muted" style="margin:4px 0 8px 0">${c.rounds.map((r, i) => `R${i + 1} ${esc(r.name || r.event_id + ' (no such event)')}`).join(' · ')}</div>
+        <div class="muted" style="margin:4px 0 8px 0">${c.rounds.map((r, i) => `R${i + 1} ${esc(r.name || r.event_id + ' (no such event)')}${fl(r)}`).join(' · ')}</div>
         ${table(c)}
         <div class="form" style="margin-top:8px"><label class="field"><span class="eyebrow">ROUNDS (EVENT IDS, IN ORDER)</span><input class="input" data-c="events" value="${esc(c.events.join(', '))}"></label>
-          <label class="field"><span class="eyebrow">POINTS, 1ST FIRST</span><input class="input" data-c="points" value="${esc(c.points.join(', '))}"></label></div>
+          <label class="field"><span class="eyebrow">POINTS, 1ST FIRST</span><input class="input" data-c="points" value="${esc(c.points.join(', '))}"></label>
+          ${flFields(c)}</div>
         <div class="acts-row"><button class="btn sm primary" data-chact="save" data-id="${esc(c.id)}">SAVE</button><button class="btn sm danger" data-chact="delete" data-id="${esc(c.id)}">DELETE</button></div></div>`).join('')
       || '<div class="muted" style="margin-top:8px">No championships. One groups events as its rounds and adds up their races’ points by driver.</div>'}
       <div style="margin-top:18px" data-ch=""><div class="eyebrow">NEW CHAMPIONSHIP</div><div class="form">
         <label class="field"><span class="eyebrow">NAME</span><input class="input" data-c="name" maxlength="60" placeholder="Autumn Series"></label>
         <label class="field"><span class="eyebrow">ROUNDS (EVENT IDS, IN ORDER)</span><input class="input" data-c="events" placeholder="${esc(ids)}"></label>
-        <label class="field"><span class="eyebrow">POINTS, 1ST FIRST (EMPTY: 25, 18, 15 …)</span><input class="input" data-c="points" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></label></div>
+        <label class="field"><span class="eyebrow">POINTS, 1ST FIRST (EMPTY: 25, 18, 15 …)</span><input class="input" data-c="points" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></label>
+        ${flFields(null)}</div>
         <div class="acts-row"><button class="btn primary" data-chact="create">CREATE</button></div></div></div>`;
   }
   const chField = (box, k) => { const x = $(`[data-c="${k}"]`, box); return x ? x.value : ''; };
@@ -807,7 +815,8 @@ PAGES.events = el => {
     if (!b) return;
     const box = b.closest('[data-ch]');
     try {
-      const body = { events: chList(chField(box, 'events')), points: chList(chField(box, 'points')).map(x => parseInt(x, 10)).filter(x => x >= 0) };
+      const body = { events: chList(chField(box, 'events')), points: chList(chField(box, 'points')).map(x => parseInt(x, 10)).filter(x => x >= 0),
+        fastest_lap_points: Math.max(0, Math.min(5, parseInt(chField(box, 'flp'), 10) || 0)), fastest_lap_any_place: chField(box, 'flany') === '1' };
       if (b.dataset.chact === 'create') {
         body.name = chField(box, 'name').trim();
         if (!body.name) throw new Error('The championship needs a name.');

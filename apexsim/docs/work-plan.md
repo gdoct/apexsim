@@ -14,7 +14,7 @@ Main is green at `50d69b4e` (server tests pass but for an occasional
 `test_disconnect_cleanup` timeout under load; 352 client tests). Every
 agent branch of the 2026-10-23/24 night run is merged, A4's squeeze
 fix and A7's prototype measurements included. The imported F1s are measured (A7: their
-contact is left). Next: what is left of N7 (step 4).
+contact is left). N7 is done (fastest-lap rule and per-round rules offline, standings in a round's lobby and results online).
 
 ## Legend
 
@@ -43,11 +43,10 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
-| N7 | Championships: a fastest-lap point, per-round rules online (offline season with both, and online standings built) | Game mode | P2 | 🟡 | S–M | 3 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 4 |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 4 |
-| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 4 |
+| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
+| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
+| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
 | A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
@@ -71,11 +70,9 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-3. **Online and depth.** What is left of N7 online (a fastest-lap point,
-   per-round rules, standings in the lobby and the results).
-4. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
+3. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
-5. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
+4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -274,15 +271,6 @@ Planned block by block, with the agent's prep and follow-up, in
 
 Not in any backlog before this plan; each is a package in
 [roadmap.md](roadmap.md).
-
-#### N7. Championships and series with points — P2 · 🟡 · M
-The offline season and online championships are built
-([features-by-date](features-by-date.md),
-[sessions](server/sessions.md#championships)); the offline season has a
-fastest-lap point and each round's own rules
-([client.md](game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)).
-**Left:** a fastest-lap point and per-round rules online; the standings in the
-lobby and on the results screen of a championship's event.
 
 #### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.

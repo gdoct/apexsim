@@ -21,6 +21,7 @@
 #include "Misc/Paths.h"
 #include "Race/ApexQualifyingBoard.h"
 #include "UI/ApexButtonWidget.h"
+#include "UI/ApexChampionshipPanel.h"
 #include "UI/ApexIncidentList.h"
 #include "UI/ApexNavigation.h"
 #include "UI/ApexRaceResultsWidget.h"
@@ -183,6 +184,17 @@ void UApexSessionResultsWidget::OnScreenActivated()
 		{
 			IncidentsHandle = Net->OnIncidents.AddUObject(this, &UApexSessionResultsWidget::HandleIncidents);
 		}
+		if (!ChampionshipsHandle.IsValid())
+		{
+			// The standings that count this race arrive once the server keeps it.
+			ChampionshipsHandle = Net->OnChampionships.AddWeakLambda(this, [this](const FApexChampionships&)
+			{
+				if (IsVisible())
+				{
+					RefreshChampionships();
+				}
+			});
+		}
 	}
 
 	// A new visit starts on the classification.
@@ -191,8 +203,25 @@ void UApexSessionResultsWidget::OnScreenActivated()
 	RefreshIncidentsButton();
 	RefreshTable();
 	RefreshSidePanel();
+	RefreshChampionships();
 	RefreshSaveReplay();
 	RefreshPrimaryAction();
+}
+
+void UApexSessionResultsWidget::RefreshChampionships()
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!ChampionshipBox || !Net)
+	{
+		return;
+	}
+	// A race's results: a qualifying or practice sheet has its own summary.
+	const bool bAny = !IsTimesheet() && ApexChampionshipPanel::Fill(*WidgetTree, *ChampionshipBox, *Net, 3);
+	if (!bAny)
+	{
+		ChampionshipBox->ClearChildren();
+	}
+	ChampionshipBox->SetVisibility(bAny ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 }
 
 void UApexSessionResultsWidget::HandleWeekendStateChanged()
@@ -425,6 +454,9 @@ UWidget* UApexSessionResultsWidget::BuildSidePanel()
 	ApexUI::AddV(Column, ApexUI::MakeLabel(*WidgetTree, TEXT("Lap by lap")), FMargin(0.0f, 26.0f, 0.0f, 12.0f));
 	LapChartBox = WidgetTree->ConstructWidget<UVerticalBox>();
 	ApexUI::AddV(Column, LapChartBox);
+
+	ChampionshipBox = WidgetTree->ConstructWidget<UVerticalBox>();
+	ApexUI::AddV(Column, ChampionshipBox, FMargin(0.0f, 26.0f, 0.0f, 0.0f));
 
 	ApexUI::AddV(Column, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
 

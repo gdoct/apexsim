@@ -39,15 +39,6 @@ None open.
 
 ## P2: depth
 
-### 7. Championships
-
-The offline season is built (Main menu > Drive > Season,
-[client.md](game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)). Left:
-
-- A fastest-lap point.
-
-**Check:** a league season with two humans across two server restarts.
-
 ### 8. Public server list
 
 Parked 2026-10-18 (not now): players join known hosts by address.

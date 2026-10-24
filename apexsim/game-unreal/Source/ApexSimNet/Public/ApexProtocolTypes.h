@@ -4113,6 +4113,12 @@ struct FApexChampionshipRound
 	/** The event's phase (FApexLobbyEvent::Phase); 0 for one the server no longer has. */
 	int32 Phase = 0;
 	bool bRaced = false;
+	/** Who set the race's fastest lap (their name); empty when none. */
+	FString FastestLap;
+	/** The race's fastest lap, ms; 0 for none. */
+	int32 FastestLapMs = 0;
+	/** The fastest lap's holder scored the championship's fastest-lap points. */
+	bool bFastestLapScored = false;
 };
 
 /** `ChampionshipStandingData` (network.rs): a driver's place in a championship. */
@@ -4126,6 +4132,8 @@ struct FApexChampionshipStanding
 	int32 Wins = 0;
 	/** The finishing place in each round, in round order; 0 for none. */
 	TArray<int32> Results;
+	/** Rounds whose fastest-lap points they scored. */
+	int32 FastestLaps = 0;
 };
 
 /** `ChampionshipData` (network.rs): a championship's rounds and standings, best first. */
@@ -4135,6 +4143,10 @@ struct FApexChampionship
 	FString Name;
 	TArray<FApexChampionshipRound> Rounds;
 	TArray<FApexChampionshipStanding> Standings;
+	/** Points for a round's fastest lap (0 to 5); 0 is no bonus. */
+	int32 FastestLapPoints = 0;
+	/** The fastest lap scores at any place (a car not retired), not only on a points finish. */
+	bool bFastestLapAnyPlace = false;
 };
 
 /** `ChampionshipsData` (network.rs), answering RequestChampionships. */

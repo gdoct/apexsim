@@ -55,7 +55,10 @@ the server starts it then, whoever is there. `sheets: true` keeps a made-up
 weekend's results for every phase before `phase` (all three for `done`):
 four drivers, one an AI, so the browser's Sheets have something to show.
 `championship: <name>` keeps a championship with the event as its first
-round and a second round not made yet (records/championships/<slug>.json).
+round and a second round not made yet (records/championships/<slug>.json);
+with `championship_raced_round: true` a made-up event already over
+("Opening Cup", its weekend kept as `sheets` keeps one) is its first round
+and the event its second, and `fastest_lap_points` gives it that rule.
 
 A sitting (`--sit <block>`, scripts/verify/sittings.yml) is the same
 launch with a human driving: docs/wheel-sitting.md. No shots and no time
@@ -261,9 +264,21 @@ def seed_event(work: Path, event: dict) -> None:
         champ_slug = re.sub(r"[^a-z0-9]+", "-", champ.lower()).strip("-")
         champs = work / "records" / "championships"
         champs.mkdir(parents=True, exist_ok=True)
+        rounds = [slug, "round-two"]
+        folder = work / "records" / "events"
+        folder.mkdir(parents=True, exist_ok=True)
+        if event.get("championship_raced_round"):
+            opening = {
+                "version": 1, "id": "opening-cup", "name": "Opening Cup", "spec": dict(spec, name="Opening Cup"),
+                "entries_open": False, "entries": [], "ai": [], "phase": "done", "opened": False,
+                "results": made_up_sheets("done", spec["car_id"]),
+            }
+            (folder / "opening-cup.json").write_text(json.dumps(opening, indent=2), encoding="utf-8")
+            rounds = ["opening-cup", slug, "round-three"]
         (champs / f"{champ_slug}.json").write_text(json.dumps({
             "version": 1, "id": champ_slug, "name": champ,
-            "events": [slug, "round-two"], "points": [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
+            "events": rounds, "points": [25, 18, 15, 12, 10, 8, 6, 4, 2, 1],
+            "fastest_lap_points": int(event.get("fastest_lap_points", 0)),
         }, indent=2), encoding="utf-8")
     folder = work / "records" / "events"
     folder.mkdir(parents=True, exist_ok=True)
