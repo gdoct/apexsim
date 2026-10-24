@@ -8167,7 +8167,7 @@ runs:
         checks: "Follow-ups #36: after the seek the cars are where the race had them, the tower's laps and gaps sensible"
 
   - id: n11-livery-editor
-    about: "R27. The garage's livery editor"
+    about: "R28. The garage's livery editor"
     # Car select from the start: the SF-26's EDIT, Paint three steps on
     # (Midnight blue), Accent six (Sun yellow), Number two (3), SAVE. Leaves
     # apexsim-content/cars/custom/liveries/fugazzi-sf26/midnight-blue-3 for
@@ -8197,7 +8197,7 @@ runs:
         checks: "R27: the livery button names Midnight blue 3 (yours); the toast; the turntable in it"
 
   - id: n11-edited-livery-race
-    about: "R27. A race in the livery the editor saved"
+    about: "R28. A race in the livery the editor saved"
     # After n11-livery-editor: the SF-26 has six liveries of its own, so 7 is
     # the first of the player's (midnight-blue-3 while it is the only one).
     # The client uploads it to the server (the log's "Own livery ... goes to
