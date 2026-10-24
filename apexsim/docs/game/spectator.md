@@ -244,9 +244,10 @@ the server's own code (`apexsim-protocol`'s `render` and `showcase_list`),
 so its file is the build's byte for byte
 (`server/ffi/tests/showcase.rs`, and its ignored
 `the_shipped_showcase_renders_again_through_the_api` in release against
-`build/showcase/`; `ApexSim.Backdrop.ShowcaseRenderMatchesBuild` in the
-game's own build; both skip without that file, so render it with
-`apexsim-replay showcase --name Zandervoort.gt3.day` first). `UApexDemoModeSubsystem` works out which entries have no
+`build/showcase/`, which skips without that file; and
+`ApexSim.Backdrop.ShowcaseRenderMatchesBuild` in the game's own build,
+which renders its reference with the server's release `apexsim-replay
+showcase` into `Intermediate/ApexTests` and skips without that tool). `UApexDemoModeSubsystem` works out which entries have no
 fresh local file (`ShowcasesToRender`: none of that name, or none whose
 track and car checksums match the catalog, on a track this machine draws
 and has the YAML of; the pending track's first) and renders them one at a

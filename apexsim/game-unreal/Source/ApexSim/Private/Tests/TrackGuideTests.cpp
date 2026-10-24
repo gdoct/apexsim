@@ -436,15 +436,23 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexGuideMadeMatchesBuildTest, "ApexSim.Guide.
 bool FApexGuideMadeMatchesBuildTest::RunTest(const FString& Parameters)
 {
 	FString Why, TracksDir, CarsDir;
-	const FString Shipped = ApexRepoPaths::CodePath(TEXT("build/guide"));
-	if (!ApexPhysics::IsAvailable(&Why) || !ApexSimContent::Find(TracksDir, CarsDir, Why)
-		|| !IFileManager::Get().FileExists(*(Shipped / TEXT("Zandervoort.GT3.guide.json"))))
+	if (!ApexPhysics::IsAvailable(&Why) || !ApexSimContent::Find(TracksDir, CarsDir, Why))
 	{
-		AddInfo(FString::Printf(TEXT("skipped: %s"), Why.IsEmpty() ? TEXT("no build/guide") : *Why));
+		AddInfo(FString::Printf(TEXT("skipped: %s"), *Why));
 		return true;
 	}
 	const FString Yaml = ApexSimContent::TrackYaml(TracksDir, TEXT("Zandervoort"));
 	TestFalse(TEXT("the track's YAML is found"), Yaml.IsEmpty());
+	// The reference is the server's own build of the same guide, made now (no
+	// stage writes build/guide any more).
+	const FString Shipped = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("GuideServer"));
+	IFileManager::Get().DeleteDirectory(*Shipped, false, true);
+	if (!ApexRunReplayTool(FString::Printf(TEXT("guide \"%s\" --class GT3 --tracks-dir \"%s\" --cars-dir \"%s\" --out \"%s\""),
+			*Yaml, *TracksDir, *CarsDir, *Shipped), Why))
+	{
+		AddInfo(FString::Printf(TEXT("skipped: %s"), *Why));
+		return true;
+	}
 	const FString Out = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("Guide"));
 	IFileManager::Get().DeleteDirectory(*Out, false, true);
 	const uint8 NoCancel = 0;
@@ -458,9 +466,10 @@ bool FApexGuideMadeMatchesBuildTest::RunTest(const FString& Parameters)
 		TArray<uint8> Ours, Theirs;
 		FFileHelper::LoadFileToArray(Ours, *(Out / Name));
 		FFileHelper::LoadFileToArray(Theirs, *(Shipped / Name));
-		TestTrue(FString::Printf(TEXT("%s is the build's"), Name), Ours.Num() > 0 && Ours == Theirs);
+		TestTrue(FString::Printf(TEXT("%s is the server's"), Name), Ours.Num() > 0 && Ours == Theirs);
 	}
 	IFileManager::Get().DeleteDirectory(*Out, false, true);
+	IFileManager::Get().DeleteDirectory(*Shipped, false, true);
 	return true;
 }
 

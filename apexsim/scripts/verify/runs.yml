@@ -8044,7 +8044,7 @@ runs:
       - {at: 45, label: "cleared", checks: "the scene gone after 5 s", lead: 0.5, exec: "apexsim.cam.Release"}
 
   - id: n16-school-screen
-    about: "R22. Driving school: the School screen, a circuit's tests"
+    about: "R26. Driving school: the School screen, a circuit's tests"
     # Makes the GT3 guide of Snorisring first when it is not in
     # Saved/ApexSim/Guides (a few seconds).
     args:
@@ -8062,7 +8062,7 @@ runs:
         checks: "N16: brake test, corner exit, corner time, clean lap; each goal and its GOLD / SILVER / BRONZE line"
 
   - id: n16-school-tests
-    about: "R22. Driving school: a test card, a run judged, the result card (stand-in driving)"
+    about: "R26. Driving school: a test card, a run judged, the result card (stand-in driving)"
     # The stand-in laps clean (a medal or too slow on the lap) and never
     # stops (FAILED, ran through the box, on the brake test). Writes the
     # profile's school medals: back up Saved/SaveGames first. The cards stay

@@ -321,11 +321,21 @@ bool FApexShowcaseRenderMatchesBuildTest::RunTest(const FString& Parameters)
 		AddInfo(FString::Printf(TEXT("skipped: %s"), *Why));
 		return true;
 	}
-	const FString Shipped = ApexRepoPaths::CodePath(TEXT("build/showcase/Zandervoort.gt3.day.apxs"));
+	// The reference is the server's own render of the same entry, made now:
+	// no build stage writes build/showcase any more, and a file left there
+	// from an older tree drifts as the content moves.
 	FApexShowcaseRenderer::FInputs Inputs;
-	if (!IFileManager::Get().FileExists(*Shipped) || !FApexShowcaseRenderer::FindInputs(Inputs, Why))
+	if (!FApexShowcaseRenderer::FindInputs(Inputs, Why))
 	{
-		AddInfo(FString::Printf(TEXT("skipped: no %s or no content (%s)"), *Shipped, *Why));
+		AddInfo(FString::Printf(TEXT("skipped: no content (%s)"), *Why));
+		return true;
+	}
+	const FString Shipped = FPaths::Combine(FPaths::ProjectIntermediateDir(), TEXT("ApexTests"), TEXT("Zandervoort.gt3.day.server.apxs"));
+	IFileManager::Get().MakeDirectory(*FPaths::GetPath(Shipped), true);
+	if (!ApexRunReplayTool(FString::Printf(TEXT("showcase --name Zandervoort.gt3.day --list \"%s\" --tracks-dir \"%s\" --cars-dir \"%s\" --out \"%s\""),
+			*Inputs.ListPath, *Inputs.TracksDir, *Inputs.CarsDir, *Shipped), Why))
+	{
+		AddInfo(FString::Printf(TEXT("skipped: %s"), *Why));
 		return true;
 	}
 	TArray<FString> Names;
@@ -344,9 +354,10 @@ bool FApexShowcaseRenderMatchesBuildTest::RunTest(const FString& Parameters)
 	TArray<uint8> Ours, Theirs;
 	FFileHelper::LoadFileToArray(Ours, *Out);
 	FFileHelper::LoadFileToArray(Theirs, *Shipped);
-	TestEqual(TEXT("the same size as the build's"), Ours.Num(), Theirs.Num());
-	TestTrue(TEXT("the same bytes as the build's"), Ours == Theirs);
+	TestEqual(TEXT("the same size as the server's"), Ours.Num(), Theirs.Num());
+	TestTrue(TEXT("the same bytes as the server's"), Ours == Theirs);
 	IFileManager::Get().Delete(*Out);
+	IFileManager::Get().Delete(*Shipped);
 	return true;
 }
 

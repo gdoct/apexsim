@@ -205,8 +205,8 @@ Unattended: `-ApexGuide=<Stem>[:Class] -ApexGuideCorner=N -ApexGuideCamera=N`
   cancel; its ignored release test against `build/guide`.
 - `ApexSim.Guide.*` (parser, file index, player, keys, text;
   `MadeMatchesBuild`: the game's build makes Zandervoort's GT3 guide as
-  `build/guide` holds it, after `apexsim-replay guide` on its YAML; skipped
-  without it).
+  the server's release `apexsim-replay guide` makes it, run by the test
+  into `Intermediate/ApexTests`; skipped without that tool).
 - `apexsim-replay guide <yaml> --report` to see the detected corners.
 
 ## Traps
