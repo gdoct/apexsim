@@ -38,6 +38,15 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
   - photo mode over a watched race: free and orbit camera, lens, high-resolution shot (`d51a7574`)
   - an orbit taken up from a wide shot starts 12 m from the car (`a48c9783`)
 - **N22** — colour-vision palettes for the HUD, and no state in colour alone (`c5194503`)
+- **N26**
+  - the launcher strips the mark of the web from a release package (`aa69d926`)
+  - the launcher unblocks only the binaries the release shipped (`ce17e33d`)
+  - the launcher's content management in modules of its own (`1ecfb2a2`)
+  - loose content packs (.acp): cars, tracks and HUD components from a zip (`f6953d7f`)
+  - a release ships the content outside the starter set as content/content.acp (`2a696a09`)
+  - pick which items of an .acp to install (`b784e83b`)
+  - -NoContentPack builds the starter set alone (`64d48a12`)
+  - manage content: tick your own items and uninstall them (`6b941096`)
 - **N27**
   - column blocks, version 2 stream files (`e8ee00f3`)
   - ten-second column blocks (`d7b95787`)

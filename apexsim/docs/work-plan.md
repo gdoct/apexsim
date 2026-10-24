@@ -43,14 +43,13 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
-| N26 | Content packs and a content repository (phases 0 and 1 built) | Platform (epic) | P2 | 🔴 | L | 2 |
-| N7 | Championships: a fastest-lap point, per-round rules (offline season and online standings built) | Game mode | P2 | 🟡 | S–M | 4 |
-| C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 3 |
-| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
-| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
-| N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 3 |
-| G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
+| N7 | Championships: a fastest-lap point, per-round rules (offline season and online standings built) | Game mode | P2 | 🟡 | S–M | 3 |
+| C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
+| H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 4 |
+| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 4 |
+| P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 4 |
+| N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
+| G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
 | A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
@@ -69,16 +68,14 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **N26:** (optional) the sidecars baked out of the source folders;
-   phase 2 waits on the repository and the signing key.
-3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
+2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-4. **Online and depth.** What is left of N7 online (a fastest-lap point,
+3. **Online and depth.** What is left of N7 online (a fastest-lap point,
    per-round rules, standings in the lobby and the results).
-5. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
+4. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
-6. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
+5. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
 
 ## 3. Items by type
 
@@ -301,38 +298,6 @@ Render scale (TSR) and HDR are built. Left: DLSS and FSR plugins (decided 2026-1
 the default; you accept NVIDIA's DLSS SDK terms when the plugin is
 downloaded, so the download is yours), and the checks in verification.md.
 
-#### N26. Content packs and a content repository — P2 · 🔴 · L (epic)
-*Source: roadmap #27, [proposals/split-off-content.md](proposals/split-off-content.md).*
-**What:** One repository and one release zip hold the code and every car,
-circuit and prop: a clone is a gigabyte of LFS, every fix ships every
-track, and nothing states which content fits which code.
-**Outcome:** Versioned content packs installed and updated apart from the
-code, a release that copies a starter set from the content, and
-a join that offers to update a mismatched track.
-**Implementation:** Five phases, each with its own check in the proposal.
-Phase 0 splits this repository into two roots, `apexsim/` and
-`apexsim-content/`, laid out as the future repositories, with the code
-depending on the content and never the reverse; the track editor,
-`track-core` and the content tools go with the content. Phase 0 is built (the three roots). Left: (optional) the sidecars baked out of the source folders. After that come the pack format and a local
-install, the repository split (`git filter-repo --subdirectory-filter` per
-root), the signed index with server and launcher updates, and
-update-and-join.
-**Decided 2026-10-19:** a pack states only the format levels it is
-written in, never a code version; the code states the levels it reads.
-**Decided 2026-10-18:** packs and the signed index are GitHub release
-assets of `apexsim-content` (the index URL stays a setting); the starter set is one
-car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
-Zandvoort, Monza).
-Phase 1 (the pack format and a local install,
-[packs.md](../../apexsim-content/docs/packs.md)) is built and checked.
-**Human:** 🔴 still for creating `apexsim-content` and the signing key. The
-split rewrites history and moves LFS, so it is done once, by hand, with
-you there. What is left of phase 0 needs neither and is 🟢.
-**Watch out:** the starter set has to carry a fresh install (the menu
-showcases, the demo backdrop, the first-run defaults), but the tests run on
-the whole content root.
-
-
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).
 
@@ -346,11 +311,9 @@ pointer. 🔴: needs a headset and someone to sit in it; do after N10.
 What only you can do, roughly in the order it pays off:
 
 1. **Decided 2026-10-18:** D1 real layout, R3 a key per install, N7 an
-   offline season first, N8 parked, N26 on GitHub releases with a
-   class-wide seed, B9 and B10, N10 DLSS and FSR, N14 offline TTS, AU1's
+   offline season first, N8 parked, B9 and B10, N10 DLSS and FSR, N14 offline TTS, AU1's
    four targets, UDP encryption closed; 2026-10-20: S1 in the refresh,
-   X2 tests declare their backend, N28 before R3/N7. Left: create `apexsim-content` and
-   its signing key (N26 phase 2).
+   X2 tests declare their backend, N28 before R3/N7.
 2. **Sit at the wheel** — H1, then H2 (racing the AI, listen, pad), and
    client prediction over real latency ([verification.md](verification.md)).
 3. **Hardware integrations** — a motion rig / SimHub / wheel LEDs for N2,
