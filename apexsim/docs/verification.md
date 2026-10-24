@@ -611,6 +611,8 @@ Look at ([apexsim-content/docs/cars.md](../../apexsim-content/docs/cars.md#liver
   goes to the server` and no `Error` back (the server's `wears their own
   livery` at debug level).
 
+Run 2026-10-24: the panel opens over the turntable's right side, the car repaints as Paint and Accent step, Save wrote the livery and the button read "Forest green 1 (yours)" with its toast (the recipe's steps landed on Forest green and number 1, not the Midnight blue 3 it names: its click counts need fixing); the race showed the player's SF-26 green with yellow accents. The number plate on the flanks was not in frame.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
