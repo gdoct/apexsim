@@ -224,9 +224,11 @@ fn the_corners_are_numbered_in_lap_order() {
     let track = TrackLoader::load_from_file(MONZA).expect("Monza loads");
     let corners = wire_corners(&track, Some(Path::new(MONZA)));
     assert!(corners.len() >= 5, "Monza has {} corners", corners.len());
-    for (i, corner) in corners.iter().enumerate() {
-        assert_eq!(corner.number as usize, i + 1);
-    }
+    // Monza's dossier numbers its turns: the numbers given are those,
+    // rising round the lap; a bend it does not number has none (0).
+    let numbered: Vec<u8> = corners.iter().map(|c| c.number).filter(|n| *n > 0).collect();
+    assert!(numbered.len() >= 4, "{numbered:?}");
+    assert!(numbered.windows(2).all(|w| w[0] < w[1]), "{numbered:?}");
     assert!(
         corners.windows(2).all(|w| w[0].apex_m < w[1].apex_m),
         "in lap order: {:?}",

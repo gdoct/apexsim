@@ -23,6 +23,7 @@
   {
    "name": "Michael Schumacher",
    "display_name": "Schuster",
+   "turn": 1,
    "station_m": 742.0,
    "from_m": 694,
    "to_m": 790,
@@ -31,6 +32,7 @@
   {
    "name": "Turn 2",
    "display_name": "Turn 2",
+   "turn": 2,
    "station_m": 837.0,
    "from_m": 806,
    "to_m": 868,
@@ -39,6 +41,7 @@
   {
    "name": "Turn 3",
    "display_name": "Turn 3",
+   "turn": 3,
    "station_m": 953.0,
    "from_m": 920,
    "to_m": 986,
@@ -47,6 +50,7 @@
   {
    "name": "Turn 4",
    "display_name": "Turn 4",
+   "turn": 4,
    "station_m": 1546.0,
    "from_m": 1488,
    "to_m": 1604,
@@ -55,6 +59,7 @@
   {
    "name": "Turn 5",
    "display_name": "Turn 5",
+   "turn": 5,
    "station_m": 1800.0,
    "from_m": 1768,
    "to_m": 1832,
@@ -63,6 +68,7 @@
   {
    "name": "Turn 6",
    "display_name": "Turn 6",
+   "turn": 6,
    "station_m": 1896.0,
    "from_m": 1844,
    "to_m": 1948,
@@ -71,6 +77,7 @@
   {
    "name": "Turn 7",
    "display_name": "Turn 7",
+   "turn": 7,
    "station_m": 2015.0,
    "from_m": 1964,
    "to_m": 2066,
@@ -79,6 +86,7 @@
   {
    "name": "Turn 8",
    "display_name": "Turn 8",
+   "turn": 8,
    "station_m": 2265.0,
    "from_m": 2212,
    "to_m": 2318,
@@ -87,6 +95,7 @@
   {
    "name": "Turn 9",
    "display_name": "Turn 9",
+   "turn": 9,
    "station_m": 2626.0,
    "from_m": 2568,
    "to_m": 2684,
@@ -95,6 +104,7 @@
   {
    "name": "Turn 10",
    "display_name": "Turn 10",
+   "turn": 10,
    "station_m": 2726.0,
    "from_m": 2686,
    "to_m": 2766,
@@ -103,6 +113,7 @@
   {
    "name": "Turn 11",
    "display_name": "Turn 11",
+   "turn": 11,
    "station_m": 3533.0,
    "from_m": 3398,
    "to_m": 3668,
@@ -111,6 +122,7 @@
   {
    "name": "Turn 12",
    "display_name": "Turn 12",
+   "turn": 12,
    "station_m": 3826.0,
    "from_m": 3714,
    "to_m": 3938,
@@ -119,6 +131,7 @@
   {
    "name": "Turn 13",
    "display_name": "Turn 13",
+   "turn": 13,
    "station_m": 4106.0,
    "from_m": 4012,
    "to_m": 4200,
@@ -127,6 +140,7 @@
   {
    "name": "Turn 14",
    "display_name": "Turn 14",
+   "turn": 14,
    "station_m": 4916.0,
    "from_m": 4878,
    "to_m": 4954,
@@ -135,6 +149,7 @@
   {
    "name": "Turn 15",
    "display_name": "Turn 15",
+   "turn": 15,
    "station_m": 5003.0,
    "from_m": 4976,
    "to_m": 5030,

@@ -53,6 +53,7 @@
   {
    "name": "Courbe Dunlop",
    "display_name": "Courbe Dunflop",
+   "turn": 1,
    "station_m": 586.8,
    "from_m": 309.9,
    "to_m": 696.2
@@ -60,6 +61,7 @@
   {
    "name": "Chicane Dunlop",
    "display_name": "Chicane Dunflop",
+   "turn": 2,
    "station_m": 890.1,
    "from_m": 827.8,
    "to_m": 919.0
@@ -81,6 +83,7 @@
   {
    "name": "Tertre Rouge",
    "display_name": "Tertre Rouge",
+   "turn": 8,
    "station_m": 1913.5,
    "from_m": 1698.6,
    "to_m": 2083.1
@@ -95,6 +98,7 @@
   {
    "name": "Chicane Daytona",
    "display_name": "Chicane Daytonic",
+   "turn": 10,
    "station_m": 4051.0,
    "from_m": 4029.2,
    "to_m": 4069.8
@@ -144,6 +148,7 @@
   {
    "name": "Chicane Ford",
    "display_name": "Chicane Fjord",
+   "turn": 30,
    "station_m": 13279.7,
    "from_m": 13189.5,
    "to_m": 13321.8

@@ -58,16 +58,6 @@ over 5 s standing:` log line says which force it is).
 
 ## P2: depth
 
-### 5. Hotlap and lap records
-
-The ghost, the hotlap replay and watch.
-
-- Corners carry the circuit's official turn number in the dossier, not the
-  detector's.
-
-**Check:** a hotlap with ghost and replay; a server restart between two
-watches.
-
 ### 6. Circuit dressing
 
 Prop-kit and `ats-dress` work on circuits and pieces that are built. Laid by

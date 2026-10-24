@@ -23,6 +23,7 @@
   {
    "name": "Turn 1",
    "display_name": "Turn 1",
+   "turn": 1,
    "station_m": 412.0,
    "from_m": 386,
    "to_m": 438,
@@ -31,6 +32,7 @@
   {
    "name": "Grundig-Kehre",
    "display_name": "Grantig-Kehre",
+   "turn": 2,
    "station_m": 493.0,
    "from_m": 452,
    "to_m": 534,
@@ -39,6 +41,7 @@
   {
    "name": "Turn 3",
    "display_name": "Turn 3",
+   "turn": 3,
    "station_m": 670.0,
    "from_m": 640,
    "to_m": 700,
@@ -63,6 +66,7 @@
   {
    "name": "Turn 6",
    "display_name": "Turn 6",
+   "turn": 6,
    "station_m": 1441.0,
    "from_m": 1388,
    "to_m": 1494,
@@ -71,6 +75,7 @@
   {
    "name": "Dutzendteich-Kehre",
    "display_name": "Dutzendteich-Kehre",
+   "turn": 7,
    "station_m": 1644.0,
    "from_m": 1596,
    "to_m": 1692,
@@ -79,6 +84,7 @@
   {
    "name": "Turn 8",
    "display_name": "Turn 8",
+   "turn": 8,
    "station_m": 1873.0,
    "from_m": 1824,
    "to_m": 1922,

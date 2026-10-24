@@ -109,7 +109,13 @@ bbox over the map API's 50k-node limit is split into tiles in `BBOXES`
 (overlapping tiles are deduplicated by way id).
 
 **Layers.** Named corners (`name` from OSM, `display_name` from
-`CORNER_DISPLAY`, see [naming.md](naming.md)), the pit lane's polyline and
+`CORNER_DISPLAY`, see [naming.md](naming.md), and `turn`, the circuit's
+official turn number from the corner table of its
+[reference](circuit-references/) (`turn_numbers`: a name that says its turn,
+"Turn 3" or "(T1)", else the table's name, turns sharing one in lap order;
+none for a table that counts the reference's own way, in parentheses, nor
+for a circuit whose numbers would not rise round the lap; `--names-only`
+writes them without the OSM extract)), the pit lane's polyline and
 side, grandstands (name, side, length, depth, roof, road-facing front),
 structures, crossings over the road, landmarks, woods with leaf type, and
 the surroundings: `barriers` (tyres, wall, guard rail, fence near the road),

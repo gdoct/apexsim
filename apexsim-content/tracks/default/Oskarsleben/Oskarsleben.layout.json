@@ -39,6 +39,7 @@
   {
    "name": "Hasseröder-Kurve",
    "display_name": "Hasenröder-Kurve",
+   "turn": 3,
    "station_m": 986.0,
    "from_m": 904,
    "to_m": 1068,
@@ -47,6 +48,7 @@
   {
    "name": "Triple",
    "display_name": "Triple",
+   "turn": 4,
    "station_m": 1400.0,
    "from_m": 1364,
    "to_m": 1436,
@@ -55,6 +57,7 @@
   {
    "name": "Turn 5",
    "display_name": "Turn 5",
+   "turn": 5,
    "station_m": 1504.0,
    "from_m": 1470,
    "to_m": 1538,
@@ -63,6 +66,7 @@
   {
    "name": "Turn 6",
    "display_name": "Turn 6",
+   "turn": 6,
    "station_m": 1604.0,
    "from_m": 1578,
    "to_m": 1630,
@@ -71,6 +75,7 @@
   {
    "name": "Turn 7",
    "display_name": "Turn 7",
+   "turn": 7,
    "station_m": 1734.0,
    "from_m": 1632,
    "to_m": 1836,

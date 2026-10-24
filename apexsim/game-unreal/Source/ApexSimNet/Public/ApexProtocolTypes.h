@@ -2415,7 +2415,7 @@ struct APEXSIMNET_API FApexTrackCorner
 	/** The name to show: the dossier's, else "Turn N". */
 	FString Label() const
 	{
-		return Name.IsEmpty() ? FString::Printf(TEXT("Turn %d"), Number) : Name;
+		return !Name.IsEmpty() ? Name : Number > 0 ? FString::Printf(TEXT("Turn %d"), Number) : FString(TEXT("Corner"));
 	}
 };
 

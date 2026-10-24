@@ -30,6 +30,7 @@
   {
    "name": "Variante del Rettifilo",
    "display_name": "Variante del Rettifilo",
+   "turn": 1,
    "station_m": 954.4,
    "from_m": 921.7,
    "to_m": 988.0
@@ -44,6 +45,7 @@
   {
    "name": "Variante della Roggia",
    "display_name": "Variante della Roggia",
+   "turn": 4,
    "station_m": 2151.1,
    "from_m": 2127.3,
    "to_m": 2194.2
@@ -51,6 +53,7 @@
   {
    "name": "Lesmo 1",
    "display_name": "Lesmo 1",
+   "turn": 6,
    "station_m": 2549.8,
    "from_m": 2482.8,
    "to_m": 2623.4
@@ -58,6 +61,7 @@
   {
    "name": "Lesmo 2",
    "display_name": "Lesmo 2",
+   "turn": 7,
    "station_m": 2876.0,
    "from_m": 2848.4,
    "to_m": 2894.9
@@ -86,6 +90,7 @@
   {
    "name": "Variante Ascari",
    "display_name": "Variante Calamari",
+   "turn": 8,
    "station_m": 4086.9,
    "from_m": 3996.8,
    "to_m": 4162.1
@@ -93,6 +98,7 @@
   {
    "name": "Curva Alboreto",
    "display_name": "Curva Alberello",
+   "turn": 11,
    "station_m": 5280.4,
    "from_m": 5104.6,
    "to_m": 5778.0

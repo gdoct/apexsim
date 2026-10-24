@@ -83,7 +83,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHotlapWatchHudDataTest, "ApexSim.Hotlap.Hu
 
 bool FApexHotlapWatchHudDataTest::RunTest(const FString& Parameters)
 {
-	const FApexTrackCorners Corners = HotlapCorners();
+	FApexTrackCorners Corners = HotlapCorners();
 
 	FApexTelemetryFrame Frame;
 	FApexCarTelemetry& Car = Frame.Cars.AddDefaulted_GetRef();
@@ -121,6 +121,17 @@ bool FApexHotlapWatchHudDataTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("it turns left"), HotlapHudValue(Data, TEXT("corner.direction")).AsString(), FString(TEXT("left")));
 	TestFalse(TEXT("not in it yet"), HotlapHudValue(Data, TEXT("corner.inside")).AsBool());
 	TestEqual(TEXT("600 m to its entry"), HotlapHudValue(Data, TEXT("corner.distance_m")).AsNumber(), 600.0, 1e-3);
+
+	// The circuit's own turn numbers: a bend it does not number (0) has no
+	// number, its name alone; the count is the highest turn.
+	Corners.Corners[0].Number = 4;
+	Corners.Corners[1].Number = 0;
+	Corners.Corners[1].Name = TEXT("Kink");
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("an unnumbered bend has no number"), HotlapHudValue(Data, TEXT("corner.number")).IsNone());
+	TestEqual(TEXT("its name alone"), HotlapHudValue(Data, TEXT("corner.label")).AsString(), FString(TEXT("Kink")));
+	TestEqual(TEXT("counted to the highest turn"), HotlapHudValue(Data, TEXT("corner.count")).AsNumber(), 4.0);
+	Corners = HotlapCorners();
 
 	// No corners (an older server): the data points are there, empty.
 	In.Corners = nullptr;

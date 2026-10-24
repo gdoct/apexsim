@@ -23,6 +23,7 @@
   {
    "name": "Tarzanbocht",
    "display_name": "Tartanbocht",
+   "turn": 1,
    "station_m": 413.9,
    "from_m": 348.0,
    "to_m": 475.8
@@ -30,6 +31,7 @@
   {
    "name": "Gerlachbocht",
    "display_name": "Gelachbocht",
+   "turn": 2,
    "station_m": 735.4,
    "from_m": 712.5,
    "to_m": 768.2
@@ -37,6 +39,7 @@
   {
    "name": "Hugenholtzbocht",
    "display_name": "Hugenhoutbocht",
+   "turn": 3,
    "station_m": 916.0,
    "from_m": 820.9,
    "to_m": 996.8
@@ -44,6 +47,7 @@
   {
    "name": "Hunserug",
    "display_name": "Hunserug",
+   "turn": 4,
    "station_m": 1152.0,
    "from_m": 996.8,
    "to_m": 1269.9
@@ -58,6 +62,7 @@
   {
    "name": "Bocht 6",
    "display_name": "Bocht 6",
+   "turn": 6,
    "station_m": 1508.0,
    "from_m": 1448,
    "to_m": 1568,
@@ -66,6 +71,7 @@
   {
    "name": "Scheivlak",
    "display_name": "Scheivlak",
+   "turn": 7,
    "station_m": 1786.8,
    "from_m": 1654.5,
    "to_m": 1896.1
@@ -73,6 +79,7 @@
   {
    "name": "Mastersbocht",
    "display_name": "Mastersbocht",
+   "turn": 8,
    "station_m": 2139.6,
    "from_m": 2093.4,
    "to_m": 2227.0
@@ -80,6 +87,7 @@
   {
    "name": "Bocht 9",
    "display_name": "Bocht 9",
+   "turn": 9,
    "station_m": 2309.0,
    "from_m": 2182,
    "to_m": 2436,
@@ -102,6 +110,7 @@
   {
    "name": "Bocht 13",
    "display_name": "Bocht 13",
+   "turn": 13,
    "station_m": 3602.0,
    "from_m": 3542,
    "to_m": 3662,
@@ -110,6 +119,7 @@
   {
    "name": "Arie Luyendykbocht",
    "display_name": "Luierdijkbocht",
+   "turn": 14,
    "station_m": 3850.1,
    "from_m": 3722.3,
    "to_m": 3990.0

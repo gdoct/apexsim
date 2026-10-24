@@ -1950,7 +1950,10 @@ store.
 
 **Corners** (`track_guide::wire_corners` -> `TrackCorners`): the guide's
 `detect_corners` in lap order, named from the dossier's `display_name`
-(`name_corners`; else "Turn N" on the client). See
+(`match_corners` / `name_corners`; else "Turn N" on the client) and
+numbered by the circuit's official turns where the dossier gives them
+(`turn`; a corner it does not number is 0 and shows its name alone), else
+from 1 in lap order. See
 [track guide](../../../apexsim-content/docs/track-guide.md).
 
 **Client** (`UApexRootWidget::StartHotlapWatch` / `ChangeHotlapWatch`): the

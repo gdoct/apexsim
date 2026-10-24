@@ -51,6 +51,7 @@
   {
    "name": "Graham Hill Bend",
    "display_name": "Grandma Hill Bend",
+   "turn": 3,
    "station_m": 848.8,
    "from_m": 783.2,
    "to_m": 892.8
@@ -65,6 +66,7 @@
   {
    "name": "Surtees",
    "display_name": "Sure-Tees",
+   "turn": 4,
    "station_m": 1217.5,
    "from_m": 1166.6,
    "to_m": 1243.8
@@ -100,6 +102,7 @@
   {
    "name": "Westfield Bend",
    "display_name": "Westfield Bend",
+   "turn": 6,
    "station_m": 2365.0,
    "from_m": 2330.2,
    "to_m": 2457.7
@@ -121,6 +124,7 @@
   {
    "name": "Sheene Curve",
    "display_name": "Sheen Curve",
+   "turn": 7,
    "station_m": 2766.5,
    "from_m": 2736.9,
    "to_m": 2844.8
@@ -142,6 +146,7 @@
   {
    "name": "Clark Curve",
    "display_name": "Clerk Curve",
+   "turn": 9,
    "station_m": 3547.9,
    "from_m": 3416.4,
    "to_m": 3674.2

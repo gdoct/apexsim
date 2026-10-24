@@ -478,6 +478,9 @@ pub struct NamedCorner {
     pub station_m: f32,
     pub from_m: f32,
     pub to_m: f32,
+    /// Its official turn number, when the circuit's reference gives one
+    /// (the dossier's `turn`, `osm_layout.py`'s `turn_numbers`).
+    pub turn: Option<u8>,
 }
 
 pub fn dossier_corners(track_path: &Path) -> Vec<NamedCorner> {
@@ -507,11 +510,17 @@ pub fn dossier_corners(track_path: &Path) -> Vec<NamedCorner> {
                 .get("to_m")
                 .and_then(|v| v.as_f64())
                 .unwrap_or(station_m as f64) as f32;
+            let turn = c
+                .get("turn")
+                .and_then(|v| v.as_u64())
+                .and_then(|v| u8::try_from(v).ok())
+                .filter(|v| *v > 0);
             Some(NamedCorner {
                 display_name,
                 station_m,
                 from_m: from_m.min(to_m),
                 to_m: from_m.max(to_m),
+                turn,
             })
         })
         .collect()
@@ -552,6 +561,15 @@ fn distance_to_span(s: f32, from: f32, to: f32, lap: f32) -> f32 {
 /// A name for each corner from the dossier: the named way that overlaps it
 /// most (its middle nearest the apex on a tie), each name used once.
 pub fn name_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<Option<String>> {
+    match_corners(corners, named, lap)
+        .into_iter()
+        .map(|m| m.map(|ni| named[ni].display_name.clone()))
+        .collect()
+}
+
+/// [`name_corners`]' pairing: which of the dossier's named corners (by
+/// index) each corner is.
+pub fn match_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<Option<usize>> {
     // Every (corner, name) pair that is close enough, best first.
     let mut pairs: Vec<(f32, usize, usize)> = Vec::new();
     for (ci, c) in corners.iter().enumerate() {
@@ -569,7 +587,7 @@ pub fn name_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<
     let mut used = vec![false; named.len()];
     for (_, ci, ni) in pairs {
         if out[ci].is_none() && !used[ni] {
-            out[ci] = Some(named[ni].display_name.clone());
+            out[ci] = Some(ni);
             used[ni] = true;
         }
     }
@@ -577,9 +595,11 @@ pub fn name_corners(corners: &[Corner], named: &[NamedCorner], lap: f32) -> Vec<
 }
 
 /// The track's corners as a client's HUD wants them (`TrackCorners`):
-/// numbered in lap order, named from the dossier beside `track_path` when
-/// there is one (the `display_name`, never the real name), the stations
-/// folded into `[0, lap)`.
+/// named from the dossier beside `track_path` when there is one (the
+/// `display_name`, never the real name), the stations folded into
+/// `[0, lap)`. Numbered by the circuit's official turns where the dossier
+/// gives them (a corner it does not number is 0, shown without one), else
+/// in lap order from 1.
 pub fn wire_corners(
     track: &TrackConfig,
     track_path: Option<&Path>,
@@ -590,15 +610,22 @@ pub fn wire_corners(
     }
     let corners = detect_corners(track);
     let named = track_path.map(dossier_corners).unwrap_or_default();
-    let names = name_corners(&corners, &named, lap);
+    let matched = match_corners(&corners, &named, lap);
+    let official = named.iter().any(|n| n.turn.is_some());
     corners
         .iter()
-        .zip(names)
+        .zip(matched)
         .take(u8::MAX as usize)
         .enumerate()
-        .map(|(i, (corner, name))| crate::game_session::TrackCorner {
-            number: (i + 1) as u8,
-            name: name.unwrap_or_default(),
+        .map(|(i, (corner, ni))| crate::game_session::TrackCorner {
+            number: if official {
+                ni.and_then(|ni| named[ni].turn).unwrap_or(0)
+            } else {
+                (i + 1) as u8
+            },
+            name: ni
+                .map(|ni| named[ni].display_name.clone())
+                .unwrap_or_default(),
             entry_m: corner.entry_m.rem_euclid(lap),
             apex_m: corner.apex_m.rem_euclid(lap),
             exit_m: corner.exit_m.rem_euclid(lap),
@@ -2030,12 +2057,14 @@ mod tests {
                 station_m: 110.0,
                 from_m: 60.0,
                 to_m: 160.0,
+                turn: None,
             },
             NamedCorner {
                 display_name: "Across the line".into(),
                 station_m: 5.0,
                 from_m: 0.0,
                 to_m: 20.0,
+                turn: None,
             },
         ];
         let names = name_corners(&corners, &named, 1000.0);
@@ -2054,6 +2083,37 @@ mod tests {
         assert_eq!(notes.overview, vec!["A fast one."]);
         assert_eq!(notes.corners[0].at_m, 410.0);
         assert_eq!(notes.corners[0].name.as_deref(), Some("Somewhere"));
+    }
+
+    /// Zandvoort's dossier numbers its turns: the HUD's corners carry
+    /// those, rising round the lap, never a detector's count where the
+    /// circuit has its own.
+    #[test]
+    fn the_corners_carry_the_circuits_own_turn_numbers() {
+        let Some(path) = zandvoort() else {
+            return;
+        };
+        let track = TrackLoader::load_from_file(&path).unwrap();
+        let named = dossier_corners(&path);
+        assert!(
+            named.iter().any(|n| n.turn.is_some()),
+            "the dossier numbers its turns"
+        );
+        let corners = wire_corners(&track, Some(&path));
+        let numbered: Vec<u8> = corners
+            .iter()
+            .map(|c| c.number)
+            .filter(|n| *n > 0)
+            .collect();
+        assert!(numbered.len() >= 5, "{numbered:?}");
+        assert!(
+            numbered.windows(2).all(|w| w[0] < w[1]),
+            "rising round the lap: {numbered:?}"
+        );
+        // Every number given is one the dossier names.
+        for n in &numbered {
+            assert!(named.iter().any(|c| c.turn == Some(*n)), "{n}");
+        }
     }
 
     #[test]

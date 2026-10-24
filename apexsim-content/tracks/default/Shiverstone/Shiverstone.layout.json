@@ -30,6 +30,7 @@
   {
    "name": "Abbey",
    "display_name": "Abbey",
+   "turn": 1,
    "station_m": 426.0,
    "from_m": 365.7,
    "to_m": 520.1
@@ -44,6 +45,7 @@
   {
    "name": "Village",
    "display_name": "Village",
+   "turn": 3,
    "station_m": 895.3,
    "from_m": 867.4,
    "to_m": 937.5
@@ -51,6 +53,7 @@
   {
    "name": "The Loop",
    "display_name": "The Loop",
+   "turn": 4,
    "station_m": 1054.8,
    "from_m": 937.5,
    "to_m": 1179.0
@@ -58,6 +61,7 @@
   {
    "name": "Aintree",
    "display_name": "Aintree",
+   "turn": 5,
    "station_m": 1237.8,
    "from_m": 1179.0,
    "to_m": 1275.2
@@ -72,6 +76,7 @@
   {
    "name": "Brooklands",
    "display_name": "Brooklands",
+   "turn": 6,
    "station_m": 1940.8,
    "from_m": 1898.3,
    "to_m": 1987.8
@@ -79,6 +84,7 @@
   {
    "name": "Luffield",
    "display_name": "Luffield",
+   "turn": 7,
    "station_m": 2205.7,
    "from_m": 2095.6,
    "to_m": 2327.4
@@ -86,6 +92,7 @@
   {
    "name": "Woodcote",
    "display_name": "Woodcote",
+   "turn": 8,
    "station_m": 2547.5,
    "from_m": 2433.7,
    "to_m": 2668.5
@@ -93,6 +100,7 @@
   {
    "name": "Copse",
    "display_name": "Copse",
+   "turn": 9,
    "station_m": 3103.8,
    "from_m": 3018.6,
    "to_m": 3193.7
@@ -100,6 +108,7 @@
   {
    "name": "Maggotts",
    "display_name": "Maggotts",
+   "turn": 10,
    "station_m": 3689.7,
    "from_m": 3561.5,
    "to_m": 3746.5
@@ -107,6 +116,7 @@
   {
    "name": "Becketts",
    "display_name": "Becketts",
+   "turn": 11,
    "station_m": 3875.6,
    "from_m": 3806.4,
    "to_m": 3961.8
@@ -128,6 +138,7 @@
   {
    "name": "Stowe",
    "display_name": "Stowe",
+   "turn": 15,
    "station_m": 5065.1,
    "from_m": 4959.0,
    "to_m": 5173.3
@@ -135,6 +146,7 @@
   {
    "name": "Vale",
    "display_name": "Vale",
+   "turn": 16,
    "station_m": 5281.1,
    "from_m": 5173.3,
    "to_m": 5505.0
@@ -142,6 +154,7 @@
   {
    "name": "Club",
    "display_name": "Club",
+   "turn": 17,
    "station_m": 5683.3,
    "from_m": 5568.2,
    "to_m": 5810.8

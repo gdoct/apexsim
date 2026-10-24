@@ -41,6 +41,7 @@
   {
    "name": "S do Senna",
    "display_name": "S do Sonho",
+   "turn": 1,
    "station_m": 307.7,
    "from_m": 291.7,
    "to_m": 327.0
@@ -48,6 +49,7 @@
   {
    "name": "Curva do Sol",
    "display_name": "Curva do Sol",
+   "turn": 3,
    "station_m": 685.4,
    "from_m": 592.2,
    "to_m": 781.1
@@ -62,6 +64,7 @@
   {
    "name": "Descida do Lago",
    "display_name": "Descida do Lago",
+   "turn": 4,
    "station_m": 1420.0,
    "from_m": 1367.0,
    "to_m": 1515.0
@@ -69,6 +72,7 @@
   {
    "name": "Ferradura",
    "display_name": "Ferradura",
+   "turn": 6,
    "station_m": 2033.8,
    "from_m": 1977.5,
    "to_m": 2089.6
@@ -97,6 +101,7 @@
   {
    "name": "Bico de Pato",
    "display_name": "Bico de Pato",
+   "turn": 10,
    "station_m": 2741.3,
    "from_m": 2570.7,
    "to_m": 2872.1
@@ -104,6 +109,7 @@
   {
    "name": "Mergulho",
    "display_name": "Mergulho",
+   "turn": 11,
    "station_m": 2988.8,
    "from_m": 2872.1,
    "to_m": 3095.8
@@ -111,6 +117,7 @@
   {
    "name": "Junção",
    "display_name": "Junção",
+   "turn": 12,
    "station_m": 3208.8,
    "from_m": 3135.3,
    "to_m": 3236.4
@@ -118,6 +125,7 @@
   {
    "name": "Café",
    "display_name": "Café",
+   "turn": 13,
    "station_m": 3392.1,
    "from_m": 3356.4,
    "to_m": 3430.1
@@ -125,6 +133,7 @@
   {
    "name": "Subida dos Boxes",
    "display_name": "Subida dos Boxes",
+   "turn": 14,
    "station_m": 3662.4,
    "from_m": 3588.3,
    "to_m": 3777.5
@@ -132,6 +141,7 @@
   {
    "name": "Arquibancadas",
    "display_name": "Arquibancadas",
+   "turn": 15,
    "station_m": 4038.9,
    "from_m": 3893.5,
    "to_m": 4155.0

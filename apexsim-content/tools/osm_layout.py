@@ -2718,15 +2718,103 @@ def with_manual_corners(stem: str, corners: list[dict], total_m: float) -> list[
 
 def with_display_names(stem: str, corners: list[dict]) -> list[dict]:
     """Each corner with its `display_name` (see `CORNER_DISPLAY`), placed
-    right after `name` so the dossier reads real name, then shown name. A
-    corner from `MANUAL_CORNERS` keeps the name its entry gives."""
+    right after `name` so the dossier reads real name, then shown name, and
+    its official `turn` number where the circuit's reference says it
+    (`turn_numbers`). A corner from `MANUAL_CORNERS` keeps the name its
+    entry gives."""
     table = CORNER_DISPLAY.get(stem, {})
+    turns = turn_numbers(stem, corners)
     out = []
-    for c in corners:
+    for i, c in enumerate(corners):
         own = c.get("display_name") if c.get("source") == "authored" else c["name"]
         shown = table.get(c["name"], own)
-        rest = {k: v for k, v in c.items() if k not in ("name", "display_name")}
-        out.append({"name": c["name"], "display_name": shown, **rest})
+        rest = {k: v for k, v in c.items() if k not in ("name", "display_name", "turn")}
+        corner = {"name": c["name"], "display_name": shown}
+        if turns[i] is not None:
+            corner["turn"] = turns[i]
+        out.append({**corner, **rest})
+    return out
+
+
+import re  # noqa: E402  (beside the corner numbering that uses it)
+
+
+def _turn_key(name: str) -> str:
+    """A corner name to compare by: no parenthetical, no punctuation, folded."""
+    name = re.sub(r"\([^)]*\)", " ", name)
+    return " ".join(re.sub(r"[^\w]+", " ", name.casefold()).split())
+
+
+def turn_table(stem: str) -> list[tuple[int, str]]:
+    """The official turn numbers in the circuit's reference
+    (`docs/circuit-references/<stem>.md`, its "## Corners" table: `| T |
+    Name | ...`), as (number, name); an unnamed turn has the name "". A
+    range ("6-7") pairs its comma-separated names in order. A table with a
+    number in parentheses counts the reference's own way round a circuit
+    that has no official numbers (the Nordschleife): none from it."""
+    path = ROOT / "docs" / "circuit-references" / f"{stem}.md"
+    if not path.exists():
+        return []
+    rows: list[tuple[int, str]] = []
+    in_corners = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("## "):
+            in_corners = line.strip() == "## Corners"
+            continue
+        if not in_corners or not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) < 2:
+            continue
+        number, name = cells[0], cells[1]
+        name = "" if name in ("—", "-", "") else name
+        if number.startswith("("):
+            return []
+        if re.fullmatch(r"\d+", number):
+            rows.append((int(number), name))
+        elif m := re.fullmatch(r"(\d+)\s*[-–]\s*(\d+)", number):
+            lo, hi = int(m.group(1)), int(m.group(2))
+            names = [n.strip() for n in name.split(",")]
+            for k, turn in enumerate(range(lo, hi + 1)):
+                rows.append((turn, names[k] if len(names) == hi - lo + 1 else name))
+    return rows
+
+
+def turn_numbers(stem: str, corners: list[dict]) -> list[int | None]:
+    """Each corner's official turn number, or None: a name that says its
+    turn ("Turn 3", "Virage Senna (T1)") gives it; else the name is looked
+    up in `turn_table`, and where several turns share a name (a chicane's
+    two halves) they go out in lap order, lowest first."""
+    table = turn_table(stem)
+    if not table:
+        return [None] * len(corners)
+    top = max(n for n, _ in table)
+    by_name: dict[str, list[int]] = {}
+    for number, name in table:
+        # "Buda / Pest": either name, for either turn.
+        for alias in name.split(" / ") if name else []:
+            by_name.setdefault(_turn_key(alias), []).append(number)
+    used: set[int] = set()
+    out: list[int | None] = [None] * len(corners)
+    order = sorted(range(len(corners)), key=lambda i: corners[i].get("station_m", 0.0))
+    for i in order:
+        name = corners[i]["name"]
+        said = re.search(r"\b(?:T|Turn\s*)(\d+)\b", name)
+        if said and 1 <= int(said.group(1)) <= top:
+            out[i] = int(said.group(1))
+            used.add(out[i])
+            continue
+        free = [n for n in sorted(by_name.get(_turn_key(name), [])) if n not in used]
+        if free:
+            out[i] = free[0]
+            used.add(free[0])
+    # The names are the map's: one in the wrong place (Hockenheim's
+    # "Ravenol-Kurve" at its first bend) would number the lap out of order.
+    # Numbers that do not rise round the lap are none at all.
+    seq = [out[i] for i in order if out[i] is not None]
+    if any(a >= b for a, b in zip(seq, seq[1:])):
+        print(f"   {stem}: turn numbers out of lap order {seq}; none given")
+        return [None] * len(corners)
     return out
 
 

@@ -466,10 +466,10 @@ the car is in or, between corners, the next one; all *null* (and
 
 | Name | Meaning |
 |---|---|
-| `corner.number` | its number, from 1 |
+| `corner.number` | its number: the circuit's own turn number where its dossier gives them (*null* for a corner it does not number), else in lap order from 1 |
 | `corner.name` | its name, *null* when the dossier has none |
 | `corner.label` | what to show: the name, else "Turn N" |
-| `corner.count` | corners in the lap |
+| `corner.count` | the highest number in the lap (the corners in it when they are counted in lap order) |
 | `corner.direction` | `left` or `right`, the way its main turn goes |
 | `corner.inside` | the car is between its entry and its exit |
 | `corner.distance_m` | metres to its entry (0 inside it) |

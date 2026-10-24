@@ -23,6 +23,7 @@
   {
    "name": "Virage Senna (T1)",
    "display_name": "Virage Seine",
+   "turn": 1,
    "station_m": 254.0,
    "from_m": 220,
    "to_m": 288,
@@ -31,6 +32,7 @@
   {
    "name": "Virage Senna (T2)",
    "display_name": "Virage Seine",
+   "turn": 2,
    "station_m": 365.0,
    "from_m": 290,
    "to_m": 440,
@@ -39,6 +41,7 @@
   {
    "name": "Turn 3",
    "display_name": "Turn 3",
+   "turn": 3,
    "station_m": 724.0,
    "from_m": 688,
    "to_m": 760,
@@ -47,6 +50,7 @@
   {
    "name": "Turn 4",
    "display_name": "Turn 4",
+   "turn": 4,
    "station_m": 794.0,
    "from_m": 764,
    "to_m": 824,
@@ -55,6 +59,7 @@
   {
    "name": "Turn 5",
    "display_name": "Turn 5",
+   "turn": 5,
    "station_m": 1037.0,
    "from_m": 964,
    "to_m": 1110,
@@ -63,6 +68,7 @@
   {
    "name": "Turn 6",
    "display_name": "Turn 6",
+   "turn": 6,
    "station_m": 1255.0,
    "from_m": 1214,
    "to_m": 1296,
@@ -71,6 +77,7 @@
   {
    "name": "Turn 7",
    "display_name": "Turn 7",
+   "turn": 7,
    "station_m": 1365.0,
    "from_m": 1300,
    "to_m": 1430,
@@ -79,6 +86,7 @@
   {
    "name": "Turn 8",
    "display_name": "Turn 8",
+   "turn": 8,
    "station_m": 2009.0,
    "from_m": 1980,
    "to_m": 2038,
@@ -87,6 +95,7 @@
   {
    "name": "Turn 9",
    "display_name": "Turn 9",
+   "turn": 9,
    "station_m": 2091.0,
    "from_m": 2042,
    "to_m": 2140,
@@ -95,6 +104,7 @@
   {
    "name": "L'Épingle",
    "display_name": "L'Épingle",
+   "turn": 10,
    "station_m": 2708.0,
    "from_m": 2646,
    "to_m": 2770,
@@ -103,6 +113,7 @@
   {
    "name": "Turn 11",
    "display_name": "Turn 11",
+   "turn": 11,
    "station_m": 2818.0,
    "from_m": 2778,
    "to_m": 2858,
@@ -111,6 +122,7 @@
   {
    "name": "Turn 12",
    "display_name": "Turn 12",
+   "turn": 12,
    "station_m": 3203.0,
    "from_m": 3176,
    "to_m": 3230,
@@ -119,6 +131,7 @@
   {
    "name": "Turn 13",
    "display_name": "Turn 13",
+   "turn": 13,
    "station_m": 3886.0,
    "from_m": 3862,
    "to_m": 3910,
@@ -127,6 +140,7 @@
   {
    "name": "Wall of Champions",
    "display_name": "Wall of Champions",
+   "turn": 14,
    "station_m": 3938.0,
    "from_m": 3914,
    "to_m": 3962,

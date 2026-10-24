@@ -23,6 +23,7 @@
   {
    "name": "La Source",
    "display_name": "La Source",
+   "turn": 1,
    "station_m": 392.0,
    "from_m": 370.8,
    "to_m": 415.2
@@ -30,6 +31,7 @@
   {
    "name": "Eau Rouge",
    "display_name": "Eau Rouge",
+   "turn": 2,
    "station_m": 1056.6,
    "from_m": 1006.7,
    "to_m": 1099.6
@@ -37,6 +39,7 @@
   {
    "name": "Raidillon",
    "display_name": "Raidillon",
+   "turn": 3,
    "station_m": 1205.4,
    "from_m": 1099.6,
    "to_m": 1322.7
@@ -51,6 +54,7 @@
   {
    "name": "Les Combes",
    "display_name": "Les Combes",
+   "turn": 5,
    "station_m": 2408.5,
    "from_m": 2375.5,
    "to_m": 2433.8
@@ -58,6 +62,7 @@
   {
    "name": "Malmedy",
    "display_name": "Malmedy",
+   "turn": 7,
    "station_m": 2659.7,
    "from_m": 2615.3,
    "to_m": 2700.8
@@ -65,6 +70,7 @@
   {
    "name": "Bruxelles",
    "display_name": "Bruxelles",
+   "turn": 8,
    "station_m": 3070.7,
    "from_m": 2976.7,
    "to_m": 3153.0
@@ -86,6 +92,7 @@
   {
    "name": "Fagnes",
    "display_name": "Fagnes",
+   "turn": 12,
    "station_m": 4565.1,
    "from_m": 4429.8,
    "to_m": 4725.6
@@ -93,6 +100,7 @@
   {
    "name": "Campus",
    "display_name": "Campus",
+   "turn": 14,
    "station_m": 4948.7,
    "from_m": 4904.8,
    "to_m": 5000.8
@@ -107,6 +115,7 @@
   {
    "name": "Blanchimont",
    "display_name": "Blanchimont",
+   "turn": 16,
    "station_m": 6006.4,
    "from_m": 5702.5,
    "to_m": 6254.7

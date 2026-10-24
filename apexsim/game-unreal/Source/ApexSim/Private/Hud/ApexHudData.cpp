@@ -1487,10 +1487,17 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 		if (Index != INDEX_NONE)
 		{
 			const FApexTrackCorner& Corner = Corners->Corners[Index];
-			Out.Set(TEXT("corner.number"), Corner.Number);
+			// The circuit's own turn numbers where it has them: a corner it
+			// does not number (0) shows none, and the count is the highest.
+			int32 Count = 0;
+			for (const FApexTrackCorner& Each : Corners->Corners)
+			{
+				Count = FMath::Max(Count, Each.Number);
+			}
+			Out.Set(TEXT("corner.number"), Corner.Number > 0 ? FApexHudValue::Of(Corner.Number) : FApexHudValue());
 			Out.Set(TEXT("corner.name"), Corner.Name.IsEmpty() ? FApexHudValue() : FApexHudValue::Of(Corner.Name));
 			Out.Set(TEXT("corner.label"), Corner.Label());
-			Out.Set(TEXT("corner.count"), Corners->Corners.Num());
+			Out.Set(TEXT("corner.count"), Count);
 			Out.Set(TEXT("corner.direction"), Corner.bLeft ? TEXT("left") : TEXT("right"));
 			Out.Set(TEXT("corner.inside"), bInside);
 			Out.Set(TEXT("corner.distance_m"), DistanceM);

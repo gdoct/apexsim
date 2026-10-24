@@ -23,6 +23,7 @@
   {
    "name": "Yokohama-S",
    "display_name": "Yakitori-S",
+   "turn": 1,
    "station_m": 404.0,
    "from_m": 362,
    "to_m": 446,
@@ -31,6 +32,7 @@
   {
    "name": "Mercedes-Arena",
    "display_name": "Mercato-Arena",
+   "turn": 2,
    "station_m": 601.0,
    "from_m": 522,
    "to_m": 680,
@@ -39,6 +41,7 @@
   {
    "name": "Turn 3",
    "display_name": "Turn 3",
+   "turn": 3,
    "station_m": 819.0,
    "from_m": 726,
    "to_m": 912,
@@ -47,6 +50,7 @@
   {
    "name": "Turn 4",
    "display_name": "Turn 4",
+   "turn": 4,
    "station_m": 957.0,
    "from_m": 916,
    "to_m": 998,
@@ -55,6 +59,7 @@
   {
    "name": "Valvoline-Kurve",
    "display_name": "Vanille-Kurve",
+   "turn": 5,
    "station_m": 1457.0,
    "from_m": 1392,
    "to_m": 1522,
@@ -63,6 +68,7 @@
   {
    "name": "Ford-Kurve",
    "display_name": "Furt-Kurve",
+   "turn": 6,
    "station_m": 1627.0,
    "from_m": 1566,
    "to_m": 1688,
@@ -71,6 +77,7 @@
   {
    "name": "Dunlop-Kehre",
    "display_name": "Dunflop-Kehre",
+   "turn": 7,
    "station_m": 2239.0,
    "from_m": 2156,
    "to_m": 2322,
@@ -79,6 +86,7 @@
   {
    "name": "Michael-Schumacher-S",
    "display_name": "Schuster-S",
+   "turn": 8,
    "station_m": 2632.0,
    "from_m": 2570,
    "to_m": 2694,
@@ -87,6 +95,7 @@
   {
    "name": "Turn 9",
    "display_name": "Turn 9",
+   "turn": 9,
    "station_m": 2752.0,
    "from_m": 2706,
    "to_m": 2798,
@@ -95,6 +104,7 @@
   {
    "name": "Kumho-Kurve",
    "display_name": "Kuckuck-Kurve",
+   "turn": 10,
    "station_m": 3186.0,
    "from_m": 3142,
    "to_m": 3230,
@@ -103,6 +113,7 @@
   {
    "name": "Bit-Kurve",
    "display_name": "Bitter-Kurve",
+   "turn": 11,
    "station_m": 3402.0,
    "from_m": 3330,
    "to_m": 3474,
@@ -111,6 +122,7 @@
   {
    "name": "Advan-Bogen",
    "display_name": "Advent-Bogen",
+   "turn": 12,
    "station_m": 3842.0,
    "from_m": 3794,
    "to_m": 3890,
@@ -127,6 +139,7 @@
   {
    "name": "Turn 14",
    "display_name": "Turn 14",
+   "turn": 14,
    "station_m": 4391.0,
    "from_m": 4348,
    "to_m": 4434,
@@ -135,6 +148,7 @@
   {
    "name": "Coca-Cola-Kurve",
    "display_name": "Kakao-Kurve",
+   "turn": 15,
    "station_m": 4622.0,
    "from_m": 4546,
    "to_m": 4698,

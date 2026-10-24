@@ -174,7 +174,6 @@ saw it, then a contact shadow under the car.
 - 🔴 Nordschleife real marshal-post numbers: needs a source list.
 - 🔴 Nordschleife OSM refit: the original extract is gone; a refit changes
   walls → groom + AI survey.
-- 🟢 Hotlap: corners carry the official turn numbers from the dossier.
 
 #### C3. Content tooling — P3 · 🟢 · S each
 *Source: follow-ups #11.*
