@@ -37,6 +37,8 @@
             README.txt
             LICENSE
             release.json        version, commit, configuration, contents
+            unblock.txt         every .exe and .dll, relative to the root: the
+                                launcher clears their mark of the web
             Game/               the packaged client + settings.sample.yml
             Game/Tracks/        every shipped circuit as its export (.uescene.json
                                 + .uemesh) and preview (.png), built by the
@@ -962,6 +964,16 @@ Licensed under the terms in LICENSE.
 # UTF-8 without a BOM: Notepad and JSON parsers both prefer it, and PS 5.1's
 # -Encoding utf8 always writes one.
 Write-TextFile (Join-Path $ReleaseDir 'README.txt') $readme
+
+# The binaries the launcher unblocks: a downloaded zip marks every extracted
+# file, and SmartScreen stops the game or the server on it. Only what ships
+# here is listed, so content the player adds later keeps its mark.
+$binaries = Get-ChildItem -LiteralPath $ReleaseDir -Recurse -File |
+    Where-Object { $_.Extension -in '.exe', '.dll' } |
+    ForEach-Object { $_.FullName.Substring($ReleaseDir.Length).TrimStart('\') } |
+    Sort-Object
+Write-TextFile (Join-Path $ReleaseDir 'unblock.txt') (($binaries -join "`r`n") + "`r`n")
+Write-Detail "$($binaries.Count) binaries listed in unblock.txt"
 
 $manifest = [ordered]@{
     name          = 'ApexSim'

@@ -498,11 +498,12 @@ static void WorkerMain(HWND h)
     if (g.env.found) g.versionFound = ReadVersion(g.env);  // shown once WM_APP_DONE lands on the UI thread
 
     // A downloaded package carries the mark of the web on every file, and
-    // SmartScreen would stop the game or the server on it. Never in a checkout.
+    // SmartScreen would stop the game or the server on it: unblock the shipped
+    // binaries (unblock.txt). Never in a checkout.
     if (g.env.release)
     {
         Post(h, L"Unblocking downloaded files...", 250);
-        UnblockTree(g.env.root);
+        UnblockListed(g.env.root);
     }
 
     Post(h, L"Generating config files...", 450);
@@ -1647,7 +1648,7 @@ static bool AutoLaunch()
     if (!launch && !(have && !s.showLauncher)) return false;
 
     if (!Exists(env.release ? env.gameExe : env.playScript)) return false;
-    if (env.release) UnblockTree(env.root);  // as WorkerMain does, before anything is started
+    if (env.release) UnblockListed(env.root);  // as WorkerMain does, before anything is started
     g.env = env;
     std::wstring err;
     if (server)

@@ -9,15 +9,36 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <fstream>
 #include <string>
 
 #include "unblock.h"
 
+namespace fs = std::filesystem;
+
 static const wchar_t* kZoneStream = L":Zone.Identifier";
 
-static bool HasZoneStream(const std::wstring& stream)
+static std::wstring WidenUtf8(const std::string& s)
 {
-    return GetFileAttributesW(stream.c_str()) != INVALID_FILE_ATTRIBUTES;
+    if (s.empty()) return {};
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), nullptr, 0);
+    std::wstring w(n, 0);
+    MultiByteToWideChar(CP_UTF8, 0, s.data(), (int)s.size(), &w[0], n);
+    return w;
+}
+
+// A manifest line as a path under root, or empty when it is blank, absolute or
+// climbs out with "..".
+static fs::path ListedPath(const fs::path& root, std::string line)
+{
+    while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
+    if (line.size() >= 3 && (unsigned char)line[0] == 0xEF && (unsigned char)line[1] == 0xBB && (unsigned char)line[2] == 0xBF)
+        line.erase(0, 3);  // a BOM, should the manifest ever gain one
+    if (line.empty()) return {};
+    fs::path rel = fs::path(WidenUtf8(line)).lexically_normal();
+    if (rel.empty() || rel.has_root_name() || rel.has_root_directory()) return {};
+    if (!rel.empty() && *rel.begin() == L"..") return {};
+    return root / rel;
 }
 
 // Deletes file's Zone.Identifier stream. A read-only file refuses a stream
@@ -32,37 +53,23 @@ static bool RemoveZoneStream(const std::wstring& file, const std::wstring& strea
     return ok;
 }
 
-static void Walk(const std::wstring& dir, UnblockResult& r)
-{
-    WIN32_FIND_DATAW fd;
-    HANDLE h = FindFirstFileExW((dir + L"\\*").c_str(), FindExInfoBasic, &fd, FindExSearchNameMatch,
-                                nullptr, FIND_FIRST_EX_LARGE_FETCH);
-    if (h == INVALID_HANDLE_VALUE) return;
-    do
-    {
-        if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0) continue;
-        // A junction or symlink may point outside the package: leave it alone.
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) continue;
-        std::wstring path = dir + L"\\" + fd.cFileName;
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        {
-            Walk(path, r);
-            continue;
-        }
-        ++r.files;
-        std::wstring stream = path + kZoneStream;
-        if (!HasZoneStream(stream)) continue;
-        if (RemoveZoneStream(path, stream, fd.dwFileAttributes)) ++r.removed;
-        else ++r.failed;
-    } while (FindNextFileW(h, &fd));
-    FindClose(h);
-}
-
-UnblockResult UnblockTree(const std::filesystem::path& root)
+UnblockResult UnblockListed(const fs::path& root)
 {
     UnblockResult r;
-    std::wstring dir = root.wstring();
-    while (!dir.empty() && (dir.back() == L'\\' || dir.back() == L'/')) dir.pop_back();
-    if (!dir.empty()) Walk(dir, r);
+    std::ifstream f(root / kUnblockManifest);
+    std::string line;
+    while (f && std::getline(f, line))
+    {
+        fs::path p = ListedPath(root, line);
+        if (p.empty()) continue;
+        std::wstring file = p.wstring();
+        DWORD attrs = GetFileAttributesW(file.c_str());
+        if (attrs == INVALID_FILE_ATTRIBUTES || (attrs & FILE_ATTRIBUTE_DIRECTORY)) continue;
+        ++r.listed;
+        std::wstring stream = file + kZoneStream;
+        if (GetFileAttributesW(stream.c_str()) == INVALID_FILE_ATTRIBUTES) continue;
+        if (RemoveZoneStream(file, stream, attrs)) ++r.removed;
+        else ++r.failed;
+    }
     return r;
 }

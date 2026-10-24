@@ -476,7 +476,7 @@ left out.
    code root's `server.toml`, `server/server/CMDLINE.md` as `server.md`, the content
    the server reads, `showcase.yml`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
    `Hud`, `showcase.yml` and `settings.sample.yml`), `launcher.exe`,
-   `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`
+   `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`, `unblock.txt`
 7. `-Zip`: compress it beside the folder
 
 | Switch | Effect |
@@ -494,10 +494,13 @@ not import ground textures: run `initialize_content.ps1` first on a new machine.
 
 A zip downloaded through a browser marks every extracted file with a
 `Zone.Identifier` stream, and SmartScreen then stops `ApexSim.exe` or the
-server. `launcher.exe` deletes those streams under the package root on every
-start (`launcher/unblock.cpp`, as `Unblock-File` would), also when
-`launcher.show` is false; it skips junctions and never runs in a source
-checkout.
+server. The assemble stage lists every `.exe` and `.dll` of the package in
+`unblock.txt` (one root-relative path per line), and `launcher.exe` deletes
+the streams of those files on every start (`launcher/unblock.cpp`, as
+`Unblock-File` would), also when `launcher.show` is false. Nothing else is
+touched: a car, track or HUD the player downloads later keeps its mark, a
+package without `unblock.txt` unblocks nothing, and a source checkout never
+runs it.
 
 ## Reclaiming disk space
 
