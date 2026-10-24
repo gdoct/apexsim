@@ -331,8 +331,9 @@ limits, as in [server/sessions.md](server/sessions.md).
   reverse grid on the grid, a safety car), and the pad walk
   (`ApexSim.UI.PadWalk`) over the rows.
 - A weekend phase's own allowed aids (`r12-weekend-assists`): the Assists
-  tab opened in a Pro practice with every row locked. Still to see by
-  hand: the Race weekend section's Practice assists and Qualifying assists
+  tab opened in a Pro practice with every row locked, shot 2026-10-25:
+  every row OFF IN THIS SESSION, no racing line in the garage. Still to
+  see by hand: the Race weekend section's Practice assists and Qualifying assists
   rows reached by pad and named in the summary, the lobby's format line
   (", PRO ASSISTS" after the phase), and in a weekend with the racing line
   on, the line gone in a phase that forbids it and drawn again in the race
@@ -666,7 +667,10 @@ Run 2026-10-24: EVENTS showed Clock Cup with RACE NEXT, its start time and an IN
 championship whose first, made up, is over, a point for the fastest lap):
 the lobby's side panel with CHAMPIONSHIP, Autumn Series, ROUND 2 OF 3 ·
 AFTER 1 ROUND, the fastest-lap rule and the standings (P1 Ada Quick with
-1W 1FL 26 PTS, the AI driver marked AI). By hand on a server with a
+1W 1FL 26 PTS, the AI driver marked AI). Shot 2026-10-25: Autumn Series,
+the +1 fastest-lap rule and the four standings (Ada Quick 26, Bea Steady
+18, Cy Late 15, AI Dee Bot 0) in the lobby's side column; the round
+caption and the W/FL counts are faint over a bright backdrop. By hand on a server with a
 championship over an event: the race of a round run to the flag, the
 results screen's side panel showing the standings before the race, then
 within a second or two of the session's end AFTER 2 ROUNDS with the race
