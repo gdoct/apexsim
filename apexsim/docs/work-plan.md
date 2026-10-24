@@ -1,11 +1,43 @@
 # Work plan
 
-A prioritised view over the four backlogs, snapshot of 2026-10-20 at
-`1bbdb81`. The backlogs stay the source of truth for *what* is open
+A prioritised view over the four backlogs, snapshot of 2026-10-24 at
+`50d69b4e`. What the plan's finished items brought is in
+[features-by-date.md](features-by-date.md). The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
 file says *in what order*, *what kind of work* and *who has to be there*.
 When an item is done, delete it from its backlog and from here.
+
+## Current state (2026-10-24)
+
+Main is green at `50d69b4e` (server tests pass but for an occasional
+`test_disconnect_cleanup` timeout under load; 352 client tests). Every
+agent branch of the 2026-10-23/24 night run is merged but one:
+
+**A7/A4, half done, not merged.** Worktree
+`E:pexsim\.claude\worktreesgent-a569ea4acbaf3b166`, branch
+`worktree-agent-a569ea4acbaf3b166` (locked: `git worktree unlock` before
+removing it). It holds:
+
+- `ea4500d6` A4: a squeezed AI drops behind the car ahead, never against
+  its own speed.
+- `d77861df` A7: the imported prototypes' AI re-measured, on par with the
+  shipped classes; the F1 imports are left to measure.
+- Uncommitted edits in `server/sim/src/ai_driver.rs`, `hybrid.rs`,
+  `lib.rs` and `racecraft.rs`, none of them judged by the survey yet; the
+  agent was last looking at Shiverstone's off-road time.
+
+To resume: in the worktree, build into a scratch `CARGO_TARGET_DIR`, run
+`survey_ai_races_on_every_circuit` (seed 1, then 1-3 to confirm) and
+compare totals with the baseline after A3 (main): **contact 104.1,
+off-road 76.2, sliding 155.6, passes 565, 0 retired**. Keep what wins
+passes back without raising contact or off-road; revert the rest. Then
+measure the imported F1s (A7), look at the Snorisring hairpin at
+480–500 m, cherry-pick onto main, rebuild the release server and
+`scripts/build_physics_lib.ps1`, and delete A7/A4's finished rows here
+and in follow-ups #19.
+
+Next after that: what is left of N7 (step 4).
 
 ## Legend
 
@@ -34,21 +66,21 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
-| N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
+| N26 | Content packs and a content repository (phases 0 and 1 built) | Platform (epic) | P2 | 🔴 | L | 2 |
 | N7 | Championships: a fastest-lap point, per-round rules (offline season and online standings built) | Game mode | P2 | 🟡 | S–M | 4 |
-| C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
+| C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 3 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 3 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
-| A7 | AI in imported cars leaves the road in traffic (follow-ups #19) | AI | P3 | 🟢 | M | — |
+| A7 | AI in imported cars leaves the road in traffic (follow-ups #19), in progress | AI | P3 | 🟢 | M | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
 | C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
-| A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
+| A4 | AI depth: racecraft, strategy, hybrid, wet line (in progress) | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
@@ -60,9 +92,8 @@ takes it up (— : no step, taken opportunistically).
 ## 2. Recommended order
 
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
-2. **Built on the decisions of 2026-10-18.** N26 phase 1 (pack format,
-   local install).
-   N26 phase 2 waits on the repository and the signing key.
+2. **N26:** (optional) the sidecars baked out of the source folders;
+   phase 2 waits on the repository and the signing key.
 3. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
@@ -191,14 +222,8 @@ to its judged shots (2026-10-21 for S/F, 2026-10-22 for the rest) but for
 the cells left open in track-improvements.md's status table, each with its
 reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
-Built 2026-10-22 and waiting for a person to judge the shots: the real
-pit lanes at Albert Park and Le Mans (R21, both pit surveys pass), the
-pit-roof screens at Albert Park and Marina Bay, the tree rows at
-Oschersleben and Shanghai (R8), Shanghai's lotus roof, the Fisht stadium,
-Monza's banking (`c5-kit-*`), and the Nurburgring's 24h layout
-(`Nuerburgerring24`, the GP and the Nordschleife joined by
-`tools/combine_tracks.py`, GP pits; `c5-24h-nuerburgerring24`). Left: the
-Nordschleife's T13 pumps and media tower (no source places them); the four
+The 2026-10-22 kit pieces (R21, R8, `c5-kit-*`, `c5-24h-*`) wait for a
+person to judge the shots. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
 circuits without a dossier (their OSM fits fail on layout variants:
 `BBOXES`' notes); one track with selectable routes (follow-ups).
 **Watch out:** hand-placed props are discarded on the next dress; the
@@ -263,22 +288,15 @@ Planned block by block, with the agent's prep and follow-up, in
 - **Imported pit stop** by hand.
 - **Launcher AC import with the network off** — last.
 
-### Cleanup
-
-### New features (added 2026-10-16, also in the roadmap)
+### New features (also in the roadmap)
 
 Not in any backlog before this plan; each is a package in
 [roadmap.md](roadmap.md).
 
 #### N7. Championships and series with points — P2 · 🟡 · M
-**Built 2026-10-23:** the offline season against the AI (calendar, class
-and car, points preset, drop rounds, drivers' and cars' standings, saved in
-the profile; its screens judged good from the `n7-season` shots).
-**Built 2026-10-24:** championships online: race events grouped as rounds,
-points by place summed by proved driver id on the server, run from the
-dashboard and shown in the session browser's Leagues list
-([sessions](server/sessions.md#championships)).
-**Left:** a fastest-lap point; per-round rules; the standings in the
+The offline season and online championships are built
+([features-by-date](features-by-date.md),
+[sessions](server/sessions.md#championships)). **Left:** a fastest-lap point; per-round rules; the standings in the
 lobby and on the results screen of a championship's event.
 
 #### N8. Public server list (master server) — Parked
@@ -293,9 +311,7 @@ register themselves, so sign or verify them (TLS fingerprint); the browser's
 filter pills already exist.
 
 #### N10. DLSS / FSR — P3 · 🔴 · M
-Built: the Graphics tab's render scale (TSR; LOW 70, MEDIUM 85, HIGH and
-ULTRA 100), an HDR switch and its paper white where the display supports
-it. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
+Render scale (TSR) and HDR are built. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
 the default; you accept NVIDIA's DLSS SDK terms when the plugin is
 downloaded, so the download is yours), and the checks in verification.md.
 
@@ -311,12 +327,7 @@ a join that offers to update a mismatched track.
 Phase 0 splits this repository into two roots, `apexsim/` and
 `apexsim-content/`, laid out as the future repositories, with the code
 depending on the content and never the reverse; the track editor,
-`track-core` and the content tools go with the content. The roots are in
-place (2026-10-19), with the content's own `bake.ps1`, a direction check
-in CI, a release that ships the starter set (`starter.yml`) and the
-formats crate `apexsim-lib/formats` owning the track YAML, sidecars and
-`content_crc`, in a third root that the content and the code both build
-against. Left: (optional) the sidecars baked out of the source folders. After that come the pack format and a local
+`track-core` and the content tools go with the content. Phase 0 is built (the three roots). Left: (optional) the sidecars baked out of the source folders. After that come the pack format and a local
 install, the repository split (`git filter-repo --subdirectory-filter` per
 root), the signed index with server and launcher updates, and
 update-and-join.
@@ -326,17 +337,8 @@ written in, never a code version; the code states the levels it reads.
 assets of `apexsim-content` (the index URL stays a setting); the starter set is one
 car per class (GT3, LMP2, F1, Hypercar, Road) and three circuits (Spa,
 Zandvoort, Monza).
-**Built 2026-10-23 (phase 1):** the pack format and a local install:
-`apexsim_formats::pack` (manifest, `installed.json`, the format levels
-and the read check; zip under its `archive` feature), `ats-pack` (a pack
-of one circuit or car from the checkout), `apexsim-server content
-{install,list,verify}` and the launcher's Install pack...
-([apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md)).
-Phase 1's check passed 2026-10-23: a fresh Development release of the
-starter set took a Snorisring and a Murcetes-AMD GT3 pack (neither in the
-set) by `Server\apexsim-server.exe content install`, `content verify` was
-clean, and the packaged game raced Snorisring in the Murcetes with both
-matching the server's files (no toast).
+Phase 1 (the pack format and a local install,
+[packs.md](../../apexsim-content/docs/packs.md)) is built and checked.
 **Human:** 🔴 still for creating `apexsim-content` and the signing key. The
 split rewrites history and moves LFS, so it is done once, by hand, with
 you there. What is left of phase 0 needs neither and is 🟢.
@@ -392,8 +394,6 @@ What only you can do, roughly in the order it pays off:
 - **follow-ups P4 ("Unrefined")** holds your own notes without packages or
   checks (wipers, sound, top view, pit lane); this plan scopes them as B1,
   D1, F1, AU1 and G6.
-- **T1 is not tracked anywhere**: add it to follow-ups (content tooling).
-- **Verification has no R3** — numbering gap, harmless.
 - **New features N1–N23** were not in any backlog; they are now packages in
   `roadmap.md`. Yellow and blue flags stay in `simulation-gaps.md` (race
   rules) and are split here into R1a (flags, P1) and R1b (safety car, P2).
