@@ -12,32 +12,9 @@ When an item is done, delete it from its backlog and from here.
 
 Main is green at `50d69b4e` (server tests pass but for an occasional
 `test_disconnect_cleanup` timeout under load; 352 client tests). Every
-agent branch of the 2026-10-23/24 night run is merged but one:
-
-**A7/A4, half done, not merged.** Worktree
-`E:pexsim\.claude\worktreesgent-a569ea4acbaf3b166`, branch
-`worktree-agent-a569ea4acbaf3b166` (locked: `git worktree unlock` before
-removing it). It holds:
-
-- `ea4500d6` A4: a squeezed AI drops behind the car ahead, never against
-  its own speed.
-- `d77861df` A7: the imported prototypes' AI re-measured, on par with the
-  shipped classes; the F1 imports are left to measure.
-- Uncommitted edits in `server/sim/src/ai_driver.rs`, `hybrid.rs`,
-  `lib.rs` and `racecraft.rs`, none of them judged by the survey yet; the
-  agent was last looking at Shiverstone's off-road time.
-
-To resume: in the worktree, build into a scratch `CARGO_TARGET_DIR`, run
-`survey_ai_races_on_every_circuit` (seed 1, then 1-3 to confirm) and
-compare totals with the baseline after A3 (main): **contact 104.1,
-off-road 76.2, sliding 155.6, passes 565, 0 retired**. Keep what wins
-passes back without raising contact or off-road; revert the rest. Then
-measure the imported F1s (A7), look at the Snorisring hairpin at
-480–500 m, cherry-pick onto main, rebuild the release server and
-`scripts/build_physics_lib.ps1`, and delete A7/A4's finished rows here
-and in follow-ups #19.
-
-Next after that: what is left of N7 (step 4).
+agent branch of the 2026-10-23/24 night run is merged, A4's squeeze
+fix and A7's prototype measurements included. Next: the imported F1s
+(A7), then what is left of N7 (step 4).
 
 ## Legend
 
@@ -80,7 +57,7 @@ takes it up (— : no step, taken opportunistically).
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
 | C4 | AC import fidelity gaps | Content | P3 | 🟢 | M | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
-| A4 | AI depth: racecraft, strategy, hybrid, wet line (in progress) | AI | P3 | 🟢 | M each | — |
+| A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
@@ -153,6 +130,16 @@ Bundle by module, each judged by the survey:
 - **Wet line:** a separate racing line and plan from the road-state bins
   (High effort, Low impact — do last).
 - **Mistakes and fatigue:** self-made spins, cockpit heat, driver swaps.
+
+Tried 2026-10-24 and kept out (16 circuits x seeds 1-3, three classes,
+against contact 170.4, off-road 21.8, passes 1442): the switchback
+(contact 186, passes 1438), giving room to a car that gives it (203,
+off 7.3, 1517), a narrower beside-margin (211-233, passes ~1650), a
+quicker car starting an attack 1.5-2.5 m/s faster (169-192 contact but
+off-road 51-61), a level-with-the-car ahead rule (240), and tuck, abort
+cool-down, plan share and late-braking tweaks (within noise). More passes
+cost contact or off-road every time; the next try needs a pass the car
+ahead sees coming, not a looser attack.
 
 ### Race rules and sessions
 
