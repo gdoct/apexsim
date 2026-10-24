@@ -13,8 +13,8 @@ When an item is done, delete it from its backlog and from here.
 Main is green at `50d69b4e` (server tests pass but for an occasional
 `test_disconnect_cleanup` timeout under load; 352 client tests). Every
 agent branch of the 2026-10-23/24 night run is merged, A4's squeeze
-fix and A7's prototype measurements included. Next: the imported F1s
-(A7), then what is left of N7 (step 4).
+fix and A7's prototype measurements included. The imported F1s are measured (A7: their
+contact is left). Next: what is left of N7 (step 4).
 
 ## Legend
 
@@ -51,7 +51,7 @@ takes it up (— : no step, taken opportunistically).
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 5 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 3 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 3 |
-| A7 | Re-measure the imported F1s' AI in traffic (follow-ups #19) | AI | P3 | 🟢 | S | — |
+| A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
 | C2 | Circuit dressing backlog | Content | P3 | 🟡/🔴 | M–L | — |
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
@@ -107,13 +107,11 @@ and `GRHIDeviceIsIntegrated`. Until then keep "discrete GPU recommended".
 
 ### AI
 
-#### A7. Imported F1s' AI in traffic — P3 · 🟢 · S
-*Source: follow-ups #19.* The imported prototypes now leave the road no
-more than the shipped classes (the traffic dodge measured across the
-road did it); the imported F1s were not installed where that was
-measured: install them, run the survey on them (seeds 1-3) and, if they
-still leave the road in traffic, find the lane or dodge their short
-lock cannot turn.
+#### A7. Imported F1s' AI touches other cars — P3 · 🟢 · S
+*Source: follow-ups #19.* The imported F1s leave the road no more than
+the shipped F1 now, but their contact in traffic is 2.2-2.4 times its
+(seeds 1-3, every circuit): find what it is with `SURVEY_EVENTS` and the
+check in follow-ups #19.
 
 #### A4. AI depth — P3 · 🟢 · M each
 Bundle by module, each judged by the survey:

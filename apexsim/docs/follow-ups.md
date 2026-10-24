@@ -157,14 +157,15 @@ every circuit, seeds 1-3, 90 races each, off-road car-seconds
 `AcFriendsFerrari499pLmh` 93.7 and `KsPorsche919Hybrid2016` 160.3 against
 `fugazzi-sf26` 124.7 and `yotota-lmp2` 113.0, two thirds of it on the
 Mordschleife and Laguna Seca, where the shipped cars go off as much
-(contact 131.8 and 137.4 against 97.0 and 121.4). The imported F1s
-(`RssFormulaHybrid2021`, `KsFerrariSf70h`), which were the worst, are not
-installed on the machine that measured this and are unmeasured since.
+(contact 131.8 and 137.4 against 97.0 and 121.4). The imported F1s leave the road no more either (2026-10-24, every circuit,
+seeds 1-3, 90 races each: off-road `RssFormulaHybrid2021` 102.3,
+`KsFerrariSf70h` 67.8 against `fugazzi-sf26` 79.0, Laguna Seca and the
+Mordschleife again the most), but they touch other cars more than twice
+as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
 
-- Re-measure the imported F1s with the check below; if they still leave
-  the road in traffic, find the lane or dodge their short lock
-  (0.24-0.31 rad against the shipped F1's 0.34) cannot turn
-  (`SURVEY_EVENTS`, `SURVEY_TRACE`).
+- Find what the imported F1s' contact is (`SURVEY_EVENTS`: closing
+  speed into the car ahead, or the dodge's short lock, 0.24-0.31 rad
+  against the shipped F1's 0.34) and bring it to the shipped F1's.
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
