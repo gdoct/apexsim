@@ -258,6 +258,15 @@ pub(crate) async fn handle_message(
         ClientMessage::RequestEventSheets { event_id } => {
             handle_request_event_sheets(ctx, connection_id, &event_id).await;
         }
+        ClientMessage::RequestChampionships => {
+            let data = {
+                let state = ctx.state.read().await;
+                state.championships.wire(&state.events.list())
+            };
+            let _ = ctx
+                .send(connection_id, ServerMessage::Championships(data))
+                .await;
+        }
         ClientMessage::PlayerInput {
             throttle,
             brake,

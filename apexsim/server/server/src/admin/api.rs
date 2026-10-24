@@ -152,6 +152,10 @@ pub async fn handle(
             }
         }
         (&Method::DELETE, ["events", id]) => event_delete(ctx, id).await,
+        (&Method::GET, ["championships"]) => championships_list(ctx).await,
+        (&Method::POST, ["championships"]) => championship_create(ctx, &body).await,
+        (&Method::POST, ["championships", id]) => championship_update(ctx, id, &body).await,
+        (&Method::DELETE, ["championships", id]) => championship_delete(ctx, id).await,
         (&Method::POST, ["content", "toggle"]) => content_toggle(ctx, &body).await,
         (&Method::POST, ["content", "upload"]) => content_upload(ctx, &q, body).await,
         (&Method::GET, ["players"]) => players(ctx).await,
@@ -1432,6 +1436,82 @@ async fn event_delete(ctx: &AdminContext, id: &str) -> Resp {
     }
     tracing::info!("Admin deleted event {}", id);
     ok(json!({ "ok": true }))
+}
+
+// ---------------------------------------------------------------------------
+// Championships
+// ---------------------------------------------------------------------------
+
+/// Every championship with its rounds and standings
+/// (`championships::standings`).
+async fn championships_list(ctx: &AdminContext) -> Resp {
+    let st = ctx.state.read().await;
+    let events = st.events.list();
+    let out: Vec<Value> = st
+        .championships
+        .list()
+        .iter()
+        .map(|c| {
+            let (rounds, standings) = crate::championships::standings(c, &events);
+            let mut v = serde_json::to_value(c).unwrap_or(Value::Null);
+            v["rounds"] = json!(rounds);
+            v["standings"] = json!(standings);
+            v
+        })
+        .collect();
+    ok(json!({ "championships": out }))
+}
+
+#[derive(serde::Deserialize)]
+struct ChampionshipBody {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    events: Option<Vec<String>>,
+    #[serde(default)]
+    points: Option<Vec<u16>>,
+}
+
+async fn championship_create(ctx: &AdminContext, body: &Bytes) -> Resp {
+    let new: ChampionshipBody = match serde_json::from_slice(body) {
+        Ok(c) => c,
+        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("championship: {}", e)),
+    };
+    if new.name.trim().is_empty() {
+        return error(StatusCode::BAD_REQUEST, "the championship needs a name");
+    }
+    let store = std::sync::Arc::clone(&ctx.state.read().await.championships);
+    let c = store.create(
+        &new.name,
+        new.events.unwrap_or_default(),
+        new.points.unwrap_or_default(),
+        unix_now(),
+    );
+    tracing::info!("Admin created championship {} ({})", c.id, c.name);
+    ok(json!({ "ok": true, "championship": c }))
+}
+
+async fn championship_update(ctx: &AdminContext, id: &str, body: &Bytes) -> Resp {
+    let change: ChampionshipBody = match serde_json::from_slice(body) {
+        Ok(c) => c,
+        Err(e) => return error(StatusCode::BAD_REQUEST, &format!("championship: {}", e)),
+    };
+    let store = std::sync::Arc::clone(&ctx.state.read().await.championships);
+    match store.update(id, change.events, change.points) {
+        Some(c) => ok(json!({ "ok": true, "championship": c })),
+        None => error(StatusCode::NOT_FOUND, "no such championship"),
+    }
+}
+
+async fn championship_delete(ctx: &AdminContext, id: &str) -> Resp {
+    let store = std::sync::Arc::clone(&ctx.state.read().await.championships);
+    match store.remove(id) {
+        Some(_) => {
+            tracing::info!("Admin deleted championship {}", id);
+            ok(json!({ "ok": true }))
+        }
+        None => error(StatusCode::NOT_FOUND, "no such championship"),
+    }
 }
 
 // ---------------------------------------------------------------------------

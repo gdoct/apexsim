@@ -35,7 +35,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B13 | Tent over the track at Armadillos T15–16 (follow-ups #6) | Bug | P2 | 🟡 | S | — |
 | N26 | Content packs and a content repository (phase 0 built) | Platform (epic) | P2 | 🔴 | L | 2 |
-| N7 | Championships online (the offline season built 2026-10-23) | Game mode | P2 | 🟡 | M | 4 |
+| N7 | Championships: a fastest-lap point, per-round rules (offline season and online standings built) | Game mode | P2 | 🟡 | S–M | 4 |
 | C5 | Circuit dressing to the references (roadmap 29): audit done; kit gaps, per-column passes | Content | P2 | 🟡 | L | 3 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 5 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 5 |
@@ -274,9 +274,12 @@ Not in any backlog before this plan; each is a package in
 **Built 2026-10-23:** the offline season against the AI (calendar, class
 and car, points preset, drop rounds, drivers' and cars' standings, saved in
 the profile; its screens judged good from the `n7-season` shots).
-**Left:** league seasons online, on the race events kept across restarts
-([sessions](server/sessions.md#events-across-restarts)) and the proved
-driver ids; a fastest-lap point; per-round rules.
+**Built 2026-10-24:** championships online: race events grouped as rounds,
+points by place summed by proved driver id on the server, run from the
+dashboard and shown in the session browser's Leagues list
+([sessions](server/sessions.md#championships)).
+**Left:** a fastest-lap point; per-round rules; the standings in the
+lobby and on the results screen of a championship's event.
 
 #### N8. Public server list (master server) — Parked
 **What:** Players can only join a host they already know.

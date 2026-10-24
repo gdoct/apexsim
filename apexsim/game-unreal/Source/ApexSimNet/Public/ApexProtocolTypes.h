@@ -4071,6 +4071,48 @@ enum class EApexServerMessageType : uint8
 
 	/** A race event's sheets, asked for with RequestEventSheets (`EventSheets`). */
 	EventSheets,
+	/** The server's championships, asked for with RequestChampionships (`Championships`). */
+	Championships,
+};
+
+/** `ChampionshipRoundData` (network.rs): a championship's round, a race event. */
+struct FApexChampionshipRound
+{
+	FString EventId;
+	/** The event's name; empty for one the server no longer has. */
+	FString Name;
+	/** The event's phase (FApexLobbyEvent::Phase); 0 for one the server no longer has. */
+	int32 Phase = 0;
+	bool bRaced = false;
+};
+
+/** `ChampionshipStandingData` (network.rs): a driver's place in a championship. */
+struct FApexChampionshipStanding
+{
+	int32 Position = 0;
+	FString Name;
+	/** An AI driver, scored by name; a human is scored by their proved driver id. */
+	bool bAi = false;
+	int32 Points = 0;
+	int32 Wins = 0;
+	/** The finishing place in each round, in round order; 0 for none. */
+	TArray<int32> Results;
+};
+
+/** `ChampionshipData` (network.rs): a championship's rounds and standings, best first. */
+struct FApexChampionship
+{
+	FString Id;
+	FString Name;
+	TArray<FApexChampionshipRound> Rounds;
+	TArray<FApexChampionshipStanding> Standings;
+};
+
+/** `ChampionshipsData` (network.rs), answering RequestChampionships. */
+struct FApexChampionships
+{
+	TArray<FApexChampionship> Championships;
+	bool bValid = false;
 };
 
 /** `EventSheetLine` (network.rs): a car's line in one of a race event's sheets. */
@@ -4343,6 +4385,8 @@ struct APEXSIMNET_API FApexServerMessage
 	FApexIncidents Incidents;
 	/** EventSheets. */
 	FApexEventSheets EventSheets;
+	/** Championships. */
+	FApexChampionships Championships;
 	int32 CountdownSeconds = 0;
 	int64 ServerTick = 0;
 	int32 ErrorCode = 0;

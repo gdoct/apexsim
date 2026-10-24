@@ -484,6 +484,11 @@ pub enum ClientMessage {
     RequestEventSheets {
         event_id: String,
     },
+
+    // TCP - The server's championships with their standings
+    // (docs/server/sessions.md "Championships"): answered with
+    // `Championships`.
+    RequestChampionships,
 }
 
 // --- Message Priority ---
@@ -957,6 +962,56 @@ pub struct EventSheetLine {
     pub knocked_out_in: u8,
 }
 
+/// The server's championships (`Championships`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChampionshipsData {
+    pub championships: Vec<ChampionshipData>,
+}
+
+/// A championship: its rounds (race events) and its standings, best first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChampionshipData {
+    pub id: String,
+    pub name: String,
+    pub rounds: Vec<ChampionshipRoundData>,
+    pub standings: Vec<ChampionshipStandingData>,
+}
+
+/// A championship's round: a race event.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChampionshipRoundData {
+    pub event_id: String,
+    /// The event's name; empty for one the server no longer has.
+    pub name: String,
+    /// The event's phase (`LobbyEventData::phase`); 0 for one the server
+    /// no longer has.
+    pub phase: u8,
+    /// Its race has been run and kept; left off when not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub raced: bool,
+}
+
+/// A driver's place in a championship.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ChampionshipStandingData {
+    pub position: u16,
+    pub name: String,
+    /// An AI driver (scored by name); left off for a human (scored by
+    /// their proved driver id).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ai: bool,
+    pub points: u32,
+    #[serde(default)]
+    pub wins: u16,
+    /// The finishing place in each round, in round order; 0 for none.
+    #[serde(default)]
+    pub results: Vec<u16>,
+}
+
 /// A race event as the lobby lists it (`LobbyState.Events`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -1222,6 +1277,10 @@ pub enum ServerMessage {
     // TCP - A race event's sheets for the player who asked
     // (`ClientMessage::RequestEventSheets`).
     EventSheets(EventSheetsData),
+
+    // TCP - The server's championships for the player who asked
+    // (`ClientMessage::RequestChampionships`).
+    Championships(ChampionshipsData),
 }
 
 impl ServerMessage {
@@ -1267,6 +1326,7 @@ impl ServerMessage {
             // Asked for once, for a screen waiting on it.
             ServerMessage::Incidents(_) => MessagePriority::Critical,
             ServerMessage::EventSheets(_) => MessagePriority::Critical,
+            ServerMessage::Championships(_) => MessagePriority::Critical,
 
             // Droppable messages - can be dropped when queue is full
             ServerMessage::HeartbeatAck { .. } => MessagePriority::Droppable,
@@ -3870,6 +3930,92 @@ mod tests {
         print_golden("S_EventSheets", &bytes);
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
             ServerMessage::EventSheets(d) => assert_eq!(d, sheets),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        assert_eq!(asked, GOLDEN_C);
+        assert_eq!(bytes, GOLDEN_S);
+    }
+
+    /// The championships: `C_RequestChampionships` and `S_Championships`
+    /// (a series of two rounds, one raced, a human leading an AI driver) on
+    /// the client. `cargo test championships_wire_format -- --nocapture`
+    /// prints them.
+    #[test]
+    fn test_championships_wire_format() {
+        const GOLDEN_C: &[u8] = &[
+            0x81, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xB4, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+            0x43, 0x68, 0x61, 0x6D, 0x70, 0x69, 0x6F, 0x6E, 0x73, 0x68, 0x69, 0x70, 0x73,
+        ];
+        const GOLDEN_S: &[u8] = &[
+            0x82, 0xA4, 0x74, 0x79, 0x70, 0x65, 0xAD, 0x43, 0x68, 0x61, 0x6D, 0x70, 0x69, 0x6F,
+            0x6E, 0x73, 0x68, 0x69, 0x70, 0x73, 0xA4, 0x64, 0x61, 0x74, 0x61, 0x81, 0xAD, 0x43,
+            0x68, 0x61, 0x6D, 0x70, 0x69, 0x6F, 0x6E, 0x73, 0x68, 0x69, 0x70, 0x73, 0x91, 0x84,
+            0xA2, 0x49, 0x64, 0xAD, 0x61, 0x75, 0x74, 0x75, 0x6D, 0x6E, 0x2D, 0x73, 0x65, 0x72,
+            0x69, 0x65, 0x73, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xAD, 0x41, 0x75, 0x74, 0x75, 0x6D,
+            0x6E, 0x20, 0x53, 0x65, 0x72, 0x69, 0x65, 0x73, 0xA6, 0x52, 0x6F, 0x75, 0x6E, 0x64,
+            0x73, 0x92, 0x84, 0xA7, 0x45, 0x76, 0x65, 0x6E, 0x74, 0x49, 0x64, 0xA7, 0x72, 0x6F,
+            0x75, 0x6E, 0x64, 0x2D, 0x31, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA7, 0x52, 0x6F, 0x75,
+            0x6E, 0x64, 0x20, 0x31, 0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x04, 0xA5, 0x52, 0x61,
+            0x63, 0x65, 0x64, 0xC3, 0x83, 0xA7, 0x45, 0x76, 0x65, 0x6E, 0x74, 0x49, 0x64, 0xA7,
+            0x72, 0x6F, 0x75, 0x6E, 0x64, 0x2D, 0x32, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA7, 0x52,
+            0x6F, 0x75, 0x6E, 0x64, 0x20, 0x32, 0xA5, 0x50, 0x68, 0x61, 0x73, 0x65, 0x01, 0xA9,
+            0x53, 0x74, 0x61, 0x6E, 0x64, 0x69, 0x6E, 0x67, 0x73, 0x92, 0x85, 0xA8, 0x50, 0x6F,
+            0x73, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x01, 0xA4, 0x4E, 0x61, 0x6D, 0x65, 0xA3, 0x41,
+            0x64, 0x61, 0xA6, 0x50, 0x6F, 0x69, 0x6E, 0x74, 0x73, 0x19, 0xA4, 0x57, 0x69, 0x6E,
+            0x73, 0x01, 0xA7, 0x52, 0x65, 0x73, 0x75, 0x6C, 0x74, 0x73, 0x92, 0x01, 0x00, 0x86,
+            0xA8, 0x50, 0x6F, 0x73, 0x69, 0x74, 0x69, 0x6F, 0x6E, 0x02, 0xA4, 0x4E, 0x61, 0x6D,
+            0x65, 0xA3, 0x42, 0x6F, 0x74, 0xA2, 0x41, 0x69, 0xC3, 0xA6, 0x50, 0x6F, 0x69, 0x6E,
+            0x74, 0x73, 0x12, 0xA4, 0x57, 0x69, 0x6E, 0x73, 0x00, 0xA7, 0x52, 0x65, 0x73, 0x75,
+            0x6C, 0x74, 0x73, 0x92, 0x02, 0x00,
+        ];
+        let asked = rmp_serde::to_vec_named(&ClientMessage::RequestChampionships).unwrap();
+        print_golden("C_RequestChampionships", &asked);
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&asked).unwrap(),
+            ClientMessage::RequestChampionships
+        ));
+        let data = ChampionshipsData {
+            championships: vec![ChampionshipData {
+                id: "autumn-series".into(),
+                name: "Autumn Series".into(),
+                rounds: vec![
+                    ChampionshipRoundData {
+                        event_id: "round-1".into(),
+                        name: "Round 1".into(),
+                        phase: 4,
+                        raced: true,
+                    },
+                    ChampionshipRoundData {
+                        event_id: "round-2".into(),
+                        name: "Round 2".into(),
+                        phase: 1,
+                        raced: false,
+                    },
+                ],
+                standings: vec![
+                    ChampionshipStandingData {
+                        position: 1,
+                        name: "Ada".into(),
+                        ai: false,
+                        points: 25,
+                        wins: 1,
+                        results: vec![1, 0],
+                    },
+                    ChampionshipStandingData {
+                        position: 2,
+                        name: "Bot".into(),
+                        ai: true,
+                        points: 18,
+                        wins: 0,
+                        results: vec![2, 0],
+                    },
+                ],
+            }],
+        };
+        let bytes = rmp_serde::to_vec_named(&ServerMessage::Championships(data.clone())).unwrap();
+        print_golden("S_Championships", &bytes);
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::Championships(d) => assert_eq!(d, data),
             other => panic!("Wrong message type: {other:?}"),
         }
         assert_eq!(asked, GOLDEN_C);

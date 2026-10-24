@@ -256,6 +256,43 @@ namespace ApexEventLabels
 		}
 	}
 
+	/** A championship's header line: "2 / 3 rounds raced · leader Ada 43 pts". */
+	inline FString ChampionshipLine(const FApexChampionship& Champ)
+	{
+		int32 Raced = 0;
+		for (const FApexChampionshipRound& Round : Champ.Rounds)
+		{
+			Raced += Round.bRaced ? 1 : 0;
+		}
+		FString Line = FString::Printf(TEXT("%d / %d round%s raced"), Raced, Champ.Rounds.Num(), Champ.Rounds.Num() == 1 ? TEXT("") : TEXT("s"));
+		if (Champ.Standings.Num() > 0 && Raced > 0)
+		{
+			Line += FString::Printf(TEXT(" · leader %s %d pts"), *Champ.Standings[0].Name, Champ.Standings[0].Points);
+		}
+		return Line;
+	}
+
+	/** A standing's line: "43 pts · 2 wins · R1 P1 · R2 P3 · R3 —". */
+	inline FString StandingLine(const FApexChampionshipStanding& Standing)
+	{
+		TArray<FString> Parts;
+		Parts.Add(FString::Printf(TEXT("%d pts"), Standing.Points));
+		if (Standing.Wins > 0)
+		{
+			Parts.Add(FString::Printf(TEXT("%d win%s"), Standing.Wins, Standing.Wins == 1 ? TEXT("") : TEXT("s")));
+		}
+		for (int32 Round = 0; Round < Standing.Results.Num(); ++Round)
+		{
+			const int32 Place = Standing.Results[Round];
+			Parts.Add(Place > 0 ? FString::Printf(TEXT("R%d P%d"), Round + 1, Place) : FString::Printf(TEXT("R%d —"), Round + 1));
+		}
+		if (Standing.bAi)
+		{
+			Parts.Add(TEXT("AI"));
+		}
+		return FString::Join(Parts, TEXT(" · "));
+	}
+
 	/** The line under the start button while the server has the event's next phase to start. */
 	inline FString WaitingLine(const FApexSessionEvent& Event, EApexWeekendPhase WeekendPhase)
 	{

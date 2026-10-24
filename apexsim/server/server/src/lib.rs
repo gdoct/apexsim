@@ -1,4 +1,5 @@
 pub mod admin;
+pub mod championships;
 pub mod chat;
 pub mod config;
 pub mod content_pack;

@@ -511,6 +511,51 @@ async fn an_event_resumes_at_its_race_after_a_restart() {
             })
             .await;
         assert_eq!(code, Some(404));
+
+        // A championship over this event and one still to be made: points
+        // by place, the humans by their proved ids.
+        let (status, made) = api(
+            http,
+            "POST",
+            "/api/championships",
+            Some(&serde_json::json!({
+                "name": "Autumn Series",
+                "events": ["autumn-cup", "winter-cup"],
+                "points": [10, 6, 4, 2],
+            })),
+        )
+        .await;
+        assert_eq!(status, 200, "{made}");
+        let (status, listed) = api(http, "GET", "/api/championships", None).await;
+        assert_eq!(status, 200);
+        let series = &listed["championships"][0];
+        assert_eq!(series["id"], "autumn-series");
+        assert_eq!(series["rounds"][0]["raced"], true);
+        assert_eq!(series["rounds"][1]["raced"], false);
+        let table = series["standings"].as_array().unwrap();
+        assert_eq!(table.len(), 4);
+        let scored: u64 = table.iter().map(|s| s["points"].as_u64().unwrap()).sum();
+        assert!(scored > 0 && scored <= 22, "{table:?}");
+        a.send(&ClientMessage::RequestChampionships).await;
+        let wire = a
+            .until(|m| match m {
+                ServerMessage::Championships(d) => Some(d.clone()),
+                _ => None,
+            })
+            .await
+            .expect("the championships");
+        let series = &wire.championships[0];
+        assert_eq!(series.name, "Autumn Series");
+        assert_eq!(series.rounds.len(), 2);
+        assert_eq!(
+            (series.rounds[1].name.as_str(), series.rounds[1].phase),
+            ("", 0)
+        );
+        assert_eq!(series.standings.len(), 4);
+        assert_eq!(series.standings.iter().filter(|s| s.ai).count(), 2);
+        assert_eq!(series.standings[0].results.len(), 2);
+        let (status, _) = api(http, "DELETE", "/api/championships/autumn-series", None).await;
+        assert_eq!(status, 200);
         drop((a, b, d));
         server.shutdown().await;
     })

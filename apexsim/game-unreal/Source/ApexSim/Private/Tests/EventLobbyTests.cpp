@@ -150,6 +150,21 @@ bool FApexEventSheetLabelsTest::RunTest(const FString& Parameters)
 	Race.Phase = 2;
 	TestEqual(TEXT("qualifying headline"), SheetHeadline(Race), FString(TEXT("pole Ada 1:20.100")));
 	TestEqual(TEXT("empty"), SheetHeadline(FApexEventSheet()), FString(TEXT("nobody took part")));
+
+	FApexChampionship Series;
+	Series.Rounds.SetNum(3);
+	Series.Rounds[0].bRaced = true;
+	Series.Rounds[1].bRaced = true;
+	FApexChampionshipStanding Lead;
+	Lead.Name = TEXT("Ada");
+	Lead.Points = 43;
+	Lead.Wins = 2;
+	Lead.Results = { 1, 3, 0 };
+	Series.Standings = { Lead };
+	TestEqual(TEXT("championship line"), ChampionshipLine(Series), FString(TEXT("2 / 3 rounds raced · leader Ada 43 pts")));
+	TestEqual(TEXT("standing line"), StandingLine(Lead), FString(TEXT("43 pts · 2 wins · R1 P1 · R2 P3 · R3 —")));
+	Series.Rounds[0].bRaced = Series.Rounds[1].bRaced = false;
+	TestEqual(TEXT("nothing raced: no leader"), ChampionshipLine(Series), FString(TEXT("0 / 3 rounds raced")));
 	return true;
 }
 

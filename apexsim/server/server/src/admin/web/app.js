@@ -688,7 +688,8 @@ function readSchedule(root) {
 PAGES.events = el => {
   el.innerHTML = `<div class="stack">
     <div class="panel scroll-x"><div style="min-width:940px" id="ev-list"><div class="empty">Loading…</div></div></div>
-    <div class="panel" id="ev-form"><div class="empty">Loading…</div></div></div>`;
+    <div class="panel" id="ev-form"><div class="empty">Loading…</div></div>
+    <div class="panel scroll-x" id="ch-panel"><div class="empty">Loading…</div></div></div>`;
   const cols = 'grid-template-columns:minmax(170px,1.4fr) minmax(130px,1fr) 110px 90px minmax(140px,1fr) minmax(330px,auto) 24px';
   const PHASES = { practice: 'Practice', qualifying: 'Qualifying', race: 'Race', done: 'Done' };
   const phaseColour = p => p === 'done' ? 'var(--muted)' : p === 'race' ? GREEN : AMBER;
@@ -768,8 +769,66 @@ PAGES.events = el => {
       <div class="acts-row"><button class="btn primary" id="ev-create">CREATE</button></div>`;
     bindSpecForm($('#ev-form'));
   }
+  /* Championships (/api/championships): rounds are events by id, points by
+     place; the standings come worked out from the rounds' kept races. */
+  let champs = [];
+  function paintChamps() {
+    const ids = events.map(e => e.id).join(', ');
+    const table = c => c.standings.length ? `<div class="row head" style="grid-template-columns:36px minmax(140px,220px) 70px 50px ${c.rounds.map(() => '44px').join(' ')}"><span>POS</span><span>DRIVER</span><span>PTS</span><span>WINS</span>${c.rounds.map((r, i) => `<span title="${esc(r.name || r.event_id)}">R${i + 1}</span>`).join('')}</div>` +
+      c.standings.map((s, i) => `<div class="row" style="grid-template-columns:36px minmax(140px,220px) 70px 50px ${c.rounds.map(() => '44px').join(' ')};padding:5px 0">
+        <span class="muted">${i + 1}</span><span class="name" style="font-size:17px">${esc(s.name)}${s.entrant.ai !== undefined ? ' <span class="sm-mono">AI</span>' : ''}</span>
+        <span>${s.points}</span><span class="muted">${s.wins}</span>${s.results.map(p => `<span class="${p === 1 ? 'sb' : 'muted'}">${p || '—'}</span>`).join('')}</div>`).join('')
+      : '<div class="muted">No round raced yet.</div>';
+    $('#ch-panel').innerHTML = `<div class="panel-head"><span class="eyebrow">CHAMPIONSHIPS · ROUNDS ARE EVENTS, POINTS BY PLACE, DRIVERS BY THEIR PROVED ID</span></div>
+      <div style="padding:4px 16px 16px 16px">${champs.map(c => `<div style="margin-top:14px" data-ch="${esc(c.id)}">
+        <div style="display:flex;gap:12px;align-items:baseline"><span class="name">${esc(c.name)}</span><span class="sm-mono">${esc(c.id)}</span>
+          <span class="muted">${c.rounds.filter(r => r.raced).length} / ${c.rounds.length} ROUNDS RACED</span></div>
+        <div class="muted" style="margin:4px 0 8px 0">${c.rounds.map((r, i) => `R${i + 1} ${esc(r.name || r.event_id + ' (no such event)')}`).join(' · ')}</div>
+        ${table(c)}
+        <div class="form" style="margin-top:8px"><label class="field"><span class="eyebrow">ROUNDS (EVENT IDS, IN ORDER)</span><input class="input" data-c="events" value="${esc(c.events.join(', '))}"></label>
+          <label class="field"><span class="eyebrow">POINTS, 1ST FIRST</span><input class="input" data-c="points" value="${esc(c.points.join(', '))}"></label></div>
+        <div class="acts-row"><button class="btn sm primary" data-chact="save" data-id="${esc(c.id)}">SAVE</button><button class="btn sm danger" data-chact="delete" data-id="${esc(c.id)}">DELETE</button></div></div>`).join('')
+      || '<div class="muted" style="margin-top:8px">No championships. One groups events as its rounds and adds up their races’ points by driver.</div>'}
+      <div style="margin-top:18px" data-ch=""><div class="eyebrow">NEW CHAMPIONSHIP</div><div class="form">
+        <label class="field"><span class="eyebrow">NAME</span><input class="input" data-c="name" maxlength="60" placeholder="Autumn Series"></label>
+        <label class="field"><span class="eyebrow">ROUNDS (EVENT IDS, IN ORDER)</span><input class="input" data-c="events" placeholder="${esc(ids)}"></label>
+        <label class="field"><span class="eyebrow">POINTS, 1ST FIRST (EMPTY: 25, 18, 15 …)</span><input class="input" data-c="points" placeholder="25, 18, 15, 12, 10, 8, 6, 4, 2, 1"></label></div>
+        <div class="acts-row"><button class="btn primary" data-chact="create">CREATE</button></div></div></div>`;
+  }
+  const chField = (box, k) => { const x = $(`[data-c="${k}"]`, box); return x ? x.value : ''; };
+  const chList = v => v.split(/[ ,]+/).map(x => x.trim()).filter(Boolean);
+  async function loadChamps() {
+    champs = (await api('/api/championships')).championships;
+    if (document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-ch]')) return;
+    paintChamps();
+  }
+  el.addEventListener('click', async ev => {
+    const b = ev.target.closest('[data-chact]');
+    if (!b) return;
+    const box = b.closest('[data-ch]');
+    try {
+      const body = { events: chList(chField(box, 'events')), points: chList(chField(box, 'points')).map(x => parseInt(x, 10)).filter(x => x >= 0) };
+      if (b.dataset.chact === 'create') {
+        body.name = chField(box, 'name').trim();
+        if (!body.name) throw new Error('The championship needs a name.');
+        const res = await api('/api/championships', { method: 'POST', body });
+        toast('Created ' + res.championship.name);
+      } else if (b.dataset.chact === 'save') {
+        await api('/api/championships/' + encodeURIComponent(b.dataset.id), { method: 'POST', body });
+        toast('Saved');
+      } else {
+        const r = await modal({ eyebrow: 'DELETE CHAMPIONSHIP', title: 'Delete ' + b.dataset.id + '?', body: 'Its rounds and points table are gone; the events and their results stay.', confirm: 'DELETE', danger: true });
+        if (!r.ok) return;
+        await api('/api/championships/' + encodeURIComponent(b.dataset.id), { method: 'DELETE' });
+        toast('Deleted');
+      }
+      document.activeElement && document.activeElement.blur && document.activeElement.blur();
+      loadChamps();
+    } catch (err) { if (!(err instanceof AuthError)) toast(err.message, true); }
+  });
   async function load() {
     events = (await api('/api/events')).events;
+    loadChamps().catch(() => {});
     // Not under the cursor of someone typing a time.
     if (document.activeElement && document.activeElement.closest && document.activeElement.closest('[data-sched]')) return;
     paintList();

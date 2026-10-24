@@ -814,6 +814,17 @@ bool UApexNetSubsystem::RequestEventSheets(const FString& EventId)
 	return true;
 }
 
+bool UApexNetSubsystem::RequestChampionships()
+{
+	if (ConnectionState != EApexConnectionState::Authenticated)
+	{
+		return false;
+	}
+	UE_LOG(LogApexSimNet, Log, TEXT("-> RequestChampionships"));
+	SendPayload(ApexProtocol::EncodeRequestChampionships());
+	return true;
+}
+
 bool UApexNetSubsystem::CanRewind() const
 {
 	if (CurrentSessionId.IsEmpty() || bSessionSpectator || CurrentSessionKind != EApexSessionKind::Practice)
@@ -1690,6 +1701,12 @@ void UApexNetSubsystem::HandleMessage(const FApexServerMessage& Message)
 		CurrentEventSheets = Message.EventSheets;
 		UE_LOG(LogApexSimNet, Log, TEXT("<- EventSheets %s: %d phases"), *CurrentEventSheets.Id, CurrentEventSheets.Phases.Num());
 		OnEventSheets.Broadcast(CurrentEventSheets);
+		break;
+
+	case EApexServerMessageType::Championships:
+		CurrentChampionships = Message.Championships;
+		UE_LOG(LogApexSimNet, Log, TEXT("<- Championships: %d"), CurrentChampionships.Championships.Num());
+		OnChampionships.Broadcast(CurrentChampionships);
 		break;
 
 	case EApexServerMessageType::Rewound:

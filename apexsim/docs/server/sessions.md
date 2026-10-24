@@ -6,7 +6,7 @@ modes, the rules a host sets on create, the race's grid before the
 countdown, race start and finish (over laps or against a clock), starting order and qualifying (timed, open-ended or a
 one-lap shoot-out, with an optional lap allowance), the race weekend (practice,
 knockout qualifying and the race in one session), events kept across
-server restarts, lap timing and records,
+server restarts, championships over them, lap timing and records,
 recovering a stuck car, rewind in offline practice, the hotlap mode with its ghost, and the watched
 hotlap. The client pieces that
 belong to these rules are described briefly beside them.
@@ -36,6 +36,8 @@ belong to these rules are described briefly beside them.
   (`sheets_json`, `sheets_csv`, `phase_replays`, `sheets_data`);
   `GameSession::on_schedule`
   and `seat_late_in_pits` in the sim
+- `server/server/src/championships.rs`: championships over the events
+  (`Championship`, `ChampionshipStore`, `standings`)
 - `server/sim/src/tyre_sets.rs`: `TyreSet`, `CarTyres` (the tyre rules,
   "Tyre sets")
 - `server/server/src/server.rs`: `ServerState::create_session` (resolves the
@@ -1528,6 +1530,39 @@ The dashboard runs it ([operations.md](operations.md#admin-dashboard)).
   order of their ids. Their result lines carry `ai_id` beside `ai`, and the
   race grids them by their place in that order (`@ai:N`), as a human by
   `@driver:`.
+
+## Championships
+
+A **championship** groups race events as its rounds and adds up their
+races' points (`server/server/src/championships.rs`): `Championship { id,
+name, events, points }`, kept in `<records>/championships/<id>.json`
+(`ChampionshipStore`; the id the name's slug as an event's is). `events` are
+event ids in round order (each once, at most `MAX_ROUNDS` 30; an id with no
+event is a round still to be made), `points` the points by place, 1st
+first (`DEFAULT_POINTS` 25, 18, 15, 12, 10, 8, 6, 4, 2, 1 when none is
+given; a place past the table scores nothing).
+
+**Standings** (`championships::standings`) are worked out whenever they
+are asked for, from each round's kept race result (its classification,
+"Events across restarts"): a human by their **proved driver id**, so the
+same driver adds up across events, restarts and names (the latest name
+shown); an AI driver by name, since an event's AI ids are its own. A car
+classified retired keeps its place in the round and scores nothing; a
+win is 1st and not retired. The table is ordered by points, then wins,
+then the better places in turn (count-back), then the name; each
+standing carries its place in every round (0 for none). A round whose
+event is not raced yet, or no longer exists, counts nothing.
+
+The dashboard makes, edits and deletes them in the Events view
+([operations.md](operations.md#admin-dashboard)); a client asks with
+`RequestChampionships` and is answered with `Championships`
+(`ChampionshipsData { Championships }`, each `ChampionshipData { Id, Name,
+Rounds, Standings }`, `ChampionshipRoundData { EventId, Name, Phase,
+Raced }`, `ChampionshipStandingData { Position, Name, Ai, Points, Wins,
+Results }`; `ChampionshipStore::wire`), shown in the session browser's
+LEAGUES list ([client.md](../game/client.md#session-browser-uiapexsessionbrowserwidgetcpp)).
+The offline season against the AI is the client's own
+([client.md](../game/client.md#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)).
 
 ## Lap timing, track limits and records
 

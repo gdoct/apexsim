@@ -159,7 +159,7 @@ and widget factories), so layouts are reviewable as diffs.
 Drive > Browse sessions: the live sessions from the latest `LobbyState`,
 filtered by the pills under the car bar (F or pad X steps them; Shift+F
 back): All, Joinable (not full, not over), Racing (a race under way),
-Recorded (`ApexBrowser::Passes`) and Events. Recorded lists the server's recordings of
+Recorded (`ApexBrowser::Passes`), Events and Leagues. Recorded lists the server's recordings of
 finished sessions from its health port (`LobbyState.recordings_port`,
 `GET /recordings`, [operations](../server/operations.md); R fetches again):
 the circuit's catalog name (never the file's `name`), when, kind, cars, laps,
@@ -202,6 +202,14 @@ name, the car's display name, its time (`SheetTime`: the race's time, or
 RETIRED / RUNNING, else the best lap) and notes (`SheetNotes`: laps, out in
 Qn, AI).
 
+Leagues lists the server's championships over its events
+([sessions.md](../server/sessions.md#championships)), asked for on choosing
+it and on Refresh (`UApexNetSubsystem::RequestChampionships`,
+`OnChampionships`): a row a championship (its name, "2 / 3 rounds raced ·
+leader Ada 43 pts", `ApexEventLabels::ChampionshipLine`, and its rounds by
+event name) and under it a row per driver, best first ("P1 Ada", "43 pts ·
+2 wins · R1 P1 · R2 P3 · R3 —", `StandingLine`).
+
 ### Session lobby (`UI/ApexSessionLobbyWidget.cpp`)
 
 The joined session before it starts: the state line, the circuit, its
@@ -229,8 +237,9 @@ server's reason as a sentence, and the rest keep their code.
 
 Checks: `ApexSim.UI.EventLobby.Labels`, `.Schedule` and `.Sheets`,
 `ApexSim.Net.ServerErrors`, `ApexSim.Net.Protocol.GoldenDecode`
-(`S_SessionJoinedEvent`, `S_EventSheets`), `GoldenEncode`
-(`C_RequestEventSheets`) and `LobbyStateDecode` (`S_LobbyStateEvents`).
+(`S_SessionJoinedEvent`, `S_EventSheets`, `S_Championships`), `GoldenEncode`
+(`C_RequestEventSheets`, `C_RequestChampionships`) and `LobbyStateDecode`
+(`S_LobbyStateEvents`).
 
 ### Session results (`UI/ApexSessionResultsWidget.cpp`)
 

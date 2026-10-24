@@ -49,6 +49,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRoadState, const FApexRoadState&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnRewound, const FApexRewound&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnIncidents, const FApexIncidents&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnEventSheets, const FApexEventSheets&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnChampionships, const FApexChampionships&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnTrackBundleChunk, const FApexTrackBundleChunk&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FApexOnLiveryChunk, const FApexLiveryChunk&);
 
@@ -408,6 +409,9 @@ public:
 	/** A race event's sheets arrived (`EventSheets`, answering RequestEventSheets). */
 	FApexOnEventSheets OnEventSheets;
 
+	/** The server's championships arrived (`Championships`, answering RequestChampionships). */
+	FApexOnChampionships OnChampionships;
+
 	/**
 	 * Every chunk of a track's physics bundle as it arrives, answering
 	 * RequestTrackBundleChunk (the prediction subsystem asks and assembles,
@@ -611,6 +615,14 @@ public:
 	bool RequestEventSheets(const FString& EventId);
 	/** The sheets last received; not bValid before any. */
 	const FApexEventSheets& GetEventSheets() const { return CurrentEventSheets; }
+
+	/**
+	 * Ask for the server's championships with their standings
+	 * (`RequestChampionships`): they arrive as GetChampionships and
+	 * OnChampionships. False when not connected.
+	 */
+	bool RequestChampionships();
+	const FApexChampionships& GetChampionships() const { return CurrentChampionships; }
 
 	/** In a practice session as its only human driver: what the server lets rewind. */
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Net")
@@ -1127,6 +1139,7 @@ private:
 	/** The session's incident list, as last asked for; reset with the session. */
 	FApexIncidents CurrentIncidents;
 	FApexEventSheets CurrentEventSheets;
+	FApexChampionships CurrentChampionships;
 	int32 CurrentRaceSeconds = 0;
 	int32 CurrentQualifyingSeconds = 0;
 	int32 CurrentQualifyingCutoffPct = 0;

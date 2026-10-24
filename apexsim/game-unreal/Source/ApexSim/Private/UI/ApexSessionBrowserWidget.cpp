@@ -108,6 +108,7 @@ namespace ApexBrowser
 			return Session.IsWatchable();
 		case EFilter::Recorded:
 		case EFilter::Events:
+		case EFilter::Championships:
 			return false;
 		default:
 			return true;
@@ -247,7 +248,7 @@ void UApexSessionBrowserWidget::BuildLayout()
 	// under way, or the finished races the server recorded.
 	FilterPills = WidgetTree->ConstructWidget<UApexSegmentedWidget>();
 	FilterPills->ControlId = TEXT("Browser.Filter");
-	FilterPills->Setup({ TEXT("ALL"), TEXT("JOINABLE"), TEXT("RACING"), TEXT("RECORDED"), TEXT("EVENTS") }, 0, 132.0f);
+	FilterPills->Setup({ TEXT("ALL"), TEXT("JOINABLE"), TEXT("RACING"), TEXT("RECORDED"), TEXT("EVENTS"), TEXT("LEAGUES") }, 0, 132.0f);
 	FilterPills->OnChosen.AddDynamic(this, &UApexSessionBrowserWidget::HandleFilterChosen);
 	AddV(Body, FilterPills, FMargin(0.0f, 22.0f, 0.0f, 0.0f), HAlign_Left);
 
@@ -279,6 +280,13 @@ void UApexSessionBrowserWidget::NativeConstruct()
 	{
 		Net->OnLobbyStateUpdated.AddDynamic(this, &UApexSessionBrowserWidget::HandleLobbyStateUpdated);
 		EventSheetsHandle = Net->OnEventSheets.AddUObject(this, &UApexSessionBrowserWidget::HandleEventSheets);
+		ChampionshipsHandle = Net->OnChampionships.AddWeakLambda(this, [this](const FApexChampionships&)
+		{
+			if (Filter == ApexBrowser::EFilter::Championships)
+			{
+				RebuildChampionshipRows();
+			}
+		});
 	}
 }
 
@@ -288,6 +296,7 @@ void UApexSessionBrowserWidget::NativeDestruct()
 	{
 		Net->OnLobbyStateUpdated.RemoveDynamic(this, &UApexSessionBrowserWidget::HandleLobbyStateUpdated);
 		Net->OnEventSheets.Remove(EventSheetsHandle);
+		Net->OnChampionships.Remove(ChampionshipsHandle);
 	}
 	Super::NativeDestruct();
 }
@@ -406,6 +415,14 @@ void UApexSessionBrowserWidget::SetFilter(ApexBrowser::EFilter InFilter)
 		Rows.Reset();
 		WatchButtons.Reset();
 		RefreshEventRows();
+	}
+	else if (Filter == ApexBrowser::EFilter::Championships)
+	{
+		if (UApexNetSubsystem* Net = GetNet())
+		{
+			Net->RequestChampionships();
+		}
+		RebuildChampionshipRows();
 	}
 	else
 	{
@@ -643,6 +660,11 @@ void UApexSessionBrowserWidget::RefreshList()
 	if (Filter == ApexBrowser::EFilter::Recorded)
 	{
 		// The recordings are fetched on asking, not with every lobby broadcast.
+		return;
+	}
+	if (Filter == ApexBrowser::EFilter::Championships)
+	{
+		// Asked for on choosing the list and on Refresh, not with every broadcast.
 		return;
 	}
 	if (Filter == ApexBrowser::EFilter::Events)
@@ -938,6 +960,91 @@ void UApexSessionBrowserWidget::CloseSheets()
 	}
 }
 
+void UApexSessionBrowserWidget::RebuildChampionshipRows()
+{
+	using namespace ApexUI;
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net || !List)
+	{
+		return;
+	}
+	const bool bHadFocus = HasFocusedDescendants() || HasAnyUserFocus();
+	List->ClearChildren();
+	Rows.Reset();
+	WatchButtons.Reset();
+	const FApexChampionships& All = Net->GetChampionships();
+	for (const FApexChampionship& Champ : All.Championships)
+	{
+		// The championship, then its standings, best first.
+		UApexButtonWidget* Head = WidgetTree->ConstructWidget<UApexButtonWidget>();
+		Head->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+		TArray<FString> Rounds;
+		for (int32 Round = 0; Round < Champ.Rounds.Num(); ++Round)
+		{
+			const FApexChampionshipRound& R = Champ.Rounds[Round];
+			Rounds.Add(FString::Printf(TEXT("R%d %s"), Round + 1, R.Name.IsEmpty() ? *R.EventId : *R.Name));
+		}
+		FApexButtonSpec HeadSpec;
+		HeadSpec.Label = Champ.Name;
+		HeadSpec.SubLabel = ApexEventLabels::ChampionshipLine(Champ) + TEXT("  ·  ") + FString::Join(Rounds, TEXT(" · "));
+		HeadSpec.Badge = TEXT("Championship");
+		HeadSpec.BadgeColour = Palette::Accent;
+		HeadSpec.Variant = EApexButtonVariant::Panel;
+		HeadSpec.LabelSize = 20.0f;
+		HeadSpec.Height = RowHeight;
+		HeadSpec.ActionId = ActionBrowserRow;
+		Head->Setup(HeadSpec);
+		List->AddChild(Head);
+		if (UScrollBoxSlot* HeadSlot = Cast<UScrollBoxSlot>(Head->Slot))
+		{
+			HeadSlot->SetPadding(FMargin(0.0f, Rows.Num() == 0 ? 0.0f : 18.0f, 0.0f, 0.0f));
+		}
+		Rows.Add(Head);
+		for (const FApexChampionshipStanding& Standing : Champ.Standings)
+		{
+			UApexButtonWidget* Row = WidgetTree->ConstructWidget<UApexButtonWidget>();
+			Row->OnActivated.AddDynamic(this, &UApexSessionBrowserWidget::HandleButtonActivated);
+			FApexButtonSpec Spec;
+			Spec.Label = FString::Printf(TEXT("P%d   %s"), Standing.Position, *Standing.Name);
+			Spec.SubLabel = ApexEventLabels::StandingLine(Standing);
+			Spec.Variant = EApexButtonVariant::Panel;
+			Spec.LabelSize = 16.0f;
+			Spec.Height = 52.0f;
+			Spec.ActionId = ActionBrowserRow;
+			Row->Setup(Spec);
+			List->AddChild(Row);
+			if (UScrollBoxSlot* RowSlot = Cast<UScrollBoxSlot>(Row->Slot))
+			{
+				RowSlot->SetPadding(FMargin(0.0f, 4.0f, 0.0f, 0.0f));
+			}
+			Rows.Add(Row);
+		}
+	}
+	LastFocused = Rows.Num() > 0 ? FMath::Clamp(LastFocused, 0, Rows.Num() - 1) : 0;
+	if (CountText)
+	{
+		CountText->SetText(FText::FromString(FString::Printf(TEXT("%d CHAMPIONSHIP%s"),
+			All.Championships.Num(), All.Championships.Num() == 1 ? TEXT("") : TEXT("S"))));
+	}
+	if (StatusLine)
+	{
+		const FString Status = Net->GetConnectionState() != EApexConnectionState::Authenticated ? TEXT("NOT CONNECTED: CONNECT TO A SERVER FROM THE MAIN MENU")
+			: !All.bValid ? TEXT("ASKING THE SERVER FOR ITS CHAMPIONSHIPS")
+			: TEXT("POINTS FROM EACH ROUND'S RACE  ·  DRIVERS BY THEIR DRIVER KEY  ·  R ASKS AGAIN");
+		StatusLine->SetText(FText::FromString(Status));
+		StatusLine->SetVisibility(ESlateVisibility::HitTestInvisible);
+	}
+	if (EmptyText)
+	{
+		EmptyText->SetText(FText::FromString(TEXT("No championships on this server. Its operator groups race events into one on the dashboard.")));
+		EmptyText->SetVisibility(All.bValid && All.Championships.IsEmpty() ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (IsActiveScreen() && bHadFocus)
+	{
+		FocusDefault();
+	}
+}
+
 void UApexSessionBrowserWidget::HandleEventSheets(const FApexEventSheets& Sheets)
 {
 	if (!SheetsEventId.IsEmpty() && Sheets.Id == SheetsEventId)
@@ -1197,6 +1304,13 @@ void UApexSessionBrowserWidget::Refresh()
 	{
 		FetchRecordings();
 		return;
+	}
+	if (Filter == ApexBrowser::EFilter::Championships)
+	{
+		if (UApexNetSubsystem* Net = GetNet(); Net && Net->RequestChampionships())
+		{
+			return;
+		}
 	}
 	// RequestLobbyState debounces: the server allows ten control messages a
 	// second, and broadcasts a fresh snapshot every two seconds anyway.

@@ -636,6 +636,13 @@ RETIRED, AI), Esc back to the events. By hand on a server that records
 races: a real weekend's Watch fetching the phase's replay and playing it,
 and the dashboard's REPLAY links and EXPORT JSON / CSV.
 
+`n7-leagues` (the same made-up weekend, the event a round of a seeded
+championship): the browser's LEAGUES list with the championship's row
+("1 / 2 rounds raced · leader …", its rounds by event name, the missing one
+by its id) and a row per driver ("P1 Ada Quick", "25 pts · 1 win · R1 P1 ·
+R2 —", the AI driver marked AI). The dashboard's championship panel under
+the events: its standings, SAVE / DELETE, a new one from the form.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

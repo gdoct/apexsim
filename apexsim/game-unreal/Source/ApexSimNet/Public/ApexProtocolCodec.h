@@ -124,6 +124,8 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeRequestIncidents();
 	/** A race event's sheets (`RequestEventSheets`): answered with EventSheets. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestEventSheets(const FString& EventId);
+	/** The server's championships (`RequestChampionships`): answered with Championships. */
+	APEXSIMNET_API TArray<uint8> EncodeRequestChampionships();
 	/** Asks for the trace of the driver's record lap here, answered with GhostLap. */
 	APEXSIMNET_API TArray<uint8> EncodeRequestGhost();
 	/** Asks for one chunk of the track's physics bundle named by its checksum (SessionJoined.Physics), answered with TrackBundleChunk. */

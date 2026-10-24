@@ -287,7 +287,15 @@ A web page for operators on `[admin] http_bind` / `https_bind` (default
   slug; the times Unix s, each optional); `/api/events/<id>/schedule` with
   a schedule replaces it; `GET /api/events/<id>/sheets.json` and
   `/sheets.csv` download the weekend's sheets (the event JSON also carries
-  `replays`, each kept phase's recordings);
+  `replays`, each kept phase's recordings); under the events, the
+  championships ([sessions.md](sessions.md#championships)): each with its
+  rounds, its standings (place, driver, points, wins, the place in each
+  round) and its rounds and points table to edit (SAVE, DELETE), and a form
+  for a new one (name, event ids in round order, points); the API is
+  `GET /api/championships` (each with `rounds` and `standings`), `POST
+  /api/championships` with `{ "name", "events", "points" }`, `POST
+  /api/championships/<id>` with `events` and/or `points`, and `DELETE
+  /api/championships/<id>`;
   `POST /api/events/<id>/open` opens its session (and keeps it open across
   restarts), `/start` starts that session (its next phase), `/advance`
   moves it on between phases (recording the one finished), `/close` ends
@@ -396,7 +404,8 @@ let a driver who lost their install take their id back with a new key),
 [sessions](sessions.md#incidents)),
 `events/<id>.json` (each event: its spec, entries, AI field, phase and results)
 and, once a phase is kept, `events/<id>.sheets.json` and `.sheets.csv` (the
-weekend's sheets),
+weekend's sheets), `championships/<id>.json` (each championship's rounds and
+points table),
 the watched hotlaps' `watch_levels.json` and `watch_ghosts/*.msgpack`,
 and by default the dashboard's `bans.json`, `content.json` (switched-off
 content) and `schedule.json` (a corrupt records file is logged and treated

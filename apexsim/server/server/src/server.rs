@@ -52,6 +52,9 @@ pub struct ServerState {
     /// Race events kept across restarts (`crate::events`), in
     /// `<records>/events`.
     pub events: Arc<crate::events::EventStore>,
+    /// League championships over the events (`crate::championships`), in
+    /// `<records>/championships`.
+    pub championships: Arc<crate::championships::ChampionshipStore>,
     /// The rewind snapshots of each session driven alone (`crate::rewind`),
     /// taken by the game loop after its tick.
     pub rewinds: HashMap<SessionId, crate::rewind::Rewind>,
@@ -128,6 +131,13 @@ impl ServerState {
         } else {
             crate::events::EventStore::in_memory()
         };
+        let championships = if config.records.enabled {
+            crate::championships::ChampionshipStore::open(
+                Path::new(&config.records.dir).join(crate::championships::CHAMPIONSHIPS_DIR),
+            )
+        } else {
+            crate::championships::ChampionshipStore::in_memory()
+        };
 
         Self {
             showcase,
@@ -148,6 +158,7 @@ impl ServerState {
             live: crate::session_stream::LiveWatchers::default(),
             records: Arc::new(records),
             events: Arc::new(events),
+            championships: Arc::new(championships),
         }
     }
 

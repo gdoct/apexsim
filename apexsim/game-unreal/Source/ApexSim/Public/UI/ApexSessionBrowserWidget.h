@@ -26,6 +26,8 @@ namespace ApexBrowser
 		Recorded,
 		/** The server's race events (`LobbyState.Events`): what is coming, with a countdown, and what is over. */
 		Events,
+		/** The server's championships and their standings (`RequestChampionships`). */
+		Championships,
 		Count,
 	};
 
@@ -115,6 +117,9 @@ private:
 	void HandleEventSheets(const FApexEventSheets& Sheets);
 	/** Watch one of the server's recordings by its file name: fetched into the Replays folder first. */
 	void WatchRecordingFile(const FString& File);
+	/** The championships list: asked of the server, rebuilt when they arrive. */
+	void RebuildChampionshipRows();
+	FDelegateHandle ChampionshipsHandle;
 	void Watch(int32 Index);
 	void Refresh();
 	/** Show another filter (the row of pills, F or pad X). */

@@ -8002,6 +8002,31 @@ runs:
         label: "the sheets"
         checks: "R3 sheets: PRACTICE, QUALIFYING, RACE headers (kept <day time>, fastest / pole / won by), each car's line with the car's display name, time and notes (out in Q1, RETIRED, AI); Watch dim (no recordings)"
 
+  - id: n7-leagues
+    about: "N7. A championship over race events in the session browser's Leagues list"
+    server:
+      event:
+        name: "Sheet Cup"
+        track: Shiverstone
+        car: SF-26
+        phase: done
+        practice_min: 5
+        qualifying_min: 5
+        ai: 3
+        sheets: true
+        championship: "Autumn Series"
+    args:
+      - -ApexNoDemo
+    exec:
+      5: ["apexsim.ui.Click Drive"]
+      7: ["apexsim.ui.Click Browse sessions"]
+      9: ["apexsim.ui.Click LEAGUES"]
+      11: ["apexsim.ui.Texts"]
+    shots:
+      - at: 12
+        label: "browser, LEAGUES: the championship and its standings"
+        checks: "N7: Autumn Series, 1 / 2 rounds raced · leader Ada Quick 25 pts, R1 Sheet Cup · R2 round-two; P1 Ada Quick 25 pts · 1 win · R1 P1 · R2 —; Dee Bot marked AI with no points (retired)"
+
   - id: r3c-incidents
     about: "N19. The race's incident list on the results screen, and the jump into the replay"
     # Two laps with a full field from a standing start: contacts and track

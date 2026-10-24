@@ -126,6 +126,10 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		ApexProtocol::EncodeRequestEventSheets(TEXT("autumn-cup")),
 		ApexGolden::C_RequestEventSheets);
 
+	CheckBytes(TEXT("RequestChampionships"),
+		ApexProtocol::EncodeRequestChampionships(),
+		ApexGolden::C_RequestChampionships);
+
 	FApexAllowedAssists CreateAssists;
 	CreateAssists.bTractionControl = false;
 	CreateAssists.bSteeringAssist = false;
@@ -1249,6 +1253,36 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("Rewound.Tick"), Message.Rewound.Tick, 4200u);
 			TestEqual(TEXT("Rewound.FromTick"), Message.Rewound.FromTick, 8610u);
 			TestEqual(TEXT("Rewound.HoldMs"), Message.Rewound.HoldMs, 3000u);
+		}
+	}
+
+	{
+		// The championships: rounds and standings, best first.
+		FApexServerMessage Message;
+		if (Decode(TEXT("Championships"), ApexGolden::S_Championships, Message))
+		{
+			const FApexChampionships& All = Message.Championships;
+			TestEqual(TEXT("Championships type"), Message.Type, EApexServerMessageType::Championships);
+			TestTrue(TEXT("Championships decoded"), All.bValid);
+			if (TestEqual(TEXT("one championship"), All.Championships.Num(), 1))
+			{
+				const FApexChampionship& Series = All.Championships[0];
+				TestEqual(TEXT("Id"), Series.Id, FString(TEXT("autumn-series")));
+				TestEqual(TEXT("rounds"), Series.Rounds.Num(), 2);
+				TestTrue(TEXT("round 1 raced"), Series.Rounds[0].bRaced);
+				TestFalse(TEXT("round 2 not"), Series.Rounds[1].bRaced);
+				TestEqual(TEXT("round 2 at practice"), Series.Rounds[1].Phase, 1);
+				if (TestEqual(TEXT("standings"), Series.Standings.Num(), 2))
+				{
+					TestEqual(TEXT("leader"), Series.Standings[0].Name, FString(TEXT("Ada")));
+					TestEqual(TEXT("points"), Series.Standings[0].Points, 25);
+					TestEqual(TEXT("wins"), Series.Standings[0].Wins, 1);
+					TestFalse(TEXT("a human"), Series.Standings[0].bAi);
+					TestTrue(TEXT("an AI"), Series.Standings[1].bAi);
+					TestEqual(TEXT("results"), Series.Standings[1].Results.Num(), 2);
+					TestEqual(TEXT("second in round 1"), Series.Standings[1].Results[0], 2);
+				}
+			}
 		}
 	}
 
