@@ -101,6 +101,14 @@ AC-imported circuit is installed; Spa stands in.
   standstill spin limit, its no-headway reset with a run-up, and traction
   control cutting the engine's heat; `snow_stall_survey` holds every
   engine under 82 °C in 15 minutes of a Chiffon field).
+- Run 2026-10-24 (`r4-spa-snow`, after A5's winter-tyre AI): the snow on
+  the ground, the falling snow, the stands and the evening light render;
+  the props' faces-up snow is not readable at these poses. The player's
+  stand-in Chiffon stood at 0 km/h in first gear from about 300 s to the
+  end (560 s), its flat spots at 76%, more than 300 s behind: a car stuck
+  in the snow, as this bullet's field check fears. Its client and server
+  logs are in `out/verify/r4-spa-snow/`: find where it stopped and why
+  before closing the snow rows.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
   snow tread with its steel studs and the ice-white ring, and the field
