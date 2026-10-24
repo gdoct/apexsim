@@ -503,6 +503,8 @@ kept at its race (`server.event` in runs.yml), as after a restart.
   its entries and results, OPEN / START / NEXT PHASE / CLOSE / entries /
   DELETE answering, and an event created from the form.
 
+Run 2026-10-24 (`r3c-event-lobby`): the browser lists the session under VERIFY CUP, the lobby reads PRACTICE 5 MIN DONE · QUALIFYING 5 MIN DONE · RACE 3 LAPS and WAITING FOR RACE CONTROL TO START THE RACE, and the dashboard's start took it to the grid. The lobby's top line is clipped at its left edge on 1080p (the event's name runs off).
+
 ### R23. The race's incident list in the game
 
 `r3c-incidents`: a short race with the AI and a stand-in driver, then the
@@ -516,6 +518,8 @@ results screen.
 - The dashboard's copied command with `-ApexWatchReplayAt=<s>` on a
   downloaded server replay: it seeks once loaded (no "nothing is
   playing").
+
+Run 2026-10-24 (`r3c-incidents`): the jump played the client's replay from 0:50 and held it; the 205 s shot caught the results table, not the incident list (the Incidents toggle had not been pressed by then): move the shot or the `apexsim.incidents show`.
 
 ### R24. Night cameras at Mandarina Bay
 
@@ -533,6 +537,8 @@ shot every 7 s, cuts logged with their reason and the lens's position.
   old look (`apexsim.cockpit.ScreenReferenceEv -10`) beside it; the same
   display by day unchanged.
 
+Run 2026-10-24: no white or black TV frame in 16 shots, three poses refused as inside a mesh (`cut: inside a mesh`), but one shot (10) sat inside a tree's foliage, which the traces do not catch. The cockpit display reads at night (`cockpit-screens-night`, the old look in shot 3 for comparison). The headlights still lay bright pools ahead of the cars from the TV's distance.
+
 ### R25. Marshals and recovery
 
 `marshals-recovery`: car 2's engine killed 20 s after the green at
@@ -547,6 +553,8 @@ Monzarella, the shot camera parked on the scene (`apexsim.marshals.Look`).
   behind the car before the tow; the car gone to its box, the flags down,
   the scene gone 5 s later. The TV director's trouble shot on the scene.
 
+Run 2026-10-24 (`marshals-recovery`): two marshals with yellow flags stood at the verge beside the stopped car, facing the traffic; the tractor showed only at the frame's edge and the towed shot looked at a wall (the Look pose after the car left): the tractor's approach is still to be seen.
+
 ### R26. Driving school
 
 `n16-school-screen` (the School screen, Snorisring's tests for the
@@ -560,6 +568,8 @@ tarmac where the goal says, and the client log's `School:` lines. Left, by
 hand: whether the targets are fair to a human (each test passed and failed
 at every medal), the brake test's stop line where it lands in the corner,
 and the pad through the screen and the cards.
+
+Run 2026-10-24 (`n16-school-tests`): the clean lap's card, its FAILED (too slow, 1:05.411 against bronze 1:04.881) result card with RETRY / NEXT TEST / BACK TO SCHOOL, and the brake test's card for Grantig-Kehre read well.
 
 ## 2. Needs a human: hands, ears and hardware
 
