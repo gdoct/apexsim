@@ -311,9 +311,10 @@ the launcher import with the network off.
   (cameras.md, TV director). Find the two poses from the client log's
   `Tv:` lines and test the placement against the street circuit's walls
   and buildings both ways.
-- The headlights at night light a near-white disc on the road just ahead of
-  every car (the same run's onboard and TV shots): the beam's intensity or
-  falloff is set for a darker exposure than the floodlit street gets.
+- At night the cockpit wheel's display glows as a blown white rectangle
+  (`headlights-night`, 2026-10-24, the SF-26 at Mandarina Bay): its
+  emissive is set for the day's exposure; scale it with the scene's
+  exposure as the lamp faces are.
 
 - Runtime-built track meshes stay out of the distance-field scene, so
   software Lumen and DF shadows see the road and terrain less well than the

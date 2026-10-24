@@ -725,8 +725,12 @@ void AApexRaceCarActor::SetHeadlights(bool bOn, bool bFullBeam)
 			Lamp->SetIntensity(CVarHeadlightLumens.GetValueOnGameThread());
 			Lamp->SetLightColor(FLinearColor(1.0f, 0.96f, 0.88f));
 			Lamp->SetAttenuationRadius(9000.0f);
-			Lamp->SetInnerConeAngle(16.0f);
-			Lamp->SetOuterConeAngle(34.0f);
+			// A dipped beam throws its light down the road, not onto the
+			// metre in front of the bumper: a narrow core aimed near level
+			// meets the road well ahead, where a wide one lit a white disc
+			// at the nose (inverse square from a lamp 40 cm up).
+			Lamp->SetInnerConeAngle(6.0f);
+			Lamp->SetOuterConeAngle(22.0f);
 			// Twenty cars, forty lamps: shadows would be the whole frame budget.
 			Lamp->SetCastShadows(false);
 			Lamp->bAffectsWorld = true;
@@ -777,7 +781,7 @@ void AApexRaceCarActor::PlaceHeadlights()
 	const float X = Box.Max.X - Size.X * 0.04f;
 	const float Y = Size.Y * 0.36f;
 	const float Z = Box.Min.Z + Size.Z * 0.42f;
-	const FRotator Aim(-3.0f, 0.0f, 0.0f);
+	const FRotator Aim(-1.5f, 0.0f, 0.0f);
 	HeadlightLeft->SetRelativeLocationAndRotation(FVector(X, Y, Z), Aim);
 	HeadlightRight->SetRelativeLocationAndRotation(FVector(X, -Y, Z), Aim);
 }

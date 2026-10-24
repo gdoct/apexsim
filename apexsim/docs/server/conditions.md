@@ -758,7 +758,10 @@ See [protocol.md](protocol.md) for the append-only rules.
   a body without the slot has none.
 - Car headlights: `AApexRaceCarActor::SetHeadlights`
   (`apexsim.car.HeadlightLumens`), from the telemetry bits; a flash is held
-  at least 0.2 s so a tap shows.
+  at least 0.2 s so a tap shows. Each lamp is a spot with a narrow core (6°
+  inner, 22° outer cone) aimed 1.5° down, so it meets the road well ahead
+  of the nose instead of lighting a white disc at the bumper
+  (`headlights-night`).
 - HUD data points `sky.*` and the `conditions` component (off by default):
   [../game/hud-modding.md](../game/hud-modding.md).
 - Unattended: `-ApexAutoRace -ApexWeather=heavyrain|snow -ApexTimeOfDay=22:15

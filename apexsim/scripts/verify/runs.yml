@@ -7804,3 +7804,23 @@ runs:
       - at: 30
         label: "Round 2's grid"
         checks: "the server log's ballast line for this session"
+
+  - id: headlights-night
+    about: "Follow-ups, Rendering: the headlights' beam on the road at night"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=21:00
+      - -ApexView=near
+      - -ApexRacingLine=off
+    shots:
+      - {at: 14, label: "chase near", checks: "the beam down the road, no white disc at the nose"}
+      - {at: 18, label: "cockpit", checks: "the road ahead lit, not blown", lead: 1, exec: "apexsim.cam.Chase cockpit"}
+      - {at: 22, label: "chase far", checks: "the cars ahead in their own beams", lead: 1, exec: "apexsim.cam.Chase far"}
