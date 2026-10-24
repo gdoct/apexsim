@@ -583,6 +583,8 @@ playing from the start and after a seek, with no unpack error in
 client.log. Left, by hand: Settings > Gameplay > Recent replays at 10
 deleting the oldest recent replay as the next is written.
 
+Run 2026-10-24: the client's recording of a 2-lap, 12-car Red Pull Ring race is 955 KB against 2.2 MB for the same race recorded before (43%); the Replays list shows each size and 23 MB in all; it plays from the start and after a seek to a minute in.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
