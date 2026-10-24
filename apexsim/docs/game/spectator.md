@@ -130,7 +130,7 @@ scan read), the blocks, a plain `Index`, and a u64 offset of the index as the
 trailer. A live stream is the same records without blocks and index.
 
 Version 2 (`FILE_VERSION`, what the server, `apexsim-replay` and the physics
-library write) holds `ColumnBlock`s of `BLOCK_SECONDS` each; version 1 (what
+library write) holds `ColumnBlock`s of `BLOCK_SECONDS` (10 s) each; version 1 (what
 the client's own recorder writes, and every file from before) plain zlib
 `Block`s of a second. Every reader takes both, and a block of either version
 gives back the same record bodies in the same order, so nothing that plays,
@@ -143,9 +143,13 @@ lap and station as the difference from the car's row before in the block
 column split into byte planes; the other records follow as they are. Only a
 frame of whole `ROW_SIZE` rows whose bytes this build would write for it is
 laid out, anything else is kept verbatim, so the round trip is exact for any
-block (`a_column_block_gives_back_every_body`). It is half the size of the
-plain block: 16 GT3s over 6.4 min of Zandervoort are 3.27 MB in version 2
-and 6.41 MB in version 1, 31 MB against 61 MB for a 16-car hour. The client's
+block (`a_column_block_gives_back_every_body`). 16 GT3s over 6.4 min of
+Zandervoort are 2.56 MB in version 2 and 6.41 MB in version 1 (Spa in heavy
+rain 2.48 MB against 6.50 MB): about 24 MB for a 16-car hour against 60.
+The layout halves the plain blocks; the ten-second blocks take another
+fifth. Nothing seeks by block on a hot path (the client inflates a whole
+file before it plays, a showcase on its first viewer's join), so the longer
+block costs only a tool reading one block by the index. The client's
 codec unpacks a column block through the physics library
 (`apx_stream_block_raw`, ABI 6, the server's own code); a client built
 without it still plays version 1 files and names the library for a

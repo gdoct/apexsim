@@ -3,7 +3,7 @@
 //! its own replays in and the showcases are rendered in.
 //!
 //! A recording is fed the records of a [`crate::session_stream::SessionStream`]
-//! each tick. Records collect into blocks of a second of ticks, and a writer
+//! each tick. Records collect into blocks of `BLOCK_SECONDS` of ticks, and a writer
 //! thread compresses each block into a temporary file beside the replays as
 //! it fills, so a race of any length costs the game loop a queue and nothing
 //! more. Stopping writes the file's preamble (the header knows its last tick
@@ -25,14 +25,14 @@ use crate::replay::{ReplayMetadata, ReplayParticipant};
 use crate::session_stream::{SessionStream, StreamRecord};
 use crate::spectator::{
     framed, ColumnBlock, Index, IndexEntry, StreamEvent, StreamHeader, StreamPath, StreamRoster,
-    FILE_MAGIC, FILE_VERSION,
+    BLOCK_SECONDS, FILE_MAGIC, FILE_VERSION,
 };
 
 /// Blocks waiting for the writer before the game loop starts dropping them
-/// rather than wait: minutes of racing.
-const QUEUE_BLOCKS: usize = 512;
+/// rather than wait: about 8.5 minutes of racing at [`BLOCK_SECONDS`] a block.
+const QUEUE_BLOCKS: usize = 512 / BLOCK_SECONDS as usize;
 
-/// A second of records, on its way to the writer.
+/// A block of records ([`BLOCK_SECONDS`] of ticks), on its way to the writer.
 struct Job {
     first_tick: u32,
     last_tick: u32,
@@ -296,7 +296,7 @@ impl StreamRecorders {
             path: stream.path(session),
             preamble: vec![stream.encoder.sectors(session)],
             meta,
-            block_ticks: u32::from(session.tick_rate_hz()).max(1) * crate::spectator::BLOCK_SECONDS,
+            block_ticks: u32::from(session.tick_rate_hz()).max(1) * BLOCK_SECONDS,
             pending: Vec::new(),
             pending_first: 0,
             pending_records: 0,
@@ -567,7 +567,8 @@ mod tests {
         assert_eq!(file.header.end_tick, kept.last().unwrap().0);
         assert_eq!(file.roster.entries.len(), 3);
         assert!(file.path.as_ref().is_some_and(|p| p.points.len() > 300));
-        assert!(file.block_count() >= 5, "{}", file.block_count());
+        // Six seconds: one block of BLOCK_SECONDS.
+        assert_eq!(file.block_count(), 1);
         let records = file.records().unwrap();
         assert_eq!(records.len(), kept.len());
         assert!(records.iter().zip(&kept).all(|(r, (_, k))| r == k));

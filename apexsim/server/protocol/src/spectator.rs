@@ -96,7 +96,7 @@ pub const COLUMN_LAYOUT_DELTA: u8 = 1;
 /// do not move with a library default.
 pub const BLOCK_ZLIB_LEVEL: u32 = 6;
 /// Seconds of records in one block of a version 2 file: the reach of a seek.
-pub const BLOCK_SECONDS: u32 = 1;
+pub const BLOCK_SECONDS: u32 = 10;
 
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
@@ -3653,7 +3653,19 @@ mod tests {
 
     #[test]
     fn a_file_round_trips_and_seeks() {
-        let content = sample_content();
+        // 240 Hz content holds 3 s: one block of BLOCK_SECONDS.
+        let one = StreamFile::from_bytes(sample_content().to_bytes().unwrap()).unwrap();
+        assert_eq!(one.block_count(), 1);
+        // A header naming a 24 Hz clock makes a block 240 ticks long, so
+        // the same frames fill three.
+        let sample = sample_content();
+        let content = StreamContent {
+            header: StreamHeader {
+                tick_rate: (240 / BLOCK_SECONDS) as u16,
+                ..sample.header.clone()
+            },
+            ..sample
+        };
         let bytes = content.to_bytes().unwrap();
         assert_eq!(&bytes[..4], b"APXS");
         // Nothing in the writer reads a clock or a hash map.
@@ -3664,7 +3676,7 @@ mod tests {
         assert_eq!(file.roster, content.roster);
         assert_eq!(file.path, content.path);
         assert_eq!(file.preamble, content.preamble);
-        // 90 frames at 30 Hz of a 240 Hz clock: three blocks of a second.
+        // 90 frames 8 ticks apart: three blocks of 240 ticks.
         assert_eq!(file.block_count(), 3);
         assert_eq!(file.index.blocks[0].first_tick, 8);
         assert_eq!(file.index.blocks[1].first_tick, 248);

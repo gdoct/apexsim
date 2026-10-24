@@ -1,6 +1,6 @@
 # Smaller recorded sessions
 
-Status: phase 1 built (column blocks, version 2 files; docs/game/spectator.md); phases 2 to 4 not built.
+Status: phases 1 and 2 built (column blocks of ten seconds, version 2 files; docs/game/spectator.md): 6.41 MB -> 2.56 MB for 16 GT3s over 6.4 min. Phases 3 and 4 not built.
 
 Every race the server finishes, every session a client is in, every
 showcase and every promo clip is a spectator stream (`.apxs`,
