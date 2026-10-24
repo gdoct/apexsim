@@ -96,6 +96,10 @@ fn a_snow_tyre_corners_harder_on_a_covered_road() {
         heat_scale: 1.0,
         rolling_heat_scale: 1.0,
         pressure_shift_kpa: 0.0,
+        load_sensitivity_front: None,
+        load_sensitivity_rear: None,
+        reference_load_front_n: None,
+        reference_load_rear_n: None,
     });
     let studs = list.len() as u8 - 1;
     studded.tire_config.compounds = list;

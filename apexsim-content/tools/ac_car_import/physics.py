@@ -445,6 +445,37 @@ def mean_ideal_psi(front: Tyre, rear: Tyre) -> float | None:
     return 0.5 * (front.pressure_ideal_psi + rear.pressure_ideal_psi)
 
 
+def _ls(v: float) -> float:
+    return round(min(max(v, 0.3), 1.2), 4)
+
+
+def _fz0(v: float) -> float:
+    return round(min(max(v, 100.0), 30000.0), 1)
+
+
+#: A compound's own load-sensitivity keys, in the order they are written,
+#: with the `Tyre` figure and the clamp each is written through (the same
+#: as the car's `[tires]` keys).
+COMPOUND_LOAD_KEYS = (("load_sensitivity_front", "front", "ls_expy", _ls),
+                      ("load_sensitivity_rear", "rear", "ls_expy", _ls),
+                      ("reference_load_front_n", "front", "fz0", _fz0),
+                      ("reference_load_rear_n", "rear", "fz0", _fz0))
+
+
+def compound_load_keys(front: Tyre, rear: Tyre, ref_front: Tyre, ref_rear: Tyre) -> dict:
+    """A compound's own `LS_EXPY` and `FZ0` per axle, as written, where
+    they differ from the reference compound's as written (the reference's
+    are the car's `[tires]` figures): a compound that falls off with load
+    as the reference does names none."""
+    tyres = {"front": (front, ref_front), "rear": (rear, ref_rear)}
+    out = {}
+    for key, axle, attr, clamp in COMPOUND_LOAD_KEYS:
+        own, ref = tyres[axle]
+        if clamp(getattr(own, attr)) != clamp(getattr(ref, attr)):
+            out[key] = clamp(getattr(own, attr))
+    return out
+
+
 def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dict] | None:
     """The car's `[[tires.compound]]` list from tyres.ini's compounds, softest
     slick first (the setup knob's order), the reference (the compound the
@@ -461,6 +492,9 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
       when either has none: a soft that heats faster for the same work;
     - `pressure_shift_kpa`: its `PRESSURE_IDEAL` less the reference's (the
       axles' mean), 0 when either has none;
+    - `load_sensitivity_front` / `_rear`, `reference_load_front_n` /
+      `_rear_n`: its own `LS_EXPY` and `FZ0` per axle, only where they
+      differ from the reference's (`compound_load_keys`);
     - `kind` from the name; a car with no wet or intermediate gets
       ApexSim's (AC has none), so the garage still has rain tyres.
 
@@ -504,6 +538,7 @@ def map_compounds(car: CarData, reference: int, warnings: list[str]) -> list[dic
             "rolling_heat_scale": round(min(max(rolling_scale, HEAT_SCALE_RANGE[0]), HEAT_SCALE_RANGE[1]), 3),
             "pressure_shift_kpa": round(min(max(pressure_shift, PRESSURE_SHIFT_RANGE_KPA[0]),
                                             PRESSURE_SHIFT_RANGE_KPA[1]), 1),
+            **compound_load_keys(front, rear, ref_front, ref_rear),
             "reference": index == reference,
         })
     if len(rows) < 2:

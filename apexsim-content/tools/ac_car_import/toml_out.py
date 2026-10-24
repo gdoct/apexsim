@@ -84,6 +84,10 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
             if r.get("pressure_shift_kpa", 0.0) != 0.0:
                 w(f"pressure_shift_kpa = {fmt(float(r['pressure_shift_kpa']))}   "
                   f"# tyres.ini PRESSURE_IDEAL less the reference's")
+            for key, ac_key in (("load_sensitivity_front", "LS_EXPY"), ("load_sensitivity_rear", "LS_EXPY"),
+                                ("reference_load_front_n", "FZ0"), ("reference_load_rear_n", "FZ0")):
+                if key in r:
+                    w(f"{key} = {fmt(float(r[key]))}   # tyres.ini {ac_key}: its own, not the reference's")
             if r["reference"]:
                 w("reference = true   # the compound this import is calibrated on")
 

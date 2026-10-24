@@ -281,6 +281,19 @@ pub struct Compound {
     /// nothing.
     #[serde(default, skip_serializing_if = "is_zero")]
     pub pressure_shift_kpa: f32,
+    /// Its own load sensitivity, front and rear (an AC import's own
+    /// `LS_EXPY`: `TireConfig::load_sensitivity_front`), and the load it
+    /// grips its grip at (its own `FZ0`: `reference_load_front_n`), N, for
+    /// a compound whose grip falls off with the load differently from the
+    /// car's tyre. `None`: the car's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_sensitivity_front: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_sensitivity_rear: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_load_front_n: Option<f32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reference_load_rear_n: Option<f32>,
 }
 
 fn one() -> f32 {
@@ -321,6 +334,10 @@ impl Compound {
             heat_scale: 1.0,
             rolling_heat_scale: 1.0,
             pressure_shift_kpa: 0.0,
+            load_sensitivity_front: None,
+            load_sensitivity_rear: None,
+            reference_load_front_n: None,
+            reference_load_rear_n: None,
         }
     }
 

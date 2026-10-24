@@ -412,7 +412,11 @@ importer change.
     does, and `GRAIN_*` / `BLISTER_*` are not read. Its best pressure is
     per compound too: `pressure_shift_kpa` its `PRESSURE_IDEAL` less the
     reference's (the axles' mean; the Abarth 500's street tyre +41 kPa on
-    its semi-slick). Its load sensitivity (`LS_EXPY`, `FZ0`) is not;
+    its semi-slick). So is its load sensitivity: `load_sensitivity_front` /
+    `_rear` its own `LS_EXPY` and `reference_load_front_n` / `_rear_n` its
+    own `FZ0`, each written only where it differs from the reference's
+    (`compound_load_keys`; the 919's soft and hard 0.89 against the
+    medium's 0.85, 88 of AC's 142 multi-compound cars differ somewhere);
   - `[suspension] roll_centre_front_m` / `_rear_m` from the front view of the
     linkage (`roll_centre_m`): the upright's instant centre (the lower arm's
     line met by the upper arm's, or for a strut by the line at right angles

@@ -1087,6 +1087,30 @@ PERFORMANCE_CURVE=t_hard.lut
         self.assertEqual(by["Slick Medium"]["pressure_shift_kpa"], 0.0)
         self.assertEqual(by["Slick Hard"]["pressure_shift_kpa"], 0.0)
 
+    def test_a_compound_s_own_load_sensitivity_is_carried_where_it_differs(self):
+        rows = physics.map_compounds(self.car(), 1, [])
+        self.assertFalse(any(k in r for r in rows for k, *_ in physics.COMPOUND_LOAD_KEYS))
+        # The soft falls off less with load at the front and grips at a
+        # higher load at the rear; the medium (the reference) names none.
+        tyres = self.TYRES.replace("[FRONT]\nNAME=Slick Soft\n", "[FRONT]\nNAME=Slick Soft\nLS_EXPY=0.85\n") \
+            .replace("[REAR]\nNAME=Slick Soft\n", "[REAR]\nNAME=Slick Soft\nFZ0=4000\n") \
+            .replace("NAME=Slick Medium\n", "NAME=Slick Medium\nLS_EXPY=0.8\n")
+        car = self.car(tyres)
+        by = {r["name"]: r for r in physics.map_compounds(car, 1, [])}
+        soft, medium, hard = by["Slick Soft"], by["Slick Medium"], by["Slick Hard"]
+        self.assertEqual(soft["load_sensitivity_front"], 0.85)
+        # Its rear has no LS_EXPY of its own (1) against the medium's 0.8.
+        self.assertEqual(soft["load_sensitivity_rear"], 1.0)
+        self.assertEqual(soft["reference_load_rear_n"], 4000.0)
+        self.assertNotIn("reference_load_front_n", soft)
+        self.assertFalse(any(k in medium for k, *_ in physics.COMPOUND_LOAD_KEYS))
+        self.assertEqual((hard["load_sensitivity_front"], hard["load_sensitivity_rear"]), (1.0, 1.0))
+        text = toml_out.render(header={"id": "x", "name": "y"}, physics=physics.map_physics(car), sound={},
+                               wheels={}, cockpit={}, drs_flap=None, source={}, liveries=[], notes=[])
+        parsed = {c["name"]: c for c in tomllib.loads(text)["tires"]["compound"]}
+        self.assertEqual(parsed["Slick Soft"]["reference_load_rear_n"], 4000.0)
+        self.assertNotIn("load_sensitivity_front", parsed["Slick Medium"])
+
     def test_a_car_with_slicks_alone_is_given_the_rain_tyres_apexsim_has(self):
         rows = physics.map_compounds(self.car(), 1, [])
         self.assertEqual([r["kind"] for r in rows], ["slick", "slick", "slick", "intermediate", "wet"])

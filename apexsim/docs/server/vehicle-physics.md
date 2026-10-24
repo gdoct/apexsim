@@ -339,7 +339,11 @@ multiplies the slip power's heat, tread and core, by `heat_scale` and the carcas
 heat by `rolling_heat_scale`; the wear still goes by the slip's work), `pressure_shift_kpa`
 (0, ±100: the compound grips best at `optimal_pressure_kpa` plus it,
 `tyre_thermal::pressure_grip_factor`; the garage's pressures stay the car's, so a shifted
-compound runs off its optimum until they are set for it). `wear_rate` is a
+compound runs off its optimum until they are set for it), `load_sensitivity_front` /
+`_rear` and `reference_load_front_n` / `_rear_n` (the car's `[tires]` figures when absent:
+the compound's own exponent and reference load, which the tick grips with,
+`CarConfig::compound_tyre_mu`; the racing line and the AI's grip envelope plan with the car's
+reference compound's). `wear_rate` is a
 
 `TireConfig` field, not a car.toml key. Shipped windows: F1 91 ± 13 °C on 70 °C blankets,
 Hypercar 105 ± 13, LMP2 92 ± 10, GT3 87 ± 10, set where each class runs at AI race pace at

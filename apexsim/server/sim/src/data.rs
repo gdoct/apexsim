@@ -839,6 +839,42 @@ impl CarConfig {
         } else {
             (tyre.load_sensitivity_rear, tyre.reference_load_rear_n)
         };
+        self.load_factor(front, exponent, reference, load_n)
+    }
+
+    /// [`Self::load_sensitivity_factor`] for a tyre of `compound`: its own
+    /// exponent and reference load where it names them, else the car's;
+    /// exactly the car's for a compound that names neither.
+    pub fn compound_load_sensitivity_factor(
+        &self,
+        front: bool,
+        load_n: f32,
+        compound: &crate::tyre_thermal::Compound,
+    ) -> f32 {
+        let tyre = &self.tire_config;
+        let (exponent, reference) = if front {
+            (
+                compound
+                    .load_sensitivity_front
+                    .unwrap_or(tyre.load_sensitivity_front),
+                compound
+                    .reference_load_front_n
+                    .or(tyre.reference_load_front_n),
+            )
+        } else {
+            (
+                compound
+                    .load_sensitivity_rear
+                    .unwrap_or(tyre.load_sensitivity_rear),
+                compound
+                    .reference_load_rear_n
+                    .or(tyre.reference_load_rear_n),
+            )
+        };
+        self.load_factor(front, exponent, reference, load_n)
+    }
+
+    fn load_factor(&self, front: bool, exponent: f32, reference: Option<f32>, load_n: f32) -> f32 {
         if exponent == 1.0 {
             return 1.0;
         }
@@ -859,6 +895,25 @@ impl CarConfig {
             self.tire_config.rear_grip_scale
         };
         self.tire_config.grip_coefficient * scale * self.load_sensitivity_factor(front, load_n)
+    }
+
+    /// [`Self::axle_tyre_mu`] for a tyre of `compound`, with its own load
+    /// sensitivity ([`Self::compound_load_sensitivity_factor`]): what the
+    /// tick grips with. Exactly `axle_tyre_mu` for a compound without one.
+    pub fn compound_tyre_mu(
+        &self,
+        front: bool,
+        load_n: f32,
+        compound: &crate::tyre_thermal::Compound,
+    ) -> f32 {
+        let scale = if front {
+            self.tire_config.front_grip_scale
+        } else {
+            self.tire_config.rear_grip_scale
+        };
+        self.tire_config.grip_coefficient
+            * scale
+            * self.compound_load_sensitivity_factor(front, load_n, compound)
     }
 
     /// The car's friction coefficient as a point mass whose weight is

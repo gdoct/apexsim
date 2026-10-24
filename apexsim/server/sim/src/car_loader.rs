@@ -308,6 +308,17 @@ struct CompoundToml {
     /// (`tyre_thermal::Compound::pressure_shift_kpa`); 0 when absent.
     #[serde(default)]
     pressure_shift_kpa: Option<f32>,
+    /// Its own load sensitivity and reference load per axle
+    /// (`tyre_thermal::Compound::load_sensitivity_front`, ...); the car's
+    /// `[tires]` figures when absent.
+    #[serde(default)]
+    load_sensitivity_front: Option<f32>,
+    #[serde(default)]
+    load_sensitivity_rear: Option<f32>,
+    #[serde(default)]
+    reference_load_front_n: Option<f32>,
+    #[serde(default)]
+    reference_load_rear_n: Option<f32>,
     /// Grip kept on a dry road, in light rain, in heavy rain.
     #[serde(default)]
     water_grip: Option<[f32; 3]>,
@@ -1131,6 +1142,10 @@ impl CarLoader {
                             heat_scale: c.heat_scale.unwrap_or(1.0),
                             rolling_heat_scale: c.rolling_heat_scale.unwrap_or(1.0),
                             pressure_shift_kpa: c.pressure_shift_kpa.unwrap_or(0.0),
+                            load_sensitivity_front: c.load_sensitivity_front,
+                            load_sensitivity_rear: c.load_sensitivity_rear,
+                            reference_load_front_n: c.reference_load_front_n,
+                            reference_load_rear_n: c.reference_load_rear_n,
                         }
                     })
                     .collect(),
@@ -1591,6 +1606,26 @@ impl CarLoader {
                 -100.0,
                 100.0,
             );
+            for (key, value, lo, hi) in [
+                ("load_sensitivity_front", c.load_sensitivity_front, 0.3, 1.2),
+                ("load_sensitivity_rear", c.load_sensitivity_rear, 0.3, 1.2),
+                (
+                    "reference_load_front_n",
+                    c.reference_load_front_n,
+                    100.0,
+                    30000.0,
+                ),
+                (
+                    "reference_load_rear_n",
+                    c.reference_load_rear_n,
+                    100.0,
+                    30000.0,
+                ),
+            ] {
+                if let Some(v) = value {
+                    in_range(&format!("tires.compound.{}.{key}", c.name), v, lo, hi);
+                }
+            }
             for (i, w) in c.water_grip.iter().enumerate() {
                 in_range(
                     &format!("tires.compound.{}.water_grip[{i}]", c.name),
@@ -2208,6 +2243,8 @@ boosted_share = 0.0
             "[differential]\nlock_power = 1.5\n",
             "[differential]\npreload_nm = -10.0\n",
             "[engine.turbo]\nboosted_share = 0.95\n",
+            "[[tires.compound]]\nname = \"a\"\nload_sensitivity_rear = 1.5\n",
+            "[[tires.compound]]\nname = \"a\"\nreference_load_front_n = 10.0\n",
             "[engine.turbo]\nboosted_share = 0.3\nlag_up_s = -1.0\n",
         ] {
             assert!(
@@ -2232,6 +2269,8 @@ name = \"supersoft\"
 grip = 1.05
 wear = 2.5
 window_shift_c = -8.0
+load_sensitivity_front = 0.9
+reference_load_rear_n = 2500.0
 
 [[tires.compound]]
 name = \"prime\"
@@ -2311,6 +2350,9 @@ axle = \"front\"
         assert_eq!(tyre.compounds().len(), 3);
         assert_eq!(tyre.reference_compound(), 1);
         assert_eq!(tyre.compound(0).name, "supersoft");
+        assert_eq!(tyre.compound(0).load_sensitivity_front, Some(0.9));
+        assert_eq!(tyre.compound(0).reference_load_rear_n, Some(2500.0));
+        assert_eq!(tyre.compound(1).load_sensitivity_rear, None);
         assert_eq!(
             tyre.compound(2).kind,
             crate::tyre_thermal::CompoundKind::Wet

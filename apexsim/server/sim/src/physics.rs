@@ -1005,8 +1005,9 @@ pub fn update_car_3d(
     // the end of the last tick) are exactly the set pressure's factor in
     // the window, so a tyre at its optimum grips as the setup says. The
     // axle's compound and the tyre's load sensitivity at the load it
-    // carries (`CarConfig::axle_tyre_mu`) are exactly 1.0 unless the car's
-    // `[tires]` table says otherwise.
+    // carries (`CarConfig::compound_tyre_mu`: the compound's own where it
+    // has one) are exactly 1.0 unless the car's `[tires]` table says
+    // otherwise.
     let tyre_config = &config.tire_config;
     let compound = tyre_config.compound(state.tyre_compound);
     let thermal = |tyre: &crate::data::TireData, set_kpa: f32, c: &WheelContact| {
@@ -1024,7 +1025,7 @@ pub fn update_car_3d(
     let side_right = crate::damage::side_grip_factor(&felt, false);
     let grip_fl = side_left
         * camber[0].lateral
-        * config.axle_tyre_mu(true, state.weight_front_left_n)
+        * config.compound_tyre_mu(true, state.weight_front_left_n, compound)
         * wheel_front_left.grip_modifier
         * thermal(
             &state.tires.front_left,
@@ -1033,7 +1034,7 @@ pub fn update_car_3d(
         );
     let grip_fr = side_right
         * camber[1].lateral
-        * config.axle_tyre_mu(true, state.weight_front_right_n)
+        * config.compound_tyre_mu(true, state.weight_front_right_n, compound)
         * wheel_front_right.grip_modifier
         * thermal(
             &state.tires.front_right,
@@ -1042,7 +1043,7 @@ pub fn update_car_3d(
         );
     let grip_rl = side_left
         * camber[2].lateral
-        * config.axle_tyre_mu(false, state.weight_rear_left_n)
+        * config.compound_tyre_mu(false, state.weight_rear_left_n, compound)
         * wheel_rear_left.grip_modifier
         * thermal(
             &state.tires.rear_left,
@@ -1051,7 +1052,7 @@ pub fn update_car_3d(
         );
     let grip_rr = side_right
         * camber[3].lateral
-        * config.axle_tyre_mu(false, state.weight_rear_right_n)
+        * config.compound_tyre_mu(false, state.weight_rear_right_n, compound)
         * wheel_rear_right.grip_modifier
         * thermal(
             &state.tires.rear_right,
@@ -8812,6 +8813,38 @@ mod tests {
         for ratio in [1.0, 1.8, 3.0] {
             assert_eq!(config.envelope_mu(ratio), 1.37);
         }
+    }
+
+    #[test]
+    fn a_compound_may_fall_off_with_load_its_own_way() {
+        let mut config = create_test_config();
+        config.tire_config.load_sensitivity_front = 0.8;
+        config.tire_config.load_sensitivity_rear = 0.8;
+        let static_front = config.static_wheel_load_n(true);
+        let plain = crate::tyre_thermal::compound(crate::tyre_thermal::MEDIUM).clone();
+        // A compound that names nothing grips as the car's tyre, to the bit.
+        for load in [0.3, 1.0, 2.5].map(|k| k * static_front) {
+            assert_eq!(
+                config.compound_tyre_mu(true, load, &plain).to_bits(),
+                config.axle_tyre_mu(true, load).to_bits()
+            );
+        }
+        // A compound less sensitive to the load keeps more of its grip
+        // loaded, and one with its own reference grips its figure there.
+        let mut stiff = plain.clone();
+        stiff.load_sensitivity_front = Some(0.9);
+        let doubled = 2.0 * static_front;
+        let mu = config.tire_config.grip_coefficient;
+        assert!(
+            (config.compound_tyre_mu(true, doubled, &stiff) - mu * 2f32.powf(-0.1)).abs() < 1e-4
+        );
+        assert_eq!(
+            config.compound_tyre_mu(false, doubled, &stiff).to_bits(),
+            config.axle_tyre_mu(false, doubled).to_bits(),
+            "the rear keeps the car's"
+        );
+        stiff.reference_load_front_n = Some(doubled);
+        assert!((config.compound_tyre_mu(true, doubled, &stiff) - mu).abs() < 1e-5);
     }
 
     #[test]
