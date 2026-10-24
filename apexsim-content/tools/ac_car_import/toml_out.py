@@ -136,6 +136,23 @@ def render(*, header: dict, physics: Physics, sound: dict, wheels: dict, cockpit
                 w("[[hybrid.torque_curve]]")
                 w(f"rpm = {fmt(float(rpm))}")
                 w(f"torque_nm = {fmt(float(torque))}")
+            if physics.crank_motor_curve:
+                w("")
+                w("# ers.ini [KINETIC] TORQUE_CURVE: the second motor's torque by the crank's rpm")
+            for rpm, torque in physics.crank_motor_curve:
+                w("")
+                w("[[hybrid.crank_torque_curve]]")
+                w(f"rpm = {fmt(float(rpm))}")
+                w(f"torque_nm = {fmt(float(torque))}")
+            if physics.ers_delivery:
+                w("")
+                w("# ctrl_ers_*.ini, the default delivery profile: a share of the motor by input")
+            for pt in physics.ers_delivery:
+                w("")
+                w("[[hybrid.delivery_point]]")
+                w(f'input = "{pt["input"]}"')
+                w(f"at = {fmt(float(pt['at']))}")
+                w(f"share = {fmt(float(pt['share']))}")
 
     def plain(name: str, entries: dict, comments: dict | None = None) -> None:
         w("")

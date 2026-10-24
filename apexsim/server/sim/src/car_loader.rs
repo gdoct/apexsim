@@ -684,6 +684,13 @@ struct HybridToml {
     crank_motor_max_torque_nm: Option<f32>,
     #[serde(default)]
     crank_motor_max_power_kw: Option<f32>,
+    /// The second motor's torque by the crank's rpm (none when absent).
+    #[serde(default)]
+    crank_torque_curve: Vec<TorqueCurvePointToml>,
+    /// The delivery profile (`data::DeliveryPoint`), each input's points by
+    /// rising `at`; none when absent.
+    #[serde(default)]
+    delivery_point: Vec<crate::data::DeliveryPoint>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -981,6 +988,15 @@ impl CarLoader {
                     .collect(),
                 crank_motor_max_torque_nm: hybrid_toml.crank_motor_max_torque_nm.unwrap_or(0.0),
                 crank_motor_max_power_kw: hybrid_toml.crank_motor_max_power_kw.unwrap_or(0.0),
+                crank_torque_curve: hybrid_toml
+                    .crank_torque_curve
+                    .into_iter()
+                    .map(|p| TorqueCurvePoint {
+                        rpm: p.rpm,
+                        torque_nm: p.torque_nm,
+                    })
+                    .collect(),
+                delivery: hybrid_toml.delivery_point,
             },
 
             // Braking
@@ -1517,6 +1533,40 @@ impl CarLoader {
             0.0,
             1000.0,
         );
+        for (i, w) in config.hybrid.crank_torque_curve.windows(2).enumerate() {
+            in_range(
+                &format!("hybrid.crank_torque_curve[{}].rpm (rising)", i + 1),
+                w[1].rpm,
+                w[0].rpm + 1e-3,
+                30000.0,
+            );
+        }
+        // The delivery profile: each input's points by rising `at`, a share
+        // of the motor each.
+        let mut lowest: std::collections::BTreeMap<crate::data::DeliveryInput, f32> =
+            std::collections::BTreeMap::new();
+        for (i, p) in config.hybrid.delivery.iter().enumerate() {
+            let (lo, hi) = match p.input {
+                crate::data::DeliveryInput::Throttle => (0.0, 1.0),
+                crate::data::DeliveryInput::SpeedKph => (0.0, 500.0),
+                crate::data::DeliveryInput::Gear => (-1.0, 12.0),
+                crate::data::DeliveryInput::Rpm => (0.0, 30000.0),
+            };
+            let low = lowest.get(&p.input).copied().unwrap_or(lo);
+            in_range(
+                &format!("hybrid.delivery_point[{i}].at (rising per input)"),
+                p.at,
+                low,
+                hi,
+            );
+            lowest.insert(p.input, p.at + 1e-3);
+            in_range(
+                &format!("hybrid.delivery_point[{i}].share"),
+                p.share,
+                0.0,
+                2.0,
+            );
+        }
         in_range(
             "engine.radiator_scale",
             config.engine.radiator_scale,
@@ -2243,6 +2293,8 @@ boosted_share = 0.0
             "[differential]\nlock_power = 1.5\n",
             "[differential]\npreload_nm = -10.0\n",
             "[engine.turbo]\nboosted_share = 0.95\n",
+            "[hybrid]\nenabled = true\n[[hybrid.delivery_point]]\ninput = \"throttle\"\nat = 1.5\nshare = 1.0\n",
+            "[hybrid]\nenabled = true\n[[hybrid.delivery_point]]\ninput = \"gear\"\nat = 2.0\nshare = 3.0\n",
             "[[tires.compound]]\nname = \"a\"\nload_sensitivity_rear = 1.5\n",
             "[[tires.compound]]\nname = \"a\"\nreference_load_front_n = 10.0\n",
             "[engine.turbo]\nboosted_share = 0.3\nlag_up_s = -1.0\n",
@@ -2343,6 +2395,31 @@ override_kj_per_lap = 1500.0
 brake_by_wire = false
 bbw_response_s = 0.08
 axle = \"front\"
+crank_motor_max_torque_nm = 150.0
+crank_motor_max_power_kw = 100.0
+
+[[hybrid.crank_torque_curve]]
+rpm = 2000.0
+torque_nm = 150.0
+
+[[hybrid.crank_torque_curve]]
+rpm = 9000.0
+torque_nm = 90.0
+
+[[hybrid.delivery_point]]
+input = \"speed_kph\"
+at = 240.0
+share = 1.0
+
+[[hybrid.delivery_point]]
+input = \"speed_kph\"
+at = 245.0
+share = 0.0
+
+[[hybrid.delivery_point]]
+input = \"gear\"
+at = 1.0
+share = 0.5
 "
         );
         let config = load_toml_str(&toml).expect("loads");
@@ -2383,6 +2460,13 @@ axle = \"front\"
         assert!(!config.hybrid.brake_by_wire);
         assert_eq!(config.hybrid.bbw_response_s, 0.08);
         assert_eq!(config.hybrid.axle, HybridAxle::Front);
+        assert_eq!(config.hybrid.crank_torque_curve.len(), 2);
+        assert_eq!(config.hybrid.crank_torque_at(5500.0), 120.0);
+        assert_eq!(config.hybrid.delivery.len(), 3);
+        assert_eq!(
+            config.hybrid.delivery[2].input,
+            crate::data::DeliveryInput::Gear
+        );
         // Two references, or a compound without a name, is a load error.
         let bad = format!(
             "{BASE_TOML}
@@ -2403,6 +2487,7 @@ reference = true
         assert_eq!(plain.brake_disc_wear_per_mj, 0.0);
         assert_eq!(plain.hybrid.bbw_response_s, 0.0);
         assert_eq!(plain.hybrid.axle, HybridAxle::Crank);
+        assert!(plain.hybrid.delivery.is_empty() && plain.hybrid.crank_torque_curve.is_empty());
         assert_eq!(plain.suspension.roll_centre_front_m, None);
         assert!(plain.aero.input_map.is_empty());
         // An input map's point past its input's range, or falling, is

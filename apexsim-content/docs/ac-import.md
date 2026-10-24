@@ -479,21 +479,32 @@ importer change.
     power). A car with both (the 918, the TS040) drives the fronts with
     the front motor and the crank with `[KINETIC]`'s as the server's
     second motor (`crank_motor_max_torque_nm` / `_power_kw`, its curve's
-    peak; its curve's shape and `COAST_CURVE` are warned about, not
-    carried), `battery_max_discharge_kw` the two peaks together (the 918
+    peak, and the curve as `[[hybrid.crank_torque_curve]]`; its
+    `COAST_CURVE` is warned about, not carried: the front motor recovers),
+    `battery_max_discharge_kw` the two peaks together (the 918
     191 + 102 kW, the TS040 177 + 155). Curves may be files or inline
     (`(0=150|...|)`, as the 499P mod writes them); the front (or only)
     motor's curve is written as `[[hybrid.torque_curve]]` (a front motor's
     torque scaled as its peak is). The battery is the front (or only)
     motor's peak power x `DISCHARGE_TIME`, `MAX_KJ_PER_LAP` the
     `deploy_kj_per_lap` budget, `[HEAT] TORQUE_PERC` x the motor power
-    `heat_recovery_kw`. Of the delivery profiles, the default one
-    (`DEFAULT_CONTROLLER`; `ctrl_ers_front_<n>.ini` for a front motor)
-    gives `deploy_min_speed_kph`: the last speed its `SPEED_KMH` map is
-    shut at before it opens. Its throttle map, speed cap, oversteer / slip
-    cuts, gear and rpm masks, the other profiles and
-    `FRONT_TORQUE_VECTORING_BIAS` are warned about, not carried: the car
-    gets the sim's modes and pacing.
+    `heat_recovery_kw`. The default delivery profile (`DEFAULT_CONTROLLER`;
+    `ctrl_ers_front_<n>.ini` for a front motor, `delivery_profile_file`)
+    gives `deploy_min_speed_kph` (the last speed its `SPEED_KMH` map is
+    shut at before it opens) and `[[hybrid.delivery_point]]`
+    (`delivery_profile`): the throttle's map the sum of its `ADD`
+    controllers (on `GAS`, a `BRAKE` one at rest), each `MULT` on
+    `SPEED_KMH`, `GEAR` or `RPMS` its own map, each controller's limits
+    applied, a share held to 0-2 (AC's small negative harvest on a shut
+    pedal is 0: the sim's modes recover), a point its neighbours' line
+    already gives dropped. The SF70H deploys 0.8 of its motor from 200 to
+    250 km/h and 0.4 from 270, nothing in first or second; the 919 nothing
+    past 245 km/h or in sixth. The profile's cuts on the car's state
+    (`SLIPRATIO_MAX`, `OVERSTEER_FACTOR`, a `MULT` on the brake), the
+    other profiles (the car gets the sim's modes and the overtake button in
+    their place) and `FRONT_TORQUE_VECTORING_BIAS` are warned about, not
+    carried; a two-motor car's crank profile is not read (the front's
+    drives both).
 - **Class** from `ui_car.json` tags (`map_class`): `GT3`, `LMP2`,
   `Hypercar`, `F1` (a single-seater with a DRS wing and a `gp`/`f1` tag),
   else a group of its own (`Formula`, `GT4`, `GT`, `Vintage`, `Drift`,
@@ -627,7 +638,8 @@ Client automation: `ApexSim.Track.Dds.Parse`, `ApexSim.Track.Reader.Version3`,
 - AC carries no figure for brake pads, `brake_by_wire`, body-roll aero or
   porpoising: an import gets the defaults (standard pads, brake-by-wire,
   none).
-- AC's older `kers.ini`, a second ERS motor's own curve and recovery,
-  and the ERS delivery profiles beyond their minimum speed; aero controllers on
-  suspension travel are read flat out in a straight line, with a warning.
+- AC's older `kers.ini`, a second ERS motor's own recovery, an ERS
+  delivery profile's slip and oversteer cuts and the profiles but the
+  default one; aero controllers on suspension travel are read flat out in
+  a straight line, with a warning.
 - `--lod B` exists but is untested.

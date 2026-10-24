@@ -535,6 +535,53 @@ TORQUE_PERC=25
         self.assertAlmostEqual(h["heat_recovery_kw"], 30.0, delta=0.2)
 
 
+class DeliveryProfileTest(unittest.TestCase):
+    """A ctrl_ers_*.ini as the server's delivery points."""
+
+    PROFILE = """[CONTROLLER_0]
+INPUT=GAS
+COMBINATOR=ADD
+LUT=(0=-0.005|0.5=0|1=1)
+UP_LIMIT=1
+DOWN_LIMIT=-1
+[CONTROLLER_1]
+INPUT=BRAKE
+COMBINATOR=ADD
+LUT=(0=0|1=0)
+[CONTROLLER_2]
+INPUT=GEAR
+COMBINATOR=MULT
+LUT=(0=0|1=0.5|2=1.2|3=1)
+UP_LIMIT=1
+DOWN_LIMIT=0
+[CONTROLLER_3]
+INPUT=SLIPRATIO_MAX
+COMBINATOR=MULT
+LUT=(0=1|0.1=0)
+[CONTROLLER_4]
+INPUT=RPMS
+COMBINATOR=MULT
+LUT=(1000=1|9000=1|9001=0)
+"""
+
+    def test_each_input_is_its_own_map_and_state_cuts_are_named(self):
+        points, dropped = physics.delivery_profile(fake_car(ctrl_ers_0__ini=self.PROFILE), "ctrl_ers_0.ini")
+        by = {}
+        for p in points:
+            by.setdefault(p["input"], []).append((p["at"], p["share"]))
+        # AC's small harvest on a shut pedal is 0: the sim's modes recover.
+        self.assertEqual(by["throttle"], [(0.0, 0.0), (0.5, 0.0), (1.0, 1.0)])
+        # The gear's 1.2 held to its UP_LIMIT (first gear on the line between).
+        self.assertEqual(by["gear"], [(0.0, 0.0), (2.0, 1.0), (3.0, 1.0)])
+        self.assertEqual(by["rpm"], [(1000.0, 1.0), (9000.0, 1.0), (9001.0, 0.0)])
+        self.assertEqual(dropped, ["SLIPRATIO_MAX"])
+
+    def test_a_profile_that_gives_all_of_the_motor_writes_nothing(self):
+        flat = "[CONTROLLER_0]\nINPUT=SPEED_KMH\nCOMBINATOR=MULT\nLUT=(0=1|300=1)\n"
+        points, dropped = physics.delivery_profile(fake_car(ctrl_ers_0__ini=flat), "ctrl_ers_0.ini")
+        self.assertEqual((points, dropped), ([], []))
+
+
 def _import_with(extra: dict, folder: str):
     """Import the synthetic car with `extra` data files; its car.toml and
     the import's warnings."""
@@ -614,6 +661,15 @@ FRONT_TORQUE_VECTORING_BIAS=0.9
         # DEFAULT_CONTROLLER=1, the front motor's own profile: shut to 120.
         self.assertEqual(self.toml["hybrid"]["deploy_min_speed_kph"], 120.0)
 
+    def test_the_default_profile_is_the_delivery_profile(self):
+        points = [(p["input"], p["at"], p["share"]) for p in self.toml["hybrid"]["delivery_point"]]
+        # The throttle's map is a straight line from nothing to all of it;
+        # the speed's opens from 120 to 140 and shuts from 250 to 260.
+        self.assertEqual(points, [("throttle", 0.0, 0.0), ("throttle", 1.0, 1.0),
+                                  ("speed_kph", 0.0, 0.0), ("speed_kph", 120.0, 0.0),
+                                  ("speed_kph", 140.0, 1.0), ("speed_kph", 250.0, 1.0),
+                                  ("speed_kph", 260.0, 0.0)])
+
     def test_what_is_not_carried_is_named(self):
         text = " ".join(self.warnings)
         self.assertIn("FRONT_TORQUE_VECTORING_BIAS", text)
@@ -660,6 +716,11 @@ TORQUE_CURVE=kers_torque.lut
         self.assertNotIn("deploy_min_speed_kph", h)
         self.assertFalse(any("dropped" in w for w in self.warnings))
 
+    def test_the_crank_motor_files_its_own_curve(self):
+        curve = [(p["rpm"], p["torque_nm"]) for p in self.toml["hybrid"]["crank_torque_curve"]]
+        self.assertEqual(curve, [(0.0, 150.0), (4000.0, 450.0), (5000.0, 450.0), (10000.0, 70.0)])
+        self.assertTrue(any("COAST_CURVE" in w for w in self.warnings))
+
     def test_the_front_motor_files_its_torque_curve(self):
         curve = [(p["rpm"], p["torque_nm"]) for p in self.toml["hybrid"]["torque_curve"]]
         self.assertEqual(curve, [(0.0, 500.0), (1000.0, 500.0), (2000.0, 0.0)])
@@ -676,6 +737,7 @@ DISCHARGE_TIME=80000
             h = toml["hybrid"]
             self.assertNotIn("axle", h)
             self.assertNotIn("crank_motor_max_power_kw", h)
+            self.assertNotIn("crank_torque_curve", h)
             self.assertAlmostEqual(h["regen_max_power_kw"], 47.1, delta=0.1)
             curve = [(p["rpm"], p["torque_nm"]) for p in h["torque_curve"]]
             self.assertEqual(curve, [(0.0, 150.0), (4000.0, 450.0), (5000.0, 450.0), (10000.0, 70.0)])

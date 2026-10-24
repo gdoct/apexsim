@@ -628,15 +628,27 @@ Only with `simulated = true` (every shipped car), else an even split. Keys:
   count it at the revs the motor turns at (`MotorPlan`, above).
 - **A second motor at the crank** (`crank_motor_max_torque_nm`, `crank_motor_max_power_kw`,
   0 each when absent; read only with `axle = "front"`, `HybridConfig::has_crank_motor`):
-  beside the front one, behind the clutch in gear, at its peak torque up to its power at the
-  crank's speed, on the same deploy share, budget, stint and battery; the two together are
-  held to `battery_max_discharge_kw`. Only the front motor recovers. The plan and the
-  drag-limited top speed count both. No shipped car has one; an AC import with
-  `[FRONT_MOTORS]` and a `[KINETIC]` curve (the 918, the TS040) does.
+  beside the front one, behind the clutch in gear, at its torque at the crank's rpm (its own
+  curve, `[[hybrid.crank_torque_curve]]`, capped at its peak, `HybridConfig::crank_torque_at`;
+  its peak without one) up to its power at the crank's speed, on the same deploy share,
+  budget, stint and battery; the two together are held to `battery_max_discharge_kw`. Only
+  the front motor recovers. The plan and the drag-limited top speed count both. No shipped
+  car has one; an AC import with `[FRONT_MOTORS]` and a `[KINETIC]` curve (the 918, the
+  TS040) does.
+- **Delivery profile** (`[[hybrid.delivery_point]]`: `input` `throttle` / `speed_kph` /
+  `gear` / `rpm`, `at` rising per input, `share` 0-2; none when absent,
+  `hybrid::delivery_share`): the car's own electronics as an AC import's default
+  `ctrl_ers_*.ini` has them. Each input's map is linear between its points and held past
+  either end; the speed's, the gear's and the engine rpm's multiply what the mode asks for,
+  and the throttle's stands in for the mode's pedal (Balanced's 60-95% ramp, Attack's and the
+  button's straight pedal), the product held to the whole motor. One profile drives both
+  motors. The plan reads it flat out at each speed in the gear the box holds. Without one,
+  the modes alone, exactly as before.
 - car.toml `[hybrid]`: `enabled`, `battery_capacity_kwh`, `battery_max_discharge_kw` /
   `_charge_kw`, `motor_max_torque_nm`, `motor_max_power_kw`, `regen_max_power_kw` and the
   keys above.
-- Tests: `hybrid::tests`, `brake_by_wire_takes_the_recovered_energy_off_the_discs`,
+- Tests: `hybrid::tests` (`the_crank_motor_follows_its_own_curve`,
+  `a_delivery_profile_shapes_what_the_mode_asks_for`), `brake_by_wire_takes_the_recovered_energy_off_the_discs`,
   `a_slow_brake_by_wire_moves_the_balance_forward_as_the_battery_fills`.
 
 ## DRS (`drs.rs`, `GameSession::update_drs`)

@@ -509,6 +509,42 @@ pub struct HybridConfig {
     pub crank_motor_max_torque_nm: f32,
     #[serde(default)]
     pub crank_motor_max_power_kw: f32,
+    /// The second motor's torque by the crank's rpm
+    /// (`[[hybrid.crank_torque_curve]]`), capped at
+    /// `crank_motor_max_torque_nm`; empty (the default) is its peak at every
+    /// speed, up to its power.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub crank_torque_curve: Vec<TorqueCurvePoint>,
+    /// The car's delivery profile (`[[hybrid.delivery_point]]`,
+    /// `crate::hybrid::delivery_share`): what share of the motor the car's
+    /// electronics give by the throttle, the speed, the gear and the rpm.
+    /// Empty (the default) is the sim's modes alone.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delivery: Vec<DeliveryPoint>,
+}
+
+/// What a delivery profile's point ([`DeliveryPoint`]) is read against.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DeliveryInput {
+    /// The throttle pedal, 0-1: in place of the mode's own pedal response.
+    Throttle,
+    /// The car's speed, km/h.
+    SpeedKph,
+    /// The gear engaged (1 is first).
+    Gear,
+    /// The engine's rpm.
+    Rpm,
+}
+
+/// One point of a hybrid's delivery profile: with `input` at `at`, `share`
+/// of the motor (linear between an input's points, held past either end).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeliveryPoint {
+    pub input: DeliveryInput,
+    pub at: f32,
+    pub share: f32,
 }
 
 impl HybridConfig {
@@ -527,6 +563,23 @@ impl HybridConfig {
         }
         crate::physics::interpolate_torque_curve(&self.torque_curve, rpm)
             .clamp(0.0, self.motor_max_torque_nm)
+    }
+
+    /// The torque the second (crank) motor can give at the crank's `rpm`:
+    /// its curve where it files one, else its peak.
+    pub fn crank_torque_at(&self, rpm: f32) -> f32 {
+        if self.crank_torque_curve.is_empty() {
+            return self.crank_motor_max_torque_nm;
+        }
+        crate::physics::interpolate_torque_curve(&self.crank_torque_curve, rpm)
+            .clamp(0.0, self.crank_motor_max_torque_nm)
+    }
+
+    /// Whether the delivery profile has a throttle map.
+    pub fn has_throttle_delivery(&self) -> bool {
+        self.delivery
+            .iter()
+            .any(|p| p.input == DeliveryInput::Throttle)
     }
 }
 
@@ -563,6 +616,8 @@ impl Default for HybridConfig {
             torque_curve: Vec::new(),
             crank_motor_max_torque_nm: 0.0,
             crank_motor_max_power_kw: 0.0,
+            crank_torque_curve: Vec::new(),
+            delivery: Vec::new(),
         }
     }
 }

@@ -59,6 +59,10 @@ class Physics:
     torque_curve: list[tuple[float, float]] = field(default_factory=list)
     #: The hybrid motor's torque by its rpm (`[[hybrid.torque_curve]]`).
     motor_curve: list[tuple[float, float]] = field(default_factory=list)
+    #: The second (crank) motor's `[[hybrid.crank_torque_curve]]` points.
+    crank_motor_curve: list[tuple[float, float]] = field(default_factory=list)
+    #: The `[[hybrid.delivery_point]]` tables (`delivery_profile`).
+    ers_delivery: list[dict] = field(default_factory=list)
     #: Figures for the report that are not car.toml keys.
     fit: dict = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
@@ -248,6 +252,109 @@ def ers_min_speed_kph(car: CarData, front_motor: bool, controller: int) -> float
     return None
 
 
+#: The delivery profile inputs the server reads (`DeliveryInput`), by AC's
+#: name, with the range a point may name.
+DELIVERY_INPUTS = {"GAS": ("throttle", 0.0, 1.0), "SPEED_KMH": ("speed_kph", 0.0, 500.0),
+                   "SPEEDKMH": ("speed_kph", 0.0, 500.0), "GEAR": ("gear", -1.0, 12.0),
+                   "RPMS": ("rpm", 0.0, 30000.0)}
+#: Most a delivery point's share may be (`car_loader.rs`).
+DELIVERY_SHARE_TOP = 2.0
+
+
+def delivery_profile_file(car: CarData, front_motor: bool, controller: int) -> str | None:
+    """The default delivery profile's file: `ctrl_ers_front_<n>.ini` for a
+    car with a front motor (when it has one), else `ctrl_ers_<n>.ini`."""
+    names = [f"ctrl_ers_{controller}.ini"]
+    if front_motor:
+        names.insert(0, f"ctrl_ers_front_{controller}.ini")
+    return next((n for n in names if n in car.files), None)
+
+
+def delivery_profile(car: CarData, name: str) -> tuple[list[dict], list[str]]:
+    """A `ctrl_ers_*.ini` profile as the server's `[[hybrid.delivery_point]]`
+    list, and the inputs it reads that are not carried.
+
+    AC folds each controller's LUT into a running value (`ADD` / `MULT`),
+    clamped to its limits: the profiles add the throttle's map and multiply
+    in the speed's, the gear's and the rpm's. The server multiplies one map
+    per input: the throttle's the sum of the `ADD` controllers (on `GAS`,
+    the rest at rest: `BRAKE` 0), each `MULT` on the speed, the gear or the
+    rpm its own map, a share held to 0-2 (a negative share, AC's harvest
+    on a lifted pedal or a slip, is 0: the sim's modes recover). Inputs on
+    the car's state (`SLIPRATIO_MAX`, `OVERSTEER_FACTOR`, a `MULT` on the
+    brake) are left out and named."""
+    controllers = read_controllers(car, name)
+    dropped: list[str] = []
+    points: list[dict] = []
+    adds = [c for c in controllers if c.combinator == "ADD"]
+    if any(c.input == "GAS" for c in adds):
+        xs = sorted({round(float(x), 4) for c in adds if c.input == "GAS" for x in c.lut.x if 0.0 <= x <= 1.0}
+                    | {0.0, 1.0})
+        rows = []
+        for x in xs:
+            value = 0.0
+            for c in adds:
+                value += c.lut(x if c.input == "GAS" else 0.0)
+                if c.up is not None:
+                    value = min(value, c.up)
+                if c.down is not None:
+                    value = max(value, c.down)
+            rows.append({"input": "throttle", "at": x,
+                         "share": round(min(max(value, 0.0), DELIVERY_SHARE_TOP), 4)})
+        points.extend(_thin_share(rows))
+    for c in adds:
+        if c.input not in ("GAS", "BRAKE"):
+            dropped.append(c.input)
+    for c in controllers:
+        if c.combinator == "ADD":
+            continue
+        carried = DELIVERY_INPUTS.get(c.input)
+        if c.combinator != "MULT" or carried is None:
+            dropped.append(c.input)
+            continue
+        server, lo, hi = carried
+        rows = {}
+        for x, y in c.lut.points:
+            x = float(x)
+            if x < lo or x > hi:
+                continue
+            y = float(y)
+            if c.up is not None:
+                y = min(y, c.up)
+            if c.down is not None:
+                y = max(y, c.down)
+            rows.setdefault(round(x, 4), round(min(max(y, 0.0), DELIVERY_SHARE_TOP), 4))
+        if c.lut.x.size and float(c.lut.x.max()) > hi:
+            # The map past the server's range: its value at the top.
+            y = c.lut(hi)
+            if c.up is not None:
+                y = min(y, c.up)
+            if c.down is not None:
+                y = max(y, c.down)
+            rows.setdefault(round(hi, 4), round(min(max(y, 0.0), DELIVERY_SHARE_TOP), 4))
+        rows = [{"input": server, "at": x, "share": v} for x, v in sorted(rows.items())]
+        if any(p["input"] == server for p in points):
+            dropped.append(f"{c.input} (a second map)")
+            continue
+        points.extend(_thin_share(rows))
+    return points, sorted(set(dropped))
+
+
+def _thin_share(rows: list[dict]) -> list[dict]:
+    """`rows` (by rising `at`) less every point the line through its
+    neighbours already gives; empty when every share is 1."""
+    if not rows or all(r["share"] == 1.0 for r in rows):
+        return []
+    kept = [rows[0]]
+    for p, nxt in zip(rows[1:], rows[2:]):
+        t = (p["at"] - kept[-1]["at"]) / max(nxt["at"] - kept[-1]["at"], 1e-6)
+        if abs(kept[-1]["share"] + (nxt["share"] - kept[-1]["share"]) * t - p["share"]) > 1e-3:
+            kept.append(p)
+    if len(rows) > 1:
+        kept.append(rows[-1])
+    return kept
+
+
 def _motor_curve(lut, scale: float) -> list[tuple[float, float]]:
     """A motor's TORQUE_CURVE as `[[hybrid.torque_curve]]` points (its rpm,
     torque x `scale`), ordered by rpm; empty for none."""
@@ -298,8 +405,10 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
             out.put(h, "crank_motor_max_torque_nm", round(crank_t, 1),
                     "ers.ini [KINETIC] TORQUE_CURVE peak: a second motor, at the crank")
             out.put(h, "crank_motor_max_power_kw", round(crank_p, 1), "ers.ini [KINETIC] TORQUE_CURVE peak power")
-            out.warnings.append("ers.ini [KINETIC]'s motor drives the crank beside the front one at its peak torque "
-                                "(its curve's shape and its COAST_CURVE are not carried: the front motor recovers)")
+            out.crank_motor_curve = _motor_curve(crank_lut, 1.0)
+            if read_curve(car, k.get("COAST_CURVE")) is not None:
+                out.warnings.append("ers.ini [KINETIC]'s COAST_CURVE is not carried for the second motor: "
+                                    "the front motor recovers")
     else:
         motor_t, motor_p = crank_t, crank_p
         regen_p = motor_p
@@ -337,11 +446,15 @@ def map_ers(car: CarData, ers: dict, out, driven_radius: float, front_radius: fl
     if min_kph is not None:
         out.put(h, "deploy_min_speed_kph", round(min_kph, 1),
                 f"ctrl_ers{'_front' if front_motor else ''}_{controller}.ini SPEED_KMH: nothing below")
-    if any(n.startswith("ctrl_ers") for n in car.files):
-        out.warnings.append("ERS delivery profiles (ctrl_ers_*.ini) are read for the default profile's minimum "
-                            "speed only: their throttle maps, speed caps, oversteer / slip cuts and gear masks "
-                            "are not carried, and the car gets the sim's Harvest / Balanced / Attack modes and "
-                            "the overtake button in place of the other profiles")
+    profile = delivery_profile_file(car, front_motor, controller)
+    if profile is not None:
+        out.ers_delivery, dropped = delivery_profile(car, profile)
+        if dropped:
+            out.warnings.append(f"{profile}: the delivery profile's {', '.join(dropped)} controllers (the car's "
+                                f"slip and attitude cuts) are not carried")
+    if any(n.startswith("ctrl_ers") and n != profile for n in car.files):
+        out.warnings.append("ERS delivery profiles (ctrl_ers_*.ini) other than the default one are not carried: "
+                            "the car gets the sim's Harvest / Balanced / Attack modes and the overtake button")
 
 
 # --- brakes ---------------------------------------------------------------

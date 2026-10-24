@@ -38,6 +38,13 @@
 //!   budget; with it the button draws on its own allowance and leaves the
 //!   budget alone, and once it is spent the button does nothing more that
 //!   lap. Without it the button is Attack on the lap budget, as before;
+//! - a **delivery profile** (`[[hybrid.delivery_point]]`, none by
+//!   default: [`delivery_share`]): the car's own electronics, as an AC
+//!   import's `ctrl_ers_*.ini` has them: a share of the motor by the
+//!   speed, the gear and the engine's rpm, multiplied into what the mode
+//!   asks for, and by the throttle in place of the mode's own pedal
+//!   response (Balanced's ramp, Attack's and the button's straight
+//!   pedal); held to the whole motor at most;
 //! - an **axle** (`axle`, [`HybridAxle`]): the crank by default, or the
 //!   front axle directly, a hypercar's motor turning with the front wheels
 //!   ([`MotorOutput::front_axle_torque_nm`]): an RWD car drives at both
@@ -304,26 +311,105 @@ fn override_left_kj(state: &CarState, config: &CarConfig) -> f32 {
     }
 }
 
+/// One input's map of a delivery profile at `value`: linear between its
+/// points, held past either end; `None` when the profile has none for it.
+fn input_share(
+    hybrid: &crate::data::HybridConfig,
+    input: crate::data::DeliveryInput,
+    value: f32,
+) -> Option<f32> {
+    let mut below = None;
+    let mut above = None;
+    for p in hybrid.delivery.iter().filter(|p| p.input == input) {
+        if p.at <= value {
+            below = Some(p);
+        } else if above.is_none() {
+            above = Some(p);
+        }
+    }
+    match (below, above) {
+        (None, None) => None,
+        (Some(p), None) | (None, Some(p)) => Some(p.share),
+        (Some(a), Some(b)) => {
+            let t = (value - a.at) / (b.at - a.at).max(1e-6);
+            Some(a.share + (b.share - a.share) * t)
+        }
+    }
+}
+
+/// A delivery profile's share of the motor (`HybridConfig::delivery`) by
+/// the speed, the gear and the engine's rpm, and by the throttle when
+/// `throttle` is given: per input linear between its points and held past
+/// either end, the inputs multiplied together and held to 0..1. Exactly
+/// 1.0 for a car without a profile.
+pub fn delivery_share(
+    hybrid: &crate::data::HybridConfig,
+    throttle: Option<f32>,
+    speed_kph: f32,
+    gear: i8,
+    rpm: f32,
+) -> f32 {
+    use crate::data::DeliveryInput;
+    if hybrid.delivery.is_empty() {
+        return 1.0;
+    }
+    let mut out = 1.0;
+    for (input, value) in [
+        (DeliveryInput::SpeedKph, speed_kph),
+        (DeliveryInput::Gear, gear as f32),
+        (DeliveryInput::Rpm, rpm),
+    ] {
+        out *= input_share(hybrid, input, value).unwrap_or(1.0);
+    }
+    if let Some(t) = throttle {
+        out *= input_share(hybrid, DeliveryInput::Throttle, t).unwrap_or(1.0);
+    }
+    out.clamp(0.0, 1.0)
+}
+
 /// The deployment the motor may give this tick, 0..1 of its torque, from
-/// the mode, the throttle, the speed and the energy left. `boost` is the
-/// overtake button with an allowance of its own left.
+/// the mode, the throttle, the speed, the car's delivery profile and the
+/// energy left. `boost` is the overtake button with an allowance of its own
+/// left.
 fn deploy_share(
     state: &CarState,
     config: &CarConfig,
     mode: ErsMode,
     boost: bool,
     throttle: f32,
+    engine_rpm: f32,
 ) -> f32 {
     let hybrid = &config.hybrid;
     if state.hybrid_battery_kwh <= 0.0 || state.speed_mps * 3.6 < hybrid.deploy_min_speed_kph {
         return 0.0;
     }
+    if hybrid.delivery.is_empty() {
+        return mode_share(state, config, mode, boost, throttle, None);
+    }
+    // The profile's throttle map stands in for the mode's pedal.
+    let pedal = input_share(hybrid, crate::data::DeliveryInput::Throttle, throttle);
+    let rest = delivery_share(hybrid, None, state.speed_mps * 3.6, state.gear, engine_rpm);
+    (mode_share(state, config, mode, boost, throttle, pedal) * rest).clamp(0.0, 1.0)
+}
+
+/// [`deploy_share`] by the mode alone: `pedal` a delivery profile's
+/// throttle map at the throttle, which stands in for the pedal Attack and
+/// the button deploy on and for Balanced's ramp; `None`, the mode's own.
+fn mode_share(
+    state: &CarState,
+    config: &CarConfig,
+    mode: ErsMode,
+    boost: bool,
+    throttle: f32,
+    pedal: Option<f32>,
+) -> f32 {
+    let hybrid = &config.hybrid;
     if stint_left_kj(state, config) <= 0.0 {
         return 0.0;
     }
     if boost {
         return if override_left_kj(state, config) > 0.0 {
-            throttle.clamp(0.0, 1.0)
+            pedal.unwrap_or(throttle).clamp(0.0, 1.0)
         } else {
             0.0
         };
@@ -337,10 +423,10 @@ fn deploy_share(
     }
     match mode {
         ErsMode::Harvest => 0.0,
-        ErsMode::Attack => throttle.clamp(0.0, 1.0),
+        ErsMode::Attack => pedal.unwrap_or(throttle).clamp(0.0, 1.0),
         ErsMode::Balanced => {
             let (lo, hi) = BALANCED_THROTTLE;
-            let pedal = ((throttle - lo) / (hi - lo)).clamp(0.0, 1.0);
+            let pedal = pedal.unwrap_or((throttle - lo) / (hi - lo)).clamp(0.0, 1.0);
             let capacity = hybrid.battery_capacity_kwh.max(1e-6);
             let soc = state.hybrid_battery_kwh / capacity;
             let charge = ((soc - SOC_FLOOR) / (SOC_EASE - SOC_FLOOR)).clamp(0.0, 1.0);
@@ -502,7 +588,7 @@ fn step(
         return MotorOutput::at(hybrid.axle, -torque);
     }
 
-    let share = deploy_share(state, config, mode, boost, input.throttle);
+    let share = deploy_share(state, config, mode, boost, input.throttle, engine_rpm);
     if share <= 0.0 {
         return MotorOutput::default();
     }
@@ -522,7 +608,7 @@ fn step(
     let crank_omega = (engine_rpm / 60.0) * 2.0 * PI;
     let mut crank_torque = 0.0;
     if hybrid.has_crank_motor() && state.gear > 0 && crank_omega > 1.0 {
-        crank_torque = (share * hybrid.crank_motor_max_torque_nm)
+        crank_torque = (share * hybrid.crank_torque_at(engine_rpm))
             .min(hybrid.crank_motor_max_power_kw * 1000.0 / crank_omega)
             .max(0.0);
         let total_w = torque * omega.max(1.0) + crank_torque * crank_omega;
@@ -671,16 +757,27 @@ impl MotorPlan {
 
     /// The crank's speed at `speed_mps` in the gear the box holds, rad/s.
     fn crank_omega(&self, speed_mps: f32) -> f32 {
+        self.gear_and_crank_omega(speed_mps).1
+    }
+
+    /// The gear the box holds at `speed_mps` (1 is first) and the crank's
+    /// speed in it, rad/s.
+    fn gear_and_crank_omega(&self, speed_mps: f32) -> (i8, f32) {
         let wheel = speed_mps.max(0.0) / self.wheel_radius_m;
         let rpm_per_ratio = wheel * 60.0 / (2.0 * PI);
-        let rpm = self
+        let (gear, rpm) = self
             .gears
             .iter()
-            .map(|&(ratio, upshift)| (ratio * rpm_per_ratio, upshift))
-            .find(|&(rpm, upshift)| rpm <= upshift)
-            .or_else(|| self.gears.last().map(|&(r, _)| (r * rpm_per_ratio, 0.0)))
-            .map_or(0.0, |(rpm, _)| rpm);
-        rpm.max(self.idle_rpm) * 2.0 * PI / 60.0
+            .enumerate()
+            .map(|(g, &(ratio, upshift))| (g, ratio * rpm_per_ratio, upshift))
+            .find(|&(_, rpm, upshift)| rpm <= upshift)
+            .or_else(|| {
+                self.gears
+                    .last()
+                    .map(|&(r, _)| (self.gears.len() - 1, r * rpm_per_ratio, 0.0))
+            })
+            .map_or((0, 0.0), |(g, rpm, _)| (g as i8 + 1, rpm));
+        (gear, rpm.max(self.idle_rpm) * 2.0 * PI / 60.0)
     }
 
     /// What the motor gives at `speed_mps`, W, deploying `share` of its
@@ -691,6 +788,24 @@ impl MotorPlan {
         if speed_mps < self.min_mps || share <= 0.0 {
             return 0.0;
         }
+        // The car's delivery profile flat out at this speed, in the gear the
+        // box holds (exactly 1 without one).
+        let share = if self.hybrid.delivery.is_empty() {
+            share
+        } else {
+            let (gear, crank) = self.gear_and_crank_omega(speed_mps);
+            share
+                * delivery_share(
+                    &self.hybrid,
+                    Some(1.0),
+                    speed_mps * 3.6,
+                    gear,
+                    crank * 60.0 / (2.0 * PI),
+                )
+        };
+        if share <= 0.0 {
+            return 0.0;
+        }
         let omega = self.omega(speed_mps);
         let torque = share * self.hybrid.torque_at(omega * 60.0 / (2.0 * PI));
         let power = (torque * omega).clamp(0.0, self.power_limit_w);
@@ -699,7 +814,7 @@ impl MotorPlan {
         }
         // A second motor at the crank, the two held to the battery.
         let crank = self.crank_omega(speed_mps);
-        let crank_w = (share * self.hybrid.crank_motor_max_torque_nm * crank)
+        let crank_w = (share * self.hybrid.crank_torque_at(crank * 60.0 / (2.0 * PI)) * crank)
             .clamp(0.0, self.hybrid.crank_motor_max_power_kw * 1000.0);
         (power + crank_w).min(self.hybrid.battery_max_discharge_kw.max(0.0) * 1000.0)
     }
@@ -1070,6 +1185,85 @@ mod tests {
         );
         assert!(p2.power_w(60.0, 1.0) > p1.power_w(60.0, 1.0));
         assert!(p2.power_w(60.0, 1.0) <= 300_000.0 + 1.0);
+    }
+
+    #[test]
+    fn the_crank_motor_follows_its_own_curve() {
+        let mut both = car(None);
+        both.hybrid.axle = HybridAxle::Front;
+        both.wheel_radius_m = 0.35;
+        both.hybrid.battery_max_discharge_kw = 1000.0;
+        both.hybrid.crank_motor_max_torque_nm = 200.0;
+        both.hybrid.crank_motor_max_power_kw = 500.0;
+        let full = input(1.0, 0.0, ErsMode::Attack, false);
+        let at = |config: &CarConfig, rpm: f32| {
+            let mut s = rolling(config);
+            update(&mut s, config, &full, rpm, 0.5, DT).crank_torque_nm
+        };
+        let peak = at(&both, 6000.0);
+        assert_eq!(peak, 200.0);
+        let point = |rpm, torque_nm| crate::data::TorqueCurvePoint { rpm, torque_nm };
+        let mut shaped = both.clone();
+        shaped.hybrid.crank_torque_curve = vec![point(2000.0, 200.0), point(10000.0, 100.0)];
+        assert_eq!(at(&shaped, 2000.0), 200.0);
+        assert!((at(&shaped, 6000.0) - 150.0).abs() < 1e-3);
+        // Capped at its peak whatever the curve says.
+        shaped.hybrid.crank_torque_curve = vec![point(2000.0, 400.0)];
+        assert_eq!(at(&shaped, 6000.0), 200.0);
+    }
+
+    #[test]
+    fn a_delivery_profile_shapes_what_the_mode_asks_for() {
+        use crate::data::{DeliveryInput, DeliveryPoint};
+        let plain = car(None);
+        let rpm = 9000.0;
+        let run = |config: &CarConfig, throttle: f32, mode: ErsMode, speed: f32, gear: i8| {
+            let mut s = rolling(config);
+            s.speed_mps = speed;
+            s.gear = gear;
+            torque(&mut s, config, &input(throttle, 0.0, mode, false), rpm, 0.5)
+        };
+        let point = |input, at, share| DeliveryPoint { input, at, share };
+        // A speed cap: everything to 200 km/h, nothing from 240.
+        let mut capped = plain.clone();
+        capped.hybrid.delivery = vec![
+            point(DeliveryInput::SpeedKph, 200.0, 1.0),
+            point(DeliveryInput::SpeedKph, 240.0, 0.0),
+        ];
+        let full = run(&plain, 1.0, ErsMode::Attack, 50.0, 6);
+        assert!(full > 0.0);
+        assert_eq!(run(&capped, 1.0, ErsMode::Attack, 50.0, 6), full);
+        assert_eq!(run(&capped, 1.0, ErsMode::Attack, 70.0, 6), 0.0);
+        let half = run(&capped, 1.0, ErsMode::Attack, 220.0 / 3.6, 6);
+        assert!((half / full - 0.5).abs() < 1e-3, "{half} of {full}");
+        // A gear mask: nothing in first.
+        let mut masked = plain.clone();
+        masked.hybrid.delivery = vec![
+            point(DeliveryInput::Gear, 1.0, 0.0),
+            point(DeliveryInput::Gear, 2.0, 1.0),
+        ];
+        assert_eq!(run(&masked, 1.0, ErsMode::Attack, 50.0, 1), 0.0);
+        assert_eq!(run(&masked, 1.0, ErsMode::Attack, 50.0, 3), full);
+        // A throttle map stands in for the mode's pedal: nothing under 60%,
+        // all of it from 90%, in Attack and Balanced alike.
+        let mut pedal = plain.clone();
+        pedal.hybrid.delivery = vec![
+            point(DeliveryInput::Throttle, 0.6, 0.0),
+            point(DeliveryInput::Throttle, 0.9, 1.0),
+        ];
+        assert_eq!(run(&pedal, 0.5, ErsMode::Attack, 50.0, 6), 0.0);
+        assert!(run(&plain, 0.5, ErsMode::Attack, 50.0, 6) > 0.0);
+        assert_eq!(run(&pedal, 0.95, ErsMode::Attack, 50.0, 6), full);
+        let balanced = run(&pedal, 0.75, ErsMode::Balanced, 50.0, 6);
+        assert!((balanced / full - 0.5).abs() < 1e-3, "{balanced}");
+        assert_eq!(run(&pedal, 1.0, ErsMode::Harvest, 50.0, 6), 0.0);
+        // The plan reads the profile flat out at the speed.
+        let (p0, p1) = (
+            MotorPlan::new(&plain).unwrap(),
+            MotorPlan::new(&capped).unwrap(),
+        );
+        assert_eq!(p1.power_w(50.0, 1.0), p0.power_w(50.0, 1.0));
+        assert_eq!(p1.power_w(70.0, 1.0), 0.0);
     }
 
     #[test]
