@@ -36,6 +36,8 @@ enum class EApexScreen : uint8
 	Profile        = 11,
 	/** An offline season against the AI (UApexSeasonWidget). */
 	Season         = 12,
+	/** The driving school's licence tests (UApexSchoolWidget). */
+	School         = 13,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPendingCarChanged, const FString&, CarId);
@@ -485,6 +487,12 @@ public:
 	 * that round's circuit. Returns the round filed, INDEX_NONE otherwise.
 	 */
 	int32 FileSeasonRace(const FString& TrackId, const TArray<FApexSeasonEntry>& Results);
+
+	// --- Driving school (School/ApexSchool.h) -----------------------------------
+
+	const TArray<FApexSchoolMedal>& GetSchoolMedals() const;
+	/** Count a judged try of a school test into the profile, and save. True when it was a new best. */
+	bool FileSchoolResult(const FString& Key, const ApexSchool::FTest& Test, const ApexSchool::FResult& Result);
 
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Profile")
 	bool GetBestLapSeconds(const FString& TrackId, float& OutSeconds) const;

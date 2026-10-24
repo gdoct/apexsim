@@ -1713,7 +1713,9 @@ pause menu) holds the garage (GO OUT, REPLAY LAP, GHOST CAR, TYRES OUT from
 and the replay strip. While the garage is up the HUD is hidden, driving input
 is off and it owns the keys (`IsGarageOpen`, honoured by
 `FApexMenuInputProcessor`); on track the pause menu gains BACK TO GARAGE.
-Other drivers' garaged cars are hidden. `AApexGhostCarActor` is a race car
+Other drivers' garaged cars are hidden. A driving-school session (a
+hotlap the client made for a licence test) shows the school's card
+instead of the garage ([client](../game/client.md#driving-school-schoolapexschoolh-uiapexschoolwidgetcpp)). `AApexGhostCarActor` is a race car
 actor posed by `FApexGhostLap::SampleAt` on a clock run from the local lap
 time, so it is where the record lap was at this point of this lap; see-through:
 every slot is an instance of the car parents' glass (`M_ApexCarTranslucent`)

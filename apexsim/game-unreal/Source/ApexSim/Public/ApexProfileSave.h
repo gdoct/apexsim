@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/SaveGame.h"
 #include "Season/ApexSeason.h"
+#include "School/ApexSchool.h"
 
 #include "ApexProfileSave.generated.h"
 
@@ -216,4 +217,8 @@ public:
 	/** Track UUID -> best lap in seconds. Populated by the results screen. */
 	UPROPERTY()
 	TMap<FString, float> BestLapSeconds;
+
+	/** The driving school's medals: one entry per circuit, car and test (ApexSchool::MedalKey). */
+	UPROPERTY()
+	TArray<FApexSchoolMedal> SchoolMedals;
 };

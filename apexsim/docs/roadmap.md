@@ -202,13 +202,6 @@ reporting every other dossier unchanged after each dossier edit.
 ## P3: nice to have
 
 
-### 16. Driving school
-
-- Challenges on the racing line and corner data: brake at a board, a corner
-  under a target, a clean lap under time; medals.
-
-**Check:** each challenge passed and failed by the stand-in.
-
 ### 17. League rules
 
 - Success ballast by championship position (needs championships), a

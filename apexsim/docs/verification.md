@@ -539,6 +539,20 @@ Monzarella, the shot camera parked on the scene (`apexsim.marshals.Look`).
   behind the car before the tow; the car gone to its box, the flags down,
   the scene gone 5 s later. The TV director's trouble shot on the scene.
 
+### R26. Driving school
+
+`n16-school-screen` (the School screen, Snorisring's tests for the
+Caravan, its GT3 guide made first if needed) and `n16-school-tests` (the
+stand-in driving: the clean lap's test card, the lap judged, the brake test
+failed by running through the box, the corner exit judged). The second
+writes the profile's medals: back the save games up first. Look at: the
+cards over the race view, the marks on the road (the yellow board, the
+white stop line, the green gold box, a corner's white gates) lying on the
+tarmac where the goal says, and the client log's `School:` lines. Left, by
+hand: whether the targets are fair to a human (each test passed and failed
+at every medal), the brake test's stop line where it lands in the corner,
+and the pad through the screen and the cards.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),

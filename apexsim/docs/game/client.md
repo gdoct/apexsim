@@ -241,7 +241,8 @@ the remembered session) and **Change setup** (the create screen). The right
   opens the create screen on its Race weekend mode; Custom = the create
   screen), Hotlap (the create screen on its Hotlap mode), Season (the
   offline season, [below](#offline-season-seasonapexseasonh-uiapexseasonwidgetcpp)), Browse sessions
-  (live sessions: watch or join), Connect to server.
+  (live sessions: watch or join), Connect to server, School (the
+  licence tests, [below](#driving-school-schoolapexschoolh-uiapexschoolwidgetcpp)).
 - **Watch a race**: Live race (the menu's backdrop race full screen,
   `WatchBackdrop`) and Replays (the replays screen, with the count of saved
   files; Back from it lands on this page).
@@ -366,6 +367,77 @@ Unattended: `apexsim.season.Setup <laps> <ai> <rounds> [first stem, - for
 the spread's] [ballast 0-2]` and
 `apexsim.season.Race` drive the screen (`n7-season` in the verify runs).
 Checks: `ApexSim.Season.*`.
+
+### Driving school (`School/ApexSchool.h`, `UI/ApexSchoolWidget.cpp`)
+
+Licence tests per circuit, made from its track guide of the pending car's
+class ([track-guide.md](../../../apexsim-content/docs/track-guide.md)),
+judged on the client from the local car's telemetry in a hotlap session
+the client creates for itself. No server mode of its own: the car goes out
+with `HotlapRelocate Track` (the run-up before the line) and back with
+`Garage` ([sessions.md](../server/sessions.md#hotlap)).
+
+- **The tests** (`ApexSchool::BuildTests`, pure): a **brake test** at the
+  lap's biggest stop (the braked corner with the most speed shed): the
+  board is where the guide car began braking (`ApexM - BrakeM`), the stop
+  line where the guide car's own average deceleration there would have
+  stopped it from its speed at the board, times `Rules::StopSlack` (1.1);
+  the car must pass the board at 90% of the guide car's speed there or
+  more, then stop (under 0.5 m/s) with its station on the line: gold within
+  3 m, silver 8 m, bronze 15 m; past the line by more than that still
+  moving is "ran through the box". A **corner exit** at the slowest braked
+  corner, by the speed at its exit station against the guide car's (gold
+  98%, silver 93%, bronze 85%). A **corner time** at the longest other
+  braked corner, entry station to exit station, against the guide car's own
+  time through it, measured when the tests are made by judging car 0 of
+  the guide's recording as a try (gold 102%, silver 107%, bronze 115%).
+  A **clean lap** from the line, by the server's lap time against the
+  guide's `lap_time_s` (gold 102%, silver 105%, bronze 110%). A struck lap
+  fails any of them. The shares are `ApexSchool::Rules`; the guide car is
+  an AI of the class, so the targets are the sim's, not a real driver's.
+- **Judging** (`ApexSchool::FJudge`, pure): fed the local car's samples
+  (station, speed, lap, the lap flags, the server tick over its rate as the
+  clock), it waits for the test's start station (the board, the corner's
+  entry, the line), then judges; crossings are interpolated between two
+  samples. Back in the garage, a jump of 150 m or a clock that went back
+  (a rewind) gives the try up instead.
+- **Medals** are kept per profile in `UApexProfileSave::SchoolMedals`
+  (`FApexSchoolMedal`: the key `<track id>|<car id>|<test id>`, the medal,
+  the best figure, the tries); a passed try replaces the best when its
+  medal is higher or its figure better at the same medal
+  (`ApexSchool::FileResult`). Medals unlock nothing.
+- **The screen** (`EApexScreen::School`, Main menu > Drive > School): the
+  server's circuits, each with the pending car's medals there; choosing one
+  makes its tests (`UApexSchoolSubsystem::Prepare`): the guide of the car's
+  class from `Saved/ApexSim/Guides` (or `-ApexGuideDir=`), made first with
+  `apx_guide_build` when it is missing or made from another version of the
+  circuit and this machine can (as the guide screen does), then the corner
+  time measured off its recording. Each test lists what it asks, what each
+  medal takes and the best so far; Enter starts it. Change car goes through
+  car select and back.
+- **In the session** `UApexSchoolSubsystem` creates a Practice-kind
+  session alone, dry at 13:00, counted into the hotlap on join. While the
+  car is in the garage the root shows `UApexSchoolCardWidget` in place of
+  the hotlap garage (the garage's keys and focus, `bGarageOpen`): the test
+  card (the goal, the three targets, the best, why the last try was given
+  up) with START, or after a try the result card (the medal or FAILED, the
+  figure, the reason, NEW BEST) with RETRY; both have NEXT TEST and BACK TO
+  SCHOOL (leaves for the School screen). START sends the car out; 1.5 s
+  after a try is judged the subsystem sends it back to the garage. The
+  hotlap's timing sheet stays hidden. `AApexSchoolMarkerActor` paints the
+  test's marks across the road (flat strips traced onto the track's
+  surfaces): the board yellow, the stop line white, the gold box's edges
+  green; a corner's entry and exit white.
+- Console: `apexsim.school.Select <stem> [car name]` (the screen's row),
+  `apexsim.school.Run <stem> <brake|exit|corner|lap> [car name]` (make the
+  tests and start one when ready), `apexsim.school.Go` (START / RETRY),
+  `.Next`, `.Leave`. The verify runs `n16-school-screen` and
+  `n16-school-tests` (the stand-in drives: it fails the brake test, it
+  does not stop).
+
+Checks: `ApexSim.School.*` (the tests a guide makes, the medal limits, the
+judge on driven samples for each kind, the medals filed, the texts,
+stations on the built centerline).
 
 ### Tracks globe (`UI/ApexTrackGlobePage.cpp`)
 
@@ -1018,6 +1090,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   standard|red_green|blue_yellow` (the colour-vision palette, as Settings >
   Gameplay > Colour vision sets it) ([hud-modding.md](hud-modding.md#colour-vision)).
 - Hotlap: `apexsim.hotlap.Out|Garage|Replay|Stop|Tab|Board|Watch`.
+- Driving school: `apexsim.school.Select|Run|Go|Next|Leave` (above).
 - The race's grid: `apexsim.grid.Ready|Livery|StartNow`.
 - Replays: `apexsim.replay.Save|List`; on a `-ApexReplay` clip
   `apexsim.replay.Seek <s>` puts the clock at a second and

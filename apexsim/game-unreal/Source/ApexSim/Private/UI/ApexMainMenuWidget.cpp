@@ -75,6 +75,7 @@ namespace
 		const FName QuitExit(TEXT("QuitExit"));
 		const FName Profile(TEXT("Profile"));
 		const FName Season(TEXT("Season"));
+		const FName School(TEXT("School"));
 	}
 
 	using ApexUI::SplitTitle;
@@ -469,6 +470,7 @@ UVerticalBox* UApexMainMenuWidget::BuildPage(EPage Page)
 		Row(TEXT("Create session"),    Action::GoCreate);
 		Row(TEXT("Hotlap"),            Action::Hotlap);
 		Row(TEXT("Season"),            Action::Season);
+		Row(TEXT("School"),            Action::School);
 		Row(TEXT("Browse sessions"),   Action::Browse);
 		Row(TEXT("Connect to server"), Action::Connect);
 		break;
@@ -1428,6 +1430,10 @@ void UApexMainMenuWidget::RunAction(FName Id, UApexButtonWidget* Button)
 	else if (Id == Action::Season)
 	{
 		ShowScreen(EApexScreen::Season);
+	}
+	else if (Id == Action::School)
+	{
+		ShowScreen(EApexScreen::School);
 	}
 	else if (Id == Action::Watch)
 	{

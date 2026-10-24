@@ -3814,6 +3814,11 @@ bool AApexRaceDirector::IsTrackLevelLoaded() const
 	return Track && Track->IsLoaded();
 }
 
+const TArray<FVector>* AApexRaceDirector::GetTrackCenterline() const
+{
+	return Track && IsTrackVisible() && Track->GetCenterline().Num() >= 3 ? &Track->GetCenterline() : nullptr;
+}
+
 bool AApexRaceDirector::IsTrackVisible() const
 {
 	return Track && Track->IsVisible();

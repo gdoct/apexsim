@@ -431,6 +431,9 @@ public:
 	/** Loaded and shown: its actors are in the world and collidable. */
 	bool IsTrackVisible() const;
 
+	/** The session track's centerline as built (cm, with its heights), once it is shown; null before. */
+	const TArray<FVector>* GetTrackCenterline() const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;

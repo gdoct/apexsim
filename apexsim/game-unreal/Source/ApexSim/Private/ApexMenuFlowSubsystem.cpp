@@ -470,6 +470,23 @@ void UApexMenuFlowSubsystem::EndSeason()
 	SaveProfile();
 }
 
+const TArray<FApexSchoolMedal>& UApexMenuFlowSubsystem::GetSchoolMedals() const
+{
+	static const TArray<FApexSchoolMedal> None;
+	return Profile ? Profile->SchoolMedals : None;
+}
+
+bool UApexMenuFlowSubsystem::FileSchoolResult(const FString& Key, const ApexSchool::FTest& Test, const ApexSchool::FResult& Result)
+{
+	if (!Profile)
+	{
+		return false;
+	}
+	const bool bBest = ApexSchool::FileResult(Profile->SchoolMedals, Key, Test, Result);
+	SaveProfile();
+	return bBest;
+}
+
 bool UApexMenuFlowSubsystem::BeginSeasonRound()
 {
 	const int32 Round = Profile ? Profile->Season.NextRound() : INDEX_NONE;

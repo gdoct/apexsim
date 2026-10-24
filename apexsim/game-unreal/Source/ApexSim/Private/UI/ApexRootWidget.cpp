@@ -55,6 +55,9 @@
 #include "UI/ApexLeaderboardWidget.h"
 #include "UI/ApexProfileWidget.h"
 #include "UI/ApexSeasonWidget.h"
+#include "UI/ApexSchoolCardWidget.h"
+#include "UI/ApexSchoolWidget.h"
+#include "School/ApexSchoolSubsystem.h"
 #include "UI/ApexLoadingScreenWidget.h"
 #include "UI/ApexReplaysWidget.h"
 #include "UI/ApexSessionBrowserWidget.h"
@@ -315,6 +318,9 @@ UClass* UApexRootWidget::ResolveScreenClass(EApexScreen Screen)
 	case EApexScreen::Season:
 		return UApexSeasonWidget::StaticClass();
 
+	case EApexScreen::School:
+		return UApexSchoolWidget::StaticClass();
+
 	case EApexScreen::SessionBrowser:
 		return UApexSessionBrowserWidget::StaticClass();
 
@@ -335,7 +341,7 @@ void UApexRootWidget::BuildShell()
 	Background = ApexUI::MakePanel(*WidgetTree, nullptr, FMargin(), ApexUI::MakeBrush(ApexUI::Palette::Background));
 
 	ScreenHost = WidgetTree->ConstructWidget<UWidgetSwitcher>();
-	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::Season); ++Index)
+	for (int32 Index = 0; Index <= static_cast<int32>(EApexScreen::School); ++Index)
 	{
 		const EApexScreen Screen = static_cast<EApexScreen>(Index);
 		UClass* ScreenClass = ResolveScreenClass(Screen);
@@ -350,6 +356,7 @@ void UApexRootWidget::BuildShell()
 	HotlapPanel = WidgetTree->ConstructWidget<UApexHotlapWidget>();
 	HotlapPanel->OnAction.AddDynamic(this, &UApexRootWidget::HandleHotlapAction);
 	HotlapPanel->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleHotlapWatch);
+	SchoolCard = WidgetTree->ConstructWidget<UApexSchoolCardWidget>();
 	GuidePanel = WidgetTree->ConstructWidget<UApexTrackGuideWidget>();
 	PhotoPanel = WidgetTree->ConstructWidget<UApexPhotoModeWidget>();
 	PhotoPanel->SetShell(this);
@@ -390,6 +397,10 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* HotlapSlot = Frame->AddChildToOverlay(HotlapPanel);
 	HotlapSlot->SetHorizontalAlignment(HAlign_Fill);
 	HotlapSlot->SetVerticalAlignment(VAlign_Fill);
+
+	UOverlaySlot* SchoolSlot = Frame->AddChildToOverlay(SchoolCard);
+	SchoolSlot->SetHorizontalAlignment(HAlign_Fill);
+	SchoolSlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* GuideSlot = Frame->AddChildToOverlay(GuidePanel);
 	GuideSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -1187,6 +1198,11 @@ void UApexRootWidget::FocusDefault()
 		RaceResults->FocusDefault();
 		return;
 	}
+	if (bGarageOpen && SchoolCard && SchoolCard->IsOpen())
+	{
+		SchoolCard->FocusDefault();
+		return;
+	}
 	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
 		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
 	{
@@ -1224,6 +1240,10 @@ UUserWidget* UApexRootWidget::GetFrontSurface() const
 	if (RaceResults && RaceResults->IsOpen())
 	{
 		return RaceResults;
+	}
+	if (bGarageOpen && SchoolCard && SchoolCard->IsOpen())
+	{
+		return SchoolCard;
 	}
 	if ((bGarageOpen || (HotlapPanel && HotlapPanel->IsMenuMode())) && HotlapPanel
 		&& HotlapPanel->GetView() == EApexHotlapView::Garage)
@@ -1365,9 +1385,16 @@ void UApexRootWidget::SetGarageOpen(bool bOpen)
 		return;
 	}
 	bGarageOpen = bOpen;
-	if (HotlapPanel && (bHotlapSession || bGridSession))
+	// A driving-school session has its own card in the garage, and no hotlap sheet.
+	const UApexSchoolSubsystem* School = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
+	const bool bSchool = School && School->IsSchoolSession() && bHotlapSession;
+	if (HotlapPanel && (bHotlapSession || bGridSession) && !bSchool)
 	{
 		HotlapPanel->SetView(bOpen ? EApexHotlapView::Garage : EApexHotlapView::Track);
+	}
+	if (SchoolCard)
+	{
+		SchoolCard->SetOpen(bOpen && bSchool);
 	}
 	if (Hud)
 	{
@@ -1548,10 +1575,11 @@ void UApexRootWidget::HandleTelemetryForHotlap(const FApexTelemetryFrame& Frame)
 	if (bHotlap != bHotlapSession)
 	{
 		bHotlapSession = bHotlap;
+		const UApexSchoolSubsystem* School = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
 		if (HotlapPanel)
 		{
 			HotlapPanel->SetQualifying(bQualifying);
-			HotlapPanel->SetActive(bHotlap);
+			HotlapPanel->SetActive(bHotlap && !(School && School->IsSchoolSession()));
 		}
 		if (bHotlap && !bQualifying && Net)
 		{
@@ -2395,8 +2423,18 @@ void UApexRootWidget::HandleSessionLeft()
 	}
 	ResetFinishWatch();
 	SetRaceViewActive(false);
+	if (SchoolCard)
+	{
+		SchoolCard->SetOpen(false);
+	}
 	BackStack.Reset();
 	ActivateScreen(EApexScreen::MainMenu);
+	// A licence test left from its card goes back to the School screen.
+	if (UApexSchoolSubsystem* School = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
+		School && School->ConsumeReturnToSchool())
+	{
+		ShowScreen(EApexScreen::School);
+	}
 }
 
 bool UApexRootWidget::IsDrivingMode(EApexGameMode Mode)

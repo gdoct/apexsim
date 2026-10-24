@@ -53,7 +53,6 @@ takes it up (— : no step, taken opportunistically).
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
-| N16 | Driving school / licence tests | Game mode | P3 | 🟡 | M | — |
 | V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
@@ -402,11 +401,6 @@ you there. What is left of phase 0 needs neither and is 🟢.
 showcases, the demo backdrop, the first-run defaults), but the tests run on
 the whole content root.
 
-
-#### N16. Driving school / licence tests — P3 · 🟡 · M
-Short challenges built on the racing line, track guide and corner data:
-brake at a board, take a corner under a target, a clean lap under time.
-Medals unlock nothing at first. 🟡: difficulty needs play-testing.
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).

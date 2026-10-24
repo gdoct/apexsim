@@ -14,6 +14,7 @@ class FWidgetPath;
 class SWidget;
 struct FFocusEvent;
 class UApexHotlapWidget;
+class UApexSchoolCardWidget;
 class UApexTrackGuideWidget;
 class UApexHudEditorWidget;
 class UApexHudWidget;
@@ -381,6 +382,10 @@ protected:
 	/** The hotlap layer: garage card, timing sheet, replay strip. Between the HUD and the pause menu. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexHotlapWidget> HotlapPanel;
+
+	/** The driving school's test and result cards, in place of the hotlap garage in a school session. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexSchoolCardWidget> SchoolCard;
 
 	/** The track guide's cards and controls, over the world while a guide is open. */
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
