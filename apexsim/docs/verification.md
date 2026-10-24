@@ -643,6 +643,8 @@ by its id) and a row per driver ("P1 Ada Quick", "25 pts · 1 win · R1 P1 ·
 R2 —", the AI driver marked AI). The dashboard's championship panel under
 the events: its standings, SAVE / DELETE, a new one from the form.
 
+Run 2026-10-24: EVENTS showed Clock Cup with RACE NEXT, its start time and an IN m:ss badge stepping down, the lobby THE RACE STARTS IN, and the race counted in on time (`r3s-event-schedule`); a race under way took the late driver, held in the pit box (HELD) and driven out by the autopilot (`r3s-event-late`); the sheets showed PRACTICE, QUALIFYING (OUT IN Q1) and RACE with their lines (`r3s-event-sheets`); LEAGUES showed Autumn Series with Ada Quick leading on 25 points (`n7-leagues`). By hand: the dashboard's schedule and championship panels.
+
 ## 2. Needs a human: hands, ears and hardware
 
 ([game/input-and-ffb.md](game/input-and-ffb.md),
