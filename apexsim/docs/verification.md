@@ -871,7 +871,9 @@ Mandarina Bay.
   dry-run question, the install, then the car, track and HUD component in
   the game and on the server (the installer and the launcher's reading of
   its report were checked from the command line on Laguna Seca and the
-  SF70H).
+  SF70H). Then a release's `content\content.acp` (every default car and
+  circuit outside the starter set) installed the same way, and a pack
+  circuit and car raced.
 - The launcher's AC import button, never clicked by hand, and the import
   with the network off (it fetches its Python packages from PyPI on first
   use; the release's `Tools/importer/wheels` venv was checked only as the

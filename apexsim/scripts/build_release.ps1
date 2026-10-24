@@ -18,16 +18,21 @@
         6. assemble   - server binary, server.toml and the content the server
                         reads at runtime, showcase.yml for both sides, plus
                         the launcher and a manifest
-        7. zip        - optional, with -Zip
+        7. pack       - the default cars and circuits outside the starter
+                        set, into content/content.acp
+        8. zip        - optional, with -Zip
 
     The package lands under artifacts/, which .gitignore already excludes, so
     nothing here is ever committed.
 
     A release ships the starter set (../apexsim-content/starter.yml): its
-    cars and circuits only. -AllContent ships every car and circuit. No
-    showcase or track guide ships: the game and the server make their own
-    from showcase.yml and the content (docs/game/spectator.md,
-    apexsim-content/docs/track-guide.md).
+    cars and circuits installed. The rest of apexsim-content's default cars
+    and circuits go beside them as one loose content pack, content/content.acp
+    (apexsim-content/docs/packs.md), that the launcher's Manage content >
+    Install pack... installs into the custom/ folders. -AllContent installs
+    every car and circuit and makes no pack. No showcase or track guide
+    ships: the game and the server make their own from showcase.yml and the
+    content (docs/game/spectator.md, apexsim-content/docs/track-guide.md).
 
         artifacts/release/ApexSim-<Version>-Win64/
             launcher.exe        the launcher (launcher/): checks the install,
@@ -45,7 +50,11 @@
                                 game when it is raced
             Game/Cars/          every shipped car as its car.toml, GLBs and livery
                                 logos, built by the game when it is drawn
-            Game/Wheels/        the class wheels the cars name
+            Game/Wheels/        the class wheels the cars name, the pack's too
+            content/content.acp the cars and circuits outside the starter set:
+                                cars/<folder>/ as Game/Cars ships one,
+                                tracks/<Stem>/ the server's files, with the
+                                export and preview in tracks/<Stem>/game/
             Game/Drivers/portraits/  the pictures a driver profile picks from
             Game/Audio/radio/   the spotter's and the engineer's voice lines
             Game/Hud/           the HUD's components (default/, and custom/
@@ -102,8 +111,8 @@
     the track materials already baked.
 
 .PARAMETER AllContent
-    Ship every car and circuit under apexsim-content (default\), not only the
-    starter set.
+    Ship every car and circuit under apexsim-content (default\) installed, not
+    only the starter set, and make no content pack.
 
 .PARAMETER IncludeCustomTracks
     Also ship the tracks in apexsim-content\tracks\custom (server YAML and sidecars,
@@ -259,44 +268,63 @@ function Get-TrackFiles {
         })
 }
 
+# What content.acp carries: the default cars and circuits the starter set
+# leaves out. Nothing with -AllContent, which installs them all, and never
+# custom\ content.
+function Get-PackCarFiles {
+    if (-not $Starter -or -not (Test-Path $CarsDir)) { return @() }
+    return @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly | Where-Object { $StarterCars -notcontains $_.Directory.Name })
+}
+
+function Get-PackTrackFiles {
+    if (-not $Starter) { return @() }
+    return @(Get-ApexTrackFiles -ContentRoot $ContentRoot -DefaultOnly | Where-Object { $Starter.Tracks -notcontains $_.BaseName })
+}
+
 function Get-TrackFolderText {
     if ($IncludeCustomTracks) { return 'apexsim-content\tracks\default and apexsim-content\tracks\custom' }
     return 'apexsim-content\tracks\default'
 }
 
-# Tracks whose runtime export (manifest and mesh blob) is not on disk.
+# Tracks, shipped or packed, whose runtime export (manifest and mesh blob) is
+# not on disk.
 function Get-MissingExports {
-    return @(Get-TrackFiles | ForEach-Object { $_.BaseName } | Where-Object {
+    return @(@(Get-TrackFiles) + @(Get-PackTrackFiles) | ForEach-Object { $_.BaseName } | Where-Object {
         -not (Test-Path (Join-Path $ExportDir "$_.uescene.json")) -or
         -not (Test-Path (Join-Path $ExportDir "$_.uemesh"))
     })
 }
 
-# The runtime tracks, as the game looks for them: manifest, blob and the
-# catalog preview beside each other in Game\Tracks.
+# One track's runtime export into $Destination: manifest, blob and the
+# catalog preview beside each other, as the game looks for them. Returns
+# whether it had a preview.
+function Copy-TrackExport {
+    param([string]$Stem, [string]$Destination)
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    foreach ($file in @("$Stem.uescene.json", "$Stem.uemesh")) {
+        Copy-Item -LiteralPath (Join-Path $ExportDir $file) -Destination $Destination -Force
+    }
+    # An imported circuit's textures (apexsim-content/tools/ac_import.py; only with
+    # -IncludeCustomTracks) sit in a folder beside its manifest.
+    $textures = Join-Path $ExportDir "$Stem.textures"
+    if (Test-Path -LiteralPath $textures) {
+        Copy-Item -LiteralPath $textures -Destination (Join-Path $Destination "$Stem.textures") -Recurse -Force
+    }
+    $preview = Join-Path $ExportDir "previews\$Stem.png"
+    if (-not (Test-Path -LiteralPath $preview)) { return $false }
+    Copy-Item -LiteralPath $preview -Destination (Join-Path $Destination "$Stem.png") -Force
+    return $true
+}
+
+# The runtime tracks in Game\Tracks.
 function Copy-RuntimeTracks {
     param([string]$Destination)
     if (Test-Path $Destination) { Remove-Item -LiteralPath $Destination -Recurse -Force }
-    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     $noPreview = [Collections.Generic.List[string]]::new()
     foreach ($track in Get-TrackFiles) {
-        $stem = $track.BaseName
-        foreach ($file in @("$stem.uescene.json", "$stem.uemesh")) {
-            Copy-Item -LiteralPath (Join-Path $ExportDir $file) -Destination $Destination -Force
-        }
-        $preview = Join-Path $ExportDir "previews\$stem.png"
-        if (Test-Path -LiteralPath $preview) {
-            Copy-Item -LiteralPath $preview -Destination (Join-Path $Destination "$stem.png") -Force
-        } else {
-            $noPreview.Add($stem)
-        }
-        # An imported circuit's textures (apexsim-content/tools/ac_import.py; only with
-        # -IncludeCustomTracks) sit in a folder beside its manifest.
-        $textures = Join-Path $ExportDir "$stem.textures"
-        if (Test-Path -LiteralPath $textures) {
-            Copy-Item -LiteralPath $textures -Destination (Join-Path $Destination "$stem.textures") -Recurse -Force
-        }
+        if (-not (Copy-TrackExport -Stem $track.BaseName -Destination $Destination)) { $noPreview.Add($track.BaseName) }
     }
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
     if ($noPreview.Count -gt 0) {
         Write-Warning ("no preview for: {0} (run build_track_catalog.py; the picker shows placeholder art)" -f ($noPreview -join ', '))
     }
@@ -325,8 +353,9 @@ function Invoke-Preflight {
     }
     else {
         # The game builds every car from these files; one it cannot find is a
-        # car drawn as nothing, or without its wheels.
-        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars) -Only $StarterCars)) {
+        # car drawn as nothing, or without its wheels. The shipped cars and
+        # the pack's are every default car between them.
+        foreach ($problem in @(Test-ApexCars -CarsDir $CarsDir -WheelsDir $WheelsDir -DefaultOnly:(-not $IncludeCustomCars))) {
             $problems.Add("car data: $problem")
         }
     }
@@ -338,8 +367,9 @@ function Invoke-Preflight {
     else {
         # The catalog is keyed by track_id. Without one the server mints a
         # fresh UUID on every start, so no picker row can ever match and the
-        # circuit ships nameless and previewless.
-        $unidentified = @($tracks | Where-Object {
+        # circuit ships nameless and previewless; the pack's installer
+        # refuses a track without one.
+        $unidentified = @(@($tracks) + @(Get-PackTrackFiles) | Where-Object {
             -not (Select-String -LiteralPath $_.FullName -Pattern '^\s*track_id\s*:\s*\S' -Quiet)
         } | ForEach-Object { $_.BaseName })
         if ($unidentified.Count -gt 0) {
@@ -403,6 +433,9 @@ function Invoke-Preflight {
     if ($Starter) { Write-Detail "the starter set ($($Starter.Path))" }
     Write-Detail "$($cars.Count) car(s) in $CarsDir"
     Write-Detail "$($tracks.Count) track(s) in $(Get-TrackFolderText)"
+    if ($Starter) {
+        Write-Detail "$(@(Get-PackCarFiles).Count) car(s) and $(@(Get-PackTrackFiles).Count) track(s) for content.acp"
+    }
 }
 
 function Get-ProjectVersion {
@@ -421,6 +454,53 @@ function Get-GitCommit {
     if ($LASTEXITCODE -ne 0 -or -not $sha) { return 'unknown' }
     if (& git -C $RepoRoot status --porcelain 2>$null) { return "$sha-dirty" }
     return $sha
+}
+
+# One track's server files (the YAML, its sidecars, the guide's inputs) into
+# $Destination. Returns the sidecars it did not have: ground, curbs, walls,
+# road.
+function Copy-ServerTrack {
+    param([IO.FileInfo]$Track, [string]$Destination)
+    New-Item -ItemType Directory -Path $Destination -Force | Out-Null
+    Copy-Item -LiteralPath $Track.FullName -Destination $Destination -Force
+    $missing = [Collections.Generic.List[string]]::new()
+    foreach ($sidecar in 'ground', 'curbs', 'walls', 'road') {
+        $file = Join-Path $Track.DirectoryName "$($Track.BaseName).$sidecar.msgpack"
+        if (Test-Path -LiteralPath $file) {
+            Copy-Item -LiteralPath $file -Destination $Destination -Force
+        } else {
+            $missing.Add($sidecar)
+        }
+    }
+    # The pit lane and its boxes: a circuit without one (the Nordschleife)
+    # simply has no pit stops, so its absence is no error. Then what a track
+    # guide reads beside the YAML (corner notes, the dossier's corner names):
+    # the game makes a missing or stale guide from this folder, and it must
+    # come out as the build's.
+    foreach ($extra in '.pit.msgpack', '.guide.yml', '.layout.json') {
+        $file = Join-Path $Track.DirectoryName ($Track.BaseName + $extra)
+        if (Test-Path -LiteralPath $file) {
+            Copy-Item -LiteralPath $file -Destination $Destination -Force
+        }
+    }
+    return @($missing)
+}
+
+# What a track without each sidecar does, for the warning.
+$SidecarConsequence = [ordered]@{
+    ground = 'no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)'
+    curbs  = 'no curb bands for: {0} (run the track bake; curbs will count as off track)'
+    walls  = 'no walls for: {0} (run the track bake; cars will drive through the barriers)'
+    road   = 'no road mesh for: {0} (run the track bake; a server on road_contact = mesh drives these on the centerline)'
+}
+
+function Write-MissingSidecars {
+    param([hashtable]$Missing)
+    foreach ($sidecar in $SidecarConsequence.Keys) {
+        if ($Missing.ContainsKey($sidecar)) {
+            Write-Warning ($SidecarConsequence[$sidecar] -f ($Missing[$sidecar] -join ', '))
+        }
+    }
 }
 
 # Server content: only what the server actually reads at startup. The .glb car
@@ -444,68 +524,59 @@ function Copy-ServerContent {
         Copy-Item -LiteralPath $car.FullName -Destination (Join-Path $target 'car.toml') -Force
     }
 
-    $missingGround = [Collections.Generic.List[string]]::new()
-    $missingCurbs = [Collections.Generic.List[string]]::new()
-    $missingWalls = [Collections.Generic.List[string]]::new()
-    $missingRoad = [Collections.Generic.List[string]]::new()
+    $missing = @{}
     foreach ($track in Get-TrackFiles) {
         # The same folder it came from (tracks\default\<Stem> or tracks\custom\<Stem>).
         $root = Split-Path -Leaf (Split-Path -Parent $track.DirectoryName)
         $tracksOut = Join-Path $Destination ("tracks\$root\" + $track.BaseName)
-        New-Item -ItemType Directory -Path $tracksOut -Force | Out-Null
-        Copy-Item -LiteralPath $track.FullName -Destination $tracksOut -Force
-        $ground = Join-Path $track.DirectoryName ($track.BaseName + '.ground.msgpack')
-        if (Test-Path -LiteralPath $ground) {
-            Copy-Item -LiteralPath $ground -Destination $tracksOut -Force
-        } else {
-            $missingGround.Add($track.BaseName)
-        }
-        $curbs = Join-Path $track.DirectoryName ($track.BaseName + '.curbs.msgpack')
-        if (Test-Path -LiteralPath $curbs) {
-            Copy-Item -LiteralPath $curbs -Destination $tracksOut -Force
-        } else {
-            $missingCurbs.Add($track.BaseName)
-        }
-        $walls = Join-Path $track.DirectoryName ($track.BaseName + '.walls.msgpack')
-        if (Test-Path -LiteralPath $walls) {
-            Copy-Item -LiteralPath $walls -Destination $tracksOut -Force
-        } else {
-            $missingWalls.Add($track.BaseName)
-        }
-        $road = Join-Path $track.DirectoryName ($track.BaseName + '.road.msgpack')
-        if (Test-Path -LiteralPath $road) {
-            Copy-Item -LiteralPath $road -Destination $tracksOut -Force
-        } else {
-            $missingRoad.Add($track.BaseName)
-        }
-        # The pit lane and its boxes: a circuit without one (the
-        # Nordschleife) simply has no pit stops, so its absence is no error.
-        $pit = Join-Path $track.DirectoryName ($track.BaseName + '.pit.msgpack')
-        if (Test-Path -LiteralPath $pit) {
-            Copy-Item -LiteralPath $pit -Destination $tracksOut -Force
-        }
-        # What a track guide reads beside the YAML (corner notes, the
-        # dossier's corner names): the game makes a missing or stale guide
-        # from this folder, and it must come out as the build's.
-        foreach ($extra in '.guide.yml', '.layout.json') {
-            $file = Join-Path $track.DirectoryName ($track.BaseName + $extra)
-            if (Test-Path -LiteralPath $file) {
-                Copy-Item -LiteralPath $file -Destination $tracksOut -Force
-            }
+        foreach ($sidecar in @(Copy-ServerTrack -Track $track -Destination $tracksOut)) {
+            if (-not $missing.ContainsKey($sidecar)) { $missing[$sidecar] = [Collections.Generic.List[string]]::new() }
+            $missing[$sidecar].Add($track.BaseName)
         }
     }
-    if ($missingGround.Count -gt 0) {
-        Write-Warning ("no ground heightfield for: {0} (run the track bake; off-track cars will sit at road height)" -f ($missingGround -join ', '))
+    Write-MissingSidecars $missing
+}
+
+# content.acp: the pack's cars and circuits laid out as a loose pack
+# (apexsim-content/docs/packs.md) in a staging folder, then zipped. A car is
+# cars\<folder>\ as Game\Cars ships one; a circuit tracks\<Stem>\ with the
+# server's files, its export and preview in tracks\<Stem>\game\. The class
+# wheels the pack's cars name go into $WheelsOut, since a pack carries none.
+# Returns the number of cars and tracks packed.
+function New-ContentPack {
+    param([string]$Path, [string]$WheelsOut)
+    $stage = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) "$PackageName.content"
+    if (Test-Path $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+    $wheels = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $cars = @(Get-PackCarFiles)
+    foreach ($toml in $cars) {
+        $target = Join-Path $stage "cars\$($toml.Directory.Name)"
+        foreach ($wheel in @(Copy-ApexCarFolder -TomlPath $toml.FullName -Target $target)) { [void]$wheels.Add($wheel) }
     }
-    if ($missingCurbs.Count -gt 0) {
-        Write-Warning ("no curb bands for: {0} (run the track bake; curbs will count as off track)" -f ($missingCurbs -join ', '))
+    Copy-ApexClassWheels -WheelsDir $WheelsDir -WheelsOut $WheelsOut -Wheels @($wheels)
+    $tracks = @(Get-PackTrackFiles)
+    $missing = @{}
+    $noPreview = [Collections.Generic.List[string]]::new()
+    foreach ($track in $tracks) {
+        $out = Join-Path $stage "tracks\$($track.BaseName)"
+        foreach ($sidecar in @(Copy-ServerTrack -Track $track -Destination $out)) {
+            if (-not $missing.ContainsKey($sidecar)) { $missing[$sidecar] = [Collections.Generic.List[string]]::new() }
+            $missing[$sidecar].Add($track.BaseName)
+        }
+        if (-not (Copy-TrackExport -Stem $track.BaseName -Destination (Join-Path $out 'game'))) { $noPreview.Add($track.BaseName) }
     }
-    if ($missingWalls.Count -gt 0) {
-        Write-Warning ("no walls for: {0} (run the track bake; cars will drive through the barriers)" -f ($missingWalls -join ', '))
+    Write-MissingSidecars $missing
+    if ($noPreview.Count -gt 0) {
+        Write-Warning ("no preview for: {0} (run build_track_catalog.py; the picker shows placeholder art)" -f ($noPreview -join ', '))
     }
-    if ($missingRoad.Count -gt 0) {
-        Write-Warning ("no road mesh for: {0} (run the track bake; a server on road_contact = mesh drives these on the centerline)" -f ($missingRoad -join ', '))
-    }
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $Path) -Force | Out-Null
+    if (Test-Path $Path) { Remove-Item -LiteralPath $Path -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [IO.Compression.ZipFile]::CreateFromDirectory(
+        $stage, $Path, [IO.Compression.CompressionLevel]::Optimal, $false)
+    Remove-Item -LiteralPath $stage -Recurse -Force
+    return [pscustomobject]@{ Cars = $cars.Count; Tracks = $tracks.Count }
 }
 
 $stopwatch = [Diagnostics.Stopwatch]::StartNew()
@@ -623,9 +694,9 @@ else {
     $trackArgs = @{ Release = $true }
     if ($BuildEditor) { $trackArgs.Build = $true }
     if ($EngineRoot)  { $trackArgs.EngineRoot = $EngineRoot }
-    # A starter package bakes its own circuits alone.
+    # A starter package bakes its own circuits and the pack's, not custom\.
     if ($Starter) {
-        $trackArgs.Track = @(Get-TrackFiles | ForEach-Object { $_.BaseName })
+        $trackArgs.Track = @(@(Get-TrackFiles) + @(Get-PackTrackFiles) | ForEach-Object { $_.BaseName })
     }
     & (Join-Path $PSScriptRoot 'build_track_levels.ps1') @trackArgs
 }
@@ -719,6 +790,17 @@ $RadioDir = Join-Path $GameDir 'Audio\radio'
 New-Item -ItemType Directory -Force -Path $RadioDir | Out-Null
 Copy-Item -Path (Join-Path $ContentRoot 'audio\radio\*.wav') -Destination $RadioDir -Force
 Write-Detail "$(@(Get-ChildItem $RadioDir -Filter '*.wav').Count) radio line(s) in $RadioDir"
+# The default content the starter set leaves out, for the launcher's
+# Manage content > Install pack... (none with -AllContent).
+$ContentPackDir = Join-Path $ReleaseDir 'content'
+if (Test-Path $ContentPackDir) { Remove-Item -LiteralPath $ContentPackDir -Recurse -Force }
+$packed = $null
+if ($Starter -and (@(Get-PackCarFiles).Count + @(Get-PackTrackFiles).Count) -gt 0) {
+    Write-Detail 'packing the rest of the default content into content\content.acp'
+    $packed = New-ContentPack -Path (Join-Path $ContentPackDir 'content.acp') -WheelsOut (Join-Path $GameDir 'Wheels')
+    Write-Detail ('{0} car(s), {1} track(s) in content\content.acp ({2})' -f `
+        $packed.Cars, $packed.Tracks, (Format-Size (Get-Item (Join-Path $ContentPackDir 'content.acp')).Length))
+}
 # LICENSE sits at the root above the code and content roots.
 $License = Join-Path $RepoRoot 'LICENSE'
 if (-not (Test-Path -LiteralPath $License)) { $License = Join-Path $RepoRoot '..\LICENSE' }
@@ -841,6 +923,7 @@ Write-TextFile (Join-Path $GameDir 'settings.sample.yml') $sampleSettings
 $carCount   = @(Get-CarFiles).Count
 $trackCount = @(Get-TrackFiles).Count
 
+$packText = if ($packed) { "`n    content\content.acp: $($packed.Tracks) more track(s), $($packed.Cars) more car(s)." } else { '' }
 $readme = @"
 ApexSim $Version (Windows 64-bit)
 Built from commit $Commit, client configuration $Configuration.
@@ -860,6 +943,10 @@ WHAT IS IN HERE
                        install. Use the launcher's Manage content > Import
                        from Assetto Corsa: it needs Python 3.11 or newer
                        (python.org) and sets up the rest itself on first use.
+    content\content.acp
+                       More cars and circuits, not installed. Use the
+                       launcher's Manage content > Install pack... and pick
+                       this file: they land in the custom folders.
     Game\              The ApexSim client. Run Game\ApexSim.exe to play
                        against a server someone else is hosting.
     Game\Tracks\       The circuits, as the data the game builds them from
@@ -957,7 +1044,7 @@ MODDING
 
 CONTENTS
 
-    $trackCount track(s) ($runtimeTrackCount built by the game from Game\Tracks), $carCount car(s).
+    $trackCount track(s) ($runtimeTrackCount built by the game from Game\Tracks), $carCount car(s).$packText
 
 Licensed under the terms in LICENSE.
 "@
@@ -987,6 +1074,7 @@ $manifest = [ordered]@{
         cars         = $carCount
         tracks       = $trackCount
         runtime_tracks = $runtimeTrackCount
+        pack         = $(if ($packed) { [ordered]@{ file = 'content/content.acp'; cars = $packed.Cars; tracks = $packed.Tracks } } else { $null })
         server       = (Split-Path -Leaf $ServerExe)
         render_tool  = (Split-Path -Leaf $ReplayExe)
         launcher     = 'launcher.exe'

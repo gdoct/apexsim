@@ -455,8 +455,16 @@ runtime. `/Game/Tracks` and `/Game/Cars` are in `DirectoriesToNeverCook`
 `artifacts/release/ApexSim-<Version>-Win64/` (version from `ProjectVersion`
 in `DefaultGame.ini` unless `-Version`). A release ships the **starter
 set**, `apexsim-content/starter.yml` (one car per class and three circuits):
-only those cars and circuits are baked and copied. `-AllContent` ships every
-car and circuit. No showcase or track guide ships: the game renders the
+only those cars and circuits are installed. The rest of
+`apexsim-content`'s default cars and circuits are baked too and ship beside
+them, not installed, as one loose pack, `content\content.acp`
+([../../apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md#loose-packs-acp)):
+`cars/<folder>/` as `Game\Cars` ships a car, `tracks/<Stem>/` with the
+server's files and the export and preview in `tracks/<Stem>/game/`. The
+launcher's Manage content > Install pack... puts them in the `custom/`
+folders. A pack carries no class wheels, so `Game\Wheels` holds the pack
+cars' wheels as well. `-AllContent` installs every car and circuit and makes
+no pack; `custom/` content is never packed. No showcase or track guide ships: the game renders the
 showcases of `Game\showcase.yml` and makes a circuit's guide when it is
 opened, both on `Server\content`'s tracks and cars, and the server renders
 `Server\showcase.yml` into `Server\showcase\` at its first start
@@ -477,7 +485,9 @@ left out.
    the server reads, `showcase.yml`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
    `Hud`, `showcase.yml` and `settings.sample.yml`), `launcher.exe`,
    `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`, `unblock.txt`
-7. `-Zip`: compress it beside the folder
+7. pack: `content\content.acp`, staged in `<OutputDirectory>\<package>.content`
+   and zipped
+8. `-Zip`: compress it beside the folder
 
 | Switch | Effect |
 |---|---|
@@ -485,7 +495,7 @@ left out.
 | `-ClientArtifactDirectory` | Where `-SkipClient` finds a client build |
 | `-BuildEditor` | Build `ApexSimEditor` before the track stage |
 | `-Configuration`, `-EngineRoot`, `-OutputDirectory`, `-Version` | As named |
-| `-AllContent` | Ship every car and circuit, not only the starter set |
+| `-AllContent` | Install every car and circuit, not only the starter set, and make no `content.acp` |
 | `-IncludeCustomTracks`, `-IncludeCustomCars` | Ship `custom/` content |
 
 A skipped stage must still find the output it would have produced (a

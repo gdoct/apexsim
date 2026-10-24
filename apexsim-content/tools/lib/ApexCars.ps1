@@ -174,6 +174,62 @@ function Test-ApexCars {
     return @($problems)
 }
 
+# Copy one car's car.toml and the files the game reads of it into $Target,
+# keeping the paths car.toml names them by (textures\logo.png). Returns the
+# class wheels it names.
+function Copy-ApexCarFolder {
+    param(
+        [Parameter(Mandatory)][string]$TomlPath,
+        [Parameter(Mandatory)][string]$Target
+    )
+    $dir = Split-Path -Parent $TomlPath
+    New-Item -ItemType Directory -Path $Target -Force | Out-Null
+    Copy-Item -LiteralPath $TomlPath -Destination (Join-Path $Target 'car.toml') -Force
+    $files = Get-ApexCarFiles -TomlPath $TomlPath
+    foreach ($relative in @($files.Model, $files.DrsFlap) + $files.Logos + $files.CarFiles) {
+        if (-not $relative) { continue }
+        $source = Join-Path $dir $relative
+        if (-not (Test-Path -LiteralPath $source)) {
+            Write-Warning "$(Split-Path -Leaf $dir): $relative is missing; not shipped"
+            continue
+        }
+        $out = Join-Path $Target $relative
+        New-Item -ItemType Directory -Path (Split-Path -Parent $out) -Force | Out-Null
+        Copy-Item -LiteralPath $source -Destination $out -Force
+    }
+    return @($files.Wheels)
+}
+
+# Copy class wheels (by name) and their steering wheels into $WheelsOut,
+# which is created if missing and otherwise added to.
+function Copy-ApexClassWheels {
+    param(
+        [Parameter(Mandatory)][string]$WheelsDir,
+        [Parameter(Mandatory)][string]$WheelsOut,
+        [string[]]$Wheels
+    )
+    New-Item -ItemType Directory -Path $WheelsOut -Force | Out-Null
+    foreach ($wheel in $Wheels) {
+        $source = Join-Path $WheelsDir "$wheel.glb"
+        if (Test-Path -LiteralPath $source) {
+            Copy-Item -LiteralPath $source -Destination $WheelsOut -Force
+        }
+        else {
+            Write-Warning "no $wheel.glb in $WheelsDir; the cars that use it will have no wheels"
+        }
+        # The class's steering wheel and where its screen is, for the cars that
+        # bring none of their own (tools/generators/wheels/build_steering_wheels.py).
+        $steeringOut = Join-Path $WheelsOut 'steering'
+        foreach ($ext in @('glb', 'json')) {
+            $steering = Join-Path $WheelsDir "steering\$wheel.$ext"
+            if (Test-Path -LiteralPath $steering) {
+                New-Item -ItemType Directory -Path $steeringOut -Force | Out-Null
+                Copy-Item -LiteralPath $steering -Destination $steeringOut -Force
+            }
+        }
+    }
+}
+
 # Copy every car to <Destination>\Cars\<default|custom>\<folder> and the
 # wheels its cars use to <Destination>\Wheels. Both folders are replaced.
 # Only the shipped cars with -DefaultOnly, and of those only -Only's (the
@@ -195,44 +251,10 @@ function Copy-ApexRuntimeCars {
     $wheels = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $count = 0
     foreach ($toml in @(Get-ApexCarTomls -CarsDir $CarsDir -DefaultOnly:$DefaultOnly -Only $Only)) {
-        $dir = $toml.DirectoryName
-        $target = Join-Path $carsOut (Get-ApexCarRelativeDir -CarsDir $CarsDir -CarDir $dir)
-        New-Item -ItemType Directory -Path $target -Force | Out-Null
-        Copy-Item -LiteralPath $toml.FullName -Destination (Join-Path $target 'car.toml') -Force
-        $files = Get-ApexCarFiles -TomlPath $toml.FullName
-        foreach ($relative in @($files.Model, $files.DrsFlap) + $files.Logos + $files.CarFiles) {
-            if (-not $relative) { continue }
-            $source = Join-Path $dir $relative
-            if (-not (Test-Path -LiteralPath $source)) {
-                Write-Warning "$(Split-Path -Leaf $dir): $relative is missing; not shipped"
-                continue
-            }
-            # Relative paths are kept (textures\logo.png), since car.toml names them so.
-            $out = Join-Path $target $relative
-            New-Item -ItemType Directory -Path (Split-Path -Parent $out) -Force | Out-Null
-            Copy-Item -LiteralPath $source -Destination $out -Force
-        }
-        foreach ($wheel in $files.Wheels) { [void]$wheels.Add($wheel) }
+        $target = Join-Path $carsOut (Get-ApexCarRelativeDir -CarsDir $CarsDir -CarDir $toml.DirectoryName)
+        foreach ($wheel in @(Copy-ApexCarFolder -TomlPath $toml.FullName -Target $target)) { [void]$wheels.Add($wheel) }
         $count++
     }
-    foreach ($wheel in $wheels) {
-        $source = Join-Path $WheelsDir "$wheel.glb"
-        if (Test-Path -LiteralPath $source) {
-            Copy-Item -LiteralPath $source -Destination $wheelsOut -Force
-        }
-        else {
-            Write-Warning "no $wheel.glb in $WheelsDir; the cars that use it will have no wheels"
-        }
-        # The class's steering wheel and where its screen is, for the cars that
-        # bring none of their own (tools/generators/wheels/build_steering_wheels.py).
-        $steeringOut = Join-Path $wheelsOut 'steering'
-        foreach ($ext in @('glb', 'json')) {
-            $steering = Join-Path $WheelsDir "steering\$wheel.$ext"
-            if (Test-Path -LiteralPath $steering) {
-                New-Item -ItemType Directory -Path $steeringOut -Force | Out-Null
-                Copy-Item -LiteralPath $steering -Destination $steeringOut -Force
-            }
-        }
-    }
+    Copy-ApexClassWheels -WheelsDir $WheelsDir -WheelsOut $wheelsOut -Wheels @($wheels)
     return $count
 }

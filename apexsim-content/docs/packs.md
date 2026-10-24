@@ -127,3 +127,7 @@ each item goes is in [../../apexsim/MODDING.md](../../apexsim/MODDING.md)
 ("Where things go"): an item replaces the player's own of its name (its
 folders emptied first), and a HUD component named as a shipped one
 replaces that on screen. Nothing is recorded in `installed.json`.
+
+A release ships one: `content\content.acp`, the default cars and circuits
+outside the starter set (`apexsim/scripts/build_release.ps1`,
+[../../apexsim/docs/building.md](../../apexsim/docs/building.md#release-package)).
