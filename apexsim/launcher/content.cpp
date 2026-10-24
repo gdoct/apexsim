@@ -44,7 +44,13 @@ std::vector<Item> ListContent(const Env& e, int tab)
     switch (tab)
     {
     case TabTracks:
-        if (e.tracksAreExports) AddFiles(v, e.tracksDefault, L".uescene.json", L"installed");
+        if (e.tracksAreExports)
+        {
+            // Every export is in one folder: the player's own have a server folder in custom/.
+            AddFiles(v, e.tracksDefault, L".uescene.json", L"default");
+            for (Item& it : v)
+                if (Exists(e.tracksCustom / it.name)) it.origin = L"custom";
+        }
         else { AddDirs(v, e.tracksDefault, L"default"); AddDirs(v, e.tracksCustom, L"custom"); }  // a track is a folder
         break;
     case TabCars: AddDirs(v, e.carsDefault, L"default"); AddDirs(v, e.carsCustom, L"custom"); break;
@@ -68,13 +74,34 @@ fs::path TabFolder(const Env& e, int tab)
 
 // ------------------------------------------------------------------- window
 
-enum { IdTab = 100, IdList, IdInfo, IdImport, IdOpen, IdPack };
+enum { IdTab = 100, IdList, IdInfo, IdImport, IdOpen, IdPack, IdUninstall };
 
 const wchar_t* kContentWindowClass = L"ApexContent";
 
 static const Env* gEnv;  // what the open window lists
 static HFONT gContentFont;
 static HANDLE gImport;  // a running import, so the list refreshes when it ends
+static std::vector<Item> gItems;  // what the list shows, row by row
+
+// The kind content uninstall takes for a tab's items; null for one it cannot remove.
+static const wchar_t* TabKind(int tab)
+{
+    switch (tab)
+    {
+    case TabTracks: return L"track";
+    case TabCars: return L"car";
+    case TabHud: return L"hud";
+    default: return nullptr;
+    }
+}
+
+static void UpdateUninstallButton(HWND hw)
+{
+    HWND list = GetDlgItem(hw, IdList);
+    bool any = false;
+    for (int i = 0; i < ListView_GetItemCount(list); ++i) any = any || ListView_GetCheckState(list, i);
+    EnableWindow(GetDlgItem(hw, IdUninstall), any);
+}
 
 static int S(HWND hw, int v) { return MulDiv(v, (int)GetDpiForWindow(hw), 96); }
 
@@ -82,7 +109,8 @@ static void PopulateList(HWND hw)
 {
     HWND tab = GetDlgItem(hw, IdTab), list = GetDlgItem(hw, IdList);
     int t = TabCtrl_GetCurSel(tab);
-    std::vector<Item> items = ListContent(*gEnv, t);
+    gItems = ListContent(*gEnv, t);
+    const std::vector<Item>& items = gItems;
     ListView_DeleteAllItems(list);
     int def = 0, cust = 0;
     for (size_t i = 0; i < items.size(); ++i)
@@ -99,8 +127,10 @@ static void PopulateList(HWND hw)
     std::wstring info = std::to_wstring(items.size()) + L" " + names[t];
     if (cust) info += L"  (" + std::to_wstring(cust) + L" custom)";
     if (items.empty()) info += L" - nothing found in " + TabFolder(*gEnv, t).wstring();
+    else if (cust && TabKind(t)) info += L". Tick your own to uninstall them.";
     SetWindowTextW(GetDlgItem(hw, IdInfo), info.c_str());
     EnableWindow(GetDlgItem(hw, IdImport), t == TabTracks || t == TabCars);
+    UpdateUninstallButton(hw);
 }
 
 // The JSON string at the start of s (just past its opening quote), unescaped; pos
@@ -277,17 +307,39 @@ static std::vector<PackItem> PickPackItems(HWND owner, const std::wstring& head,
     return out;
 }
 
-// Runs the server's content installer with args; out is what it printed, and the
-// result whether it ran and reported no error ("apexsim-server: <why>" on failure).
-static bool RunInstaller(const Env& env, const std::wstring& args, std::wstring& out)
+// Runs the server's content command (install ..., uninstall ...); out is what it
+// printed, and the result whether it ran and reported no error ("apexsim-server:
+// <why>" on failure).
+static bool RunContentCommand(const Env& env, const std::wstring& args, std::wstring& out)
 {
-    std::wstring line = L"\"" + env.serverExe.wstring() + L"\" content install " + args;
+    std::wstring line = L"\"" + env.serverExe.wstring() + L"\" content " + args;
     std::string text;
     SetCursor(LoadCursorW(nullptr, IDC_WAIT));
     bool ran = RunCapture(line, text, 300000);
     SetCursor(LoadCursorW(nullptr, IDC_ARROW));
     out = ran ? Widen(Trim(text)) : L"the server's installer did not start";
     return ran && out.find(L"apexsim-server:") == std::wstring::npos;
+}
+
+// The server's content commands need it built; false, and why said, when it is not.
+static bool HaveServer(HWND hw, const wchar_t* title, const std::wstring& does)
+{
+    const Env& env = *gEnv;
+    if (Exists(env.serverExe)) return true;
+    std::wstring m = env.release
+        ? L"The server (" + env.serverExe.wstring() + L") is missing, and it " + does + L"."
+        : L"The server " + does + L": build it first (cargo build --release in server\\server).";
+    MessageBoxW(hw, m.c_str(), title, MB_OK | MB_ICONINFORMATION);
+    return false;
+}
+
+// Where the server's content commands write: a release's own folders, or this checkout.
+static std::wstring CheckoutArg(const Env& env)
+{
+    if (env.release) return {};
+    std::wstring code = env.root.wstring();
+    while (code.size() > 3 && (code.back() == L'\\' || code.back() == L'/')) code.pop_back();  // a trailing \ would escape the quote
+    return L" --checkout \"" + code + L"\"";
 }
 
 // A loose pack (.acp): the server's installer says what the pack holds (--dry-run),
@@ -297,23 +349,10 @@ static void InstallLoosePack(HWND hw, const fs::path& pack)
 {
     const Env& env = *gEnv;
     const wchar_t* title = L"Install a content pack";
-    if (!Exists(env.serverExe))
-    {
-        std::wstring m = env.release
-            ? L"The server (" + env.serverExe.wstring() + L") is missing, and it installs the pack."
-            : L"Packs install with the server's installer: build the server first (cargo build --release in server\\server).";
-        MessageBoxW(hw, m.c_str(), title, MB_OK | MB_ICONINFORMATION);
-        return;
-    }
-    std::wstring args = L"\"" + pack.wstring() + L"\"";
-    if (!env.release)
-    {
-        std::wstring code = env.root.wstring();
-        while (code.size() > 3 && (code.back() == L'\\' || code.back() == L'/')) code.pop_back();  // a trailing \ would escape the quote
-        args += L" --checkout \"" + code + L"\"";
-    }
+    if (!HaveServer(hw, title, L"installs the pack")) return;
+    std::wstring args = L"install \"" + pack.wstring() + L"\"" + CheckoutArg(env);
     std::wstring out;
-    if (!RunInstaller(env, args + L" --dry-run", out))
+    if (!RunContentCommand(env, args + L" --dry-run", out))
     {
         MessageBoxW(hw, (L"Could not install " + pack.filename().wstring() + L":\n\n" + out).c_str(), title, MB_OK | MB_ICONWARNING);
         return;
@@ -332,7 +371,7 @@ static void InstallLoosePack(HWND hw, const fs::path& pack)
     if (picked.empty()) return;
 
     for (const PackItem& it : picked) args += L" --only \"" + it.id + L"\"";
-    bool ok = RunInstaller(env, args, out);
+    bool ok = RunContentCommand(env, args, out);
     std::wstring what;
     for (const PackItem& it : picked) what += L"\n  " + it.label;
     std::wstring m = ok ? L"Installed from " + pack.filename().wstring() + L":\n" + what + L"\n\nRestart the game and the server to use them."
@@ -357,10 +396,36 @@ static void InstallPack(HWND hw)
         return;
     }
     std::wstring out;
-    bool ok = RunInstaller(env, L"\"" + pack.wstring() + L"\"", out) && out.find(L"\"version\"") != std::wstring::npos;
+    bool ok = RunContentCommand(env, L"install \"" + pack.wstring() + L"\"", out) && out.find(L"\"version\"") != std::wstring::npos;
     std::wstring m = ok ? L"Installed " + pack.filename().wstring() + L". Restart the game and the server to use it."
                         : L"Could not install " + pack.filename().wstring() + L":\n\n" + out;
     MessageBoxW(hw, m.c_str(), L"Install a content pack", MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
+    PopulateList(hw);
+}
+
+// Uninstall the ticked items (only the player's own can be ticked) with the server's
+// content uninstall, which removes each from both sides (CMDLINE.md, "content").
+static void UninstallChecked(HWND hw)
+{
+    const Env& env = *gEnv;
+    const wchar_t* title = L"Uninstall";
+    int t = TabCtrl_GetCurSel(GetDlgItem(hw, IdTab));
+    HWND list = GetDlgItem(hw, IdList);
+    std::wstring args, what;
+    for (int i = 0; i < (int)gItems.size(); ++i)
+    {
+        if (!ListView_GetCheckState(list, i)) continue;
+        args += L" \"" + std::wstring(TabKind(t)) + L":" + gItems[i].name + L"\"";
+        what += L"\n  " + gItems[i].name;
+    }
+    if (args.empty() || !HaveServer(hw, title, L"uninstalls content")) return;
+    std::wstring ask = L"Remove these from your computer, from the game and the server?\n" + what + L"\n\nThis cannot be undone.";
+    if (MessageBoxW(hw, ask.c_str(), title, MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2) != IDOK) return;
+    std::wstring out;
+    bool ok = RunContentCommand(env, L"uninstall" + args + CheckoutArg(env), out);
+    std::wstring m = ok ? L"Uninstalled:\n" + what + L"\n\nRestart the game and the server to see the change."
+                        : L"Could not uninstall:\n\n" + out;
+    MessageBoxW(hw, m.c_str(), title, MB_OK | (ok ? MB_ICONINFORMATION : MB_ICONWARNING));
     PopulateList(hw);
 }
 
@@ -394,6 +459,7 @@ static void LayoutContent(HWND hw)
     SetWindowPos(GetDlgItem(hw, IdImport), nullptr, m, by, S(hw, 190), bh, SWP_NOZORDER);
     SetWindowPos(GetDlgItem(hw, IdOpen), nullptr, m + S(hw, 200), by, S(hw, 120), bh, SWP_NOZORDER);
     SetWindowPos(GetDlgItem(hw, IdPack), nullptr, m + S(hw, 330), by, S(hw, 150), bh, SWP_NOZORDER);
+    SetWindowPos(GetDlgItem(hw, IdUninstall), nullptr, m + S(hw, 490), by, S(hw, 110), bh, SWP_NOZORDER);
     SetWindowPos(GetDlgItem(hw, IDCANCEL), nullptr, c.right - m - S(hw, 100), by, S(hw, 100), bh, SWP_NOZORDER);
 }
 
@@ -416,7 +482,7 @@ LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         }
         HWND list = Ctl(hw, WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_BORDER | WS_TABSTOP | WS_CLIPSIBLINGS,
                         0, 0, 10, 10, IdList, dpi);
-        ListView_SetExtendedListViewStyle(list, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
+        ListView_SetExtendedListViewStyle(list, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
         LVCOLUMNW col = {};
         col.mask = LVCF_TEXT | LVCF_WIDTH;
         col.cx = 100;
@@ -428,6 +494,7 @@ LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         Ctl(hw, L"BUTTON", L"Import from Assetto Corsa...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdImport, dpi);
         Ctl(hw, L"BUTTON", L"Open folder", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdOpen, dpi);
         Ctl(hw, L"BUTTON", L"Install pack...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdPack, dpi);
+        Ctl(hw, L"BUTTON", L"Uninstall...", BS_PUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IdUninstall, dpi);
         Ctl(hw, L"BUTTON", L"Close", BS_DEFPUSHBUTTON | WS_TABSTOP, 0, 0, 10, 10, IDCANCEL, dpi);
         SetFontAll(hw, gContentFont);
         LayoutContent(hw);
@@ -438,6 +505,17 @@ LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
     {
         NMHDR* nm = (NMHDR*)lp;
         if (nm->idFrom == IdTab && nm->code == TCN_SELCHANGE) PopulateList(hw);
+        if (nm->idFrom == IdList)
+        {
+            NMLISTVIEW* nl = (NMLISTVIEW*)lp;
+            bool stateChange = (nl->uChanged & LVIF_STATE) && ((nl->uNewState ^ nl->uOldState) & LVIS_STATEIMAGEMASK);
+            // Only the player's own items can be ticked: shipped ones and wheels stay.
+            int t = TabCtrl_GetCurSel(GetDlgItem(hw, IdTab));
+            if (nm->code == LVN_ITEMCHANGING && stateChange && nl->iItem >= 0 && nl->iItem < (int)gItems.size() &&
+                ((nl->uNewState & LVIS_STATEIMAGEMASK) >> 12) == 2 && (gItems[nl->iItem].origin != L"custom" || !TabKind(t)))
+                return TRUE;
+            if (nm->code == LVN_ITEMCHANGED && stateChange) UpdateUninstallButton(hw);
+        }
         return 0;
     }
     case WM_COMMAND:
@@ -446,6 +524,7 @@ LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
         case IDCANCEL: CloseDialogWindow(hw); return 0;
         case IdImport: StartImport(hw); return 0;
         case IdPack: InstallPack(hw); return 0;
+        case IdUninstall: UninstallChecked(hw); return 0;
         case IdOpen:
         {
             fs::path p = TabFolder(*gEnv, TabCtrl_GetCurSel(GetDlgItem(hw, IdTab)));
@@ -478,5 +557,5 @@ LRESULT CALLBACK ContentProc(HWND hw, UINT msg, WPARAM wp, LPARAM lp)
 void OpenContentWindow(HWND owner, const Env& env, int dpi)
 {
     gEnv = &env;
-    CreateDialogWindow(owner, kContentWindowClass, L"Manage content", 640, 500, dpi);
+    CreateDialogWindow(owner, kContentWindowClass, L"Manage content", 740, 500, dpi);
 }

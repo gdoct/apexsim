@@ -238,10 +238,37 @@ fn installed_ids(dir: &Path, car: bool) -> Vec<(String, String)> {
     out
 }
 
+/// The folders and single files that are an item of `kind` and `name` in
+/// `layout`: what installing it empties first and uninstalling it removes.
+/// A track's export files sit beside the others in one folder.
+fn item_paths(layout: &Layout, kind: AcpKind, name: &str) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    match kind {
+        AcpKind::Car => {
+            let (game, server) = layout.car_dirs(name);
+            (std::iter::once(game).chain(server).collect(), Vec::new())
+        }
+        AcpKind::Track => {
+            let export = layout.export_dir();
+            (
+                vec![
+                    layout.server_dir("tracks").join("custom").join(name),
+                    export.join(format!("{name}.textures")),
+                ],
+                ["uescene.json", "uemesh", "png"]
+                    .iter()
+                    .map(|ext| export.join(format!("{name}.{ext}")))
+                    .collect(),
+            )
+        }
+        AcpKind::Hud => (vec![layout.hud_dir("custom").join(name)], Vec::new()),
+    }
+}
+
 fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
+    let (clear_dirs, clear_files) = item_paths(layout, item.kind, &item.name);
     let mut plan = Plan {
-        clear_dirs: Vec::new(),
-        clear_files: Vec::new(),
+        clear_dirs,
+        clear_files,
         writes: Vec::new(),
         to: Vec::new(),
     };
@@ -256,12 +283,10 @@ fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
     match item.kind {
         AcpKind::Car => {
             let (game, server) = layout.car_dirs(&item.name);
-            plan.clear_dirs.push(game.clone());
             put(&mut plan, &game, &item.files);
             plan.to.push(game);
             if let Some(server) = server {
                 // The server reads only car.toml.
-                plan.clear_dirs.push(server.clone());
                 for (rel, bytes) in &item.files {
                     if rel.eq_ignore_ascii_case("car.toml") {
                         plan.writes.push(Write {
@@ -275,21 +300,13 @@ fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
         }
         AcpKind::Track => {
             let server = layout.server_dir("tracks").join("custom").join(&item.name);
-            plan.clear_dirs.push(server.clone());
             put(&mut plan, &server, &item.files);
             let export = layout.export_dir();
-            plan.clear_dirs
-                .push(export.join(format!("{}.textures", item.name)));
-            for ext in ["uescene.json", "uemesh", "png"] {
-                plan.clear_files
-                    .push(export.join(format!("{}.{ext}", item.name)));
-            }
             put(&mut plan, &export, &item.export);
             plan.to.extend([server, export]);
         }
         AcpKind::Hud => {
             let dir = layout.hud_dir("custom").join(&item.name);
-            plan.clear_dirs.push(dir.clone());
             put(&mut plan, &dir, &item.files);
             plan.to.push(dir);
         }
@@ -454,6 +471,82 @@ pub fn install(
         ignored,
         summary: summary.join("\n"),
     })
+}
+
+/// What uninstalling one item removed.
+#[derive(Debug, Clone, Serialize)]
+pub struct Removed {
+    /// `<kind>:<name>`, as given.
+    pub id: String,
+    /// The folders and files removed.
+    pub removed: Vec<String>,
+    /// A shipped HUD component of this id is on screen again.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub restores_default: bool,
+}
+
+/// Remove the player's own items `ids` names (`car:<folder>`,
+/// `track:<Stem>`, `hud:<id>`, any case) from the `custom/` folders of
+/// `layout`, whether a pack installed them or the player put them there.
+/// Every id is checked before anything is removed: a malformed one or one
+/// with nothing installed stops it. Shipped content is never touched: a
+/// track export whose stem a shipped track has stays.
+pub fn uninstall(layout: &Layout, ids: &[String]) -> Result<Vec<Removed>, String> {
+    if ids.is_empty() {
+        return Err("name the items to uninstall (car:<folder>, track:<Stem>, hud:<id>)".into());
+    }
+    let mut plans = Vec::new();
+    for id in ids {
+        let (kind, name) = id
+            .split_once(':')
+            .ok_or_else(|| format!("{id} is not <kind>:<name>"))?;
+        let kind = match kind.to_ascii_lowercase().as_str() {
+            "car" => AcpKind::Car,
+            "track" => AcpKind::Track,
+            "hud" => AcpKind::Hud,
+            _ => return Err(format!("{id}: the kind is car, track or hud")),
+        };
+        if !acp::valid_name(name) {
+            return Err(format!(
+                "{id}: not a folder name of letters, digits, - and _"
+            ));
+        }
+        let (mut dirs, mut files) = item_paths(layout, kind, name);
+        if kind == AcpKind::Track
+            && layout
+                .server_dir("tracks")
+                .join("default")
+                .join(name)
+                .exists()
+        {
+            // The export is the shipped track's: only the server folder is ours.
+            dirs.truncate(1);
+            files.clear();
+        }
+        dirs.retain(|d| d.is_dir());
+        files.retain(|f| f.is_file());
+        if dirs.is_empty() && files.is_empty() {
+            return Err(format!("{id}: none of your own is installed"));
+        }
+        let restores_default =
+            kind == AcpKind::Hud && layout.hud_dir("default").join(name).is_dir();
+        plans.push((id, dirs, files, restores_default));
+    }
+    let mut out = Vec::new();
+    for (id, dirs, files, restores_default) in plans {
+        for dir in &dirs {
+            std::fs::remove_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        }
+        for file in &files {
+            std::fs::remove_file(file).map_err(|e| format!("{}: {e}", file.display()))?;
+        }
+        out.push(Removed {
+            id: id.clone(),
+            removed: dirs.iter().chain(&files).map(|p| display(p)).collect(),
+            restores_default,
+        });
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -669,5 +762,55 @@ mod tests {
         assert!(content.join("build/tracks/Ring.uescene.json").is_file());
         assert!(Layout::checkout(&base).is_err());
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn uninstall_removes_both_sides_and_leaves_shipped_content() {
+        let root = release();
+        let layout = Layout::Release(root.clone());
+        let mut files = vec![
+            (
+                "my-car/car.toml",
+                "id = \"dddd\"
+",
+            ),
+            ("hud/standings/component.json", "{}"),
+        ];
+        files.extend(RING);
+        install(&layout, &pack(&root, "stuff.acp", &files), false, &[]).unwrap();
+        // A hand-made track named as the shipped one: its export is the shipped track's.
+        std::fs::create_dir_all(root.join("Server/content/tracks/custom/Shipped")).unwrap();
+        std::fs::write(root.join("Game/Tracks/Shipped.uescene.json"), "{}").unwrap();
+
+        let err = uninstall(&layout, &["car:my-car".into(), "car:nope".into()]).unwrap_err();
+        assert!(err.contains("car:nope"), "{err}");
+        assert!(
+            root.join("Game/Cars/custom/my-car").is_dir(),
+            "nothing removed on an error"
+        );
+        assert!(uninstall(&layout, &["car:../default".into()]).is_err());
+
+        let ids: Vec<String> = ["CAR:my-car", "track:Ring", "hud:standings", "track:Shipped"]
+            .map(String::from)
+            .into();
+        let done = uninstall(&layout, &ids).unwrap();
+        assert!(done[2].restores_default);
+        for gone in [
+            "Game/Cars/custom/my-car",
+            "Server/content/cars/custom/my-car",
+            "Server/content/tracks/custom/Ring",
+            "Game/Tracks/Ring.uemesh",
+            "Game/Tracks/Ring.textures",
+            "Game/Hud/custom/standings",
+            "Server/content/tracks/custom/Shipped",
+        ] {
+            assert!(!root.join(gone).exists(), "{gone}");
+        }
+        assert!(root.join("Game/Tracks/Shipped.uescene.json").is_file());
+        assert!(root.join("Game/Hud/default/standings").is_dir());
+        assert!(root
+            .join("Server/content/cars/default/shipped/car.toml")
+            .is_file());
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

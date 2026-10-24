@@ -50,6 +50,20 @@ enum ContentCommand {
         #[arg(long, value_name = "KIND:NAME")]
         only: Vec<String>,
     },
+    /// Remove the player's own cars, tracks and HUD components from custom/
+    Uninstall {
+        /// `car:<folder>`, `track:<Stem>` or `hud:<id>`; one or more
+        #[arg(value_name = "KIND:NAME", required = true)]
+        items: Vec<String>,
+        /// The install folder (holding Server and Game); default: the one
+        /// this server sits in
+        #[arg(long)]
+        root: Option<std::path::PathBuf>,
+        /// A source checkout instead: its code root (apexsim/, with
+        /// apexsim-content/ beside it)
+        #[arg(long, conflicts_with = "root")]
+        checkout: Option<std::path::PathBuf>,
+    },
     /// List the installed packs
     List {
         #[arg(long)]
@@ -94,6 +108,19 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
                 let root = content_pack::install_root(root)?;
                 let entry = content_pack::install(&root, &pack)?;
                 serde_json::to_value(entry).map_err(|e| e.to_string())
+            }
+            ContentCommand::Uninstall {
+                items,
+                root,
+                checkout,
+            } => {
+                use apexsim_server::content_acp::{self, Layout};
+                let layout = match checkout {
+                    Some(code) => Layout::checkout(&code)?,
+                    None => Layout::Release(content_pack::install_root(root)?),
+                };
+                serde_json::to_value(content_acp::uninstall(&layout, &items)?)
+                    .map_err(|e| e.to_string())
             }
             ContentCommand::List { root } => {
                 let root = content_pack::install_root(root)?;

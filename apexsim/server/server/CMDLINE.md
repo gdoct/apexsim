@@ -42,6 +42,7 @@ The server does not start; the result is JSON on stdout, an error is
 
 ```
 apexsim-server content install <PACK> [--root <INSTALL> | --checkout <CODE>] [--dry-run] [--only <KIND:NAME>]...
+apexsim-server content uninstall <KIND:NAME>... [--root <INSTALL> | --checkout <CODE>]
 apexsim-server content list [--root <INSTALL>]
 apexsim-server content verify [--root <INSTALL>]
 ```
@@ -50,12 +51,13 @@ apexsim-server content verify [--root <INSTALL>]
 |---|---|
 | `install` | Read the `.apxpack` whole (every file against its hash, every path inside the item, the format levels against what this build reads), empty the item's own folders, write `server/...` under `Server/content/` and `game/...` under `Game/`, keep the pack in `Content/packs/` and record it in `Content/installed.json`. Prints the recorded entry. |
 | `install` a `.acp` | A loose pack ([packs.md](../../../apexsim-content/docs/packs.md#loose-packs-acp)): its cars, tracks and HUD components written into the `custom/` folders of a release (`--root`) or of a checkout (`--checkout`, the code root with `apexsim-content` beside it), each replacing the player's own item of its name. `--only <KIND:NAME>` (`car:<folder>`, `track:<Stem>`, `hud:<id>`, any case, repeated) installs only those items; without it, every item. Refused, with nothing written, when an installed item cannot be (it reuses a shipped track's stem or another item's id, has no `.uemesh`, ...); an item left out does not matter. `--dry-run` writes nothing and lists every item. Prints `items`, each with `id` (what `--only` takes), `kind`, `name`, `label`, `note` (what it replaces, its warnings), `refused` (why it cannot be installed; empty when it can; these four always strings), `selected`, `warnings`, `files`, `replaces` and `to` (the folders written to); then `ignored`, and `summary`, one line per selected item. |
+| `uninstall` | Remove the player's own items (`car:<folder>`, `track:<Stem>`, `hud:<id>`, any case) from the `custom/` folders of a release or a checkout, both sides of each: what installing that item from an `.acp` would empty first. Refused, with nothing removed, for a malformed id or one with nothing installed. A track named as a shipped one keeps the shipped export. Prints one entry per item with `id`, `removed` (the paths) and `restores_default` when a shipped HUD component of that id shows again. |
 | `list` | Print `Content/installed.json`. |
 | `verify` | Check every installed pack's files on disk against the pack kept for it; exit 1 when one is missing or changed. |
 
 `--root` is the install folder (holding `Server` and `Game`); by default
 the one the server binary sits in. The launcher's Manage content > Install
-pack... runs `install`. A running server keeps what it loaded: restart it.
+pack... runs `install`, its Uninstall... `uninstall`. A running server keeps what it loaded: restart it.
 
 ### Which log level wins
 

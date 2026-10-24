@@ -267,6 +267,12 @@ copy its own. The exact rules are in
 from a command line it is `apexsim-server content install <file>.acp`
 ([server/server/CMDLINE.md](server/server/CMDLINE.md#content)).
 
+To remove your own cars, tracks or HUD components again, tick them in
+**Manage content** and press **Uninstall...**: each goes from both the
+server's and the game's side. Shipped content cannot be ticked. From a
+command line it is `apexsim-server content uninstall car:<folder>
+track:<Stem> hud:<id>`.
+
 ## Importing from Assetto Corsa
 
 Cars and tracks from your own Assetto Corsa install convert in one step.

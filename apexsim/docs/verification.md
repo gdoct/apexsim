@@ -875,6 +875,10 @@ Mandarina Bay.
   driven by a harness). Then a release's `content\content.acp` (every default car and
   circuit outside the starter set) installed the same way, and a pack
   circuit and car raced.
+- The launcher's Manage content tick boxes and Uninstall..., never clicked
+  by hand: only custom rows tick, the button follows the ticks, the
+  confirm, and the items gone from the list, the game and the server
+  (`content uninstall` was checked by its unit test on a release layout).
 - The launcher's AC import button, never clicked by hand, and the import
   with the network off (it fetches its Python packages from PyPI on first
   use; the release's `Tools/importer/wheels` venv was checked only as the

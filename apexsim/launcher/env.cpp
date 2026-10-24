@@ -38,6 +38,7 @@ Env Locate()
             e.hudDefault = game / L"Hud" / L"default";
             e.hudCustom = game / L"Hud" / L"custom";
             e.tracksDefault = game / L"Tracks";
+            e.tracksCustom = e.serverDir / L"content" / L"tracks" / L"custom";
             e.importerDir = d / L"Tools" / L"importer";
             e.tracksAreExports = true;
             break;

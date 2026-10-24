@@ -136,6 +136,19 @@ each item goes is in [../../apexsim/MODDING.md](../../apexsim/MODDING.md)
 folders emptied first), and a HUD component named as a shipped one
 replaces that on screen. Nothing is recorded in `installed.json`.
 
+`apexsim-server content uninstall <kind>:<name>...` (same `--root` /
+`--checkout`) removes the player's own items again, both halves of each,
+whether a pack put them there or the player did: the folders and files
+an install of that item would empty. Every id is checked first; one
+that is malformed or has nothing in `custom/` stops it before anything
+is removed. Shipped content is never touched: a custom track named as a
+shipped one loses only its server folder, not the shipped export. The
+launcher's Manage content gives each of the player's own cars, tracks and
+HUD components a tick box (shipped items and wheels cannot be ticked) and
+uninstalls the ticked ones after asking. In a release it tells the
+player's own tracks from shipped ones by their folder in
+`Server\content	racks\custom`.
+
 A release ships one: `content\content.acp`, the default cars and circuits
 outside the starter set (`apexsim/scripts/build_release.ps1`,
 [../../apexsim/docs/building.md](../../apexsim/docs/building.md#release-package)).

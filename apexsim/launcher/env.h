@@ -14,6 +14,8 @@ struct Env
     std::filesystem::path root;
     std::filesystem::path gameExe, playScript, serverExe, serverDir, settings, scripts;
     std::filesystem::path importerDir;   // holds ac_import.py, ac_car_import.py and importer-requirements.txt
+    // A release's tracksDefault is the game's exports (every track) and its
+    // tracksCustom the server's custom/, which says which of them are the player's.
     std::filesystem::path carsDefault, carsCustom, wheels, hudDefault, hudCustom, tracksDefault, tracksCustom;
     std::filesystem::path contentRoot;   // a checkout's apexsim-content, handed to its server as APEXSIM_CONTENT
     bool tracksAreExports = false;  // packaged tracks are .uescene.json, the repo's are .yaml
