@@ -14,6 +14,12 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
   - the conditions panel's lines wrap; one lap is no chart (`a1a45607`)
 - **N7** — a season round's own rules on a line under its name (`49f4d4b0`)
 - **Follow-ups #34** — the qualifying garage tells the new tyre sets left, or the used set going out (`72a1173f`)
+- **Follow-ups #20** — stewards give a penalty from the dashboard (`1cda4e2a`)
+- **Follow-ups #32 (fog)** — the fog's visibility in a stream's state record (`82dcf57e`)
+- **R4 (verification)**
+  - the stand-in decides as the AI does, so a stuck one is put back (`157921d4`)
+  - a car is named from the roster as the recorder first sees it (`5365c462`)
+  - an away driver's held car is put back when stuck (`8de6e2ff`)
 - **Follow-ups #32** — the create screen's air in the circuit's climate, with its height (`8f5b3a0e`)
 - **Follow-ups #35** — the rewind ring measured: 253 MB at the Nordschleife (`91277886`)
 - **Follow-ups #99**
