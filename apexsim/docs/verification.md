@@ -503,7 +503,7 @@ kept at its race (`server.event` in runs.yml), as after a restart.
   its entries and results, OPEN / START / NEXT PHASE / CLOSE / entries /
   DELETE answering, and an event created from the form.
 
-Run 2026-10-24 (`r3c-event-lobby`): the browser lists the session under VERIFY CUP, the lobby reads PRACTICE 5 MIN DONE · QUALIFYING 5 MIN DONE · RACE 3 LAPS and WAITING FOR RACE CONTROL TO START THE RACE, and the dashboard's start took it to the grid. The lobby's top line is clipped at its left edge on 1080p (the event's name runs off).
+Run 2026-10-24 (`r3c-event-lobby`): the browser lists the session under VERIFY CUP, the lobby reads PRACTICE 5 MIN DONE · QUALIFYING 5 MIN DONE · RACE 3 LAPS and WAITING FOR RACE CONTROL TO START THE RACE, and the dashboard's start took it to the grid. The lobby's top line ran off the left edge at first; its format text now fills what the bar has left and ends in an ellipsis, and the rerun shows VERIFY CUP · RACE NEXT, the circuit and the phases whole.
 
 ### R23. The race's incident list in the game
 
