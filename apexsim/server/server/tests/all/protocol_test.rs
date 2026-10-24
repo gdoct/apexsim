@@ -13,7 +13,10 @@ use tokio::time::timeout;
 use apexsim_server::network::{ClientMessage, ServerMessage, PROTOCOL_VERSION};
 use apexsim_server::udp_seal;
 
-const TEST_TIMEOUT: Duration = Duration::from_secs(15);
+/// How long a wait for the server may take. Generous: the whole suite runs
+/// in parallel, and a debug build under that load took over 15 s to bake a
+/// track bundle or to join; a passing test never waits it out.
+const TEST_TIMEOUT: Duration = Duration::from_secs(60);
 
 struct ProtocolTestClient {
     tcp: TcpStream,

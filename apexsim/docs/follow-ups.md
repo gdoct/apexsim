@@ -429,10 +429,10 @@ livery show it.
 Small and independent. Do one or two alongside whatever package touches
 the same files.
 
-- Server tests: `protocol_test::test_the_track_bundle_comes_in_chunks_on_request`
-  times out (15 s) in the whole suite under load, and passes alone; the
-  join and tick-rate tests do too in a debug build. Run the suite at
-  opt-level 2, as CI does, or give the bundle test a longer timeout.
+- Server tests: `protocol_test::test_session_ticks_at_the_configured_rate`
+  measures the tick rate and misses it in a debug build when the whole
+  suite runs at once (it passes alone, and at opt-level 2 as CI runs).
+  The protocol tests' waits are 60 s (`TEST_TIMEOUT`).
 
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
