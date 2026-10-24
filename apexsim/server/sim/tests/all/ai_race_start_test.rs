@@ -96,7 +96,11 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
     }
     // `SURVEY_WEATHER=snow` (or rain, lightrain, heavyrain...) bakes that
     // sky onto the track, with the road state it leaves: the racing line
-    // and the AI's speed profile are built for it.
+    // and the AI's speed profile are built for it. With
+    // `SURVEY_TIME_OF_DAY=15:00`, `SURVEY_TIME_SCALE=30` or
+    // `SURVEY_CHANGEABLE=1` the session's live sky runs from there as a
+    // server's does (the clock, the forecast, the road freezing).
+    let mut live_conditions: Option<apexsim_sim::data::SessionConditions> = None;
     if let Ok(name) = std::env::var("SURVEY_WEATHER") {
         let weather = apexsim_sim::data::Weather::ALL
             .into_iter()
@@ -106,16 +110,28 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         let air = std::env::var("SURVEY_AIR_C")
             .ok()
             .and_then(|v| v.parse::<i8>().ok());
+        let env_u8 = |key: &str| std::env::var(key).ok().and_then(|v| v.parse::<u8>().ok());
+        let minutes = std::env::var("SURVEY_TIME_OF_DAY").ok().and_then(|v| {
+            let (h, m) = v.split_once(':')?;
+            Some(h.parse::<u16>().ok()? * 60 + m.parse::<u16>().ok()?)
+        });
         let mut conditions = apexsim_sim::data::SessionConditions {
             weather,
             air_temp_c: air,
+            time_of_day_minutes: minutes
+                .unwrap_or(apexsim_sim::data::SessionConditions::DEFAULT.time_of_day_minutes),
+            time_scale: env_u8("SURVEY_TIME_SCALE"),
+            changeable: env_u8("SURVEY_CHANGEABLE"),
             ..apexsim_sim::data::SessionConditions::DEFAULT
         }
-        .resolve(1);
+        .resolve_at(1, track.climate_site());
         if air.is_some() {
             conditions.air_temp_c = air;
         }
         conditions.apply_to_track(&mut track);
+        if minutes.is_some() || conditions.time_scale.is_some() || conditions.changeable.is_some() {
+            live_conditions = Some(conditions);
+        }
     }
     let car = CarLoader::load_from_file(&car_file(car)).expect("car loads");
     let car_id = car.id;
@@ -199,6 +215,9 @@ fn ai_race(track: &str, car: &str, ai_count: u8) -> GameSession {
         3,
     );
     session.host_car_id = Some(car_id);
+    if let Some(conditions) = live_conditions {
+        session.conditions = conditions;
+    }
     let mut race = GameSession::with_ai_profiles(session, track, cars, profiles);
     race.set_classes(classes);
     if std::env::var("DBG_NO_ROAD").is_ok() {

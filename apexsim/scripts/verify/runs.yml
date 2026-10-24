@@ -369,6 +369,46 @@ runs:
         label: "TV camera"
         checks: "Mandarina Bay"
 
+  - id: r6-nordschleife-close
+    about: "R6. Nordschleife dressing from close by: posts, rail tags, toll lanes, banks, tower, letters"
+    # The poses spots.py --prop gives for one of each, 13-25 m from the
+    # small props (r6-nordschleife's were too far to read them).
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=11:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "marshal post 1 from 18 m"
+        checks: "The numbered post reads"
+        exec: "apexsim.cam.LookAt -18.0 -1.0 1.3 -0.4 16.4 0.7"
+      - at: 15
+        label: "a rail tag at 610 m from 13 m"
+        checks: "Rail tag on its rail, the right way round, not floating"
+        exec: "apexsim.cam.LookAt 250.7 363.9 -32.8 264.0 377.2 -34.8"
+      - at: 20
+        label: "the toll lanes at 19219 m"
+        checks: "The toll booths and lanes"
+        exec: "apexsim.cam.LookAt -243.7 -1414.3 -50.5 -220.7 -1401.4 -51.0"
+      - at: 25
+        label: "a spectator bank at 15034 m"
+        checks: "The bank on its sloping verge"
+        exec: "apexsim.cam.LookAt -435.3 -4659.9 -78.4 -458.8 -4661.1 -80.8"
+      - at: 30
+        label: "the Hohe Acht lookout tower"
+        checks: "The stone tower on its hill"
+        exec: "apexsim.cam.LookAt 155.6 -5506.0 -30.7 511.3 -6861.5 106.4"
+      - at: 35
+        label: "the hillside letters from the Doettinger Hoehe"
+        checks: "The letters on the hillside"
+        exec: "apexsim.cam.LookAt -567.0 -2637.3 -69.1 -339.4 -2679.0 -57.7"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

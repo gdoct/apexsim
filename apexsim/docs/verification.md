@@ -108,7 +108,13 @@ AC-imported circuit is installed; Spa stands in.
   end (560 s), its flat spots at 76%, more than 300 s behind: a car stuck
   in the snow, as this bullet's field check fears. Its client and server
   logs are in `out/verify/r4-spa-snow/`: find where it stopped and why
-  before closing the snow rows.
+  before closing the snow rows. Not reproduced off-screen (2026-10-25):
+  `snow_stall_survey` with the run's live sky (`SURVEY_TIME_OF_DAY=15:00
+  SURVEY_TIME_SCALE=30 SURVEY_CHANGEABLE=1 SNOW_SECONDS=560`), seeds 1-6
+  on the centerline and 1-3 on the road mesh, stalled no Chiffon longer
+  than a few seconds. What the survey does not have is the stand-in in the
+  player's car (its setup and tyres as the player's); run `r4-spa-snow`
+  again and watch the stand-in from 250 s.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
   snow tread with its steel studs and the ice-white ring, and the field
@@ -175,6 +181,14 @@ spectator banks sit far behind the catch fence, the Hohe Acht tower and
 the Döttinger Höhe letters are hidden by the fence and trees from the
 road, and Brünnchen's hedge is not in shot. The poses need moving closer
 (`spots.py --prop`) before these close.
+
+Run 2026-10-25 (`r6-nordschleife-close`, the poses from `spots.py --prop`):
+marshal post 1 reads its number from 18 m; a rail tag at 610 m sits on
+its rail beside the kerb, the right way round; the toll lanes' booths and
+the spectator bank (on its verge, the camp's tents behind) read well; the
+hillside letters show through the Döttinger Höhe's trees. The Hohe Acht
+tower is behind a hill from the road at 13535 m: it needs a pose off the
+road. Still not in shot: the grade plates and Brünnchen's hedge.
 
 ### R7. A seeded pile-up replay, before and after
 
