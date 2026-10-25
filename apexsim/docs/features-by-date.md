@@ -25,6 +25,9 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 - **Follow-ups #99**
   - the track pipeline fmt and clippy clean again (`fbe91151`)
   - the protocol tests wait up to 60 s (`e1b02e65`)
+- **Corners** — the circuit's own turn numbers on the hotlap corner panel (`5d848ef7`); the panel shows in a hotlap simulated here, and capitals past ASCII (`eee182d2`)
+- **Track location** — a circuit's latitude and longitude at its start line, through the DEM fit (`805db7ed`)
+- **R1 (verification)** — standing water said in words on the conditions panel (`cd3611a3`)
 
 ## 2026-10-24
 
