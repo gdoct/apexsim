@@ -231,6 +231,26 @@ the client does not show all of them yet, and the server leaves a few edges.
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
 
+### 40. Findings of the 2026-10-25 verification review
+
+Seen by the owner in the runs' shots. The runs stay under `out/verify/`
+until each is fixed and shot again.
+
+- Snow (`r4-spa-snow`, shots 7, 10, 12): strange circles on the road and
+  road triangles show through the snow in a long race. Find the cause on the
+  road mesh / road-state material, fix it as a rule for every circuit.
+- Night road (`r5-mandarina-night`): the road is slightly too dark between
+  lamps. Raise it without brightening the lit pools. Shot 2 shows a part of
+  a bridge intersecting the track: a dressing/bridge placement bug, check the
+  other bridged circuits too.
+- Garage tyre sets (`r12-tyre-sets`): the run shows two shots, not the three
+  it should, and none carries the intended text. Fix the recipe so it takes
+  all three states (allowance, a run's worth left, none left) with the
+  GO OUT line legible.
+- Marshals (`marshals-recovery`, shots 2 and 3): odd yellow squares near the
+  marshals at a stopped car. Probably an unlit or missing-material flag or
+  card; find and fix.
+
 ## P3: nice to have
 
 ### 11. Content tooling
