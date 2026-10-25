@@ -310,12 +310,14 @@ the launcher import with the network off.
   frame 108. Run without `-gpucrashdebugging`, so no dump; client log in
   `out/sit/2026-10-23/a-monza-2/` (local). The run before it, the same
   block, was clean.
-- The forest impostors (`card_trees.py`'s sprite billboards) do not fade
-  into a thick fog: under `apexsim.sky.FogVisibility 250` at Spa
-  (`s3-fog-thick`, 2026-10-25, the TV shot) the hill's far forest draws as
-  flat tan slabs through the grey while the near trees and the stands
-  fade. Their material likely skips the height fog (unlit or translucent
-  without fog applied); compare `s3-fog-clear`'s same shot.
+- The far trees under a thick fog: under `apexsim.sky.FogVisibility 250`
+  at Spa (`s3-fog-thick`, 2026-10-25, the TV shot over La Source's hill)
+  the hillside's forest draws as vertically smeared tan slabs through the
+  grey, where the stands beside it fade cleanly. Not known yet whether
+  they are the forest billboards (`forest_impostor*`, masked one-sided
+  cards) or the TV camera's motion blur on the cards; `s3-fog-clear`'s TV
+  shot framed elsewhere. Next: an `apexsim.cam.LookAt` still on that hill
+  with and without the fog.
 
 **Check:** the A/B is two screenshots.
 
