@@ -217,21 +217,6 @@ closed by live-oak belts at the property line and hills to the north.
 **Check:** the `sf-ref-*` horizon and a `g3-horizon`-style shot at
 Armadillos; re-dress `--all` counts for the other open-country circuits.
 
-### 47. The formula car up close
-
-The F1 generator already lays a sponsor atlas, a carbon weave and a painted
-or carbon halo (`build_f1.py`, `textures.py`), and the wheels carry
-sidewall lettering. The sunset frame showed a flat red body, so first find
-out on the `sf-ref-*` frame whether the gap is the car in the shot or the
-kit's density at T-cam distance.
-
-- If the sponsors still read as absent: larger wordmarks and cells on the
-  pod, cover and wings (`sponsors=` per variant, `liveries.py`), carbon on
-  the wing elements, the rim texture and sidewall lettering at close range.
-
-**Check:** the `sf-ref-*` frame and the car-select turntable; every name
-stays invented ([naming.md](../../apexsim-content/docs/naming.md)).
-
 ### 50. A broadcast HUD layout
 
 - A shipped layout with a timing tower, a lower third (position, driver,

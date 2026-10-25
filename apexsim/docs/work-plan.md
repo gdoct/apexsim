@@ -46,7 +46,6 @@ takes it up (— : no step, taken opportunistically).
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | C9 | The stadium stand's canopy and rail (roadmap 43) | Content | P2 | 🟡 | M | 2 |
 | C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
-| C12 | Formula car up close (roadmap 47) | Content | P2 | 🟡 | S–M | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -73,7 +72,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison
-   (C9, C10 and C12, in any order, each judged on the `sf-ref-*`
+   (C9 and C10, in any order, each judged on the `sf-ref-*`
    frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
@@ -215,8 +214,8 @@ barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
 
-#### C9 to C12. COTA start/finish, the content packages — P2 · 🟡 · S–M each
-*Source: roadmap 43 to 47, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
+#### C9 and C10. COTA start/finish, the content packages — P2 · 🟡 · S–M each
+*Source: roadmap 43 and 44, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
 Each stands alone and is judged on the `sf-ref-*` frames; none needs another first.
 The track's audit page is
 [Armadillos.md](../../apexsim-content/docs/circuit-references/audit/Armadillos.md).
@@ -226,12 +225,9 @@ The track's audit page is
 - **C10. Horizon for open-country circuits** (roadmap 44): a
   `forest_impostor` belt at the property edge for the prairie style, the
   DEM horizon mesh checked for the hills north of COTA. M.
-- **C12. Formula car up close** (roadmap 47): decided on the `sf-ref-*` frames; if
-  the sponsor atlas still reads as absent at T-cam distance, larger
-  wordmarks, wing carbon, rim and sidewall at close range. S–M.
 
 **Watch out:** C10 re-dresses `--all` and touches every
-track's `.ats` and export; run them one at a time.
+track's `.ats` and export.
 
 ### Audio and features
 

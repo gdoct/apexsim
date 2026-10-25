@@ -116,6 +116,14 @@ is in `carlib.py`, so a fix there lands on every generated car. `textures.py`
 (plain Python) writes the shared texture kit (carbon twill, sponsor atlas,
 number panels, tyre lettering; all names invented).
 
+A formula car's sponsors are laid where the cameras that matter see them.
+The flanks (pod, engine cover, nose sides, endplates) carry the atlas cells
+for a chase or TV camera; from the seat and the broadcast T-cam those are
+edge-on, so `build_f1.py` also lays the pod's cell on each sidepod's top,
+ahead of the cockpit, and the nose's cell across the nose top, both
+reading from behind (`carlib.top_decal` with negative extents). Judged on
+`g10-tcam-sf26`.
+
 **Frame.** Nose on -Y, ground at z = 0, metres, driver on +X; exported glTF
 +Y up, the nose lands along Unreal local Y and `AApexRaceCarActor` yaws the
 mesh -90 degrees onto world +X. **Stance**: `[wheels]` must agree with the

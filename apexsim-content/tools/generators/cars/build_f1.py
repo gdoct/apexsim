@@ -569,6 +569,22 @@ for sx in (-1, 1):
     carlib.flat_decal(p, M.sponsor, (sx * (FW_HW + 0.0115), (FW_Y[0] + FW_TE) / 2 + 0.03, 0.13),
                       (0, sx, 0), (0, 0, 1), 0.30, 0.075, carlib.atlas_uv(SP["fw_ep"]), lift=0.0005)
 
+# ---- seen from the seat and the T-cam: wordmarks on the upper surfaces,
+# reading from behind (negative extents turn top_decal round). The flanks'
+# sponsors are edge-on from there, so a car seen from its own cockpit or a
+# broadcast onboard showed none.
+_ny = AX_F - 0.15
+_nw = L.point(_ny, 6.0).x
+carlib.top_decal(p, M.sponsor, L, 0.0, _ny, -1.6 * _nw, -0.45 * _nw, carlib.atlas_uv(SP["nose"]),
+                 along_y=False, nu=12, nv=4)
+_py = AX_F + 1.15
+_xo, _xi = L.point(_py, 4.4).x, L.point(_py, 5.0).x
+_pw = abs(_xo - _xi)
+for sx in (-1, 1):
+    carlib.top_decal(p, M.sponsor, L, sx * (_xo + _xi) / 2, _py, -0.95 * _pw, -0.24 * _pw,
+                     carlib.atlas_uv(SP["pod"]), along_y=False, nu=12, nv=4)
+print("TOP DECALS nose half-width %.3f at y %.2f; pod top %.3f..%.3f at y %.2f" % (_nw, _ny, _xi, _xo, _py))
+
 # ---- the driver (pass 7): lying back in the tub, gloves on the rig's rim,
 # feet up on the pedals behind the front axle; exported apart from the body
 drv = Builder("driver")
