@@ -226,7 +226,11 @@ fn the_corners_are_numbered_in_lap_order() {
     assert!(corners.len() >= 5, "Monza has {} corners", corners.len());
     // Monza's dossier numbers its turns: the numbers given are those,
     // rising round the lap; a bend it does not number has none (0).
-    let numbered: Vec<u8> = corners.iter().map(|c| c.number).filter(|n| *n > 0).collect();
+    let numbered: Vec<u8> = corners
+        .iter()
+        .map(|c| c.number)
+        .filter(|n| *n > 0)
+        .collect();
     assert!(numbered.len() >= 4, "{numbered:?}");
     assert!(numbered.windows(2).all(|w| w[0] < w[1]), "{numbered:?}");
     assert!(
