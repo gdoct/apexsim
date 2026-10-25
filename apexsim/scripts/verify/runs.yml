@@ -7741,6 +7741,22 @@ runs:
       - {at: 24, label: "Settings > Audio", checks: "N14 the Radio section: Radio volume 80 %, Spotter ON, Race engineer ON, nothing clipped"}
       - {at: 31, label: "scrolled to the end", checks: "N14 Race engineer ON, laid out like Spotter"}
 
+  - id: n22-settings-row
+    about: "N22. Settings > Gameplay's Colour vision row: its three pills fit"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexOpenSettings=20
+      - -ApexSettingsTab=0
+    shots:
+      - {at: 24, label: "Settings > Gameplay", checks: "N22 Colour vision: STANDARD, RED-GREEN, BLUE-YELLOW, none clipped"}
+
   # The race HUD in each colour-vision palette, then the cockpit dash in
   # each: the console switches the palette (and the HUD rebuilds) a few
   # seconds before each grab, and puts it back to standard at the end.

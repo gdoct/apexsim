@@ -550,8 +550,9 @@ vermilion bad turns a darker olive than the accent; in the standard
 palette the greens fold into the yellow, as the palette is there for; in
 blue-yellow under tritanopia the accent reads pink against a teal good.
 The dash's screen bar follows the palette; the SF-26's modelled LED row
-above it does not (follow-ups #12). Left: the radar fill with a car
-alongside, and the settings row's BLUE-YELLOW pill width.
+above it does not (follow-ups #12). `n22-settings-row`: the Colour vision
+row's BLUE-YELLOW fits its pill (2026-10-25). Left: the radar fill with a
+car alongside.
 
 ### R21. Photo mode
 
