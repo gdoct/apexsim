@@ -113,6 +113,11 @@ struct FApexTrackProp
 	TOptional<float> RadiusM;
 	/** Bridges: road width at the station, metres, which the span is scaled to. */
 	TOptional<float> SpanM;
+	/**
+	 * Shown only after dark (`night_only`): a floodlight mast the dressing
+	 * pass put round a circuit that maps no lighting of its own.
+	 */
+	bool bNightOnly = false;
 };
 
 struct FApexTrackGridSlot

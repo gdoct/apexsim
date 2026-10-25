@@ -303,9 +303,15 @@ stamp.
   stage, big wheel and food stall, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes and in every mapped wood from 120 m out
   (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
-  dossier maps no lighting masts. Day venues keep their towers and their
-  OSM masts, since night sessions light the track with them; only
-  `DAY_RACE_NO_FLOODLIGHTS` (Albert Park) strips them.
+  dossier maps no lighting masts. Those generated masts are night-only
+  (`dress::generated_floodlight`, the export's `night_only`): the client
+  batches them apart and shows them only while the sky's floodlights are
+  on (`FSkyState::bFloodlights`, sun under 4 degrees), so a circuit that is
+  not floodlit looks as it is by day and can still be driven at night. A
+  dossier's own OSM masts always stand; `DAY_RACE_NO_FLOODLIGHTS` (Albert
+  Park) strips both. A car park's lamp posts stand round its edge but none
+  within 25 m of the road, where the park's edge is the trackside fence
+  and a row of lamps along it read as track lighting.
 - Anything standing in mapped water that no bridge carries is dropped.
 
 ## Grooming (`ats-groom`) and barriers

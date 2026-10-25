@@ -191,22 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 42. No track lighting at a day venue
-
-`CircuitStyle::floodlights` is true for the default and prairie styles, so
-`surroundings::lay` rings any circuit whose OSM extract maps no lighting
-with `floodlight_tower`s (23 at Armadillos, the same at AlbertParkour), and
-the car parks' `lamp_post`s run along the trackside fence.
-
-- A day-venue flag per circuit (the dossier or the style) that lays no
-  floodlight ring; the car-park lamps kept to the car parks, off the fence
-  line. A night session at such a circuit is lit by the sky and the cars
-  alone, as the real place would be.
-
-**Check:** re-dress `--all` and read the prop counts against the commit
-before; the `sf-ref-*` left side; one night run at Armadillos to see the
-headlights carry it.
-
 ### 43. The stadium stand's canopy and rail
 
 The stadium family (`bay_10m_stadium_roof`) has its crowd twin and stands

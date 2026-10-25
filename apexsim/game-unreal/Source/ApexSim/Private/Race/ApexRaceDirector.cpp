@@ -2596,6 +2596,13 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			continue;
 		}
 
+		// The masts generated for a circuit that is not floodlit stand only
+		// after dark: by day it looks as the real place does.
+		if (Actor->ActorHasTag(FApexTrackSceneBuilder::NightOnlyTag))
+		{
+			Actor->SetActorHiddenInGame(!Sky.bFloodlights);
+		}
+
 		TArray<UStaticMeshComponent*> Meshes;
 		Actor->GetComponents<UStaticMeshComponent>(Meshes);
 		for (UStaticMeshComponent* Mesh : Meshes)

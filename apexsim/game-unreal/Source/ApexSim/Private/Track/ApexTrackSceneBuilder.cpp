@@ -31,6 +31,7 @@
 DEFINE_LOG_CATEGORY(LogApexTrack);
 
 const FName FApexTrackSceneBuilder::PropTag(TEXT("ApexProp"));
+const FName FApexTrackSceneBuilder::NightOnlyTag(TEXT("ApexNightOnly"));
 const FName FApexTrackSceneBuilder::TrackMeshTag(TEXT("ApexTrackMesh"));
 const FName FApexTrackSceneBuilder::StartLightsTag(TEXT("ApexStartLights"));
 const FName FApexTrackSceneBuilder::StartLightTag(TEXT("ApexStartLight"));
@@ -2230,6 +2231,12 @@ void FApexTrackSceneBuilder::SpawnActors(
 		}
 		Factory.LabelActor(Actor, Label);
 		Actor->Tags.Add(PropTag);
+		// Night-only props get a batch of their own, which the race
+		// director shows once the floodlights are on.
+		if (Key.EndsWith(TEXT("/night")))
+		{
+			Actor->Tags.Add(NightOnlyTag);
+		}
 		UHierarchicalInstancedStaticMeshComponent* Component =
 			NewObject<UHierarchicalInstancedStaticMeshComponent>(Actor, TEXT("Instances"), RF_Transactional);
 		Component->CreationMethod = EComponentCreationMethod::Instance;
@@ -2398,8 +2405,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 
 			if (Resolved.bInstanced)
 			{
-				const FString Key = FString::Printf(TEXT("%s/%s/%s"), *Resolved.Kind, *Resolved.Asset, *Resolved.Text);
-				FString Label = FString::Printf(TEXT("Props_%s_%s"), *Resolved.Kind, *Resolved.Asset);
+				const FString Key = FString::Printf(TEXT("%s/%s/%s%s"), *Resolved.Kind, *Resolved.Asset, *Resolved.Text,
+					Prop.bNightOnly ? TEXT("/night") : TEXT(""));
+				FString Label = FString::Printf(TEXT("Props_%s_%s%s"), *Resolved.Kind, *Resolved.Asset,
+					Prop.bNightOnly ? TEXT("_Night") : TEXT(""));
 				if (!Resolved.Text.IsEmpty())
 				{
 					Label += TEXT("_") + TextKey(Resolved.Text);

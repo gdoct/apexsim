@@ -709,6 +709,7 @@ bool FApexTrackSceneReader::LoadFromFile(
 			{
 				Prop.SpanM = static_cast<float>(Hint);
 			}
+			Object->TryGetBoolField(TEXT("night_only"), Prop.bNightOnly);
 			Scene.Props.Add(MoveTemp(Prop));
 		}
 	}

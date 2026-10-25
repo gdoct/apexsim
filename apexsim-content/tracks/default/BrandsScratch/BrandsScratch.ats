@@ -4174,30 +4174,6 @@
       "id": 13111,
       "kind": "light",
       "asset": "lamp_post",
-      "x": -235.53,
-      "y": -96.85,
-      "z": 2.61,
-      "yaw_rad": 0.74,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car parks"
-    },
-    {
-      "id": 13112,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": -215.87,
-      "y": -75.38,
-      "z": 2.44,
-      "yaw_rad": 0.65,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car parks"
-    },
-    {
-      "id": 13113,
-      "kind": "light",
-      "asset": "lamp_post",
       "x": -199.8,
       "y": -55.6,
       "z": 2.1,
@@ -4207,7 +4183,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13114,
+      "id": 13112,
       "kind": "light",
       "asset": "lamp_post",
       "x": -174.01,
@@ -4219,7 +4195,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13115,
+      "id": 13113,
       "kind": "light",
       "asset": "lamp_post",
       "x": -148.21,
@@ -4231,7 +4207,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13116,
+      "id": 13114,
       "kind": "light",
       "asset": "lamp_post",
       "x": -148.13,
@@ -4243,7 +4219,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13117,
+      "id": 13115,
       "kind": "light",
       "asset": "lamp_post",
       "x": -176.66,
@@ -4255,7 +4231,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13118,
+      "id": 13116,
       "kind": "light",
       "asset": "lamp_post",
       "x": -200.14,
@@ -4267,7 +4243,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13119,
+      "id": 13117,
       "kind": "light",
       "asset": "lamp_post",
       "x": -223.6,
@@ -4279,7 +4255,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13120,
+      "id": 13118,
       "kind": "light",
       "asset": "lamp_post",
       "x": -247.06,
@@ -4291,7 +4267,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13121,
+      "id": 13119,
       "kind": "light",
       "asset": "lamp_post",
       "x": -270.51,
@@ -4303,7 +4279,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13122,
+      "id": 13120,
       "kind": "light",
       "asset": "lamp_post",
       "x": -262.71,
@@ -4315,7 +4291,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13123,
+      "id": 13121,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -160.36,
@@ -4327,7 +4303,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13124,
+      "id": 13122,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -160.36,
@@ -4339,7 +4315,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13125,
+      "id": 13123,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -150.86,
@@ -4351,7 +4327,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13126,
+      "id": 13124,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -160.36,
@@ -4363,7 +4339,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13127,
+      "id": 13125,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -150.86,
@@ -4375,7 +4351,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13128,
+      "id": 13126,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -141.36,
@@ -4387,7 +4363,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13129,
+      "id": 13127,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -160.36,
@@ -4399,7 +4375,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13130,
+      "id": 13128,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -150.86,
@@ -4411,7 +4387,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13131,
+      "id": 13129,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -141.36,
@@ -4423,7 +4399,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13132,
+      "id": 13130,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -131.87,
@@ -4435,7 +4411,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13133,
+      "id": 13131,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -122.37,
@@ -4447,7 +4423,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13134,
+      "id": 13132,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -131.87,
@@ -4459,7 +4435,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13135,
+      "id": 13133,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -122.37,
@@ -4471,7 +4447,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13136,
+      "id": 13134,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -112.87,
@@ -4483,7 +4459,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13137,
+      "id": 13135,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -103.37,
@@ -4495,7 +4471,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13138,
+      "id": 13136,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -122.37,
@@ -4507,7 +4483,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13139,
+      "id": 13137,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -112.87,
@@ -4519,7 +4495,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13140,
+      "id": 13138,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -103.37,
@@ -4531,7 +4507,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13141,
+      "id": 13139,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -93.88,
@@ -4543,7 +4519,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13142,
+      "id": 13140,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -93.88,
@@ -4555,7 +4531,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13143,
+      "id": 13141,
       "kind": "light",
       "asset": "lamp_post",
       "x": -176.58,
@@ -4567,7 +4543,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13144,
+      "id": 13142,
       "kind": "light",
       "asset": "lamp_post",
       "x": 9.9,
@@ -4579,7 +4555,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13145,
+      "id": 13143,
       "kind": "light",
       "asset": "lamp_post",
       "x": 31.34,
@@ -4591,19 +4567,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13146,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": -155.78,
-      "y": -147.27,
-      "z": -1.52,
-      "yaw_rad": -2.15,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park GP Paddock"
-    },
-    {
-      "id": 13147,
+      "id": 13144,
       "kind": "light",
       "asset": "lamp_post",
       "x": -180.26,
@@ -4615,7 +4579,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13148,
+      "id": 13145,
       "kind": "light",
       "asset": "lamp_post",
       "x": -203.47,
@@ -4627,7 +4591,7 @@
       "source": "surroundings: car park GP Paddock"
     },
     {
-      "id": 13149,
+      "id": 13146,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -25.05,
@@ -4639,7 +4603,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13150,
+      "id": 13147,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -15.55,
@@ -4651,7 +4615,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13151,
+      "id": 13148,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -25.05,
@@ -4663,7 +4627,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13152,
+      "id": 13149,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -15.55,
@@ -4675,7 +4639,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13153,
+      "id": 13150,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -6.05,
@@ -4687,7 +4651,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13154,
+      "id": 13151,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 3.45,
@@ -4699,7 +4663,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13155,
+      "id": 13152,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -25.05,
@@ -4711,7 +4675,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13156,
+      "id": 13153,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -15.55,
@@ -4723,7 +4687,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13157,
+      "id": 13154,
       "kind": "vehicle",
       "asset": "car_b",
       "x": -6.05,
@@ -4735,7 +4699,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13158,
+      "id": 13155,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 3.45,
@@ -4747,7 +4711,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13159,
+      "id": 13156,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 12.95,
@@ -4759,7 +4723,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13160,
+      "id": 13157,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 22.45,
@@ -4771,7 +4735,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13161,
+      "id": 13158,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 31.95,
@@ -4783,7 +4747,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13162,
+      "id": 13159,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 41.45,
@@ -4795,7 +4759,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13163,
+      "id": 13160,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 50.96,
@@ -4807,7 +4771,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13164,
+      "id": 13161,
       "kind": "vehicle",
       "asset": "car_c",
       "x": -15.55,
@@ -4819,7 +4783,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13165,
+      "id": 13162,
       "kind": "vehicle",
       "asset": "car_a",
       "x": -6.05,
@@ -4831,7 +4795,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13166,
+      "id": 13163,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 3.45,
@@ -4843,7 +4807,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13167,
+      "id": 13164,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 12.95,
@@ -4855,7 +4819,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13168,
+      "id": 13165,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 22.45,
@@ -4867,7 +4831,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13169,
+      "id": 13166,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 31.95,
@@ -4879,7 +4843,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13170,
+      "id": 13167,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 41.45,
@@ -4891,7 +4855,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13171,
+      "id": 13168,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 50.96,
@@ -4903,7 +4867,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13172,
+      "id": 13169,
       "kind": "light",
       "asset": "lamp_post",
       "x": -98.36,
@@ -4915,7 +4879,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13173,
+      "id": 13170,
       "kind": "light",
       "asset": "lamp_post",
       "x": -71.86,
@@ -4927,7 +4891,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13174,
+      "id": 13171,
       "kind": "light",
       "asset": "lamp_post",
       "x": -43.99,
@@ -4939,7 +4903,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13175,
+      "id": 13172,
       "kind": "light",
       "asset": "lamp_post",
       "x": -16.11,
@@ -4951,7 +4915,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13176,
+      "id": 13173,
       "kind": "light",
       "asset": "lamp_post",
       "x": 12.72,
@@ -4963,7 +4927,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13177,
+      "id": 13174,
       "kind": "light",
       "asset": "lamp_post",
       "x": 42.7,
@@ -4975,7 +4939,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13178,
+      "id": 13175,
       "kind": "light",
       "asset": "lamp_post",
       "x": 72.67,
@@ -4987,7 +4951,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13179,
+      "id": 13176,
       "kind": "light",
       "asset": "lamp_post",
       "x": 102.37,
@@ -4999,7 +4963,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13180,
+      "id": 13177,
       "kind": "light",
       "asset": "lamp_post",
       "x": 132.01,
@@ -5011,7 +4975,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13181,
+      "id": 13178,
       "kind": "light",
       "asset": "lamp_post",
       "x": 161.65,
@@ -5023,7 +4987,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13182,
+      "id": 13179,
       "kind": "light",
       "asset": "lamp_post",
       "x": 182.83,
@@ -5035,7 +4999,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13183,
+      "id": 13180,
       "kind": "light",
       "asset": "lamp_post",
       "x": 163.96,
@@ -5047,7 +5011,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13184,
+      "id": 13181,
       "kind": "light",
       "asset": "lamp_post",
       "x": 136.04,
@@ -5059,7 +5023,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13185,
+      "id": 13182,
       "kind": "light",
       "asset": "lamp_post",
       "x": 106.28,
@@ -5071,7 +5035,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13186,
+      "id": 13183,
       "kind": "light",
       "asset": "lamp_post",
       "x": 76.32,
@@ -5083,7 +5047,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13187,
+      "id": 13184,
       "kind": "light",
       "asset": "lamp_post",
       "x": 46.35,
@@ -5095,7 +5059,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13188,
+      "id": 13185,
       "kind": "light",
       "asset": "lamp_post",
       "x": 17.39,
@@ -5107,7 +5071,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13189,
+      "id": 13186,
       "kind": "light",
       "asset": "lamp_post",
       "x": -9.76,
@@ -5119,7 +5083,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13190,
+      "id": 13187,
       "kind": "light",
       "asset": "lamp_post",
       "x": -36.91,
@@ -5131,7 +5095,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13191,
+      "id": 13188,
       "kind": "light",
       "asset": "lamp_post",
       "x": -64.06,
@@ -5143,7 +5107,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13192,
+      "id": 13189,
       "kind": "light",
       "asset": "lamp_post",
       "x": -89.61,
@@ -5155,19 +5119,7 @@
       "source": "surroundings: car park Southbank"
     },
     {
-      "id": 13193,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": -114.44,
-      "y": -220.4,
-      "z": 1.71,
-      "yaw_rad": -0.88,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Southbank"
-    },
-    {
-      "id": 13194,
+      "id": 13190,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 41.32,
@@ -5179,7 +5131,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13195,
+      "id": 13191,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 51.04,
@@ -5191,7 +5143,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13196,
+      "id": 13192,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 41.32,
@@ -5203,7 +5155,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13197,
+      "id": 13193,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 51.04,
@@ -5215,7 +5167,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13198,
+      "id": 13194,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 60.76,
@@ -5227,7 +5179,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13199,
+      "id": 13195,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 70.47,
@@ -5239,7 +5191,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13200,
+      "id": 13196,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 70.47,
@@ -5251,7 +5203,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13201,
+      "id": 13197,
       "kind": "light",
       "asset": "lamp_post",
       "x": 36.15,
@@ -5263,7 +5215,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13202,
+      "id": 13198,
       "kind": "light",
       "asset": "lamp_post",
       "x": 64.71,
@@ -5275,7 +5227,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13203,
+      "id": 13199,
       "kind": "light",
       "asset": "lamp_post",
       "x": 93.27,
@@ -5287,7 +5239,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13204,
+      "id": 13200,
       "kind": "light",
       "asset": "lamp_post",
       "x": 121.82,
@@ -5299,7 +5251,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13205,
+      "id": 13201,
       "kind": "light",
       "asset": "lamp_post",
       "x": 122.74,
@@ -5311,7 +5263,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13206,
+      "id": 13202,
       "kind": "light",
       "asset": "lamp_post",
       "x": 94.29,
@@ -5323,7 +5275,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13207,
+      "id": 13203,
       "kind": "light",
       "asset": "lamp_post",
       "x": 65.66,
@@ -5335,7 +5287,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13208,
+      "id": 13204,
       "kind": "light",
       "asset": "lamp_post",
       "x": 37.04,
@@ -5347,7 +5299,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13209,
+      "id": 13205,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 83.68,
@@ -5359,7 +5311,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13210,
+      "id": 13206,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 93.3,
@@ -5371,7 +5323,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13211,
+      "id": 13207,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 93.3,
@@ -5383,7 +5335,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13212,
+      "id": 13208,
       "kind": "light",
       "asset": "lamp_post",
       "x": 107.67,
@@ -5395,7 +5347,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13213,
+      "id": 13209,
       "kind": "light",
       "asset": "lamp_post",
       "x": 104.59,
@@ -5407,7 +5359,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13214,
+      "id": 13210,
       "kind": "light",
       "asset": "lamp_post",
       "x": 84.42,
@@ -5419,7 +5371,7 @@
       "source": "surroundings: car parks"
     },
     {
-      "id": 13215,
+      "id": 13211,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 430.25,
@@ -5431,7 +5383,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13216,
+      "id": 13212,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 443.74,
@@ -5443,7 +5395,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13217,
+      "id": 13213,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 457.22,
@@ -5455,7 +5407,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13218,
+      "id": 13214,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 403.28,
@@ -5467,7 +5419,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13219,
+      "id": 13215,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 416.76,
@@ -5479,7 +5431,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13220,
+      "id": 13216,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 430.25,
@@ -5491,7 +5443,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13221,
+      "id": 13217,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 443.74,
@@ -5503,7 +5455,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13222,
+      "id": 13218,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 457.22,
@@ -5515,7 +5467,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13223,
+      "id": 13219,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -5527,7 +5479,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13224,
+      "id": 13220,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -5539,7 +5491,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13225,
+      "id": 13221,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 430.25,
@@ -5551,7 +5503,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13226,
+      "id": 13222,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 443.74,
@@ -5563,7 +5515,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13227,
+      "id": 13223,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 457.22,
@@ -5575,7 +5527,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13228,
+      "id": 13224,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -5587,7 +5539,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13229,
+      "id": 13225,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -5599,7 +5551,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13230,
+      "id": 13226,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 430.25,
@@ -5611,7 +5563,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13231,
+      "id": 13227,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 443.74,
@@ -5623,7 +5575,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13232,
+      "id": 13228,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 457.22,
@@ -5635,7 +5587,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13233,
+      "id": 13229,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 389.79,
@@ -5647,7 +5599,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13234,
+      "id": 13230,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 403.28,
@@ -5659,7 +5611,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13235,
+      "id": 13231,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -5671,7 +5623,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13236,
+      "id": 13232,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 430.25,
@@ -5683,7 +5635,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13237,
+      "id": 13233,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 443.74,
@@ -5695,7 +5647,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13238,
+      "id": 13234,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 457.22,
@@ -5707,7 +5659,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13239,
+      "id": 13235,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 349.33,
@@ -5719,7 +5671,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13240,
+      "id": 13236,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -5731,7 +5683,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13241,
+      "id": 13237,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 376.31,
@@ -5743,7 +5695,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13242,
+      "id": 13238,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 389.79,
@@ -5755,7 +5707,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13243,
+      "id": 13239,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -5767,7 +5719,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13244,
+      "id": 13240,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 416.76,
@@ -5779,7 +5731,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13245,
+      "id": 13241,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 430.25,
@@ -5791,7 +5743,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13246,
+      "id": 13242,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 443.74,
@@ -5803,7 +5755,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13247,
+      "id": 13243,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 457.22,
@@ -5815,7 +5767,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13248,
+      "id": 13244,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 362.82,
@@ -5827,7 +5779,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13249,
+      "id": 13245,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 376.31,
@@ -5839,7 +5791,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13250,
+      "id": 13246,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 389.79,
@@ -5851,7 +5803,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13251,
+      "id": 13247,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 403.28,
@@ -5863,7 +5815,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13252,
+      "id": 13248,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 416.76,
@@ -5875,7 +5827,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13253,
+      "id": 13249,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 430.25,
@@ -5887,7 +5839,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13254,
+      "id": 13250,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 443.74,
@@ -5899,7 +5851,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13255,
+      "id": 13251,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -5911,7 +5863,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13256,
+      "id": 13252,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 376.31,
@@ -5923,7 +5875,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13257,
+      "id": 13253,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 389.79,
@@ -5935,7 +5887,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13258,
+      "id": 13254,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -5947,7 +5899,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13259,
+      "id": 13255,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -5959,7 +5911,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13260,
+      "id": 13256,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 430.25,
@@ -5971,7 +5923,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13261,
+      "id": 13257,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 349.33,
@@ -5983,7 +5935,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13262,
+      "id": 13258,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -5995,7 +5947,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13263,
+      "id": 13259,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 376.31,
@@ -6007,7 +5959,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13264,
+      "id": 13260,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 389.79,
@@ -6019,7 +5971,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13265,
+      "id": 13261,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 403.28,
@@ -6031,7 +5983,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13266,
+      "id": 13262,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -6043,7 +5995,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13267,
+      "id": 13263,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 430.25,
@@ -6055,7 +6007,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13268,
+      "id": 13264,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 349.33,
@@ -6067,7 +6019,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13269,
+      "id": 13265,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -6079,7 +6031,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13270,
+      "id": 13266,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 376.31,
@@ -6091,7 +6043,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13271,
+      "id": 13267,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 389.79,
@@ -6103,7 +6055,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13272,
+      "id": 13268,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -6115,7 +6067,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13273,
+      "id": 13269,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -6127,7 +6079,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13274,
+      "id": 13270,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 430.25,
@@ -6139,7 +6091,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13275,
+      "id": 13271,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 335.85,
@@ -6151,7 +6103,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13276,
+      "id": 13272,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 349.33,
@@ -6163,7 +6115,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13277,
+      "id": 13273,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -6175,7 +6127,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13278,
+      "id": 13274,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 376.31,
@@ -6187,7 +6139,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13279,
+      "id": 13275,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 389.79,
@@ -6199,7 +6151,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13280,
+      "id": 13276,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 403.28,
@@ -6211,7 +6163,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13281,
+      "id": 13277,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 416.76,
@@ -6223,7 +6175,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13282,
+      "id": 13278,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 430.25,
@@ -6235,7 +6187,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13283,
+      "id": 13279,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 335.85,
@@ -6247,7 +6199,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13284,
+      "id": 13280,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 349.33,
@@ -6259,7 +6211,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13285,
+      "id": 13281,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 362.82,
@@ -6271,7 +6223,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13286,
+      "id": 13282,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 376.31,
@@ -6283,7 +6235,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13287,
+      "id": 13283,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 389.79,
@@ -6295,7 +6247,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13288,
+      "id": 13284,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 403.28,
@@ -6307,7 +6259,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13289,
+      "id": 13285,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 416.76,
@@ -6319,7 +6271,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13290,
+      "id": 13286,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 335.85,
@@ -6331,7 +6283,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13291,
+      "id": 13287,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 349.33,
@@ -6343,7 +6295,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13292,
+      "id": 13288,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 362.82,
@@ -6355,7 +6307,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13293,
+      "id": 13289,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 376.31,
@@ -6367,7 +6319,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13294,
+      "id": 13290,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 389.79,
@@ -6379,7 +6331,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13295,
+      "id": 13291,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 403.28,
@@ -6391,7 +6343,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13296,
+      "id": 13292,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 416.76,
@@ -6403,7 +6355,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13297,
+      "id": 13293,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 335.85,
@@ -6415,7 +6367,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13298,
+      "id": 13294,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 349.33,
@@ -6427,7 +6379,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13299,
+      "id": 13295,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 362.82,
@@ -6439,7 +6391,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13300,
+      "id": 13296,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 376.31,
@@ -6451,7 +6403,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13301,
+      "id": 13297,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 389.79,
@@ -6463,7 +6415,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13302,
+      "id": 13298,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 403.28,
@@ -6475,7 +6427,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13303,
+      "id": 13299,
       "kind": "vehicle",
       "asset": "car_b",
       "x": 349.33,
@@ -6487,7 +6439,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13304,
+      "id": 13300,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 362.82,
@@ -6499,7 +6451,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13305,
+      "id": 13301,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 376.31,
@@ -6511,7 +6463,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13306,
+      "id": 13302,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 389.79,
@@ -6523,7 +6475,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13307,
+      "id": 13303,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 403.28,
@@ -6535,7 +6487,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13308,
+      "id": 13304,
       "kind": "vehicle",
       "asset": "car_c",
       "x": 376.31,
@@ -6547,7 +6499,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13309,
+      "id": 13305,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 389.79,
@@ -6559,7 +6511,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13310,
+      "id": 13306,
       "kind": "vehicle",
       "asset": "car_a",
       "x": 389.79,
@@ -6571,7 +6523,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13311,
+      "id": 13307,
       "kind": "light",
       "asset": "lamp_post",
       "x": 337.36,
@@ -6583,7 +6535,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13312,
+      "id": 13308,
       "kind": "light",
       "asset": "lamp_post",
       "x": 361.01,
@@ -6595,7 +6547,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13313,
+      "id": 13309,
       "kind": "light",
       "asset": "lamp_post",
       "x": 384.67,
@@ -6607,7 +6559,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13314,
+      "id": 13310,
       "kind": "light",
       "asset": "lamp_post",
       "x": 401.32,
@@ -6619,7 +6571,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13315,
+      "id": 13311,
       "kind": "light",
       "asset": "lamp_post",
       "x": 414.02,
@@ -6631,7 +6583,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13316,
+      "id": 13312,
       "kind": "light",
       "asset": "lamp_post",
       "x": 426.72,
@@ -6643,7 +6595,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13317,
+      "id": 13313,
       "kind": "light",
       "asset": "lamp_post",
       "x": 439.42,
@@ -6655,7 +6607,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13318,
+      "id": 13314,
       "kind": "light",
       "asset": "lamp_post",
       "x": 443.28,
@@ -6667,7 +6619,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13319,
+      "id": 13315,
       "kind": "light",
       "asset": "lamp_post",
       "x": 459.55,
@@ -6679,7 +6631,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13320,
+      "id": 13316,
       "kind": "light",
       "asset": "lamp_post",
       "x": 477.82,
@@ -6691,7 +6643,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13321,
+      "id": 13317,
       "kind": "light",
       "asset": "lamp_post",
       "x": 493.55,
@@ -6703,7 +6655,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13322,
+      "id": 13318,
       "kind": "light",
       "asset": "lamp_post",
       "x": 509.27,
@@ -6715,7 +6667,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13323,
+      "id": 13319,
       "kind": "light",
       "asset": "lamp_post",
       "x": 525.0,
@@ -6727,7 +6679,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13324,
+      "id": 13320,
       "kind": "light",
       "asset": "lamp_post",
       "x": 540.73,
@@ -6739,7 +6691,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13325,
+      "id": 13321,
       "kind": "light",
       "asset": "lamp_post",
       "x": 522.75,
@@ -6751,7 +6703,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13326,
+      "id": 13322,
       "kind": "light",
       "asset": "lamp_post",
       "x": 500.46,
@@ -6763,7 +6715,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13327,
+      "id": 13323,
       "kind": "light",
       "asset": "lamp_post",
       "x": 478.17,
@@ -6775,7 +6727,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13328,
+      "id": 13324,
       "kind": "light",
       "asset": "lamp_post",
       "x": 451.73,
@@ -6787,7 +6739,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13329,
+      "id": 13325,
       "kind": "light",
       "asset": "lamp_post",
       "x": 424.15,
@@ -6799,7 +6751,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13330,
+      "id": 13326,
       "kind": "light",
       "asset": "lamp_post",
       "x": 396.57,
@@ -6811,7 +6763,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13331,
+      "id": 13327,
       "kind": "light",
       "asset": "lamp_post",
       "x": 391.07,
@@ -6823,7 +6775,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13332,
+      "id": 13328,
       "kind": "light",
       "asset": "lamp_post",
       "x": 375.04,
@@ -6835,7 +6787,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13333,
+      "id": 13329,
       "kind": "light",
       "asset": "lamp_post",
       "x": 348.62,
@@ -6847,7 +6799,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13334,
+      "id": 13330,
       "kind": "light",
       "asset": "lamp_post",
       "x": 350.82,
@@ -6859,7 +6811,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13335,
+      "id": 13331,
       "kind": "light",
       "asset": "lamp_post",
       "x": 342.01,
@@ -6871,7 +6823,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13336,
+      "id": 13332,
       "kind": "light",
       "asset": "lamp_post",
       "x": 326.74,
@@ -6883,7 +6835,7 @@
       "source": "surroundings: car park Lower Paddock"
     },
     {
-      "id": 13337,
+      "id": 13333,
       "kind": "building",
       "asset": "barn",
       "x": 652.16,
@@ -6895,7 +6847,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13338,
+      "id": 13334,
       "kind": "building",
       "asset": "village_house_b",
       "x": 799.22,
@@ -6907,7 +6859,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13339,
+      "id": 13335,
       "kind": "building",
       "asset": "village_house_a",
       "x": -83.79,
@@ -6919,7 +6871,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13340,
+      "id": 13336,
       "kind": "building",
       "asset": "village_house_a",
       "x": -57.79,
@@ -6931,7 +6883,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13341,
+      "id": 13337,
       "kind": "building",
       "asset": "village_house_b",
       "x": -31.79,
@@ -6943,7 +6895,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13342,
+      "id": 13338,
       "kind": "building",
       "asset": "village_house_b",
       "x": -5.79,
@@ -6955,7 +6907,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13343,
+      "id": 13339,
       "kind": "building",
       "asset": "village_house_c",
       "x": 20.21,
@@ -6967,7 +6919,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13344,
+      "id": 13340,
       "kind": "building",
       "asset": "village_house_c",
       "x": 46.21,
@@ -6979,7 +6931,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13345,
+      "id": 13341,
       "kind": "building",
       "asset": "village_house_a",
       "x": 72.21,
@@ -6991,7 +6943,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13346,
+      "id": 13342,
       "kind": "building",
       "asset": "village_house_a",
       "x": 98.21,
@@ -7003,7 +6955,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13347,
+      "id": 13343,
       "kind": "building",
       "asset": "village_house_b",
       "x": 124.21,
@@ -7015,7 +6967,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13348,
+      "id": 13344,
       "kind": "building",
       "asset": "village_house_a",
       "x": 150.21,
@@ -7027,7 +6979,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 13349,
+      "id": 13345,
       "kind": "building",
       "asset": "village_house_a",
       "x": 176.21,
@@ -7039,7 +6991,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16187,
+      "id": 13346,
       "kind": "building",
       "asset": "village_house_a",
       "x": 202.21,
@@ -7051,7 +7003,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16188,
+      "id": 13347,
       "kind": "building",
       "asset": "village_house_b",
       "x": -109.79,
@@ -7063,7 +7015,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16189,
+      "id": 13348,
       "kind": "building",
       "asset": "village_house_c",
       "x": -83.79,
@@ -7075,7 +7027,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16190,
+      "id": 13349,
       "kind": "building",
       "asset": "village_house_a",
       "x": 421.67,
@@ -7087,7 +7039,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16191,
+      "id": 16187,
       "kind": "building",
       "asset": "village_house_c",
       "x": 395.67,
@@ -7099,7 +7051,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16192,
+      "id": 16188,
       "kind": "building",
       "asset": "village_house_a",
       "x": 421.67,
@@ -7111,7 +7063,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16193,
+      "id": 16189,
       "kind": "building",
       "asset": "village_house_c",
       "x": 395.67,
@@ -7123,7 +7075,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16194,
+      "id": 16190,
       "kind": "building",
       "asset": "village_house_a",
       "x": 682.24,
@@ -7135,7 +7087,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16195,
+      "id": 16191,
       "kind": "building",
       "asset": "village_house_b",
       "x": 708.24,
@@ -7147,7 +7099,7 @@
       "source": "surroundings: village"
     },
     {
-      "id": 16196,
+      "id": 16192,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 181.36,
@@ -7159,7 +7111,7 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 16197,
+      "id": 16193,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -350.85,
@@ -7171,7 +7123,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16198,
+      "id": 16194,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -463.52,
@@ -7183,7 +7135,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16199,
+      "id": 16195,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -432.68,
@@ -7195,7 +7147,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16200,
+      "id": 16196,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -384.36,
@@ -7207,7 +7159,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16201,
+      "id": 16197,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 309.37,
@@ -7219,7 +7171,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16202,
+      "id": 16198,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -562.25,
@@ -7231,7 +7183,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16203,
+      "id": 16199,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -521.56,
@@ -7243,7 +7195,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16204,
+      "id": 16200,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -469.76,
@@ -7255,7 +7207,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16205,
+      "id": 16201,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -305.17,
@@ -7267,7 +7219,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16206,
+      "id": 16202,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -267.86,
@@ -7279,7 +7231,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16207,
+      "id": 16203,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -229.6,
@@ -7291,7 +7243,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16208,
+      "id": 16204,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -559.47,
@@ -7303,7 +7255,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16209,
+      "id": 16205,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -514.54,
@@ -7315,7 +7267,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16210,
+      "id": 16206,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -480.46,
@@ -7327,7 +7279,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16211,
+      "id": 16207,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -427.68,
@@ -7339,7 +7291,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16212,
+      "id": 16208,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -393.72,
@@ -7351,7 +7303,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16213,
+      "id": 16209,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -395.27,
@@ -7363,7 +7315,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16214,
+      "id": 16210,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -378.4,
@@ -7375,7 +7327,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16215,
+      "id": 16211,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -389.96,
@@ -7387,7 +7339,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16216,
+      "id": 16212,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -387.21,
@@ -7399,7 +7351,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16217,
+      "id": 16213,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1208.77,
@@ -7411,7 +7363,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16218,
+      "id": 16214,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -382.38,
@@ -7423,7 +7375,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16219,
+      "id": 16215,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1173.11,
@@ -7435,7 +7387,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16220,
+      "id": 16216,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -394.89,
@@ -7447,7 +7399,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16221,
+      "id": 16217,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1296.21,
@@ -7459,7 +7411,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16222,
+      "id": 16218,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1175.19,
@@ -7471,7 +7423,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16223,
+      "id": 16219,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -427.7,
@@ -7483,7 +7435,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16224,
+      "id": 16220,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -390.82,
@@ -7495,7 +7447,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16225,
+      "id": 16221,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1291.38,
@@ -7507,7 +7459,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16226,
+      "id": 16222,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 1323.44,
@@ -7519,7 +7471,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16227,
+      "id": 16223,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1175.93,
@@ -7531,7 +7483,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16228,
+      "id": 16224,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -436.72,
@@ -7543,7 +7495,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16229,
+      "id": 16225,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -380.39,
@@ -7555,7 +7507,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16230,
+      "id": 16226,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1160.95,
@@ -7567,7 +7519,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16231,
+      "id": 16227,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -439.04,
@@ -7579,7 +7531,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16232,
+      "id": 16228,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -388.51,
@@ -7591,7 +7543,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16233,
+      "id": 16229,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1163.08,
@@ -7603,7 +7555,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16234,
+      "id": 16230,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -421.64,
@@ -7615,7 +7567,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16235,
+      "id": 16231,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -393.18,
@@ -7627,7 +7579,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16236,
+      "id": 16232,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -267.51,
@@ -7639,7 +7591,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16237,
+      "id": 16233,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -205.86,
@@ -7651,7 +7603,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16238,
+      "id": 16234,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1158.99,
@@ -7663,7 +7615,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16239,
+      "id": 16235,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1126.93,
@@ -7675,7 +7627,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16240,
+      "id": 16236,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -425.77,
@@ -7687,7 +7639,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16241,
+      "id": 16237,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -393.86,
@@ -7699,7 +7651,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16242,
+      "id": 16238,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1125.37,
@@ -7711,7 +7663,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16243,
+      "id": 16239,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -382.16,
@@ -7723,7 +7675,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16244,
+      "id": 16240,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -10.78,
@@ -7735,7 +7687,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16245,
+      "id": 16241,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1085.25,
@@ -7747,7 +7699,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16246,
+      "id": 16242,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1083.04,
@@ -7759,7 +7711,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 16247,
+      "id": 16243,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -355.38,
@@ -7771,7 +7723,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71322,
+      "id": 16244,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -353.16,
@@ -7783,7 +7735,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71323,
+      "id": 16245,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1079.6,
@@ -7795,7 +7747,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71324,
+      "id": 16246,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1076.67,
@@ -7807,7 +7759,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71325,
+      "id": 16247,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1341.84,
@@ -7819,7 +7771,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71326,
+      "id": 71322,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1347.87,
@@ -7831,7 +7783,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71327,
+      "id": 71323,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -2067.26,
@@ -7843,7 +7795,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71328,
+      "id": 71324,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1625.15,
@@ -7855,7 +7807,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71329,
+      "id": 71325,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -550.49,
@@ -7867,7 +7819,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71330,
+      "id": 71326,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 391.31,
@@ -7879,7 +7831,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71331,
+      "id": 71327,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1627.86,
@@ -7891,7 +7843,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71332,
+      "id": 71328,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1502.78,
@@ -7903,7 +7855,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71333,
+      "id": 71329,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 178.75,
@@ -7915,7 +7867,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71334,
+      "id": 71330,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1519.23,
@@ -7927,7 +7879,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71335,
+      "id": 71331,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 93.05,
@@ -7939,7 +7891,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71336,
+      "id": 71332,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 130.75,
@@ -7951,7 +7903,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71337,
+      "id": 71333,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -1631.06,
@@ -7963,7 +7915,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71338,
+      "id": 71334,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -2755.2,
@@ -7975,7 +7927,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71339,
+      "id": 71335,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 383.35,
@@ -7987,7 +7939,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71340,
+      "id": 71336,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -2755.9,
@@ -7999,7 +7951,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71341,
+      "id": 71337,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 84.03,
@@ -8011,7 +7963,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71342,
+      "id": 71338,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -2756.33,
@@ -8023,7 +7975,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71343,
+      "id": 71339,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 79.61,
@@ -8035,7 +7987,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71344,
+      "id": 71340,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 90.35,
@@ -8047,7 +7999,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71345,
+      "id": 71341,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -898.19,
@@ -8059,7 +8011,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71346,
+      "id": 71342,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 252.56,
@@ -8071,7 +8023,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71347,
+      "id": 71343,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 308.29,
@@ -8083,7 +8035,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71348,
+      "id": 71344,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 339.66,
@@ -8095,7 +8047,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71349,
+      "id": 71345,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -550.2,
@@ -8107,7 +8059,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71350,
+      "id": 71346,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -431.64,
@@ -8119,7 +8071,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71351,
+      "id": 71347,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 260.14,
@@ -8131,7 +8083,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71352,
+      "id": 71348,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 290.55,
@@ -8143,7 +8095,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71353,
+      "id": 71349,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 341.44,
@@ -8155,7 +8107,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71354,
+      "id": 71350,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -389.86,
@@ -8167,7 +8119,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71355,
+      "id": 71351,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -50.95,
@@ -8179,7 +8131,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71356,
+      "id": 71352,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 251.57,
@@ -8191,7 +8143,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71357,
+      "id": 71353,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 302.9,
@@ -8203,7 +8155,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71358,
+      "id": 71354,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 346.67,
@@ -8215,7 +8167,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71359,
+      "id": 71355,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 384.74,
@@ -8227,7 +8179,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71360,
+      "id": 71356,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -384.48,
@@ -8239,7 +8191,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71361,
+      "id": 71357,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -352.79,
@@ -8251,7 +8203,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71362,
+      "id": 71358,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -34.0,
@@ -8263,7 +8215,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71363,
+      "id": 71359,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 258.52,
@@ -8275,7 +8227,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71364,
+      "id": 71360,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 308.74,
@@ -8287,7 +8239,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71365,
+      "id": 71361,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 344.86,
@@ -8299,7 +8251,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71366,
+      "id": 71362,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -401.29,
@@ -8311,7 +8263,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71367,
+      "id": 71363,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -399.25,
@@ -8323,7 +8275,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71368,
+      "id": 71364,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -346.74,
@@ -8335,7 +8287,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71369,
+      "id": 71365,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -380.48,
@@ -8347,7 +8299,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 71370,
+      "id": 71366,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -343.04,
@@ -8359,7 +8311,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77870,
+      "id": 71367,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -295.08,
@@ -8371,7 +8323,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77871,
+      "id": 71368,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 638.04,
@@ -8383,7 +8335,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77872,
+      "id": 71369,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -393.53,
@@ -8395,7 +8347,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77873,
+      "id": 71370,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -343.19,
@@ -8407,7 +8359,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77874,
+      "id": 77870,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -384.13,
@@ -8419,7 +8371,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77875,
+      "id": 77871,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 516.39,
@@ -8431,7 +8383,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77876,
+      "id": 77872,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 560.07,
@@ -8443,7 +8395,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77877,
+      "id": 77873,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 589.15,
@@ -8455,7 +8407,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77878,
+      "id": 77874,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 520.95,
@@ -8467,7 +8419,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77879,
+      "id": 77875,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 551.84,
@@ -8479,7 +8431,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77880,
+      "id": 77876,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 592.27,
@@ -8491,7 +8443,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77881,
+      "id": 77877,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 636.63,
@@ -8503,7 +8455,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77882,
+      "id": 77878,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 424.19,
@@ -8515,7 +8467,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77883,
+      "id": 77879,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 596.8,
@@ -8527,7 +8479,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77884,
+      "id": 77880,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 432.29,
@@ -8539,7 +8491,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77885,
+      "id": 77881,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 428.07,
@@ -8551,7 +8503,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77886,
+      "id": 77882,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 462.78,
@@ -8563,7 +8515,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77887,
+      "id": 77883,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 554.11,
@@ -8575,7 +8527,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77888,
+      "id": 77884,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 434.24,
@@ -8587,7 +8539,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 77889,
+      "id": 77885,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 553.28,
@@ -8599,7 +8551,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84396,
+      "id": 77886,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -483.44,
@@ -8611,7 +8563,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84397,
+      "id": 77887,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -445.15,
@@ -8623,7 +8575,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84399,
+      "id": 77888,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 524.81,
@@ -8635,7 +8587,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84400,
+      "id": 77889,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -479.37,
@@ -8647,7 +8599,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84401,
+      "id": 84396,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -443.05,
@@ -8659,7 +8611,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84402,
+      "id": 84397,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -400.94,
@@ -8671,7 +8623,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84403,
+      "id": 84399,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -352.49,
@@ -8683,7 +8635,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84404,
+      "id": 84400,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 474.81,
@@ -8695,7 +8647,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84405,
+      "id": 84401,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -427.83,
@@ -8707,7 +8659,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84406,
+      "id": 84402,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -382.08,
@@ -8719,7 +8671,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 84407,
+      "id": 84403,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -294.76,
@@ -8731,7 +8683,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97524,
+      "id": 84404,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 478.5,
@@ -8743,7 +8695,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97525,
+      "id": 84405,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 864.43,
@@ -8755,7 +8707,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97526,
+      "id": 84406,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -443.87,
@@ -8767,7 +8719,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97527,
+      "id": 84407,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -253.35,
@@ -8779,7 +8731,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97528,
+      "id": 97524,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 415.85,
@@ -8791,7 +8743,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97529,
+      "id": 97525,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 470.94,
@@ -8803,7 +8755,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97530,
+      "id": 97526,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -129.89,
@@ -8815,7 +8767,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97531,
+      "id": 97527,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": -387.38,
@@ -8827,7 +8779,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97532,
+      "id": 97528,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 422.13,
@@ -8839,7 +8791,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97533,
+      "id": 97529,
       "kind": "tree",
       "asset": "forest_impostor",
       "x": 338.81,
@@ -8851,7 +8803,7 @@
       "source": "surroundings: forest"
     },
     {
-      "id": 97534,
+      "id": 97530,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -8.29,
@@ -8863,7 +8815,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97535,
+      "id": 97531,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -10.57,
@@ -8875,7 +8827,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97536,
+      "id": 97532,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 98.1,
@@ -8887,7 +8839,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97537,
+      "id": 97533,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 95.75,
@@ -8899,7 +8851,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97538,
+      "id": 97534,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 272.51,
@@ -8911,7 +8863,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97539,
+      "id": 97535,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 270.75,
@@ -8923,7 +8875,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97540,
+      "id": 97536,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 304.55,
@@ -8935,7 +8887,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97541,
+      "id": 97537,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 304.77,
@@ -8947,7 +8899,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97542,
+      "id": 97538,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 228.06,
@@ -8959,7 +8911,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97543,
+      "id": 97539,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 230.35,
@@ -8971,7 +8923,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97544,
+      "id": 97540,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 232.51,
@@ -8983,7 +8935,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97545,
+      "id": 97541,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 232.55,
@@ -8995,7 +8947,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97546,
+      "id": 97542,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 203.37,
@@ -9007,7 +8959,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97547,
+      "id": 97543,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 204.68,
@@ -9019,7 +8971,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97548,
+      "id": 97544,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 18.78,
@@ -9031,7 +8983,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97549,
+      "id": 97545,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 21.11,
@@ -9043,7 +8995,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97550,
+      "id": 97546,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -152.81,
@@ -9055,7 +9007,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97551,
+      "id": 97547,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -151.65,
@@ -9067,7 +9019,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97552,
+      "id": 97548,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -71.87,
@@ -9079,7 +9031,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97553,
+      "id": 97549,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -74.29,
@@ -9091,7 +9043,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97554,
+      "id": 97550,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 83.19,
@@ -9103,7 +9055,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97555,
+      "id": 97551,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 80.83,
@@ -9115,7 +9067,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97556,
+      "id": 97552,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 194.91,
@@ -9127,7 +9079,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97557,
+      "id": 97553,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 192.7,
@@ -9139,7 +9091,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97558,
+      "id": 97554,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 381.79,
@@ -9151,7 +9103,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97559,
+      "id": 97555,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 379.58,
@@ -9163,7 +9115,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97560,
+      "id": 97556,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 475.21,
@@ -9175,7 +9127,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97561,
+      "id": 97557,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 473.03,
@@ -9187,7 +9139,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97562,
+      "id": 97558,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 545.53,
@@ -9199,7 +9151,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97563,
+      "id": 97559,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 544.7,
@@ -9211,7 +9163,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97564,
+      "id": 97560,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 497.29,
@@ -9223,7 +9175,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97565,
+      "id": 97561,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 498.25,
@@ -9235,7 +9187,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97566,
+      "id": 97562,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 430.41,
@@ -9247,7 +9199,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97567,
+      "id": 97563,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 432.73,
@@ -9259,7 +9211,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97568,
+      "id": 97564,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 298.52,
@@ -9271,7 +9223,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97569,
+      "id": 97565,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 300.95,
@@ -9283,7 +9235,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97570,
+      "id": 97566,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 145.8,
@@ -9295,7 +9247,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97571,
+      "id": 97567,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 147.58,
@@ -9307,7 +9259,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97572,
+      "id": 97568,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 77.49,
@@ -9319,7 +9271,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97573,
+      "id": 97569,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 77.38,
@@ -9331,7 +9283,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97574,
+      "id": 97570,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 91.4,
@@ -9343,7 +9295,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97575,
+      "id": 97571,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 90.69,
@@ -9355,7 +9307,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97576,
+      "id": 97572,
       "kind": "sign",
       "asset": "marshal_post",
       "x": 145.75,
@@ -9367,7 +9319,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97577,
+      "id": 97573,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": 147.23,
@@ -9379,7 +9331,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97578,
+      "id": 97574,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -9.14,
@@ -9391,7 +9343,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97579,
+      "id": 97575,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -6.82,
@@ -9403,7 +9355,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97580,
+      "id": 97576,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -148.33,
@@ -9415,7 +9367,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97581,
+      "id": 97577,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -146.02,
@@ -9427,7 +9379,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97582,
+      "id": 97578,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -241.97,
@@ -9439,7 +9391,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97583,
+      "id": 97579,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -239.67,
@@ -9451,7 +9403,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97584,
+      "id": 97580,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -292.02,
@@ -9463,7 +9415,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97585,
+      "id": 97581,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -292.71,
@@ -9475,7 +9427,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97586,
+      "id": 97582,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -149.62,
@@ -9487,7 +9439,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97587,
+      "id": 97583,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -151.84,
@@ -9499,7 +9451,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97588,
+      "id": 97584,
       "kind": "sign",
       "asset": "marshal_post",
       "x": -12.21,
@@ -9511,7 +9463,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97589,
+      "id": 97585,
       "kind": "misc",
       "asset": "marshal_figure",
       "x": -14.49,
@@ -9523,7 +9475,7 @@
       "source": "surroundings: marshal posts"
     },
     {
-      "id": 97590,
+      "id": 97586,
       "kind": "misc",
       "asset": "crowd_group",
       "x": 189.11,
@@ -9535,7 +9487,7 @@
       "source": "surroundings: people"
     },
     {
-      "id": 97591,
+      "id": 97587,
       "kind": "board",
       "asset": "light_panel",
       "x": -11.05,
@@ -9547,7 +9499,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 97592,
+      "id": 97588,
       "kind": "board",
       "asset": "light_panel",
       "x": 95.09,
@@ -9559,7 +9511,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101376,
+      "id": 97589,
       "kind": "board",
       "asset": "light_panel",
       "x": 269.95,
@@ -9571,7 +9523,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101377,
+      "id": 97590,
       "kind": "board",
       "asset": "light_panel",
       "x": 304.83,
@@ -9583,7 +9535,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101378,
+      "id": 97591,
       "kind": "board",
       "asset": "light_panel",
       "x": 232.88,
@@ -9595,7 +9547,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101379,
+      "id": 97592,
       "kind": "board",
       "asset": "light_panel",
       "x": 232.57,
@@ -9607,7 +9559,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101380,
+      "id": 101376,
       "kind": "board",
       "asset": "light_panel",
       "x": 205.31,
@@ -9619,7 +9571,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101381,
+      "id": 101377,
       "kind": "board",
       "asset": "light_panel",
       "x": 21.8,
@@ -9631,7 +9583,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101382,
+      "id": 101378,
       "kind": "board",
       "asset": "light_panel",
       "x": -151.04,
@@ -9643,7 +9595,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101383,
+      "id": 101379,
       "kind": "board",
       "asset": "light_panel",
       "x": -74.84,
@@ -9655,7 +9607,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101384,
+      "id": 101380,
       "kind": "board",
       "asset": "light_panel",
       "x": 80.09,
@@ -9667,7 +9619,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101385,
+      "id": 101381,
       "kind": "board",
       "asset": "light_panel",
       "x": 192.27,
@@ -9679,7 +9631,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101386,
+      "id": 101382,
       "kind": "board",
       "asset": "light_panel",
       "x": 379.15,
@@ -9691,7 +9643,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101387,
+      "id": 101383,
       "kind": "board",
       "asset": "light_panel",
       "x": 472.61,
@@ -9703,7 +9655,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101388,
+      "id": 101384,
       "kind": "board",
       "asset": "light_panel",
       "x": 544.29,
@@ -9715,7 +9667,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101389,
+      "id": 101385,
       "kind": "board",
       "asset": "light_panel",
       "x": 498.43,
@@ -9727,7 +9679,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101390,
+      "id": 101386,
       "kind": "board",
       "asset": "light_panel",
       "x": 434.46,
@@ -9739,7 +9691,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101391,
+      "id": 101387,
       "kind": "board",
       "asset": "light_panel",
       "x": 302.09,
@@ -9751,7 +9703,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 101392,
+      "id": 101388,
       "kind": "board",
       "asset": "light_panel",
       "x": 148.22,
@@ -9763,7 +9715,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103924,
+      "id": 101389,
       "kind": "board",
       "asset": "light_panel",
       "x": 77.3,
@@ -9775,7 +9727,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103925,
+      "id": 101390,
       "kind": "board",
       "asset": "light_panel",
       "x": 90.53,
@@ -9787,7 +9739,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103926,
+      "id": 101391,
       "kind": "board",
       "asset": "light_panel",
       "x": 148.18,
@@ -9799,7 +9751,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103927,
+      "id": 101392,
       "kind": "board",
       "asset": "light_panel",
       "x": -6.32,
@@ -9811,7 +9763,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103928,
+      "id": 103924,
       "kind": "board",
       "asset": "light_panel",
       "x": -145.55,
@@ -9823,7 +9775,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103929,
+      "id": 103925,
       "kind": "board",
       "asset": "light_panel",
       "x": -238.96,
@@ -9835,7 +9787,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103930,
+      "id": 103926,
       "kind": "board",
       "asset": "light_panel",
       "x": -292.89,
@@ -9847,7 +9799,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103931,
+      "id": 103927,
       "kind": "board",
       "asset": "light_panel",
       "x": -152.32,
@@ -9859,7 +9811,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103932,
+      "id": 103928,
       "kind": "board",
       "asset": "light_panel",
       "x": -14.97,
@@ -9871,7 +9823,7 @@
       "source": "surroundings: light panels"
     },
     {
-      "id": 103933,
+      "id": 103929,
       "kind": "board",
       "asset": "corner_sign",
       "x": -185.09,
@@ -9883,7 +9835,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103934,
+      "id": 103930,
       "kind": "board",
       "asset": "corner_sign",
       "x": 206.68,
@@ -9895,7 +9847,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103935,
+      "id": 103931,
       "kind": "board",
       "asset": "corner_sign",
       "x": 307.74,
@@ -9907,7 +9859,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103936,
+      "id": 103932,
       "kind": "board",
       "asset": "corner_sign",
       "x": 294.84,
@@ -9919,7 +9871,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103937,
+      "id": 103933,
       "kind": "board",
       "asset": "corner_sign",
       "x": 226.98,
@@ -9931,7 +9883,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103938,
+      "id": 103934,
       "kind": "board",
       "asset": "corner_sign",
       "x": 149.56,
@@ -9943,7 +9895,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103939,
+      "id": 103935,
       "kind": "board",
       "asset": "corner_sign",
       "x": -111.43,
@@ -9955,7 +9907,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103940,
+      "id": 103936,
       "kind": "board",
       "asset": "corner_sign",
       "x": -96.63,
@@ -9967,7 +9919,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103941,
+      "id": 103937,
       "kind": "board",
       "asset": "corner_sign",
       "x": 138.69,
@@ -9979,7 +9931,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103942,
+      "id": 103938,
       "kind": "board",
       "asset": "corner_sign",
       "x": 478.15,
@@ -9991,7 +9943,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103943,
+      "id": 103939,
       "kind": "board",
       "asset": "corner_sign",
       "x": 540.51,
@@ -10003,7 +9955,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103944,
+      "id": 103940,
       "kind": "board",
       "asset": "corner_sign",
       "x": 460.55,
@@ -10015,7 +9967,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103945,
+      "id": 103941,
       "kind": "board",
       "asset": "corner_sign",
       "x": 333.21,
@@ -10027,7 +9979,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103946,
+      "id": 103942,
       "kind": "board",
       "asset": "corner_sign",
       "x": 221.08,
@@ -10039,7 +9991,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103947,
+      "id": 103943,
       "kind": "board",
       "asset": "corner_sign",
       "x": 89.45,
@@ -10051,7 +10003,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103948,
+      "id": 103944,
       "kind": "board",
       "asset": "corner_sign",
       "x": 144.57,
@@ -10063,7 +10015,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103949,
+      "id": 103945,
       "kind": "board",
       "asset": "corner_sign",
       "x": -158.59,
@@ -10075,7 +10027,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103950,
+      "id": 103946,
       "kind": "board",
       "asset": "corner_sign",
       "x": -258.08,
@@ -10087,7 +10039,7 @@
       "source": "surroundings: corner signs"
     },
     {
-      "id": 103951,
+      "id": 103947,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -12.41,
@@ -10099,7 +10051,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 103952,
+      "id": 103948,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 211.02,
@@ -10111,7 +10063,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 103953,
+      "id": 103949,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 319.71,
@@ -10123,7 +10075,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110448,
+      "id": 103950,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 188.85,
@@ -10135,7 +10087,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110449,
+      "id": 103951,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 167.91,
@@ -10147,7 +10099,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110450,
+      "id": 103952,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -33.08,
@@ -10159,7 +10111,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110451,
+      "id": 103953,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -114.16,
@@ -10171,7 +10123,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110452,
+      "id": 110448,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 117.2,
@@ -10183,7 +10135,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110453,
+      "id": 110449,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 311.83,
@@ -10195,7 +10147,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110454,
+      "id": 110450,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 508.79,
@@ -10207,7 +10159,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110455,
+      "id": 110451,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 521.07,
@@ -10219,7 +10171,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110456,
+      "id": 110452,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 372.62,
@@ -10231,7 +10183,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110457,
+      "id": 110453,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 147.01,
@@ -10243,7 +10195,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110458,
+      "id": 110454,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 134.44,
@@ -10255,7 +10207,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110459,
+      "id": 110455,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": 71.49,
@@ -10267,7 +10219,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110460,
+      "id": 110456,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -152.1,
@@ -10279,7 +10231,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110461,
+      "id": 110457,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -308.36,
@@ -10291,7 +10243,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110462,
+      "id": 110458,
       "kind": "light",
       "asset": "floodlight_tower",
       "x": -163.4,
@@ -10303,7 +10255,7 @@
       "source": "surroundings: floodlights"
     },
     {
-      "id": 110463,
+      "id": 110459,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 296.99,
@@ -10315,7 +10267,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110464,
+      "id": 110460,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 298.72,
@@ -10327,7 +10279,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110465,
+      "id": 110461,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 209.19,
@@ -10339,7 +10291,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110466,
+      "id": 110462,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 208.83,
@@ -10351,7 +10303,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110467,
+      "id": 110463,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 209.0,
@@ -10363,7 +10315,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110468,
+      "id": 110464,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 130.32,
@@ -10375,7 +10327,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110469,
+      "id": 110465,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 58.25,
@@ -10387,7 +10339,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110470,
+      "id": 110466,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 3.93,
@@ -10399,7 +10351,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110471,
+      "id": 110467,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -88.04,
@@ -10411,7 +10363,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110472,
+      "id": 110468,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -76.62,
@@ -10423,7 +10375,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110473,
+      "id": 110469,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 93.2,
@@ -10435,7 +10387,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110474,
+      "id": 110470,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 132.76,
@@ -10447,7 +10399,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110475,
+      "id": 110471,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 532.98,
@@ -10459,7 +10411,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110476,
+      "id": 110472,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 516.44,
@@ -10471,7 +10423,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110477,
+      "id": 110473,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 415.61,
@@ -10483,7 +10435,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110478,
+      "id": 110474,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 371.41,
@@ -10495,7 +10447,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110479,
+      "id": 110475,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 291.99,
@@ -10507,7 +10459,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110480,
+      "id": 110476,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 251.44,
@@ -10519,7 +10471,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110481,
+      "id": 110477,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 140.6,
@@ -10531,7 +10483,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110482,
+      "id": 110478,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 112.93,
@@ -10543,7 +10495,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110483,
+      "id": 110479,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 96.62,
@@ -10555,7 +10507,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110484,
+      "id": 110480,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 109.16,
@@ -10567,7 +10519,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110485,
+      "id": 110481,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 127.57,
@@ -10579,7 +10531,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110486,
+      "id": 110482,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 94.09,
@@ -10591,7 +10543,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110487,
+      "id": 110483,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -164.45,
@@ -10603,7 +10555,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110488,
+      "id": 110484,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -125.21,
@@ -10615,7 +10567,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110489,
+      "id": 110485,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 283.92,
@@ -10627,7 +10579,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110490,
+      "id": 110486,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 278.06,
@@ -10639,7 +10591,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110491,
+      "id": 110487,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 221.41,
@@ -10651,7 +10603,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110492,
+      "id": 110488,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 149.49,
@@ -10663,7 +10615,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110493,
+      "id": 110489,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 106.15,
@@ -10675,7 +10627,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110494,
+      "id": 110490,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 18.1,
@@ -10687,7 +10639,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110495,
+      "id": 110491,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -22.04,
@@ -10699,7 +10651,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110496,
+      "id": 110492,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -101.08,
@@ -10711,7 +10663,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110497,
+      "id": 110493,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -58.52,
@@ -10723,7 +10675,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110498,
+      "id": 110494,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 63.9,
@@ -10735,7 +10687,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110499,
+      "id": 110495,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 108.16,
@@ -10747,7 +10699,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110500,
+      "id": 110496,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 469.63,
@@ -10759,7 +10711,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110501,
+      "id": 110497,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 514.52,
@@ -10771,7 +10723,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110502,
+      "id": 110498,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 445.06,
@@ -10783,7 +10735,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110503,
+      "id": 110499,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 393.0,
@@ -10795,7 +10747,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110504,
+      "id": 110500,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 343.01,
@@ -10807,7 +10759,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110505,
+      "id": 110501,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 275.46,
@@ -10819,7 +10771,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110506,
+      "id": 110502,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 213.05,
@@ -10831,7 +10783,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110507,
+      "id": 110503,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 135.4,
@@ -10843,7 +10795,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110508,
+      "id": 110504,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 116.78,
@@ -10855,7 +10807,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110509,
+      "id": 110505,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 113.32,
@@ -10867,7 +10819,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110510,
+      "id": 110506,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 119.0,
@@ -10879,7 +10831,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110511,
+      "id": 110507,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": 77.89,
@@ -10891,7 +10843,7 @@
       "source": "kerb pieces"
     },
     {
-      "id": 110512,
+      "id": 110508,
       "kind": "misc",
       "asset": "kerb_marker",
       "x": -224.51,

@@ -192,6 +192,8 @@ class APEXSIM_API FApexTrackSceneBuilder
 public:
 	/** Actor tag on every prop: the racing line and cameras skip them. */
 	static const FName PropTag;
+	/** On the actor of props shown only after dark (`FApexTrackProp::bNightOnly`). */
+	static const FName NightOnlyTag;
 	/** Actor and component tag on every baked track surface: the road the racing line sits on. */
 	static const FName TrackMeshTag;
 	/** Actor tag on the start-light gantry, and component tag on each of its lenses. */

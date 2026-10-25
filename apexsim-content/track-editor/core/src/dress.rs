@@ -788,6 +788,16 @@ fn lay_banking(
 /// roof (`Landmark::pit_roof`).
 const PIT_ROOF_STAMP: &str = "pit roof";
 
+/// The stamp the surroundings pass gives the floodlight masts it puts
+/// round a circuit that maps no lighting (`surroundings::floodlights`).
+pub const FLOODLIGHT_STAMP: &str = "surroundings: floodlights";
+
+/// A mast the dressing pass generated rather than the circuit's own: the
+/// export marks it night-only, so by day the circuit looks as it is.
+pub fn generated_floodlight(prop: &Prop) -> bool {
+    prop.asset == "floodlight_tower" && prop.source.as_deref() == Some(FLOODLIGHT_STAMP)
+}
+
 /// A prop the dressing pass stood on the pit building's roof, which
 /// grooming leaves where it is.
 pub fn on_the_pit_roof(prop: &Prop) -> bool {
@@ -2921,6 +2931,10 @@ mod surroundings {
     const MAX_CARS_PER_PARK: usize = 120;
     /// Lamp posts around a car park's edge.
     const LAMP_SPACING_M: f32 = 30.0;
+    /// No car-park lamp this close to the road edge, metres: there the
+    /// park's edge is the trackside fence, and a row of lamps along it
+    /// reads as track lighting at a circuit that has none.
+    const LAMP_ROAD_CLEAR_M: f32 = 25.0;
     /// A marshal post stands at every named corner, and on a straight
     /// this far apart: a real circuit has a post every 100-200 m (51 at
     /// the GP Nurburgring, 40 at Sakhir, 35 at Shanghai), three times what
@@ -3364,7 +3378,9 @@ mod surroundings {
     }
 
     /// Lamp posts along a car park's edge, at a fixed spacing so the
-    /// lighting reads as laid out rather than scattered.
+    /// lighting reads as laid out rather than scattered; none within
+    /// [`LAMP_ROAD_CLEAR_M`] of the road, where a car park's edge runs
+    /// along the trackside fence and its lamps read as track lighting.
     fn lamps_around(ctx: &Ctx, area: &crate::layout::Area, out: &mut Vec<Prop>) {
         let ring = &area.ring;
         let mut carried = 0.0f32;
@@ -3375,8 +3391,13 @@ mod surroundings {
             while along < length {
                 let t = along / length;
                 let (x, y) = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
-                if let Some(prop) = ctx.place(PropKind::Light, "lamp_post", x, y, None) {
-                    out.push(prop);
+                let (sample, lat) = nearest_cross_section(ctx.path, x, y);
+                let side = if lat >= 0.0 { Side::Left } else { Side::Right };
+                let off_road = lat.abs() - side_half_width(&sample, side);
+                if off_road >= LAMP_ROAD_CLEAR_M {
+                    if let Some(prop) = ctx.place(PropKind::Light, "lamp_post", x, y, None) {
+                        out.push(prop);
+                    }
                 }
                 along += LAMP_SPACING_M;
             }

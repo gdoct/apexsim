@@ -428,6 +428,11 @@ pub struct UeProp {
     /// importer scales the 15 m span to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub span_m: Option<f32>,
+    /// Shown only after dark: the floodlight masts the dressing pass put
+    /// round a circuit that maps no lighting of its own, so a night
+    /// session can be driven while the day looks like the real place.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub night_only: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -4311,6 +4316,7 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
         length_m,
         radius_m,
         span_m,
+        night_only: crate::dress::generated_floodlight(p),
     }
 }
 
@@ -4430,6 +4436,7 @@ fn bake_drs_boards(
                     length_m: None,
                     radius_m: None,
                     span_m: None,
+                    night_only: false,
                 });
             }
         }
@@ -4515,6 +4522,7 @@ fn pit_module(
         length_m: None,
         radius_m: None,
         span_m: None,
+        night_only: false,
     }
 }
 
@@ -4668,6 +4676,7 @@ fn pit_signs(lane: &CenterlinePath, width_m: f32, side: f32, layout: &PitLayout)
             length_m: None,
             radius_m: None,
             span_m: None,
+            night_only: false,
         }
     };
     vec![
