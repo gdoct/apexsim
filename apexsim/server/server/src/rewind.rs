@@ -28,9 +28,9 @@ pub const DEPTH_SECONDS: u32 = 60;
 /// few seconds lands where it was asked.
 pub const FINE_SECONDS: u32 = 10;
 
-/// Further back, the ring holds one snapshot this often, s: the pause
-/// menu's 10 s steps land on one, and a long circuit's ring stays a third
-/// of its size (a snapshot is 4 MB at the Nordschleife).
+/// Further back, the ring holds one snapshot this often, s (a rewind
+/// lands within half of it of the time asked), and a long circuit's ring
+/// stays a third of its size (a snapshot is 4 MB at the Nordschleife).
 pub const COARSE_SECONDS: u32 = 5;
 
 /// How long the cars stand still after a rewind before the session runs
