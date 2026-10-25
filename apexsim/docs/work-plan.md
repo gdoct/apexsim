@@ -53,7 +53,6 @@ takes it up (— : no step, taken opportunistically).
 | G8 | Daytime sky: haze and high cloud (roadmap 45) | Rendering | P2 | 🟡 | S | 2 |
 | C11 | Start gantry mesh (roadmap 46) | Content | P2 | 🟡 | S | 2 |
 | C12 | Formula car up close (roadmap 47) | Content | P2 | 🟡 | S–M | 2 |
-| G9 | Mirror faces glow from outside at low exposure (roadmap 48) | Rendering | P2 | 🟢 | S | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -80,7 +79,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison
-   (G7 to G9 and C6 to C12, in any order, each judged on the `sf-ref-*`
+   (G7, G8 and C6 to C12, in any order, each judged on the `sf-ref-*`
    frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
@@ -192,12 +191,6 @@ judged on the `sf-ref-*` frames of Armadillos and two other circuits.
 far haze is verified at the Nordschleife only) and a thin cirrus veil
 inside `sunny` or as a high, thin `cloudy`. Judged on the `sf-ref-*` frames against
 the live one.
-
-#### G9. Mirror faces glow from outside at low exposure — P2 · 🟢 · S
-*Source: roadmap 48.* `ScreenNitsAt` scales the mirror and display
-emissive for the seat; from a chase rung at dusk the faces burn out and
-throw two lobes on the road. Clamp from outside, or cockpit-only; checked
-with the sunset frame's recipe before and after.
 
 ### Content and circuits
 

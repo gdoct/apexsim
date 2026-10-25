@@ -9109,6 +9109,72 @@ runs:
       - {at: 9, label: "tcam on the grid", checks: "G10: over the roof, the windscreen frame and bonnet ahead"}
       - {at: 30, label: "tcam racing", checks: "G10: outside the body, horizon level"}
       - {at: 45, label: "tcam racing", checks: "G10"}
+
+  # Mirror and display faces seen from outside the car at low exposure
+  # (roadmap 48): the first COTA comparison's sunset frame (chase roof,
+  # late sun) showed the SF-26's mirrors burnt to pink-white with two
+  # bright lobes on the road ahead; the cockpit at night must keep its
+  # readable faces.
+  - id: g9-mirrors-dusk
+    about: "G9. Mirror faces from outside the car at dusk, and the cockpit at night"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=18:55
+      - -ApexView=roof
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "chase roof at dusk", checks: "G9: the mirrors' glass not burnt out, no lobes on the road ahead"}
+      - {at: 14, lead: 1, label: "tcam at dusk", checks: "G9: the mirrors from above", exec: "apexsim.cam.Chase tcam"}
+      - {at: 18, lead: 1, label: "cockpit at dusk", checks: "G9: the mirrors and the wheel's screen readable from the seat", exec: "apexsim.cam.Chase cockpit"}
+      - {at: 22, lead: 1, label: "the grid behind", checks: "G9: the AI cars' mirrors and noses at the same exposure, no beams on the road", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 -46.7 40.4 1.0"}
+
+  - id: g9-mirrors-night
+    about: "G9. The cockpit's mirrors and display at night, and from the chase rung"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=21:30
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit at night", checks: "G9: the display and mirrors read as by day, not white rectangles"}
+      - {at: 14, lead: 1, label: "chase roof at night", checks: "G9: no beams on the road from an open-wheeler", exec: "apexsim.cam.Chase roof"}
+
+  - id: g9-headlights-gt3
+    about: "G9. A closed car at night keeps its headlight beams"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=21:30
+      - -ApexView=near
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "chase near at night", checks: "G9: the GT3's beams on the road ahead"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

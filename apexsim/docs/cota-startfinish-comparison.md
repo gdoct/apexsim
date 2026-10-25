@@ -32,7 +32,10 @@ The first comparison set this frame against a chase `roof` shot at
 sunset. The reshoot at midday closed what the hour alone explained: the
 orange gradient, the rim-lit stands and the road in shadow are gone, and
 the two bright lobes on the road ahead of the car do not show at midday
-exposure (package 48 is checked on the sunset recipe for them). What it
+exposure. They were the car's headlights, which the server switches on
+with the sun under 6 degrees; an open-wheeler throws no beam since
+(package 48), and the mirror faces seen from behind are the car's own
+chrome glass reflecting the sky, not the cockpit's screens. What it
 left are real gaps, and the same frames at Monzarella and Shiverstone
 show each of them too: the same generic white box gantry on lattice legs
 (46), a uniform charcoal road (39), grid boxes without numbers (40), no

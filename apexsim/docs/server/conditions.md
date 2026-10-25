@@ -590,6 +590,14 @@ the AI and an old client get `LiveConditions::headlights_needed` (sun under
 as `lap_flags` bits 5 and 6 (`LAP_FLAG_HEADLIGHTS`,
 `LAP_FLAG_HEADLIGHT_FLASH`).
 
+On the client (`AApexRaceCarActor::SetHeadlights`) a car with its lights
+on shows two spot lamps at the nose and its tail lights at the running
+level. An open-wheeler (`FApexCockpitLayout::bOpenWheel`) has no
+headlamps: it keeps the switch and the tail lights but throws no beam
+(`ThrowsHeadlightBeams`), so a formula car at dusk lays no bright discs on
+the road ahead of its nose. Verify runs `g9-mirrors-dusk`,
+`g9-mirrors-night`, `g9-headlights-gt3`.
+
 ## Wire
 
 - `CreateSession.conditions`, `SessionJoined.Conditions`,

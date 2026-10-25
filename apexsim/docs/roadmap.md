@@ -336,23 +336,6 @@ kit's density at T-cam distance.
 **Check:** the `sf-ref-*` frame and the car-select turntable; every name
 stays invented ([naming.md](../../apexsim-content/docs/naming.md)).
 
-### 48. Mirror and display faces seen from outside at low exposure
-
-`ScreenNitsAt` scales the cockpit display's and mirror faces' emissive with
-the exposure so they stay readable from the seat. Seen from a chase rung at
-dusk the mirror faces burn to pink-white and throw two bright lobes onto
-the road ahead.
-
-- Clamp the face brightness seen from outside the car, or apply the scaled
-  nits only while the view is the cockpit (`ApexCockpitRig`); check the
-  emissive does not light the road through Lumen.
-
-**Check:** the old sunset frame's recipe (chase `roof`, 19:00) with and
-without the change; the cockpit view at night unchanged (verification.md's
-night row).
-
-## P3: nice to have
-
 ### 50. A broadcast HUD layout
 
 - A shipped layout with a timing tower, a lower third (position, driver,

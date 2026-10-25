@@ -749,11 +749,11 @@ void AApexRaceCarActor::SetHeadlights(bool bOn, bool bFullBeam)
 	{
 		if (Lamp)
 		{
-			Lamp->SetVisibility(bOn);
 			Lamp->SetIntensity(Lumens);
 			Lamp->SetAttenuationRadius(Reach);
 		}
 	}
+	ApplyHeadlightBeams();
 	if (!bSwitched)
 	{
 		return;
@@ -761,6 +761,29 @@ void AApexRaceCarActor::SetHeadlights(bool bOn, bool bFullBeam)
 	// The tail lights follow: dim running lights with the headlights on.
 	TailLightState = -1;
 	UpdateBrakeLights();
+}
+
+bool AApexRaceCarActor::ThrowsHeadlightBeams()
+{
+	return !GetCockpitLayout().bOpenWheel;
+}
+
+void AApexRaceCarActor::ApplyHeadlightBeams()
+{
+	if (!HeadlightLeft && !HeadlightRight)
+	{
+		return;
+	}
+	// A formula car has no headlamps: lit, it threw two hot discs onto the
+	// road ahead of its nose at dusk, which no real one does.
+	const bool bVisible = bHeadlightsOn && ThrowsHeadlightBeams();
+	for (USpotLightComponent* Lamp : { HeadlightLeft.Get(), HeadlightRight.Get() })
+	{
+		if (Lamp)
+		{
+			Lamp->SetVisibility(bVisible);
+		}
+	}
 }
 
 void AApexRaceCarActor::PlaceHeadlights()
@@ -784,6 +807,7 @@ void AApexRaceCarActor::PlaceHeadlights()
 	const FRotator Aim(-1.5f, 0.0f, 0.0f);
 	HeadlightLeft->SetRelativeLocationAndRotation(FVector(X, Y, Z), Aim);
 	HeadlightRight->SetRelativeLocationAndRotation(FVector(X, -Y, Z), Aim);
+	ApplyHeadlightBeams();
 }
 
 void AApexRaceCarActor::SetPuppetState(

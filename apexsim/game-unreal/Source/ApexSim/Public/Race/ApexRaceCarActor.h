@@ -170,6 +170,12 @@ public:
 	 */
 	void SetHeadlights(bool bOn, bool bFullBeam = false);
 	bool HasHeadlights() const { return bHeadlightsOn; }
+	/**
+	 * Whether the lamps light the world: a closed car's do; an open-wheeler
+	 * has no headlamps, so it keeps the switch (telemetry, the tail lights'
+	 * running level) and throws no beam.
+	 */
+	bool ThrowsHeadlightBeams();
 
 	/**
 	 * The rain light: the red lamp (the `car_rainlight` material slot) a car
@@ -365,7 +371,7 @@ private:
 	FApexCockpitLayout CockpitLayout;
 	bool bCockpitLayoutValid = false;
 	uint32 CockpitRevision = 0;
-	void InvalidateCockpitLayout() { bCockpitLayoutValid = false; ++CockpitRevision; }
+	void InvalidateCockpitLayout() { bCockpitLayoutValid = false; ++CockpitRevision; ApplyHeadlightBeams(); }
 
 	UPROPERTY(Transient)
 	TObjectPtr<UApexEngineSoundWave> EngineSound;
@@ -531,6 +537,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<USpotLightComponent> HeadlightRight;
 	bool bHeadlightsOn = false;
+	/** The spot lamps shown while the lights are on and the car has headlamps. */
+	void ApplyHeadlightBeams();
 	bool bHeadlightsFullBeam = false;
 	/** What the tail lights show: 0 dark, 1 running lights, 2 braking. */
 	int32 TailLightState = -1;
