@@ -208,6 +208,13 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s scripts/site/tests
 
+      # docs/verification/verification-items.yml, the verification backlog
+      # (docs/verifier.md); out/verify is not in git, so no evidence paths.
+      - name: Verification backlog
+        run: |
+          python scripts/verify/verifier.py check --no-paths
+          python -m unittest discover -s scripts/verify/tests
+
   client:
     name: Client (Unreal project sanity)
     runs-on: ubuntu-latest

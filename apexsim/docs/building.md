@@ -247,7 +247,9 @@ content), and none is filtered by path.
 - `formats`: fmt, clippy `--all-targets -D warnings` and `cargo test` in
   `apexsim-lib/formats`.
 - `site` rebuilds the marketing page and fails when `docs/` is behind
-  ([marketing-site.md](marketing-site.md)).
+  ([marketing-site.md](marketing-site.md)), runs its unit tests, and checks
+  the verification backlog (`verifier.py check --no-paths` and
+  `scripts/verify/tests`, [verifier.md](verifier.md)).
 - `client` only checks the `.uproject` and the target/module files exist
   (`ApexPhysics.Build.cs` among them). The Unreal code is not compiled in
   CI, and nothing builds the client's copy of the physics library there.
@@ -512,6 +514,15 @@ the streams of those files on every start (`launcher/unblock.cpp`, as
 touched: a car, track or HUD the player downloads later keeps its mark, a
 package without `unblock.txt` unblocks nothing, and a source checkout never
 runs it.
+
+## Verification runs and the verifier
+
+The unattended screen runs and the wheel sittings are
+`scripts/verify/run_checks.py` ([verification.md](verification.md)); the
+backlog they clear is `docs/verification/verification-items.yml`, and
+`python scripts/verify/verifier.py serve` (from `apexsim/`) is its review
+page on http://localhost:9410 ([verifier.md](verifier.md)). Both need only
+Python with PyYAML and Pillow.
 
 ## Reclaiming disk space
 

@@ -296,6 +296,31 @@ stays invented ([naming.md](../../apexsim-content/docs/naming.md)).
 **Check:** `ApexSim.Hud.Data.Stable` and `.Documented` pass (no new data
 points, or they are listed); the layout in a watch-session shot.
 
+### 51. The verifier: shot ids, sitting mode, stale evidence
+
+The rest of the review page and its feed ([verifier.md](verifier.md)).
+
+- `item:` ids on the shots in `scripts/verify/runs.yml` that already map
+  to items (the C5, roadmap 38, blue flag and R-series shots: most by the
+  pattern of their `checks` text), so `run_checks.py` registers them.
+- Sitting mode: one `sittings.yml` block's items as a checklist with the
+  block's answer words as big buttons, large type, no mouse (a tablet or a
+  phone beside the wheel); an answer held as a review (`review.answer`, the
+  first answer word confirmed, any other not-right with the word as its
+  comment); the block's MARK lines from `marks.md` under its checks after
+  the sitting. `serve --lan` to reach it from the tablet.
+- Stale evidence: an item whose newest evidence is older than its own
+  `commit` greyed and sorted with the waiting group, the run to repeat
+  named.
+- Before and after: an item's evidence from two runs or two commits side
+  by side, shot for shot.
+- `o` on an item copies the command that opens its evidence in the game
+  (`-ApexWatchReplay` with the run's replay file) when the run kept one.
+
+**Check:** `scripts/verify/tests` for the answer mapping and the stale
+rule; a run with `item:` ids registering itself; a sitting block walked on
+a tablet over the LAN.
+
 
 ### 17. League rules
 

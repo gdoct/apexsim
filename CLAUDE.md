@@ -131,8 +131,9 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
 - Anything left for later goes in [apexsim/docs/simulation-gaps.md](apexsim/docs/simulation-gaps.md)
   (simulation and racing rules), [apexsim/docs/follow-ups.md](apexsim/docs/follow-ups.md)
   (bugs, edge cases and cleanup left on a built feature),
-  [apexsim/docs/verification.md](apexsim/docs/verification.md) (built but not yet seen in
-  the game, heard or felt on hardware) or [apexsim/docs/roadmap.md](apexsim/docs/roadmap.md)
+  `apexsim/docs/verification/verification-items.yml` (built but not yet seen in
+  the game, heard or felt on hardware: an item with an id, through
+  `scripts/verify/verifier.py add`; [apexsim/docs/verifier.md](apexsim/docs/verifier.md)) or [apexsim/docs/roadmap.md](apexsim/docs/roadmap.md)
   (product, UI, content and tooling features not started); delete the row
   when it is done.
 - Working through [apexsim/docs/work-plan.md](apexsim/docs/work-plan.md), commit after every

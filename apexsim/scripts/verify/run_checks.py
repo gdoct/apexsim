@@ -531,6 +531,17 @@ def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool,
     return ok
 
 
+def register_evidence(run: dict, work: Path, commit: str) -> None:
+    """The run's shots as evidence on the items their `item:` names (docs/verifier.md)."""
+    from verifier import schema
+    taken = [s if (work / "shots" / f"{s['n']:02d}.jpg").is_file() else {} for s in shot_list(run)]
+    try:
+        for line in schema.register_run(run["id"], taken, commit):
+            log(f"  evidence: {line}")
+    except (OSError, ValueError, KeyError) as e:
+        log(f"  evidence not registered: {e}")
+
+
 # --- the review sheets ------------------------------------------------------------
 
 def write_sheets(run: dict, work: Path) -> list[Path]:
@@ -838,6 +849,8 @@ def main(argv=None) -> int:
 
     failed = []
     soak = OUT / "soak.log" if args.repeat > 1 else None
+    commit = subprocess.run(["git", "rev-parse", "--short=8", "HEAD"], cwd=REPO, capture_output=True,
+                            text=True).stdout.strip()
     for n in range(args.repeat):
         for run in chosen:
             work = OUT / run["id"]
@@ -853,6 +866,8 @@ def main(argv=None) -> int:
             with Server(run, work, args.port):
                 ok = take(run, game, work, args.port, False, args.game_arg)
             sheets = write_sheets(run, work)
+            if args.repeat == 1:
+                register_evidence(run, work, commit)
             gpu = log_findings(work)
             log(f"  {time.monotonic() - started:.0f} s; sheets: {', '.join(str(s) for s in sheets) or 'none'}")
             if not ok:

@@ -1,9 +1,10 @@
 # Wheel sitting plan
 
 Every check that needs hands on a wheel, done in as few sittings as possible.
-It covers work-plan item H1, the wheel half of H2 and the wheel rows of
-[verification.md](verification.md) §2. [verification.md](verification.md)
-stays the source of truth for *what* is unverified. This file says *how* to
+It covers work-plan item H1, the wheel half of H2 and the wheel items of
+the verification backlog ([verification.md](verification.md)). The items
+file stays the source of truth for *what* is unverified (each block's
+checks are its `v-sit-<block>-<check>` items). This file says *how* to
 clear it in one go: what an agent prepares beforehand, the order the human
 drives in, what gets recorded on its own, and what the agent does with the
 results afterwards.
@@ -170,8 +171,8 @@ stop by hand: limit, autopilot at the first line, the box, service, hand-back
 1. Parse `out/sit/<date>/*/`: every MARK with its 2 s of mixer state, the
    15 s force lines (time at the base's limit, mean torque, correction share),
    and the answer sheet.
-2. Classify each row: **OK** → delete it from [verification.md](verification.md)
-   (and H1/H2 from [work-plan.md](work-plan.md) once empty); **wrong** → a
+2. Classify each row: **OK** → close its item (`verifier.py close`, and
+   H1/H2 from [work-plan.md](work-plan.md) once empty); **wrong** → a
    follow-up in [follow-ups.md](follow-ups.md) with the mark's numbers;
    **not felt** → check the log first (did the signal reach the mixer?)
    before calling it a bug.
