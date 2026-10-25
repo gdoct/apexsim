@@ -41,6 +41,9 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 - **Crowd** — each seated row shows its own window of the strip, the flags off their diagonal (`0d2ca668`)
 - **Cockpit** — a class wheel's shift lights follow the revs and the palette (`15785530`)
 - **R5 (verification)** — Mandarina Bay's pit building and sausage kerbs at night (`7cb12ff1`, `7b504327`)
+- **R2 (verification)** — the pit route never drives a car backwards out of a hold (`60bc4bff`)
+- **R9 (verification)** — the racing line re-planned each lap and longer braking in the rain, read from the log (`03a98117`)
+- **R1 (verification)** — a finished race's replay held in photo mode for the tyre close-ups (`0ba0a64b`); R4's retired finish view names the field (`ba371b8f`)
 
 ## 2026-10-24
 
