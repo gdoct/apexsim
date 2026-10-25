@@ -3333,6 +3333,7 @@ mod surroundings {
 
     /// Lay the lot. `night_lighting` adds floodlight masts to a circuit
     /// that has none of its own.
+    #[allow(clippy::too_many_arguments)]
     pub fn lay(
         path: &CenterlinePath,
         terrain: &TerrainHeightfield,
@@ -3402,16 +3403,16 @@ mod surroundings {
             horizon,
         };
         let mut out = Vec::new();
-        let parts: [(&str, &dyn Fn(&mut Vec<Prop>)); 3] = [
-            (FAR_FIELD_STAMPS[0], &|o| forests(&ctx, Some(dem), o)),
-            (FAR_FIELD_STAMPS[1], &|o| marshal_posts(&ctx, o)),
-            (FAR_FIELD_STAMPS[2], &|o| light_panels(&ctx, o)),
-        ];
-        for (stamp, lay) in parts {
+        let part = |stamp: &str, out: &mut Vec<Prop>, lay: &dyn Fn(&mut Vec<Prop>)| {
             let start = out.len();
-            lay(&mut out);
-            stamp_from(&mut out, start, stamp);
-        }
+            lay(out);
+            stamp_from(out, start, stamp);
+        };
+        part(FAR_FIELD_STAMPS[0], &mut out, &|o| {
+            forests(&ctx, Some(dem), o)
+        });
+        part(FAR_FIELD_STAMPS[1], &mut out, &|o| marshal_posts(&ctx, o));
+        part(FAR_FIELD_STAMPS[2], &mut out, &|o| light_panels(&ctx, o));
         out
     }
 
