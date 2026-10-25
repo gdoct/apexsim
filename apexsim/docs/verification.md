@@ -143,9 +143,11 @@ AC-imported circuit is installed; Spa stands in.
   every car nameless and none as the player's (titled CHEQUERED FLAG): the
   recorder took names only from a roster that came after a car's first
   frame. It names a car from the roster as it first sees it now
-  (`UApexSessionRecorder::FindOrAddCar`); a retired car's finish view
-  should read YOUR RACE IS OVER with the names: look at it on the next
-  run. The snow rows above (ice, melt, the veer, the props' snow) are still
+  (`UApexSessionRecorder::FindOrAddCar`). Run again 2026-10-25: the
+  stand-in retired at about 560 s (engine OUT, its water at 123-139 °C
+  after hits that left 35% front damage) and its finish view read YOUR
+  RACE IS OVER with every driver named and Player (YOU) marked; the
+  field had run one lap of the snow in nine minutes. The snow rows above (ice, melt, the veer, the props' snow) are still
   to judge.
 - A Rally field (`oudi-kwattro-s1`, `pugeot-205-t16`, `lancha-037-rally`) on
   the covered road: the AI fits the studded snow tyre, the wheels draw the
