@@ -2673,9 +2673,16 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 					{
 						Share = 1.0f;
 					}
-					else if (Name.StartsWith(TEXT("MI_curb")))
+					else if (Name.StartsWith(TEXT("MI_curb")) || Name.StartsWith(TEXT("MI_marking_curb_strip")))
 					{
 						Share = 0.5f;
+					}
+					// The paint: run-off stripes, lines and grid slots lie under
+					// the snow like the surface they are on (the lap's figure
+					// is the snow on the driven line).
+					else if (Name.StartsWith(TEXT("MI_marking")))
+					{
+						Share = 1.0f;
 					}
 					if (Share > 0.0f)
 					{

@@ -244,10 +244,6 @@ the field, a jump start and a red-light exit served; `race_start_test`,
 Seen by the owner in the runs' shots. The runs stay under `out/verify/`
 until each is fixed and shot again.
 
-- Snow (`r4-spa-snow`): the painted markings (run-off stripes, kerb strip,
-  edge lines; `MI_marking_*`) take no snow at all, so La Source's red and
-  yellow run-off stays bright in a white field. Give them the lap's cover
-  (and the road's per-bin snow where they lie on the road).
 - A car out of the race keeps its last speed on the wire until the tow:
   `physics.rs` returns early for an undrivable car without zeroing
   `speed_mps` or the velocities, so the HUD and the tower show a parked

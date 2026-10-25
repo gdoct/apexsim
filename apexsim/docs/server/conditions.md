@@ -779,7 +779,9 @@ See [protocol.md](protocol.md) for the append-only rules.
   `M_ApexTrackBase` has a `SnowCover` parameter (0 default) that whitens
   whatever faces up (the geometry's world normal); the director sets it on
   the ground, verges, curbs and wear bands (`SnowMids`, curbs half, wear bands
-  a third: they keep some paint), not on buildings and props. The road
+  a third: they keep some paint; the painted markings in full, the curb
+  strip half, so run-off stripes and lines lie under it), not on buildings
+  and props. The road
   (`M_ApexTrackRoad`) draws the per-bin `RoadSnow` texture instead (R cover, G
   ice, B the verge, from `SnowRows`): white from 0.9 cover, dark slush on a
   packed line (0.65 to 0.75), ice a dark mirror. A base baked before snow has
