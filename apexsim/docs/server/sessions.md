@@ -1789,7 +1789,11 @@ practice, a hotlap, qualifying, timed practice or a race
 (`rewind::takes_snapshots`), the game loop takes a snapshot after the
 session's tick every `SNAPSHOT_SECONDS` (1 s) of session time (a session
 tick that is a multiple of the rate) and keeps `DEPTH_SECONDS` (60) of them
-in a ring beside the session (`ServerState::rewinds`). The ring starts
+in a ring beside the session (`ServerState::rewinds`): every one of the
+last `FINE_SECONDS` (10), and before that one every `COARSE_SECONDS` (5)
+of session time (`rewind::keeps`), 21 in all. A snapshot is about 4 MB at
+the Nordschleife and 1.2 MB at Monza (`determinism_test::snapshot_memory`,
+ignored), so the ring holds about 87 MB and 24 MB there. The ring starts
 again when the mode or the cars change, and is dropped when the session
 stops racing (a countdown, the flag, the lobby), when a weekend phase
 begins (a day may bake its own sky into the track) and with the session.
@@ -1809,7 +1813,8 @@ a 6-car session takes about 0.4 ms in a release build.
 
 **A rewind** (`ClientMessage::Rewind { seconds }`): the snapshot whose tick
 is nearest `seconds` before the session's tick (the older of two as near;
-the oldest when asked further back than the ring) is restored, and the
+the oldest when asked further back than the ring; past the fine span within
+2.5 s of the time asked) is restored, and the
 ring's newer snapshots are dropped, so a second rewind goes further back.
 `Error 409` while the ring is empty (the first second, or straight after
 it was dropped). What the server and the clients know stays as it is now

@@ -325,26 +325,6 @@ the launcher import with the network off.
 -ApexWeather=sunny` with a calm wind shows a mist that lifts after sunrise
 at `-ApexTimeScale=30`.
 
-### 35. Rewind in offline practice
-
-- The ring is large on a long circuit. Measured 2026-10-25
-  (`determinism_test::snapshot_memory`, ignored: a counting allocator in
-  the test binary, one human and the 15 AI practice seats after 60 s): one
-  snapshot is 4.15 MB at the Nordschleife (the ring of 61, 253 MB) and
-  1.16 MB at Monza (71 MB). The road state (`TrackConfig::road_state`, its
-  per-cell rubber, water, marbles and snow) is 1.97 MB and 0.55 MB of it,
-  about 95 bytes a metre; each car adds about 140 KB. The AI's speed and
-  power plans are per car config and small beside them; the ghost traces
-  are the humans' alone. The road state changes all over every few ticks
-  (cars lay rubber cell by cell, the road steps), so sharing it between
-  snapshots saves little. Choices: a byte budget for the ring (sparser
-  snapshots further back on a long circuit), or the road state kept at a
-  coarser interval than the cars and the restored one stepped forward
-  (determinism must still hold).
-
-**Check:** `snapshot_memory` against the figures above, and the
-determinism test.
-
 ### 36. Recorded sessions on the client
 
 For: the client holding the smaller version 2 stream

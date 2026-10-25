@@ -6,7 +6,8 @@
 //! kind the client creates for single-player) with one human among its cars,
 //! who asks. A snapshot is taken every [`SNAPSHOT_SECONDS`] of session time
 //! while it races in a mode with cars on the move; the ring holds
-//! [`DEPTH_SECONDS`] of them and starts again whenever the mode or the cars
+//! [`DEPTH_SECONDS`] of them, every one of the last [`FINE_SECONDS`] and
+//! one every [`COARSE_SECONDS`] before (`keeps`), and starts again whenever the mode or the cars
 //! change, the session stops racing, or a weekend phase begins. A rewind
 //! restores the snapshot nearest the time asked for, drops the ring's newer
 //! ones (a future that no longer happens), strikes every lap in progress
@@ -22,6 +23,15 @@ pub const SNAPSHOT_SECONDS: u32 = 1;
 
 /// How far back the ring reaches, s.
 pub const DEPTH_SECONDS: u32 = 60;
+
+/// The newest span the ring holds every snapshot of, s: a rewind of a
+/// few seconds lands where it was asked.
+pub const FINE_SECONDS: u32 = 10;
+
+/// Further back, the ring holds one snapshot this often, s: the pause
+/// menu's 10 s steps land on one, and a long circuit's ring stays a third
+/// of its size (a snapshot is 4 MB at the Nordschleife).
+pub const COARSE_SECONDS: u32 = 5;
 
 /// How long the cars stand still after a rewind before the session runs
 /// on, ms: the driver's hands back on the wheel.
@@ -58,6 +68,15 @@ pub fn takes_snapshots(session: &GameSession) -> bool {
                 | GameMode::Practice
                 | GameMode::Race
         )
+}
+
+/// Whether the ring still holds the snapshot taken at session tick `taken`
+/// at tick `now`: the last [`FINE_SECONDS`] all, then one every
+/// [`COARSE_SECONDS`] of session time back to [`DEPTH_SECONDS`].
+fn keeps(now: u32, taken: u32, rate_hz: u32) -> bool {
+    let age = now.saturating_sub(taken);
+    age <= DEPTH_SECONDS * rate_hz
+        && (age <= FINE_SECONDS * rate_hz || taken.is_multiple_of(COARSE_SECONDS * rate_hz))
 }
 
 /// A rewind done: the session tick rewound to and from.
@@ -98,10 +117,8 @@ impl Rewind {
             }
         }
         self.ring.push_back(session.snapshot());
-        let depth = (DEPTH_SECONDS / SNAPSHOT_SECONDS) as usize + 1;
-        while self.ring.len() > depth {
-            self.ring.pop_front();
-        }
+        let rate = u32::from(session.tick_rate_hz()).max(1);
+        self.ring.retain(|s| keeps(tick, s.tick(), rate));
     }
 
     /// Whether there is a snapshot to rewind to.
@@ -160,5 +177,24 @@ impl Rewind {
 
     pub fn is_empty(&self) -> bool {
         self.ring.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_ring_thins_past_its_fine_span() {
+        let rate = 420;
+        let now = 120 * rate;
+        let kept: Vec<u32> = (0..=120)
+            .map(|s| s * rate)
+            .filter(|&tick| keeps(now, tick, rate))
+            .map(|tick| tick / rate)
+            .collect();
+        let mut want: Vec<u32> = (60..110).step_by(5).collect();
+        want.extend(110..=120);
+        assert_eq!(kept, want);
     }
 }
