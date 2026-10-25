@@ -7760,6 +7760,38 @@ runs:
   # The race HUD in each colour-vision palette, then the cockpit dash in
   # each: the console switches the palette (and the HUD rebuilds) a few
   # seconds before each grab, and puts it back to standard at the end.
+  # The radar's bar filling for a car alongside, in the red-green palette:
+  # the opening laps bunch the field, the data dumps name a moment one is.
+  - id: n22-radar-fill
+    about: "N22. The radar's side bar filling with a car alongside, red-green palette"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    exec:
+      8: ["apexsim.hud.Palette red_green"]
+      14: ["apexsim.hud.Data radar."]
+      16: ["apexsim.hud.Data radar."]
+      18: ["apexsim.hud.Data radar."]
+      20: ["apexsim.hud.Data radar."]
+      22: ["apexsim.hud.Data radar."]
+      40: ["apexsim.hud.Palette standard"]
+    shots:
+      - {at: 14, label: "start + a few s", checks: "N22 radar: a car alongside fills its side's bar"}
+      - {at: 16, label: "later", checks: "N22 radar"}
+      - {at: 18, label: "later", checks: "N22 radar"}
+      - {at: 20, label: "later", checks: "N22 radar"}
+      - {at: 22, label: "later", checks: "N22 radar"}
+
   - id: n22-colour-vision
     about: "N22. The HUD and the cockpit dash in the standard, red-green and blue-yellow palettes"
     server:

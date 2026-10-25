@@ -520,40 +520,6 @@ safety car. The settings shots (2026-10-25): Radio volume 80 %, Spotter
 and Race engineer ON, laid out as the rows above; walking down by pad
 brings Race engineer into view. Left: hearing it.
 
-### R20. Colour-vision palettes
-
-`n22-colour-vision` (the Norisring, the stand-in, five AI cars): the race
-HUD in each palette, switched from the console (`apexsim.hud.Palette`),
-then the cockpit dash in each ([hud-modding](game/hud-modding.md#colour-vision)).
-
-- The HUD rebuilt whole in each palette, no panel missing or left in the
-  old colours; the red-green palette's blue good, vermilion bad, yellow
-  accent and pale lilac session best, the blue-yellow palette's pale cold
-  tyres.
-- The redundant cues on screen: `SB` / `PB` / `+` under the sector splits,
-  `-` / `+` / `!` on the temperatures, the radar's bar filling; the car
-  panel's four tyre columns still fit with the signs on.
-- The dash's light groups in each palette (standard green, amber, red,
-  blue; red-green blue, yellow, vermilion, white; blue-yellow green, amber,
-  red, white).
-- The shots through a colour-blindness simulator (any CVD filter on the
-  contact sheets): the states still tell apart.
-- Settings > Gameplay > Colour vision changes the HUD while paused.
-
-Shot 2026-10-24: the HUD rebuilt in all three palettes (red-green's blue
-bars and yellow accent, the `PB` tags under the splits, the temperature
-signs fitting their columns) and the cockpit dash in each. Through a CVD
-simulator (`scripts/verify/cvd.py`, Machado 2009 at full severity,
-2026-10-25): in red-green under deuteranopia and protanopia the blue good
-(PB, delta, tyre bars) stays apart from the yellow accent and the
-vermilion bad turns a darker olive than the accent; in the standard
-palette the greens fold into the yellow, as the palette is there for; in
-blue-yellow under tritanopia the accent reads pink against a teal good.
-The dash's screen bar follows the palette; the SF-26's modelled LED row
-above it does not (follow-ups #12). `n22-settings-row`: the Colour vision
-row's BLUE-YELLOW fits its pill (2026-10-25). Left: the radar fill with a
-car alongside.
-
 ### R21. Photo mode
 
 `n20-photo-hotlap` (a watched hotlap at the Norisring, 17:30) and
