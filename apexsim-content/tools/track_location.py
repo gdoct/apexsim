@@ -22,6 +22,7 @@ left alone: the server takes it to be at sea level.
 from __future__ import annotations
 
 import argparse
+import math
 import re
 import sys
 from pathlib import Path
@@ -33,6 +34,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from track_dirs import track_dir, track_glob  # noqa: E402
 
 KEYS = ("altitude_m", "latitude_deg", "longitude_deg")
+
+#: dem_fetch.py's earth radius, m (its flat-earth frame).
+R_EARTH = 6_371_000.0
 
 #: Circuits with no elevation sidecar: published elevation, m, and position
 #: (approximate; the height is what matters, and to the density a few tens
@@ -60,20 +64,37 @@ def georef(stem: str) -> dict | None:
     return data.get("georef")
 
 
-def first_node_z(text: str) -> float:
-    """The z of the YAML's first centerline node: where the DEM's datum was
-    matched."""
-    m = re.search(r"^nodes:\s*\n-\s(?:.*\n)*?\s+z:\s*([-0-9.eE]+)", text, re.M)
+def first_node(text: str) -> tuple[float, float, float]:
+    """The YAML's first centerline node (the start line): where the DEM's
+    datum was matched, and where the circuit is."""
+    m = re.search(
+        r"^nodes:\s*\n-\s+x:\s*([-0-9.eE]+)\s*\n\s+y:\s*([-0-9.eE]+)\s*\n\s+z:\s*([-0-9.eE]+)",
+        text, re.M)
     if not m:
-        raise SystemExit("no first node z in the YAML")
-    return float(m.group(1))
+        raise SystemExit("no first node in the YAML")
+    return float(m.group(1)), float(m.group(2)), float(m.group(3))
 
 
-def location(ref: dict, z0: float) -> dict[str, str]:
+def to_lonlat(ref: dict, x: float, y: float) -> tuple[float, float]:
+    """A track-frame point on the globe, through the sidecar's fit
+    (`dem_fetch.Frame.to_lonlat`): `lon0`/`lat0` is the centre of the OSM
+    extract's flat-earth frame, not the circuit, and the fit's `a`, `t`
+    take the track there (Zandervoort's extract centre sits 98 km west)."""
+    a = np.array(ref["a"], dtype=float).reshape(2, 2)
+    t = np.array(ref["t"], dtype=float)
+    e = (np.array([x, y], dtype=float) - t) @ a
+    lat0 = float(ref["lat0"])
+    m_lat = math.radians(1.0) * R_EARTH
+    m_lon = m_lat * math.cos(math.radians(lat0))
+    return float(ref["lon0"]) + e[0] / m_lon, lat0 + e[1] / m_lat
+
+
+def location(ref: dict, node: tuple[float, float, float]) -> dict[str, str]:
+    lon, lat = to_lonlat(ref, node[0], node[1])
     return {
-        "altitude_m": f32(z0 - float(ref["datum_offset_m"]), 1),
-        "latitude_deg": f32(float(ref["lat0"]), 5),
-        "longitude_deg": f32(float(ref["lon0"]), 5),
+        "altitude_m": f32(node[2] - float(ref["datum_offset_m"]), 1),
+        "latitude_deg": f32(lat, 5),
+        "longitude_deg": f32(lon, 5),
     }
 
 
@@ -127,7 +148,7 @@ def main() -> int:
         path = track_dir(stem) / f"{stem}.yaml"
         text = path.read_text(encoding="utf-8")
         ref = georef(stem)
-        values = location(ref, first_node_z(text)) if ref is not None else manual_location(stem)
+        values = location(ref, first_node(text)) if ref is not None else manual_location(stem)
         if values is None:
             print(f"  {stem:28} no elevation sidecar: left at sea level")
             continue

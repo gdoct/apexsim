@@ -250,15 +250,13 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   Bull Ring, Laguna Seca, Zandvoort, Silverstone, Barcelona and Imola, pass
   both `PIT_CUSTOM=1` pit surveys).
 
-- Circuit locations (`metadata.latitude_deg` / `longitude_deg`, from the
-  DEM's georeference by `track_location.py`): Zandervoort's sits about
-  100 km west of Zandvoort (52.33 N, 3.10 E, in the North Sea) and
-  Barcelunatic's about 25 km north-east of Montmeló; the rest are within
-  about 6 km. The sun is placed from them too. Their pins on Garage >
-  Tracks' globe show the error from about 3x zoom. The figures are the DEM's
-  georeference (`lat0`, `lon0`), so look at `dem_fetch.py`'s fit for those
-  two before correcting the YAML: the heights it sampled may be from the
-  wrong place too (Zandervoort's sea is flat).
+- Circuit locations: `track_location.py` took the DEM georeference's
+  `lon0`/`lat0`, the centre of the OSM extract's frame, for the circuit, so
+  Zandervoort sat 98 km west in the North Sea and Barcelunatic 25 km off.
+  It places the start line through the fit now (`to_lonlat`); those two
+  YAMLs are rewritten and baked. The other DEM circuits move by under 6 km
+  (seconds of solar noon) on the next `track_location.py --all` in the
+  refresh order, each a YAML checksum and an export.
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
