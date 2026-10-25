@@ -393,7 +393,18 @@ namespace ApexNav
 		UWidget* NearestAmong(EUINavigation Direction, const UWidget* Source, const TArray<UWidget*>& Candidates)
 		{
 			constexpr float Slack = 4.0f;
-			const FBox2D From = RectOfImpl(Source);
+			// A row is measured by what its scroll box shows of it: one still
+			// scrolling in reaches past the box's edge, over the footer below.
+			FBox2D From = RectOfImpl(Source);
+			if (const UScrollBox* Scroll = ScrollBoxOf(Source))
+			{
+				const FBox2D View = RectOfImpl(Scroll);
+				const FBox2D Shown(FVector2D::Max(From.Min, View.Min), FVector2D::Min(From.Max, View.Max));
+				if (View.bIsValid && Shown.Min.X < Shown.Max.X && Shown.Min.Y < Shown.Max.Y)
+				{
+					From = Shown;
+				}
+			}
 			const FVector2D FromCentre = From.GetCenter();
 
 			UWidget* Best = nullptr;

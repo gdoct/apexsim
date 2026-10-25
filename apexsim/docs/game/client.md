@@ -102,7 +102,9 @@ and widget factories), so layouts are reviewable as diffs.
   and a row scrolled out of view by list order. From a row that is itself
   not laid out yet (focused below the fold, still scrolling in) every move
   goes by list order within its scroll box, sideways too: measured, it
-  would start from the corner of the screen. `UApexNavigableWidget` sends
+  would start from the corner of the screen. A row is measured by the part its
+  scroll box shows, so one still scrolling in at the list's end reaches
+  the footer below the box. `UApexNavigableWidget` sends
   Up/Down on its own slider the same way (`NativeOnPreviewKeyDown`). Every
   screen and overlay is walked by pad in `ApexSim.UI.PadWalk` (below).
   `ApexNav::Focus` scrolls the control it lands on into view, 24 px past
