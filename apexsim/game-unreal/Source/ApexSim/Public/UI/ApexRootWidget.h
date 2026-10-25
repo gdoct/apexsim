@@ -223,8 +223,10 @@ public:
 	 * Play a saved replay from Seconds in, seeked once it has loaded: the
 	 * results screen's jump to an incident, and -ApexWatchReplayAt. In a
 	 * session it is left first, and the replay starts once out of it.
+	 * FocusCar (a car index, the incident's car) puts the watch camera on
+	 * that car once seeked; INDEX_NONE leaves the director's choice.
 	 */
-	void WatchReplayAt(const FString& Path, double Seconds);
+	void WatchReplayAt(const FString& Path, double Seconds, int32 FocusCar = INDEX_NONE);
 
 	/** Save the session being recorded as a replay, with a toast either way. */
 	void SaveReplay();
@@ -619,9 +621,13 @@ private:
 	/** WatchReplayAt: the replay to start once out of the session, and the second to seek it to once loaded (-1 for none). */
 	FString PendingReplayPath;
 	double PendingReplaySeek = -1.0;
+	/** WatchReplayAt: the car the watch camera goes to once seeked (INDEX_NONE for the director's choice). */
+	int32 PendingReplayFocus = INDEX_NONE;
 	/** How long the pending replay has waited to start; it gives up after a while. */
 	float PendingReplayWait = 0.0f;
 	void UpdatePendingReplay(float DeltaSeconds);
+	/** WatchReplayAt's car: the watch camera on it once the seeked replay has its cars. */
+	void UpdatePendingReplayFocus(float DeltaSeconds);
 
 	bool bRaceViewActive = false;
 	bool bPauseMenuOpen = false;

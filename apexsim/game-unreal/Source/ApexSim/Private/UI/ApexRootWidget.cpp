@@ -3123,6 +3123,7 @@ void UApexRootWidget::UpdateWatch(float DeltaSeconds)
 {
 	ApplyWatchCommandLine();
 	UpdatePendingReplay(DeltaSeconds);
+	UpdatePendingReplayFocus(DeltaSeconds);
 	if (WatchKind != EWatchKind::Backdrop)
 	{
 		return;
@@ -3624,10 +3625,11 @@ bool UApexRootWidget::WatchReplay(const FString& Path)
 	return true;
 }
 
-void UApexRootWidget::WatchReplayAt(const FString& Path, double Seconds)
+void UApexRootWidget::WatchReplayAt(const FString& Path, double Seconds, int32 FocusCar)
 {
 	PendingReplayPath = Path;
 	PendingReplaySeek = FMath::Max(0.0, Seconds);
+	PendingReplayFocus = FocusCar;
 	PendingReplayWait = 0.0f;
 	UE_LOG(LogApexSim, Log, TEXT("Replay %s from %.1f s"), *FPaths::GetCleanFilename(Path), PendingReplaySeek);
 	UApexNetSubsystem* Net = GetGameInstance() ? GetGameInstance()->GetSubsystem<UApexNetSubsystem>() : nullptr;
@@ -3683,6 +3685,37 @@ void UApexRootWidget::UpdatePendingReplay(float DeltaSeconds)
 	Spectator->SeekTo(PendingReplaySeek);
 	UE_LOG(LogApexSim, Log, TEXT("Replay seeked to %.1f s of %.1f"), Spectator->GetPlaybackSeconds(), Spectator->GetDurationSeconds());
 	PendingReplaySeek = -1.0;
+	PendingReplayWait = 0.0f;
+}
+
+void UApexRootWidget::UpdatePendingReplayFocus(float DeltaSeconds)
+{
+	// An incident's car, once the replay is seeked and the watch view is on
+	// it: the replay's rows keep the session's car indices, so the
+	// incident's roster index is the car to watch. The cars come in with the
+	// first frames after the seek; a while, then given up.
+	if (PendingReplayFocus == INDEX_NONE || !PendingReplayPath.IsEmpty() || PendingReplaySeek >= 0.0)
+	{
+		return;
+	}
+	static constexpr float GiveUpSeconds = 5.0f;
+	PendingReplayWait += DeltaSeconds;
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (Director && IsWatchingReplay() && Director->IsSpectating())
+	{
+		Director->FocusCar(PendingReplayFocus);
+		if (Director->GetFocusCarIndex() == PendingReplayFocus)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Replay watching car %d"), PendingReplayFocus);
+			PendingReplayFocus = INDEX_NONE;
+			return;
+		}
+	}
+	if (PendingReplayWait > GiveUpSeconds)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Replay: car %d not in the replay, the director's choice kept"), PendingReplayFocus);
+		PendingReplayFocus = INDEX_NONE;
+	}
 }
 
 void UApexRootWidget::SaveReplay()

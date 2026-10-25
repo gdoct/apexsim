@@ -746,7 +746,9 @@ void UApexSessionResultsWidget::JumpToIncident(int32 Index)
 	}
 	if (UApexRootWidget* Root = GetRoot())
 	{
-		Root->WatchReplayAt(Path, ApexIncidentList::JumpSeconds(Seconds));
+		// The watch camera on the incident's car, not wherever the director looks.
+		const int32 Car = List.Incidents[Index].Car;
+		Root->WatchReplayAt(Path, ApexIncidentList::JumpSeconds(Seconds), Car == ApexIncident::NoCar ? INDEX_NONE : Car);
 	}
 }
 

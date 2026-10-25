@@ -290,9 +290,10 @@ the cars, the race clock, the lap and the detail (`ApexIncidentList`), the
 player's own in the accent colour. Once the session has ended and the
 client's replay of it is written, a row is badged WATCH and activating it
 leaves the session and plays that replay from three seconds before the
-incident (`UApexReplayRecorder::ReplaySecondsOf`,
-`UApexRootWidget::WatchReplayAt`, which waits out of the session and seeks
-once the file has loaded). Console: `apexsim.incidents [show|hide|log|watch
+incident with the watch camera on the incident's car
+(`UApexReplayRecorder::ReplaySecondsOf`, `UApexRootWidget::WatchReplayAt`,
+which waits out of the session, seeks once the file has loaded and
+focuses the car by its roster index, which the replay's rows keep). Console: `apexsim.incidents [show|hide|log|watch
 <n>]` (0-based). Checks: `ApexSim.UI.IncidentList.*`,
 `ApexSim.Net.Protocol.GoldenDecode` (`S_Incidents`).
 
