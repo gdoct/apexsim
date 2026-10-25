@@ -201,21 +201,16 @@ rail carries no flags or dressing (`build_kit_gaps_stands.py`).
 **Check:** `c9-stadium-armadillos` and the `sf-ref-*` frames of a circuit
 using the family.
 
-### 44. A horizon for the open-country circuits
+### 44. The DEM horizon at Armadillos
 
-The prairie style is sparse by design (right for the infield), so the
-horizon at Armadillos is bare to the vanishing point. The real one is
-closed by live-oak belts at the property line and hills to the north.
+The far field's tree line is laid on every circuit with a DEM. Left: the
+DEM horizon mesh at Armadillos (the `outer` grid and `horizon_skirt`)
+checked for the hills north of the circuit over the pit building, from
+a raised camera rather than the haze-flattened eye on the line; and the
+three circuits without a DEM sidecar (Endianapolis, HermanosRodriQueso,
+MoscowMule), which get no far trees at all.
 
-- A `forest_impostor` belt along the property edge and the far roads for
-  the open-country styles (`dress.rs` surroundings, `PRAIRIE` and Sakhir's
-  clumps), leaving the infield as it is.
-- The DEM horizon mesh checked at Armadillos: the `outer` grid and
-  `horizon_skirt` should carry the hills north of the circuit over the pit
-  building; if the relief is there but reads flat, the gap is package 45's.
-
-**Check:** the `sf-ref-*` horizon and a `g3-horizon`-style shot at
-Armadillos; re-dress `--all` counts for the other open-country circuits.
+**Check:** a `g3-horizon`-style shot at Armadillos.
 
 ### 50. A broadcast HUD layout
 

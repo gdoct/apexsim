@@ -302,7 +302,12 @@ stamp.
   knots of standing spectators (`misc/crowd_group`) round each fan-zone
   stage, big wheel and food stall, a `corner_sign` from each corner's `display_name`,
   forest impostors on far slopes and in every mapped wood from 120 m out
-  (by its leaf type, flat ground or not), and `floodlight_tower`s only when the
+  (by its leaf type, flat ground or not), a broken tree line closing the
+  horizon of every circuit that is not desert, dunes or a city (impostors
+  0.9 to 2.2 km from the road, off water, in 400 m patches of which 42%
+  are wooded and 70% of a patch's cells planted: `HORIZON_*`; flat
+  country was bare to the vanishing point; it needs the DEM sidecar, as
+  the slopes do), and `floodlight_tower`s only when the
   dossier maps no lighting masts. Those generated masts are night-only
   (`dress::generated_floodlight`, the export's `night_only`): the client
   batches them apart and shows them only while the sky's floodlights are

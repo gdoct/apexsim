@@ -45,7 +45,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | C9 | The stadium stand's canopy and rail (roadmap 43) | Content | P2 | 🟡 | M | 2 |
-| C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
+| C10 | The DEM horizon at Armadillos (roadmap 44) | Content | P2 | 🟡 | M | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -222,12 +222,9 @@ The track's audit page is
 
 - **C9. The stadium stand's canopy and rail** (roadmap 43): the crowd
   twin and setback are done; a tensile canopy and flags on the rail. S.
-- **C10. Horizon for open-country circuits** (roadmap 44): a
-  `forest_impostor` belt at the property edge for the prairie style, the
-  DEM horizon mesh checked for the hills north of COTA. M.
-
-**Watch out:** C10 re-dresses `--all` and touches every
-track's `.ats` and export.
+- **C10. The DEM horizon at Armadillos** (roadmap 44): the tree-line
+  belt is done on every circuit with a DEM; the hills north of COTA from
+  a raised camera, and the three circuits without a DEM. S.
 
 ### Audio and features
 

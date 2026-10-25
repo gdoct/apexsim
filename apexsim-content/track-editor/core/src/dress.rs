@@ -411,6 +411,7 @@ pub fn dress_scene_with_dem(
         !has_lighting && style.floodlights,
         bare,
         style.fan_dressing,
+        !style.city_buildings,
     );
     report.surroundings = extras.len();
     // Stamped per sub-layer and area by `surroundings::lay`.
@@ -2980,6 +2981,17 @@ mod surroundings {
     /// (R8): past the card-tree belt (which stops at 90-110 m) the woods of
     /// a flat circuit — Le Mans, Silverstone, Suzuka — were bare.
     const WOOD_IMPOSTOR_NEAR_M: f32 = 120.0;
+    /// The horizon's tree line: on flat country with no mapped wood the
+    /// far field was bare to the vanishing point, where a real one is
+    /// closed by shelter belts, hedgerow trees and the woods along the
+    /// property line. A broken belt of impostors in this band from the
+    /// road, in patches of `HORIZON_PATCH_M` of which `HORIZON_PATCH_SHARE`
+    /// are wooded, `HORIZON_FILL` of each patch's cells planted.
+    const HORIZON_NEAR_M: f32 = 900.0;
+    const HORIZON_FAR_M: f32 = 2_200.0;
+    const HORIZON_PATCH_M: f32 = 400.0;
+    const HORIZON_PATCH_SHARE: f32 = 0.42;
+    const HORIZON_FILL: f32 = 0.7;
 
     /// A village house needs this much room from its neighbours.
     const HOUSE_SPACING_M: f32 = 26.0;
@@ -3212,6 +3224,9 @@ mod surroundings {
         bare: bool,
         /// The endurance crowd's lap (`CircuitStyle::fan_dressing`).
         fan: bool,
+        /// A tree line closes the horizon (`HORIZON_*`): not in a city,
+        /// whose horizon is its buildings.
+        horizon: bool,
     }
 
     impl Ctx<'_> {
@@ -3276,6 +3291,7 @@ mod surroundings {
         night_lighting: bool,
         bare: bool,
         fan: bool,
+        horizon: bool,
     ) -> Vec<Prop> {
         let ctx = Ctx {
             path,
@@ -3283,6 +3299,7 @@ mod surroundings {
             layout,
             bare,
             fan,
+            horizon,
         };
         let mut out = Vec::new();
         // Each sub-layer stamps what it lays (`Prop::source`), an area's
@@ -3753,23 +3770,33 @@ mod surroundings {
                     if !(IMPOSTOR_NEAR_M..=IMPOSTOR_FAR_M).contains(&from_road) {
                         continue;
                     }
-                    if z - sample.pos.2 < IMPOSTOR_MIN_RISE_M {
-                        continue;
-                    }
                     let reach = step;
                     let dzdx = (dem.height_at(jx + reach, jy) - dem.height_at(jx - reach, jy))
                         / (2.0 * reach);
                     let dzdy = (dem.height_at(jx, jy + reach) - dem.height_at(jx, jy - reach))
                         / (2.0 * reach);
-                    if dzdx.hypot(dzdy) < IMPOSTOR_MIN_SLOPE {
-                        continue;
-                    }
-                    // Spruce on the steeper, higher ground and mixed below,
-                    // which is how a real tree line goes.
-                    if dzdx.hypot(dzdy) > IMPOSTOR_MIN_SLOPE * 2.0 {
-                        "forest_impostor_conifer"
-                    } else {
+                    let slope = dzdx.hypot(dzdy);
+                    if z - sample.pos.2 >= IMPOSTOR_MIN_RISE_M && slope >= IMPOSTOR_MIN_SLOPE {
+                        // Spruce on the steeper, higher ground and mixed
+                        // below, which is how a real tree line goes.
+                        if slope > IMPOSTOR_MIN_SLOPE * 2.0 {
+                            "forest_impostor_conifer"
+                        } else {
+                            "forest_impostor"
+                        }
+                    } else if ctx.horizon
+                        && (HORIZON_NEAR_M..=HORIZON_FAR_M).contains(&from_road)
+                        && !ctx.terrain.in_water(jx, jy)
+                        && roll(
+                            (jx / HORIZON_PATCH_M).floor(),
+                            (jy / HORIZON_PATCH_M).floor(),
+                            46,
+                        ) < HORIZON_PATCH_SHARE
+                        && roll(jx, jy, 47) < HORIZON_FILL
+                    {
                         "forest_impostor"
+                    } else {
+                        continue;
                     }
                 };
                 out.push(Prop {
