@@ -92,10 +92,10 @@ green start read "rubber 4%" and the line rubbered to 20% in ten minutes
 (the conditions panel); the rear wing hanging and dented with 40% rear
 damage after the `damage=rear` event; the leak's stop under the pit
 autopilot. The tread close-ups (pickup, blisters, heat, the bulge) blur at
-speed as expected. One oddity: at 620 s, in the lane under the autopilot,
-the car showed reverse at 6 km/h. A probe at Silverstone (the stand-in
-pitting, forced into reverse at the lane) went back to first at once, so
-the cause is not that; look at the run's replay round 615-625 s.
+speed as expected. The car in reverse at 6 km/h in the lane at 620 s was
+the route's: held on the brake the automatic box put reverse in and the
+route's creep away (under 0.3 throttle) never took first again; the
+route asks for first now (`pit::drive_input`).
 
 ### R4. Snow at Spa, changeable, into the evening
 

@@ -130,7 +130,10 @@ Called inside `update_air` before the physics, and in the countdown.
   is `HANDBACK_PAST_LINE_M` (1 m) past the exit line (the last limit line,
   by the exit light): `PitState::driving`, its automatic gearbox on and
   steering aid off, the driver's own values kept in `restore_aids` and put
-  back at the end. The entry and exit tapers are the driver's: the car is
+  back at the end. The route asks for first whenever the car is in reverse
+  or neutral (`drive_input`): held still on the brake, in a queue or at a
+  red light, the automatic box would put reverse in, and the route's light
+  creep away was too little throttle to take first again. The entry and exit tapers are the driver's: the car is
   handed back at the limit, or at what a bend of the lane itself before
   the line allows. The AI's route runs on to the lane's end
   (`pit::route_end_m`): its racing line knows nothing of the exit taper.

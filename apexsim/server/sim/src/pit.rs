@@ -1753,7 +1753,11 @@ pub fn drive_input(
         throttle,
         brake,
         steering,
-        gear: None,
+        // The route only ever goes forwards. Held still on the brake (in a
+        // queue, at a red exit light) the automatic box puts reverse in, and
+        // the creep away from it is too light a throttle to take first again,
+        // so the car rolled back down the lane.
+        gear: (state.gear <= 0).then_some(1),
         clutch: Some(1.0),
         drs: false,
         headlights: None,
@@ -1815,6 +1819,25 @@ pub(crate) mod tests {
         };
         lane.finish().unwrap();
         lane
+    }
+
+    #[test]
+    fn the_route_drives_forwards_out_of_reverse() {
+        let lane = straight_lane();
+        let pit_box = lane.boxes[2];
+        let mut state = fresh_car();
+        state.pos_x = 60.0;
+        state.pos_y = -20.0;
+        state.pit.lane_station_m = 60.0;
+        state.pit.driving = true;
+        let config = CarConfig::default();
+        // Held still on the brake, the automatic box chose reverse.
+        state.gear = -1;
+        let input = drive_input(&lane, &pit_box, &state, &config, &[], 200.0);
+        assert_eq!(input.gear, Some(1), "first again, not a creep backwards");
+        state.gear = 2;
+        let input = drive_input(&lane, &pit_box, &state, &config, &[], 200.0);
+        assert_eq!(input.gear, None, "a forward gear is the box's to choose");
     }
 
     #[test]
