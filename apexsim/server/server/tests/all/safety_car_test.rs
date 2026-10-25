@@ -93,6 +93,14 @@ fn a_stranded_car_brings_out_the_virtual_safety_car() {
         safety_car: SafetyCar::Virtual,
         ..Default::default()
     });
+    // Without the curb sidecar (a checkout without an export, as CI) the
+    // cars leave the road and none counts as stranded on it.
+    if !race
+        .track_config
+        .has_sidecars(&[Sidecar::Curbs], "the virtual safety car")
+    {
+        return;
+    }
     let broken = break_one_down(&mut race);
     let mut out_at = None;
     let mut ended_at = None;
