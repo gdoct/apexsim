@@ -7447,6 +7447,7 @@ runs:
       - -ApexCountdown=5
       - -ApexWeather=sunny
       - -ApexTimeOfDay=05:30
+      - -ApexWind=0
       - -ApexView=tv
       - -ApexRacingLine=off
     shots:
@@ -7474,6 +7475,67 @@ runs:
       - -ApexCountdown=5
       - -ApexWeather=sunny
       - -ApexTimeOfDay=05:30
+      - -ApexWind=0
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.sky.ServerFog 0"
+    shots:
+      - at: 12
+        label: "Eau Rouge at dawn"
+        checks: "S3 fog: the far side greyed out by the fog, the near road clear"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 16
+        label: "TV at dawn"
+        checks: "S3 fog"
+        lead: 1
+        exec: "apexsim.cam.Release"
+
+  - id: s3-fog-thick
+    about: "S3. A calm 06:15 drawn under a thick fog (apexsim.sky.FogVisibility 250), against s3-fog-clear"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=06:15
+      - -ApexWind=0
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.sky.FogVisibility 250"
+    shots:
+      - at: 12
+        label: "Eau Rouge at dawn"
+        checks: "S3 fog: the far side greyed out by the fog, the near road clear"
+        lead: 1
+        exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
+      - at: 16
+        label: "TV at dawn"
+        checks: "S3 fog"
+        lead: 1
+        exec: "apexsim.cam.Release"
+
+  - id: s3-fog-clear
+    about: "S3. A calm 06:15 with the server's fog off, the pose s3-fog-thick fogs"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=06:15
+      - -ApexWind=0
       - -ApexView=tv
       - -ApexRacingLine=off
     exec:

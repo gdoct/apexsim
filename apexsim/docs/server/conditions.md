@@ -688,7 +688,7 @@ See [protocol.md](protocol.md) for the append-only rules.
 - `-ApexAutoRace` takes `-ApexDayOfYear=N` and `-ApexForecast=MIN:weather,...`.
 - The race director lights by `ApexSky::Derive` (static sky) or
   `ApexSky::DeriveLive` (blended from the server's cloud and rain,
-  relit only when `LiveSkyMoved` says so); `FSkySite` (latitude, north from
+  relit only when `LiveSkyMoved` says so: a game minute, a weather step, a few percent of cloud, rain, water or snow, a tenth of the fog's visibility); `FSkySite` (latitude, north from
   the catalog row's `bHasLocation` / `LatitudeDeg` / `NorthYawDeg`) turns
   the sun's bearing into the track frame. A director-owned unbound
   post-process volume carries exposure, wet desaturation and bloom. The
@@ -700,7 +700,7 @@ See [protocol.md](protocol.md) for the append-only rules.
   by weather, thickened in a live sky to the server's fog
   (`SkyNow.visibility_m` -> `FApexSkyNow::VisibilityM`; density
   `ApexSky::FogDensityFor`: 3.9 / visibility, never under the weather's
-  haze; `apexsim.sky.ServerFog 0` draws the haze alone) (its inscattering a luminance, `ApexSky::FogLuminance`: the
+  haze; `apexsim.sky.ServerFog 0` draws the haze alone, `apexsim.sky.FogVisibility N` the fog for N m in place of the server's) (its inscattering a luminance, `ApexSky::FogLuminance`: the
   weather's fog colour lit as the sky lights the clouds, x `HazeGain` 1.4,
   so far land fades into pale haze rather than sinking into dark blue), the road family's material roughness eased toward
   `ApexSky::WetRoadRoughness` (0.3) with the road's water (the road itself

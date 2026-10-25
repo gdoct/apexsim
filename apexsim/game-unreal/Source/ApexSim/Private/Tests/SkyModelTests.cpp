@@ -370,6 +370,15 @@ bool FApexSkyLiveTest::RunTest(const FString& Parameters)
 	After.ClockS = 20;
 	TestFalse(TEXT("midnight is not a day's jump"), LiveSkyMoved(Midnight, After));
 	TestTrue(TEXT("losing the sky relights"), LiveSkyMoved(Base, FApexSkyNow()));
+	// The fog: a tenth of its sight, or into or out of none.
+	Moved = Base;
+	Moved.VisibilityM = 2000;
+	TestTrue(TEXT("a fog coming down relights"), LiveSkyMoved(Base, Moved));
+	FApexSkyNow Thinner = Moved;
+	Thinner.VisibilityM = 2150;
+	TestFalse(TEXT("a few metres of fog is nothing"), LiveSkyMoved(Moved, Thinner));
+	Thinner.VisibilityM = 2200;
+	TestTrue(TEXT("a tenth of it relights"), LiveSkyMoved(Moved, Thinner));
 	return true;
 }
 

@@ -593,6 +593,19 @@ namespace ApexSky
 		return FMath::RadiansToDegrees(FMath::Acos(CosAngle)) >= StepDeg;
 	}
 
+	/**
+	 * Whether the fog's sight moved enough to draw again: a tenth of it (a
+	 * dawn fog thickens and lifts over minutes), or into or out of none.
+	 */
+	inline bool VisibilityMoved(int32 LitM, int32 NowM)
+	{
+		if ((LitM > 0) != (NowM > 0))
+		{
+			return true;
+		}
+		return FMath::Abs(NowM - LitM) * 10 >= FMath::Max(LitM, 1);
+	}
+
 	inline bool LiveSkyMoved(const FApexSkyNow& Lit, const FApexSkyNow& Now)
 	{
 		if (Lit.bValid != Now.bValid)
@@ -612,6 +625,7 @@ namespace ApexSky
 			|| FMath::Abs(Now.SnowfallPct - Lit.SnowfallPct) >= 3
 			|| FMath::Abs(Now.LineSnowPct - Lit.LineSnowPct) >= 3
 			|| ((Now.RainPct == 0) != (Lit.RainPct == 0))
-			|| ((Now.SnowfallPct == 0) != (Lit.SnowfallPct == 0));
+			|| ((Now.SnowfallPct == 0) != (Lit.SnowfallPct == 0))
+			|| VisibilityMoved(Lit.VisibilityM, Now.VisibilityM);
 	}
 }

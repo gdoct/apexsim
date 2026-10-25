@@ -1107,7 +1107,7 @@ and `-ApexReverseGrid=N`,
 `-ApexGridOrder=@host,@ai:1,...` (the start order), sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
-`-ApexTrackRubber=N`, `-ApexDayOfYear=N`, `-ApexForecast=MIN:weather,...`
+`-ApexTrackRubber=N`, `-ApexWind=N` (km/h, 0 calm), `-ApexDayOfYear=N`, `-ApexForecast=MIN:weather,...`
 (a written forecast). In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,
 `-ApexRacingLine=...`, the shot camera switches ([cameras.md](cameras.md)).
 Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,

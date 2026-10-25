@@ -290,6 +290,22 @@ namespace
 	TAutoConsoleVariable<bool> CVarServerFog(TEXT("apexsim.sky.ServerFog"), true,
 		TEXT("Whether the height fog thickens to the server's visibility (dawn fog); off draws the weather's haze alone."));
 
+	TAutoConsoleVariable<int32> CVarFogVisibility(TEXT("apexsim.sky.FogVisibility"), 0,
+		TEXT("Debug: draw the fog for this visibility, m, in place of the server's (0: the server's). For judging a thick fog on screen."));
+
+	/** The fog switches over a live sky: the haze alone, or a visibility forced for the shots. */
+	void ApplyFogSwitches(FApexSkyNow& Sky)
+	{
+		if (!CVarServerFog.GetValueOnGameThread())
+		{
+			Sky.VisibilityM = 0;
+		}
+		else if (const int32 Forced = CVarFogVisibility.GetValueOnGameThread(); Forced > 0 && Sky.bValid)
+		{
+			Sky.VisibilityM = Forced;
+		}
+	}
+
 	TAutoConsoleVariable<float> CVarSunStepDeg(
 		TEXT("apexsim.sky.SunStepDeg"),
 		0.5f,
@@ -2309,10 +2325,7 @@ ApexSky::FSkyState AApexRaceDirector::DeriveSky(FApexSkyNow& OutLit) const
 	// A replay clip carries its sky once, in its header; the live sky is the
 	// net's newest frame, which a showcase or a replay never fills.
 	OutLit = bReplayView ? ReplaySkyNow : Net ? Net->GetLatestSky() : FApexSkyNow();
-	if (!CVarServerFog.GetValueOnGameThread())
-	{
-		OutLit.VisibilityM = 0;
-	}
+	ApplyFogSwitches(OutLit);
 	return OutLit.bValid ? ApexSky::DeriveLive(Conditions, OutLit, Site) : ApexSky::Derive(Conditions, Site);
 }
 
@@ -2916,7 +2929,8 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 		return;
 	}
 	// A clip's sky is its stream's, a race's the net's newest frame.
-	const FApexSkyNow& Now = bReplayView ? ReplaySkyNow : Net->GetLatestSky();
+	FApexSkyNow Now = bReplayView ? ReplaySkyNow : Net->GetLatestSky();
+	ApplyFogSwitches(Now);
 
 	// The rain drifts with the gusts, every frame; it is one vector.
 	if (Now.bValid && (Rain || Clouds))

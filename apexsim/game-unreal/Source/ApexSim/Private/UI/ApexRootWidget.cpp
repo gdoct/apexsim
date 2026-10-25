@@ -2093,6 +2093,11 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	{
 		Conditions.TrackRubberPct = FMath::Max(SkyValue, 0);
 	}
+	// -ApexWind=N: the wind, km/h (0 calm), from where the server picks.
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexWind="), SkyValue))
+	{
+		Conditions.WindKph = FMath::Clamp(SkyValue, 0, FApexSessionConditions::MaxWindKph);
+	}
 	// -ApexDayOfYear=N (the date) and -ApexForecast=MIN:weather,... (a
 	// written forecast: from each session minute on, that weather).
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexDayOfYear="), SkyValue))

@@ -488,17 +488,18 @@ good. Left:
 
 ### R18. Dawn fog
 
-`s3-dawn-fog` and `s3-dawn-nofog` (Spa, sunny, 05:30; the second with
-`apexsim.sky.ServerFog 0`): the height fog thickened to the server's
-`SkyNow.visibility_m` (density 3.9 / visibility, never under the weather's
-haze; the client logs `Live sky: visibility N m, fog density D`). Run
-2026-10-24: the auto race's 7 km/h breeze left the air clear (density
-0.0015, the haze), so no fog was on screen, and the second run's GPU hung
-(follow-ups #12). Left:
+`s3-dawn-fog` and `s3-dawn-nofog` (Spa, sunny, 05:30, calm through
+`-ApexWind=0`; the second with `apexsim.sky.ServerFog 0`): the height fog
+thickened to the server's `SkyNow.visibility_m` (density 3.9 / visibility,
+never under the weather's haze; the client logs `Live sky: visibility N m,
+fog density D`). `s3-fog-thick` against `s3-fog-clear` (06:15, the fog
+forced to 250 m with `apexsim.sky.FogVisibility`) was seen 2026-10-25: the
+far stands and trees grey, the near road readable (the far forest's
+impostors aside, follow-ups #12). Left:
 
-- A still, clear dawn (no wind) that the server fogs, against the same
-  pose with the switch off: the fog grey and thick in the distance, the
-  near road readable.
+- The server's own fog on screen: a calm Spa dawn gives 4825 m at 05:30
+  (a faint haze) and 1601 m at 04:30, still dark. A dawn it fogs thickly
+  in daylight wants a colder night against the day's dew point.
 
 ### R19. The radio
 
