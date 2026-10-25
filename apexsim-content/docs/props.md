@@ -452,7 +452,16 @@ are `circuit_style.rs` ([circuits.md](circuits.md)).
   `end_cap_stadium`) is laid by `LayoutGrandstand`: 10 m pitch like the rest,
   the 6 degree wedge outside a bend, straight bays inside one, its own cap.
   Both bays have a fitted crowd twin (`build_stand_crowds.py`, 35 rows,
-  140 cards). Armadillos' Main Grandstand uses the straight bay, its front
+  140 cards). Their roof is a fabric canopy on masts (`stadium_canopy` in
+  `build_kit_gaps_stands.py`, which edits the bays' own `.blend`: they have
+  no generator of their own): a vault per module, its ridge down the middle
+  and its valleys on the module edges, so a run reads as a row of tents,
+  rising from 28.2 m at the back to a 29.6 m lip over the front rows; the
+  two back columns run on through it as 38 m masts with stays to the ridge.
+  The front step carries a rail and two flags (a chequered flag, amber and
+  charcoal on the diagonal). The kit table keeps the bay's 28 m: its
+  height is the stand's collision box, which the canopy and masts need not
+  be. Rebuild the crowd twins and re-import all four after a change. Armadillos' Main Grandstand uses the straight bay, its front
   19.2 m off the centreline as the dossier's outline has it (verify run
   `c9-stadium-armadillos`); the wedge's shared edges are assumed to be the
   other families' (the bay is 10.6 m long in the kit table): look at one on

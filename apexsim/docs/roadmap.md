@@ -191,16 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 43. The stadium stand's canopy and rail
-
-The stadium family (`bay_10m_stadium_roof`) has its crowd twin and stands
-where its dossier outline does. Left: its canopy is a slab on trusses where
-a modern main grandstand has a light tensile roof on masts, and its front
-rail carries no flags or dressing (`build_kit_gaps_stands.py`).
-
-**Check:** `c9-stadium-armadillos` and the `sf-ref-*` frames of a circuit
-using the family.
-
 ### 17. League rules
 
 - Success ballast by championship position (needs championships), a

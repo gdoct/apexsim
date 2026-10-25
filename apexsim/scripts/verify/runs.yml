@@ -9356,7 +9356,7 @@ runs:
   # The stadium stand's crowd (roadmap 43): the fitted `_crowd` twin of
   # the stadium family, seen head-on from the track.
   - id: c9-stadium-armadillos
-    about: "C9. The Main Grandstand's crowd at Armadillos"
+    about: "C9. The Main Grandstand at Armadillos: its crowd, its fabric canopy on masts, its rail and flags"
     args:
       - -ApexAutoRace
       - -ApexTrack=Armadillos
@@ -9373,6 +9373,10 @@ runs:
       1: "apexsim.hud.Hide 1"
     shots:
       - {at: 10, lead: 1, label: "the stand head-on", checks: "C9: people on every tier", exec: "apexsim.cam.LookAt 98.8 -65.6 3.6 72.1 -100.6 8.6"}
+      - {at: 14, lead: 1, label: "raised, from the road side", checks: "C9: a row of fabric vaults on masts, no seams between modules", exec: "apexsim.cam.LookAt 146.3 -58.7 40.0 100.9 -118.4 26.0", item: v-c9-stadium-canopy}
+      - {at: 18, lead: 1, label: "from behind and above", checks: "C9: the masts and stays, the back beam on the columns", exec: "apexsim.cam.LookAt 55.6 -178.2 60.0 100.9 -118.4 26.0", item: v-c9-stadium-canopy}
+      - {at: 22, lead: 1, label: "the rail and flags, over the fence", checks: "C9: a rail on the front step, a chequered and an amber flag a module", exec: "apexsim.cam.LookAt 114.9 -95.1 5.5 110.6 -110.7 3.0", item: v-c9-stadium-canopy}
+      - {at: 26, lead: 1, label: "under the canopy, from the top row", checks: "C9: the fabric's underside lit, the ridge and valley cables, the track beyond", exec: "apexsim.cam.LookAt 91.0 -131.6 27.3 120.4 -99.3 29.5", item: v-c9-stadium-canopy}
 
   # The start gantry (roadmap 46): the kit's bridge/start_gantry over the
   # line, its fascia read from beyond it, looking back at the grid.

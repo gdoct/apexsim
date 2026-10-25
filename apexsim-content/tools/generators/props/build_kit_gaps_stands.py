@@ -17,6 +17,10 @@ the stands, pit storeys and bridges the dressing audit found no kit piece for.
                                     piers, crossing over the road
   building/banked_oval_10m          a straight 10 m module of that deck beside
                                     the road, tiled along the oval's line
+  grandstand/bay_10m_stadium_roof,  the stadium family's fabric canopy on masts
+  grandstand/bay_10m_stadium_curve6_roof   and its front rail with flags (roadmap
+                                    43): edits the bays' own .blend, see
+                                    stadium_canopy
 
 Headless, from apexsim-content/ (one Blender at a time):
 
@@ -1198,7 +1202,182 @@ def banked_oval_span():
                         extra=[("_c", ((40, 30, 22), (0, 0, 8)))])
 
 
+# ------------------------------------------------ grandstand/bay_10m_stadium_*
+# Roadmap 43. The stadium family came from the kit as a 35 m deep, three-tier
+# stand under a flat slab on a truss, with a bare front step; a modern main
+# grandstand has a light fabric canopy on masts and dressing on its front
+# rail. The bays have no generator: this edits their own .blend. The slab and
+# every steel face above TRUSS_Z (the truss) go; a canopy rides on the two
+# back columns, raised as masts, its ridge down the middle of the module and
+# its valleys on the module edges, so a run reads as a row of tents; a rail
+# with two flags dresses the front step. What it lays it removes first (the
+# truss rule, the rail and flag slots), so a second run changes nothing.
+STADIUM_BAYS = {"bay_10m_stadium_roof": 0.0, "bay_10m_stadium_curve6_roof": 3.0}
+TRUSS_Z = 26.55
+# Two flags a module, neither a nation's: a chequered flag, and amber over
+# charcoal split on the diagonal.
+STADIUM_FLAGS = (((0.03, 0.03, 0.035), (0.92, 0.92, 0.90)), ((0.95, 0.62, 0.08), (0.12, 0.13, 0.14)))
+
+
+def stadium_canopy(asset):
+    import bmesh
+    new_scene()
+    bpy.ops.wm.open_mainfile(filepath=os.path.join(apex.PROPS_ROOT, "grandstand", asset + ".blend"))
+    tex.reset_cache()
+    for o in list(bpy.data.objects):
+        if o.name.startswith("Preview") or o.name.startswith("ctx_"):
+            bpy.data.objects.remove(o)
+    ob = bpy.data.objects[asset]
+    tan = math.tan(math.radians(STADIUM_BAYS[asset]))
+
+    def hw(y):  # the module's half width at y: the wedge opens away from the road
+        return 5.0 + y * tan
+
+    # The kit's baked slots for the bay's flat ones (retexture_kit.py does the
+    # same to the GLB), so the new steel and the old are one material.
+    for i, m in enumerate(ob.data.materials):
+        name = m.name.split(".")[0] if m else ""
+        if name.endswith("_flat"):
+            name = name[:-len("_flat")]
+        if name in tex.KIT_SLOTS:
+            ob.data.materials[i] = M(name)
+    # Strip the slab, the truss (and a canopy laid before), the rail and the flags.
+    names = [m.name.split(".")[0] if m else "" for m in ob.data.materials]
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    drop = []
+    for f in bm.faces:
+        n = names[f.material_index]
+        if n in ("grandstand_roof", "grandstand_rail", "grandstand_membrane") or n.startswith("stadium_flag"):
+            drop.append(f)
+        elif n == "grandstand_steel" and min(v.co.z for v in f.verts) >= TRUSS_Z:
+            drop.append(f)
+    step_top = max(v.co.z for f in bm.faces if names[f.material_index].startswith("grandstand_concrete")
+                   for v in f.verts if v.co.y < 0.05)
+    # The back columns: the steel that stands from the ground to the roof.
+    col = {-1: [], 1: []}
+    for f in bm.faces:
+        if names[f.material_index] == "grandstand_steel" and f not in drop:
+            zs = [v.co.z for v in f.verts]
+            if min(zs) < 1.0 and max(zs) > 20.0:
+                c = f.calc_center_median()
+                col[1 if c.x > 0 else -1].append(c)
+    assert col[-1] and col[1], "no back columns found"
+    COLS = [(sum(c.x for c in col[s]) / len(col[s]), sum(c.y for c in col[s]) / len(col[s])) for s in (-1, 1)]
+    bmesh.ops.delete(bm, geom=drop, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(ob.data)
+    bm.free()
+    keep = apex.Builder("stadium_keep")  # a scratch builder for the new parts
+    b = keep
+    steel = M("grandstand_steel")
+    rail = M("grandstand_rail")
+    membrane = membrane_mat("grandstand_membrane", 71)
+
+    # The canopy: back edge on the columns, rising to the front lip.
+    Y_F, Y_B = -1.9, 33.2
+    Z_F, Z_B = 29.6, 28.2
+    H = 2.6                      # the ridge over the valleys
+    MAST_TOP = 38.0
+
+    def yf(u):
+        return Y_F + 1.1 * u * u            # the lip recedes into the valleys
+
+    def P(u, v):
+        y = yf(u) + (Y_B - yf(u)) * v
+        z = Z_F + (Z_B - Z_F) * v + H * (1.0 - abs(u) ** 1.6) * (0.35 + 0.65 * math.sin(math.pi * v) ** 0.7)
+        return (u * hw(y), y, z)
+
+    nu, nv = 24, 40
+    us = [-1 + 2 * i / nu for i in range(nu + 1)]
+    vs = [j / nv for j in range(nv + 1)]
+    grid = [[P(u, v) for v in vs] for u in us]
+    shell(b, membrane, grid, 0.05,
+          lambda side: {'u0': (-1, 0, 0), 'u1': (1, 0, 0), 'v0': (0, -1, 0.3), 'v1': (0, 1, 0)}[side])
+    ring_tube(b, steel, [grid[i][0] for i in range(nu + 1)], 0.05, segs=6)             # front edge cable
+    ring_tube(b, steel, [Vector(p) + Vector((0, 0, 0.04)) for p in grid[nu // 2]], 0.06, segs=8)   # ridge
+    for i, s in ((0, 1), (nu, -1)):                                                     # valley cables
+        ring_tube(b, steel, [Vector(p) + Vector((s * 0.05, 0, 0.02)) for p in grid[i]], 0.04, segs=6)
+    b.bar(steel, (-hw(Y_B), Y_B - 0.05, Z_B - 0.2), (hw(Y_B), Y_B - 0.05, Z_B - 0.2), 0.16, segs=10)   # back beam
+    # The masts: the back columns carried on through the canopy, each with
+    # stays down to the ridge (a V either side of the module's ridge) and a
+    # tie to the back beam.
+    for cx, cy in COLS:
+        b.cylinder(steel, (cx, cy, 26.9), 0.2, MAST_TOP - 26.9, segs=12)
+        b.cylinder(steel, (cx, cy, MAST_TOP), 0.26, 0.25, segs=12)
+        top = Vector((cx, cy, MAST_TOP - 0.15))
+        for v in (0.12, 0.38, 0.66):
+            p = Vector(grid[nu // 2][round(v * nv)]) + Vector((0, 0, 0.1))
+            b.bar(steel, top, p, 0.035, segs=6)
+        b.bar(steel, top, (math.copysign(hw(Y_B) - 0.1, cx), Y_B - 0.05, Z_B), 0.04, segs=6)
+
+    # The front rail on the step, and two flags on it.
+    yr = -0.15
+    for z in (step_top + 0.55, step_top + 1.05):
+        b.bar(rail, (-hw(yr), yr, z), (hw(yr), yr, z), 0.03, segs=8)
+    for x in (-4.0, -2.0, 0.0, 2.0, 4.0):
+        b.bar(rail, (x, yr, step_top), (x, yr, step_top + 1.08), 0.03, segs=8)
+    for k, x in enumerate((-2.6, 2.6)):
+        top = step_top + 3.4
+        b.bar(rail, (x, yr, step_top), (x, yr, top + 0.1), 0.035, segs=8)
+        b.cylinder(rail, (x, yr, top + 0.1), 0.06, 0.06, segs=8)
+        mats = [apex.material(f"stadium_flag_{k}_{j}", rgb, roughness=0.8) for j, rgb in enumerate(STADIUM_FLAGS[k])]
+        for mat, rgb in zip(mats, STADIUM_FLAGS[k]):  # the .blend keeps a run's earlier colours by name
+            mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = (*rgb, 1.0)
+        W, Hf, n = 1.5, 0.95, 8
+        side = 1.0 if x < 0 else -1.0       # each flag flies toward the module's middle
+
+        def fp(i, zf):
+            t = i / n
+            return Vector((x + side * W * t, yr + 0.12 * math.sin(2.2 * math.pi * t) * t, top - zf - 0.1 * t))
+
+        rows = 4 if k == 0 else n      # the diagonal runs corner to corner of its cells
+        for i in range(n):
+            for r in range(rows):
+                q = [fp(i, Hf * r / rows), fp(i + 1, Hf * r / rows), fp(i + 1, Hf * (r + 1) / rows), fp(i, Hf * (r + 1) / rows)]
+                if k == 0:
+                    parts = [((i // 2 + r) % 2, q)]          # chequers two columns wide
+                elif i + r == n - 1:                         # a cell the diagonal halves
+                    parts = [(0, [q[0], q[1], q[3]]), (1, [q[1], q[2], q[3]])]
+                else:
+                    parts = [(0 if i + r < n - 1 else 1, q)]
+                for j, face in parts:
+                    for out in ((0, -1, 0), (0, 1, 0)):   # both faces: the flag is seen from either side
+                        oface(b, mats[j], face, out=out)
+
+    extra = b.finish(recalc=False)
+    # Join the new parts into the bay on the data (no 3D view headless).
+    from_mesh = extra.data
+    base = ob.data
+    slot_of = {}
+    for m in from_mesh.materials:
+        found = next((i for i, bm_ in enumerate(base.materials) if bm_ and bm_.name == m.name), None)
+        if found is None:
+            base.materials.append(m)
+            found = len(base.materials) - 1
+        slot_of[m.name] = found
+    bm = bmesh.new()
+    bm.from_mesh(base)
+    bm.from_mesh(from_mesh)
+    # bm.from_mesh appends with the source's own material indices: remap the
+    # appended faces (the last len(from_mesh.polygons)).
+    bm.faces.ensure_lookup_table()
+    start = len(bm.faces) - len(from_mesh.polygons)
+    for k, poly in enumerate(from_mesh.polygons):
+        bm.faces[start + k].material_index = slot_of[from_mesh.materials[poly.material_index].name]
+    bm.to_mesh(base)
+    bm.free()
+    bpy.data.objects.remove(extra)
+    base.update()
+    stand_context(ob)
+    return finish_asset("grandstand", asset, ob, three_q=((40, -42, 26), (0, 12, 14)), driver=((-22, -16, 1.4), (0, 3, 8)),
+                        pitch=10.0 if not STADIUM_BAYS[asset] else None,
+                        extra=[("_c", ((8, -5, 2.0), (0, 14, 24)))])
+
+
 BUILD = {
+    "bay_10m_stadium_roof": lambda: stadium_canopy("bay_10m_stadium_roof"),
+    "bay_10m_stadium_curve6_roof": lambda: stadium_canopy("bay_10m_stadium_curve6_roof"),
     "garage_upper_6m": garage_upper_6m,
     "garage_roof_membrane_6m": garage_roof_membrane_6m,
     "tent_roof_10m": tent_roof_10m,

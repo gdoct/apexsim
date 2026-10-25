@@ -2335,6 +2335,38 @@
   status: open
   needs: [by-hand]
 
+- id: v-c9-stadium-canopy
+  title: The stadium stand's fabric canopy, rail and flags
+  area: track
+  kind: screen
+  check_by: c9-stadium-armadillos
+  created: 2026-10-25
+  commit: 36680c50
+  plan: C9
+  doc: ../../apexsim-content/docs/props.md
+  what: >-
+    The stadium family (Armadillos' Main Grandstand) under a row of fabric vaults
+    on masts instead of a slab on a truss, with a rail and two flags a module
+    on its front step: no seam between modules, the canopy lit from below, the
+    flags no nation's.
+  status: judged
+  evidence:
+  - run: c9-stadium-armadillos
+    date: 2026-10-25
+    commit: d2def77f
+    shots: [2, 3, 4, 5]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: looks-right
+    text: >-
+      A row of fabric vaults on masts from the road side (2) and from behind
+      (3), no seam between modules; the rail with a chequered and an amber-and-charcoal
+      flag a module through the catch fence (4); the underside, ridge and valleys
+      from the top row with the track beyond (5).
+    shots: [2, 3, 4, 5]
+
 - id: v-c10-armadillos-hills
   title: The hills north of Armadillos from a raised camera
   area: track
