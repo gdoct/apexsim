@@ -9363,6 +9363,27 @@ runs:
       1: "apexsim.hud.Hide 1"
     shots:
       - {at: 10, lead: 1, label: "the stand head-on", checks: "C9: people on every tier", exec: "apexsim.cam.LookAt 98.8 -65.6 3.6 72.1 -100.6 8.6"}
+
+  # The start gantry (roadmap 46): the kit's bridge/start_gantry over the
+  # line, its fascia read from beyond it, looking back at the grid.
+  - id: c11-gantry-shiverstone
+    about: "C11. The start gantry from past the line at Shiverstone"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "the gantry from past the line", checks: "C11: dark truss, the fascia reading the right way, the lights on their housing", exec: "apexsim.cam.LookAt 26.9 31.9 3.3 3.4 -0.5 3.0"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

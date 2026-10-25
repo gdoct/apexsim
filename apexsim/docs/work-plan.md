@@ -46,7 +46,6 @@ takes it up (— : no step, taken opportunistically).
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | C9 | The stadium stand's canopy and rail (roadmap 43) | Content | P2 | 🟡 | M | 2 |
 | C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
-| C11 | Start gantry mesh (roadmap 46) | Content | P2 | 🟡 | S | 2 |
 | C12 | Formula car up close (roadmap 47) | Content | P2 | 🟡 | S–M | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
@@ -74,7 +73,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison
-   (C9 to C12, in any order, each judged on the `sf-ref-*`
+   (C9, C10 and C12, in any order, each judged on the `sf-ref-*`
    frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
@@ -227,14 +226,11 @@ The track's audit page is
 - **C10. Horizon for open-country circuits** (roadmap 44): a
   `forest_impostor` belt at the property edge for the prairie style, the
   DEM horizon mesh checked for the hills north of COTA. M.
-- **C11. Start gantry mesh** (roadmap 46): `bridge/start_gantry.glb`, a
-  dark truss with a branded fascia and a small light housing; the
-  countdown's `ApexStartLight` lenses on its lamp row. S.
 - **C12. Formula car up close** (roadmap 47): decided on the `sf-ref-*` frames; if
   the sponsor atlas still reads as absent at T-cam distance, larger
   wordmarks, wing carbon, rim and sidewall at close range. S–M.
 
-**Watch out:** C10 re-dresses `--all` and touch every
+**Watch out:** C10 re-dresses `--all` and touches every
 track's `.ats` and export; run them one at a time.
 
 ### Audio and features

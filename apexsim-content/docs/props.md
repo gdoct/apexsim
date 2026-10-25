@@ -367,7 +367,13 @@ lights use `bridge/SM_start_gantry` as the `StartLights` root when it exists,
 with five `ApexStartLight` lens components over the panel's upper lamp row
 (`GantryLampX/PitchY/Z`), so the race director's countdown contract
 (`ApexStartLights` / `ApexStartLight` tags) is unchanged; the generated
-gantry is the fallback.
+gantry is the fallback. The kit's gantry (`build_start_gantry.py`) is a
+dark box truss on two truss legs over a 15 m road, a branded fascia
+(`board_brand`) on both faces of the beam reading the right way from the
+grid and from past the line, and a compact housing under the beam: its
+upper row is where the five lenses go (x -0.37 m, 0.80 m apart, 5.45 m
+up), the lower row dark lenses of its own. Verify run
+`c11-gantry-shiverstone` and the `sf-ref-*` frames.
 
 ### Pit complex
 

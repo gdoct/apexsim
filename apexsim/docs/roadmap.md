@@ -217,20 +217,6 @@ closed by live-oak belts at the property line and hills to the north.
 **Check:** the `sf-ref-*` horizon and a `g3-horizon`-style shot at
 Armadillos; re-dress `--all` counts for the other open-country circuits.
 
-### 46. The start gantry
-
-The kit has no start gantry mesh (`props/bridge/gantries.blend` holds the
-banner and sign gantries), so the generated white box on lattice legs is
-what every circuit shows.
-
-- `bridge/start_gantry.glb`: a dark truss, a branded fascia (invented
-  brands, `gen_brands.py`), the lights on a small housing, authored for a
-  15 m road and scaled by `BridgeSpanScale`, with the five `ApexStartLight`
-  lenses over its lamp row (`GantryLampX/PitchY/Z`).
-
-**Check:** the countdown still drives the lights (`ApexStartLights` tags,
-`c5-sf-*` runs); the `sf-ref-*` shot down the straight.
-
 ### 47. The formula car up close
 
 The F1 generator already lays a sponsor atlas, a carbon weave and a painted
