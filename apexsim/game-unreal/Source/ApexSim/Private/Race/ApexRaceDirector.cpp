@@ -466,7 +466,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs ChaseViewCommand(
 		TEXT("apexsim.cam.Chase"),
-		TEXT("Driving camera: a chase rung by index (0 closest) or name (roof, close, near, far), or \"cockpit\". No argument steps to the next, as C does."),
+		TEXT("Driving camera: a chase rung by stored index or name (tcam, roof, close, near, far), or \"cockpit\". No argument steps to the next, as C does."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 			{
 				AApexRaceDirector* Director = FindDirectorForCommand(World);
@@ -485,7 +485,7 @@ namespace
 					if (!Args[0].IsNumeric())
 					{
 						UE_LOG(LogApexSim, Warning,
-							TEXT("Usage: apexsim.cam.Chase [0-%d | roof | close | near | far | cockpit]"),
+							TEXT("Usage: apexsim.cam.Chase [0-%d | tcam | roof | close | near | far | cockpit]"),
 							ApexChase::Num() - 1);
 						return;
 					}
@@ -1637,6 +1637,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 		SetActorLocation(FollowedCar->GetActorLocation());
 		SetActorRotation(FRotator(0.0f, FollowedCar->GetActorRotation().Yaw, 0.0f));
 		CameraBoom->SetBody(FollowedCar->GetActorTransform(), FollowedCar->GetBodyBox());
+		PlaceChaseBoomOrigin();
 	}
 	else
 	{
@@ -3525,9 +3526,18 @@ void AApexRaceDirector::ApplyShotCameraCommandLine()
 	}
 }
 
+void AApexRaceDirector::PlaceChaseBoomOrigin()
+{
+	// The actor follows the car's position and yaw, so a relative location
+	// is in the car's own frame, levelled: the T-cam keeps the horizon.
+	const FVector Eye = ApexChase::Get(ChaseLevel).bFromEye ? CockpitEyeLocal() : FVector::ZeroVector;
+	CameraBoom->SetRelativeLocation(FVector(Eye.X, 0.0f, Eye.Z));
+}
+
 void AApexRaceDirector::ApplyChaseView()
 {
 	const ApexChase::FView& View = ApexChase::Get(ChaseLevel);
+	PlaceChaseBoomOrigin();
 	CameraBoom->TargetArmLength = View.ArmLengthCm;
 	// World space, added to the boom's origin: a plain lift off the car,
 	// unturned by the boom's pitch, so the roof cam sits over the roof rather

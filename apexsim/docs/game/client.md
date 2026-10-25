@@ -1116,7 +1116,7 @@ and `-ApexReverseGrid=N`,
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,
 `-ApexTimeOfDay=HH:MM`, `-ApexTimeScale=N`, `-ApexChangeable=N`,
 `-ApexTrackRubber=N`, `-ApexWind=N` (km/h, 0 calm), `-ApexDayOfYear=N`, `-ApexForecast=MIN:weather,...`
-(a written forecast). In the race: `-ApexView=cockpit|chase|tv|roof|close|near|far`,
+(a written forecast). In the race: `-ApexView=cockpit|chase|tv|tcam|roof|close|near|far`,
 `-ApexRacingLine=...`, the shot camera switches ([cameras.md](cameras.md)).
 Hotlap: `-ApexHotlapOutAfter=N`, `-ApexHotlapGarageAfter=N`,
 `-ApexHotlapReplayAfter=N` (comma lists).

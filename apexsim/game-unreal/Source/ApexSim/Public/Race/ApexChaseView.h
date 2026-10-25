@@ -43,11 +43,19 @@ namespace ApexChase
 		 * 3 m camera at 3 m on the straight while still easing into corners.
 		 */
 		float LagMaxDistanceCm = 0.0f;
+		/**
+		 * The boom's origin is the driver's eye (the cockpit layout's, with
+		 * the seat settings) rather than the car's origin, so the rung sits
+		 * at the same place over the helmet in every car: the T-cam.
+		 */
+		bool bFromEye = false;
 	};
 
 	/**
-	 * Closest first, so stepping up the index is stepping away from the car.
-	 * The last rung is the chase camera as it was before the ladder existed.
+	 * Every rung, by the index the settings store (`ChaseViewLevel`), so
+	 * append-only: a new rung goes at the end whatever its distance, and
+	 * `Order()` says where it steps. Index 3 is the chase camera as it was
+	 * before the ladder existed.
 	 */
 	inline const TArray<FView>& Views()
 	{
@@ -62,36 +70,61 @@ namespace ApexChase
 			{TEXT("near"), 560.0f, 45.0f, -9.0f, 4.0f, 8.0f, 7.0f, 180.0f},
 			// The original chase camera, its lag unclamped as it always was.
 			{TEXT("far"), 900.0f, 0.0f, -12.0f, 0.0f, 6.0f, 5.0f, 0.0f},
+			// The broadcast T-cam: on the roll hoop, a little behind and over
+			// the helmet, pitched down a touch, a wide lens (the chase FOV of
+			// 80 plus 22, about the broadcast's 100 degrees), welded on. The
+			// halo and the driver are in frame; over a closed car the body
+			// box lifts it onto the roof (KeepOutOfBody).
+			{TEXT("tcam"), 30.0f, 30.0f, -5.0f, 22.0f, 30.0f, 28.0f, 8.0f, true},
 		};
 		return Ladder;
 	}
 
 	inline int32 Num() { return Views().Num(); }
 
-	/** The farthest rung: what `-ApexView=chase` and an unset setting mean. */
-	inline int32 DefaultLevel() { return Num() - 1; }
+	/** The far rung: what `-ApexView=chase` and an unset setting mean. */
+	static constexpr int32 FarLevel = 3;
+	inline int32 DefaultLevel() { return FarLevel; }
 
-	/** Any index, clamped onto the ladder. */
+	/**
+	 * The rungs closest first: what C steps along and the order the Camera
+	 * tab's row shows them in.
+	 */
+	inline const TArray<int32>& Order()
+	{
+		static const TArray<int32> Steps = {4, 0, 1, 2, 3};
+		return Steps;
+	}
+
+	/** Where a stored index stands in `Order()`; the far rung's place for one off the ladder. */
+	inline int32 StepOf(int32 Level)
+	{
+		const int32 Step = Order().IndexOfByKey(Level);
+		return Step != INDEX_NONE ? Step : Order().IndexOfByKey(FarLevel);
+	}
+
+	/** Any index; one off the ladder is the far rung. */
 	inline const FView& Get(int32 Level)
 	{
-		return Views()[FMath::Clamp(Level, 0, Num() - 1)];
+		return Views()[Views().IsValidIndex(Level) ? Level : FarLevel];
 	}
 
 	/** Level -1 is the cockpit, which is not a rung but is part of the cycle. */
 	static constexpr int32 CockpitLevel = -1;
 
 	/**
-	 * What C does: cockpit -> closest -> ... -> farthest -> cockpit. An index
-	 * from an older save that is off the end lands back in the cockpit rather
+	 * What C does: cockpit -> closest -> ... -> farthest -> cockpit, along
+	 * `Order()`. An index off the ladder lands back in the cockpit rather
 	 * than sticking.
 	 */
 	inline int32 NextLevel(int32 Level)
 	{
-		if (Level < 0 || Level >= Num() - 1)
+		if (Level < 0)
 		{
-			return Level < 0 ? 0 : CockpitLevel;
+			return Order()[0];
 		}
-		return Level + 1;
+		const int32 Step = Order().IndexOfByKey(Level);
+		return Step == INDEX_NONE || Step + 1 >= Order().Num() ? CockpitLevel : Order()[Step + 1];
 	}
 
 	/** How far outside the bodywork the chase camera is always kept, cm. */

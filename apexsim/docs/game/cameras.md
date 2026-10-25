@@ -26,7 +26,7 @@ The director's `ApplyCameraMode` decides which camera is active; car spawns,
 a change of followed car, C (`CycleView`) and the settings all go through it.
 The view a race opens in is the Camera tab's "Start in" (cockpit or chase,
 `UApexSettingsSave::bStartInCockpit`) and the stored chase rung, overridden
-for a run by `-ApexView=cockpit|chase|tv|roof|close|near|far`. Camera
+for a run by `-ApexView=cockpit|chase|tv|tcam|roof|close|near|far`. Camera
 settings are applied live through `AApexRaceDirector::ApplyCameraSettings`.
 
 ## Cockpit view (`AApexCockpitRig`, `ApexCockpit::DeriveLayout`)
@@ -83,22 +83,29 @@ and look-to-apex are on `UApexSettingsSave`'s camera block.
 ## Chase ladder (`ApexChase::Views()`, `Race/ApexChaseView.h`)
 
 C steps from the cockpit down a ladder of chase distances and back to the
-cockpit. Rungs, closest first: `roof` (boom 0.6 m back, lifted 1.4 m, near
-the driver's eyeline), `close` (3 m), `near` (5.6 m), `far` (9 m). Each rung
+cockpit. Rungs, closest first (`ApexChase::Order()`): `tcam` (the broadcast
+T-cam: its boom starts at the driver's eye, the cockpit layout's with the
+seat settings, and sits 0.3 m back and 0.3 m over it, pitched 5 degrees
+down, the chase FOV plus 22 degrees, about 100, with the horizon level; the
+halo and the driver are in frame, and over a closed car the body box lifts
+it onto the roof), `roof` (boom 0.6 m back, lifted 1.4 m, near the
+driver's eyeline), `close` (3 m), `near` (5.6 m), `far` (9 m). Each rung
 carries arm length, lift, boom pitch, a field-of-view delta on top of the
 chase FOV, the spring arm's lag speeds and a lag clamp
-(`CameraLagMaxDistance`).
+(`CameraLagMaxDistance`). `ApexChase::Views()` holds them by the index the
+settings store, so it is append-only (roof 0 to far 3, tcam 4): a new rung
+goes at the end and takes its place in `Order()`.
 
 - `AApexRaceDirector::ApplyChaseView` pushes a rung onto the boom;
   `UpdateLook` takes the pitch from it.
 - The rung is stored in `UApexSettingsSave::ChaseViewLevel` (default 3, far)
-  with a "Chase distance" row on the Camera tab. The row only stores it (the
+  with a "Chase distance" row on the Camera tab, T-CAM to FAR in step order. The row only stores it (the
   director adopts it with the rest of the camera group, so picking a distance
   while in the cockpit does not leave the cockpit); C writes back through
   `UApexSettingsSubsystem::SetChaseLevel`, so the distance survives the race.
 - The hotlap ghost replay borrows the far rung and restores the player's
   afterwards.
-- `apexsim.cam.Chase [0-3|roof|close|near|far|cockpit]` (no argument steps).
+- `apexsim.cam.Chase [0-4|tcam|roof|close|near|far|cockpit]` (no argument steps).
   `-ApexCameraCycleAfter=N[,N]` with a matching `-ApexScreenshotAfter` list
   walks the whole ladder in one unattended run.
 
@@ -111,7 +118,8 @@ car that spins or stops dead could otherwise carry its own body through the
 shot. Every rung at rest is already clear of a hypercar's box.
 
 Tests: `ApexSim.Camera.ChaseLadder`, `ApexSim.Camera.ChaseCycle`,
-`ApexSim.Camera.ChaseKeepOutOfBody`; verify run `b5-chase-chiffon`.
+`ApexSim.Camera.ChaseKeepOutOfBody`; verify runs `b5-chase-chiffon`, `g10-tcam-sf26`,
+`g10-tcam-chiffon`.
 
 ## Pit box pose (`ApexPitCamera`, `AApexRaceDirector::UpdatePitCamera`)
 

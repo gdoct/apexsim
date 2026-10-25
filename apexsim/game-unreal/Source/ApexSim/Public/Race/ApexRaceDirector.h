@@ -1116,6 +1116,8 @@ private:
 	/** The driving cameras' FOV this frame: the rung's trim and the speed boost, unless fixed. */
 	float CockpitFovDeg() const;
 	float ChaseFovDeg() const;
+	/** The boom's origin: the car's, or the driver's eye for a rung that asks (`ApexChase::FView::bFromEye`). */
+	void PlaceChaseBoomOrigin();
 	/** This frame's cockpit micro-shake, composed onto the car rotation. */
 	FRotator CockpitShake = FRotator::ZeroRotator;
 

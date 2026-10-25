@@ -351,25 +351,6 @@ the road ahead.
 without the change; the cockpit view at night unchanged (verification.md's
 night row).
 
-### 49. A T-cam rung
-
-The closest chase rung (`roof`) sits 0.6 m back and 1.4 m up, so the rear
-bodywork fills the frame and the driver is out of it. A broadcast T-cam is
-on the roll hoop, ahead of and above the helmet.
-
-- A `tcam` rung in `ApexChase::Views()`: eye at the roll hoop, pitched 4 to
-  6 degrees down, a wide field of view through `FovDeltaDeg`, the horizon
-  kept, the halo and the driver's helmet (`<stem>_driver.glb`) in frame.
-  `ChaseViewLevel` is a stored index and the ladder is closest first, so
-  the new rung must not shift the meaning of saved indices (map them, or
-  keep the array order and sort for stepping).
-- Optional, off by default: a broadcast look (a touch of barrel distortion
-  and bloom) as a console variable, for shots.
-
-**Check:** `-ApexView=tcam` at Armadillos in the SF-26 and in a closed car
-(the rung must clear a hypercar's roof as the others do); the `C` ladder
-still steps through every rung.
-
 ## P3: nice to have
 
 ### 50. A broadcast HUD layout

@@ -9057,6 +9057,58 @@ runs:
         lead: 1
         exec: "apexsim.tv.View 0"
 
+
+  # The T-cam rung (roadmap 49): on the grid and racing, in an open car
+  # and a closed one (the body box lifts it onto a hypercar's roof), and
+  # C still stepping the whole ladder from it.
+  - id: g10-tcam-sf26
+    about: "G10. The T-cam rung in the SF-26: halo and helmet in frame, horizon level"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=7
+      - -ApexGridOrder=@host
+      - -ApexLaps=2
+      - -ApexCountdown=12
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tcam
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 9, label: "tcam on the grid", checks: "G10: halo arching through the frame, helmet below it, front wheels at the edges"}
+      - {at: 30, label: "tcam racing", checks: "G10: horizon level through the corners, no lag swing"}
+      - {at: 45, label: "tcam racing", checks: "G10"}
+      - {at: 50, lead: 1, label: "C from the tcam", checks: "G10: C steps to the roof rung", exec: "apexsim.cam.Chase"}
+      - {at: 53, lead: 1, label: "C again", checks: "G10: close", exec: "apexsim.cam.Chase"}
+      - {at: 56, lead: 1, label: "C to far, then cockpit", checks: "G10: the cockpit after far", exec: ["apexsim.cam.Chase", "apexsim.cam.Chase", "apexsim.cam.Chase"]}
+
+  - id: g10-tcam-chiffon
+    about: "G10. The T-cam rung on a closed car: on the roof, never inside the cabin"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Chiffon
+      - -ApexAiCount=5
+      - -ApexGridOrder=@host
+      - -ApexLaps=2
+      - -ApexCountdown=12
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tcam
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 9, label: "tcam on the grid", checks: "G10: over the roof, the windscreen frame and bonnet ahead"}
+      - {at: 30, label: "tcam racing", checks: "G10: outside the body, horizon level"}
+      - {at: 45, label: "tcam racing", checks: "G10"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

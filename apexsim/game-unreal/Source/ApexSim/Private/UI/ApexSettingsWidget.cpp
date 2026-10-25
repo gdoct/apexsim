@@ -1117,8 +1117,8 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 	AddV(Left, MakeRow(
 		TEXT("Chase distance"),
 		TEXT("How far back the chase camera sits. C steps through these, then back to the cockpit."),
-		MakeSegment(SegChaseView, { TEXT("ROOF"), TEXT("CLOSE"), TEXT("NEAR"), TEXT("FAR") },
-			ApexChase::DefaultLevel(), 84.0f)), RowGap);
+		MakeSegment(SegChaseView, { TEXT("T-CAM"), TEXT("ROOF"), TEXT("CLOSE"), TEXT("NEAR"), TEXT("FAR") },
+			ApexChase::StepOf(ApexChase::DefaultLevel()), 72.0f)), RowGap);
 
 	AddV(Left, MakeRow(TEXT("Field of view"), TEXT("Horizontal, cockpit. Chase sits 15° narrower."),
 		MakeSliderCell(FovSlider, FovFill, FovValue, DropdownWidth)), RowGap);
@@ -2149,7 +2149,8 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
 	SetSegment(SegHdr, Values->bHdrOutput ? 1 : 0);
 	SetSegment(SegStartView, Values->bStartInCockpit ? 1 : 0);
-	SetSegment(SegChaseView, FMath::Clamp(Values->ChaseViewLevel, 0, ApexChase::Num() - 1));
+	// The row is closest first (ApexChase::Order), the save by stored index.
+	SetSegment(SegChaseView, ApexChase::StepOf(Values->ChaseViewLevel));
 	SetSegment(SegCockpitCar, Values->bCockpitShowCar ? 1 : 0);
 	SetSegment(SegCockpitWheel, Values->bCockpitWheel ? 1 : 0);
 	SetSegment(SegCockpitMirrors, Values->bCockpitMirrors ? 1 : 0);
@@ -2533,7 +2534,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	// Stored, not switched to: the race director adopts it with the rest of
 	// the camera group, so picking a distance while sitting in the cockpit
 	// does not throw the player out of it.
-	else if (Id == SegChaseView)     { Settings->SetChaseLevel(FMath::Clamp(Index, 0, ApexChase::Num() - 1)); }
+	else if (Id == SegChaseView)     { Settings->SetChaseLevel(ApexChase::Order()[FMath::Clamp(Index, 0, ApexChase::Order().Num() - 1)]); }
 	else if (Id == SegCockpitCar)     { Settings->SetCockpitShowCar(Index == 1); }
 	else if (Id == SegCockpitWheel)   { Settings->SetCockpitWheel(Index == 1); }
 	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
