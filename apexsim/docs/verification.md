@@ -533,10 +533,14 @@ view back with the replay playing on. Shot 2026-10-24 (`n20-photo-hotlap`):
 the card, chip and key strip with the HUD gone, the free camera's lift,
 the 135 mm f/2 close-up, +/-1.7 EV and the 3840x2160 toast all as meant;
 the first run's orbit kept the TV shot's 80 m and swung into a tree line,
-so an orbit now starts at most 12 m out (`MaxOrbitStartCm`). Left: the
-replay recipe (`n20-photo-replay`, needs a saved replay), the PNGs opened,
-and by hand: the pad's sticks, triggers and D-pad, the mouse's
-held-button look and the wheel's zoom.
+so an orbit now starts at most 12 m out (`MaxOrbitStartCm`).
+`n20-photo-replay` (2026-10-25, a Snorisring qualifying replay): photo mode
+holds the replay with its transport gone, the orbit, the 4x toast and the
+replay running on after, all as meant; the 4x PNG opened is 7680x4320
+with no HUD or card. Left: at 50 mm f/1.4 on the car the trees 20-30 m
+behind it are barely soft (judge whether the bokeh is strong enough), and
+by hand: the pad's sticks, triggers and D-pad, the mouse's held-button
+look and the wheel's zoom.
 
 ### R22. Race events in the game and on the dashboard
 
