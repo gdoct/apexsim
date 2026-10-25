@@ -111,7 +111,7 @@ fn far_field_only(
         ats_io::save_ats(&opened.ats_path, &scene).map_err(|e| format!("failed to save: {e}"))?;
     }
     Ok(format!(
-        "no dossier: the far field alone, {n} impostor(s){groomed}{}",
+        "no dossier: the far field and the marshal posts alone, {n} prop(s){groomed}{}",
         if dry_run { " (dry run)" } else { "" }
     ))
 }

@@ -109,10 +109,12 @@ the same `ApexProps` code.
   whichever GLB the import meets first sets them for all
   (`vehicle_paint_camper` was split off `vehicle_paint_a` for this). One
   definition per slot, re-exported through `build_vehicles.py`.
-- Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
-  MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
-  panels either, and race control's yellows show on the HUD alone there.
-  Endianapolis keeps the stands of the generator before the dossiers: its
+- Circuits without a layout dossier are dressed with what needs none
+  (`dress::lay_far_field`: the far field, and marshal posts with their
+  light panels evenly spaced, no named corners to stand at) when they have
+  a DEM: Endianapolis, HermanosRodriQueso, MoscowMule. YasMarinara has
+  neither, so it has no posts and race control's yellows show on the HUD
+  alone there. Endianapolis keeps the stands of the generator before the dossiers: its
   eight `grandstand_corner` bays (2x scale) stand 116 m out from the
   centerline on the grass at the four turns, two straight sections with a
   gap at each (`r8-ims-corners`, 2026-10-25), and one `grandstand_main`

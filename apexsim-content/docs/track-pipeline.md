@@ -215,10 +215,12 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
 #   or <yaml> [--dry-run] [--verbose] [--no-groom]
 ```
 
-A circuit with a DEM sidecar and no dossier (`dem_fetch.DEM_ONLY`) gets its
-far field alone (`dress::lay_far_field`): the `surroundings: forest`
-impostors on its slopes and the horizon's tree line replaced, nothing else
-in its hand-seeded scene touched, then groomed as `ats-groom` grooms it.
+A circuit with a DEM sidecar and no dossier (`dem_fetch.DEM_ONLY`) gets
+what needs no dossier (`dress::lay_far_field`): the `surroundings: forest`
+impostors on its slopes and the horizon's tree line, and the `marshal
+posts` with their `light panels`, evenly spaced (no named corners), so race
+control's yellows show by the road there; those replaced, nothing else in
+its hand-seeded scene touched, then groomed as `ats-groom` grooms it.
 `--all` and `bake.ps1` include such a circuit.
 
 The report gives placed counts; `--verbose` lists each dossier entry it could

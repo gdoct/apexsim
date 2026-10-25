@@ -2445,3 +2445,16 @@
       ground. b shows before and after.
     shots: [1, 2]
 
+- id: v-f6-dossierless-posts
+  title: Marshal posts and light panels at circuits without a dossier
+  area: track
+  kind: screen
+  check_by: f6-posts-moscowmule
+  created: 2026-10-25
+  commit: 3f8fd97b
+  doc: ../../apexsim-content/docs/track-pipeline.md
+  what: >-
+    Endianapolis, Hermanos RodriQueso and Moscow Mule have marshal posts with
+    their marshals and light panels by the road (evenly spaced, no named corners),
+    so race control's yellows show by the road there too.
+  status: open

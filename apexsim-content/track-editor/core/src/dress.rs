@@ -525,13 +525,14 @@ fn bare_country(track: &TrackFile) -> bool {
         })
 }
 
-/// The far field alone, for a circuit with an elevation model but no
-/// layout dossier (`dem_fetch.DEM_ONLY`: OSM carries another variant of its
-/// lap): the impostors on its slopes and the horizon's tree line, which
-/// need nothing but the DEM. The impostors laid before are replaced and
-/// nothing else in the scene is touched, so a hand-seeded scene keeps its
-/// stands and trees. Returns how many were laid, `None` for a degenerate
-/// centerline.
+/// What a circuit with an elevation model but no layout dossier
+/// (`dem_fetch.DEM_ONLY`: OSM carries another variant of its lap) can be
+/// dressed with: the impostors on its slopes and the horizon's tree line,
+/// which need nothing but the DEM, and the marshal posts and light panels,
+/// which need only the road ([`surroundings::far_field`]). What these laid
+/// before is replaced and nothing else in the scene is touched, so a
+/// hand-seeded scene keeps its stands and trees. Returns how many were
+/// laid, `None` for a degenerate centerline.
 pub fn lay_far_field(track: &TrackFile, scene: &mut AtsScene, dem: &DemFile) -> Option<usize> {
     let path = CenterlinePath::from_track(track)?;
     let terrain = crate::groom::seating_terrain(&path, scene, Some(dem))?;
@@ -3379,8 +3380,11 @@ mod surroundings {
         out
     }
 
-    /// The forest sub-layer on its own, with no dossier (no mapped woods):
-    /// [`super::lay_far_field`].
+    /// The sub-layers that need no dossier, for a circuit without one
+    /// ([`super::lay_far_field`]): the forest (no mapped woods: the DEM's
+    /// slopes and the horizon's tree line), and the marshal posts and their
+    /// light panels, evenly spaced with no named corners to stand at, so
+    /// race control's yellows show by the road there too.
     pub fn far_field(
         path: &CenterlinePath,
         terrain: &TerrainHeightfield,
@@ -3398,16 +3402,31 @@ mod surroundings {
             horizon,
         };
         let mut out = Vec::new();
-        forests(&ctx, Some(dem), &mut out);
-        stamp_from(&mut out, 0, FAR_FIELD_STAMP);
+        let parts: [(&str, &dyn Fn(&mut Vec<Prop>)); 3] = [
+            (FAR_FIELD_STAMPS[0], &|o| forests(&ctx, Some(dem), o)),
+            (FAR_FIELD_STAMPS[1], &|o| marshal_posts(&ctx, o)),
+            (FAR_FIELD_STAMPS[2], &|o| light_panels(&ctx, o)),
+        ];
+        for (stamp, lay) in parts {
+            let start = out.len();
+            lay(&mut out);
+            stamp_from(&mut out, start, stamp);
+        }
         out
     }
 
-    const FAR_FIELD_STAMP: &str = "surroundings: forest";
+    /// The stamps `lay` gives the same sub-layers.
+    const FAR_FIELD_STAMPS: [&str; 3] = [
+        "surroundings: forest",
+        "surroundings: marshal posts",
+        "surroundings: light panels",
+    ];
 
-    /// A prop the far field laid: the forest sub-layer's stamp.
+    /// A prop [`far_field`] lays, by its sub-layer's stamp.
     pub fn far_field_prop(prop: &Prop) -> bool {
-        prop.source.as_deref() == Some(FAR_FIELD_STAMP)
+        prop.source
+            .as_deref()
+            .is_some_and(|s| FAR_FIELD_STAMPS.contains(&s))
     }
 
     /// Stamp the props from `start` on that have no stamp yet.

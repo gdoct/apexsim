@@ -10156,3 +10156,26 @@ runs:
       - {at: 18, lead: 1, label: "60 m up, south", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 0.9 -4000.1 0.0", item: v-c10-dem-horizons}
       - {at: 22, lead: 1, label: "60 m up, west", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 -3999.1 -0.1 0.0", item: v-c10-dem-horizons}
       - {at: 26, lead: 1, label: "300 m up, north", checks: "C10: the horizon mesh and its skirt into the haze", exec: "apexsim.cam.LookAt 0.9 -0.1 300.0 0.9 5999.9 0.0", item: v-c10-dem-horizons}
+
+  # Follow-ups #6: a circuit with a DEM and no dossier gets marshal posts and
+  # light panels (dress::lay_far_field), evenly spaced; Moscow Mule's.
+  - id: f6-posts-moscowmule
+    about: "Follow-ups 6. Marshal posts and light panels at a circuit without a dossier: Moscow Mule"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MoscowMule
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "the post at 300 m", checks: "F6: a marshal post and its marshal beyond the barrier", exec: "apexsim.cam.LookAt 31.0 280.5 3.2 52.7 296.2 2.1", item: v-f6-dossierless-posts}
+      - {at: 14, lead: 1, label: "the post at 748 m", checks: "F6: a marshal post on the outside of the bend", exec: "apexsim.cam.LookAt -176.5 307.0 3.4 -158.0 287.7 1.8", item: v-f6-dossierless-posts}
+      - {at: 18, lead: 1, label: "the light panel at 145 m", checks: "F6: a light panel by the road, dark (green flag)", exec: "apexsim.cam.LookAt 14.7 126.2 2.6 35.5 144.0 1.4", item: v-f6-dossierless-posts}
