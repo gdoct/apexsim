@@ -192,6 +192,12 @@ as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
   49.0/28.7 (the GT3 twice the contact); at 0.32 62.9/4.0, 47.4/12.1,
   9.9/24.4, 27.9/20.1. The imports stay 2-5 times the shipped F1 at
   every value: a survey of four cars over three seeds takes 12 minutes.
+  Nor is the speed of the way back (2026-10-25, the same eight circuits
+  and seeds, contact / off-road for SF70H, RSS, shipped F1, GT3): with the
+  cross-track term's pull back to the line held to 4 m/s sideways,
+  61.2/1.2, 94.3/3.1, 17.1/6.7, 52.2/24.3 against 57.0/28.6, 62.0/0.5,
+  18.3/0.9, 22.6/15.1 without; a slower return keeps cars across each
+  other longer.
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
@@ -252,6 +258,35 @@ until each is fixed and shot again.
 - Marshals (`marshals-recovery`, shots 2 and 3): odd yellow squares near the
   marshals at a stopped car. Probably an unlit or missing-material flag or
   card; find and fix.
+
+### 41. The tread's surfaces up close
+
+Found framing R2's close-ups (`r2-tread-race`, then `r2-tread-replay`:
+photo mode orbiting each wheel's hub, `apexsim.photo wheel`): every tread
+face reads as plain black at 50 mm in sunshine, after half a minute at
+127-131 °C (the heat tint), with FS 43 on the front left (the glazed
+patch) and a slow leak on the rear right (the bulge).
+
+- A replay cannot show pickup or blisters: the stream's car rows
+  (`FApexStreamCarExtra`, the server's `spectator.rs` the same) carry the
+  flat spots, pressures and tread temperatures but not `TyrePickup` or
+  `TyreBlister`. Append them (both writers, the readers, the golden
+  `FileV2`), as the positional rule wants.
+- The flat spot and the heat tint are carried and still do not read: check
+  first that the car's tyre slot is on `M_ApexCarTyre`
+  (`FApexCarWheelSet::UsesTyreParent`; any other tyre material draws a
+  plain tint with no surfaces). A wheel read from its runtime GLB gets it
+  (`FApexCarParents::For`), but the cooked class wheels (`SM_Wheel_f1`,
+  `_gt3`, `_hypercar`, `_lmp2`, and the 499P's) carry Interchange's
+  `M_Default` on `wheel_tyre` (listed 2026-10-25), so a car whose wheel
+  falls back to them draws none. Then the tread material on a car held
+  still in a replay, live against a replay, and whether the tread is lit
+  at all from its face (the shots look unlit black from every side).
+- The deflated rear right shows no bulge from 2.5 m; check the sag
+  (`FApexCarWheelSet::SagCm`) reaches the drawn wheel in a replay.
+
+**Check:** `r2-tread-replay` again: a glazed patch, a heat tint and
+blisters readable on the tread faces, the bulge on the rear right.
 
 ## P3: nice to have
 

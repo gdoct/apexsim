@@ -196,20 +196,16 @@ runs:
         checks: "Flat-spotted slick; static camber"
         exec: "apexsim.cam.Chase cockpit"
       - at: 480
-        item: v-r2-tread-close-ups
         label: "cockpit after a long stint: tread pickup, blisters, heat"
         checks: "Pickup, blisters, heat tint on the tread"
       - at: 486
-        item: v-r2-tread-close-ups
         label: "chase close after a long stint"
         checks: "Pickup, blisters, heat tint; camber"
         exec: "apexsim.cam.Chase close"
       - at: 600
-        item: v-r2-tread-close-ups
         label: "chase close: RR deflated (leak from 520 s)"
         checks: "Sidewall bulge of a deflated tyre; LEAK read-out"
       - at: 606
-        item: v-r2-tread-close-ups
         label: "chase near: the bulge"
         checks: "Sidewall bulge"
         exec: "apexsim.cam.Chase near"
@@ -277,6 +273,81 @@ runs:
         checks: "A drying line"
         exec: "apexsim.cam.LookAt -195.4 323.5 11.0 -192.3 337.9 7.0"
 
+  # R2's tread close-ups, held still: a car alone (so the replay's watched
+  # car is it) races three laps at the Norisring with a flat spot on the
+  # front left, its treads cooked well over their window for half a minute
+  # (blisters, heat tint), 55% worn (the stand-in stops at 70) and a slow
+  # leak on the rear right in the last lap (the bulge; the stand-in boxes
+  # for it, so the replay is framed before the stop). It finishes, so the
+  # client saves the race's replay; r2-tread-replay frames the tyres in
+  # photo mode over it.
+  - id: r2-tread-race
+    about: "R2. Three laps at the Norisring cooking, wearing, flat-spotting and deflating the tyres, finished so its replay is saved"
+    server:
+      stand_in: true
+      events:
+        - "15:host:wear=55"
+        - "25:host:flatspot=FL:0.45"
+        - "40:host:heat=all:140"
+        - "48:host:heat=all:140"
+        - "56:host:heat=all:140"
+        - "64:host:heat=all:140"
+        - "72:host:heat=all:140"
+        - "160:host:leak=RR:4"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 90, label: "racing, the tyre panel after the heat", checks: "R2: the treads' temperatures and the FS read-out"}
+      - {at: 180, label: "racing, the leak", checks: "R2: LEAK on the rear right"}
+      - {at: 280, label: "after the flag", checks: "the results; the replay saved (client log)"}
+
+  - id: r2-tread-replay
+    about: "R2. The tread close-ups (blisters, heat tint, pickup, the flat spot, the deflated bulge), framed in photo mode over r2-tread-race's replay (run that first)"
+    args:
+      - -ApexNoDemo
+      - -ApexWatchReplay=latest
+    exec:
+      20: "apexsim.watch seek 95"
+      24: "apexsim.photo on"
+      25: ["apexsim.photo orbit", "apexsim.photo hide"]
+      26: "apexsim.photo move 1 0 0 0.9"
+      28: ["apexsim.photo wheel fl", "apexsim.photo focal 50"]
+      29: "apexsim.photo move 1 0 0 0.5"
+      40: ["apexsim.photo wheel rl", "apexsim.photo focal 50"]
+      41: "apexsim.photo move 1 0 0 0.5"
+      49: "apexsim.photo off"
+      51: "apexsim.watch seek 190"
+      55: "apexsim.photo on"
+      56: ["apexsim.photo orbit", "apexsim.photo hide"]
+      57: "apexsim.photo move 1 0 0 0.9"
+      59: ["apexsim.photo wheel rr", "apexsim.photo focal 50"]
+      60: "apexsim.photo move 1 0 0 0.5"
+      71: ["apexsim.photo wheel fr", "apexsim.photo focal 50"]
+      72: "apexsim.photo move 1 0 0 0.5"
+    shots:
+      - {at: 31, lead: 1.5, label: "after the heat: the front left, 50 mm, 0 degrees round", checks: "R2: the flat spot's glazed patch; blisters, heat tint, pickup", item: v-r2-tread-close-ups}
+      - {at: 33, lead: 1.5, label: "after the heat: the front left, 50 mm, 45 degrees round", checks: "R2: the flat spot's glazed patch; blisters, heat tint, pickup", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 35, lead: 1.5, label: "after the heat: the front left, 50 mm, 90 degrees round", checks: "R2: the flat spot's glazed patch; blisters, heat tint, pickup", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 37, lead: 1.5, label: "after the heat: the front left, 50 mm, 135 degrees round", checks: "R2: the flat spot's glazed patch; blisters, heat tint, pickup", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 43, lead: 1.5, label: "after the heat: the rear left, 50 mm, 0 degrees round", checks: "R2: blisters, heat tint, pickup on a rear", item: v-r2-tread-close-ups}
+      - {at: 45, lead: 1.5, label: "after the heat: the rear left, 50 mm, 45 degrees round", checks: "R2: blisters, heat tint, pickup on a rear", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 47, lead: 1.5, label: "after the heat: the rear left, 50 mm, 90 degrees round", checks: "R2: blisters, heat tint, pickup on a rear", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 62, lead: 1.5, label: "the leak: the rear right, 50 mm, 0 degrees round", checks: "R2: the deflated rear right's sidewall bulge", item: v-r2-tread-close-ups}
+      - {at: 64, lead: 1.5, label: "the leak: the rear right, 50 mm, 45 degrees round", checks: "R2: the deflated rear right's sidewall bulge", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 66, lead: 1.5, label: "the leak: the rear right, 50 mm, 90 degrees round", checks: "R2: the deflated rear right's sidewall bulge", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 68, lead: 1.5, label: "the leak: the rear right, 50 mm, 135 degrees round", checks: "R2: the deflated rear right's sidewall bulge", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+      - {at: 74, lead: 1.5, label: "the leak: the front right, 50 mm, 0 degrees round", checks: "R2: a front tread after the heat", item: v-r2-tread-close-ups}
+      - {at: 76, lead: 1.5, label: "the leak: the front right, 50 mm, 45 degrees round", checks: "R2: a front tread after the heat", item: v-r2-tread-close-ups, exec: "apexsim.photo look 45 0"}
+
   - id: r4-spa-snow
     about: "R4. Snow at Spa, changeable, into the evening; glass cracks on a hypercar"
     # No AC-imported circuit is installed, so the imported props wait. A
@@ -336,17 +407,14 @@ runs:
         checks: "A part hanging before it comes off"
         exec: ["apexsim.car.DamagePreview 25,25,25,25,0", "apexsim.cam.Chase near"]
       - at: 300
-        item: v-r4-ice-and-melt
         label: "La Source after five minutes of snow (evening)"
         checks: "Snow: the driven line through the white; ice once the snow stops"
         exec: ["apexsim.car.DamagePreview 0,0,0,0,0", "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"]
       - at: 305
-        item: v-r4-ice-and-melt
         label: "Eau Rouge after five minutes"
         checks: "Snow and ice on the line"
         exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"
       - at: 560
-        item: v-r4-ice-and-melt
         label: "La Source at night (about 19:40)"
         checks: "Ice on the line overnight; a melt"
         exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"
@@ -354,6 +422,69 @@ runs:
         label: "the night sky over Spa"
         checks: "The cloud dome at night"
         exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 600 200 300"
+
+  - id: r4-spa-ice
+    about: "R4. Spa on a January night: snow until 4 session minutes, then a clear night freezes the driven line"
+    # A written forecast, so the snow stops for certain (a step needs 4 session
+    # minutes, which run at real time whatever the clock scale). The clock runs
+    # 30x from 22:00: the snow stops at midnight, the sky clears and the track
+    # is at -5 C by 04:00 (720 s), and the line the field has packed
+    # freezes (conditions.md, ice). A 2026-10-25 run from 16:00 reached only
+    # -1 C by 21:30, on a line too few cars had driven: a bigger field, later.
+    # Each road shot is followed by the conditions panel (snow and ice on the
+    # line, sky.snow and sky.ice).
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=Caravan
+      - -ApexAiCount=15
+      - -ApexLaps=30
+      - -ApexCountdown=5
+      - -ApexWeather=snow
+      - -ApexForecast=4:sunny
+      - -ApexDayOfYear=15
+      - -ApexTimeScale=30
+      - -ApexTimeOfDay=22:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 230, label: "La Source under the snow (just before it stops)", checks: "R4: the white with the driven line through it", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 236, label: "the conditions panel then", checks: "R4: snow falling, snow on the line", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
+      - {at: 720, label: "La Source, about 04:00", checks: "R4: the line dark; ice on it once the track is under -1 C", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 726, label: "the conditions panel then", checks: "R4: the track temperature, ice on the line", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
+      - {at: 1140, label: "La Source, about 07:30", checks: "R4: ice on the driven line, a dark mirror", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 1146, label: "the conditions panel then", checks: "R4: ice on the line", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
+      - {at: 1152, label: "Eau Rouge, about 07:30", checks: "R4: ice on the line", exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4", item: v-r4-ice-and-melt}
+
+  - id: r4-spa-melt
+    about: "R4. Spa in April: snow until 4 session minutes, then the morning sun melts it"
+    # The same forecast from 09:00 on day 100 of the year: once the snow stops
+    # the sun brings the track over 0 C and the cover melts (conditions.md).
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=Caravan
+      - -ApexAiCount=7
+      - -ApexLaps=12
+      - -ApexCountdown=5
+      - -ApexWeather=snow
+      - -ApexForecast=4:sunny
+      - -ApexDayOfYear=100
+      - -ApexTimeScale=30
+      - -ApexTimeOfDay=09:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 230, label: "La Source under the snow (just before it stops)", checks: "R4: the white with the driven line", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 236, label: "the conditions panel then", checks: "R4: snow, the track temperature", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
+      - {at: 420, label: "La Source, the sun out", checks: "R4: the cover thinning off the line", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 426, label: "the conditions panel then", checks: "R4: the track over 0 C, the snow share falling", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
+      - {at: 660, label: "La Source, later", checks: "R4: melted: wet or dry asphalt, the verge last", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
+      - {at: 666, label: "the conditions panel then", checks: "R4: the melt", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
 
   - id: r5-mandarina-night
     about: "R5. Mandarina Bay at night, cloudy"
@@ -570,12 +701,31 @@ runs:
       - -ApexWeather=sunny
       - -ApexTimeOfDay=13:00
       - -ApexRacingLine=off
+    # The sun itself from the start line, HUD hidden: at 13:00 (the
+    # circuit's noon is 13:33) it stands at 165 degrees, 59 up. The track
+    # frame is north-up to within 2.5 degrees (the DEM's georeference), so
+    # facing due south the sun sits a little left (east) of the middle.
+    exec:
+      1: "apexsim.hud.Hide 1"
     shots:
-      - at: 12
+      - at: 10
+        lead: 1
+        label: "due south, 40 degrees up"
+        checks: "R10: the sun a little left (east) of the middle, about 19 degrees above it"
+        exec: "apexsim.cam.LookAt -0.2 2.1 1.8 2.9 -74.5 66.0"
         item: v-r10-solar-noon
-        label: "the grid from above"
-        checks: "R10: the shadows fall to the north (the sun a little east of due south)"
-        exec: "apexsim.cam.LookAt 305.1 -47.1 40.0 303.6 -37.3 -25.4"
+      - at: 14
+        lead: 1
+        label: "toward the sun's azimuth, 165 degrees, 50 up"
+        checks: "R10: the sun near the middle of the frame"
+        exec: "apexsim.cam.LookAt -0.2 2.1 1.8 18.9 -59.3 78.4"
+        item: v-r10-solar-noon
+      - at: 18
+        lead: 1
+        label: "due north, from 6 m, looking down the shadows"
+        checks: "R10: the shadows of the cars and posts fall away from the camera, a little to the left"
+        exec: "apexsim.cam.LookAt -0.2 2.1 6.3 -4.3 101.6 -2.5"
+        item: v-r10-solar-noon
 
   - id: r10-spa-changeable
     about: "R10. Spa under a written forecast (heavy rain at 4 session minutes, sun at 8; 4 min is the least step): rain arriving and the road drying"
@@ -8763,19 +8913,29 @@ runs:
       200: ["apexsim.incidents log"]
       210: ["apexsim.incidents show"]
       218: ["apexsim.incidents watch 0"]
-      234: ["apexsim.watch hold"]
+      # The jump seeks 3 s before the contact and the replay is in within
+      # half a second: the contact plays about 221.5 s into the clock.
+      222.5: ["apexsim.watch hold"]
     shots:
       - at: 213
         label: "results: the incident list"
         checks: "N19: the race's incidents (what, cars, race clock, lap, detail), own rows in the accent colour, WATCH badges"
-      - at: 230
+      - at: 219.5
+        lead: 0.5
         item: v-r23-incident-jump
-        label: "the jump: the replay from just before incident 0"
-        checks: "N19: out of the session, the replay playing ~3 s before the first incident (client.log: Replay seeked to)"
-      - at: 233
+        label: "the jump: the replay from 3 s before incident 0"
+        checks: "N19: out of the session, the replay clock 3 s short of the incident's (client.log: Replay seeked to, the incident list's replay time)"
+      - at: 221
+        lead: 0.5
         item: v-r23-incident-jump
-        label: "held there"
-        checks: "N19: the cars of incident 0 in view (TV camera)"
+        label: "about the contact"
+        checks: "N19: the two cars of incident 0 side by side in view (TV camera)"
+      - at: 224
+        lead: 0.5
+        item: v-r23-incident-jump
+        label: "held there, HUD hidden"
+        checks: "N19: the replay held at the incident, the cars in view"
+        exec: "apexsim.hud.Hide 1"
 
   - id: tv-inside-night
     about: "R24. Night cameras at Mandarina Bay"
@@ -10179,3 +10339,44 @@ runs:
       - {at: 10, lead: 1, label: "the post at 300 m", checks: "F6: a marshal post and its marshal beyond the barrier", exec: "apexsim.cam.LookAt 31.0 280.5 3.2 52.7 296.2 2.1", item: v-f6-dossierless-posts}
       - {at: 14, lead: 1, label: "the post at 748 m", checks: "F6: a marshal post on the outside of the bend", exec: "apexsim.cam.LookAt -176.5 307.0 3.4 -158.0 287.7 1.8", item: v-f6-dossierless-posts}
       - {at: 18, lead: 1, label: "the light panel at 145 m", checks: "F6: a light panel by the road, dark (green flag)", exec: "apexsim.cam.LookAt 14.7 126.2 2.6 35.5 144.0 1.4", item: v-f6-dossierless-posts}
+
+  # R7: a seeded pile-up, watched. A full field on one wet lap at Monza
+  # brakes into the first chicane together; the stand-in takes the flag so
+  # the client saves the race's replay, and the incident list's jump plays
+  # it from three seconds before incident 0 with the watch camera on that
+  # incident's car (UApexRootWidget::WatchReplayAt). Frames half a second
+  # apart catch the sparks of a contact and the flutter of a part hanging.
+  # The shot times allow ~150 s to the results: move them if the run's
+  # client.log shows the results later.
+  - id: r7-pileup-replay
+    about: "R7. A first-lap pile-up at Monza, its first heavy contact watched from the incident list's jump"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=15
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    exec:
+      200: ["apexsim.incidents log"]
+      204: ["apexsim.incidents show"]
+      210: ["apexsim.incidents watch heavy"]
+      211.5: ["apexsim.watch camera"]
+    shots:
+      - {at: 205, label: "results: the incident list", checks: "R7: the lap's contacts, incident 0 the first"}
+      - {at: 212.5, lead: 0.3, label: "the heavy contact, 0.0 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 213, lead: 0.3, label: "the heavy contact, 0.5 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 213.5, lead: 0.3, label: "the heavy contact, 1.0 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 214, lead: 0.3, label: "the heavy contact, 1.5 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 214.5, lead: 0.3, label: "the heavy contact, 2.0 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 215, lead: 0.3, label: "the heavy contact, 2.5 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 215.5, lead: 0.3, label: "the heavy contact, 3.0 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 216, lead: 0.3, label: "the heavy contact, 3.5 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 220, lead: 0.5, label: "held, HUD hidden", checks: "R7: the cars after the contact, the damage on them", exec: ["apexsim.watch hold", "apexsim.hud.Hide 1"], item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
+      - {at: 226, lead: 4, label: "played on, four seconds later", checks: "R7: a car reversing out of the barrier, another giving it room", exec: "apexsim.watch play", item: [v-r7-reverse-out-yield, v-r7-racecraft]}

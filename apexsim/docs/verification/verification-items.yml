@@ -30,15 +30,27 @@
     deflated tyre and a flat-spotted slick, after a long stint (server/vehicle-physics.md):
     a moving car blurs them, so they wait for a car held still, as FlatSpot2
     does.
-  status: cant-tell
-  evidence: [{run: r2-silverstone-stint, date: 2026-10-25, kind: shot}]
+  status: judged
+  evidence:
+  - run: r2-silverstone-stint
+    date: 2026-10-25
+    kind: shot
+  - run: r2-tread-replay
+    date: 2026-10-25
+    commit: 3f8fd97b
+    shots: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    kind: shot
   verdict:
     date: 2026-10-25
     by: agent
-    says: not-readable
+    says: not-right
     text: >-
-      The tread close-ups blur at speed, as expected: they wait for a car held
-      still, as FlatSpot2 does.
+      Now framed: photo mode over r2-tread-race's replay orbits each wheel's
+      hub (apexsim.photo wheel) and faces each tread at 50 mm. Every tread face
+      is plain black: no heat tint after half a minute at 127-131 C, no glazed
+      patch for FS 43 on the front left, no blisters or pickup (a replay does
+      not carry those two), no bulge on the leaking rear right. Follow-ups 41.
+    shots: [1, 6, 8, 13]
   notes:
   - text: >-
       R2 (Silverstone, cloudy, green start, long stint): `-ApexWeather=cloudy
@@ -55,12 +67,10 @@
       route's: held on the brake the automatic box put reverse in and the route's
       creep away (under 0.3 throttle) never took first again; the route asks
       for first now (`pit::drive_input`).
-  review:
-    at: 2026-10-25T13:39:29
-    score: 2
-    comment: >-
-      can''t see it in the pictures. we need more detailed pictures of the tyre
-    processed: true
+  - date: 2026-10-25
+    text: >-
+      Review (cant-tell, score 2): can''t see it in the pictures. we need more
+      detailed pictures of the tyre
 
 - id: v-r2-rubbered-start
   title: A rubbered start
@@ -135,8 +145,34 @@
     Snow: ice (once the snowfall stops and the line freezes) and a melt (may
     never come at winter temperatures; if it does not show, it is a test-only
     item and moves to follow-ups.md).
-  status: cant-tell
-  evidence: [{run: r4-spa-snow, date: 2026-10-25, kind: shot}]
+  status: judged
+  evidence:
+  - run: r4-spa-snow
+    date: 2026-10-25
+    kind: shot
+  - run: r4-spa-melt
+    date: 2026-10-25
+    commit: 3f8fd97b
+    shots: [1, 2, 3, 4, 5, 6]
+    kind: shot
+  - run: r4-spa-ice
+    date: 2026-10-25
+    commit: 4966b3fe
+    shots: [1, 2, 3, 4, 5, 6, 7]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: looks-right
+    text: >-
+      Two runs with a written forecast. r4-spa-ice (January, 22:00, snow until
+      midnight, then clear): the track at -5 C by 04:00 and the conditions panel's
+      new line reads ice on the line (59% by 07:30, snow 72%); the driven line
+      at La Source is a darker band under the night light rather than a clear
+      mirror. r4-spa-melt (April, 09:00): by 14:30 (track 7 C) La Source is
+      bare and wet with snow left on the kerbs and verge, the pit lane still
+      white.
+    shots: [5, 6]
   notes:
   - text: >-
       R4 (Snow at Spa, changeable, into the evening): `-ApexWeather=snow -ApexChangeable=1
@@ -174,11 +210,8 @@
       finish view read YOUR RACE IS OVER with every driver named and Player
       (YOU) marked; the field had run one lap of the snow in nine minutes. The
       snow rows above (ice, melt, the veer, the props' snow) are still to judge.
-  review:
-    at: 2026-10-25T13:59:32
-    score: 3
-    comment: same images as another run
-    processed: true
+  - date: 2026-10-25
+    text: 'Review (cant-tell, score 3): same images as another run'
 
 - id: v-r4-rally-field-snow
   title: A Rally field on the covered road
@@ -293,7 +326,25 @@
   commit: 01bcebd4
   doc: follow-ups.md
   what: A debris strike's dent.
-  status: open
+  status: judged
+  evidence:
+  - run: r7-pileup-replay
+    date: 2026-10-25
+    commit: 84fd7d68
+    shots: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: not-readable
+    text: >-
+      r7-pileup-replay (dry Monza, 16 cars, one lap) jumps to the first heavy
+      contact (Felix Turbo and Luna Swift, 16.6 m/s) with the chase camera on
+      Felix Turbo: the contact lands between frames half a second apart, the
+      rear takes 16% (on the HUD) and nothing hangs or shows a dent from behind.
+      Needs a heavier hit and frames a tenth of a second apart (or the replay
+      held and stepped).
+    shots: [2, 3, 4, 5]
   notes:
   - text: >-
       R7 (A seeded pile-up replay, before and after): Four unattended runs (snow
@@ -313,7 +364,25 @@
   what: >-
     A part hanging from a real hit: its flutter (frames a fifth of a second
     apart).
-  status: open
+  status: judged
+  evidence:
+  - run: r7-pileup-replay
+    date: 2026-10-25
+    commit: 84fd7d68
+    shots: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: not-readable
+    text: >-
+      r7-pileup-replay (dry Monza, 16 cars, one lap) jumps to the first heavy
+      contact (Felix Turbo and Luna Swift, 16.6 m/s) with the chase camera on
+      Felix Turbo: the contact lands between frames half a second apart, the
+      rear takes 16% (on the HUD) and nothing hangs or shows a dent from behind.
+      Needs a heavier hit and frames a tenth of a second apart (or the replay
+      held and stepped).
+    shots: [2, 3, 4, 5]
   notes:
   - text: >-
       R7 (A seeded pile-up replay, before and after): Four unattended runs (snow
@@ -333,7 +402,25 @@
   what: >-
     Contact sparks: a contact lasts a few frames and no timed shot has caught
     one (the steam and the engine smoke have been seen).
-  status: open
+  status: judged
+  evidence:
+  - run: r7-pileup-replay
+    date: 2026-10-25
+    commit: 84fd7d68
+    shots: [2, 3, 4, 5, 6, 7, 8, 9, 10]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: not-readable
+    text: >-
+      r7-pileup-replay (dry Monza, 16 cars, one lap) jumps to the first heavy
+      contact (Felix Turbo and Luna Swift, 16.6 m/s) with the chase camera on
+      Felix Turbo: the contact lands between frames half a second apart, the
+      rear takes 16% (on the HUD) and nothing hangs or shows a dent from behind.
+      Needs a heavier hit and frames a tenth of a second apart (or the replay
+      held and stepped).
+    shots: [2, 3, 4, 5]
   notes:
   - text: >-
       R7 (A seeded pile-up replay, before and after): Four unattended runs (snow
@@ -356,7 +443,22 @@
     only off the AI survey's numbers and traces. Whether leaving a lane after
     a pass and the reverse look natural, and how the side-by-side contact the
     survey counts looks.
-  status: open
+  status: judged
+  evidence:
+  - run: r7-pileup-replay
+    date: 2026-10-25
+    commit: 84fd7d68
+    shots: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: not-readable
+    text: >-
+      One side-by-side moment after the contact (Luna Swift alongside Felix
+      Turbo on the run to the second chicane); not enough of a lap to judge
+      passes, room and defence.
+    shots: [7, 8]
   notes:
   - text: >-
       R7 (A seeded pile-up replay, before and after): Four unattended runs (snow
@@ -376,7 +478,21 @@
   what: >-
     An AI backing out of a barrier after the pile-up stopping in reverse for
     a car arriving, and backing on once it is by (`racecraft::recover`, server/ai.md).
-  status: open
+  status: judged
+  evidence:
+  - run: r7-pileup-replay
+    date: 2026-10-25
+    commit: 84fd7d68
+    shots: [11]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: not-readable
+    text: >-
+      No car ended in a barrier in this lap; the shot shows the field running
+      on.
+    shots: [11]
   notes:
   - text: >-
       R7 (A seeded pile-up replay, before and after): Four unattended runs (snow
@@ -509,15 +625,24 @@
   what: >-
     The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
     13:33 at Spa): at 13:00 it stands a little east of due south over the circuit.
-  status: cant-tell
-  evidence: [{run: r10-spa-noon, date: 2026-10-25, kind: shot}]
+  status: judged
+  evidence:
+  - run: r10-spa-noon
+    date: 2026-10-25
+    commit: 3f8fd97b
+    shots: [1, 2, 3]
+    kind: shot
   verdict:
     date: 2026-10-25
     by: agent
-    says: not-readable
+    says: looks-right
     text: >-
-      r10-spa-noon logs the sun at 165 deg, 58.9 deg up (50.4 N, north at 92
-      deg); the shadows on screen pointing north are still to judge.
+      From the start line, HUD hidden: looking along the sun's logged azimuth
+      (165 deg, 50 up) the sun sits dead centre and a little high (about 58
+      deg, as logged: 58.9); facing due south it sits left of the middle, east
+      of south, at 13:00 before the circuit's 13:33 noon. Shot 3 (looking north)
+      does not read the shadows' direction well.
+    shots: [1, 2]
   notes:
   - text: >-
       R10 (Spa, sunny, 13:00): `-ApexTrack=SpaFrankenchamps -ApexWeather=sunny
@@ -528,11 +653,8 @@
       with north at 92 deg; before then every run lit the circuit at the default
       site (north along +X) until the sky next moved. Left: the shadows on screen
       pointing north.
-  review:
-    at: 2026-10-25T13:44:44
-    score: 3
-    comment: wrong camera angle
-    processed: true
+  - date: 2026-10-25
+    text: 'Review (cant-tell, score 3): wrong camera angle'
 
 - id: v-r10-create-date-row
   title: >-
@@ -799,15 +921,27 @@
   what: >-
     A row's jump (`apexsim.incidents watch 0`): the session left, the replay
     playing from three seconds before that incident.
-  status: cant-tell
-  evidence: [{run: r3c-incidents, date: 2026-10-24, kind: shot}]
-  verdict:
+  status: judged
+  evidence:
+  - run: r3c-incidents
     date: 2026-10-24
+    kind: shot
+  - run: r3c-incidents
+    date: 2026-10-25
+    commit: 4966b3fe
+    shots: [2, 3, 4]
+    kind: shot
+  verdict:
+    date: 2026-10-25
     by: agent
     says: looks-right
     text: >-
-      r3c-incidents: the jump played the client's replay from 0:50 and held
-      it.
+      The jump plays the client's replay from 3 s before incident 0 (replay
+      0:05 for a contact logged at 6.8 s) with the watch camera on the incident's
+      car (Kai Storm in the car box; client.log: Replay watching car 0), the
+      touch in the pack off the line at 0:06.6, then held with the HUD hidden.
+      The TV camera chose a shot through the catch fence.
+    shots: [2, 3, 4]
   notes:
   - text: >-
       R23 (The race's incident list in the game): `r3c-incidents`: a short race
@@ -820,11 +954,8 @@
       Finished; `apexsim.incidents show` then turns a results screen that is
       not on screen yet. The recipe needs its list shot after the session's
       Finished state (or the list offered on the finish view too).
-  review:
-    at: 2026-10-25T14:04:43
-    score: 3
-    comment: shot is not clear
-    processed: true
+  - date: 2026-10-25
+    text: 'Review (cant-tell, score 3): shot is not clear'
 
 - id: v-r23-dashboard-watch-command
   title: The dashboard's copied -ApexWatchReplayAt command
@@ -2457,4 +2588,21 @@
     Endianapolis, Hermanos RodriQueso and Moscow Mule have marshal posts with
     their marshals and light panels by the road (evenly spaced, no named corners),
     so race control's yellows show by the road there too.
-  status: open
+  status: judged
+  evidence:
+  - run: f6-posts-moscowmule
+    date: 2026-10-25
+    commit: 3f8fd97b
+    shots: [1, 2, 3]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: looks-right
+    text: >-
+      Moscow Mule, which has no dossier: marshal posts with their marshal and
+      flag pole beyond the kerbs at 300 m and 748 m, a light panel (dark, the
+      green flag) beside the post at 300 m; shot 3 frames a post behind the
+      boards, the panel not readable there.
+    shots: [1, 2]
+
