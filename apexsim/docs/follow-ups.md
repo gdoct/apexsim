@@ -251,10 +251,6 @@ until each is fixed and shot again.
   lamps. Raise it without brightening the lit pools. Shot 2 shows a part of
   a bridge intersecting the track: a dressing/bridge placement bug, check the
   other bridged circuits too.
-- Garage tyre sets (`r12-tyre-sets`): the run shows two shots, not the three
-  it should, and none carries the intended text. Fix the recipe so it takes
-  all three states (allowance, a run's worth left, none left) with the
-  GO OUT line legible.
 - Marshals (`marshals-recovery`, shots 2 and 3): odd yellow squares near the
   marshals at a stopped car. Probably an unlit or missing-material flag or
   card; find and fix.
@@ -393,6 +389,18 @@ the launcher import with the network off.
   `EndDrawingViewport`, frame 1641; the dump is
   `game-unreal/Saved/Logs/D3D12.0.2026.10.25-04.18.33.nv-gpudmp`. The same
   run again was clean, as were some sixty others that night.
+  Twice more 2026-10-24/25 in `r12-tyre-sets` (the Norisring, hotlap
+  qualifying), each about 6 s after `apexsim.hotlap.Out` moved the car
+  from the garage to the track: DXGI_ERROR_DEVICE_HUNG, the active
+  breadcrumbs `ShadowDepths` > `RenderVirtualShadowMaps(Nanite)` >
+  `Nanite::DrawGeometry` MainPass, Aftermath a `compute_02` MMU fault at
+  `0xFFFFFFFFFFFFF000` (the sitting crash's address), dump
+  `D3D12.0.2026.10.25-18.52.52.nv-gpudmp`. The second came right after a
+  20-minute run. A soak of five passes each with and without
+  `r.Shadow.Virtual.Cache 0` was clean both ways (`soak.log`,
+  2026-10-25 19:00-19:15), so the virtual shadow map cache is a suspect,
+  not a finding: the next soak runs the recipe after a long run, then
+  with the cache off.
 
 **Check:** the A/B is two screenshots.
 

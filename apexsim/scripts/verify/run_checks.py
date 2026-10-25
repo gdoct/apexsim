@@ -571,8 +571,20 @@ def write_sheets(run: dict, work: Path) -> list[Path]:
         for k, file in enumerate(batch):
             index = start + k
             label = shots[index].get("label", "") if index < len(shots) else ""
+            zoom = shots[index].get("zoom") if index < len(shots) else None
             with Image.open(file) as opened:
-                tile = opened.convert("RGB").resize((w, h))
+                if zoom:
+                    # The shot's `zoom: [x, y, w, h]` region (its own pixels),
+                    # enlarged into the tile, centred: small text read on the sheet.
+                    x, y, zw, zh = (int(v) for v in zoom)
+                    region = opened.convert("RGB").crop((x, y, x + zw, y + zh))
+                    scale = min(w / zw, h / zh)
+                    region = region.resize((max(1, int(zw * scale)), max(1, int(zh * scale))))
+                    tile = Image.new("RGB", (w, h))
+                    tile.paste(region, ((w - region.width) // 2, (h - region.height) // 2))
+                    label += "  (zoomed)"
+                else:
+                    tile = opened.convert("RGB").resize((w, h))
             draw = ImageDraw.Draw(tile)
             text = f"{index + 1}  {label}"
             box = draw.textbbox((0, 0), text, font=font)

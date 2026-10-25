@@ -12,7 +12,10 @@
 #   exec                {seconds: command or [commands]} with no shot of their own
 #   shots               at (s from the game's start), label, checks (the
 #                       verification.md item it is for), exec (commands run
-#                       `lead` s, default 3, before the grab)
+#                       `lead` s, default 3, before the grab), item (the
+#                       verifier item ids it is evidence for), zoom ([x, y,
+#                       w, h] of the frame the review sheet's tile enlarges,
+#                       for small text; the full frame stays in shots/)
 #
 # Shot times count from the race view's clock, which starts with the session
 # (the engine's own start-up comes before it); events count from the green,
@@ -2387,9 +2390,9 @@ runs:
       48: ["apexsim.hotlap.Out"]
       74: ["apexsim.hotlap.Garage"]
     shots:
-      - {at: 12, label: "garage: two new sets", checks: "GO OUT's badge: 2 new sets left"}
-      - {at: 45, label: "back in after a run", checks: "GO OUT's badge: 1 new set left"}
-      - {at: 80, label: "both new sets used", checks: "GO OUT's badge: used set · N% worn"}
+      - {at: 12, label: "garage: two new sets", checks: "GO OUT's badge: 2 new sets left", zoom: [0, 180, 640, 360]}
+      - {at: 45, label: "back in after a run", checks: "GO OUT's badge: 1 new set left", zoom: [0, 180, 640, 360]}
+      - {at: 80, label: "both new sets used", checks: "GO OUT's badge: used set · N% worn", zoom: [0, 180, 640, 360]}
 
   # A written forecast made by an auto race, echoed and laid out on the HUD.
   - id: r12-forecast-hud
