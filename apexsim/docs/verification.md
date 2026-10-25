@@ -425,10 +425,9 @@ in the `flags` component and the radar's RIGHT marker at the start.
 second driver made, back to the first) then `n15-who-drives` (the launch
 asking "Who is driving?" with two profiles). Both write the save games:
 back up `Saved/SaveGames` first and put it back after. The Profile screen
-and the launch picker were judged good from the shots on 2026-10-23. Left:
+and the launch picker were judged good from the shots on 2026-10-23, and
+`ApexSim.UI.PadWalk` reaches all 20 of its controls by pad (2026-10-25). Left:
 
-- Pad and keys reach every control (`ApexSim.UI.PadWalk` lists the screen
-  but has not walked it yet).
 - Stats after an offline race and a hotlap, and two profiles joining one
   server, each under its own id (the leaderboard lights each one's laps).
   The runs' servers bound both profiles' keys (their `records/drivers.json`)
@@ -543,9 +542,16 @@ then the cockpit dash in each ([hud-modding](game/hud-modding.md#colour-vision))
 
 Shot 2026-10-24: the HUD rebuilt in all three palettes (red-green's blue
 bars and yellow accent, the `PB` tags under the splits, the temperature
-signs fitting their columns) and the cockpit dash in each. Left: the
-shots through a CVD simulator, the radar fill with a car alongside, and
-the settings row's BLUE-YELLOW pill width.
+signs fitting their columns) and the cockpit dash in each. Through a CVD
+simulator (`scripts/verify/cvd.py`, Machado 2009 at full severity,
+2026-10-25): in red-green under deuteranopia and protanopia the blue good
+(PB, delta, tyre bars) stays apart from the yellow accent and the
+vermilion bad turns a darker olive than the accent; in the standard
+palette the greens fold into the yellow, as the palette is there for; in
+blue-yellow under tritanopia the accent reads pink against a teal good.
+The dash's screen bar follows the palette; the SF-26's modelled LED row
+above it does not (follow-ups #12). Left: the radar fill with a car
+alongside, and the settings row's BLUE-YELLOW pill width.
 
 ### R21. Photo mode
 

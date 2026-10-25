@@ -310,6 +310,11 @@ the launcher import with the network off.
   frame 108. Run without `-gpucrashdebugging`, so no dump; client log in
   `out/sit/2026-10-23/a-monza-2/` (local). The run before it, the same
   block, was clean.
+- The SF-26's steering wheel carries a row of 15 shift LEDs painted on its
+  mesh (green, red, blue), always lit: they light at no revs and keep their
+  colours in the colour-vision palettes, beside the dash screen's bar that
+  does both (`n22-colour-vision` shots 4-6). Either drive them as the
+  screen's bar is (a material slot of their own) or paint them dark.
 
 **Check:** the A/B is two screenshots.
 
