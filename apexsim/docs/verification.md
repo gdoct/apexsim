@@ -165,7 +165,9 @@ plus `LookAt` stops ([apexsim-content/docs/props.md](../../apexsim-content/docs/
   filled the first shot), and in the menu's backdrop.
 - Whether the sausage kerbs catch the AI: they lay 240 pieces here and 660
   on the Nordschleife, where the AI survey moved a little (more off-road
-  and sliding, no retirements). Seen on screen inside the tight bends.
+  and sliding, no retirements). `r5-mandarina-kerbs` (2026-10-25): three
+  of them inside the tight bends at 21:00, seated behind the kerb on the
+  apex and lit; a car riding one is still to be seen.
 - Run 2026-10-24 (`r5-mandarina-night`): the cloud dome over the pit
   straight, the floodlit corners from above (grey tarmac, pools of light)
   and the city at night read well; two TV shots were a white and a black
