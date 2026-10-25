@@ -141,6 +141,8 @@ namespace
 	void ApplyRoadStateGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal);
 	void ApplySnowGraph(UMaterial* Parent, UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
+	void ApplyRoadWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
 
 	/**
 	 * `bRoadState` builds `M_ApexTrackRoad`: the same surface, with the
@@ -674,6 +676,7 @@ namespace
 
 		if (bRoadState)
 		{
+			ApplyRoadWearGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness);
 			ApplyRoadStateGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness, FinalNormal);
 		}
 		// Snow over every surface that is told it has some.
@@ -1835,6 +1838,58 @@ return o;
 	}
 
 	/**
+	 * The road's age, static and the same on every circuit, under the live
+	 * road state (`M_ApexTrackRoad` only): saw-cut repair patches laid in
+	 * the strip's station / lateral metres (the road UVs), so they run with
+	 * the road, one cell in ten of 8 m by 3.6 m, the newer ones darker and
+	 * a little smoother, the older ones bleached; and a 40 m tone wander,
+	 * so a straight is not one shade of charcoal to the vanishing point.
+	 * `RoadWearAmount` (1) scales both; 0 is the plain surface.
+	 */
+	void ApplyRoadWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness)
+	{
+		const FGraph G{Parent};
+		UMaterialExpressionScalarParameter* Amount = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Amount->ParameterName = TEXT("RoadWearAmount");
+		Amount->DefaultValue = 1.0f;
+		static const TCHAR* kRoadWear = TEXT(R"(
+float2 cellM = float2(8.0, 3.6);
+float row = floor(UV.y / cellM.y);
+// Rows staggered, so the patches do not line up across the road.
+float2 q = float2(UV.x / cellM.x + row * 0.37, UV.y / cellM.y);
+float2 id = floor(q);
+float2 f = frac(q);
+float h = frac(sin(dot(id, float2(127.1, 311.7))) * 43758.5453);
+float h2 = frac(sin(dot(id, float2(269.5, 183.3))) * 43758.5453);
+float2 lo = float2(0.06 + 0.25 * h2, 0.08 + 0.2 * h);
+float2 hi = float2(0.55 + 0.4 * h, 0.62 + 0.32 * h2);
+float2 e = max(fwidth(q), 0.004);
+float inside = smoothstep(lo.x - e.x, lo.x + e.x, f.x) * (1.0 - smoothstep(hi.x - e.x, hi.x + e.x, f.x))
+    * smoothstep(lo.y - e.y, lo.y + e.y, f.y) * (1.0 - smoothstep(hi.y - e.y, hi.y + e.y, f.y));
+float patchHere = inside * step(0.9, h) * Amount;
+float newer = step(0.45, frac(h * 7.13));
+float tone = lerp(1.15, 0.66, newer);
+float wander = 1.0 + (Macro - 0.5) * 0.16 * Amount;
+float3 c = Albedo * lerp(1.0, tone, patchHere) * wander;
+float r = Rough + patchHere * lerp(0.04, -0.07, newer);
+return float4(c, r);
+)");
+		UMaterialExpression* Macro = G.Noise(WorldPos, 1.0f / 4000.0f, 2);
+		UMaterialExpressionCustom* Wear = AddCustom(Parent, TEXT("ApexRoadWear"), kRoadWear, CMOT_Float4,
+			{{TEXT("UV"), G.Mask(TexCoord, true, true, false)}, {TEXT("Macro"), Macro}, {TEXT("Albedo"), InOutAlbedo},
+				{TEXT("Rough"), InOutRoughness}, {TEXT("Amount"), Amount}});
+		InOutAlbedo = G.Mask(Wear, true, true, true);
+		UMaterialExpressionComponentMask* RoughOnly = AddExpr<UMaterialExpressionComponentMask>(Parent);
+		RoughOnly->Input.Expression = Wear;
+		RoughOnly->R = 0;
+		RoughOnly->G = 0;
+		RoughOnly->B = 0;
+		RoughOnly->A = 1;
+		InOutRoughness = RoughOnly;
+	}
+
+	/**
 	 * Snow over a surface (every track material but the car parents): the
 	 * `SnowCover` parameter, 0 (the default) to 1, whitens everything that
 	 * faces up. The race director sets it from the sky on the ground, the
@@ -2176,8 +2231,20 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		++Baked;
 	}
 	// The road's own parent: the base's graph plus the road state. Baked
-	// with the base, so the two always carry the same surface.
-	if (bRebakeBase || !ParentExists(ApexTrackMaterials::RoadName))
+	// with the base, so the two always carry the same surface; one baked
+	// before the road's wear (no `RoadWearAmount`) is baked again.
+	bool bRebakeRoad = bRebakeBase || !ParentExists(ApexTrackMaterials::RoadName);
+	if (!bRebakeRoad)
+	{
+		const UMaterialInterface* Road = LoadObject<UMaterialInterface>(nullptr, *ApexTrackMaterials::ObjectPath(ApexTrackMaterials::RoadName));
+		float Wear = 0.0f;
+		bRebakeRoad = Road && !Road->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(TEXT("RoadWearAmount")), Wear);
+		if (bRebakeRoad)
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no road wear; baking it again"), ApexTrackMaterials::RoadName);
+		}
+	}
+	if (bRebakeRoad)
 	{
 		bool bGroundTextures = false;
 		if (!BakeOne(ApexTrackMaterials::RoadName,

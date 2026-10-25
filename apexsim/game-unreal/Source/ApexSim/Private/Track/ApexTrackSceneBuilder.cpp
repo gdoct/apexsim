@@ -1279,11 +1279,12 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		const bool bRoadFamily = Source.Family == TEXT("road") || Source.Family == TEXT("pit_lane");
 		if (bRoadFamily)
 		{
-			// Tarmac: patchy aggregate and uneven sheen, not one flat slab,
-			// with 50 cm grain over the 8 m patches.
+			// Tarmac: uneven sheen and a light 8 m mottle, not one flat slab;
+			// the road parent adds its 40 m wander and the repair patches
+			// (ApplyRoadWearGraph), so the mottle stays under a fifth.
 			Base *= 0.42f;
 			Params.Scalar(TEXT("Roughness"), 0.9f);
-			Params.Scalar(TEXT("NoiseAmount"), 0.35f);
+			Params.Scalar(TEXT("NoiseAmount"), 0.18f);
 			Params.Scalar(TEXT("NoiseScale"), 0.0012f);
 			Params.Scalar(TEXT("RoughnessNoise"), 0.2f);
 			SetDetail(2.0f, 0.35f, 0.25f, 0.3f);

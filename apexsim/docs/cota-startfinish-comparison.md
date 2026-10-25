@@ -6,10 +6,10 @@ Circuit of the Americas main straight, daytime) and
 cars, late sun), with what the game needs to reach the live frame's look.
 Written 2026-10-24.
 
-The work items are roadmap packages 39 to 50
-([roadmap.md](roadmap.md#39-road-surface-detail)), one per gap, each
-independent of the others, and in the work plan as G7 to G10, C6 to C12
-and N29 ([work-plan.md](work-plan.md)). Each is a rule for every circuit,
+The work items were roadmap packages 39 to 50 ([roadmap.md](roadmap.md)),
+one per gap, each independent of the others, and in the work plan as G7
+to G10, C6 to C12 and N29 ([work-plan.md](work-plan.md)); the ones still
+open are there. Each is a rule for every circuit,
 not a fix for this one: COTA is where the gap showed, and the change is
 judged on the reference frames of several circuits.
 

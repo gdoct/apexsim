@@ -34,6 +34,8 @@ namespace ApexGround
 	 * `FSurfaceLook::TileM`) but this is the size the grain was authored at.
 	 */
 	inline constexpr float TextureTileM = 2.0f;
+	/** The road's and pit lane's tile, m: aggregate at road scale, not a coarser surface's. */
+	inline constexpr float RoadTextureTileM = 1.1f;
 
 	/**
 	 * How far the seam fringe reaches in from a surface band's edge, metres.

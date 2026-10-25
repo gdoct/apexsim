@@ -590,7 +590,20 @@ as `TC_Alpha`; `TC_Grayscale` cooks to uncompressed G8), because a material
 instance can only swap a texture for one of the sampler type the parent was
 compiled with. Colour maps are normalised to a mean of 0.5 and doubled in the
 material, so the exporter's per-key colour still decides the hue.
-`apex_tex.GROUND_TILE_M` and `ApexGround::TextureTileM` must agree.
+`apex_tex.GROUND_TILE_M` and `ApexGround::TextureTileM` must agree. The
+road and pit lane sample the asphalt set at a finer tile of their own
+(`ApexGround::RoadTextureTileM`, 1.1 m) with a softer bump (0.6), so the
+aggregate reads at road scale from a cockpit 2 to 5 m off rather than as
+fist-sized stones.
+
+`M_ApexTrackRoad` adds the road's age under the live road state
+(`ApplyRoadWearGraph`, the same on every circuit): saw-cut repair patches
+laid in the strip's station / lateral metres, so they run with the road,
+one cell in ten of 8 m by 3.6 m (staggered rows), the newer ones darker
+and a little smoother, the older ones bleached; and a 40 m tone wander, so
+a straight is not one shade to the vanishing point. `RoadWearAmount` (1)
+scales both. A road parent baked before it (no `RoadWearAmount`) is baked
+again by `-run=ApexMaterialBake`. Judged on the `sf-ref-*` frames.
 
 `M_ApexTrackBase` (`ApexTrackMaterialGraphs`) has two shapes: with
 `/Game/Ground` imported, each map is sampled at two tilings mixed by a 20 m

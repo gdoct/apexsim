@@ -44,7 +44,6 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G7 | Road surface detail (roadmap 39) | Rendering | P2 | 🟡 | M | 2 |
 | C6 | Grid boxes, chequer, COTA apron paint (roadmap 40) | Content | P2 | 🟡 | S | 2 |
 | C7 | Main straight walls: catch fences, pit wall, screens (roadmap 41) | Content | P2 | 🟡 | M | 2 |
 | C8 | No track lighting at a day venue (roadmap 42) | Content | P2 | 🟢 | S | 2 |
@@ -78,7 +77,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison
-   (G7 and C6 to C12, in any order, each judged on the `sf-ref-*`
+   (C6 to C12, in any order, each judged on the `sf-ref-*`
    frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
@@ -176,14 +175,6 @@ Looked at 2026-10-24 (`g6-top-view`, `g6-grid-above`; follow-ups, Top
 view): one LOD, materials and shadows fine; from above at midday a formula
 car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
-
-#### G7. Road surface detail — P2 · 🟡 · M
-*Source: roadmap 39, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
-The single largest gap in the frame: the shared asphalt set reads as
-uniform soft charcoal from a cockpit. Aggregate at road scale, a macro
-variation mask, a static wear layer (lighter band between the wheel
-tracks, patches) under the live rubber. One material for every track:
-judged on the `sf-ref-*` frames of Armadillos and two other circuits.
 
 ### Content and circuits
 

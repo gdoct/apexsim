@@ -191,27 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 39. Road surface detail
-
-The road is one asphalt set (`BuildTrackBase` in
-`ApexTrackMaterialGraphs.cpp`, the `asphalt` maps from
-`bake_ground_textures.py`) with a mottle noise. From a cockpit it reads as
-uniform soft charcoal: no aggregate, no wear, no patches. `RoadState.rubber`
-already darkens the racing line live; this is the static surface under it.
-
-- Aggregate at road scale: the asphalt set's tiling, normal and roughness
-  judged at 2 to 5 m from a cockpit, and a macro variation mask at 20 to
-  50 m (a second octave over `NoiseAmount`) so the tile never repeats down
-  a straight.
-- A wear layer: a lighter band between the wheel tracks, darker tracks,
-  patch repairs, as a static texture or noise term in the same graph,
-  separate from the live rubber.
-
-**Check:** the `sf-ref-*` frames (cockpit from the pole box, the eye on the
-line) at Armadillos and at least two other circuits so the
-tiling holds on every road; the material is shared, so one change moves
-every track.
-
 ### 40. Grid boxes, the chequer and COTA's painted apron
 
 - Grid boxes drawn solid with their slot number (`grid_boxes` in

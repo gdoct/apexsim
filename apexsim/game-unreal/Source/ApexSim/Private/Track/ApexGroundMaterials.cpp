@@ -15,7 +15,10 @@ ApexGround::FSurfaceLook ApexGround::LookFor(const FString& Family, const FStrin
 	// the same grain underneath, only flatter and less rough.
 	if (Family == TEXT("road") || Family == TEXT("pit_lane"))
 	{
-		return {TEXT("asphalt"), TextureTileM, 1.0f, 0.5f, 0.0f};
+		// A finer tile and a softer bump than the other surfaces: from a
+		// cockpit 2 to 5 m off, the 2 m tile at full strength read as
+		// stones the size of a fist, a dirt road rather than aggregate.
+		return {TEXT("asphalt"), RoadTextureTileM, 0.6f, 0.5f, 0.0f};
 	}
 	if (Family == TEXT("marking"))
 	{
