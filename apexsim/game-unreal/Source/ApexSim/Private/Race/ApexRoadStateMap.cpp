@@ -147,6 +147,33 @@ float FApexRoadStateMap::WaterAt(float StationM, const FVector2D& WorldCm) const
 	return static_cast<float>(StateAt(Cell, Bin).A);
 }
 
+int32 FApexRoadStateMap::IcePct() const
+{
+	if (KnownCells <= 0)
+	{
+		return -1;
+	}
+	if (SnowyCells <= 0)
+	{
+		return 0;
+	}
+	int64 Sum = 0;
+	for (int32 Cell = 0; Cell < Cells; ++Cell)
+	{
+		if (!Known[Cell])
+		{
+			continue;
+		}
+		uint8 Iciest = 0;
+		for (int32 Bin = 0; Bin < Bins; ++Bin)
+		{
+			Iciest = FMath::Max(Iciest, Snow[Bin * Cells + Cell].G);
+		}
+		Sum += Iciest;
+	}
+	return FMath::RoundToInt(100.0 * static_cast<double>(Sum) / (255.0 * KnownCells));
+}
+
 float FApexRoadStateMap::PuddleAt(float StationM, const FVector2D& WorldCm) const
 {
 	if (!IsValid())

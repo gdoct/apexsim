@@ -73,6 +73,8 @@ struct APEXSIM_API FApexHudInputs
 	FString SessionId;
 	/** Heartbeat round trip, ms; negative before the first. */
 	int32 PingMs = -1;
+	/** Ice on the road from the road state the client holds (AApexRaceDirector::GetRoadIcePct), percent; -1 unknown. */
+	int32 LineIcePct = -1;
 
 	/** Settings. */
 	bool bImperial = false;

@@ -368,6 +368,7 @@ figures then stand for the sky. Percentages are whole numbers.
 | `sky.wind_from` | where it comes from, seen from the local car: "ahead", "ahead-left", "the left", ... "behind" (*null* as above) |
 | `sky.rubber` | rubber on the racing line, the lap's mean, percent: 50 the track cars are set up on, 0 green, 100 rubbered in |
 | `sky.snow` | snow cover on the racing line, the lap's mean, percent: 100 an untouched covered road, about 70 a line the field has driven, 0 bare |
+| `sky.ice` | ice on the road from the road state the client holds: each cell's iciest strip (a driven line freezes, the cover beside it does not), the lap's mean, percent; 0 without snow (*null* before the road state, as from a server without one) |
 | `sky.snowfall` | snow falling, percent of steady snowfall (0 outside a snow sky) |
 | `sky.time_scale` | how fast the clock runs (0 frozen, 1 real time, 24 a day an hour) |
 | `sky.next_weather` | the forecast's next weather (*null* while the sky holds) |

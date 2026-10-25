@@ -934,7 +934,7 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("no sky: not wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
 	for (const TCHAR* Name : {TEXT("sky.clock"), TEXT("sky.weather"), TEXT("sky.air_c"), TEXT("sky.wind_kph"),
 			 TEXT("sky.wind_rel_deg"), TEXT("sky.rubber"), TEXT("sky.next_weather"), TEXT("sky.next_in_s"),
-			 TEXT("sky.snow"), TEXT("sky.snowfall"), TEXT("sky.next2_weather"), TEXT("sky.next3_in_s"), TEXT("sky.forecast")})
+			 TEXT("sky.snow"), TEXT("sky.ice"), TEXT("sky.snowfall"), TEXT("sky.next2_weather"), TEXT("sky.next3_in_s"), TEXT("sky.forecast")})
 	{
 		TestTrue(*FString::Printf(TEXT("no sky: %s null"), Name), HudValue(Data, Name).IsNone());
 	}
@@ -961,8 +961,10 @@ bool FApexHudDataSkyTest::RunTest(const FString& Parameters)
 	Sky.Next2InS = 2400;
 	Sky.Next3Weather = static_cast<int32>(EApexWeather::Snow);
 	Sky.Next3InS = 4200;
+	In.LineIcePct = 12;
 	ApexHudData::Build(In, Memory, Data);
 	TestTrue(TEXT("live"), HudValue(Data, TEXT("sky.live")).AsBool());
+	TestEqual(TEXT("ice from the road state"), HudValue(Data, TEXT("sky.ice")).AsNumber(), 12.0);
 	TestTrue(TEXT("wet"), HudValue(Data, TEXT("sky.wet")).AsBool());
 	TestEqual(TEXT("clock"), HudValue(Data, TEXT("sky.clock")).AsString(), FString(TEXT("15:30")));
 	TestEqual(TEXT("clock s"), HudValue(Data, TEXT("sky.clock_s")).AsNumber(), 55815.0);

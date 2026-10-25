@@ -1,6 +1,6 @@
 // The sky: the weather, the time of day, the air and the asphalt, the wind
-// from the car's seat, the road (wet or dry, and how rubbered in its line
-// is) and the forecast's next three changes. A newer server reports the sky as it
+// from the car's seat, the road (wet or dry, how rubbered in its line is,
+// its snow and ice) and the forecast's next three changes. A newer server reports the sky as it
 // moves (`sky.*`: the clock may run, the weather may change); an older one
 // only the session's fixed pick (`session.*`), which this falls back to.
 // Off until added in the HUD editor.
@@ -27,6 +27,9 @@
       { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 12, "color": "=sky.wet ? 'tyre_cold' : 'text_muted'",
         "visible": "=sky.live",
         "text": "=(sky.wet ? (sky.road_water > 100 ? 'Standing water' : 'Road ' + fmt(sky.road_water) + '% wet') : 'Road dry') + '  rubber ' + fmt(sky.rubber) + '%'" },
+      { "type": "text", "wrap": true, "margin": [0, 2, 0, 0], "font": "mono", "size": 12, "color": "tyre_cold",
+        "visible": "=sky.live && (sky.snow > 0 || sky.ice > 0)",
+        "text": "='Snow ' + fmt(sky.snow) + '% on the line' + (sky.ice > 0 ? ', ice ' + fmt(sky.ice) + '%' : '')" },
       { "type": "text", "wrap": true, "margin": [0, 6, 0, 0], "font": "mono", "size": 12, "color": "accent",
         "visible": "=has(sky.next_weather)",
         "text": "=sky.next_weather + ' in ' + fmt_clock(sky.next_in_s)" },

@@ -685,7 +685,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			TEXT("sky.clock"), TEXT("sky.clock_s"), TEXT("sky.weather"), TEXT("sky.rain"), TEXT("sky.cloud"),
 			TEXT("sky.road_water"), TEXT("sky.air_c"), TEXT("sky.track_c"), TEXT("sky.wind_kph"),
 			TEXT("sky.wind_rel_deg"), TEXT("sky.wind_from"), TEXT("sky.rubber"), TEXT("sky.time_scale"),
-			TEXT("sky.next_weather"), TEXT("sky.next_in_s"), TEXT("sky.snow"), TEXT("sky.snowfall"),
+			TEXT("sky.next_weather"), TEXT("sky.next_in_s"), TEXT("sky.snow"), TEXT("sky.ice"), TEXT("sky.snowfall"),
 			TEXT("sky.next2_weather"), TEXT("sky.next2_in_s"), TEXT("sky.next3_weather"), TEXT("sky.next3_in_s"),
 			TEXT("sky.forecast"), TEXT("sky.outlook") };
 		const FApexSkyNow& Sky = Frame.Sky;
@@ -711,6 +711,14 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Out.Set(TEXT("sky.wind_kph"), Sky.WindKph);
 			Out.Set(TEXT("sky.rubber"), Sky.LineRubberPct);
 			Out.Set(TEXT("sky.snow"), Sky.LineSnowPct);
+			if (In.LineIcePct >= 0)
+			{
+				Out.Set(TEXT("sky.ice"), In.LineIcePct);
+			}
+			else
+			{
+				Out.SetNone(TEXT("sky.ice"));
+			}
 			Out.Set(TEXT("sky.snowfall"), Sky.SnowfallPct);
 			Out.Set(TEXT("sky.time_scale"), Sky.TimeScale);
 			if (Sky.HasNextChange())

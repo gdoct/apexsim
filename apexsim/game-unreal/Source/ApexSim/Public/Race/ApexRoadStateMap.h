@@ -66,6 +66,12 @@ public:
 	float GetLaneSnow() const { return LaneSnowMean; }
 	/** Whether any cell holds snow or ice (or the last slice said so). */
 	bool HasSnow() const { return SnowyCells > 0; }
+	/**
+	 * Ice on the road, the HUD's `sky.ice`: each known cell's iciest bin (a
+	 * driven line freezes, the untouched cover beside it does not), averaged
+	 * over the lap, percent; 0 without snow, -1 before any slice.
+	 */
+	int32 IcePct() const;
 	/** The geometry, a texel per cell, Unreal frame (see the class note). */
 	const TArray<FLinearColor>& GetGeometry() const { return Geometry; }
 	/** The debris the last slice reported, server frame, metres. */

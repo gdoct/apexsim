@@ -200,6 +200,8 @@ public:
 	/** The TV director chooses whom to watch (the camera goes back to it); off once a car is picked. */
 	void SetSpectatorAuto(bool bAuto);
 	bool IsSpectatorAuto() const { return bSpectatorAuto; }
+	/** The road state's ice, percent (FApexRoadStateMap::IcePct): the HUD's `sky.ice`; -1 without a road state. */
+	int32 GetRoadIcePct() const { return RoadMap.IsValid() ? RoadMap.IcePct() : -1; }
 
 	/** Watch this car, from the camera in use; the director stops choosing. */
 	void FocusCar(int32 CarIndex);

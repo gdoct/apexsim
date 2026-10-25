@@ -289,6 +289,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.LocalPlayerId = Net->GetPlayerId();
 	}
 	In.NowSeconds = FPlatformTime::Seconds();
+	In.LineIcePct = Director ? Director->GetRoadIcePct() : -1;
 	In.bChatOpen = bChatOpen;
 	In.ChatKey = ChatKey;
 	if (bSpectating)
