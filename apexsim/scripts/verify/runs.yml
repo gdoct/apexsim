@@ -489,11 +489,39 @@ runs:
       - {at: 660, label: "La Source, later", checks: "R4: melted: wet or dry asphalt, the verge last", exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2", item: v-r4-ice-and-melt}
       - {at: 666, label: "the conditions panel then", checks: "R4: the melt", exec: "apexsim.cam.Release", item: v-r4-ice-and-melt}
 
+  - id: c-mandarina-deck-grade
+    about: "Mandarina Bay: the road over bridge_deck_wide on its grade"
+    # The lap crosses the water on seven 40 m deck modules (2965-3335 m)
+    # rising 1.4 -> 4.0 -> 1.5 m. A module is laid flat at its centre's
+    # road height (props have no pitch), so on the grade one end could
+    # stand proud of the road. Looking up the road from the low end, then
+    # from the side.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - {at: 6, label: "up the deck from its low end", checks: "no deck edge or slab standing proud of the road where modules meet", lead: 2, exec: "apexsim.cam.LookAt -253.3 1208.6 3.0 -219.9 1198.4 2.7"}
+      - {at: 9, label: "down the deck from its crest", checks: "the same, going down", lead: 2, exec: "apexsim.cam.LookAt -143.2 1174.3 5.6 -66.4 1150.3 2.2"}
+      - {at: 12, label: "the deck from the side", checks: "the parapets follow the road's rise; no step between modules", lead: 2, exec: "apexsim.cam.LookAt -125.0 1235.0 8.0 -150.0 1176.0 3.0"}
+
   - id: r5-mandarina-night
     about: "R5. Mandarina Bay at night, cloudy"
     # Never seen in the running game. Sausage kerbs lie on the inside of
     # bends under 80 m radius: the three tightest from above, then the TV
-    # camera round a lap with the field on them.
+    # camera round a lap with the field on them. The first two look from
+    # over the track's pit side: the roofed stands are at y -12 to -38 m
+    # (LookAt is in the server's frame, the scene's y flipped), and a camera
+    # at y -21 stood in them and read their roof as a bridge.
     args:
       - -ApexAutoRace
       - -ApexTrack=MandarinaBay
@@ -511,12 +539,12 @@ runs:
       - at: 4
         label: "the grid at night"
         checks: "Mandarina Bay first sight; pit lane, pit podium"
-        exec: "apexsim.cam.LookAt 20.0 -21.0 10.0 60.0 0.0 0.0"
+        exec: "apexsim.cam.LookAt 20.0 4.0 7.0 60.0 -2.0 0.0"
         lead: 2
       - at: 8
         label: "the night sky, cloudy"
         checks: "The cloud dome at night; scattered cloud"
-        exec: "apexsim.cam.LookAt 20.0 -21.0 10.0 300 200 250"
+        exec: "apexsim.cam.LookAt 20.0 4.0 7.0 120 60 300"
         lead: 2
       - at: 40
         label: "bend 3065 m (r 23 m) from above"
