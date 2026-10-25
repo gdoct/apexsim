@@ -867,6 +867,32 @@ runs:
         checks: "R8: the backs meet without gaps"
         exec: "apexsim.cam.LookAt 112.0 -318.0 22.0 112.0 -284.0 1.0"
 
+  - id: r8-crowd
+    about: "R8. The repainted seated crowd on Interlaggos's main stand at 30, 80 and 150 m"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Interlaggos
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "the main stand's crowd from 30 m"
+        checks: "R8 crowd: figures read as people, masked edges hold, the chequered flag not in a visible pattern"
+        exec: "apexsim.cam.LookAt 15.4 -41.8 7.7 5.7 -70.2 8.3"
+      - at: 15
+        label: "the main stand's crowd from 80 m"
+        checks: "R8 crowd: figures read as people, masked edges hold, the chequered flag not in a visible pattern"
+        exec: "apexsim.cam.LookAt 31.6 5.5 11.7 5.7 -70.2 8.3"
+      - at: 20
+        label: "the main stand's crowd from 150 m"
+        checks: "R8 crowd: figures read as people, masked edges hold, the chequered flag not in a visible pattern"
+        exec: "apexsim.cam.LookAt 54.2 71.7 17.3 5.7 -70.2 8.3"
+
   - id: r8-ims
     about: "R8. Geometry sweep: Endianapolis Motor Speedway"
     server:

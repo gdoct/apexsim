@@ -119,6 +119,13 @@ the same `ApexProps` code.
   bay is placed twice (ids 235 and 236 at 41.7, 324.0).
   Removing them from the calendar is the owner's option
   ([track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)).
+- The seated crowd's chequered flags line up: at 30 m on Interlaggos's
+  main stand (`r8-crowd`, 2026-10-25) one flag per 4.4 m strip falls on a
+  diagonal down the rows, each row's strip a fixed step along the texture
+  from the one below. The windows are baked into `bay_10m_crowd`'s card
+  UVs and copied into every `_crowd` twin (`build_stand_crowds.py`): give
+  each card a hashed offset there, rebuild the twins and re-import. From
+  80 m on it does not show.
 - Found by the dressing audit, outside dressing:
   - AlbertParkour's centerline is the pre-2021 layout (the Lakeside
     chicane at 2520-2670 m), and Barcelunatic's takes the RACC chicane

@@ -198,25 +198,6 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
   a car arriving, and backing on once it is by (`racecraft::recover`,
   [server/ai.md](server/ai.md)).
 
-### R8. Stadium stands and pit rows
-
-`r8-ims` and `r8-mexicocity` aim at their `grandstand_corner` from 45 m
-up and 170 m off (2026-10-25). At Mexico City the corner stand follows the
-bend as one curved, crowded stand with its roof: the wedge reads. At
-Indianapolis the stand there shows as two straight sections with a gap
-between them, set back on the grass, and from the infield
-(`r8-ims-corners`) all four turns' stands are so: they are the old
-generator's, 116 m off the road on a circuit with no dossier (follow-ups
-#6), not a wedge. `r8-curved-pit-row` (2026-10-25): Interlaggos's 16
-garages on the bend (scaled 0.99 to the 0.85 floor) read as one curved
-row, the box fronts and boards in a smooth line from the lane, the roofs
-stepping module by module from above with no overlap or open gap. Left:
-
-- The repainted seated crowd (`gen_crowd.py`) on a full stand with
-  spectators on: figures read as people at 30-150 m, the masked edges
-  hold at distance, the one chequered flag per strip does not repeat in
-  a visible pattern.
-
 ### R9. Menus and dashboard
 
 One `-ApexNoDemo` launch clicking through with `apexsim.ui.Texts` /
