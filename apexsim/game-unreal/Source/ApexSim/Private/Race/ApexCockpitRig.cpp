@@ -15,6 +15,7 @@
 #include "SceneView.h"
 #include "SceneViewExtension.h"
 #include "UI/ApexCockpitDashWidget.h"
+#include "UI/ApexColourVision.h"
 #include "UI/ApexMirrorWidget.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -30,6 +31,13 @@ namespace
 		TEXT("apexsim.cockpit.ScreenNits"),
 		4500.0f,
 		TEXT("Brightness of the cockpit display and mirror faces, as an emissive multiplier"),
+		ECVF_Default);
+
+	/** The car wheel's shift lights, lit: an emissive multiplier as the screens' is. */
+	TAutoConsoleVariable<float> CVarWheelLedNits(
+		TEXT("apexsim.cockpit.WheelLedNits"),
+		2000.0f,
+		TEXT("Brightness of a lit shift light on the car's own steering wheel, as an emissive multiplier"),
 		ECVF_Default);
 
 	TAutoConsoleVariable<float> CVarScreenReferenceEv(
@@ -252,6 +260,59 @@ void AApexCockpitRig::DressWheel()
 	{
 		CarWheel->EmptyOverrideMaterials();
 		CarWheel->SetStaticMesh(Mesh);
+		// Its shift lights, each colour one slot: this rig's own instances.
+		WheelLeds.Reset();
+		for (const TCHAR* Slot : {TEXT("sw_led_green"), TEXT("sw_led_red"), TEXT("sw_led_blue")})
+		{
+			const int32 Index = Mesh ? CarWheel->GetMaterialIndex(Slot) : INDEX_NONE;
+			WheelLeds.Add(Index != INDEX_NONE ? ApexCarContent::OwnMaterialInstance(*CarWheel, Index) : nullptr);
+		}
+		ShownWheelLeds = -1;
+		UE_LOG(LogApexSim, Log, TEXT("Cockpit wheel: %s, %d material slot(s), shift lights %s %s %s"),
+			*GetNameSafe(Mesh), Mesh ? Mesh->GetStaticMaterials().Num() : 0,
+			WheelLeds[0] ? TEXT("green") : TEXT("-"), WheelLeds[1] ? TEXT("red") : TEXT("-"), WheelLeds[2] ? TEXT("blue") : TEXT("-"));
+	}
+}
+
+void AApexCockpitRig::UpdateWheelLeds()
+{
+	if (WheelLeds.IsEmpty())
+	{
+		return;
+	}
+	// As the dash's bar of 15 (5 good, 5 accent, 3 bad, 2 shift), each of the
+	// wheel's colours lighting its five together once the bar is half way
+	// through its group; all of them flash on an over-rev.
+	static const FName EmissiveFactor(TEXT("EmissiveFactor"));
+	static const FName BaseColorFactor(TEXT("BaseColorFactor"));
+	const int32 Lit = FMath::RoundToInt(FMath::Clamp(Car->GetEngineRpm() / FMath::Max(ObservedMaxRpm, 1.0f), 0.0f, 1.0f) * 15.0f);
+	int32 Groups = (Lit >= 3 ? 1 : 0) | (Lit >= 8 ? 2 : 0) | (Lit >= 13 ? 4 : 0);
+	if (bOverRev)
+	{
+		Groups = FMath::Frac(FPlatformTime::Seconds() * 8.0) < 0.5 ? 7 : 0;
+	}
+	const EApexColourVision Vision = ApexColourVision::Current();
+	const int32 Shown = Groups | (static_cast<int32>(Vision) << 3);
+	if (Shown == ShownWheelLeds)
+	{
+		return;
+	}
+	ShownWheelLeds = Shown;
+	// The colours the bar shows where each group sits: its middle five are the accent.
+	const EApexColourRole Roles[] = {EApexColourRole::Good, EApexColourRole::Accent, EApexColourRole::ShiftLight};
+	for (int32 Group = 0; Group < WheelLeds.Num() && Group < 3; ++Group)
+	{
+		if (UMaterialInstanceDynamic* Led = WheelLeds[Group])
+		{
+			FLinearColor Colour = bOverRev ? ApexColourVision::Role(EApexColourRole::Bad, Vision) : ApexColourVision::Role(Roles[Group], Vision);
+			Colour /= FMath::Max(Colour.GetMax(), UE_KINDA_SMALL_NUMBER);
+			// The lens in the palette's colour, dark until lit.
+			const bool bLit = (Groups & (1 << Group)) != 0;
+			const float Glow = bLit ? CVarWheelLedNits.GetValueOnGameThread() : 0.0f;
+			const float Lens = bLit ? 0.6f : 0.12f;
+			Led->SetVectorParameterValue(EmissiveFactor, FLinearColor(Colour.R * Glow, Colour.G * Glow, Colour.B * Glow, 1.0f));
+			Led->SetVectorParameterValue(BaseColorFactor, FLinearColor(Colour.R * Lens, Colour.G * Lens, Colour.B * Lens, 1.0f));
+		}
 	}
 }
 
@@ -754,6 +815,7 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 	if (WheelPivot->IsVisible())
 	{
 		UpdateWheel(DeltaSeconds);
+		UpdateWheelLeds();
 		if (Layout.bRigDash)
 		{
 			PushDash();

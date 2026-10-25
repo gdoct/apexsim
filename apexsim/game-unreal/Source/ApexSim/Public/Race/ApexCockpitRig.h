@@ -163,6 +163,8 @@ private:
 
 	void UpdateWheel(float DeltaSeconds);
 	void PushDash();
+	/** Lights the car wheel's shift lights to the revs (`WheelLeds`). */
+	void UpdateWheelLeds();
 	void RunCaptures();
 
 	UPROPERTY(VisibleAnywhere, Category = "Components")
@@ -198,6 +200,16 @@ private:
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> CarWheel;
+
+	/**
+	 * The car wheel's shift lights, its `sw_led_green`, `sw_led_red` and
+	 * `sw_led_blue` slots (null where it has none), lit with the revs as the
+	 * dash's bar is, in the colour-vision palette.
+	 */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UMaterialInstanceDynamic>> WheelLeds;
+	/** What the shift lights last showed (lit groups and palette); -1 to write them again. */
+	int32 ShownWheelLeds = -1;
 
 	// --- Mirrors ----------------------------------------------------------------
 

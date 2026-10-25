@@ -49,7 +49,13 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   car only). While a yellow or the blue is out for the car
   (`race_flags`, `SetFlags`) the whole light bar flashes its colour at 2 Hz,
   yellow over blue, a double yellow at 4 Hz, as a real wheel's does. On a class wheel it sits on the wheel's screen, placed
-  by `<model>.json` beside the GLB.
+  by `<model>.json` beside the GLB. A class wheel's own shift lights
+  (its `sw_led_green` / `_red` / `_blue` slots, five of each) light with
+  the revs as the bar does, each colour's five together once the bar is
+  half way through its group, in the colours the bar shows there (good,
+  accent, shift light, in the colour-vision palette), all of them flashing
+  on an over-rev; dark lenses until then (`UpdateWheelLeds`,
+  `apexsim.cockpit.WheelLedNits`, the `Cockpit wheel:` log line).
 - **Mirrors**: `USceneCaptureComponent2D`s into render targets shown on
   `UApexMirrorWidget` faces, drawn flipped. The rig refreshes them
   round-robin, never every capture every frame; the Mirror quality setting

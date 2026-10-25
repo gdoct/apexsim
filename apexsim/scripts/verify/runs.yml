@@ -8097,6 +8097,35 @@ runs:
       - {at: 20, label: "later", checks: "N22 radar"}
       - {at: 22, label: "later", checks: "N22 radar"}
 
+  - id: n22-wheel-leds
+    about: "N22. The SF-26 wheel's shift lights following the revs (the HUD set hidden from Settings: back up the save games)"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+      - -ApexOpenSettings=18
+      - -ApexSettingsTab=0
+    exec:
+      21: ["apexsim.ui.Click HIDDEN"]
+      22: ["apexsim.ui.Click BACK TO RACE"]
+      23: ["apexsim.ui.Click CLOSE MENU"]
+    shots:
+      - {at: 26, label: "standard palette", checks: "N22 wheel: green, amber and blue groups lit with the revs, dark below"}
+      - {at: 28, label: "standard palette, later", checks: "N22 wheel"}
+      - {at: 32, label: "red-green palette", checks: "N22 wheel: the groups blue, yellow, white", exec: "apexsim.hud.Palette red_green"}
+      - {at: 34, label: "red-green palette, later", checks: "N22 wheel"}
+      - {at: 38, label: "blue-yellow palette", checks: "N22 wheel", exec: "apexsim.hud.Palette blue_yellow"}
+      - {at: 42, label: "back to standard", exec: "apexsim.hud.Palette standard"}
+
   - id: n22-colour-vision
     about: "N22. The HUD and the cockpit dash in the standard, red-green and blue-yellow palettes"
     server:
