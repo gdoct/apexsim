@@ -494,8 +494,8 @@ thickened to the server's `SkyNow.visibility_m` (density 3.9 / visibility,
 never under the weather's haze; the client logs `Live sky: visibility N m,
 fog density D`). `s3-fog-thick` against `s3-fog-clear` (06:15, the fog
 forced to 250 m with `apexsim.sky.FogVisibility`) was seen 2026-10-25: the
-far stands and trees grey, the near road readable (the far forest's
-impostors aside, follow-ups #12). Left:
+far stands and trees grey, the near road readable, the far forests faded
+(a smear on a hill the TV camera panned past is its motion blur). Left:
 
 - The server's own fog on screen: a calm Spa dawn gives 4825 m at 05:30
   (a faint haze) and 1601 m at 04:30, still dark. A dawn it fogs thickly
