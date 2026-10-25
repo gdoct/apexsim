@@ -160,6 +160,35 @@ fn an_engine_past_its_heat_limit_wears_out_and_a_blown_one_stops() {
     assert!(speed <= 30.0, "a blown engine drives nothing: {speed}");
 }
 
+/// A car that goes out at speed stands still at once, and reads still: no
+/// speed or velocity left on it for the telemetry (the client's marshals
+/// wait for a stopped car).
+#[test]
+fn a_car_out_at_speed_reads_stopped() {
+    let out = DamageState {
+        engine_damage_percent: 100.0,
+        is_drivable: false,
+        ..clean()
+    };
+    let (moved, speed, vel) = drive(
+        out,
+        90.0,
+        40.0,
+        PlayerInputData::default(),
+        0.5,
+        |s, (x, y, _)| {
+            (
+                ((s.pos_x - x).powi(2) + (s.pos_y - y).powi(2)).sqrt(),
+                s.speed_mps,
+                s.vel_x.abs() + s.vel_y.abs() + s.vel_z.abs() + s.angular_vel_yaw.abs(),
+            )
+        },
+    );
+    assert!(moved < 0.01, "stands where it went out: moved {moved} m");
+    assert_eq!(speed, 0.0, "reads stopped");
+    assert_eq!(vel, 0.0, "no motion left on it");
+}
+
 /// A car out of the race stands where it stopped for a few seconds, then is
 /// towed to its pit box: out of the way, out of the collision passes.
 #[test]
