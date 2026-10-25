@@ -323,6 +323,11 @@ the launcher import with the network off.
   frame 108. Run without `-gpucrashdebugging`, so no dump; client log in
   `out/sit/2026-10-23/a-monza-2/` (local). The run before it, the same
   block, was clean.
+  Again 2026-10-25 in an editor-build verify run (`n22-wheel-leds`, the
+  Norisring in the cockpit, 57 s in): D3D device removed, last breadcrumb
+  `EndDrawingViewport`, frame 1641; the dump is
+  `game-unreal/Saved/Logs/D3D12.0.2026.10.25-04.18.33.nv-gpudmp`. The same
+  run again was clean, as were some sixty others that night.
 
 **Check:** the A/B is two screenshots.
 
