@@ -516,6 +516,7 @@ fn drain_mcp_commands(
                         lat_from_m: params.lat_from_m,
                         lat_to_m: params.lat_to_m,
                         color: params.color.unwrap_or([1.0, 1.0, 1.0, 1.0]),
+                        stripe: None,
                     });
                     Ok(id)
                 });

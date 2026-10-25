@@ -789,6 +789,7 @@ fn apply_ui_action(
                 lat_from_m: 4.0,
                 lat_to_m: 4.15,
                 color: [1.0, 1.0, 1.0, 1.0],
+                stripe: None,
             });
             selection.0 = Some(SelectedElement::Marking(id));
             status.0 = format!("Added marking #{id}.");

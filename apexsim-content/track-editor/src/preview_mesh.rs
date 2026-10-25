@@ -413,6 +413,7 @@ mod tests {
             lat_from_m: 6.0,
             lat_to_m: -6.0, // reversed on purpose
             color: [1.0; 4],
+            stripe: None,
         };
         assert_finite_mesh(&build_marking_mesh(&path, &marking).unwrap());
         std::mem::swap(&mut marking.lat_from_m, &mut marking.lat_to_m);

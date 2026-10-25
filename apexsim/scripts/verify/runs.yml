@@ -9300,6 +9300,48 @@ runs:
     shots:
       - {at: 10, lead: 1, label: "overcast: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 1.2"}
       - {at: 14, lead: 1, label: "overcast: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 91.2"}
+
+  # Grid boxes and painted aprons (roadmap 40): the boxes' rubbered
+  # floors and slot numbers from above the grid, and a painted apron where
+  # a circuit has one (Armadillos' blue and white beside the main straight).
+
+  - id: c6-grid-armadillos
+    about: "C6. Grid boxes, slot numbers and aprons at Armadillos"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "over the grid", checks: "C6: every box numbered beside it, its floor rubbered", exec: "apexsim.cam.LookAt -8.6 11.3 14.2 -19.7 19.8 0.2"}
+
+  - id: c6-grid-shiverstone
+    about: "C6. Grid boxes, slot numbers and aprons at Shiverstone"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "over the grid", checks: "C6: every box numbered beside it, its floor rubbered", exec: "apexsim.cam.LookAt -3.6 -10.2 14.0 -11.8 -21.6 -0.0"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

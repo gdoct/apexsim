@@ -121,6 +121,7 @@ fn test_scene(track: &TrackFile) -> AtsScene {
         lat_from_m: 5.5,
         lat_to_m: 6.0,
         color: [1.0, 1.0, 1.0, 1.0],
+        stripe: None,
     });
     scene.decals.push(Decal {
         id: id(),
@@ -866,8 +867,9 @@ fn start_finish_anchor_sits_on_the_line() {
 
 /// Grid boxes are laid out in station space: slot 16 is row 8's staggered
 /// second car, 60 m before the line, so the outlines run from 62.5 m
-/// behind the line to the pole stub 3.5 m ahead of it — on a closed loop,
-/// wrapped past the lap length.
+/// behind the line to the pole stub 3.5 m ahead of it (the numbers sit
+/// beside the boxes, inside that span) — on a closed loop, wrapped past
+/// the lap length. Every box has its rubbered floor.
 #[test]
 fn monza_grid_boxes_end_60_m_before_the_line() {
     let track_path = real_tracks_dir().join("Monzarella/Monzarella.yaml");
@@ -890,6 +892,12 @@ fn monza_grid_boxes_end_60_m_before_the_line() {
         (rear + 62.5).abs() < 0.6,
         "rear of box 16 at {rear} m, lap {lap_m} m"
     );
+    let rubbered = baked
+        .meshes
+        .iter()
+        .filter(|m| m.material_key == "marking_grid_slot_09090a")
+        .count();
+    assert!(rubbered > 0, "no rubbered grid box floor");
     assert!(
         (front - 3.5).abs() < 0.6,
         "front of the pole stub at {front} m"

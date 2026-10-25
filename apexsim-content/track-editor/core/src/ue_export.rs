@@ -183,6 +183,20 @@ const DECAL_ROW_M: f32 = 0.5;
 const PIT_LINE_LIFT_M: f32 = PIT_LIFT_M + MARKING_LIFT_M;
 const CHEQUER_CHECK_M: f32 = 0.5;
 const CHEQUER_DARK: [f32; 4] = [0.08, 0.08, 0.09, 1.0];
+/// Inside a grid box: the rubber and oil of every start, darker than the
+/// road round it.
+const GRID_RUBBER: [f32; 4] = [0.035, 0.035, 0.038, 1.0];
+/// The rubbered box sits under the box's white lines.
+const GRID_RUBBER_LIFT_M: f32 = MARKING_LIFT_M + 0.002;
+/// A slot number's digits, painted beside the box on its outer side, its
+/// top level with the front bar, for the car arriving: height along the
+/// track, width across, stroke, the gap between two digits (and between
+/// the number and the box), and how far under the front bar its top is.
+const GRID_DIGIT_H_M: f32 = 1.1;
+const GRID_DIGIT_W_M: f32 = 0.7;
+const GRID_DIGIT_STROKE_M: f32 = 0.14;
+const GRID_DIGIT_GAP_M: f32 = 0.25;
+const GRID_DIGIT_DROP_M: f32 = 0.2;
 const GRID_BOX_LEN_M: f32 = 5.0;
 const GRID_BOX_WIDTH_M: f32 = 2.6;
 const GRID_POLE_STUB_M: f32 = 1.0;
@@ -3752,16 +3766,34 @@ impl Bake<'_> {
             color_hex(marking.color)
         );
         self.register(&key, "marking", marking.color);
-        self.paint(
-            path,
-            marking.start_m,
-            marking.end_m,
-            STEP_M,
-            &key,
-            hi,
-            lo,
-            MARKING_LIFT_M,
+        let Some(stripe) = marking.stripe.filter(|s| s.length_m > 0.0) else {
+            self.paint(
+                path,
+                marking.start_m,
+                marking.end_m,
+                STEP_M,
+                &key,
+                hi,
+                lo,
+                MARKING_LIFT_M,
+            );
+            return;
+        };
+        // Bands along the track, the marking's colour first.
+        let other = format!(
+            "marking_{}_{}",
+            marking.kind.label(),
+            color_hex(stripe.color)
         );
+        self.register(&other, "marking", stripe.color);
+        let length = marking.end_m - marking.start_m;
+        let bands = (length / stripe.length_m).ceil().max(0.0) as usize;
+        for band in 0..bands {
+            let s0 = marking.start_m + band as f32 * stripe.length_m;
+            let s1 = (s0 + stripe.length_m).min(marking.end_m);
+            let band_key = if band % 2 == 0 { &key } else { &other };
+            self.paint(path, s0, s1, STEP_M, band_key, hi, lo, MARKING_LIFT_M);
+        }
     }
 
     /// A picture on the road ([`Decal`]): a road-hugging grid under the
@@ -3866,15 +3898,33 @@ impl Bake<'_> {
 
     /// White outlines for the starting grid, one per slot, in station /
     /// lateral space so the back rows bend with the track, each with the
-    /// short "pole" stub ahead of its left side.
+    /// short "pole" stub ahead of its left side, the box's floor dark with
+    /// the rubber of every start, and the slot's number beside it on the
+    /// outer side, where no car stands on it.
     fn grid_boxes(&mut self, track: &TrackFile, path: &CenterlinePath) {
         let key = format!("marking_grid_slot_{}", color_hex([1.0, 1.0, 1.0, 1.0]));
         self.register(&key, "marking", [1.0, 1.0, 1.0, 1.0]);
+        let rubber = format!("marking_grid_slot_{}", color_hex(GRID_RUBBER));
+        self.register(&rubber, "marking", GRID_RUBBER);
 
         let (half_len, half_w) = (GRID_BOX_LEN_M / 2.0, GRID_BOX_WIDTH_M / 2.0);
-        for (station, lateral) in grid_slot_frames(track, path) {
+        for (slot, (station, lateral)) in grid_slot_frames(track, path).into_iter().enumerate() {
             let (back, front) = (station - half_len, station + half_len);
             let (right, left) = (lateral - half_w, lateral + half_w);
+            self.paint(
+                path,
+                back + LINE_WIDTH_M,
+                front - LINE_WIDTH_M,
+                STEP_M,
+                &rubber,
+                left - LINE_WIDTH_M,
+                right + LINE_WIDTH_M,
+                GRID_RUBBER_LIFT_M,
+            );
+            // Outward: the left column's number on its left, the right's on its right.
+            let side = if lateral >= 0.0 { 1.0 } else { -1.0 };
+            let outer = if side > 0.0 { left } else { right };
+            self.grid_number(path, &key, slot + 1, front - GRID_DIGIT_DROP_M, outer, side);
             // Front and back bars, full width.
             self.paint(
                 path,
@@ -3928,6 +3978,52 @@ impl Bake<'_> {
                 left - LINE_WIDTH_M,
                 GRID_PAINT_LIFT_M,
             );
+        }
+    }
+
+    /// A slot number in seven-segment strokes, its top `top` m along the
+    /// track, a gap beyond the box edge at `outer` on `side` (+1 left,
+    /// -1 right), reading the right way up for a driver arriving from
+    /// behind (the top of a digit further down the road, its left on the
+    /// track's left).
+    fn grid_number(
+        &mut self,
+        path: &CenterlinePath,
+        key: &str,
+        number: usize,
+        top: f32,
+        outer: f32,
+        side: f32,
+    ) {
+        let digits: Vec<usize> = number
+            .to_string()
+            .bytes()
+            .map(|b| (b - b'0') as usize)
+            .collect();
+        let (h, w, t) = (GRID_DIGIT_H_M, GRID_DIGIT_W_M, GRID_DIGIT_STROKE_M);
+        let total = digits.len() as f32 * w + (digits.len() as f32 - 1.0) * GRID_DIGIT_GAP_M;
+        let lateral = outer + side * (GRID_DIGIT_GAP_M + total / 2.0);
+        let bottom = top - h;
+        let mid = bottom + h / 2.0;
+        for (i, &digit) in digits.iter().enumerate() {
+            // The digit's left edge (the larger lateral).
+            let l = lateral + total / 2.0 - i as f32 * (w + GRID_DIGIT_GAP_M);
+            let r = l - w;
+            // a b c d e f g: station span, then lateral span (left, right).
+            let segments = [
+                ((top - t, top), (l, r)),                 // a, top
+                ((mid, top), (r + t, r)),                 // b, upper right
+                ((bottom, mid), (r + t, r)),              // c, lower right
+                ((bottom, bottom + t), (l, r)),           // d, bottom
+                ((bottom, mid), (l, l - t)),              // e, lower left
+                ((mid, top), (l, l - t)),                 // f, upper left
+                ((mid - t / 2.0, mid + t / 2.0), (l, r)), // g, middle
+            ];
+            for (lit, ((s0, s1), (a, b))) in SEVEN_SEGMENT[digit].iter().zip(segments) {
+                if *lit {
+                    self.paint(path, s0, s1, STEP_M, key, a, b, GRID_PAINT_LIFT_M);
+                }
+            }
         }
     }
 }
@@ -4044,6 +4140,20 @@ impl LaneRelation {
 /// Every starting slot as `(station, lateral)` on the track, in slot order:
 /// the authored spawn points projected onto their centerline sample's
 /// frame, or the server's 16-slot fallback laid out along the track.
+/// Which of the segments a b c d e f g each digit lights.
+const SEVEN_SEGMENT: [[bool; 7]; 10] = [
+    [true, true, true, true, true, true, false],     // 0
+    [false, true, true, false, false, false, false], // 1
+    [true, true, false, true, true, false, true],    // 2
+    [true, true, true, true, false, false, true],    // 3
+    [false, true, true, false, false, true, true],   // 4
+    [true, false, true, true, false, true, true],    // 5
+    [true, false, true, true, true, true, true],     // 6
+    [true, true, true, false, false, false, false],  // 7
+    [true, true, true, true, true, true, true],      // 8
+    [true, true, true, true, false, true, true],     // 9
+];
+
 fn grid_slot_frames(track: &TrackFile, path: &CenterlinePath) -> Vec<(f32, f32)> {
     let samples = path.samples();
     if samples.is_empty() {

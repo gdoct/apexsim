@@ -191,20 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 40. Grid boxes, the chequer and COTA's painted apron
-
-- Grid boxes drawn solid with their slot number (`grid_boxes` in
-  `ue_export.rs` paints outlines and a pole stub; the number as painted
-  glyph quads or a decal per slot), and a darker, rubbered paint inside the
-  box; the chequer's length against the FIA start line.
-- The blue-and-white apron along the main straight's right edge: a `custom`
-  marking (alternating colour over the straight's stations at the edge
-  lateral) in the Armadillos YAML, or a decal set when the marking kind
-  cannot stripe. The YAML edit changes the track's checksum: re-export.
-
-**Check:** the `sf-ref-*` shots; the start lights and grid placement are
-untouched (`c5-sf-armadillos`); a second circuit's grid still reads.
-
 ### 41. The main straight's walls: catch fences, pit wall, screens
 
 - `barriers::decide`: concrete with `catch_fence_6m` on both sides of the

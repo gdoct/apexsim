@@ -447,6 +447,20 @@ pub struct Marking {
     pub lat_to_m: f32,
     /// Linear RGBA paint color.
     pub color: [f32; 4],
+    /// Painted in bands along the track, alternating `color` with the
+    /// stripe's own: a painted apron (the blue and white run-off strips
+    /// of a modern circuit). `None` is one colour.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stripe: Option<MarkingStripe>,
+}
+
+/// The second colour of a striped [`Marking`] and how long each band is.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MarkingStripe {
+    /// Metres along the track per band.
+    pub length_m: f32,
+    /// Linear RGBA of every other band.
+    pub color: [f32; 4],
 }
 
 /// The pit lane: its own polyline in track space, rendered and exported as
@@ -676,6 +690,7 @@ impl AtsScene {
                 lat_from_m: -width_right,
                 lat_to_m: width_left,
                 color: [1.0, 1.0, 1.0, 1.0],
+                stripe: None,
             }],
             pit_lane: None,
             props: Vec::new(),

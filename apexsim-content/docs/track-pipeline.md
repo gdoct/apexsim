@@ -560,8 +560,17 @@ stands on the road below (`stands_on_under_road`).
 
 Paint is geometry, one `marking_*` key per colour, each layer on its own
 lift: edge lines (broken where the pit tapers meet the road), the
-start/finish chequer, grid boxes laid in station space so back rows bend,
-pit lines, the curb strips, run-off stripes and DRS lines. There is no
+start/finish chequer, grid boxes laid in station space so back rows bend
+(each box's floor painted dark with the rubber of every start, under its
+white lines, and its slot number in seven-segment strokes beside it on
+the outer side, top level with the front bar, reading for the car
+arriving: `grid_number`; behind the box the next car's nose covered it),
+pit lines, the curb strips, run-off stripes and DRS lines. A marking with
+a `stripe` is painted in bands along the track, its colour and the
+stripe's alternating: a circuit's painted apron (Armadillos' blue and
+white beside the main straight's right edge, three markings so the paint
+follows the road as it widens). Verify runs `c6-grid-armadillos`,
+`c6-grid-shiverstone` (from above the grid). There is no
 centre line and no baked rubber line (the server simulates rubber). From the
 pit lane, `ue_export::pit_layout` decides once where the limit holds and
 where the garages stand (the longest stretch with `PIT_GARAGE_ROOM_M` behind
