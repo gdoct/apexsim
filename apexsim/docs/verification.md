@@ -242,16 +242,14 @@ session while driving (notice, then the menu).
   car; only the stock lap and the "no saved setup" toast were run). Seen
   unattended at Monza: pause, ten seconds back, 2x back to live, the ghost
   of the first lap and its replay.
-- The racing line aid planned again at a lap's end: after the first lap
-  with a full tank, the dots repaint (braking points earlier) without a
-  hitch and stay on the road; in rain the braking zones lengthen.
-  `r9-racing-line-replan` (2026-10-25, the Norisring, four laps): a
-  `RacingLine` arrives at each lap's end on the same points, repainted in
-  place (`AApexRacingLineActor::SetLine`, no new trace), and the dots sit
-  on the road on laps 2 and 3. In heavy rain (`r9-racing-line-rain`) the
-  same lap plans 117 braking dots against the dry 105 (597 throttle
-  against 611): the braking zones lengthen. Left: the braking points'
-  shift after the first lap, read against a still pose.
+- The racing line aid planned again at a lap's end
+  (`r9-racing-line-replan`, `r9-racing-line-rain`, 2026-10-25, the
+  Norisring): a `RacingLine` arrives at each lap's end on the same points
+  and is repainted in place (`Racing line repainted:` in the client log),
+  the dots on the road on laps 2 and 3; the braking grows a dot (2.5 m) a
+  lap, 105, 106, 107, as the tyres wear on the auto race's near-empty tank;
+  in heavy rain the lap plans 117 braking dots against 105. Left: a race
+  started on a full tank, whose braking should come later lap by lap.
 - The garage's compound cards built from a car's own `[[tires.compound]]`
   list: only an AC import files one (its compounds plus the two rain
   tyres), so only the default five have been on screen

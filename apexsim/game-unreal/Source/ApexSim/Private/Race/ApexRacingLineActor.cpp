@@ -161,6 +161,8 @@ void AApexRacingLineActor::SetLine(const FApexRacingLineData& InLine)
 	{
 		Line = InLine;
 		AddDots();
+		UE_LOG(LogApexSim, Log, TEXT("Racing line repainted: %d throttle, %d partial, %d brake"),
+			ThrottleDots->GetInstanceCount(), PartialDots->GetInstanceCount(), BrakeDots->GetInstanceCount());
 		return;
 	}
 	Line = InLine;
