@@ -580,6 +580,32 @@ runs:
         label: "720 s"
         checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
 
+  - id: r5-mandarina-pit-building
+    about: "R5. Mandarina Bay's pit building (the roof-deck podium) at night, from either side and above"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=21:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the pit building from one side"
+        checks: "R5: the pit building and its roof-deck podium under the lights"
+        exec: "apexsim.cam.LookAt 135.3 -85.0 40.0 135.3 22.9 4.0"
+      - at: 17
+        label: "the pit building from the other side"
+        checks: "R5: the pit building and its roof-deck podium under the lights"
+        exec: "apexsim.cam.LookAt 135.3 130.0 40.0 135.3 22.9 4.0"
+      - at: 22
+        label: "the roof deck from above"
+        checks: "R5: the podium on the roof deck"
+        exec: "apexsim.cam.LookAt 95.0 22.9 40.0 135.3 22.9 6.0"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),
