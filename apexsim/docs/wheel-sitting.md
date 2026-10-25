@@ -62,7 +62,11 @@ Every block is one command, `python scripts/verify/run_checks.py --sit
 `b-predict`, `c-nordschleife`, `c-mandarina`, `d-sakhir`, `e-spa-wet`,
 `f-hybrid`, `g-tread`, `h-pad`, `i-imported-pit`). The human drives,
 presses MARK (saying the word aloud or noting it on the sheet), closes the
-game, and fills in the block's rows. Every block's `Wheel forces over 15 s
+game, and fills in the block's rows: on the sheet, or tapped in the
+verifier's sitting mode on a tablet beside the wheel (`python
+scripts/verify/verifier.py serve --lan`, then the printed URL;
+[verifier.md](verifier.md)), where each answer is held as the check's
+review and Save writes them all. Every block's `Wheel forces over 15 s
 driving:` lines are kept.
 
 ### Sitting 1 — core feel
@@ -170,7 +174,7 @@ stop by hand: limit, autopilot at the first line, the box, service, hand-back
 
 1. Parse `out/sit/<date>/*/`: every MARK with its 2 s of mixer state, the
    15 s force lines (time at the base's limit, mean torque, correction share),
-   and the answer sheet.
+   and the answer sheet or the saved answers (`verifier.py reviewed`).
 2. Classify each row: **OK** → close its item (`verifier.py close`, and
    H1/H2 from [work-plan.md](work-plan.md) once empty); **wrong** → a
    follow-up in [follow-ups.md](follow-ups.md) with the mark's numbers;

@@ -120,6 +120,61 @@ class ItemsFileTest(unittest.TestCase):
         self.assertEqual(ev, [{"run": "r2-stint", "date": "2026-10-27", "commit": "abcd1234", "shots": [1, 3], "kind": "shot"}])
 
 
+class SittingAndStaleTest(unittest.TestCase):
+    def test_answers(self):
+        self.assertEqual(schema.answer_review(["OK", "weak"], "OK", "2026-10-26T20:00:00"),
+                         ("confirmed", {"at": "2026-10-26T20:00:00", "answer": "OK"}))
+        self.assertEqual(schema.answer_review(["OK", "weak"], "weak", "t", " at Lesmo "),
+                         ("not-right", {"at": "t", "answer": "weak", "comment": "weak: at Lesmo"}))
+        self.assertEqual(schema.answer_review([], "not felt", "t")[0], "not-right")
+        self.assertEqual(schema.answer_review(["done"], "done", "t", "910")[1]["comment"], "910")
+        with self.assertRaises(ValueError):
+            schema.answer_review(["OK", "weak"], "strong", "t")
+        status, review = schema.answer_review(["OK", "weak"], "weak", "t")
+        self.assertIsNone(schema.review_problem(status, review))
+
+    def test_every_sitting_check_is_an_item(self):
+        ids = {i["id"] for i in schema.ItemsFile().items()}
+        closed = {i["id"] for i in schema.ItemsFile(schema.CLOSED_YML).items()} if schema.CLOSED_YML.exists() else set()
+        for block in schema.load_sittings():
+            for check in block["checks"]:
+                self.assertIn(check["item"], ids | closed)
+
+    def test_stale(self):
+        ancestry = {("aaaa", "bbbb"): True, ("bbbb", "aaaa"): False}
+        known = lambda older, newer: ancestry.get((older, newer))  # noqa: E731
+        item = dict(ITEM, commit="aaaa", evidence=[{"run": "r1", "date": "2026-10-25", "commit": "bbbb"}])
+        self.assertIsNone(schema.stale(item, known))
+        item = dict(ITEM, commit="bbbb", evidence=[{"run": "r1", "date": "2026-10-25", "commit": "aaaa"}])
+        self.assertEqual(schema.stale(item, known), "r1")
+        # Unknown commits, or none: the dates decide.
+        item = dict(ITEM, commit="cccc", created="2026-10-26", evidence=[{"run": "r1", "date": "2026-10-25", "commit": "dddd"}])
+        self.assertEqual(schema.stale(item, known), "r1")
+        item = dict(ITEM, created="2026-10-20", evidence=[{"run": "r1", "date": "2026-10-25"}])
+        self.assertIsNone(schema.stale(item, known))
+        self.assertIsNone(schema.stale(dict(ITEM, evidence=[]), known))
+
+    def test_history(self):
+        with tempfile.TemporaryDirectory() as d:
+            original = schema.VERIFY_OUT
+            schema.VERIFY_OUT = Path(d)
+            try:
+                work = Path(d) / "r1"
+                for n, commit in enumerate(["c1", "c2", "c3", "c4", "c5"]):
+                    self.assertEqual(schema.keep_previous(work) is not None, n > 0)
+                    (work / "shots").mkdir(parents=True, exist_ok=True)
+                    (work / "shots" / "01.jpg").write_text(commit)
+                    schema.stamp_run(work, commit, f"2026-10-2{n}")
+                self.assertEqual([h["commit"] for h in schema.history("r1")], ["c5", "c4", "c3", "c2"])
+                self.assertEqual(schema.shot_path("r1", 1, "c3").read_text(), "c3")
+                self.assertEqual(schema.shot_path("r1", 1, "c5").read_text(), "c5")
+                self.assertEqual(schema.shot_path("r1", 1).read_text(), "c5")
+                # A generation no longer kept falls back to the latest shots.
+                self.assertEqual(schema.shot_path("r1", 1, "c1").read_text(), "c5")
+            finally:
+                schema.VERIFY_OUT = original
+
+
 class ServerTest(unittest.TestCase):
     """POST /api/reviews: the digest check, the rules, and the write."""
 
@@ -172,6 +227,25 @@ class ServerTest(unittest.TestCase):
         self.assertEqual(item["status"], "not-right")
         self.assertEqual(item["review"]["comment"], "Too dim from the chase camera.")
         self.assertFalse(item["review"]["processed"])
+
+    def test_a_sitting_answer(self):
+        f = schema.ItemsFile(self.path)
+        f.add(dict(OTHER, id="v-sit-a-monza-letgo", kind="sitting", check_by="a-monza"))
+        f.save()
+        _, items = self.call("/api/items")
+        answer = {"id": "v-sit-a-monza-letgo", "answer": "rings", "note": "twice", "at": "2026-10-26T20:00:00"}
+        status, body = self.call("/api/reviews", {"digest": items["digest"], "reviews": [answer]})
+        self.assertEqual(status, 200, body)
+        item = schema.ItemsFile(self.path).get("v-sit-a-monza-letgo")
+        self.assertEqual(item["status"], "not-right")
+        self.assertEqual(item["review"]["answer"], "rings")
+        self.assertEqual(item["review"]["comment"], "rings: twice")
+        _, items = self.call("/api/items")
+        status, body = self.call("/api/reviews", {"digest": items["digest"], "reviews": [dict(answer, answer="loud")]})
+        self.assertEqual(status, 400)
+        status, sittings = self.call("/api/sittings")
+        self.assertEqual(status, 200)
+        self.assertTrue(any(c["item"] == "v-sit-a-monza-letgo" for b in sittings["blocks"] for c in b["checks"]))
 
 
 class BacklogTest(unittest.TestCase):

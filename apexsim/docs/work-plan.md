@@ -67,7 +67,8 @@ takes it up (— : no step, taken opportunistically).
 
 ## 2. Recommended order
 
-1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
+1. **H1** in one sitting (its answers tapped in the verifier's sitting
+   mode on a tablet beside the wheel), with B8's cooling and S1's crown on the wheel.
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison

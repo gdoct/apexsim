@@ -3,6 +3,7 @@
 
     python scripts/verify/verifier.py check                 # validate the items file
     python scripts/verify/verifier.py serve                 # the review page on :9410
+    python scripts/verify/verifier.py serve --lan           # and on the LAN: sitting mode from a tablet
     python scripts/verify/verifier.py add --id v-r1-x --title ... --area cars --what ...
     python scripts/verify/verifier.py add - < item.yml      # or a YAML item (or list) on stdin
     python scripts/verify/verifier.py evidence <item> --run r1-spa-wet --shots 3,4
@@ -140,6 +141,8 @@ def cmd_reviewed(args) -> int:
         marks = " ".join(x for x in (f"score {r['score']}" if r.get("score") else "", "FLAG" if r.get("flag") else "") if x)
         print(f"{i['id']}  {i['status'].upper()}  {marks}".rstrip())
         print(f"  {i['title']}  ({i.get('check_by')}{', ' + i['plan'] if i.get('plan') else ''})")
+        if r.get("answer"):
+            print(f"  answered: {r['answer']}")
         if r.get("comment"):
             print(f"  says: {r['comment']}")
         if r.get("shots"):
@@ -211,24 +214,37 @@ def runs_by_id() -> dict:
     return _runs_cache["runs"]
 
 
-def run_info(run: str) -> dict:
+def replay_command(run: str) -> str:
+    """The command that opens the run's newest kept replay in the game's watch view, or ""."""
+    replays = sorted((schema.VERIFY_OUT / run / "replays").glob("*.apxs"), key=lambda p: p.stat().st_mtime)
+    if not replays:
+        return ""
+    script = REPO / "scripts" / "play_editor.ps1"
+    return (f'powershell -ExecutionPolicy Bypass -File "{script}" -NoServer -ApexNoDemo '
+            f'-ApexWatchReplay="{replays[-1]}"')
+
+
+def run_info(run: str, commit: str | None = None) -> dict:
+    """A run's shots (at `commit`: a kept generation when the run has shot since), logs and history."""
     folder = schema.VERIFY_OUT / run
-    shots = schema.run_shots(run)
+    shots_at = schema.shots_folder(run, commit)
+    shots = schema.run_shots(run, commit)
     recipe = runs_by_id().get(run, {})
     when = ""
-    if (folder / "shots").exists():
-        when = datetime.fromtimestamp((folder / "shots").stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+    if (shots_at / "shots").exists():
+        when = datetime.fromtimestamp((shots_at / "shots").stat().st_mtime).strftime("%Y-%m-%d %H:%M")
     logs = [name for name, file in (("client", "client.log"), ("notes", "client_notes.log"), ("server", "server.log"))
             if (folder / file).exists()]
     return {"run": run, "about": recipe.get("about", ""), "exists": folder.exists(), "date": when,
-            "shots": shots, "logs": logs}
+            "commit": schema.run_stamp(shots_at).get("commit", ""), "kept": shots_at != folder,
+            "shots": shots, "logs": logs, "history": schema.history(run), "replay": replay_command(run)}
 
 
-def thumbnail(run: str, n: int) -> Path | None:
-    source = schema.shot_path(run, n)
+def thumbnail(run: str, n: int, commit: str | None = None) -> Path | None:
+    source = schema.shot_path(run, n, commit)
     if not source.exists():
         return None
-    thumb = schema.VERIFY_OUT / run / "thumbs" / source.name
+    thumb = source.parent.parent / "thumbs" / source.name
     if not thumb.exists() or thumb.stat().st_mtime < source.stat().st_mtime:
         from PIL import Image
         thumb.parent.mkdir(exist_ok=True)
@@ -274,17 +290,26 @@ class Handler(BaseHTTPRequestHandler):
                 return self.file(WEB / parts[0], kind + "; charset=utf-8")
             if parts[0] == "fonts" and len(parts) == 2 and SAFE.match(parts[1]):
                 return self.file(FONTS / parts[1], "font/woff2", cache=True)
+            commit = parse_qs(url.query).get("commit", [""])[0]
+            commit = commit if SAFE.match(commit) else None
             if parts[:2] == ["api", "items"]:
                 f = schema.ItemsFile()
+                items = f.items()
                 closed = len(schema.ItemsFile(schema.CLOSED_YML).blocks) if schema.CLOSED_YML.exists() else 0
-                return self.json({"items": f.items(), "digest": f.loaded_digest, "closed": closed,
+                stale = {i["id"]: run for i in items if (run := schema.stale(i))}
+                return self.json({"items": items, "digest": f.loaded_digest, "closed": closed, "stale": stale,
                                   "areas": schema.AREAS, "kinds": schema.KINDS, "statuses": schema.STATUSES,
                                   "file": schema.ITEMS_YML.name})
+            if parts[:2] == ["api", "sittings"]:
+                blocks = schema.load_sittings()
+                return self.json({"blocks": [{**{k: b.get(k) for k in ("id", "sitting", "minutes", "about", "setup",
+                                                                        "checks")},
+                                              "marks": schema.latest_marks(b["id"])} for b in blocks]})
             if parts[:2] == ["api", "runs"] and len(parts) == 3 and SAFE.match(parts[2]):
-                return self.json(run_info(parts[2]))
+                return self.json(run_info(parts[2], commit))
             if parts[0] in ("thumb", "shot") and len(parts) == 3 and SAFE.match(parts[1]) and parts[2].isdigit():
                 n = int(parts[2])
-                path = thumbnail(parts[1], n) if parts[0] == "thumb" else schema.shot_path(parts[1], n)
+                path = thumbnail(parts[1], n, commit) if parts[0] == "thumb" else schema.shot_path(parts[1], n, commit)
                 return self.file(path, "image/jpeg", cache=True)
             if parts[0] == "log" and len(parts) == 3 and SAFE.match(parts[1]):
                 name = {"client": "client.log", "server": "server.log", "notes": "client_notes.log"}.get(parts[2])
@@ -317,8 +342,19 @@ class Handler(BaseHTTPRequestHandler):
                 if f.loaded_digest != body.get("digest"):
                     return self.json({"error": "the items file changed on disk since the page loaded",
                                       "digest": f.loaded_digest}, HTTPStatus.CONFLICT)
+                answers = None
                 for r in body.get("reviews", []):
-                    schema.apply_review(f, r["id"], r["status"], r["review"])
+                    if "answer" in r:
+                        # A sitting answer: the check's answer words in sittings.yml decide the status.
+                        if answers is None:
+                            answers = {c["item"]: c["answers"] for b in schema.load_sittings() for c in b["checks"]}
+                        if r["id"] not in answers:
+                            raise ValueError(f"{r['id']} is not a sitting check")
+                        status, review = schema.answer_review(answers[r["id"]], r["answer"], r.get("at", ""),
+                                                              r.get("note", ""))
+                        schema.apply_review(f, r["id"], status, {**review, "flag": r.get("flag", False)})
+                    else:
+                        schema.apply_review(f, r["id"], r["status"], r["review"])
                 errors, _ = schema.validate(f.items(), check_paths=False)
                 if errors:
                     return self.json({"error": "; ".join(errors[:5])}, HTTPStatus.BAD_REQUEST)
@@ -335,10 +371,16 @@ def cmd_serve(args) -> int:
         # Another items file (a scratch copy to try the page on); the closed file beside it.
         schema.ITEMS_YML = Path(args.items).resolve()
         schema.CLOSED_YML = schema.ITEMS_YML.with_name(schema.ITEMS_YML.stem + ".closed.yml")
-    host = "127.0.0.1"
+    host = "0.0.0.0" if args.lan else "127.0.0.1"
     httpd = ThreadingHTTPServer((host, args.port), Handler)
     url = f"http://localhost:{args.port}/"
     print(f"verifier on {url} ({schema.ITEMS_YML}); Ctrl+C stops it")
+    if args.lan:
+        import socket
+        addresses = sorted({a[4][0] for a in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET)
+                            if not a[4][0].startswith("127.")})
+        for address in addresses:
+            print(f"  on the LAN: http://{address}:{args.port}/#/sit  (anyone on the network can save reviews)")
     if not args.no_open:
         webbrowser.open(url)
     try:
@@ -406,6 +448,7 @@ def main(argv=None) -> int:
     p.add_argument("--port", type=int, default=PORT)
     p.add_argument("--no-open", action="store_true")
     p.add_argument("--items", help="another items file, e.g. a scratch copy")
+    p.add_argument("--lan", action="store_true", help="listen on every address: sitting mode from a tablet")
     p.set_defaults(fn=cmd_serve)
 
     args = parser.parse_args(argv)

@@ -2,7 +2,9 @@
 /* ApexSim verifier: one page, no framework (docs/verifier.md). The queue, an
    item's evidence beside the agent's verdict, and Save. Reviews are held in
    the page (and in localStorage, so a reload keeps them) until Save writes
-   them all into the items file at once. */
+   them all into the items file at once. Sitting mode (#/sit) walks one
+   sittings.yml block as a checklist of big answer buttons, for a tablet
+   beside the wheel (serve --lan). */
 
 const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => [...el.querySelectorAll(sel)];
@@ -14,7 +16,7 @@ const DECIDED = DECISIONS.map(d => d[0]);
 const GROUPS = [
   ['ready', 'Ready to review', 'an agent verdict on the latest evidence: one keystroke each'],
   ['evidence', 'Evidence, no verdict', 'shots to look at with no fresh agent verdict'],
-  ['waiting', 'Waiting for a run', 'nothing shot yet'],
+  ['waiting', 'Waiting for a run', 'nothing shot yet, or shot before the item\'s commit (greyed, the run to repeat named)'],
   ['hardware', 'Needs hardware or hands', 'a wheel, a pad, speakers, a second machine'],
   ['reviewed', 'Reviewed', 'saved; the agent processes these'],
   ['later', 'Later', 'until the evidence changes'],
@@ -38,6 +40,8 @@ let nav = [];                           // the queue's order when an item was op
 let cursor = 0;                         // queue row
 let ui = { shot: 0, askScore: false, hover: null, logs: {}, more: {} };
 let toastTimer = null;
+let sittings = null;                    // /api/sittings, loaded on the first #/sit
+let sitCursor = 0;                      // the check under the cursor in a sitting block
 
 function saveHeld() { store('held', held); }
 function savePrefs() { store('prefs', prefs); }
@@ -71,9 +75,12 @@ function verdictFresh(item) {
   return !ev || String(item.verdict.date) >= String(ev.date);
 }
 
+const staleRun = item => (data.stale || {})[item.id];
+
 function group(item) {
   if (item.status === 'later') return 'later';
   if (['confirmed', 'not-right', 'cant-tell'].includes(item.status)) return 'reviewed';
+  if (staleRun(item)) return 'waiting';
   if (item.status === 'judged' && verdictFresh(item)) return 'ready';
   if ((item.evidence || []).length) return 'evidence';
   if ((item.needs || []).length || item.status === 'blocked') return 'hardware';
@@ -128,10 +135,12 @@ function route() {
   const h = location.hash.replace(/^#\/?/, '');
   if (h.startsWith('item/')) return { view: 'item', id: decodeURIComponent(h.slice(5)) };
   if (h === 'save') return { view: 'save' };
+  if (h === 'sit') return { view: 'sit' };
+  if (h.startsWith('sit/')) return { view: 'sit', block: decodeURIComponent(h.slice(4)) };
   return { view: 'queue' };
 }
 function go(hash) { if (location.hash !== hash) location.hash = hash; else render(); }
-window.addEventListener('hashchange', () => { ui = { shot: 0, askScore: false, hover: null, logs: {}, more: {} }; render(); });
+window.addEventListener('hashchange', () => { ui = { shot: 0, askScore: false, hover: null, logs: {}, more: {} }; sitCursor = 0; render(); });
 
 // ---------------------------------------------------------------- shell
 function topBar() {
@@ -150,6 +159,7 @@ function topBar() {
       <span class="muted">${data.closed} closed</span>
       <span class="muted" title="saved reviews the agent has not processed">${unprocessed} for the agent</span>
     </div>
+    <button class="btn quiet" data-go="#/sit">SITTING</button>
     <button class="btn ${nHeld ? 'primary' : 'quiet'}" data-go="#/save">SAVE ${nValid}${nHeld > nValid ? ` <span class="k">+${nHeld - nValid} unfinished</span>` : ''} <span class="k">CTRL+S</span></button>
     <button class="btn quiet sm" data-help>?</button>
   </div>`;
@@ -168,12 +178,64 @@ function render() {
     $('.aside').scrollTop = scroll;
     return;
   }
-  const body = r.view === 'item' ? itemView(r.id) : r.view === 'save' ? saveView() : queueView();
+  if (r.view === 'sit' && !sittings) { loadSittings(); return; }
+  const body = r.view === 'item' ? itemView(r.id) : r.view === 'save' ? saveView() : r.view === 'sit' ? sitView(r.block) : queueView();
   const missing = Object.keys(held).filter(id => !byId(id));
   $('#app').innerHTML = `<div class="main">${topBar()}${missing.length
     ? `<div class="banner">Held reviews for items no longer in the file: ${missing.map(esc).join(', ')} (discard them on the Save page)</div>` : ''}${body}</div>`;
   if (r.view === 'item') afterItem(r.id);
   if (r.view === 'queue') { const row = $('.row.cur'); if (row) row.scrollIntoView({ block: 'nearest' }); }
+  if (r.view === 'sit') { const c = $('.check.cur'); if (c) c.scrollIntoView({ block: 'nearest' }); }
+}
+
+// ---------------------------------------------------------------- sitting mode
+async function loadSittings() {
+  try { sittings = (await api('/api/sittings')).blocks; } catch (e) { sittings = []; toast('No sittings: ' + e.message, true); }
+  render();
+}
+
+// The answer as the server will write it (schema.answer_review): the first word confirms.
+function answer(id, answers, word, note) {
+  const ok = word === answers[0];
+  note = (note || '').trim();
+  held[id] = { status: ok ? 'confirmed' : 'not-right', answer: word, note, comment: ok ? note : (note ? `${word}: ${note}` : word),
+    flag: (held[id] || {}).flag || false, at: new Date().toISOString().slice(0, 19) };
+  saveHeld();
+}
+
+const sitAnswer = id => (held[id] && held[id].answer) || (byId(id) && byId(id).review && byId(id).review.answer) || '';
+
+function sitView(blockId) {
+  if (!blockId) {
+    return `<div class="content sit"><h1 class="sit-h">Sitting</h1>${sittings.map(b => {
+      const done = b.checks.filter(c => sitAnswer(c.item)).length;
+      return `<div class="panel sit-block" data-go="#/sit/${encodeURIComponent(b.id)}"><div class="t">${esc(b.id)}</div>
+        <div class="a">${esc(b.about || '')}</div><div class="m">sitting ${esc(b.sitting || 1)} · ~${esc(b.minutes || '?')} min · ${done} / ${b.checks.length} answered${b.marks ? ` · marks of ${esc(b.marks.date)}` : ''}</div></div>`;
+    }).join('')}</div>`;
+  }
+  const block = sittings.find(b => b.id === blockId);
+  if (!block) return `<div class="content"><div class="empty">No sitting block ${esc(blockId)}. <a href="#/sit">The blocks</a></div></div>`;
+  sitCursor = Math.max(0, Math.min(sitCursor, block.checks.length - 1));
+  const checks = block.checks.map((c, k) => {
+    const item = byId(c.item);
+    const given = sitAnswer(c.item);
+    const h = held[c.item];
+    return `<div class="check ${k === sitCursor ? 'cur' : ''} ${h ? 'held' : ''}" data-sitcheck="${k}">
+      <div class="q"><span class="n">${k + 1}</span>${esc(c.check)}${item ? '' : ' <span class="bad mono">(no item ' + esc(c.item) + ')</span>'}</div>
+      <div class="answers">${c.answers.map((w, n) => `<button class="btn big ${given === w ? (n === 0 ? 'on ok' : 'on no') : ''}" data-answer="${esc(w)}" data-item="${esc(c.item)}" data-block="${esc(block.id)}">${esc(w)}<span class="k">${n + 1}</span></button>`).join('')}</div>
+      <input class="input sit-note" data-note="${esc(c.item)}" placeholder="a note (n), the MARK number if one was pressed" value="${esc((h && h.note) || '')}">
+      ${!h && item && item.review ? `<div class="mono muted saved">saved: ${esc(item.review.answer || item.status)}${item.review.comment ? ' · ' + esc(item.review.comment) : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+  const marks = block.marks ? `<div class="panel marks"><h2>MARK and force lines, ${esc(block.marks.date)}</h2>${block.marks.lines.length
+    ? block.marks.lines.map(l => `<div class="mono">${esc(l)}</div>`).join('') : '<div class="muted">None pressed.</div>'}</div>` : '';
+  return `<div class="content sit">
+    <div class="sit-head"><a href="#/sit">‹ blocks</a><h1 class="sit-h">${esc(block.id)}</h1><span class="muted">${esc(block.about || '')}</span></div>
+    ${block.setup ? `<div class="setup">${prose(block.setup)}</div>` : ''}
+    <div class="mono muted keys">python scripts/verify/run_checks.py --sit ${esc(block.id)} · <span class="kbd">↑</span><span class="kbd">↓</span> check · <span class="kbd">1</span>-<span class="kbd">9</span> answer · <span class="kbd">n</span> note · Save when the block is done</div>
+    ${checks}
+    ${marks}
+  </div>`;
 }
 
 // ---------------------------------------------------------------- queue
@@ -230,13 +292,14 @@ function row(i, cur) {
   const ev = (i.evidence || []).length;
   const state = h ? `<span class="heldtag">${esc(h.status)}${h.score ? ' ' + h.score : ''} · held</span>`
     : `<span class="st ${i.status}">${esc(i.status)}${i.review && i.review.score ? ' ' + i.review.score : ''}</span>`;
-  return `<div class="row ${cur ? 'cur' : ''} ${h ? 'held' : ''} ${isFlagged(i) ? 'flagged' : ''}" data-open="${esc(i.id)}">
+  const st = staleRun(i);
+  return `<div class="row ${cur ? 'cur' : ''} ${h ? 'held' : ''} ${isFlagged(i) ? 'flagged' : ''} ${st ? 'stale' : ''}" data-open="${esc(i.id)}"${st ? ` title="shot before the item's commit: repeat ${esc(st)}"` : ''}>
     <span class="mark"></span>
     <div class="cell"><span class="t">${esc(i.title)}</span><span class="id">${esc(i.id)}</span></div>
     <span class="cell hide-n">${esc(i.area)}</span>
     <span class="cell hide-n" title="${esc(i.check_by)}">${esc(i.check_by)}</span>
     <span class="cell">${v ? `<span class="says ${v.says}">${esc(v.says)}</span>` : ''}</span>
-    <span class="cell hide-n">${ev ? ev + ' run' + (ev > 1 ? 's' : '') : ''}</span>
+    <span class="cell hide-n">${st ? '<span class="warn">repeat</span>' : ev ? ev + ' run' + (ev > 1 ? 's' : '') : ''}</span>
     <span class="cell">${state}</span>
   </div>`;
 }
@@ -276,6 +339,7 @@ function asideHtml(i) {
         ${i.needs ? `<span class="l">NEEDS</span><span>${esc(i.needs.join(', '))}</span>` : ''}
         <span class="l">LANDED</span><span>${esc(i.created || '—')} ${esc(i.commit || '')}</span>
       </div>
+      ${staleRun(i) ? `<div class="stale-note">The newest evidence is older than the item's commit ${esc(i.commit || '')}: repeat <b>${esc(staleRun(i))}</b>.</div>` : ''}
       ${verdict}
       <div class="review ${h ? 'held' : ''}">
         <div class="decide">${DECISIONS.map(([s, l], n) => `<button class="btn ${s} ${r.status === s ? 'on' : ''}" data-decide="${s}">${l} <span class="k">${n + 1}</span></button>`).join('')}</div>
@@ -291,22 +355,30 @@ function asideHtml(i) {
       </div>
       ${notes}
       <div class="keys"><span class="kbd">1</span>-<span class="kbd">4</span> decide, then <span class="kbd">0</span>-<span class="kbd">5</span> score · <span class="kbd">c</span> comment · <span class="kbd">f</span> flag · <span class="kbd">s</span> this shot is what the review is about<br>
-        <span class="kbd">←</span><span class="kbd">→</span> shots · <span class="kbd">z</span> 1:1 · <span class="kbd">j</span><span class="kbd">k</span> items · <span class="kbd">Esc</span> queue · <span class="kbd">?</span> all keys</div>
+        <span class="kbd">←</span><span class="kbd">→</span> shots · <span class="kbd">z</span> 1:1 · <span class="kbd">b</span> before / after · <span class="kbd">o</span> copy the replay command<br>
+        <span class="kbd">j</span><span class="kbd">k</span> items · <span class="kbd">Esc</span> queue · <span class="kbd">?</span> all keys</div>
     </div>`;
 }
 
-async function runInfo(run) {
-  if (!runs[run]) runs[run] = await api('/api/runs/' + encodeURIComponent(run)).catch(() => ({ run, shots: [], logs: [], exists: false }));
-  return runs[run];
+// A run's shots as they were at `commit` (a kept generation once the run has shot again).
+async function runInfo(run, commit) {
+  const key = run + '@' + (commit || '');
+  if (!runs[key]) runs[key] = await api('/api/runs/' + encodeURIComponent(run) + (commit ? '?commit=' + encodeURIComponent(commit) : ''))
+    .catch(() => ({ run, shots: [], logs: [], exists: false, history: [] }));
+  return runs[key];
 }
+
+const shotUrl = (run, n, commit) => `/shot/${encodeURIComponent(run)}/${n}${commit ? '?commit=' + encodeURIComponent(commit) : ''}`;
 
 async function afterItem(id) {
   const i = byId(id);
   const box = $('#evidence');
   if (!i || !(i.evidence || []).length) return;
   const evs = [...i.evidence].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  const infos = await Promise.all(evs.map(e => runInfo(e.run)));
+  const infos = await Promise.all(evs.map(e => runInfo(e.run, e.commit)));
   if (route().id !== id) return;
+  ui.replay = (infos.find(x => x.replay) || {}).replay || '';
+  if (ui.pair) { await pairView(evs, infos, box); return; }
   const latest = evs[0];
   const verdictShots = new Set((i.verdict && i.verdict.shots) || []);
   const refs = new Set(((held[id] || {}).shots || []).map(s => s.run + '#' + s.shot));
@@ -317,11 +389,12 @@ async function afterItem(id) {
     const key = e.run + '@' + e.date;
     const shown = info.shots.filter(s => chosen.includes(s.n)).concat(ui.more[key] ? rest : []);
     const logs = info.logs.map(l => `<button class="btn sm quiet ${ui.logs[e.run] === l ? 'on' : ''}" data-log="${esc(e.run)}" data-name="${l}">${l} log</button>`).join('');
-    return `<div class="ev"><div class="ev-head"><h2>${esc(e.run)}</h2><span class="m">${esc(e.date)}${e.commit ? ' · ' + esc(e.commit) : ''} · ${esc(e.kind || 'shot')}${info.date ? ' · shot ' + esc(info.date) : ''}</span>
+    return `<div class="ev"><div class="ev-head"><h2>${esc(e.run)}</h2><span class="m">${esc(e.date)}${e.commit ? ' · ' + esc(e.commit) : ''} · ${esc(e.kind || 'shot')}${info.date ? ' · shot ' + esc(info.date) : ''}${info.kept ? ' · kept from history' : ''}</span>
+        ${info.replay ? `<button class="btn sm quiet" data-copy="${esc(info.replay)}">COPY REPLAY COMMAND <span class="k">O</span></button>` : ''}
         ${e.note ? `<span class="m">${esc(e.note)}</span>` : ''}${info.about ? `<span class="about">${esc(info.about)}</span>` : ''}</div>
       ${info.exists ? '' : '<div class="empty">This run\'s folder is not on this machine (out/verify is not in git).</div>'}
       ${logs ? `<div class="logbar">${logs}</div><div id="log-${esc(e.run)}"></div>` : ''}
-      <div class="shots">${shown.map(s => shotHtml(e.run, s, e === latest && verdictShots.has(s.n), refs.has(e.run + '#' + s.n))).join('')}</div>
+      <div class="shots">${shown.map(s => shotHtml(e.run, s, e === latest && verdictShots.has(s.n), refs.has(e.run + '#' + s.n), info.kept ? e.commit : '')).join('')}</div>
       ${rest.length ? `<button class="btn sm quiet more" data-more="${esc(key)}">${ui.more[key] ? 'HIDE THE OTHER ' + rest.length : 'THE RUN\'S OTHER ' + rest.length + ' SHOTS'}</button>` : ''}
     </div>`;
   }).join('');
@@ -329,12 +402,54 @@ async function afterItem(id) {
   markShot();
 }
 
-function shotHtml(run, s, isVerdict, isRef) {
-  if (!s.file) return `<div class="shot" data-run="${esc(run)}" data-n="${s.n}"><div class="empty">Shot ${s.n} is not on disk.</div></div>`;
+function shotHtml(run, s, isVerdict, isRef, commit, tag) {
+  if (!s || !s.file) return `<div class="shot" data-run="${esc(run)}" data-n="${s ? s.n : ''}"><div class="empty">${s ? `Shot ${s.n} is not on disk.` : 'No shot to match.'}</div></div>`;
   return `<div class="shot ${isVerdict ? 'verdict-shot' : ''} ${isRef ? 'ref' : ''}" data-run="${esc(run)}" data-n="${s.n}">
-    <img loading="lazy" src="/shot/${encodeURIComponent(run)}/${s.n}" alt="${esc(run)} shot ${s.n}">
-    <div class="cap"><span class="n">#${s.n}</span>${s.at != null ? `<span>${s.at} s</span>` : ''}<span class="lab">${esc(s.label)}</span><span>${esc(run)}</span>${s.checks ? `<span class="chk">${esc(s.checks)}</span>` : ''}</div>
+    <img loading="lazy" src="${shotUrl(run, s.n, commit)}" alt="${esc(run)} shot ${s.n}">
+    <div class="cap">${tag ? `<span class="tag">${esc(tag)}</span>` : ''}<span class="n">#${s.n}</span>${s.at != null ? `<span>${s.at} s</span>` : ''}<span class="lab">${esc(s.label)}</span><span>${esc(run)}</span>${s.checks ? `<span class="chk">${esc(s.checks)}</span>` : ''}</div>
   </div>`;
+}
+
+// Before and after: the newest evidence beside the one before it (another
+// run, or the same run at another commit), shot for shot; with a single
+// piece of evidence, its run's previous generation from history/.
+async function pairView(evs, infos, box) {
+  const after = { ev: evs[0], info: infos[0] };
+  let before = null;
+  const other = evs.findIndex((e, k) => k > 0 && (e.run !== after.ev.run || e.commit !== after.ev.commit));
+  if (other > 0) before = { ev: evs[other], info: infos[other] };
+  else {
+    const prev = (after.info.history || []).find(h => !h.current && h.commit && h.commit !== after.ev.commit);
+    if (prev) before = { ev: { run: after.ev.run, commit: prev.commit, date: prev.date }, info: await runInfo(after.ev.run, prev.commit) };
+  }
+  if (!before) {
+    box.innerHTML = '<div class="empty">Nothing to compare: one piece of evidence and no earlier shots of its run kept. <span class="kbd">b</span> goes back.</div>';
+    return;
+  }
+  const chosen = (after.ev.shots || []).length ? after.ev.shots : after.info.shots.map(s => s.n);
+  const sameRun = before.ev.run === after.ev.run;
+  const beforeChosen = (before.ev.shots || []).length ? before.ev.shots : before.info.shots.map(s => s.n);
+  const label = x => `${x.ev.run} · ${x.ev.date || ''}${x.ev.commit ? ' · ' + x.ev.commit : ''}`;
+  const pairs = chosen.map((n, k) => {
+    const a = after.info.shots.find(s => s.n === n);
+    const bn = sameRun ? n : beforeChosen[k];
+    const b = before.info.shots.find(s => s.n === bn);
+    return `<div class="shots pair">${shotHtml(before.ev.run, b, false, false, before.info.kept ? before.ev.commit : '', 'before')}${shotHtml(after.ev.run, a, false, false, after.info.kept ? after.ev.commit : '', 'after')}</div>`;
+  });
+  box.innerHTML = `<div class="ev"><div class="ev-head"><h2>Before and after</h2><span class="m">before: ${esc(label(before))}</span><span class="m">after: ${esc(label(after))}</span>
+    <span class="m">${sameRun ? 'shot for shot' : 'paired in order'} · <span class="kbd">b</span> back</span></div>
+    <div class="pairs">${pairs.join('')}</div></div>`;
+  markShot();
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); } catch (_) {
+    // Not a secure context (the LAN): the old way.
+    const t = document.createElement('textarea');
+    t.value = text; document.body.appendChild(t); t.select();
+    document.execCommand('copy'); t.remove();
+  }
+  toast('Copied: ' + text);
 }
 
 function markShot(scroll) {
@@ -425,7 +540,7 @@ function saveView() {
   const section = (title, list, why) => list.length ? `<div class="save-group"><h2>${title} <span class="mono muted" style="font-size:13px">${list.length}</span></h2><div class="panel">${list.map(([id, r]) => {
     const i = byId(id);
     return `<div class="save-row"><a href="#/item/${encodeURIComponent(id)}">${esc(i ? i.title : id)}<span class="id">${esc(id)}</span></a>
-      <span class="mono">${r.score ? r.score + ' ' + SCORE_NAMES[r.score] : ''}${r.flag ? ' <span class="bad">FLAG</span>' : ''}</span>
+      <span class="mono">${r.answer ? 'answered ' + esc(r.answer) : r.score ? r.score + ' ' + SCORE_NAMES[r.score] : ''}${r.flag ? ' <span class="bad">FLAG</span>' : ''}</span>
       <span class="c">${why ? `<span class="bad mono" style="font-size:12px">${esc(i ? reviewProblem(r) : 'no such item')}</span> ` : ''}${esc(r.comment || '')}</span>
       <button class="btn sm quiet" data-discard="${esc(id)}">DISCARD</button></div>`;
   }).join('')}</div></div>` : '';
@@ -443,7 +558,8 @@ function saveView() {
 async function save() {
   const valid = heldValid();
   if (!valid.length) return;
-  const reviews = valid.map(([id, r]) => ({ id, status: r.status, review: { at: r.at, score: r.score || 0, comment: r.comment || '', flag: !!r.flag, shots: r.shots || [] } }));
+  const reviews = valid.map(([id, r]) => r.answer ? { id, answer: r.answer, note: r.note || '', at: r.at, flag: !!r.flag }
+    : { id, status: r.status, review: { at: r.at, score: r.score || 0, comment: r.comment || '', flag: !!r.flag, shots: r.shots || [] } });
   try {
     const res = await api('/api/reviews', { method: 'POST', body: { digest: data.digest, reviews } });
     for (const [id] of valid) delete held[id];
@@ -463,7 +579,8 @@ async function save() {
 function help() {
   const keys = [['1 2 3 4', 'confirmed, not right, can\'t tell, later'], ['0-5', 'right after a decision: the score (1 broken ... 5 ship it, 0 none); moves on'],
     ['c', 'the comment (Enter or Esc leaves it)'], ['f', 'flag: come back to this'], ['s', 'mark the current shot as what the review is about'], ['u', 'undo the held review'],
-    ['← →', 'the shot cursor'], ['z', 'the shot under the mouse (or the cursor) at 1:1'], ['j k ↑ ↓', 'next and previous item (in the queue: the row)'],
+    ['← →', 'the shot cursor'], ['z', 'the shot under the mouse (or the cursor) at 1:1'], ['b', 'before and after: the newest evidence beside the one before it'],
+    ['o', 'copy the command that opens the run\'s replay in the game'], ['j k ↑ ↓', 'next and previous item (in the queue: the row)'],
     ['Enter', 'open the row (queue); save (Save page)'], ['Esc', 'back to the queue'], ['Ctrl+S', 'the Save page']];
   const bg = document.createElement('div');
   bg.className = 'help-bg';
@@ -474,7 +591,7 @@ function help() {
 
 // ---------------------------------------------------------------- events
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-go],[data-open],[data-chip],[data-toggle],[data-collapse],[data-clear],[data-decide],[data-score],[data-flag],[data-undo],[data-save],[data-discard],[data-log],[data-more],[data-help]');
+  const t = e.target.closest('[data-go],[data-open],[data-chip],[data-toggle],[data-collapse],[data-clear],[data-decide],[data-score],[data-flag],[data-undo],[data-save],[data-discard],[data-log],[data-more],[data-help],[data-copy],[data-answer],[data-sitcheck]');
   const shot = e.target.closest('.shot img');
   if (shot && !t) { const el = shot.closest('.shot'); ui.shot = $$('.shot').indexOf(el); markShot(); zoom(el, e); return; }
   if (!t) return;
@@ -495,6 +612,13 @@ document.addEventListener('click', e => {
   else if (d.log) { ui.logs[d.log] = ui.logs[d.log] === d.name ? undefined : d.name; if (ui.logs[d.log]) showLog(d.log, d.name); else document.getElementById('log-' + d.log).innerHTML = ''; afterItem(id); }
   else if (d.more) { ui.more[d.more] = !ui.more[d.more]; afterItem(id); }
   else if (d.help !== undefined) help();
+  else if (d.copy) copyText(d.copy);
+  else if (d.answer) {
+    const check = sittings.find(b => b.id === d.block).checks.find(c => c.item === d.item);
+    answer(d.item, check.answers, d.answer, (held[d.item] || {}).note);
+    sitCursor = +t.closest('.check').dataset.sitcheck;
+    render();
+  } else if (d.sitcheck !== undefined && !e.target.closest('input')) { sitCursor = +d.sitcheck; render(); }
 });
 
 document.addEventListener('change', e => {
@@ -503,6 +627,15 @@ document.addEventListener('change', e => {
 });
 
 document.addEventListener('input', e => {
+  const noteFor = e.target.dataset && e.target.dataset.note;
+  if (noteFor) {
+    const h = held[noteFor];
+    if (h && h.answer) {
+      const block = sittings.find(b => b.checks.some(c => c.item === noteFor));
+      answer(noteFor, block.checks.find(c => c.item === noteFor).answers, h.answer, e.target.value);
+    } else { held[noteFor] = { ...(h || {}), status: (h || {}).status || '', note: e.target.value, at: new Date().toISOString().slice(0, 19) }; saveHeld(); }
+    return;
+  }
   if (e.target.id === 'comment') {
     const id = route().id;
     if (!held[id]) { held[id] = { status: '', score: 0 }; }
@@ -540,6 +673,20 @@ document.addEventListener('keydown', e => {
     else if (e.key === 'Enter' && order[cursor]) { nav = order; go('#/item/' + encodeURIComponent(order[cursor])); }
     return;
   }
+  if (r.view === 'sit') {
+    const block = r.block && sittings && sittings.find(b => b.id === r.block);
+    if (e.key === 'Escape') { go(r.block ? '#/sit' : '#/'); return; }
+    if (!block) return;
+    const check = block.checks[sitCursor];
+    if (e.key === 'j' || e.key === 'ArrowDown') { sitCursor = Math.min(sitCursor + 1, block.checks.length - 1); render(); e.preventDefault(); }
+    else if (e.key === 'k' || e.key === 'ArrowUp') { sitCursor = Math.max(sitCursor - 1, 0); render(); e.preventDefault(); }
+    else if (/^[1-9]$/.test(e.key) && check && check.answers[+e.key - 1]) {
+      answer(check.item, check.answers, check.answers[+e.key - 1], (held[check.item] || {}).note);
+      sitCursor = Math.min(sitCursor + 1, block.checks.length - 1);
+      render();
+    } else if (e.key === 'n') { e.preventDefault(); const el = $$('.check')[sitCursor]; if (el) $('.sit-note', el).focus(); }
+    return;
+  }
   if (r.view === 'save') {
     if (e.key === 'Enter') save();
     else if (e.key === 'Escape') go('#/');
@@ -555,6 +702,8 @@ document.addEventListener('keydown', e => {
     case 'f': if (held[id]) { hold(id, { flag: !held[id].flag }); render(); } else toast('Decide first (1-4).', true); break;
     case 'u': delete held[id]; saveHeld(); ui.askScore = false; render(); break;
     case 's': toggleShotRef(id); break;
+    case 'b': ui.pair = !ui.pair; afterItem(id); break;
+    case 'o': if (ui.replay) copyText(ui.replay); else toast('No replay kept by this item\'s runs.', true); break;
     case 'z': {
       const over = ui.hover && document.body.contains(ui.hover) && ui.mouse && ui.hover.matches(':hover') ? ui.hover : $$('.shot')[ui.shot];
       zoom(over, over === ui.hover ? ui.mouse : null); break;

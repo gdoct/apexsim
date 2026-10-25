@@ -196,16 +196,20 @@ runs:
         checks: "Flat-spotted slick; static camber"
         exec: "apexsim.cam.Chase cockpit"
       - at: 480
+        item: v-r2-tread-close-ups
         label: "cockpit after a long stint: tread pickup, blisters, heat"
         checks: "Pickup, blisters, heat tint on the tread"
       - at: 486
+        item: v-r2-tread-close-ups
         label: "chase close after a long stint"
         checks: "Pickup, blisters, heat tint; camber"
         exec: "apexsim.cam.Chase close"
       - at: 600
+        item: v-r2-tread-close-ups
         label: "chase close: RR deflated (leak from 520 s)"
         checks: "Sidewall bulge of a deflated tyre; LEAK read-out"
       - at: 606
+        item: v-r2-tread-close-ups
         label: "chase near: the bulge"
         checks: "Sidewall bulge"
         exec: "apexsim.cam.Chase near"
@@ -332,14 +336,17 @@ runs:
         checks: "A part hanging before it comes off"
         exec: ["apexsim.car.DamagePreview 25,25,25,25,0", "apexsim.cam.Chase near"]
       - at: 300
+        item: v-r4-ice-and-melt
         label: "La Source after five minutes of snow (evening)"
         checks: "Snow: the driven line through the white; ice once the snow stops"
         exec: ["apexsim.car.DamagePreview 0,0,0,0,0", "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"]
       - at: 305
+        item: v-r4-ice-and-melt
         label: "Eau Rouge after five minutes"
         checks: "Snow and ice on the line"
         exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 303.6 -37.3 -25.4"
       - at: 560
+        item: v-r4-ice-and-melt
         label: "La Source at night (about 19:40)"
         checks: "Ice on the line overnight; a melt"
         exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"
@@ -565,6 +572,7 @@ runs:
       - -ApexRacingLine=off
     shots:
       - at: 12
+        item: v-r10-solar-noon
         label: "the grid from above"
         checks: "R10: the shadows fall to the north (the sun a little east of due south)"
         exec: "apexsim.cam.LookAt 305.1 -47.1 40.0 303.6 -37.3 -25.4"
@@ -8761,9 +8769,11 @@ runs:
         label: "results: the incident list"
         checks: "N19: the race's incidents (what, cars, race clock, lap, detail), own rows in the accent colour, WATCH badges"
       - at: 230
+        item: v-r23-incident-jump
         label: "the jump: the replay from just before incident 0"
         checks: "N19: out of the session, the replay playing ~3 s before the first incident (client.log: Replay seeked to)"
       - at: 233
+        item: v-r23-incident-jump
         label: "held there"
         checks: "N19: the cars of incident 0 in view (TV camera)"
 

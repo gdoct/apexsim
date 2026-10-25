@@ -11,9 +11,14 @@ stays byte for byte as it was.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
+import shutil
+import subprocess
 from datetime import date as _date
+from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -23,6 +28,11 @@ ITEMS_YML = REPO / "docs" / "verification" / "verification-items.yml"
 CLOSED_YML = REPO / "docs" / "verification" / "verification-items.closed.yml"
 VERIFY_OUT = REPO / "out" / "verify"
 SIT_OUT = REPO / "out" / "sit"
+SITTINGS_YML = REPO / "scripts" / "verify" / "sittings.yml"
+# A sitting check's answer words when sittings.yml names none; the first is the confirming one.
+SIT_ANSWERS = ["OK", "weak", "strong", "late", "wrong", "not felt"]
+# A run's earlier shots kept under out/verify/<run>/history/ for before and after.
+HISTORY_KEEP = 3
 
 AREAS = [
     "cars", "tyres", "track", "sky-weather", "hud", "menus", "cameras", "audio",
@@ -284,9 +294,49 @@ def review_problem(status: str, review: dict) -> str | None:
     return None
 
 
+def answer_review(answers: list[str], word: str, at: str, note: str = "") -> tuple[str, dict]:
+    """A sitting answer as a review: the block's first answer word confirms, any
+    other is a not-right with the word (and the note) as its comment."""
+    answers = answers or SIT_ANSWERS
+    if word not in answers:
+        raise ValueError(f"{word!r} is not one of {', '.join(answers)}")
+    note = note.strip()
+    if word == answers[0]:
+        return "confirmed", {"at": at, "answer": word, **({"comment": note} if note else {})}
+    return "not-right", {"at": at, "answer": word, "comment": f"{word}: {note}" if note else word}
+
+
 def latest_evidence(item: dict) -> dict | None:
     ev = item.get("evidence") or []
     return max(ev, key=lambda e: str(e.get("date", ""))) if ev else None
+
+
+@lru_cache(maxsize=4096)
+def git_is_ancestor(older: str, newer: str) -> bool | None:
+    """Whether commit `older` is in `newer`'s history; None when git does not know one of them."""
+    try:
+        result = subprocess.run(["git", "merge-base", "--is-ancestor", older, newer], cwd=REPO,
+                                capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return {0: True, 1: False}.get(result.returncode)
+
+
+def stale(item: dict, is_ancestor=git_is_ancestor) -> str | None:
+    """The run to repeat when the item's newest evidence is older than its own
+    `commit` (the feature changed since it was shot), else None. Without
+    commits to compare, the evidence's date against `created`."""
+    ev = latest_evidence(item)
+    if not ev:
+        return None
+    ours, theirs = str(item.get("commit") or ""), str(ev.get("commit") or "")
+    if ours and theirs and ours != theirs:
+        known = is_ancestor(ours, theirs)
+        if known is not None:
+            return None if known else ev["run"]
+    if ours and theirs == ours:
+        return None
+    return ev["run"] if str(ev.get("date", "")) < str(item.get("created") or "")[:10] else None
 
 
 def validate(items: list[dict], closed: list[dict] = (), check_paths: bool = True) -> tuple[list[str], list[str]]:
@@ -364,19 +414,79 @@ def validate(items: list[dict], closed: list[dict] = (), check_paths: bool = Tru
 def evidence_folder(ev: dict) -> Path:
     if ev.get("kind") == "marks":
         return SIT_OUT / str(ev.get("date", "")) / ev["run"]
-    return VERIFY_OUT / ev["run"]
+    return shots_folder(ev["run"], ev.get("commit"))
 
 
-def shot_path(run: str, n: int) -> Path:
-    return VERIFY_OUT / run / "shots" / f"{n:02d}.jpg"
+def run_stamp(folder: Path) -> dict:
+    """run.json: the commit and date the shots in the folder were taken at."""
+    try:
+        return json.loads((folder / "run.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def shots_folder(run: str, commit: str | None = None) -> Path:
+    """The folder holding a run's shots taken at `commit`: the run's own when
+    its latest shots are that commit's (or no commit is asked), else the
+    newest kept generation of it under history/."""
+    folder = VERIFY_OUT / run
+    if commit and run_stamp(folder).get("commit") not in (None, commit):
+        kept = sorted((folder / "history").glob(f"*-{commit}"), reverse=True)
+        if kept:
+            return kept[0]
+    return folder
+
+
+def history(run: str) -> list[dict]:
+    """The run's shot generations, newest first: {commit, date, current}."""
+    folder = VERIFY_OUT / run
+    out = []
+    if (folder / "shots").is_dir():
+        stamp = run_stamp(folder)
+        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": True})
+    for kept in sorted((folder / "history").glob("*-*"), reverse=True):
+        stamp = run_stamp(kept)
+        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": False})
+    return out
+
+
+def keep_previous(work: Path) -> Path | None:
+    """Before a run shoots again: its last shots move to history/<date>-<commit>/
+    (the newest HISTORY_KEEP are kept), so before and after can be compared."""
+    shots = work / "shots"
+    if not any(shots.glob("*.jpg")):
+        return None
+    stamp = run_stamp(work)
+    when = stamp.get("date") or datetime.fromtimestamp(shots.stat().st_mtime).strftime("%Y-%m-%d")
+    stamp = {"commit": stamp.get("commit") or "unknown", "date": when}
+    target = work / "history" / f"{when.replace(':', '').replace(' ', 'T')}-{stamp['commit']}"
+    shutil.rmtree(target, ignore_errors=True)
+    target.mkdir(parents=True)
+    shutil.move(str(shots), str(target / "shots"))
+    for name in ("shots.md",):
+        if (work / name).is_file():
+            shutil.move(str(work / name), str(target / name))
+    (target / "run.json").write_text(json.dumps(stamp), encoding="utf-8")
+    for old in sorted((work / "history").glob("*-*"), reverse=True)[HISTORY_KEEP:]:
+        shutil.rmtree(old, ignore_errors=True)
+    return target
+
+
+def stamp_run(work: Path, commit: str, when: str | None = None) -> None:
+    (work / "run.json").write_text(json.dumps({"commit": commit, "date": when or _date.today().isoformat()}),
+                                   encoding="utf-8")
+
+
+def shot_path(run: str, n: int, commit: str | None = None) -> Path:
+    return shots_folder(run, commit) / "shots" / f"{n:02d}.jpg"
 
 
 _SHOT_LINE = re.compile(r"^\s*(\d+)\.\s+([\d.]+) s\s+(.*)$")
 
 
-def run_shots(run: str) -> list[dict]:
+def run_shots(run: str, commit: str | None = None) -> list[dict]:
     """A run's shots as its shots.md lists them, and any jpg it does not."""
-    folder = VERIFY_OUT / run
+    folder = shots_folder(run, commit)
     shots: dict[int, dict] = {}
     md = folder / "shots.md"
     if md.exists():
@@ -433,7 +543,9 @@ def apply_review(f: ItemsFile, item_id: str, status: str, review: dict) -> None:
     problem = review_problem(status, review)
     if problem:
         raise ValueError(f"{item_id}: {problem}")
-    clean = {k: review[k] for k in ("at", "score", "comment", "shots", "flag", "processed") if k in review}
+    clean = {k: review[k] for k in ("at", "answer", "score", "comment", "shots", "flag", "processed") if k in review}
+    if not clean.get("answer"):
+        clean.pop("answer", None)
     if not clean.get("score"):
         clean.pop("score", None)
     if not (clean.get("comment") or "").strip():
@@ -445,6 +557,26 @@ def apply_review(f: ItemsFile, item_id: str, status: str, review: dict) -> None:
     clean["processed"] = False
     f.set(item_id, "status", status)
     f.set(item_id, "review", clean)
+
+
+def load_sittings() -> list[dict]:
+    """sittings.yml's blocks, each check's answer words filled in."""
+    blocks = yaml.safe_load(SITTINGS_YML.read_text(encoding="utf-8"))["sittings"] if SITTINGS_YML.exists() else []
+    for block in blocks:
+        for check in block.get("checks") or []:
+            check["answers"] = [str(a) for a in check.get("answers") or SIT_ANSWERS]
+            check["item"] = f"v-sit-{block['id']}-{check['id']}"
+    return blocks
+
+
+def latest_marks(block: str) -> dict | None:
+    """The newest sitting folder's marks.md for a block: its date and its MARK and force lines."""
+    found = sorted(SIT_OUT.glob(f"*/{block}/marks.md")) if SIT_OUT.is_dir() else []
+    if not found:
+        return None
+    text = found[-1].read_text(encoding="utf-8", errors="replace")
+    lines = [m.group(1) for m in re.finditer(r"^- `(.*)`$", text, re.M)]
+    return {"date": found[-1].parent.parent.name, "lines": lines}
 
 
 def register_run(run: str, shots: list[dict], commit: str, when: str | None = None) -> list[str]:

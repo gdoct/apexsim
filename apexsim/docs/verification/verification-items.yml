@@ -2318,3 +2318,20 @@
   status: open
   needs: [wheel]
 
+- id: v-verifier-sitting-tablet
+  title: The verifier's sitting mode on a tablet
+  area: platform
+  kind: screen
+  check_by: human
+  created: 2026-10-25
+  commit: d8249de5
+  plan: H1
+  doc: verifier.md#the-page
+  what: >-
+    A sitting block walked in the verifier's sitting mode on a tablet over the
+    LAN (`verifier.py serve --lan`): the answer buttons big enough beside the
+    wheel, the note line, Save, and the MARK lines under the block after the
+    sitting.
+  status: open
+  needs: [by-hand]
+

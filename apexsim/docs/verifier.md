@@ -89,7 +89,11 @@ and every other key stay byte for byte as they were.
 `status` and `review` are the human's half; the agent owns everything else.
 `open` is no verdict yet, `judged` an agent verdict the human has not
 looked at, `blocked` a check that waits on hardware or a second machine.
-A review sets `confirmed`, `not-right`, `cant-tell` or `later`.
+A review sets `confirmed`, `not-right`, `cant-tell` or `later`. A
+sitting answer is a review with `answer:` (the word tapped): the check's
+first answer word in `sittings.yml` is `confirmed`, any other is
+`not-right` with the word, and the note after it, as the comment
+(`schema.answer_review`).
 
 Areas are a fixed list so grouping is stable: `cars`, `tyres`, `track`,
 `sky-weather`, `hud`, `menus`, `cameras`, `audio`, `ffb-input`, `ai`,
@@ -115,6 +119,14 @@ New evidence on a reviewed item sends it back to `judged` (`open` without
 a verdict) and moves the old review into `notes`, so the second look sees
 what the first said. A verdict older than the item's newest evidence
 is shown as such and does not put the item in the ready group.
+
+Evidence is **stale** when it was shot before the item's own `commit`: the
+feature changed since (`schema.stale`: the evidence's commit does not
+contain the item's, by `git merge-base --is-ancestor`; without both
+commits, the evidence's date against `created`). A stale item sorts with
+*waiting for a run*, greyed, the run to repeat named. Moving an item's
+`commit` forward after changing its feature is how the agent asks for a
+new look.
 
 ## The page
 
@@ -152,9 +164,23 @@ text), the verdict, the notes and the review.
 | `u` | drop the held review |
 | `←` `→` | the shot cursor |
 | `z` | the shot under the mouse (or the cursor) at 1:1, centred where the mouse was |
+| `b` | before and after: the newest evidence beside the one before it (another run, or the same run at another commit), shot for shot for one run, in order across two; with one piece of evidence, its run's previous generation |
+| `o` | copy the command that opens the run's newest kept replay (`out/verify/<run>/replays/`) in the game's watch view: `play_editor.ps1 -NoServer -ApexNoDemo -ApexWatchReplay=<file>` |
 | `j` `k` `↑` `↓` | next and previous item in the queue's order |
 | `Esc` | back to the queue |
 | `Ctrl+S` | the Save page |
+
+**Sitting mode** (`#/sit`, SITTING in the top bar). The blocks of
+`scripts/verify/sittings.yml`, each with its answered count; a block opens
+as a checklist: each check in large type with its answer words as big
+buttons (the first green when tapped, the others red) and a note line for
+the MARK number. `↑` `↓` move between checks, `1`-`9` answer the one under
+the cursor and step on, `n` the note. The answers are held reviews and
+are written by Save like any other. Under the checks, the block's MARK and
+force lines from the newest `out/sit/<date>/<block>/marks.md`, once the
+sitting has been run. For a tablet beside the wheel, `serve --lan` listens
+on every address and prints the LAN URL; anyone on the network can then
+save reviews, so it is for the sitting only.
 
 **Save.** The held reviews by outcome, the unfinished ones (no decision, a
 missing comment) apart and left out. Enter writes each item's `status` and
@@ -162,13 +188,17 @@ missing comment) apart and left out. Enter writes each item's `status` and
 refused, the page reloads the file and keeps the held reviews. Held reviews
 live in the browser's storage too, so a reload keeps them.
 
-Endpoints: `GET /api/items` (the items and the file's digest),
-`GET /api/runs/<run>` (its shots from `shots.md`, its logs),
-`GET /thumb/<run>/<n>` (480 px, cached in `out/verify/<run>/thumbs/`),
-`GET /shot/<run>/<n>`, `GET /log/<run>/<client|notes|server>` (the last
+Endpoints: `GET /api/items` (the items, the file's digest, and the stale
+items with the run to repeat), `GET /api/sittings` (the blocks, their
+checks' items and answer words, their newest marks),
+`GET /api/runs/<run>[?commit=]` (its shots from `shots.md` at that commit,
+its logs, its history, its replay command),
+`GET /thumb/<run>/<n>[?commit=]` (480 px, cached beside the shots),
+`GET /shot/<run>/<n>[?commit=]`, `GET /log/<run>/<client|notes|server>` (the last
 400 KB; `?all` for the whole), `GET /doc?p=<path>`, `POST /api/reviews`
-(`{digest, reviews: [{id, status, review}]}`: 409 when the digest is not
-the file's). The page is `scripts/verify/verifier/web/` with the server
+(`{digest, reviews: [{id, status, review} | {id, answer, note, at, flag}]}`:
+409 when the digest is not the file's; an answer not among the check's
+words is a 400). The page is `scripts/verify/verifier/web/` with the server
 dashboard's tokens and fonts (served from `server/server/src/admin/web/fonts`).
 
 ## CLI
@@ -196,14 +226,21 @@ dashboard's tokens and fonts (served from `server/server/src/admin/web/fonts`).
 
 `run_checks.py` calls `schema.register_run` after every run (not under
 `--repeat`): each taken shot whose recipe in `runs.yml` has `item:` (an id
-or a list) becomes evidence on that item, with HEAD's commit.
+or a list) becomes evidence on that item, with HEAD's commit. Before a run
+shoots again, its last shots (and `shots.md`) move to
+`out/verify/<run>/history/<date>-<commit>/` (`schema.keep_previous`, the
+newest three kept), and `run.json` records the commit and date of the new
+ones: evidence names a commit, and the page finds that generation's shots
+whether they are the run's latest or kept.
 
 ## Checks
 
 `python -m unittest discover -s scripts/verify/tests` (in CI with the site
 job): a review changes only `status` and `review` and keeps the comments,
 the rules, the changed-on-disk refusal, new evidence reopening a review,
-`register_run`, the server's POST, and the backlog itself valid.
+`register_run`, the server's POST, a sitting answer's mapping and its
+POST, every sitting check having an item, the stale rule, the kept shot
+generations, and the backlog itself valid.
 
 ## Not in the tool
 
@@ -211,9 +248,10 @@ the rules, the changed-on-disk refusal, new evidence reopening a review,
 - No judging: no image diffing, no model. The agent judges in its run.
 - No processing of the feedback, and no editing of items beyond `status`
   and `review`.
-- No accounts, no database. The page listens on localhost only.
+- No accounts, no database. The page listens on localhost only, or with
+  `--lan` on the local network for a sitting.
 
 Python's standard `http.server` and one plain HTML/CSS/JS page: nothing to
 install beyond the PyYAML and Pillow the verify scripts use, nothing to
 build, and the schema code shared by the CLI, the server and
-`run_checks.py`. What is left to build is roadmap package 51.
+`run_checks.py`.

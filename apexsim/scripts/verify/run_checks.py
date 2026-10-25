@@ -22,6 +22,10 @@ out/verify/<run>/:
   shots/NN.jpg      every grab, full size, in shot order
   sheet_N.jpg       the grabs tiled 2x2 with their labels: what gets judged
   shots.md          the shot list (number, time, label, the item it checks)
+  run.json          the commit and date the shots were taken at
+  history/<date>-<commit>/
+                    the run's earlier shots (the newest three), moved
+                    there when it shoots again: before and after
   client.log, server.log
 
 The server is started from server/server/target/release with a server.toml of the
@@ -479,7 +483,11 @@ def take(run: dict, game: list[str], work: Path, port: int, dry_run: bool,
     if dry_run:
         log(subprocess.list2cmdline(command))
         return True
+    from verifier import schema
     folder = work / "shots"
+    kept = schema.keep_previous(work)
+    if kept:
+        log(f"  the last shots kept in {kept.relative_to(REPO)}")
     shutil.rmtree(folder, ignore_errors=True)
     folder.mkdir(parents=True)
     before = set(GRABS.glob("*.png")) if GRABS.is_dir() else set()
@@ -619,7 +627,7 @@ def bad_bounds(work: Path) -> list[str]:
 
 # --- a sitting: a human drives -----------------------------------------------------
 
-DEFAULT_ANSWERS = ["OK", "weak", "strong", "late", "wrong", "not felt"]
+DEFAULT_ANSWERS = ["OK", "weak", "strong", "late", "wrong", "not felt"]  # verifier/schema.py SIT_ANSWERS
 
 
 def load_sittings() -> list[dict]:
@@ -866,6 +874,8 @@ def main(argv=None) -> int:
             with Server(run, work, args.port):
                 ok = take(run, game, work, args.port, False, args.game_arg)
             sheets = write_sheets(run, work)
+            from verifier import schema
+            schema.stamp_run(work, commit)
             if args.repeat == 1:
                 register_evidence(run, work, commit)
             gpu = log_findings(work)
