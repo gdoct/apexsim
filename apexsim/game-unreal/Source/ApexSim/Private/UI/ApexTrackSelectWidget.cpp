@@ -988,7 +988,8 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return true;
 		case EUINavigation::Down:
 		case EUINavigation::Next:
-			FocusCard(FocusedCardIndex);
+			// No cards (none listed, or none that match): the panel beside them.
+			FocusCard(FocusedCardIndex) || ApexNav::Focus(DemoButton) || ApexNav::Focus(GuideButton);
 			return true;
 		case EUINavigation::Previous:
 			return ApexNav::Focus(SearchField);
@@ -1027,7 +1028,7 @@ bool UApexTrackSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* 
 			return FocusChip();
 		case EUINavigation::Down:
 		case EUINavigation::Next:
-			return FocusCard(FocusedCardIndex);
+			return FocusCard(FocusedCardIndex) || ApexNav::Focus(DemoButton) || ApexNav::Focus(GuideButton);
 		default:
 			return true;
 		}

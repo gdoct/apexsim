@@ -327,7 +327,8 @@ void UApexSeasonWidget::FocusDefault()
 {
 	if (!(PrimaryButton && ApexNav::Focus(PrimaryButton)))
 	{
-		SetKeyboardFocus();
+		// No season to start (no server, no circuits): the first control there is.
+		Super::FocusDefault();
 	}
 }
 
