@@ -166,7 +166,7 @@ saw it, then a contact shadow under the car.
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*
-- 🟡 Marina Bay: corner names, the F1 pit building, a quay rail, catch fence.
+- 🟡 Marina Bay: the F1 pit building, a quay rail, catch fence.
 - 🟡 Stadium grandstands: bays and cap in `LayoutGrandstand`, the stair tower.
 - 🟡 Nordschleife toll lanes' access lanes and car park.
 - 🔴 Nordschleife rock cuttings: needs bare-earth DGM1 data or a surveyed list,

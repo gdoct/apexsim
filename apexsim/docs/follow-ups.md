@@ -63,9 +63,9 @@ over 5 s standing:` log line says which force it is).
 Prop-kit and `ats-dress` work on circuits and pieces that are built. Laid by
 the same `ApexProps` code.
 
-- Mandarina Bay: corner names (the dossier has one "corner", the circuit
-  itself), the F1 pit building (`building_pit_street`) placed, a quay rail
-  along the water, a catch fence pass.
+- Mandarina Bay: the F1 pit building (`building_pit_street`) placed, a
+  quay rail along the water, a catch fence pass (its 19 corners are named
+  and numbered now).
 - The Nurburgring's routes are three circuits (`Nuerburgerring`,
   `Mordschleife`, `Nuerburgerring24` built by `combine_tracks.py`), not one
   track with selectable routes: the track format, the session and the lap
@@ -255,7 +255,10 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   100 km west of Zandvoort (52.33 N, 3.10 E, in the North Sea) and
   Barcelunatic's about 25 km north-east of Montmeló; the rest are within
   about 6 km. The sun is placed from them too. Their pins on Garage >
-  Tracks' globe show the error from about 3x zoom.
+  Tracks' globe show the error from about 3x zoom. The figures are the DEM's
+  georeference (`lat0`, `lon0`), so look at `dem_fetch.py`'s fit for those
+  two before correcting the YAML: the heights it sampled may be from the
+  wrong place too (Zandervoort's sea is flat).
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
