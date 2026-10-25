@@ -811,6 +811,36 @@ runs:
         checks: "the field on the circuit"
         exec: "apexsim.cam.Release"
 
+  - id: r8-ims-corners
+    about: "R8. Endianapolis's four corner stands from the infield"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Endianapolis
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "grandstand_corner at 2613 m from the infield, 25 m up"
+        checks: "R8: the corner stand's wedge bays following the bend"
+        exec: "apexsim.cam.LookAt 556.0 943.4 29.4 582.3 1058.5 11.3"
+      - at: 15
+        label: "grandstand_corner at 605 m from the infield, 25 m up"
+        checks: "R8: the corner stand's wedge bays following the bend"
+        exec: "apexsim.cam.LookAt 156.3 -527.2 28.9 128.6 -641.1 10.9"
+      - at: 20
+        label: "grandstand_corner at 1234 m from the infield, 25 m up"
+        checks: "R8: the corner stand's wedge bays following the bend"
+        exec: "apexsim.cam.LookAt 710.1 -376.5 30.2 827.4 -389.4 12.0"
+      - at: 25
+        label: "grandstand_corner at 2938 m from the infield, 25 m up"
+        checks: "R8: the corner stand's wedge bays following the bend"
+        exec: "apexsim.cam.LookAt 234.7 962.9 28.8 209.9 1077.5 10.8"
+
   - id: r8-ims
     about: "R8. Geometry sweep: Endianapolis Motor Speedway"
     server:

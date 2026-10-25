@@ -112,6 +112,11 @@ the same `ApexProps` code.
 - Circuits without a layout dossier (Endianapolis, HermanosRodriQueso,
   MoscowMule, YasMarinara) are not dressed: no marshal posts, so no light
   panels either, and race control's yellows show on the HUD alone there.
+  Endianapolis keeps the stands of the generator before the dossiers: its
+  eight `grandstand_corner` bays (2x scale) stand 116 m out from the
+  centerline on the grass at the four turns, two straight sections with a
+  gap at each (`r8-ims-corners`, 2026-10-25), and one `grandstand_main`
+  bay is placed twice (ids 235 and 236 at 41.7, 324.0).
   Removing them from the calendar is the owner's option
   ([track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)).
 - Found by the dressing audit, outside dressing:

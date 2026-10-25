@@ -204,10 +204,11 @@ that is hit in a seeded replay (`-ApexReplay`, `-ApexWatchCar`).
 up and 170 m off (2026-10-25). At Mexico City the corner stand follows the
 bend as one curved, crowded stand with its roof: the wedge reads. At
 Indianapolis the stand there shows as two straight sections with a gap
-between them, set back on the grass: no wedge in sight from that side;
-look again from the inside of the turn.
+between them, set back on the grass, and from the infield
+(`r8-ims-corners`) all four turns' stands are so: they are the old
+generator's, 116 m off the road on a circuit with no dossier (follow-ups
+#6), not a wedge. Left:
 
-- A stadium grandstand wedge on a corner.
 - A curved pit box row tighter than about a 130 m radius (the garages
   scale down to 0.85 and may still overlap a little).
 - The repainted seated crowd (`gen_crowd.py`) on a full stand with
