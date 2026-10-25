@@ -176,7 +176,15 @@ as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
   contact 181 -> 250 and off-road 288 -> 415 (passes 1659 -> 2050, 163
   races in common). The next try is the steering's recovery to the line
   (the Stanley and yaw-damping gains are constants tuned on the shipped
-  cars), judged by `SURVEY_DBG`'s tight-beside share.
+  cars), judged by `SURVEY_DBG`'s tight-beside share. The yaw damping
+  alone is not it (2026-10-25, eight circuits: Snorisring, Zandervoort,
+  Monzarella, SpaFrankenchamps, Shiverstone, Bahrainless, Hungoverring,
+  AlbertParkour; seeds 1-3; contact / off-road car-s for SF70H, RSS,
+  shipped F1, GT3): at `YAW_DAMPING` 0.25 65.6/28.6, 67.4/11.4,
+  24.1/0.9, 25.1/16.7; at 0.4 60.5/17.1, 54.7/30.4, 13.1/3.5,
+  49.0/28.7 (the GT3 twice the contact); at 0.32 62.9/4.0, 47.4/12.1,
+  9.9/24.4, 27.9/20.1. The imports stay 2-5 times the shipped F1 at
+  every value: a survey of four cars over three seeds takes 12 minutes.
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
