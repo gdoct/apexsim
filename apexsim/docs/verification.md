@@ -29,8 +29,18 @@ switches in [game/client.md](game/client.md#unattended-runs-and-debugging).
 `scripts/verify/runs.yml`, each against a server of its own on port 9400,
 and the shots land in `out/verify/<run>/` tiled 2x2 into labelled contact
 sheets. `scripts/verify/spots.py <Track>` works out camera poses from the
-track YAML and scene (low cells, grades, bends, a prop seen from the road).
+track YAML and scene (low cells, grades, bends, a prop seen from the road,
+`--eye` a driver's eye on the road looking along the lap).
 Each shot is judged against what the feature's doc says it draws.
+
+Every circuit has a reference run of its start/finish, `sf-ref-<stem>`
+(made from [cota-startfinish-comparison.md](cota-startfinish-comparison.md)):
+the SF-26 on pole, sunny at 13:00, racing line off and the HUD hidden
+(`apexsim.hud.Hide 1`), four shots before the lights so nothing moves: the
+cockpit from the pole box, the chase `roof` rung there, a driver's eye on
+the line down the lap and the same eye back over the grid. Road, wall,
+stand, horizon, sky and gantry changes are judged on these frames on more
+than one circuit (`run_checks.py "sf-ref-*"` for all of them).
 
 The geometry pass of 2026-10-13 (real elevation, banking with ramps, the
 Karussell in concrete, paved aprons as run-off) has been seen on every

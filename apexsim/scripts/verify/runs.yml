@@ -9056,3 +9056,649 @@ runs:
         checks: "R27: the AI in the SF-26's own liveries"
         lead: 1
         exec: "apexsim.tv.View 0"
+
+  # The reference frame on every circuit's start/finish (roadmap 38,
+  # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
+  # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot
+  # before the lights (countdown 40 s) so nothing moves: the cockpit from
+  # the pole box, the chase roof rung there, a driver's eye on the line
+  # down the lap and back over the grid boxes (spots.py --eye 0 --height
+  # 1.0 --ahead 150 / -60). The road, wall, stand, horizon, sky and
+  # gantry packages are judged on these frames on every circuit.
+  - id: sf-ref-albertparkour
+    about: "Roadmap 38. The start/finish reference frame: Albert Parkour Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=AlbertParkour
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.0 -1.3 1.0 -109.0 102.8 -0.6"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.0 -1.3 1.0 42.3 -42.9 1.9"}
+
+  - id: sf-ref-armadillos
+    about: "Roadmap 38. The start/finish reference frame: Circuit of the Armadillos"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 1.9"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 -46.7 40.4 1.0"}
+
+  - id: sf-ref-bahrainless
+    about: "Roadmap 38. The start/finish reference frame: Bahrainless International Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Bahrainless
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.4 -1.6 1.0 5.3 148.3 2.2"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.4 -1.6 1.0 -4.2 -61.5 0.2"}
+
+  - id: sf-ref-barcelunatic
+    about: "Roadmap 38. The start/finish reference frame: Circuit de Barcelunatic"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Barcelunatic
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -0.5 0.8 1.1 -81.7 -125.3 0.7"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -0.5 0.8 1.1 32.1 51.2 1.0"}
+
+  - id: sf-ref-brandsscratch
+    about: "Roadmap 38. The start/finish reference frame: Brands Scratch"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=BrandsScratch
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.1 0.1 1.2 138.5 54.3 2.8"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.1 0.1 1.2 -56.0 -24.3 1.0"}
+
+  - id: sf-ref-chillyvilleneuve
+    about: "Roadmap 38. The start/finish reference frame: Circuit Chilly Villeneuve"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=ChillyVilleneuve
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.1 -0.7 1.0 10.5 -149.6 -0.4"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.1 -0.7 1.0 -13.2 57.8 1.0"}
+
+  - id: sf-ref-endianapolis
+    about: "Roadmap 38. The start/finish reference frame: Endianapolis Motor Speedway"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Endianapolis
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -0.0 -0.0 1.0 3.0 -150.0 1.5"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -0.0 -0.0 1.0 -1.2 60.0 1.1"}
+
+  - id: sf-ref-gnocchi
+    about: "Roadmap 38. The start/finish reference frame: Gnocchi Autodrom"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Gnocchi
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.4 1.0 1.0 -82.0 -125.6 -0.1"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.4 1.0 1.0 30.9 51.6 1.6"}
+
+  - id: sf-ref-hermanosrodriqueso
+    about: "Roadmap 38. The start/finish reference frame: Autódromo Hermanos Rodri-Queso"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=HermanosRodriQueso
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.9 3.2 1.0 146.6 -17.8 1.2"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.9 3.2 1.0 -61.2 12.4 1.1"}
+
+  - id: sf-ref-hockeyheimring
+    about: "Roadmap 38. The start/finish reference frame: Hockeyheimring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hockeyheimring
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.7 -2.3 1.0 -64.9 132.6 0.9"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.7 -2.3 1.0 26.9 -56.3 1.2"}
+
+  - id: sf-ref-hungoverring
+    about: "Roadmap 38. The start/finish reference frame: Hungoverring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Hungoverring
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -2.5 0.1 1.1 -118.1 95.6 1.3"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -2.5 0.1 1.1 43.8 -38.1 0.5"}
+
+  - id: sf-ref-interlaggos
+    about: "Roadmap 38. The start/finish reference frame: Autódromo Interlaggos"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Interlaggos
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -0.5 -0.5 0.9 38.3 -145.4 3.2"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -0.5 -0.5 0.9 -16.3 57.4 -1.0"}
+
+  - id: sf-ref-lemons
+    about: "Roadmap 38. The start/finish reference frame: Lemons – Circuit du Peuple"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Lemons
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.0 0.0 55.3 150.0 -0.8 56.2"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.0 0.0 55.3 -60.0 0.0 54.0"}
+
+  - id: sf-ref-mandarinabay
+    about: "Roadmap 38. The start/finish reference frame: Mandarina Bay"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MandarinaBay
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.0 0.0 1.0 150.0 0.4 1.0"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.0 0.0 1.0 -60.0 0.0 1.0"}
+
+  - id: sf-ref-monzarella
+    about: "Roadmap 38. The start/finish reference frame: Autodromo Monzarella"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 1.2"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 -5.0 -58.7 1.1"}
+
+  - id: sf-ref-mordschleife
+    about: "Roadmap 38. The start/finish reference frame: Nürburger Mordschleife"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.0 -0.1 1.0 148.5 -16.1 3.1"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.0 -0.1 1.0 -59.8 -4.3 -1.6"}
+
+  - id: sf-ref-moscowmule
+    about: "Roadmap 38. The start/finish reference frame: Moscow Mule Raceway"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MoscowMule
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.9 -0.1 1.0 17.2 149.0 1.3"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.9 -0.1 1.0 -5.6 -59.8 1.1"}
+
+  - id: sf-ref-nuerburgerring
+    about: "Roadmap 38. The start/finish reference frame: Nürburgerring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 1.2 -1.3 1.1 -106.8 -105.4 -2.0"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 1.2 -1.3 1.1 44.6 40.2 1.9"}
+
+  - id: sf-ref-nuerburgerring24
+    about: "Roadmap 38. The start/finish reference frame: Nürburgerring 24h"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Nuerburgerring24
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.5 -2.0 1.1 -107.5 -106.1 -2.0"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.5 -2.0 1.1 43.8 39.5 1.9"}
+
+  - id: sf-ref-oskarsleben
+    about: "Roadmap 38. The start/finish reference frame: Motorsport Arena Oskarsleben"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Oskarsleben
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 2.3 -1.0 1.0 -141.7 41.1 0.4"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 2.3 -1.0 1.0 59.9 -17.8 0.8"}
+
+  - id: sf-ref-redpullring
+    about: "Roadmap 38. The start/finish reference frame: Red Pull Ring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=RedPullRing
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.2 -0.9 1.2 -146.1 -39.9 2.0"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.2 -0.9 1.2 56.7 14.7 1.2"}
+
+  - id: sf-ref-shanghaied
+    about: "Roadmap 38. The start/finish reference frame: Shanghaied International Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shanghaied
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 0.1 -0.0 1.0 -146.5 -32.0 1.7"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 0.1 -0.0 1.0 58.7 12.5 1.1"}
+
+  - id: sf-ref-shebang
+    about: "Roadmap 38. The start/finish reference frame: Shebang International Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shebang
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 1.2 -3.5 1.0 -148.3 -16.0 2.6"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 1.2 -3.5 1.0 61.0 1.7 -0.2"}
+
+  - id: sf-ref-shiverstone
+    about: "Roadmap 38. The start/finish reference frame: Shiverstone Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 3.4 -0.5 1.0 91.3 121.1 2.9"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 3.4 -0.5 1.0 -31.7 -49.1 1.0"}
+
+  - id: sf-ref-snorisring
+    about: "Roadmap 38. The start/finish reference frame: Snorisring"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.2 -0.7 1.0 124.9 -81.2 2.4"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.2 -0.7 1.0 -52.2 31.0 1.0"}
+
+  - id: sf-ref-spafrankenchamps
+    about: "Roadmap 38. The start/finish reference frame: Spa-Frankenchamps"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -0.2 2.1 1.3 -79.8 129.2 4.6"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -0.2 2.1 1.3 31.9 -48.6 -1.2"}
+
+  - id: sf-ref-sudoku
+    about: "Roadmap 38. The start/finish reference frame: Sudoku Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sudoku
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 3.1 0.1 1.1 100.7 -113.8 -1.5"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 3.1 0.1 1.1 -37.1 44.7 2.1"}
+
+  - id: sf-ref-yasmarinara
+    about: "Roadmap 38. The start/finish reference frame: Yas Marinara Circuit"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=YasMarinara
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt 2.3 -5.2 1.0 151.1 13.7 1.1"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt 2.3 -5.2 1.0 -57.2 -13.1 1.1"}
+
+  - id: sf-ref-zandervoort
+    about: "Roadmap 38. The start/finish reference frame: Zandervoort"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Zandervoort
+      - -ApexCar=SF-26
+      - -ApexAiCount=13
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cockpit, pole box", checks: "roadmap 38: the road, walls and stands from the seat"}
+      - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
+      - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.7 -1.9 1.0 53.3 137.7 2.3"}
+      - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.7 -1.9 1.0 -23.7 -57.7 1.2"}

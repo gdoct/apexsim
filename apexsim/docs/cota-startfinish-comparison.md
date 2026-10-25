@@ -6,27 +6,39 @@ Circuit of the Americas main straight, daytime) and
 cars, late sun), with what the game needs to reach the live frame's look.
 Written 2026-10-24.
 
-The work items are roadmap packages 38 to 50
-([roadmap.md](roadmap.md#38-cota-startfinish-the-reference-shot)), one per
-gap, each independent of the others, and in the work plan as V4, G7 to
-G10, C6 to C12 and N29 ([work-plan.md](work-plan.md)). Package 38 is the
-matching reshoot; the rest are judged on its frame.
+The work items are roadmap packages 39 to 50
+([roadmap.md](roadmap.md#39-road-surface-detail)), one per gap, each
+independent of the others, and in the work plan as G7 to G10, C6 to C12
+and N29 ([work-plan.md](work-plan.md)). Each is a rule for every circuit,
+not a fix for this one: COTA is where the gap showed, and the change is
+judged on the reference frames of several circuits.
+
+The reference frame is a run per circuit, `sf-ref-<stem>` in
+`scripts/verify/runs.yml` ([verification.md](verification.md)): the SF-26
+on pole, sunny at 13:00, racing line off, the HUD hidden, four shots
+before the lights (the cockpit from the pole box, the chase `roof` rung
+there, a driver's eye on the line down the lap and back over the grid).
 
 ## The two frames
 
-| | Live | ApexSim |
+| | Live | ApexSim (`sf-ref-armadillos`) |
 |---|---|---|
-| Camera | T-cam on the roll hoop, wide lens, halo and driver in frame | Chase `roof` rung behind and above the car; the car's rear and both front wheels fill the lower third |
-| Time, sky | Midday, thin high cloud, flat white sky, soft shadows | Low sun at the horizon, saturated orange gradient, long warm light, no clouds |
-| Position | On the S/F line itself, grid boxes behind, start gantry 300 m ahead | On the grid, chequer and boxes ahead, gantry 150 m ahead |
-| Car | Current F1 car, full livery, sponsor decals, visible wheel, hands, helmet | Red open-wheeler, single flat red paint, no decals, no driver visible from this rung |
+| Camera | T-cam on the roll hoop, wide lens, halo and driver in frame | Cockpit from the pole box: the halo and its pillar across the top, both front wheels, the steering wheel, both mirrors; or the eye on the line, 1 m over the road |
+| Time, sky | Midday, thin high cloud, flat white sky, soft shadows | 13:00 sunny: a clear blue sky with no cloud, hard short shadows, no haze; the far end of the straight as crisp as the kerb |
+| Position | On the S/F line itself, grid boxes behind, start gantry 300 m ahead | The pole box, the gantry right over the line and filling the top of the frame |
+| Car | Current F1 car, full livery, sponsor decals, visible wheel, hands, helmet | The SF-26: flat red bodywork and halo, its own wheel and screen, mirrors with live pictures |
 
-The frames are not like for like: a different camera, a different hour and a
-different car. The first step is a matching reshoot (cockpit view, sunny
-weather, midday, a Formula car) so the remaining gaps are real ones. The
-run flags are in [game/client.md](game/client.md):
-`-ApexView=cockpit -ApexWeather=sunny` with a midday session time and
-`-ApexScreenshotAfter`.
+The first comparison set this frame against a chase `roof` shot at
+sunset. The reshoot at midday closed what the hour alone explained: the
+orange gradient, the rim-lit stands and the road in shadow are gone, and
+the two bright lobes on the road ahead of the car do not show at midday
+exposure (package 48 is checked on the sunset recipe for them). What it
+left are real gaps, and the same frames at Monzarella and Shiverstone
+show each of them too: the same generic white box gantry on lattice legs
+(46), a uniform charcoal road (39), grid boxes without numbers (40), no
+aerial haze and no cloud at `sunny` (45). At Armadillos alone: the
+stadium stand without a crowd (43), lamp posts along the pit-side fence
+(42) and a bare prairie horizon (44).
 
 ## Differences, by region of the frame
 

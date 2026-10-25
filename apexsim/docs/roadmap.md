@@ -191,25 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 38. COTA start/finish: the reference shot
-
-The comparison [cota-startfinish-comparison.md](cota-startfinish-comparison.md)
-sets a broadcast onboard frame on the Circuit of the Americas' main straight
-against an ApexSim frame, and finds the two are not like for like (chase
-`roof` rung at sunset against a T-cam at midday). Packages 39 to 50 are its
-gaps, each on its own; this one is the frame they are all judged against.
-
-- A run `cota-sf-reference` in `scripts/verify/runs.yml`: Armadillos, the
-  SF-26, `-ApexWeather=sunny`, `-ApexTimeOfDay=13:00`, `-ApexView=cockpit`,
-  racing line off; one shot on the S/F line looking down the straight (grid
-  boxes behind, gantry ahead), one from the grid, one from the chase `roof`
-  rung at the same spot for the old frame's sake.
-- The comparison doc's "The two frames" table rewritten from the new frame
-  (the live frame is not in the repository; it stays on the owner's disk).
-
-**Check:** the run shoots unattended; the doc names which of its gaps the
-reshoot closed by itself.
-
 ### 39. Road surface detail
 
 The road is one asphalt set (`BuildTrackBase` in
@@ -226,8 +207,8 @@ already darkens the racing line live; this is the static surface under it.
   patch repairs, as a static texture or noise term in the same graph,
   separate from the live rubber.
 
-**Check:** package 38's cockpit shots at the grid and on the line, and two
-other circuits' S/F runs (`c5-sf-monzarella`, `c5-sf-shiverstone`) so the
+**Check:** the `sf-ref-*` frames (cockpit from the pole box, the eye on the
+line) at Armadillos and at least two other circuits so the
 tiling holds on every road; the material is shared, so one change moves
 every track.
 
@@ -242,7 +223,7 @@ every track.
   lateral) in the Armadillos YAML, or a decal set when the marking kind
   cannot stripe. The YAML edit changes the track's checksum: re-export.
 
-**Check:** package 38's shots; the start lights and grid placement are
+**Check:** the `sf-ref-*` shots; the start lights and grid placement are
 untouched (`c5-sf-armadillos`); a second circuit's grid still reads.
 
 ### 41. The main straight's walls: catch fences, pit wall, screens
@@ -258,7 +239,7 @@ untouched (`c5-sf-armadillos`); a second circuit's grid still reads.
 - The pit building's four screens (`MANUAL_LANDMARKS` at 20, 105, 190 and
   275 m left) laid, facing the stand, readable from the line.
 
-**Check:** package 38's shots and `c5-sf-armadillos`; the barrier change
+**Check:** the `sf-ref-*` shots and `c5-sf-armadillos`; the barrier change
 moves `walls.msgpack`, so the AI survey against the commit before; the
 dossier tool's `--all --manual-only --dry-run` reports every other dossier
 unchanged.
@@ -276,7 +257,7 @@ the car parks' `lamp_post`s run along the trackside fence.
   alone, as the real place would be.
 
 **Check:** re-dress `--all` and read the prop counts against the commit
-before; package 38's left side; one night run at Armadillos to see the
+before; the `sf-ref-*` left side; one night run at Armadillos to see the
 headlights carry it.
 
 ### 43. The Main Grandstand
@@ -293,7 +274,7 @@ starts nearly at the wall and its front edge stands too high.
   `LayoutGrandstand` puts the stadium family's road-facing edge (deep kinds
   pivot on it) and the front tier's height.
 
-**Check:** `c5-stands-armadillos` and package 38's right side; the same
+**Check:** `c5-stands-armadillos` and the `sf-ref-*` right side; the same
 family on a bend (props.md's own caveat) before relying on the wedge.
 
 ### 44. A horizon for the open-country circuits
@@ -309,7 +290,7 @@ closed by live-oak belts at the property line and hills to the north.
   `horizon_skirt` should carry the hills north of the circuit over the pit
   building; if the relief is there but reads flat, the gap is package 45's.
 
-**Check:** package 38's horizon and a `g3-horizon`-style shot at
+**Check:** the `sf-ref-*` horizon and a `g3-horizon`-style shot at
 Armadillos; re-dress `--all` counts for the other open-country circuits.
 
 ### 45. The daytime sky: haze and high cloud
@@ -323,7 +304,7 @@ Armadillos; re-dress `--all` counts for the other open-country circuits.
   `cloudy` variant with a high, thin look, so a bright-overcast day is a
   choice on the create screen.
 
-**Check:** package 38's frame against the live one; `SkyModelTests` hold;
+**Check:** the `sf-ref-*` frame against the live one; `SkyModelTests` hold;
 the sky ladder's other weathers unchanged in their verify shots.
 
 ### 46. The start gantry
@@ -338,21 +319,21 @@ what every circuit shows.
   lenses over its lamp row (`GantryLampX/PitchY/Z`).
 
 **Check:** the countdown still drives the lights (`ApexStartLights` tags,
-`c5-sf-*` runs); package 38's shot down the straight.
+`c5-sf-*` runs); the `sf-ref-*` shot down the straight.
 
 ### 47. The formula car up close
 
 The F1 generator already lays a sponsor atlas, a carbon weave and a painted
 or carbon halo (`build_f1.py`, `textures.py`), and the wheels carry
 sidewall lettering. The sunset frame showed a flat red body, so first find
-out on package 38's frame whether the gap is the car in the shot or the
+out on the `sf-ref-*` frame whether the gap is the car in the shot or the
 kit's density at T-cam distance.
 
 - If the sponsors still read as absent: larger wordmarks and cells on the
   pod, cover and wings (`sponsors=` per variant, `liveries.py`), carbon on
   the wing elements, the rim texture and sidewall lettering at close range.
 
-**Check:** package 38's frame and the car-select turntable; every name
+**Check:** the `sf-ref-*` frame and the car-select turntable; every name
 stays invented ([naming.md](../../apexsim-content/docs/naming.md)).
 
 ### 48. Mirror and display faces seen from outside at low exposure

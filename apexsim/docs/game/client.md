@@ -1082,6 +1082,8 @@ Note `-ExecCmds` separates commands with commas, so
   works on any screen, not only in a race.
 - `-ApexExecAfter="N=command|N=command"` runs console commands N seconds in.
 - `-ApexCameraCycleAfter=N[,N]` presses C (camera step).
+- `apexsim.hud.Hide 1|0` hides the race HUD for shots (and shows it again)
+  without touching the Gameplay tab's saved HUD detail.
 - `-ApexOpenPause=N`, `-ApexOpenSettings=N` with `-ApexSettingsTab=0..6`.
 - `-ApexOpenHudEditor=N` with `-ApexHudEditorSteps="select standings;move 200 -100;save"`.
 - `-ApexStartScreen=<EApexScreen index>` (also cvar `apexsim.ui.StartScreen`)

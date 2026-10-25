@@ -60,6 +60,26 @@ namespace
 			UE_LOG(LogApexSim, Display, TEXT("apexsim.hud.Reload: %d HUD(s) rebuilt"), Count);
 		}));
 
+	/**
+	 * Set by `apexsim.hud.Hide`: the HUD off for shots, whatever the
+	 * Gameplay tab's detail says, and never written to the save.
+	 */
+	bool bHiddenForShots = false;
+
+	FAutoConsoleCommand HudHideCommand(TEXT("apexsim.hud.Hide"),
+		TEXT("1 hides the race HUD for shots without touching the saved HUD detail, 0 shows it again."),
+		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args) {
+			bHiddenForShots = Args.Num() == 0 || FCString::Atoi(*Args[0]) != 0;
+			for (TObjectIterator<UApexHudWidget> It; It; ++It)
+			{
+				if (!It->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) && It->GetWorld())
+				{
+					It->ApplyVisibility();
+				}
+			}
+			UE_LOG(LogApexSim, Display, TEXT("apexsim.hud.Hide: the HUD %s"), bHiddenForShots ? TEXT("hidden") : TEXT("shown"));
+		}));
+
 	struct FHudRegionLayout
 	{
 		EHorizontalAlignment H = HAlign_Left;
@@ -368,7 +388,7 @@ void UApexHudWidget::ApplyVisibility()
 	const EApexHudDetail Detail = Settings && Settings->Get() ? Settings->Get()->HudDetail : EApexHudDetail::All;
 	// The editor shows the HUD whatever the detail level, race or no race:
 	// the panels being laid out have to be on screen.
-	SetVisibility(bEditing || (bRaceActive && bShownWanted && Detail != EApexHudDetail::Hidden)
+	SetVisibility(bEditing || (bRaceActive && bShownWanted && !bHiddenForShots && Detail != EApexHudDetail::Hidden)
 		? ESlateVisibility::HitTestInvisible
 		: ESlateVisibility::Collapsed);
 	if (EditBackdrop)

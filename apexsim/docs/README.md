@@ -57,6 +57,6 @@ see [marketing-site.md](marketing-site.md).
 ## Elsewhere
 
 - [marketing-site.md](marketing-site.md): the generated site, in-engine shots and the promo video.
-- [cota-startfinish-comparison.md](cota-startfinish-comparison.md): a broadcast onboard frame against the game's at the Circuit of the Americas' start/finish, region by region; the source of roadmap packages 38 to 50.
+- [cota-startfinish-comparison.md](cota-startfinish-comparison.md): a broadcast onboard frame against the game's at the Circuit of the Americas' start/finish, region by region; the source of roadmap packages 39 to 50.
 - [proposals/](proposals/): designs that are not built ([client-side prediction](proposals/client-prediction.md), [Nanite and shadows](proposals/nanite-shadows.md), [road state and snow](proposals/roadstate.md), [smaller recorded sessions](proposals/replay-size.md), [split-off content](proposals/split-off-content.md), [a learned AI driver](proposals/learned-ai-driver.md)).
 - [../MODDING.md](../MODDING.md): the player-facing modding guide; [../server/server/CMDLINE.md](../server/server/CMDLINE.md): server command line.

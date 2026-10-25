@@ -9,6 +9,7 @@
     python scripts/verify/spots.py SpaFrankenchamps --near 120.5,-340  # the station nearest a point
     python scripts/verify/spots.py Mordschleife --prop rail_tag_eifel 2  # props of the .ats, from the road
     python scripts/verify/spots.py Mordschleife --props   # every prop asset and its count
+    python scripts/verify/spots.py Armadillos --eye 0 --ahead 150   # a driver's eye on the line, down the lap
 
 Each spot prints its station and an `apexsim.cam.LookAt` command for
 -ApexExecAfter: a camera beside the road, a little back along the lap,
@@ -105,6 +106,18 @@ def look_at(p: dict, side: str, back: float, out: float, height: float, lateral:
     return f"apexsim.cam.LookAt {cx:.1f} {cy:.1f} {cz:.1f} {tx:.1f} {ty:.1f} {p['z']:.1f}"
 
 
+def eye_shot(lap: Lap, station: float, ahead: float, height: float, lateral: float = 0.0) -> str:
+    """A driver's-eye camera `height` m over the road at `station`
+    (`lateral` m left of the centerline), looking at the centerline
+    `ahead` m further along the lap (negative: back), at the same eye
+    height over the road there."""
+    eye = lap.at(station)
+    to = lap.at(station + ahead)
+    lx, ly = -math.sin(eye["heading"]), math.cos(eye["heading"])
+    return (f"apexsim.cam.LookAt {eye['x'] + lx * lateral:.1f} {eye['y'] + ly * lateral:.1f} {eye['z'] + height:.1f} "
+            f"{to['x']:.1f} {to['y']:.1f} {to['z'] + height:.1f}")
+
+
 def scene(stem: str) -> dict:
     import json
     for root in TRACKS:
@@ -165,6 +178,9 @@ def main(argv=None) -> int:
     parser.add_argument("--props", action="store_true", help="list the .ats's prop assets")
     parser.add_argument("--at", type=float, action="append", default=[], metavar="M", help="a station, m")
     parser.add_argument("--near", action="append", default=[], metavar="X,Y", help="the station nearest a point")
+    parser.add_argument("--eye", type=float, action="append", default=[], metavar="M",
+                        help="a driver's eye on the road at this station, looking --ahead m along the lap")
+    parser.add_argument("--ahead", type=float, default=150.0, help="--eye: m ahead to look at (negative: back)")
     parser.add_argument("--side", choices=("left", "right"), default="left")
     parser.add_argument("--back", type=float, default=18.0, help="m back along the lap (negative: ahead)")
     parser.add_argument("--out", type=float, default=3.0, help="m beyond the road edge")
@@ -232,6 +248,11 @@ def main(argv=None) -> int:
             at, command = prop_shot(lap, p, args.back, args.height)
             print(f"{asset:24} station {at['station']:7.0f} m  at {p['x']:.0f},{p['y']:.0f}  {p.get('text') or ''}")
             print(f"    {command}")
+        return 0
+    for station in args.eye:
+        print(f"{'eye ' + format(station, '.0f'):24} station {lap.at(station)['station']:7.0f} m")
+        print(f"    {eye_shot(lap, station, args.ahead, args.height)}")
+    if args.eye and not spots:
         return 0
     if not spots:
         parser.print_help()

@@ -44,7 +44,6 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| V4 | COTA start/finish reference shot (roadmap 38) | Verification | P2 | 🟢 | S | 2 |
 | G7 | Road surface detail (roadmap 39) | Rendering | P2 | 🟡 | M | 2 |
 | C6 | Grid boxes, chequer, COTA apron paint (roadmap 40) | Content | P2 | 🟡 | S | 2 |
 | C7 | Main straight walls: catch fences, pit wall, screens (roadmap 41) | Content | P2 | 🟡 | M | 2 |
@@ -81,8 +80,9 @@ takes it up (— : no step, taken opportunistically).
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
-   kit gaps are built. The COTA start/finish packages (V4 first, then
-   G7 to G10 and C6 to C12 in any order, each judged on V4's frame)
+   kit gaps are built. The start/finish packages from the COTA comparison
+   (G7 to G10 and C6 to C12, in any order, each judged on the `sf-ref-*`
+   frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
    and re-export every track.
@@ -186,12 +186,12 @@ The single largest gap in the frame: the shared asphalt set reads as
 uniform soft charcoal from a cockpit. Aggregate at road scale, a macro
 variation mask, a static wear layer (lighter band between the wheel
 tracks, patches) under the live rubber. One material for every track:
-judged on V4's frame and two other circuits' S/F runs.
+judged on the `sf-ref-*` frames of Armadillos and two other circuits.
 
 #### G8. Daytime sky: haze and high cloud — P2 · 🟡 · S
 *Source: roadmap 45.* Aerial perspective at sunny midday on COTA (the
 far haze is verified at the Nordschleife only) and a thin cirrus veil
-inside `sunny` or as a high, thin `cloudy`. Judged on V4's frame against
+inside `sunny` or as a high, thin `cloudy`. Judged on the `sf-ref-*` frames against
 the live one.
 
 #### G9. Mirror faces glow from outside at low exposure — P2 · 🟢 · S
@@ -251,7 +251,7 @@ new kit family plus client instancing and waits on nothing.
 
 #### C6 to C12. COTA start/finish, the content packages — P2 · 🟡 · S–M each
 *Source: roadmap 40 to 47, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
-Each stands alone and is judged on V4's frame; none needs another first.
+Each stands alone and is judged on the `sf-ref-*` frames; none needs another first.
 The track's audit page is
 [Armadillos.md](../../apexsim-content/docs/circuit-references/audit/Armadillos.md).
 
@@ -274,7 +274,7 @@ The track's audit page is
 - **C11. Start gantry mesh** (roadmap 46): `bridge/start_gantry.glb`, a
   dark truss with a branded fascia and a small light housing; the
   countdown's `ApexStartLight` lenses on its lamp row. S.
-- **C12. Formula car up close** (roadmap 47): decided on V4's frame; if
+- **C12. Formula car up close** (roadmap 47): decided on the `sf-ref-*` frames; if
   the sponsor atlas still reads as absent at T-cam distance, larger
   wordmarks, wing carbon, rim and sidewall at close range. S–M.
 
@@ -300,13 +300,6 @@ animation and sound in first person, rain-driven auto mode. Server need: none
 beyond the weather already on the wire. 🔴 for the models.
 
 ### Verification
-
-#### V4. COTA start/finish reference shot — P2 · 🟢 · S
-*Source: roadmap 38.* The `cota-sf-reference` run (Armadillos, SF-26,
-sunny, 13:00, cockpit, racing line off; shots on the line, from the grid
-and from the `roof` rung) and the comparison doc's frame table rewritten
-from it. Do first: every COTA package is judged against this frame, and
-the reshoot alone closes the time-of-day and camera differences.
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (photo mode

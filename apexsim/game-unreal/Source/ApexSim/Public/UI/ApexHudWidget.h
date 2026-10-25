@@ -66,6 +66,9 @@ public:
 	/** Read the component folders again and rebuild the tree. */
 	void Reload();
 
+	/** Shown or collapsed from the race state, the editor, the detail setting and `apexsim.hud.Hide`. */
+	void ApplyVisibility();
+
 	/** What the last load said: errors (components left out) and warnings. */
 	const FApexHudLoadReport& GetLoadReport() const { return Report; }
 	/** Every component that loaded, shown or not. */
@@ -190,7 +193,6 @@ private:
 	void SetNodeVisible(FHudNode& Node, bool bVisible);
 	void ApplyFont(FHudNode& Node, bool bBold);
 	void ApplyBrush(FHudNode& Node);
-	void ApplyVisibility();
 	/** Puts on the layout the bindings give for where the player is now. True when it changed the HUD. */
 	bool RefreshContext();
 
