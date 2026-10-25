@@ -954,7 +954,7 @@ FApexHudValue FApexHudExpr::Eval(int32 NodeIndex, const FApexHudScope& Scope) co
 				: FString::Printf(TEXT("%lld:%02lld"), Minutes, Secs));
 		}
 		case EFunction::Upper:
-			return FApexHudValue::Of(Arg(0).AsString().ToUpper());
+			return FApexHudValue::Of(FText::FromString(Arg(0).AsString()).ToUpper().ToString());
 		case EFunction::Lower:
 			return FApexHudValue::Of(Arg(0).AsString().ToLower());
 		case EFunction::Str:

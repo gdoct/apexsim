@@ -119,6 +119,7 @@ bool FApexHudExprBasicsTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("clamp"), HudEval(TEXT("clamp(12, 0, 10)")).AsNumber(), 10.0);
 	TestEqual(TEXT("min of many"), HudEval(TEXT("min(4, 2, 9)")).AsNumber(), 2.0);
 	TestEqual(TEXT("upper"), HudText(TEXT("upper('you')")), FString(TEXT("YOU")));
+	TestEqual(TEXT("upper past ASCII"), HudText(TEXT("upper('Mogyoród')")), FString(TEXT("MOGYORÓD")));
 	TestEqual(TEXT("switch hits"), HudText(TEXT("switch('hot', 'cold', 1, 'hot', 2, 3)")), FString(TEXT("2")));
 	TestEqual(TEXT("switch default"), HudText(TEXT("switch('x', 'cold', 1, 3)")), FString(TEXT("3")));
 	TestTrue(TEXT("switch without default is null"), HudEval(TEXT("switch('x', 'cold', 1)")).IsNone());

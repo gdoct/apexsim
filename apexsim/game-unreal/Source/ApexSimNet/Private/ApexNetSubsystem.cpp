@@ -382,7 +382,11 @@ void UApexNetSubsystem::BeginBackdropFeed(const FApexSessionConditions& Conditio
 	CurrentConditions = Conditions;
 	CachedRoster = FApexSessionRoster();
 	PitServices.Reset();
+	// A hotlap simulated here took its corners as it began, before the feed
+	// that carries it: they stay, or the corner panel never shows.
+	FApexTrackCorners LocalWatchCorners = bHotlapWatchLocal ? CachedCorners : FApexTrackCorners();
 	ClearLapTiming();
+	CachedCorners = MoveTemp(LocalWatchCorners);
 	UE_LOG(LogApexSimNet, Log, TEXT("Backdrop feed begins (%s)"), *Conditions.Describe());
 	OnDemoSessionChanged.Broadcast(true);
 }

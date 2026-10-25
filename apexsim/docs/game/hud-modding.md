@@ -238,7 +238,7 @@ side effects.
 | `fmt_gap(s)`, `fmt_gap(s, false)` | a gap, `+0.412` (unsigned with `false`); `—` for none or over 999 s |
 | `fmt_delta(s)` | a signed delta, `-0.250`; `—` for `null` |
 | `fmt_clock(s)` | a countdown rounded up: `23:45`, `1:23:45` past an hour, `0:00` when out; `--:--` for `null` |
-| `upper(t)`, `lower(t)` | case |
+| `upper(t)`, `lower(t)` | case, accented letters too (`upper` and a text's `upper` capitalise "Mogyoród" whole) |
 | `str(x)`, `num(x)` | as text, as a number |
 | `mix(c1, c2, t)` | colour `c1` blended toward `c2` by `t` (0 to 1) |
 | `ramp(x, x0, c0, x1, c1, ...)` | the colour at `x` along the stops, held past either end: `ramp(damage.front, 0, 'text_disabled', 25, 'accent', 60, 'error')` |

@@ -1060,7 +1060,8 @@ void UApexHudWidget::UpdateNode(int32 NodeIndex, const FApexHudScope& Scope)
 			FString Value = Def.Text.Expr->Evaluate(Scope).AsString();
 			if (Def.bUpper)
 			{
-				Value = Value.ToUpper();
+				// The culture's capitals (ICU), not FString's ASCII-only ones: "Mogyoród".
+				Value = FText::FromString(Value).ToUpper().ToString();
 			}
 			if (!Node.bHasText || !Value.Equals(Node.LastText, ESearchCase::CaseSensitive))
 			{

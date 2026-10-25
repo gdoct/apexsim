@@ -7699,6 +7699,20 @@ runs:
       - {at: 98, label: "cockpit dash, red-green", checks: "N22: the dash's lights blue, yellow, vermilion, white", exec: "apexsim.hud.Palette red_green"}
       - {at: 106, label: "cockpit dash, blue-yellow", checks: "N22: the dash's lights green, amber, red, white", exec: "apexsim.hud.Palette blue_yellow"}
 
+  - id: hotlap-turn-numbers
+    about: "Hotlap watch: the corner panel names the circuit's own turn numbers (Hungaroring, 14 turns)"
+    args:
+      - -ApexWatchHotlap
+      - -ApexTrack=Hungoverring
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+    exec:
+      29: ["apexsim.hud.Data corner."]
+    shots:
+      - {at: 30, label: "a corner on the out lap", checks: "the corner panel: the turn's number and name, N of 14"}
+      - {at: 45, label: "later", checks: "the number rises with the lap, 'of 14'"}
+      - {at: 60, label: "later still", checks: "the number rises with the lap, 'of 14'"}
+
   - id: n20-photo-hotlap
     about: "R21. Photo mode over a watched hotlap (a stream: held while framed)"
     # No race of our own: the server's watched hotlap, then photo mode over
