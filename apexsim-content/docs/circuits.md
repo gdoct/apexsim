@@ -102,9 +102,10 @@ How the fields act:
   buildings out to 260 m from 600 m² (`CITY_STRUCTURE_RANGE_M`,
   `CITY_STRUCTURE_MIN_M2` in `osm_layout.py`).
 - **Pit garages.** With `pit_garages` false the bake stands one
-  `pit_building_roofdeck` (a door per box) where the garages would be, a
-  `pit_wall_gantry_6m` for each pit wall module and a `garage_number_board`
-  over each door; `garage_6m` and `garage_end` are not made.
+  `pit_building_roofdeck` (a door per box) where the garages would be and a
+  `garage_number_board` over each door; `garage_6m` and `garage_end` are not
+  made. Every circuit's pit wall over the box row is `pit_wall_gantry_6m`,
+  the teams' stands with desk and screens, garages or not.
 
 **Run-off paint** is a separate per-circuit table, `dress::RUNOFF_PAINT`:
 Spa `red_yellow`, YasMarina `blue_white`, Sakhir `blue_red` on every corner's

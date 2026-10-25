@@ -617,8 +617,10 @@ fn owned_by_barrier_pass(prop: &Prop) -> bool {
     // `BARRIER_ASSET` is the legacy key the scenes carried before the
     // pass decided anything; it is still recognised so an old scene is
     // adopted rather than doubled.
-    prop.kind == PropKind::Barrier
-        && (prop.asset == BARRIER_ASSET || barriers::is_barrier_asset(&prop.asset))
+    (prop.kind == PropKind::Barrier
+        && (prop.asset == BARRIER_ASSET || barriers::is_barrier_asset(&prop.asset)))
+        // The catch fence behind a concrete wall is laid with the wall.
+        || (prop.kind == PropKind::Fence && prop.asset == barriers::CATCH_FENCE_ASSET)
 }
 
 /// The ground props are seated on: the same field the exporter bakes,
@@ -2555,6 +2557,18 @@ fn lay_all_barriers(
                 let (prop_kind, asset) = kind.asset();
                 if placeable(p.0, p.1, samples[idx].pos.2) {
                     lay(&mut walls, &mut rails, prop_kind, asset, idx, p, yaw);
+                }
+                // The catch fence behind the wall, outward of the line.
+                if let Some((fence_kind, fence_asset, back_m)) = kind.catch_fence() {
+                    let (sin_y, cos_y) = yaw.sin_cos();
+                    let out = match side {
+                        Side::Left => 1.0,
+                        Side::Right => -1.0,
+                    };
+                    let f = (p.0 - out * back_m * sin_y, p.1 + out * back_m * cos_y, p.2);
+                    if placeable(f.0, f.1, samples[idx].pos.2) {
+                        lay(&mut walls, &mut rails, fence_kind, fence_asset, idx, f, yaw);
+                    }
                 }
                 // Two kinds butting together each get the terminal that
                 // belongs to them.

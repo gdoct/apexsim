@@ -545,7 +545,8 @@ fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
         assert_eq!(garage.location, kit.location);
         assert_eq!(garage.yaw_deg, kit.yaw_deg);
     }
-    let walls = props_with(&baked, "pit", "pit_wall_6m");
+    // The teams' stands over the boxes, at every circuit.
+    let walls = props_with(&baked, "pit", "pit_wall_gantry_6m");
     assert_eq!(walls.len(), 10, "a wall module per box");
     let plain = props_with(&baked, "pit", "pit_wall_plain_6m");
     assert!(
@@ -574,7 +575,7 @@ fn the_pit_lane_bakes_a_garage_row_and_pit_walls() {
     for wall in walls.iter().chain(&plain) {
         // The plain walls reach toward the tapers, where the lane already
         // bends away a little.
-        let box_span = wall.asset == "pit_wall_6m";
+        let box_span = wall.asset == "pit_wall_gantry_6m";
         let range = if box_span {
             1399.0..=1501.0
         } else {

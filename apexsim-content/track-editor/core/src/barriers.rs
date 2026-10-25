@@ -45,6 +45,11 @@ pub enum BarrierKind {
     Tyres,
     /// Concrete wall, with a rail on top where there are people behind.
     Concrete,
+    /// Concrete wall with a 6 m catch fence behind it: a straight with
+    /// people beside it (the stands of a start/finish straight) and the
+    /// pit wall, where a car or its debris arrives at speed and a rail
+    /// with a short mesh on top is not what any circuit fits.
+    ConcreteFence,
 }
 
 impl BarrierKind {
@@ -57,7 +62,18 @@ impl BarrierKind {
             BarrierKind::ArmcoFence => (PropKind::Barrier, "armco_4m_fence"),
             BarrierKind::Tecpro => (PropKind::Barrier, "tecpro_2m"),
             BarrierKind::Tyres => (PropKind::TireWall, "tires_4m"),
-            BarrierKind::Concrete => (PropKind::Barrier, "concrete_4m_rail"),
+            BarrierKind::Concrete | BarrierKind::ConcreteFence => {
+                (PropKind::Barrier, "concrete_4m_rail")
+            }
+        }
+    }
+
+    /// The catch fence laid behind each module of this kind, and how far
+    /// outward of the barrier's line it stands, metres.
+    pub fn catch_fence(self) -> Option<(PropKind, &'static str, f32)> {
+        match self {
+            BarrierKind::ConcreteFence => Some((PropKind::Fence, CATCH_FENCE_ASSET, 0.9)),
+            _ => None,
         }
     }
 
@@ -67,7 +83,9 @@ impl BarrierKind {
             BarrierKind::Armco | BarrierKind::ArmcoFence => Some((PropKind::Barrier, "armco_end")),
             BarrierKind::Tecpro => Some((PropKind::Barrier, "tecpro_corner")),
             BarrierKind::Tyres => Some((PropKind::TireWall, "tires_corner")),
-            BarrierKind::Concrete => Some((PropKind::Barrier, "concrete_end")),
+            BarrierKind::Concrete | BarrierKind::ConcreteFence => {
+                Some((PropKind::Barrier, "concrete_end"))
+            }
         }
     }
 
@@ -82,19 +100,24 @@ impl BarrierKind {
 }
 
 /// Every kind the decision can produce.
-pub const ALL: [BarrierKind; 5] = [
+pub const ALL: [BarrierKind; 6] = [
     BarrierKind::Armco,
     BarrierKind::ArmcoFence,
     BarrierKind::Tecpro,
     BarrierKind::Tyres,
     BarrierKind::Concrete,
+    BarrierKind::ConcreteFence,
 ];
+
+/// The catch fence behind [`BarrierKind::ConcreteFence`]'s wall.
+pub const CATCH_FENCE_ASSET: &str = "catch_fence_6m";
 
 /// True for an asset the barrier pass lays, module or end cap. The pass
 /// owns these: it deletes and re-lays them on every run, so the groomer
 /// has to recognise its own output to adopt it back unchanged.
 pub fn is_barrier_asset(asset: &str) -> bool {
     crate::circuit_style::VANGRAIL_ASSETS.contains(&asset)
+        || asset == CATCH_FENCE_ASSET
         || ALL.iter().any(|kind| {
             let (_, module) = kind.asset();
             let cap = kind.end_cap().map(|(_, cap)| cap);
@@ -211,6 +234,7 @@ pub fn decide(cell: &Cell) -> BarrierKind {
     } else {
         BarrierKind::Armco
     };
+    let straight = !cell.outside_of_bend || cell.corner_radius_m >= STRAIGHT_RADIUS_M;
 
     // The map wins where it has something to say: these are the real
     // barriers, surveyed, not a guess from the shape of the road.
@@ -220,7 +244,11 @@ pub fn decide(cell: &Cell) -> BarrierKind {
             MappedKind::Wall
                 if distance <= MAPPED_WALL_MATCH_M && cell.runoff_m <= WALL_AGAINST_ROAD_M =>
             {
-                return BarrierKind::Concrete
+                return if spectators && straight {
+                    BarrierKind::ConcreteFence
+                } else {
+                    BarrierKind::Concrete
+                };
             }
             // A mapped fence is a spectator fence, not a barrier that
             // stops a car; it means people, so the rail gets a fence on
@@ -230,16 +258,23 @@ pub fn decide(cell: &Cell) -> BarrierKind {
         }
     }
 
-    // Concrete separates the two roads down the pit straight.
+    // Concrete separates the two roads down the pit straight, with the
+    // catch fence every pit wall carries.
     if cell.beside_pit_lane {
-        return BarrierKind::Concrete;
+        return BarrierKind::ConcreteFence;
     }
 
     // A car leaves the road on the outside of a bend. Everywhere else —
     // the straights, and the inside of every corner — a rail is both what
-    // is needed and what circuits actually fit.
-    if !cell.outside_of_bend || cell.corner_radius_m >= STRAIGHT_RADIUS_M {
-        return rail;
+    // is needed and what circuits actually fit; but beside a stand on a
+    // straight (the start/finish's grandstands) a circuit fits a concrete
+    // wall and a tall catch fence, not a rail with a short mesh on it.
+    if straight {
+        return if spectators {
+            BarrierKind::ConcreteFence
+        } else {
+            rail
+        };
     }
 
     // The outside of a real corner. What matters now is whether there is
@@ -275,9 +310,25 @@ mod tests {
     }
 
     #[test]
-    fn people_behind_it_put_a_fence_on_the_rail() {
+    fn people_beside_a_straight_get_concrete_and_a_catch_fence() {
         let c = Cell {
             spectators_m: 8.0,
+            ..cell()
+        };
+        assert_eq!(decide(&c), BarrierKind::ConcreteFence);
+        assert_eq!(
+            BarrierKind::ConcreteFence.catch_fence().map(|f| f.1),
+            Some("catch_fence_6m")
+        );
+        assert!(is_barrier_asset("catch_fence_6m"));
+    }
+
+    #[test]
+    fn people_behind_a_corner_put_a_fence_on_the_rail() {
+        let c = Cell {
+            spectators_m: 8.0,
+            corner_radius_m: 120.0,
+            runoff_m: 40.0,
             ..cell()
         };
         assert_eq!(decide(&c), BarrierKind::ArmcoFence);
@@ -383,12 +434,12 @@ mod tests {
     }
 
     #[test]
-    fn the_pit_straight_is_separated_by_concrete() {
+    fn the_pit_straight_is_separated_by_concrete_and_a_catch_fence() {
         let c = Cell {
             beside_pit_lane: true,
             ..cell()
         };
-        assert_eq!(decide(&c), BarrierKind::Concrete);
+        assert_eq!(decide(&c), BarrierKind::ConcreteFence);
     }
 
     #[test]

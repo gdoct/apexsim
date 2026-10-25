@@ -317,10 +317,16 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-groom -- --all [--dr
 **Barrier kind** is decided per 4 m cell (`barriers::decide`): mapped dossier
 barriers first, then geometry (outside of the bend, how tight, how much
 run-off). Mostly armco; Tecpro on the outside of fast bends; tyres;
-`armco_4m_fence` where people stand behind; `concrete_4m_rail` where a mapped
-wall stands within 5 m of the line with up to 8 m of run-off, and wherever
-the barrier is within 12 m of the pit lane's edge (the wall between the two
-roads); `armco_end` / `tecpro_corner` /
+`armco_4m_fence` where people stand behind a corner; `concrete_4m_rail` where
+a mapped wall stands within 5 m of the line with up to 8 m of run-off;
+`concrete_4m_rail` with a `catch_fence_6m` 0.9 m behind it
+(`BarrierKind::ConcreteFence`) wherever the barrier is within 12 m of the
+pit lane's edge (the pit wall between the two roads) and beside a straight
+or the inside of a bend with people within 14 m (a start/finish's
+grandstands), where a rail with a short mesh is not what any circuit fits
+(the Nordschleife's guard rail keeps its fence instead); the catch fence
+belongs to the barrier pass and is re-laid with its wall;
+`armco_end` / `tecpro_corner` /
 `tires_corner` / `concrete_end` closing each run. A corner's barrier stands at
 least 14 m past the road edge, a straight's 7 m
 (`CircuitStyle::corner_barrier_min_m` / `straight_barrier_min_m`), further

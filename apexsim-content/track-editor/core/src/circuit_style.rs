@@ -60,6 +60,8 @@ impl Rail {
             // OSM maps no tyre walls on the Nordschleife, and its corners
             // are guard rail: the geometry rule's tyres were 4.3 km (R7).
             (Rail::Vangrail, BarrierKind::Tecpro | BarrierKind::Tyres) => BarrierKind::Armco,
+            // The Nordschleife's stands look over guard rail and its fence.
+            (Rail::Vangrail, BarrierKind::ConcreteFence) => BarrierKind::ArmcoFence,
             // Concrete walls, Tecpro at the corners, as on the real
             // circuits (R7: the street style was Tecpro the whole way).
             (Rail::Street, BarrierKind::Armco | BarrierKind::ArmcoFence) => BarrierKind::Concrete,

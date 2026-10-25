@@ -191,24 +191,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 41. The main straight's walls: catch fences, pit wall, screens
-
-- `barriers::decide`: concrete with `catch_fence_6m` on both sides of the
-  main straight at a permanent circuit (the audit's open "confirm" cell for
-  Armadillos' barriers), in place of armco with the short mesh.
-- The pit wall over the box span: `pit_wall_gantry_6m` (team stands) at
-  permanent circuits as on street ones (`ue_export.rs` pit complex), and
-  the wall's start checked against the S/F line: the frame shows the plain
-  edge treatment where the lane (950 m, from inside T20 to near T1) should
-  already run.
-- The pit building's four screens (`MANUAL_LANDMARKS` at 20, 105, 190 and
-  275 m left) laid, facing the stand, readable from the line.
-
-**Check:** the `sf-ref-*` shots and `c5-sf-armadillos`; the barrier change
-moves `walls.msgpack`, so the AI survey against the commit before; the
-dossier tool's `--all --manual-only --dry-run` reports every other dossier
-unchanged.
-
 ### 42. No track lighting at a day venue
 
 `CircuitStyle::floodlights` is true for the default and prairie styles, so

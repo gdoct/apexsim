@@ -4829,14 +4829,16 @@ fn bake_pit_complex(
     };
     let mut s = row_start + PIT_MODULE_M / 2.0;
     while s < row_start + row {
-        // A circuit without the generated garages has the wall with the
-        // team's desk and timing screen on it.
-        let wall = if garages {
-            "pit_wall_6m"
-        } else {
-            "pit_wall_gantry_6m"
-        };
-        out.push(pit_module(lane, ("pit", wall), s, wall_lat(s), face_left));
+        // Over the boxes the wall carries the teams' stands, desks and
+        // timing screens, at every circuit as on a street one (`garages`
+        // or not).
+        out.push(pit_module(
+            lane,
+            ("pit", "pit_wall_gantry_6m"),
+            s,
+            wall_lat(s),
+            face_left,
+        ));
         s += PIT_MODULE_M;
     }
     // Plain walls over the rest of the pit road, whole modules only.

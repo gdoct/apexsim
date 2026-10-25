@@ -44,7 +44,6 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| C7 | Main straight walls: catch fences, pit wall, screens (roadmap 41) | Content | P2 | 🟡 | M | 2 |
 | C8 | No track lighting at a day venue (roadmap 42) | Content | P2 | 🟢 | S | 2 |
 | C9 | The Main Grandstand: crowd twin, canopy, setback (roadmap 43) | Content | P2 | 🟡 | M | 2 |
 | C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
@@ -76,7 +75,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built. The start/finish packages from the COTA comparison
-   (C7 to C12, in any order, each judged on the `sf-ref-*`
+   (C8 to C12, in any order, each judged on the `sf-ref-*`
    frames of several circuits)
    belong to this pass: they are independent of each other, and one or
    two at a time is the right pace, since the content ones re-dress
@@ -218,16 +217,12 @@ barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
 
-#### C7 to C12. COTA start/finish, the content packages — P2 · 🟡 · S–M each
-*Source: roadmap 41 to 47, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
+#### C8 to C12. COTA start/finish, the content packages — P2 · 🟡 · S–M each
+*Source: roadmap 42 to 47, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
 Each stands alone and is judged on the `sf-ref-*` frames; none needs another first.
 The track's audit page is
 [Armadillos.md](../../apexsim-content/docs/circuit-references/audit/Armadillos.md).
 
-- **C7. Main straight walls** (roadmap 41): concrete + `catch_fence_6m`
-  both sides in `barriers::decide`, `pit_wall_gantry_6m` over the box span
-  at permanent circuits, the four pit-building screens laid and facing the
-  stand. Moves `walls.msgpack`: AI survey against the commit before. M.
 - **C8. No track lighting at a day venue** (roadmap 42): a day-venue
   flag that lays no `floodlight_tower` ring and keeps car-park lamps off
   the fence; 🟢, judged by re-dress counts and one night run. S.
@@ -244,9 +239,8 @@ The track's audit page is
   the sponsor atlas still reads as absent at T-cam distance, larger
   wordmarks, wing carbon, rim and sidewall at close range. S–M.
 
-**Watch out:** C7, C8, C9 and C10 re-dress `--all` and touch every
-track's `.ats` and export; run them one at a time, and C7's barrier
-change needs the survey.
+**Watch out:** C8, C9 and C10 re-dress `--all` and touch every
+track's `.ats` and export; run them one at a time.
 
 ### Audio and features
 
