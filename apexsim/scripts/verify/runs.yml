@@ -409,6 +409,40 @@ runs:
         checks: "The letters on the hillside"
         exec: "apexsim.cam.LookAt -567.0 -2637.3 -69.1 -339.4 -2679.0 -57.7"
 
+  - id: r6-nordschleife-rest
+    about: "R6. What r6-nordschleife-close left: the grade plates, the Hohe Acht tower off the road, Bruennchen"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=11:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "a descent plate at 190 m"
+        checks: "The grade plate reads from road height"
+        exec: "apexsim.cam.LookAt 165.2 -3.3 3.2 178.7 14.0 1.0"
+      - at: 15
+        label: "a climb plate at 1939 m"
+        checks: "The grade plate reads from road height"
+        exec: "apexsim.cam.LookAt 1444.9 625.9 -65.5 1463.1 617.3 -66.2"
+      - at: 20
+        label: "the Hohe Acht tower from 140 m off"
+        checks: "The stone tower on its hill"
+        exec: "apexsim.cam.LookAt 420.0 -6760.0 150.0 511.3 -6861.5 110.0"
+      - at: 25
+        label: "Bruennchen, the left verge"
+        checks: "The bank and its hedge, the green against the grass"
+        exec: "apexsim.cam.LookAt -480.1 -5248.9 -78.9 -492.6 -5220.3 -82.9"
+      - at: 30
+        label: "Bruennchen, the right verge"
+        checks: "The bank and its hedge, the green against the grass"
+        exec: "apexsim.cam.LookAt -467.0 -5238.1 -78.9 -492.6 -5220.3 -82.9"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

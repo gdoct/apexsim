@@ -180,45 +180,24 @@ plus `LookAt` stops ([apexsim-content/docs/props.md](../../apexsim-content/docs/
 ### R6. Nordschleife, sunny, TV lap and dressing stops
 
 The TV camera follows a lap; `LookAt` stops come from the layout dossier
-([apexsim-content/docs/circuits.md](../../apexsim-content/docs/circuits.md)). The dressing was imported and
-baked on 2026-10-14 and seen only in four unattended shots (Brünnchen's bank
-and hedge, which still read a lighter green than the grass beside them; road
-graffiti; a marshal post).
+([apexsim-content/docs/circuits.md](../../apexsim-content/docs/circuits.md))
+and `spots.py --prop`. Seen (`r6-nordschleife` 2026-10-24,
+`r6-nordschleife-close` and `r6-nordschleife-rest` 2026-10-25): the
+Karussell, skid marks, the overpass, the gantry, the camp villages, the
+K 73 bridge, the road graffiti, marshal post 1's number from 18 m, a rail
+tag on its rail the right way round, the toll booths, a spectator bank on
+its verge, the hillside letters through the Döttinger Höhe's trees, the
+grade plates (12 % at 1939 m, 10 % at 190 m half behind a fence post),
+the Hohe Acht tower on its hill from 140 m off the road (behind a hill
+from the road itself), and Brünnchen from both verges with no lighter
+strip of green against the grass. Left:
 
-Seen on 2026-10-15: the Karussell, skid marks, a track bridge's parapet,
-an overpass, the gantry, the camp villages, a rail tag on its beam. From
-30 m at 1080p the rest was too small or out of frame: closer cameras.
-
-- The numbered posts and the grade plates read from road height.
-- The rail tags on the other side of the road (not flipped, not floating).
-- The toll lanes; the spectator banks on a sloping verge.
-- The lookout tower on the Hohe Acht seen from the Hohe Acht section; the
-  hillside letters seen from the Döttinger Höhe (or hidden by the trees
-  between); Brünnchen's hedge colour.
-- The roads under the lap's bridges (K 73, B 257 at Quiddelbach and
-  Breidscheid, L 92, L 93; the GP circuit's and the 24h layout's Müllenbach
-  link too): the slot, its walls and the deck's underside under the
-  `track_bridge_10m` tiles, the asphalt down there, from the lap and from
-  beside the bridge; the rails crossing the bridge on the deck, not in the
-  slot.
-
-Run 2026-10-24 (`r6-nordschleife`): the overpass at 3964 m, the timing
-gantry, the camp villages (tents, caravans, flags), the K 73 bridge, the
-skid marks and the road graffiti read well. Still not judged from these
-shots: the marshal post's number and the grade plates are a few pixels at
-the poses' distance, no rail tag is in frame, the toll booths and the
-spectator banks sit far behind the catch fence, the Hohe Acht tower and
-the Döttinger Höhe letters are hidden by the fence and trees from the
-road, and Brünnchen's hedge is not in shot. The poses need moving closer
-(`spots.py --prop`) before these close.
-
-Run 2026-10-25 (`r6-nordschleife-close`, the poses from `spots.py --prop`):
-marshal post 1 reads its number from 18 m; a rail tag at 610 m sits on
-its rail beside the kerb, the right way round; the toll lanes' booths and
-the spectator bank (on its verge, the camp's tents behind) read well; the
-hillside letters show through the Döttinger Höhe's trees. The Hohe Acht
-tower is behind a hill from the road at 13535 m: it needs a pose off the
-road. Still not in shot: the grade plates and Brünnchen's hedge.
+- The roads under the lap's other bridges (B 257 at Quiddelbach and
+  Breidscheid, L 92, L 93; the GP circuit's and the 24h layout's
+  Müllenbach link too): the slot, its walls and the deck's underside
+  under the `track_bridge_10m` tiles, the asphalt down there, from the lap
+  and from beside the bridge; the rails crossing the bridge on the deck,
+  not in the slot.
 
 ### R7. A seeded pile-up replay, before and after
 
