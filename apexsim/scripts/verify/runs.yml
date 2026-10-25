@@ -525,6 +525,61 @@ runs:
         checks: "R10: the shadows fall to the north (the sun a little east of due south)"
         exec: "apexsim.cam.LookAt 305.1 -47.1 40.0 303.6 -37.3 -25.4"
 
+  - id: r10-spa-changeable
+    about: "R10. Spa under a written forecast (heavy rain at 4 session minutes, sun at 8; 4 min is the least step): rain arriving and the road drying"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexLaps=8
+      - -ApexCountdown=5
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=12:00
+      - -ApexForecast=4:heavyrain,8:sunny
+      - -ApexView=chase
+      - -ApexRacingLine=off
+      - -LogCmds=LogApexSim Verbose
+    shots:
+      - at: 60
+        label: "60 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 120
+        label: "120 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 180
+        label: "180 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 240
+        label: "240 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 300
+        label: "300 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 360
+        label: "360 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 420
+        label: "420 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 480
+        label: "480 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 540
+        label: "540 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 600
+        label: "600 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 660
+        label: "660 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+      - at: 720
+        label: "720 s"
+        checks: "R10 changeable: the cloud and rain as the conditions panel says, the road wetting then drying"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

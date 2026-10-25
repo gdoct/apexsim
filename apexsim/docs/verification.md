@@ -257,8 +257,14 @@ session while driving (notice, then the menu).
   December 16:30 at Silverstone previewed as dusk and raced as one. Seen
   only without a server (13:00, the row stepping to 15 Dec and the
   preview's sun dropping).
-- The sun at a circuit's real north, and rain arriving and the road drying
-  under a changeable sky (`-ApexChangeable=1`).
+- Rain arriving and the road drying: `r10-spa-changeable` (2026-10-25, a
+  written forecast, heavy rain at 4 session minutes and sun at 8, the
+  least step a host's forecast keeps; a seeded stormy sky stayed cloudy
+  for 3 minutes at 30x) shows the rain building to 74%, the spray, the
+  road glazing, the minimap's rain radar and "Sunny in 0:59", then the
+  rain easing with the road still wet at 59%. Left: whether a road at 25%
+  wet should already read as the near-mirror it does at 360 s, and the
+  drying past the run's 12 minutes.
 - The far haze since the fog's light follows the sky (`ApexSky::FogLuminance`,
   2026-10-17): seen at the Nordschleife in sun (`g3-horizon`: hills
   fading into pale haze past the 30 km skirt). Left: other circuits,
