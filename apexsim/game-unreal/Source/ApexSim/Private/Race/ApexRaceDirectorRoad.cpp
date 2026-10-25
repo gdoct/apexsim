@@ -144,6 +144,7 @@ void AApexRaceDirector::PushRoadStateParameters()
 	static const FName SnowParam(TEXT("RoadSnow"));
 	static const FName SnowAmountParam(TEXT("RoadSnowAmount"));
 	static const FName UParam(TEXT("RoadStateU"));
+	static const FName CellsParam(TEXT("RoadStateCells"));
 	static const FName HalfSpanParam(TEXT("RoadStateHalfSpanM"));
 
 	const bool bLive = IsRoadStateLive() && RoadStateTexture && RoadGeometryTexture
@@ -168,6 +169,7 @@ void AApexRaceDirector::PushRoadStateParameters()
 			Mid->SetTextureParameterValue(StateParam, RoadStateTexture);
 			Mid->SetTextureParameterValue(GeometryParam, RoadGeometryTexture);
 			Mid->SetScalarParameterValue(UParam, RoadMap.UPerMetre());
+			Mid->SetScalarParameterValue(CellsParam, static_cast<float>(RoadMap.NumCells()));
 			Mid->SetScalarParameterValue(HalfSpanParam, RoadMap.GetHalfSpanM());
 		}
 		Mid->SetScalarParameterValue(AmountParam, bLive ? 1.0f : 0.0f);

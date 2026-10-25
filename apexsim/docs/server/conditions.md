@@ -549,8 +549,13 @@ uploads the map into two transient textures:
   (`WaterRows`; 0 where none stands). Bound whenever the road state is
   drawn, snow or not.
 - `RoadGeometry`: a texel a cell, the cell's point in world cm and its left
-  vector in Unreal axes (the server's Y flipped). Nearest, so a pixel uses
-  its own cell's point, as the server does.
+  vector in Unreal axes (the server's Y flipped). Nearest: the material
+  reads the two cells whose centres a pixel lies between (`RoadStateCells`,
+  the cell count) and blends the lateral each measures by how far along it
+  is, a cell not yet known giving way to the other
+  (`FApexRoadStateMap::TexV` the same on the CPU). One cell's measure alone
+  jumps at its edge wherever the road turns, and at a hairpin (30 degrees a
+  cell) drew wedges and arcs in the snow.
 
 The road itself (`family` `road`) is made from `M_ApexTrackRoad`, the base
 graph plus `ApplyRoadStateGraph`, and so are the curbs and the paved run-off
@@ -563,7 +568,8 @@ its own station, and the server keeps no state on it), the grass and the
 other bands stay on `M_ApexTrackBase` and pay nothing. Every mesh swept
 along the centerline has UV0 `u` in metres of lap station, which picks the
 cell (`RoadStateU` = 1 / (cell length x cells));
-`-dot(world - point, left)` is the lateral, which picks the bin. Its `v` is
+`-dot(world - point, left)`, blended between two cells, is the lateral,
+which picks the bin. Its `v` is
 arc length across the strip from its first edge, not a lateral, so it is not
 used. `RoadStateAmount` is 0 until the first slice arrives, which leaves the
 road as built. While the road state is drawn, `ApplyRoadWetness` leaves the

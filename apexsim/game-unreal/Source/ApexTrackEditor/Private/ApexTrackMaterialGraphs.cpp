@@ -893,6 +893,12 @@ namespace
 			E->Input.Expression = Input;
 			return E;
 		}
+		UMaterialExpression* Floor(UMaterialExpression* Input) const
+		{
+			UMaterialExpressionFloor* E = AddExpr<UMaterialExpressionFloor>(M);
+			E->Input.Expression = Input;
+			return E;
+		}
 		UMaterialExpression* Normalize(UMaterialExpression* Input) const
 		{
 			UMaterialExpressionNormalize* E = AddExpr<UMaterialExpressionNormalize>(M);
@@ -1761,13 +1767,31 @@ return o;
 		// The cell: `u` from the station.
 		UMaterialExpression* Station = G.Mask(TexCoord, true, false, false);
 		UMaterialExpression* U = G.Mul(Station, PerMetre);
-		UMaterialExpression* Geo = Sample(TEXT("RoadGeometry"), G.Append(U, G.C(0.5f)));
-		UMaterialExpression* CentreCm = G.Append(Channel(Geo, 1), Channel(Geo, 2));
-		UMaterialExpression* LeftDir = G.Append(Channel(Geo, 3), Channel(Geo, 4));
 
-		// The bin: the lateral, positive right, as the server measures it.
+		// The bin: the lateral, positive right, as the server measures it from
+		// a cell's point and left vector. Measured from the two cells whose
+		// centres the pixel lies between and blended by how far along it is:
+		// one cell's measure jumps at its edge wherever the road turns (a
+		// hairpin's 30 degrees a cell), and the jump drew wedges and steps
+		// in the snow and the rubber. The textures wrap, so the lap's seam
+		// blends too; a cell not yet known (its left vector zero) gives way
+		// to the other (`FApexRoadStateMap::TexV`, the same on the CPU).
+		UMaterialExpression* Cells = Param(TEXT("RoadStateCells"), 1.0f);
+		UMaterialExpression* CellF = G.Sub(G.Mul(U, Cells), G.C(0.5f));
+		UMaterialExpression* Cell0 = G.Floor(CellF);
+		UMaterialExpression* Along = G.Sub(CellF, Cell0);
 		UMaterialExpression* Here = G.Mask(WorldPos, true, true, false);
-		UMaterialExpression* LeftCm = G.Dot(G.Sub(Here, CentreCm), LeftDir);
+		// One cell's weighted lateral (x) and weight (y).
+		auto LeftOf = [&](UMaterialExpression* Cell, UMaterialExpression* Share) {
+			UMaterialExpression* CellU = G.Div(G.Add(Cell, G.C(0.5f)), Cells);
+			UMaterialExpression* Geo = Sample(TEXT("RoadGeometry"), G.Append(CellU, G.C(0.5f)));
+			UMaterialExpression* CentreCm = G.Append(Channel(Geo, 1), Channel(Geo, 2));
+			UMaterialExpression* LeftDir = G.Append(Channel(Geo, 3), Channel(Geo, 4));
+			UMaterialExpression* W = G.Mul(Share, G.Sat(G.Dot(LeftDir, LeftDir)));
+			return G.Append(G.Mul(W, G.Dot(G.Sub(Here, CentreCm), LeftDir)), W);
+		};
+		UMaterialExpression* Sum = G.Add(LeftOf(Cell0, G.Sub(G.C(1.0f), Along)), LeftOf(G.Add(Cell0, G.C(1.0f)), Along));
+		UMaterialExpression* LeftCm = G.Div(G.Mask(Sum, true, false, false), G.Max(G.Mask(Sum, false, true, false), G.C(1e-4f)));
 		UMaterialExpression* RightM = G.Mul(LeftCm, G.C(-0.01f));
 		UMaterialExpression* V = G.Div(G.Add(RightM, HalfSpan), G.Mul(HalfSpan, G.C(2.0f)));
 		UMaterialExpression* State = Sample(TEXT("RoadState"), G.Append(U, V));

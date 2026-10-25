@@ -39,6 +39,37 @@ namespace ApexRoadStateMapTest
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapTest, "ApexSim.Race.RoadStateMap", ApexTestFlags)
 
+// Where the road turns, a pixel's bin does not jump at a cell's edge: the
+// lateral is blended from the two cells either side (a hairpin turns 30
+// degrees a cell, and one cell's measure drew wedges in the snow).
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapBendTest, "ApexSim.Race.RoadStateMap.Bend", ApexTestFlags)
+
+bool FApexRoadStateMapBendTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexRoadStateMapTest;
+	FApexRoadState Bend = Slice(4, 2);
+	// Cell 5's left vector turned 30 degrees from cell 4's.
+	Bend.Geometry[1] = FVector4f(55.0f, 0.0f, -0.5f, 0.8660254f);
+	FApexRoadStateMap Map;
+	TestTrue(TEXT("the bend applies"), Map.Apply(Bend));
+
+	const FVector Out = ApexRace::ServerToUnrealPosition(FVector(50.0, -8.0, 0.0));
+	const FVector2D At(Out.X, Out.Y);
+	const float Before = Map.TexV(49.99f, At);
+	const float After = Map.TexV(50.01f, At);
+	TestTrue(FString::Printf(TEXT("no step at the cell edge (%.4f, %.4f)"), Before, After), FMath::Abs(Before - After) < 1e-3f);
+	TestTrue(TEXT("at cell 4's centre, cell 4's own measure"),
+		FMath::IsNearlyEqual(Map.TexV(45.0f, At), 24.0f / 32.0f, 1e-4f));
+
+	// A cell not yet known gives way: cell 6 was never sent, so between
+	// cell 5's centre and its the measure is cell 5's alone.
+	const FVector Beyond = ApexRace::ServerToUnrealPosition(FVector(58.0, -8.0, 0.0));
+	const double RightM = -((58.0 - 55.0) * -0.5 + (-8.0) * 0.8660254);
+	TestTrue(TEXT("beside an unknown cell, the known one's measure"),
+		FMath::IsNearlyEqual(Map.TexV(58.0f, FVector2D(Beyond.X, Beyond.Y)), static_cast<float>((RightM + 16.0) / 32.0), 1e-4f));
+	return true;
+}
+
 // A puddle lies where the slice says across the road: per-bin water fills
 // each bin's A; a slice without spreads the cell's depth across.
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexRoadStateMapPuddleTest, "ApexSim.Race.RoadStateMap.Puddle", ApexTestFlags)

@@ -426,6 +426,28 @@ runs:
         checks: "The cloud dome at night"
         exec: "apexsim.cam.LookAt 289.0 -9.7 -20.4 600 200 300"
 
+  - id: c-spa-lasource-dry
+    about: "La Source from r4-spa-snow's camera, dry: what lies on the road at the hairpin"
+    # Under snow, dark spikes stood out from the inside kerb and thin dark
+    # arcs crossed the road (r4-spa-snow shots 10, 12; follow-ups 40). The
+    # same camera on a dry afternoon, with the field through it.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=Chiffon
+      - -ApexAiCount=7
+      - -ApexLaps=12
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=15:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    server:
+      stand_in: true
+    shots:
+      - {at: 8, label: "La Source, dry", checks: "spikes at the inside kerb, arcs on the road", lead: 2, exec: "apexsim.cam.LookAt 84.4 -176.2 -2.2 87.3 -162.3 -6.2"}
+      - {at: 11, label: "La Source from above", checks: "the kerb's outline at the apex", lead: 2, exec: "apexsim.cam.LookAt 84.4 -165.0 25.0 86.0 -160.0 -6.0"}
+
   - id: r4-spa-ice
     about: "R4. Spa on a January night: snow until 4 session minutes, then a clear night freezes the driven line"
     # A written forecast, so the snow stops for certain (a step needs 4 session

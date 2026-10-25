@@ -200,9 +200,22 @@ float FApexRoadStateMap::TexV(float StationM, const FVector2D& WorldCm) const
 	{
 		return 0.5f;
 	}
-	const int32 Cell = FMath::Clamp(FMath::FloorToInt(TexU(StationM) * Cells), 0, Cells - 1);
-	const FLinearColor& G = Geometry[Cell];
-	const double LeftCm = (WorldCm.X - G.R) * G.B + (WorldCm.Y - G.G) * G.A;
+	// Measured from the two cells whose centres the station lies between,
+	// blended by how far along it is (a cell not yet known, its left vector
+	// zero, gives way to the other); the lap wraps.
+	const double CellF = static_cast<double>(TexU(StationM)) * Cells - 0.5;
+	const int32 First = FMath::FloorToInt(CellF);
+	const double Along = CellF - First;
+	double LeftCm = 0.0;
+	double Weight = 0.0;
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		const FLinearColor& G = Geometry[((First + Side) % Cells + Cells) % Cells];
+		const double Share = (Side == 0 ? 1.0 - Along : Along) * FMath::Sqrt(G.B * G.B + G.A * G.A);
+		LeftCm += Share * ((WorldCm.X - G.R) * G.B + (WorldCm.Y - G.G) * G.A);
+		Weight += Share;
+	}
+	LeftCm = Weight > 1e-6 ? LeftCm / Weight : 0.0;
 	const double RightM = -LeftCm / ApexRace::MetresToCentimetres;
 	return static_cast<float>((RightM + HalfSpanM) / (2.0 * HalfSpanM));
 }
