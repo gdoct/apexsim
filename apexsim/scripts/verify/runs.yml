@@ -9342,6 +9342,27 @@ runs:
       1: "apexsim.hud.Hide 1"
     shots:
       - {at: 10, lead: 1, label: "over the grid", checks: "C6: every box numbered beside it, its floor rubbered", exec: "apexsim.cam.LookAt -3.6 -10.2 14.0 -11.8 -21.6 -0.0"}
+
+  # The stadium stand's crowd (roadmap 43): the fitted `_crowd` twin of
+  # the stadium family, seen head-on from the track.
+  - id: c9-stadium-armadillos
+    about: "C9. The Main Grandstand's crowd at Armadillos"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "the stand head-on", checks: "C9: people on every tier", exec: "apexsim.cam.LookAt 98.8 -65.6 3.6 72.1 -100.6 8.6"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

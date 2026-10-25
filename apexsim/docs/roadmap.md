@@ -207,22 +207,15 @@ the car parks' `lamp_post`s run along the trackside fence.
 before; the `sf-ref-*` left side; one night run at Armadillos to see the
 headlights carry it.
 
-### 43. The Main Grandstand
+### 43. The stadium stand's canopy and rail
 
-The stand is the stadium family (`bay_10m_stadium_roof`, roofed by station
-`STAND_COVER "@102.8"`). It has no crowd twin, its canopy is a slab, it
-starts nearly at the wall and its front edge stands too high.
+The stadium family (`bay_10m_stadium_roof`) has its crowd twin and stands
+where its dossier outline does. Left: its canopy is a slab on trusses where
+a modern main grandstand has a light tensile roof on masts, and its front
+rail carries no flags or dressing (`build_kit_gaps_stands.py`).
 
-- A `_crowd` twin for the stadium family (`build_stand_crowds.py`,
-  `retexture_crowd.py`; `CrowdVariant` picks it with spectators on).
-- The canopy as a light tensile roof on masts, and flags and rail dressing
-  along the front, in the family's GLBs (`build_kit_gaps_stands.py`).
-- The setback: the OSM outline is 19 m off the road; check where
-  `LayoutGrandstand` puts the stadium family's road-facing edge (deep kinds
-  pivot on it) and the front tier's height.
-
-**Check:** `c5-stands-armadillos` and the `sf-ref-*` right side; the same
-family on a bend (props.md's own caveat) before relying on the wedge.
+**Check:** `c9-stadium-armadillos` and the `sf-ref-*` frames of a circuit
+using the family.
 
 ### 44. A horizon for the open-country circuits
 

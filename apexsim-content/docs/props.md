@@ -30,7 +30,12 @@ buildings the bake turns into `walls.msgpack` (see
   buildings),
   `build_kit_gaps_landmarks.py` (the venue landmarks below),
   `build_kit_gaps_stands.py` (venue stands, sky bridges, pit storeys) and
-  `build_stand_crowds.py` (their `_crowd` twins from `bay_10m_crowd`),
+  `build_stand_crowds.py` (their `_crowd` twins from `bay_10m_crowd`: its
+  section joined on for the modules with bay_10m's seating, or, for a
+  module with rows of its own (`FITTED`: the stadium family), its card rows
+  laid in turn on the module's own bench tops, found in the mesh, each
+  card's foot just in front of its bench so the next row's riser does not
+  hide it; any seated module can be added to `FITTED`),
   `build_trees_med.py` (eucalypt, stone pine, date palm on `card_trees.py`)),
   `gen_crowd.py` (the crowd card textures, plain Python with PIL),
   `retexture_crowd.py` (puts the seated strip into every `_crowd` GLB),
@@ -440,8 +445,10 @@ are `circuit_style.rs` ([circuits.md](circuits.md)).
 - The stadium family (`bay_10m_stadium_roof`, `bay_10m_stadium_curve6_roof`,
   `end_cap_stadium`) is laid by `LayoutGrandstand`: 10 m pitch like the rest,
   the 6 degree wedge outside a bend, straight bays inside one, its own cap.
-  It has no crowd twin (the plain bay is used with spectators on). No
-  shipped scene uses it, and the wedge's shared edges are assumed to be the
+  Both bays have a fitted crowd twin (`build_stand_crowds.py`, 35 rows,
+  140 cards). Armadillos' Main Grandstand uses the straight bay, its front
+  19.2 m off the centreline as the dossier's outline has it (verify run
+  `c9-stadium-armadillos`); the wedge's shared edges are assumed to be the
   other families' (the bay is 10.6 m long in the kit table): look at one on
   a corner before relying on it.
 - `sign/hillside_letters` is geometry: the letters are modelled, not a

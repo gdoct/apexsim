@@ -45,7 +45,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | C8 | No track lighting at a day venue (roadmap 42) | Content | P2 | 🟢 | S | 2 |
-| C9 | The Main Grandstand: crowd twin, canopy, setback (roadmap 43) | Content | P2 | 🟡 | M | 2 |
+| C9 | The stadium stand's canopy and rail (roadmap 43) | Content | P2 | 🟡 | M | 2 |
 | C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
 | C11 | Start gantry mesh (roadmap 46) | Content | P2 | 🟡 | S | 2 |
 | C12 | Formula car up close (roadmap 47) | Content | P2 | 🟡 | S–M | 2 |
@@ -226,9 +226,8 @@ The track's audit page is
 - **C8. No track lighting at a day venue** (roadmap 42): a day-venue
   flag that lays no `floodlight_tower` ring and keeps car-park lamps off
   the fence; 🟢, judged by re-dress counts and one night run. S.
-- **C9. The Main Grandstand** (roadmap 43): a `_crowd` twin for the
-  stadium family, a tensile canopy, flags on the rail, the setback to the
-  OSM outline. M.
+- **C9. The stadium stand's canopy and rail** (roadmap 43): the crowd
+  twin and setback are done; a tensile canopy and flags on the rail. S.
 - **C10. Horizon for open-country circuits** (roadmap 44): a
   `forest_impostor` belt at the property edge for the prairie style, the
   DEM horizon mesh checked for the hills north of COTA. M.
