@@ -212,15 +212,6 @@ MoscowMule), which get no far trees at all.
 
 **Check:** a `g3-horizon`-style shot at Armadillos.
 
-### 50. A broadcast HUD layout
-
-- A shipped layout with a timing tower, a lower third (position, driver,
-  gap) and a sector bar built from HUD components (`content/hud`),
-  selectable under Settings > Gameplay > Layout and bindable to watching.
-
-**Check:** `ApexSim.Hud.Data.Stable` and `.Documented` pass (no new data
-points, or they are listed); the layout in a watch-session shot.
-
 ### 51. The verifier: shot ids, sitting mode, stale evidence
 
 The rest of the review page and its feed ([verifier.md](verifier.md)).

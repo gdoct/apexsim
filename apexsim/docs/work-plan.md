@@ -50,7 +50,6 @@ takes it up (— : no step, taken opportunistically).
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
-| N29 | Broadcast HUD layout (roadmap 50) | Feature | P3 | 🟡 | S | — |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
 | A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
@@ -297,11 +296,6 @@ filter pills already exist.
 Render scale (TSR) and HDR are built. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
 the default; you accept NVIDIA's DLSS SDK terms when the plugin is
 downloaded, so the download is yours), and the checks in verification.md.
-
-#### N29. Broadcast HUD layout — P3 · 🟡 · S
-*Source: roadmap 50.* A shipped layout of timing tower, lower third and
-sector bar from HUD components, bindable to watching. Optional; last of
-the COTA set.
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).

@@ -1993,4 +1993,36 @@ bool FApexHudTrailGapTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudLayoutShippedTest, "ApexSim.Hud.Layout.Shipped", ApexTestFlags)
+
+bool FApexHudLayoutShippedTest::RunTest(const FString& Parameters)
+{
+	// The shipped Broadcast layout (hud/default/layouts) is listed beside
+	// the player's own, reads through the custom path it would be saved
+	// to, and names only components that ship.
+	TestTrue(TEXT("Broadcast is offered"), ApexHudLayouts::List().Contains(TEXT("Broadcast")));
+	TestTrue(TEXT("Broadcast exists"), ApexHudLayouts::Exists(TEXT("Broadcast")));
+	const FString File = ApexHudLayouts::FileFor(TEXT("Broadcast"));
+	TestTrue(TEXT("saved under custom/layouts"), FPaths::IsSamePath(FPaths::GetPath(File), ApexHudLayouts::Directory()));
+	TestTrue(TEXT("falls back to the shipped file"), FPaths::FileExists(ApexHudLayouts::ShippedFileFor(File)));
+
+	FApexHudLayout Layout;
+	FString Error;
+	TestTrue(TEXT("loads"), Layout.Load(File, Error));
+	TestTrue(TEXT("no warnings"), Error.IsEmpty());
+	TestTrue(TEXT("the lower third on"), Layout.IsEnabled(TEXT("broadcast_lower_third"), false));
+	TestFalse(TEXT("the minimap off"), Layout.IsEnabled(TEXT("minimap"), true));
+
+	TArray<FApexHudComponentDef> Components;
+	FApexHudLoadReport Report;
+	ApexHud::LoadComponents(ApexHud::HudDirectories(), Components, Report);
+	TestEqual(TEXT("the shipped components load"), Report.Errors.Num(), 0);
+	for (const TPair<FString, FApexHudPlacement>& Entry : Layout.Components)
+	{
+		TestTrue(FString::Printf(TEXT("%s ships"), *Entry.Key),
+			Components.ContainsByPredicate([&Entry](const FApexHudComponentDef& C) { return C.Id == Entry.Key; }));
+	}
+	return true;
+}
+
 #endif

@@ -9384,6 +9384,27 @@ runs:
       1: "apexsim.hud.Hide 1"
     shots:
       - {at: 10, lead: 1, label: "the gantry from past the line", checks: "C11: dark truss, the fascia reading the right way, the lights on their housing", exec: "apexsim.cam.LookAt 26.9 31.9 3.3 3.4 -0.5 3.0"}
+
+  # The Broadcast HUD layout (roadmap 50): bind it first, in
+  # hud/custom/layout_bindings.json ({"everywhere": "Broadcast"}), and remove
+  # the binding after.
+  - id: n29-broadcast-hud
+    about: "N29. The Broadcast HUD layout racing at Shiverstone"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Shiverstone
+      - -ApexCar=SF-26
+      - -ApexAiCount=9
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tcam
+      - -ApexRacingLine=off
+    shots:
+      - {at: 40, label: "Broadcast layout racing", checks: "N29: tower top left, lower third and sectors bottom left, the car's numbers bottom right"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

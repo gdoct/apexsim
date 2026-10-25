@@ -135,15 +135,23 @@ namespace ApexHudLayouts
 
 	/** `<first HUD directory>/custom/layouts`. */
 	APEXSIM_API FString Directory();
+	/**
+	 * `<first HUD directory>/default/layouts`: the layouts that ship
+	 * (Broadcast). Read-only: a saved one is written under `Directory()`
+	 * and wins from then on; deleting that copy brings the shipped one back.
+	 */
+	APEXSIM_API FString ShippedDirectory();
+	/** The shipped file a custom layout file falls back to, or empty when none ships. */
+	APEXSIM_API FString ShippedFileFor(const FString& File);
 	/** `custom/layout_bindings.json`. */
 	APEXSIM_API FString BindingsFile();
 	/** A name a file can carry: trimmed, no path or reserved characters, 40 at most; empty when nothing is left. */
 	APEXSIM_API FString SanitiseName(const FString& Name);
 	/** The file a layout is kept in: `layout.json` for Default, else `layouts/<name>.json`. */
 	APEXSIM_API FString FileFor(const FString& Name);
-	/** Whether the layout exists on disk (Default always does). */
+	/** Whether the layout exists on disk, saved or shipped (Default always does). */
 	APEXSIM_API bool Exists(const FString& Name);
-	/** Default first, then the rest A to Z. */
+	/** Default first, then the rest A to Z, the shipped ones among them. */
 	APEXSIM_API TArray<FString> List();
 	/** Moves a layout's file; false when the target exists, the source is missing or either is Default. */
 	APEXSIM_API bool Rename(const FString& From, const FString& To);

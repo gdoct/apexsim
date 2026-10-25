@@ -174,9 +174,11 @@ bool FApexHudLayout::Load(const FString& File, FString& OutError)
 	FString Text;
 	if (!FPaths::FileExists(File))
 	{
-		if (FPaths::IsSamePath(File, DefaultFile()) && FPaths::FileExists(ShippedFile()))
+		// A layout the player has not saved is the one that ships, if any.
+		const FString Shipped = FPaths::IsSamePath(File, DefaultFile()) ? ShippedFile() : ApexHudLayouts::ShippedFileFor(File);
+		if (!Shipped.IsEmpty() && FPaths::FileExists(Shipped))
 		{
-			return Load(ShippedFile(), OutError);
+			return Load(Shipped, OutError);
 		}
 		return true;
 	}
@@ -221,6 +223,20 @@ FString ApexHudLayouts::Directory()
 	return FPaths::Combine(LayoutCustomDir(), TEXT("layouts"));
 }
 
+FString ApexHudLayouts::ShippedDirectory()
+{
+	return FPaths::Combine(FPaths::GetPath(FApexHudLayout::ShippedFile()), TEXT("layouts"));
+}
+
+FString ApexHudLayouts::ShippedFileFor(const FString& File)
+{
+	if (!FPaths::IsSamePath(FPaths::GetPath(File), Directory()))
+	{
+		return FString();
+	}
+	return FPaths::Combine(ShippedDirectory(), FPaths::GetCleanFilename(File));
+}
+
 FString ApexHudLayouts::BindingsFile()
 {
 	return FPaths::Combine(LayoutCustomDir(), TEXT("layout_bindings.json"));
@@ -259,20 +275,25 @@ FString ApexHudLayouts::FileFor(const FString& Name)
 
 bool ApexHudLayouts::Exists(const FString& Name)
 {
-	return Name.IsEmpty() || LayoutSameName(Name, DefaultName) || FPaths::FileExists(FileFor(Name));
+	return Name.IsEmpty() || LayoutSameName(Name, DefaultName) || FPaths::FileExists(FileFor(Name))
+		|| FPaths::FileExists(ShippedFileFor(FileFor(Name)));
 }
 
 TArray<FString> ApexHudLayouts::List()
 {
-	TArray<FString> Files;
-	IFileManager::Get().FindFiles(Files, *FPaths::Combine(Directory(), TEXT("*.json")), /*Files*/ true, /*Directories*/ false);
 	TArray<FString> Names;
-	for (const FString& File : Files)
+	for (const FString& Folder : { Directory(), ShippedDirectory() })
 	{
-		const FString Name = FPaths::GetBaseFilename(File);
-		if (!Name.IsEmpty() && !LayoutSameName(Name, DefaultName))
+		TArray<FString> Files;
+		IFileManager::Get().FindFiles(Files, *FPaths::Combine(Folder, TEXT("*.json")), /*Files*/ true, /*Directories*/ false);
+		for (const FString& File : Files)
 		{
-			Names.Add(Name);
+			const FString Name = FPaths::GetBaseFilename(File);
+			if (!Name.IsEmpty() && !LayoutSameName(Name, DefaultName)
+				&& !Names.ContainsByPredicate([&Name](const FString& Known) { return LayoutSameName(Known, Name); }))
+			{
+				Names.Add(Name);
+			}
 		}
 	}
 	Names.Sort([](const FString& A, const FString& B) { return A.Compare(B, ESearchCase::IgnoreCase) < 0; });

@@ -63,7 +63,9 @@ rule and the BOX badge after a pit request), `status`, `minimap`,
 `tyres` (the four tyres from above: tread temperature across each, wear, flat, leak and flat spots),
 `radar` (while a car is alongside), `chat` (the session's chat, while
 there are recent lines or the chat line is open);
-off until added in the editor: `relative`, `speed_gear`, `conditions`; while
+off until added in the editor: `relative`, `speed_gear`, `conditions`,
+`broadcast_lower_third` (place, driver, lap and the gaps either side with
+their names, racing only); while
 watching: `spectator_tower`, `spectator_driver`, `spectator_controls`,
 `spectator_replay`, `spectator_results` (once the race is over); the `hotlap_watch` scene: `hotlap_header`,
 `hotlap_corner`, `hotlap_timing`, `hotlap_car`, `hotlap_controls`,
@@ -771,6 +773,16 @@ switches, saves as new, renames, deletes and binds them; bindings live in
   "classes": { "Formula": "Wing" },            // by the class names the menus show
   "tracks": { "Shiverstone Circuit": "Fog" } } // by the circuit names the menus show
 ```
+
+Layouts also ship: `default/layouts/<name>.json` (Broadcast: the
+standings as a timing tower top left, `broadcast_lower_third` and the
+sector strip bottom left, the car's numbers bottom right, the rest off;
+the watch components where the Default layout has them). A shipped layout
+is listed with the player's own and read from there until the player
+saves it, which writes `custom/layouts/<name>.json` and wins from then on
+(`ApexHudLayouts::ShippedFileFor`); deleting that copy brings the shipped
+one back, and a shipped layout cannot be renamed. Tests:
+`ApexSim.Hud.Layout.Shipped`; verify run `n29-broadcast-hud`.
 
 Most specific wins: watching, then hotlap and qualifying (a race weekend's
 timed practice too), then the circuit picked in the menus, then the car's

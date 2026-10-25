@@ -1,0 +1,68 @@
+// The player's own car as a broadcast's lower third puts a driver on
+// screen: the place on the accent, the driver and the lap, and the gaps
+// to the cars either side with their names. Shipped off: the Broadcast
+// layout (layouts/Broadcast.json) turns it on with the standings as a
+// timing tower and the sector strip under it. Racing only; while watching
+// the watched-car panel does this job.
+{
+  "name": "Lower third",
+  "description": "Place, driver, lap and the gaps either side, broadcast style",
+  "region": "bottom-left",
+  "order": 5,
+  "default_enabled": false,
+  "visible": "=!spectate.active && car.present",
+  "root": {
+    "type": "row",
+    "children": [
+      // Place, on the accent.
+      {
+        "type": "panel", "height": 64, "valign": "fill", "padding": [16, 8], "background": "accent",
+        "children": [{
+          "type": "row", "valign": "center",
+          "children": [
+            { "type": "text", "valign": "bottom", "font": "display", "size": 32, "color": "on_accent",
+              "text": "=car.retired ? 'OUT' : has(race.position) ? str(race.position) : '-'" },
+            { "type": "text", "valign": "bottom", "margin": [2, 0, 0, 4], "font": "mono", "size": 12,
+              "color": "=alpha('on_accent', 0.7)", "text": "=car.retired ? '' : '/' + race.car_count" }
+          ]
+        }]
+      },
+      // The driver and the lap.
+      {
+        "type": "panel", "height": 64, "valign": "fill", "padding": [16, 8], "background": "surface",
+        "children": [{
+          "type": "column", "valign": "center",
+          "children": [
+            { "type": "text", "font": "body", "size": 18, "bold": true,
+              "text": "=upper(has(car.driver_name) ? car.driver_name : 'Car ' + car.index)" },
+            { "type": "text", "margin": [0, 2, 0, 0], "font": "mono", "size": 12, "color": "text_muted",
+              "text": "=car.finish_position > 0 ? 'FINISHED P' + car.finish_position : 'LAP ' + lap.display + (lap.limit > 0 ? '/' + lap.limit : '') + (lap.final ? ' · FINAL LAP' : '')" }
+          ]
+        }]
+      },
+      // The gaps, with whom.
+      {
+        "type": "panel", "height": 64, "valign": "fill", "padding": [16, 8], "background": "surface_hover",
+        "children": [{
+          "type": "column", "valign": "center",
+          "children": [
+            { "type": "row", "children": [
+              { "type": "label", "width": 64, "text": "Ahead" },
+              { "type": "text", "width": 72, "font": "mono", "size": 13, "text": "=fmt_gap(gap.ahead_s, false)",
+                "color": "=has(gap.ahead_name) ? 'text' : 'text_muted'" },
+              { "type": "text", "font": "body", "size": 12, "color": "text_secondary",
+                "text": "=has(gap.ahead_name) ? upper(gap.ahead_name) : ''" }
+            ] },
+            { "type": "row", "margin": [0, 4, 0, 0], "children": [
+              { "type": "label", "width": 64, "text": "Behind" },
+              { "type": "text", "width": 72, "font": "mono", "size": 13, "text": "=fmt_gap(gap.behind_s, false)",
+                "color": "=has(gap.behind_name) ? 'text' : 'text_muted'" },
+              { "type": "text", "font": "body", "size": 12, "color": "text_secondary",
+                "text": "=has(gap.behind_name) ? upper(gap.behind_name) : ''" }
+            ] }
+          ]
+        }]
+      }
+    ]
+  }
+}

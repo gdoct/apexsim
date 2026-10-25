@@ -1,0 +1,29 @@
+{
+  // A shipped layout in the look of a race broadcast: the standings as a
+  // timing tower down the top left, the lower third (place, driver, gaps)
+  // at the bottom left with the sector strip beside it, the virtual mirror
+  // and the car's own numbers kept, the rest off. Pick it under Settings >
+  // Gameplay > Layout or bind it in the layout manager; saving it from the
+  // HUD editor writes custom/layouts/Broadcast.json, which then wins.
+  "version": 1,
+  "components": {
+    "standings": { "enabled": true, "anchor": [0, 0], "position": [43, 34], "scale": 0.85 },
+    "broadcast_lower_third": { "enabled": true, "anchor": [0, 1], "position": [43, -30] },
+    "timing": { "enabled": true, "anchor": [0, 1], "position": [43, -112] },
+    "mirror": { "enabled": true, "anchor": [0.5, 0], "position": [0, 30] },
+    "car_state": { "enabled": true, "anchor": [1, 1], "position": [-56, -30], "scale": 0.9 },
+    "status": { "enabled": true, "anchor": [1, 0], "position": [-56, 30] },
+    "race_state": { "enabled": false },
+    "track_info": { "enabled": false },
+    "minimap": { "enabled": false },
+    "pedals": { "enabled": false },
+    "damage": { "enabled": false },
+    "ers": { "enabled": false },
+    "speed_gear": { "enabled": false },
+    "spectator_tower": { "enabled": true, "anchor": [0, 0], "position": [43, 34], "scale": 0.7 },
+    "spectator_driver": { "enabled": true, "anchor": [0, 1], "position": [43, -30], "scale": 0.65 },
+    "spectator_controls": { "enabled": true, "anchor": [1, 0], "position": [-1, 79] },
+    "spectator_replay": { "enabled": true, "anchor": [0.5, 1], "position": [0, -18] },
+    "spectator_results": { "enabled": true, "anchor": [0.5, 0.5], "position": [0, 0] }
+  }
+}
