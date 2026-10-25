@@ -28,6 +28,14 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 - **Corners** — the circuit's own turn numbers on the hotlap corner panel (`5d848ef7`); the panel shows in a hotlap simulated here, and capitals past ASCII (`eee182d2`)
 - **Track location** — a circuit's latitude and longitude at its start line, through the DEM fit (`805db7ed`)
 - **R1 (verification)** — standing water said in words on the conditions panel (`cd3611a3`)
+- **Follow-ups #35** — the rewind ring thins past its last 10 s: 21 snapshots, 87 MB at the Nordschleife (`b8c42337`)
+- **Follow-ups #99** — the create, lobby and results bars centre their row (`1f986f64`)
+- **R18 (verification)** — the fog relights as its visibility moves; a forced fog and a calm sky for the shots (`2a110d85`)
+- **Pad navigation**
+  - focus scrolls into view from inside a segment, Settings > Audio's last rows among them (`4d8eba46`)
+  - a row still scrolling in reaches the footer below its list, the school's Back (`36c7bb0e`)
+  - Season and Track select keep a pad going with nothing listed (`293d52de`)
+- **R14, R20, R21 (verification)** — the Profile walked by pad, the palettes through a CVD simulator, photo mode over a saved replay (`2dc362d7`, `1f2db1c8`, `68027569`)
 
 ## 2026-10-24
 
