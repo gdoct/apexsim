@@ -841,6 +841,32 @@ runs:
         checks: "R8: the corner stand's wedge bays following the bend"
         exec: "apexsim.cam.LookAt 234.7 962.9 28.8 209.9 1077.5 10.8"
 
+  - id: r8-curved-pit-row
+    about: "R8. Interlaggos's curved pit row, its garages scaled to 0.85 on the bend"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Interlaggos
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "the bend's garages from above, inside the curve"
+        checks: "R8: the 0.85 garages touching, not overlapping, round the bend"
+        exec: "apexsim.cam.LookAt 112.0 -248.0 35.0 112.0 -284.0 1.0"
+      - at: 15
+        label: "from the lane, along the curved row"
+        checks: "R8: the box fronts in a smooth curve, no gaps or clipped walls"
+        exec: "apexsim.cam.LookAt 86.0 -262.0 4.0 120.0 -284.0 2.0"
+      - at: 20
+        label: "from behind the row"
+        checks: "R8: the backs meet without gaps"
+        exec: "apexsim.cam.LookAt 112.0 -318.0 22.0 112.0 -284.0 1.0"
+
   - id: r8-ims
     about: "R8. Geometry sweep: Endianapolis Motor Speedway"
     server:

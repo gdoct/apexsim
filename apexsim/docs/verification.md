@@ -207,10 +207,11 @@ Indianapolis the stand there shows as two straight sections with a gap
 between them, set back on the grass, and from the infield
 (`r8-ims-corners`) all four turns' stands are so: they are the old
 generator's, 116 m off the road on a circuit with no dossier (follow-ups
-#6), not a wedge. Left:
+#6), not a wedge. `r8-curved-pit-row` (2026-10-25): Interlaggos's 16
+garages on the bend (scaled 0.99 to the 0.85 floor) read as one curved
+row, the box fronts and boards in a smooth line from the lane, the roofs
+stepping module by module from above with no overlap or open gap. Left:
 
-- A curved pit box row tighter than about a 130 m radius (the garages
-  scale down to 0.85 and may still overlap a little).
 - The repainted seated crowd (`gen_crowd.py`) on a full stand with
   spectators on: figures read as people at 30-150 m, the masked edges
   hold at distance, the one chequered flag per strip does not repeat in
