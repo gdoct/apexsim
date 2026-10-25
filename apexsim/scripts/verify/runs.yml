@@ -28,6 +28,50 @@
 # | --bank N | --at M | --near X,Y (server frame, the YAML's).
 
 runs:
+  # Tyre close-ups need a car held still: this run races three laps with
+  # two lock-ups on the front left and finishes, so the client saves the
+  # race's replay to Saved/Replays/Recent; r1-flatspot-replay frames the
+  # tyre in photo mode over that replay.
+  - id: r1-flatspot-race
+    about: "R1. Three laps at the Norisring with two flat spots on the front left, finished so its replay is saved"
+    server:
+      stand_in: true
+      events:
+        - "20:host:flatspot=FL:0.3"
+        - "50:host:flatspot=FL:0.45"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+    shots:
+      - {at: 120, label: "racing", checks: "R1: FS on the front left in the tyre panel"}
+      - {at: 280, label: "after the flag", checks: "the results; the replay saved (client log)"}
+
+  - id: r1-flatspot-replay
+    about: "R1. The front left's two flat spots, framed in photo mode over r1-flatspot-race's replay (run that first)"
+    args:
+      - -ApexNoDemo
+      - -ApexWatchReplay=latest
+    exec:
+      20: "apexsim.watch seek 150"
+      24: "apexsim.photo on"
+      25: ["apexsim.photo orbit", "apexsim.photo hide"]
+      26: "apexsim.photo move 1 0 0 0.9"
+    shots:
+      - {at: 30, label: "orbit, close", checks: "R1: the held car from 4 m", exec: "apexsim.photo info"}
+      - {at: 33, label: "half round", checks: "R1", exec: "apexsim.photo look 180 0"}
+      - {at: 36, label: "toward the nose, low, 85 mm", checks: "R1 FlatSpot2: the front left's tread face", exec: ["apexsim.photo look -35 -8", "apexsim.photo focal 85"]}
+      - {at: 39, label: "further round the nose", checks: "R1 FlatSpot2", exec: "apexsim.photo look -20 0"}
+      - {at: 42, label: "further still", checks: "R1 FlatSpot2", exec: "apexsim.photo look -20 0"}
+      - {at: 45, label: "the replay on 0.3 s: the wheel turned", checks: "R1 FlatSpot2", exec: ["apexsim.photo pause", "apexsim.photo pause"]}
+
   - id: r1-spa-wet
     about: "R1. Spa, heavy rain, stand-in driver"
     # An F1 car's rear treads are hidden from the chase camera; the cockpit

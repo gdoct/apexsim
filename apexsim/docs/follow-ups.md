@@ -251,12 +251,17 @@ the field, a jump start and a red-light exit served; `race_start_test`,
   `content.acp`.
 - Shanghai's and Monza's surface models are checked against a bare-earth
   one (grandstands, the park's canopy); both still drive their invented z.
-- Verification runs (`scripts/verify`): the tyre close-ups (two flat spots,
-  pickup, blisters, a deflated sidewall) can now be framed on a held
-  replay (`apexsim.replay.Seek` / `Hold`), but no recipe does it yet: it
-  needs a race's replay saved by one run and played by the next. The
-  stand-in, an AI, also pits for any leak and at a 0.6 flat spot, wear 70
-  or damage 25 (`pit::plan_stop`), so the moment has to come within that lap.
+- Verification runs (`scripts/verify`): the tyre close-ups have their
+  recipe pair: `r1-flatspot-race` races three laps with two lock-ups on
+  the front left and finishes, so the client keeps its replay in
+  `Saved/Replays/Recent`, then `r1-flatspot-replay` holds that replay in
+  photo mode and orbits the car from 4 m (2026-10-25: the held car from
+  four sides, sharp). The tread's face is still not framed: in orbit a
+  look turns the view onto the car's middle, so a shot of the front
+  left's rolling surface wants the free camera put low in front of the
+  wheel (`apexsim.photo move` from a known pose). The stand-in pits at a
+  0.6 flat spot, wear 70 or damage 25 (`pit::plan_stop`): keep the
+  events under those.
 - Imported pit lanes (`ac_import/pit.py`): Poznan's `drift` layout gets no
   pit lane: none of its 32 `AC_PIT` markers is within 20 m of its pit
   line's speed-limit stretch (the other four Poznan layouts, and Spa, Red

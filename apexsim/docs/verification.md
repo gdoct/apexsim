@@ -49,8 +49,10 @@ Events: `flatspot=FL` at two times some seconds apart, a `leak=FR`, a
   `car_rainlight` slot has none.
 - Two lock-ups on one tyre drawn as two glazed patches at different places
   round the tread (`TyreCpd::FlatSpot2`). At racing speed the tread is a
-  blur and the stand-in pits at a 0.6 spot: it needs a car held still
-  ([follow-ups.md](follow-ups.md), content tooling).
+  blur and the stand-in pits at a 0.6 spot: `r1-flatspot-race` then
+  `r1-flatspot-replay` hold the car still in photo mode over its replay;
+  the tread's face is still to be framed ([follow-ups.md](follow-ups.md),
+  content tooling).
 
 Run 2026-10-25 (`r1-spa-wet`): the LEAK read-out on the front right (the
 tyre panel's LEAK and "LEAK 154" in the car panel) through the lap after
