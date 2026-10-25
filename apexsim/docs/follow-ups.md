@@ -251,9 +251,13 @@ until each is fixed and shot again.
   lamps. Raise it without brightening the lit pools. Shot 2 shows a part of
   a bridge intersecting the track: a dressing/bridge placement bug, check the
   other bridged circuits too.
-- Marshals (`marshals-recovery`, shots 2 and 3): odd yellow squares near the
-  marshals at a stopped car. Probably an unlit or missing-material flag or
-  card; find and fix.
+- A car out of the race keeps its last speed on the wire until the tow:
+  `physics.rs` returns early for an undrivable car without zeroing
+  `speed_mps` or the velocities, so the HUD and the tower show a parked
+  wreck at racing speed, and the client's marshals read it as stopped only
+  because they special-case out cars (`SampleMarshalCars`). Zero them in
+  the sim (check what reads a dead car's speed: the VSC trigger, the yellow
+  flags), then drop the client's special case; judge with the AI survey.
 
 ### 41. The tread's surfaces up close
 

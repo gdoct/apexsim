@@ -97,14 +97,17 @@ bool FApexMarshalsOffRoadTest::RunTest(const FString& Parameters)
 	TestTrue(FString::Printf(TEXT("it stops just behind the car (%.0f cm)"), TruckGap), TruckGap > 400.0 && TruckGap < 1200.0);
 	TestTrue(TEXT("pointing along the road"), FVector::DotProduct(FRotator(0.0, Arrived.TruckYawDeg(), 0.0).Vector(), Scene.Along) > 0.95);
 
-	// Towed: the car is in its pit box, far away.
+	// Towed: the car is in its pit box, far away. The server counts a box
+	// as outside the lane, so it is still not in the pits.
 	Cars[1] = CarAt(Path, 1, 100.0, -1500.0, 0.0f, true);
-	Cars[1].bInPits = true;
+	Cars[1].bOut = true;
 	Run(Tracker, Cars, Path, 0.5f);
 	TestEqual(TEXT("the scene stays a moment after the tow"), Tracker.GetIncidents().Num(), 1);
 	TestFalse(TEXT("the flags are down"), Tracker.GetIncidents()[0].IsWaving());
 	Run(Tracker, Cars, Path, LingerS);
 	TestEqual(TEXT("then it clears"), Tracker.GetIncidents().Num(), 0);
+	Run(Tracker, Cars, Path, 20.0f);
+	TestEqual(TEXT("no one comes out to it in its box"), Tracker.GetIncidents().Num(), 0);
 	return true;
 }
 

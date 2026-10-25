@@ -1276,6 +1276,8 @@ private:
 	{
 		TObjectPtr<UStaticMeshComponent> Figures[2];
 		TObjectPtr<UStaticMeshComponent> Flags[2];
+		/** The waved flag's stick, in the raised hand. */
+		TObjectPtr<UStaticMeshComponent> Sticks[2];
 		TObjectPtr<UStaticMeshComponent> Truck;
 		TObjectPtr<UStaticMeshComponent> Beacon;
 	};

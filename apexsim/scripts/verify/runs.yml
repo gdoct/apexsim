@@ -9023,14 +9023,16 @@ runs:
 
   - id: marshals-recovery
     about: "R25. Marshals and recovery"
-    # Car 2's engine dies 20 s after the green: it stops at once (out of the
-    # race), the marshals come out 2 s later, the tractor 1.5 s after that
-    # and is beside the car in 5 s; the server tows the car 10 s after it
-    # went out. Shot T sees green + T - 6: the event at T 26.
+    # Car 2's engine dies 45 s after the green: it stops at once (out of
+    # the race), the marshals come out 2 s later, the tractor 1.5 s after
+    # that and is beside the car in 5 s; the server tows the car to its pit
+    # box 10 s after it went out. Shot T sees green + T - 6: the event at
+    # T 51, the tow at T 61. (Shots after the tow once showed a second
+    # scene opened at the box, where the car sits outside the lane.)
     server:
       stand_in: true
       events:
-        - "20:2:damage=engine:100"
+        - "45:2:damage=engine:100"
     args:
       - -ApexAutoRace
       - -ApexTrack=Monzarella
@@ -9043,11 +9045,11 @@ runs:
       - -ApexView=chase
       - -ApexRacingLine=off
     shots:
-      - {at: 29, label: "marshals out", checks: "two marshals waving yellow at the verge up the road from the stopped car", lead: 0.5, exec: "apexsim.marshals.Look"}
-      - {at: 31, label: "the tractor on its way", checks: "the recovery tractor driving in along the verge, its amber beacon", lead: 0.5, exec: "apexsim.marshals.Look"}
-      - {at: 34.5, label: "the tractor at the car", checks: "the tractor stopped just behind the car, facing along the road", lead: 0.5, exec: "apexsim.marshals.Look"}
-      - {at: 38, label: "towed", checks: "the car gone to its box; flags down, tractor still there", lead: 0.5, exec: "apexsim.marshals.Look"}
-      - {at: 45, label: "cleared", checks: "the scene gone after 5 s", lead: 0.5, exec: "apexsim.cam.Release"}
+      - {at: 54, label: "marshals out", checks: "two marshals waving yellow at the verge up the road from the stopped car", lead: 0.5, exec: "apexsim.marshals.Look"}
+      - {at: 56.5, label: "the tractor on its way", checks: "the recovery tractor driving in along the verge, its amber beacon", lead: 0.5, exec: "apexsim.marshals.Look"}
+      - {at: 60.3, label: "the tractor at the car", checks: "the tractor stopped just behind the car, facing along the road", lead: 0.5, exec: "apexsim.marshals.Look"}
+      - {at: 63, label: "towed", checks: "the car gone to its box; flags down, tractor still there", lead: 0.5, exec: "apexsim.marshals.Look"}
+      - {at: 72, label: "cleared", checks: "the scene gone after 5 s, and none opened at the car's pit box", lead: 0.5, exec: "apexsim.cam.Release"}
 
   - id: n16-school-screen
     about: "R26. Driving school: the School screen, a circuit's tests"

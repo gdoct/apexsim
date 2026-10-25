@@ -216,11 +216,17 @@ tested on the synthetic ring; the director draws it
   `OffRoadAfterS` (2 s) off the road or with a damage zone at 100%, or for
   `OnRoadAfterS` (6 s) on the road. At most `MaxIncidents` (3) scenes; a new
   one takes the place of a finished one, else the oldest, and a car whose
-  scene was dropped or ran its course gets none again until it moves.
+  scene was dropped or ran its course gets none again until it moves. A
+  car out of the race counts as stopped whatever its speed (the server
+  holds it where it stands, its last speed still on the wire), and a car
+  put more than 30 m away while stopped (towed to its box, which the
+  server counts as outside the lane) gets none until it has driven again.
 - **Marshals**: two kit `misc/marshal_figure` cards side by side at the
   verge `PostUpCm` (12 m) up the road from the car, on its side and at
   least 7 m out (3.5 m beyond a car off the road), facing the oncoming cars,
-  each waving a yellow flag (a primitive sheet swinging in the card's plane).
+  each waving a yellow flag: a 60 x 40 cm primitive sheet hanging off the
+  top of a 90 cm stick held at the shoulder, both swinging in the card's
+  plane.
 - **Recovery vehicle**: the kit `vehicle/tractor`, with a flashing amber
   roof beacon, sets off `TruckAfterS` (1.5 s) after the marshals came out
   from 45 m up the road and drives in over `TruckDriveS` (5 s) along the
@@ -232,7 +238,11 @@ tested on the synthetic ring; the director draws it
 - Without the circuit's path the car's own heading and right-hand side
   stand in; without the kit, orange primitives.
 - `apexsim.marshals 0` turns them off; `apexsim.marshals.Look` parks the
-  shot camera on the newest scene (`apexsim.cam.Release` hands it back).
+  shot camera on the newest scene from the first pose with a clear line to
+  the marshals and the car: up the road along their own line 25 m then
+  15 m back, over the track 25 m up the road, low across the road from the
+  car, or high above; with none clear, the one whose two lines run
+  furthest before they hit (`apexsim.cam.Release` hands it back).
   Each scene is logged (`Marshals out for car N at (...) cm`).
 
 Tests: `ApexSim.Marshals.*`.

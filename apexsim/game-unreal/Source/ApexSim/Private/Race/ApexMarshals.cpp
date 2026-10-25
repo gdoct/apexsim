@@ -113,11 +113,19 @@ namespace ApexMarshals
 			const bool bStopped = Car.SpeedMps < StoppedMps && !Car.bInPits;
 			FCarMemory* Known = Memory.Find(Car.CarIndex);
 			FCarMemory& Mind = Known ? *Known : Memory.Add(Car.CarIndex, FCarMemory{0.0f, Car.Location, false});
-			// Moving, or put somewhere else (towed, recovered): a stop starts afresh.
-			if (!bStopped || FVector::Dist2D(Mind.Last, Car.Location) > MovedAwayCm)
+			// Moving: a stop starts afresh. Put somewhere else while stopped
+			// (towed to its box, which is outside the lane the server counts):
+			// the car is where it was meant to go, and no one comes out to it
+			// until it has driven again.
+			if (!bStopped)
 			{
 				Mind.StillFor = 0.0f;
 				Mind.bDismissed = false;
+			}
+			else if (FVector::Dist2D(Mind.Last, Car.Location) > MovedAwayCm)
+			{
+				Mind.StillFor = 0.0f;
+				Mind.bDismissed = true;
 			}
 			if (bStopped)
 			{

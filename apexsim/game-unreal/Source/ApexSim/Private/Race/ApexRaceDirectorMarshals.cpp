@@ -27,9 +27,11 @@ namespace ApexMarshalDraw
 	/** The kit's people and vehicles; a primitive stands in when the kit is missing. */
 	const TCHAR* const PropsRoot = TEXT("/Game/Props");
 	const TCHAR* const CubePath = TEXT("/Engine/BasicShapes/Cube.Cube");
+	const TCHAR* const CylinderPath = TEXT("/Engine/BasicShapes/Cylinder.Cylinder");
 	const TCHAR* const ShapeMaterialPath = TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial");
 
 	const FLinearColor FlagYellow(1.0f, 0.78f, 0.0f);
+	const FLinearColor Stick(0.08f, 0.08f, 0.09f);
 	const FLinearColor Overalls(1.0f, 0.35f, 0.02f);
 	const FLinearColor Beacon(1.0f, 0.45f, 0.0f);
 
@@ -38,11 +40,20 @@ namespace ApexMarshalDraw
 	constexpr float WaveDeg = 38.0f;
 	/** The two marshals stand side by side across the verge. */
 	constexpr double FigureSpacingCm = 150.0;
-	/** The flag's stick top: beside the figure, at a raised hand. */
-	const FVector FlagPivot(35.0, 0.0, 175.0);
-	/** The flag's centre from the stick top, and its size (cm; the cube is 100 cm). */
-	const FVector FlagCentre(35.0, 0.0, 30.0);
-	const FVector FlagScale(0.75, 0.02, 0.5);
+	/**
+	 * The raised hand that holds the waved flag's stick: beside the figure,
+	 * a little over its shoulder. The stick rises StickCm from it and the
+	 * cloth hangs off the stick's top half, out to the side (the hand's +X),
+	 * so the two swing as one. A bare card at the hand read as a yellow
+	 * square floating by the marshal.
+	 */
+	const FVector FlagPivot(30.0, 0.0, 150.0);
+	constexpr double StickCm = 90.0;
+	/** The cloth's centre from the hand, and its size (cm; the cube is 100 cm). */
+	const FVector FlagCentre(30.0, 0.0, 68.0);
+	const FVector FlagScale(0.6, 0.01, 0.4);
+	/** The stick: the engine cylinder (100 cm tall, 100 across, centred) a 2.5 cm pole. */
+	const FVector StickScale(0.025, 0.025, StickCm / 100.0);
 	/** The tractor's roof beacon, flashing at 2 Hz. */
 	constexpr float BeaconHz = 2.0f;
 	const FVector BeaconAt(-20.0, 0.0, 300.0);
@@ -115,6 +126,12 @@ void AApexRaceDirector::SampleMarshalCars(const FApexTelemetryFrame& Frame)
 		{
 			Sample.bOut |= Damage >= 99.5f;
 		}
+		// The server holds a car out of the race where it stands but leaves
+		// its last speed on the wire until the tow (follow-ups 40).
+		if (Sample.bOut)
+		{
+			Sample.SpeedMps = 0.0f;
+		}
 		MarshalCars.Add(Sample);
 	}
 }
@@ -149,6 +166,7 @@ void AApexRaceDirector::UpdateMarshals(float DeltaSeconds)
 		UStaticMesh* Figure = LoadMesh(TEXT("misc"), TEXT("marshal_figure"));
 		UStaticMesh* Tractor = LoadMesh(TEXT("vehicle"), TEXT("tractor"));
 		UStaticMesh* Cube = LoadObject<UStaticMesh>(nullptr, CubePath);
+		UStaticMesh* Cylinder = LoadObject<UStaticMesh>(nullptr, CylinderPath);
 		const int32 Index = MarshalSlots.Num();
 		auto Make = [this, Index](const TCHAR* Part, UStaticMesh* Mesh, const FLinearColor* Colour)
 		{
@@ -182,6 +200,9 @@ void AApexRaceDirector::UpdateMarshals(float DeltaSeconds)
 			Slot.Flags[Person] = Make(*FString::Printf(TEXT("Flag%d"), Person), Cube, &FlagYellow);
 			Slot.Flags[Person]->SetCastShadow(false);
 			Slot.Flags[Person]->SetWorldScale3D(FlagScale);
+			Slot.Sticks[Person] = Make(*FString::Printf(TEXT("Stick%d"), Person), Cylinder ? Cylinder : Cube, &Stick);
+			Slot.Sticks[Person]->SetCastShadow(false);
+			Slot.Sticks[Person]->SetWorldScale3D(StickScale);
 		}
 		Slot.Truck = Tractor ? Make(TEXT("Truck"), Tractor, nullptr) : Make(TEXT("Truck"), Cube, &Overalls);
 		if (!Tractor)
@@ -206,6 +227,7 @@ void AApexRaceDirector::UpdateMarshals(float DeltaSeconds)
 			{
 				Slot.Figures[Person]->SetVisibility(false);
 				Slot.Flags[Person]->SetVisibility(false);
+				Slot.Sticks[Person]->SetVisibility(false);
 			}
 			Slot.Truck->SetVisibility(false);
 			Slot.Beacon->SetVisibility(false);
@@ -229,6 +251,8 @@ void AApexRaceDirector::UpdateMarshals(float DeltaSeconds)
 			const FVector Pivot = At + FigureRotation.RotateVector(FlagPivot);
 			Slot.Flags[Person]->SetWorldLocationAndRotation(Pivot + Hand.RotateVector(FlagCentre), Hand);
 			Slot.Flags[Person]->SetVisibility(Scene->IsWaving());
+			Slot.Sticks[Person]->SetWorldLocationAndRotation(Pivot + Hand.RotateVector(FVector(0.0, 0.0, 0.5 * StickCm)), Hand);
+			Slot.Sticks[Person]->SetVisibility(Scene->IsWaving());
 		}
 
 		const bool bTruck = Scene->HasTruck();
@@ -256,6 +280,7 @@ void AApexRaceDirector::ForgetMarshals()
 		{
 			Slot.Figures[Person]->SetVisibility(false);
 			Slot.Flags[Person]->SetVisibility(false);
+			Slot.Sticks[Person]->SetVisibility(false);
 		}
 		Slot.Truck->SetVisibility(false);
 		Slot.Beacon->SetVisibility(false);
@@ -269,10 +294,58 @@ bool AApexRaceDirector::LookAtMarshals()
 	{
 		return false;
 	}
-	// The newest: 25 m up the road and 8 m out, 6 m up, so the post, the car
-	// and the tractor's way in are all in frame.
+	// The newest, from the first of these with a clear line to the marshals
+	// and to the car (a wall or a catch fence can run between them and any
+	// one pose): up the road along the marshals' own line,
+	// 25 m then 15 m back; over the track 25 m up the road; across the road
+	// from the car, low; and high above the scene. With none clear, the one
+	// whose two lines run furthest before they hit: a fence just short of the
+	// post hides less than a stand roof over the camera. The post, the car
+	// and the tractor's way in are in frame.
 	const ApexMarshals::FIncident& Scene = Scenes.Last();
-	const FVector Eye = Scene.CarLocation - Scene.Along * 2500.0 + Scene.Outward * 800.0 + FVector(0.0, 0.0, 600.0);
-	SetShotCameraPose(Eye, (Scene.CarLocation - Eye).Rotation());
+	const FVector Up(0.0, 0.0, 1.0);
+	const FVector Subject = Scene.Post + Up * 150.0;
+	const FVector Car = Scene.CarLocation + Up * 80.0;
+	const FVector Candidates[] = {
+		Scene.Post - Scene.Along * 2500.0 + Up * 400.0,
+		Scene.Post - Scene.Along * 1500.0 + Up * 300.0,
+		Scene.CarLocation - Scene.Along * 2500.0 - Scene.Outward * 300.0 + Up * 600.0,
+		Scene.CarLocation - Scene.Along * 1000.0 - Scene.Outward * 1400.0 + Up * 250.0,
+		Scene.CarLocation - Scene.Along * 1200.0 - Scene.Outward * 400.0 + Up * 2500.0,
+	};
+	FVector Eye = Candidates[2];
+	if (UWorld* World = GetWorld())
+	{
+		FCollisionQueryParams Params(SCENE_QUERY_STAT(ApexMarshalLook), /*bTraceComplex*/ true, this);
+		// The share of the line that is clear. A hit within 3 m of the target
+		// is the target itself (the car's own body, the tractor beside it),
+		// not something in the way.
+		auto ClearShare = [&](const FVector& From, const FVector& To)
+		{
+			FHitResult Hit;
+			if (!World->LineTraceSingleByChannel(Hit, From, To, ECC_Visibility, Params)
+				|| FVector::Dist(Hit.ImpactPoint, To) < 300.0)
+			{
+				return 1.0;
+			}
+			return FVector::Dist(From, Hit.ImpactPoint) / FMath::Max(FVector::Dist(From, To), 1.0);
+		};
+		double Best = -1.0;
+		for (const FVector& Candidate : Candidates)
+		{
+			const double Share = ClearShare(Candidate, Subject) + ClearShare(Candidate, Car);
+			if (Share >= 2.0)
+			{
+				Eye = Candidate;
+				break;
+			}
+			if (Share > Best)
+			{
+				Best = Share;
+				Eye = Candidate;
+			}
+		}
+	}
+	SetShotCameraPose(Eye, (FMath::Lerp(Car, Subject, 0.5) - Eye).Rotation());
 	return true;
 }
