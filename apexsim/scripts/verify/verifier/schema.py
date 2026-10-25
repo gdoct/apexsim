@@ -425,11 +425,14 @@ def run_stamp(folder: Path) -> dict:
         return {}
 
 
-def shots_folder(run: str, commit: str | None = None) -> Path:
+def shots_folder(run: str, commit: str | None = None, gen: str | None = None) -> Path:
     """The folder holding a run's shots taken at `commit`: the run's own when
     its latest shots are that commit's (or no commit is asked), else the
-    newest kept generation of it under history/."""
+    newest kept generation of it under history/. `gen` names a kept
+    generation outright (`history`'s `gen`): two runs on one commit."""
     folder = VERIFY_OUT / run
+    if gen and (folder / "history" / gen).is_dir():
+        return folder / "history" / gen
     if commit and run_stamp(folder).get("commit") not in (None, commit):
         kept = sorted((folder / "history").glob(f"*-{commit}"), reverse=True)
         if kept:
@@ -438,15 +441,16 @@ def shots_folder(run: str, commit: str | None = None) -> Path:
 
 
 def history(run: str) -> list[dict]:
-    """The run's shot generations, newest first: {commit, date, current}."""
+    """The run's shot generations, newest first: {commit, date, current, gen}."""
     folder = VERIFY_OUT / run
     out = []
     if (folder / "shots").is_dir():
         stamp = run_stamp(folder)
-        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": True})
+        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": True, "gen": ""})
     for kept in sorted((folder / "history").glob("*-*"), reverse=True):
         stamp = run_stamp(kept)
-        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": False})
+        out.append({"commit": stamp.get("commit", ""), "date": stamp.get("date", ""), "current": False,
+                    "gen": kept.name})
     return out
 
 
@@ -473,20 +477,21 @@ def keep_previous(work: Path) -> Path | None:
 
 
 def stamp_run(work: Path, commit: str, when: str | None = None) -> None:
-    (work / "run.json").write_text(json.dumps({"commit": commit, "date": when or _date.today().isoformat()}),
-                                   encoding="utf-8")
+    """run.json: the commit and the minute the shots were taken."""
+    when = when or datetime.now().strftime("%Y-%m-%d %H:%M")
+    (work / "run.json").write_text(json.dumps({"commit": commit, "date": when}), encoding="utf-8")
 
 
-def shot_path(run: str, n: int, commit: str | None = None) -> Path:
-    return shots_folder(run, commit) / "shots" / f"{n:02d}.jpg"
+def shot_path(run: str, n: int, commit: str | None = None, gen: str | None = None) -> Path:
+    return shots_folder(run, commit, gen) / "shots" / f"{n:02d}.jpg"
 
 
 _SHOT_LINE = re.compile(r"^\s*(\d+)\.\s+([\d.]+) s\s+(.*)$")
 
 
-def run_shots(run: str, commit: str | None = None) -> list[dict]:
+def run_shots(run: str, commit: str | None = None, gen: str | None = None) -> list[dict]:
     """A run's shots as its shots.md lists them, and any jpg it does not."""
-    folder = shots_folder(run, commit)
+    folder = shots_folder(run, commit, gen)
     shots: dict[int, dict] = {}
     md = folder / "shots.md"
     if md.exists():
@@ -502,7 +507,7 @@ def run_shots(run: str, commit: str | None = None) -> list[dict]:
         if jpg.stem.isdigit():
             shots.setdefault(int(jpg.stem), {"n": int(jpg.stem), "at": None, "label": "", "checks": ""})
     for n, shot in shots.items():
-        shot["file"] = shot_path(run, n).exists()
+        shot["file"] = (folder / "shots" / f"{n:02d}.jpg").exists()
     return [shots[n] for n in sorted(shots)]
 
 

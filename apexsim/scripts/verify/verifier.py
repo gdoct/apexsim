@@ -224,11 +224,11 @@ def replay_command(run: str) -> str:
             f'-ApexWatchReplay="{replays[-1]}"')
 
 
-def run_info(run: str, commit: str | None = None) -> dict:
-    """A run's shots (at `commit`: a kept generation when the run has shot since), logs and history."""
+def run_info(run: str, commit: str | None = None, gen: str | None = None) -> dict:
+    """A run's shots (at `commit`, or the kept generation `gen`), logs and history."""
     folder = schema.VERIFY_OUT / run
-    shots_at = schema.shots_folder(run, commit)
-    shots = schema.run_shots(run, commit)
+    shots_at = schema.shots_folder(run, commit, gen)
+    shots = schema.run_shots(run, commit, gen)
     recipe = runs_by_id().get(run, {})
     when = ""
     if (shots_at / "shots").exists():
@@ -240,8 +240,8 @@ def run_info(run: str, commit: str | None = None) -> dict:
             "shots": shots, "logs": logs, "history": schema.history(run), "replay": replay_command(run)}
 
 
-def thumbnail(run: str, n: int, commit: str | None = None) -> Path | None:
-    source = schema.shot_path(run, n, commit)
+def thumbnail(run: str, n: int, commit: str | None = None, gen: str | None = None) -> Path | None:
+    source = schema.shot_path(run, n, commit, gen)
     if not source.exists():
         return None
     thumb = source.parent.parent / "thumbs" / source.name
@@ -290,8 +290,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.file(WEB / parts[0], kind + "; charset=utf-8")
             if parts[0] == "fonts" and len(parts) == 2 and SAFE.match(parts[1]):
                 return self.file(FONTS / parts[1], "font/woff2", cache=True)
-            commit = parse_qs(url.query).get("commit", [""])[0]
+            query = parse_qs(url.query)
+            commit, gen = (query.get(k, [""])[0] for k in ("commit", "gen"))
             commit = commit if SAFE.match(commit) else None
+            gen = gen if SAFE.match(gen) else None
             if parts[:2] == ["api", "items"]:
                 f = schema.ItemsFile()
                 items = f.items()
@@ -306,10 +308,11 @@ class Handler(BaseHTTPRequestHandler):
                                                                         "checks")},
                                               "marks": schema.latest_marks(b["id"])} for b in blocks]})
             if parts[:2] == ["api", "runs"] and len(parts) == 3 and SAFE.match(parts[2]):
-                return self.json(run_info(parts[2], commit))
+                return self.json(run_info(parts[2], commit, gen))
             if parts[0] in ("thumb", "shot") and len(parts) == 3 and SAFE.match(parts[1]) and parts[2].isdigit():
                 n = int(parts[2])
-                path = thumbnail(parts[1], n, commit) if parts[0] == "thumb" else schema.shot_path(parts[1], n, commit)
+                path = (thumbnail(parts[1], n, commit, gen) if parts[0] == "thumb"
+                        else schema.shot_path(parts[1], n, commit, gen))
                 return self.file(path, "image/jpeg", cache=True)
             if parts[0] == "log" and len(parts) == 3 and SAFE.match(parts[1]):
                 name = {"client": "client.log", "server": "server.log", "notes": "client_notes.log"}.get(parts[2])

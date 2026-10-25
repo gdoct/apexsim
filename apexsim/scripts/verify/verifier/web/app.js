@@ -360,15 +360,18 @@ function asideHtml(i) {
     </div>`;
 }
 
-// A run's shots as they were at `commit` (a kept generation once the run has shot again).
-async function runInfo(run, commit) {
-  const key = run + '@' + (commit || '');
-  if (!runs[key]) runs[key] = await api('/api/runs/' + encodeURIComponent(run) + (commit ? '?commit=' + encodeURIComponent(commit) : ''))
+// A run's shots as they were at `commit`, or in the kept generation `gen`
+// (history/: a run shot again keeps its last shots there).
+const at = (commit, gen) => gen ? '?gen=' + encodeURIComponent(gen) : commit ? '?commit=' + encodeURIComponent(commit) : '';
+async function runInfo(run, commit, gen) {
+  const key = run + '@' + (commit || '') + '@' + (gen || '');
+  if (!runs[key]) runs[key] = await api('/api/runs/' + encodeURIComponent(run) + at(commit, gen))
     .catch(() => ({ run, shots: [], logs: [], exists: false, history: [] }));
+  if (gen) runs[key].gen = gen;
   return runs[key];
 }
 
-const shotUrl = (run, n, commit) => `/shot/${encodeURIComponent(run)}/${n}${commit ? '?commit=' + encodeURIComponent(commit) : ''}`;
+const shotUrl = (run, n, commit, gen) => `/shot/${encodeURIComponent(run)}/${n}${at(commit, gen)}`;
 
 async function afterItem(id) {
   const i = byId(id);
@@ -402,10 +405,10 @@ async function afterItem(id) {
   markShot();
 }
 
-function shotHtml(run, s, isVerdict, isRef, commit, tag) {
+function shotHtml(run, s, isVerdict, isRef, commit, tag, gen) {
   if (!s || !s.file) return `<div class="shot" data-run="${esc(run)}" data-n="${s ? s.n : ''}"><div class="empty">${s ? `Shot ${s.n} is not on disk.` : 'No shot to match.'}</div></div>`;
   return `<div class="shot ${isVerdict ? 'verdict-shot' : ''} ${isRef ? 'ref' : ''}" data-run="${esc(run)}" data-n="${s.n}">
-    <img loading="lazy" src="${shotUrl(run, s.n, commit)}" alt="${esc(run)} shot ${s.n}">
+    <img loading="lazy" src="${shotUrl(run, s.n, commit, gen)}" alt="${esc(run)} shot ${s.n}">
     <div class="cap">${tag ? `<span class="tag">${esc(tag)}</span>` : ''}<span class="n">#${s.n}</span>${s.at != null ? `<span>${s.at} s</span>` : ''}<span class="lab">${esc(s.label)}</span><span>${esc(run)}</span>${s.checks ? `<span class="chk">${esc(s.checks)}</span>` : ''}</div>
   </div>`;
 }
@@ -419,8 +422,11 @@ async function pairView(evs, infos, box) {
   const other = evs.findIndex((e, k) => k > 0 && (e.run !== after.ev.run || e.commit !== after.ev.commit));
   if (other > 0) before = { ev: evs[other], info: infos[other] };
   else {
-    const prev = (after.info.history || []).find(h => !h.current && h.commit && h.commit !== after.ev.commit);
-    if (prev) before = { ev: { run: after.ev.run, commit: prev.commit, date: prev.date }, info: await runInfo(after.ev.run, prev.commit) };
+    // The generation before the shots shown, kept under history/ whatever its commit.
+    const hist = after.info.history || [];
+    const shown = after.info.kept ? hist.findIndex(h => !h.current && h.commit === after.ev.commit) : 0;
+    const prev = hist.slice(Math.max(shown, 0) + 1).find(h => !h.current);
+    if (prev) before = { ev: { run: after.ev.run, commit: prev.commit, date: prev.date }, info: await runInfo(after.ev.run, null, prev.gen) };
   }
   if (!before) {
     box.innerHTML = '<div class="empty">Nothing to compare: one piece of evidence and no earlier shots of its run kept. <span class="kbd">b</span> goes back.</div>';
@@ -434,7 +440,7 @@ async function pairView(evs, infos, box) {
     const a = after.info.shots.find(s => s.n === n);
     const bn = sameRun ? n : beforeChosen[k];
     const b = before.info.shots.find(s => s.n === bn);
-    return `<div class="shots pair">${shotHtml(before.ev.run, b, false, false, before.info.kept ? before.ev.commit : '', 'before')}${shotHtml(after.ev.run, a, false, false, after.info.kept ? after.ev.commit : '', 'after')}</div>`;
+    return `<div class="shots pair">${shotHtml(before.ev.run, b, false, false, before.info.kept ? before.ev.commit : '', 'before', before.info.gen)}${shotHtml(after.ev.run, a, false, false, after.info.kept ? after.ev.commit : '', 'after', after.info.gen)}</div>`;
   });
   box.innerHTML = `<div class="ev"><div class="ev-head"><h2>Before and after</h2><span class="m">before: ${esc(label(before))}</span><span class="m">after: ${esc(label(after))}</span>
     <span class="m">${sameRun ? 'shot for shot' : 'paired in order'} · <span class="kbd">b</span> back</span></div>

@@ -191,10 +191,10 @@ live in the browser's storage too, so a reload keeps them.
 Endpoints: `GET /api/items` (the items, the file's digest, and the stale
 items with the run to repeat), `GET /api/sittings` (the blocks, their
 checks' items and answer words, their newest marks),
-`GET /api/runs/<run>[?commit=]` (its shots from `shots.md` at that commit,
+`GET /api/runs/<run>[?commit=|?gen=]` (its shots from `shots.md` at that commit or kept generation,
 its logs, its history, its replay command),
-`GET /thumb/<run>/<n>[?commit=]` (480 px, cached beside the shots),
-`GET /shot/<run>/<n>[?commit=]`, `GET /log/<run>/<client|notes|server>` (the last
+`GET /thumb/<run>/<n>[?commit=|?gen=]` (480 px, cached beside the shots),
+`GET /shot/<run>/<n>[?commit=|?gen=]`, `GET /log/<run>/<client|notes|server>` (the last
 400 KB; `?all` for the whole), `GET /doc?p=<path>`, `POST /api/reviews`
 (`{digest, reviews: [{id, status, review} | {id, answer, note, at, flag}]}`:
 409 when the digest is not the file's; an answer not among the check's
@@ -228,10 +228,12 @@ dashboard's tokens and fonts (served from `server/server/src/admin/web/fonts`).
 `--repeat`): each taken shot whose recipe in `runs.yml` has `item:` (an id
 or a list) becomes evidence on that item, with HEAD's commit. Before a run
 shoots again, its last shots (and `shots.md`) move to
-`out/verify/<run>/history/<date>-<commit>/` (`schema.keep_previous`, the
-newest three kept), and `run.json` records the commit and date of the new
-ones: evidence names a commit, and the page finds that generation's shots
-whether they are the run's latest or kept.
+`out/verify/<run>/history/<date>T<time>-<commit>/` (`schema.keep_previous`,
+the newest three kept), and `run.json` records the commit and the minute of
+the new ones: evidence names a commit, and the page finds that
+generation's shots whether they are the run's latest or kept. Before and
+after with one piece of evidence takes the generation before it by its
+folder (`?gen=`), so two runs on one uncommitted change compare too.
 
 ## Checks
 

@@ -171,6 +171,9 @@ class SittingAndStaleTest(unittest.TestCase):
                 self.assertEqual(schema.shot_path("r1", 1).read_text(), "c5")
                 # A generation no longer kept falls back to the latest shots.
                 self.assertEqual(schema.shot_path("r1", 1, "c1").read_text(), "c5")
+                # Two runs on one commit: a generation by its folder.
+                gen = schema.history("r1")[2]["gen"]
+                self.assertEqual(schema.shot_path("r1", 1, gen=gen).read_text(), "c3")
             finally:
                 schema.VERIFY_OUT = original
 
