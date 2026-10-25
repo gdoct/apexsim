@@ -38,9 +38,10 @@ AApexCloudLayerActor::AApexCloudLayerActor()
 	}
 }
 
-void AApexCloudLayerActor::SetSky(float Cover, const FLinearColor& Color, float Brightness)
+void AApexCloudLayerActor::SetSky(float Cover, const FLinearColor& Color, float Brightness, float Veil)
 {
 	CoverNow = FMath::Clamp(Cover, 0.0f, 1.0f);
+	VeilNow = FMath::Clamp(Veil, 0.0f, 1.0f);
 	if (!Material)
 	{
 		// The baked parent, when the project has it.
@@ -67,7 +68,8 @@ void AApexCloudLayerActor::SetSky(float Cover, const FLinearColor& Color, float 
 	Material->SetScalarParameterValue(TEXT("CloudCover"), CoverNow);
 	Material->SetVectorParameterValue(TEXT("CloudColor"), Color);
 	Material->SetScalarParameterValue(TEXT("CloudBrightness"), FMath::Max(Brightness, 0.0f));
-	bDrawn = CoverNow > 0.01f;
+	Material->SetScalarParameterValue(TEXT("CirrusVeil"), VeilNow);
+	bDrawn = CoverNow > 0.01f || VeilNow > 0.01f;
 	Dome->SetVisibility(bDrawn);
 	SetActorTickEnabled(bDrawn);
 }

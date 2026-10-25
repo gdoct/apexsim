@@ -239,6 +239,12 @@ namespace ApexSky
 		/** The cloud's colour as lit now, and how bright, cd/m². */
 		FLinearColor CloudColor = FLinearColor(0.7f, 0.72f, 0.76f);
 		float CloudBrightness = 0.0f;
+		/**
+		 * The thin high cloud over a fair sky, 0..1: a cirrus veil the dome
+		 * draws far above the cumulus (sunny 0.7, cloudy 0.35; the sheet
+		 * hides it from overcast on), so a clear day is not a flat blue.
+		 */
+		float CirrusVeil = 0.0f;
 		/** The road's material roughness; 0.9 is the baked dry value. */
 		float RoadRoughness = 0.9f;
 		/** How far the road has gone from its baked dry look toward the wet
@@ -274,6 +280,51 @@ namespace ApexSky
 	inline FLinearColor FogLuminance(const FSkyState& S)
 	{
 		return S.FogColor * (FMath::Max(S.CloudBrightness, 0.05f) * HazeGain);
+	}
+
+	/**
+	 * The height fog's density for a meteorological visibility, m. The
+	 * engine divides the density by 1000 into a per-centimetre figure and
+	 * fades by powers of two, so its extinction is density x ln 2 / 10 per
+	 * metre; Koschmieder's visibility is 3.912 / extinction. A density of
+	 * 0.0015 is 37 km of air, the clearest of days, where 3.9 / visibility
+	 * read straight as a density drew a 1.6 km dawn mist as that.
+	 */
+	inline float FogDensityForVisibility(float VisibilityM)
+	{
+		constexpr float DensityPerExtinction = 10.0f / UE_LN2;
+		return 3.912f / FMath::Max(VisibilityM, 1.0f) * DensityPerExtinction;
+	}
+
+	/**
+	 * Each weather's own haze as the visibility it leaves, m: a fair day's
+	 * 8 km softens a circuit's far end and its horizon (a far grandstand at
+	 * a kilometre loses about a third of its contrast); rain and snow close
+	 * it in.
+	 */
+	inline float HazeVisibilityM(EApexWeather Weather)
+	{
+		switch (Weather)
+		{
+		case EApexWeather::Sunny:     return 8000.0f;
+		case EApexWeather::Cloudy:    return 6000.0f;
+		case EApexWeather::Overcast:  return 4500.0f;
+		case EApexWeather::LightRain: return 3500.0f;
+		case EApexWeather::HeavyRain: return 2200.0f;
+		case EApexWeather::Snow:      return 2800.0f;
+		default:                      return 8000.0f;
+		}
+	}
+
+	/** The thin high cloud each weather carries (`FSkyState::CirrusVeil`). */
+	inline float CirrusVeilOf(EApexWeather Weather)
+	{
+		switch (Weather)
+		{
+		case EApexWeather::Sunny:  return 0.7f;
+		case EApexWeather::Cloudy: return 0.35f;
+		default:                   return 0.0f;
+		}
 	}
 
 	inline float Daylight(float ElevationDeg)
@@ -386,18 +437,20 @@ namespace ApexSky
 		S.SkyLightIntensity = FMath::Lerp(1.0f, 2.6f, 1.0f - Direct);
 		// The cloud itself, for the dome.
 		S.CloudCover = CloudCoverOf(C.Weather);
+		S.CirrusVeil = CirrusVeilOf(C.Weather);
 		CloudLook(Elev, S.CloudCover, S.CloudColor, S.CloudBrightness);
 
 		// Fog: thicker with the weather, its colour the sky's, dark at night.
+		S.FogDensity = FogDensityForVisibility(HazeVisibilityM(C.Weather));
 		switch (C.Weather)
 		{
-		case EApexWeather::Sunny:     S.FogDensity = 0.0015f; S.FogColor = FLinearColor(0.45f, 0.52f, 0.62f); break;
-		case EApexWeather::Cloudy:    S.FogDensity = 0.0022f; S.FogColor = FLinearColor(0.50f, 0.54f, 0.60f); break;
-		case EApexWeather::Overcast:  S.FogDensity = 0.0035f; S.FogColor = FLinearColor(0.52f, 0.54f, 0.57f); break;
-		case EApexWeather::LightRain: S.FogDensity = 0.0055f; S.FogColor = FLinearColor(0.46f, 0.48f, 0.51f); break;
-		case EApexWeather::HeavyRain: S.FogDensity = 0.0095f; S.FogColor = FLinearColor(0.40f, 0.42f, 0.45f); break;
-		// A white, cool haze, as thick as light rain's.
-		case EApexWeather::Snow:      S.FogDensity = 0.0060f; S.FogColor = FLinearColor(0.60f, 0.64f, 0.70f); break;
+		case EApexWeather::Sunny:     S.FogColor = FLinearColor(0.45f, 0.52f, 0.62f); break;
+		case EApexWeather::Cloudy:    S.FogColor = FLinearColor(0.50f, 0.54f, 0.60f); break;
+		case EApexWeather::Overcast:  S.FogColor = FLinearColor(0.52f, 0.54f, 0.57f); break;
+		case EApexWeather::LightRain: S.FogColor = FLinearColor(0.46f, 0.48f, 0.51f); break;
+		case EApexWeather::HeavyRain: S.FogColor = FLinearColor(0.40f, 0.42f, 0.45f); break;
+		// A white, cool haze, between light and heavy rain's.
+		case EApexWeather::Snow:      S.FogColor = FLinearColor(0.60f, 0.64f, 0.70f); break;
 		default: break;
 		}
 		S.FogStartDistanceCm = bFalling ? 1000.0f : 3000.0f;
@@ -482,6 +535,7 @@ namespace ApexSky
 		S.SnowIntensity = FMath::Lerp(A.SnowIntensity, B.SnowIntensity, T);
 		S.SnowCover = FMath::Lerp(A.SnowCover, B.SnowCover, T);
 		S.CloudCover = FMath::Lerp(A.CloudCover, B.CloudCover, T);
+		S.CirrusVeil = FMath::Lerp(A.CirrusVeil, B.CirrusVeil, T);
 		S.CloudColor = FMath::Lerp(A.CloudColor, B.CloudColor, T);
 		S.CloudBrightness = FMath::Lerp(A.CloudBrightness, B.CloudBrightness, T);
 		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
@@ -500,8 +554,8 @@ namespace ApexSky
 	 */
 	/**
 	 * The height fog's density for the server's visibility through fog
-	 * (Koschmieder: extinction 3.9 / visibility), never thinner than the
-	 * weather's own haze; 0 (not said) or a clear 10 km keeps the haze.
+	 * (`FogDensityForVisibility`), never thinner than the weather's own
+	 * haze; 0 (not said) or a clear 10 km keeps the haze.
 	 */
 	inline float FogDensityFor(float WeatherDensity, int32 VisibilityM)
 	{
@@ -509,7 +563,7 @@ namespace ApexSky
 		{
 			return WeatherDensity;
 		}
-		return FMath::Max(WeatherDensity, 3.9f / static_cast<float>(VisibilityM));
+		return FMath::Max(WeatherDensity, FogDensityForVisibility(static_cast<float>(VisibilityM)));
 	}
 
 	inline FSkyState DeriveLive(const FApexSessionConditions& Session, const FApexSkyNow& Now, const FSkySite& Site = FSkySite())

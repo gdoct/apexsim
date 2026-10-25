@@ -290,9 +290,11 @@ session while driving (notice, then the menu).
   drying past the run's 12 minutes.
 - The far haze since the fog's light follows the sky (`ApexSky::FogLuminance`,
   2026-10-17): seen at the Nordschleife in sun (`g3-horizon`: hills
-  fading into pale haze past the 30 km skirt). Left: other circuits,
-  overcast, rain, dusk and night, where a haze too bright or too dark
-  would show first.
+  fading into pale haze past the 30 km skirt). Since 2026-10-25 each
+  weather's haze is a visibility (sunny 8 km), seen sunny, cloudy and
+  overcast at Armadillos and Monzarella (`g8-sky-*`). Left: rain, dusk
+  and night, where a haze too bright or too dark would show first, and
+  the Nordschleife's horizon again under the thicker fair-day haze.
 - The flags turning with the wind: no shipped circuit places
   `sign/flag_pole`, so this waits for one that does.
 
@@ -461,8 +463,8 @@ good. Left:
 
 `s3-dawn-fog` and `s3-dawn-nofog` (Spa, sunny, 05:30, calm through
 `-ApexWind=0`; the second with `apexsim.sky.ServerFog 0`): the height fog
-thickened to the server's `SkyNow.visibility_m` (density 3.9 / visibility,
-never under the weather's haze; the client logs `Live sky: visibility N m,
+thickened to the server's `SkyNow.visibility_m` (density
+`ApexSky::FogDensityForVisibility`, never under the weather's haze; the client logs `Live sky: visibility N m,
 fog density D`). `s3-fog-thick` against `s3-fog-clear` (06:15, the fog
 forced to 250 m with `apexsim.sky.FogVisibility`) was seen 2026-10-25: the
 far stands and trees grey, the near road readable, the far forests faded
@@ -471,6 +473,10 @@ far stands and trees grey, the near road readable, the far forests faded
 - The server's own fog on screen: a calm Spa dawn gives 4825 m at 05:30
   (a faint haze) and 1601 m at 04:30, still dark. A dawn it fogs thickly
   in daylight wants a colder night against the day's dew point.
+- Since 2026-10-25 a visibility is drawn about 14 times thicker than
+  before (the engine's density per 1000 cm in powers of two, roadmap 45):
+  `s3-fog-thick` and the dawn runs again, the forced 250 m fog now a real
+  250 m one.
 
 ### R19. The radio
 

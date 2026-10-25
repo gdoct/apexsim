@@ -9175,6 +9175,131 @@ runs:
       1: "apexsim.hud.Hide 1"
     shots:
       - {at: 10, lead: 1, label: "chase near at night", checks: "G9: the GT3's beams on the road ahead"}
+
+  # The daytime sky (roadmap 45): each weather's haze as a visibility
+  # (ApexSky::HazeVisibilityM: a fair day's 8 km) and the cirrus veil of
+  # a fair sky, from the line at Armadillos and Monzarella; the far end
+  # of the straight and the horizon soften, the near stands stay crisp.
+
+  - id: g8-sky-armadillos-sunny
+    about: "G8. The sunny sky's haze and cloud at Armadillos, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "sunny: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 1.9"}
+      - {at: 14, lead: 1, label: "sunny: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 91.9"}
+
+  - id: g8-sky-armadillos-cloudy
+    about: "G8. The cloudy sky's haze and cloud at Armadillos, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cloudy: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 1.9"}
+      - {at: 14, lead: 1, label: "cloudy: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 91.9"}
+
+  - id: g8-sky-armadillos-overcast
+    about: "G8. The overcast sky's haze and cloud at Armadillos, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=overcast
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "overcast: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 1.9"}
+      - {at: 14, lead: 1, label: "overcast: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt 1.0 4.0 1.2 120.2 -87.0 91.9"}
+
+  - id: g8-sky-monzarella-sunny
+    about: "G8. The sunny sky's haze and cloud at Monzarella, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "sunny: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 1.2"}
+      - {at: 14, lead: 1, label: "sunny: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 91.2"}
+
+  - id: g8-sky-monzarella-cloudy
+    about: "G8. The cloudy sky's haze and cloud at Monzarella, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=cloudy
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "cloudy: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 1.2"}
+      - {at: 14, lead: 1, label: "cloudy: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 91.2"}
+
+  - id: g8-sky-monzarella-overcast
+    about: "G8. The overcast sky's haze and cloud at Monzarella, 13:00"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=SF-26
+      - -ApexAiCount=3
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=30
+      - -ApexWeather=overcast
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "overcast: down the lap", checks: "G8: the far end and the horizon in haze, the near stands crisp", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 1.2"}
+      - {at: 14, lead: 1, label: "overcast: the sky", checks: "G8: a thin cirrus veil on a fair sky; the cumulus or sheet as before", exec: "apexsim.cam.LookAt -0.3 1.1 1.0 14.3 150.4 91.2"}
   # The reference frame on every circuit's start/finish (roadmap 38,
   # docs/cota-startfinish-comparison.md): the SF-26 on pole, sunny at
   # 13:00, racing line off, the HUD hidden (apexsim.hud.Hide), every shot

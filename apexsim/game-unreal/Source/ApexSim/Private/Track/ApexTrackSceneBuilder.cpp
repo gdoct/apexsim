@@ -19,6 +19,7 @@
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
 #include "Race/ApexPropActors.h"
+#include "Race/ApexSkyModel.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshResources.h"
 #include "Track/ApexGroundMaterials.h"
@@ -2535,10 +2536,9 @@ void FApexTrackSceneBuilder::SpawnActors(
 	{
 		Factory.LabelActor(Fog, TEXT("TrackFog"));
 		UExponentialHeightFogComponent* FogComponent = Fog->GetComponent();
-		// Thin: enough that the far end of a straight sits in haze rather
-		// than pin-sharp against the sky, not enough to milk out the
-		// mid-field (0.0045 did, and with it every color on screen).
-		FogComponent->SetFogDensity(0.0015f);
+		// A fair day's haze (ApexSky::HazeVisibilityM); the race director
+		// sets the weather's own once the sky is known.
+		FogComponent->SetFogDensity(ApexSky::FogDensityForVisibility(ApexSky::HazeVisibilityM(EApexWeather::Sunny)));
 		FogComponent->SetFogHeightFalloff(0.2f);
 		// Keep the first ~30 m crisp; the haze belongs to the distance.
 		FogComponent->SetStartDistance(3000.0f);

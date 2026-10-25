@@ -1944,6 +1944,7 @@ return o;
 			return P;
 		};
 		UMaterialExpression* Cover = Param(TEXT("CloudCover"), 0.0f);
+		UMaterialExpression* Veil = Param(TEXT("CirrusVeil"), 0.0f);
 		UMaterialExpression* Height = Param(TEXT("CloudHeight"), 150000.0f);
 		UMaterialExpression* Brightness = Param(TEXT("CloudBrightness"), 2000.0f);
 		UMaterialExpressionVectorParameter* Color = AddExpr<UMaterialExpressionVectorParameter>(Parent);
@@ -1973,9 +1974,28 @@ return o;
 		// Thicker is darker; the sheet keeps a little texture.
 		UMaterialExpression* Shade = G.Lerp(G.C(1.1f), G.C(0.72f), G.Sat(G.Mul(G.Sub(Shape, G.C(0.3f)), G.C(1.4f))));
 
+		// The cirrus veil: a plane six times higher, its noise drawn out
+		// five to one along the world's X into streaks some kilometres
+		// long, thin (at most 0.55 opaque) and lit whiter than the
+		// cumulus. It drifts with the same offset, which up there reads as
+		// barely moving.
+		UMaterialExpression* VeilReach = G.Div(G.Mul(Height, G.C(6.0f)), G.Max(Up, G.C(0.03f)));
+		UMaterialExpression* VeilHit = G.Add(G.Mask(CamPos, true, true, false), G.Mul(G.Mask(Dir, true, true, false), VeilReach));
+		UMaterialExpression* VeilP = G.Append(G.Mul(G.Sub(VeilHit, G.Mask(Offset, true, true, false)), G.Append(G.C(0.2f), G.C(1.0f))), G.C(0.0f));
+		UMaterialExpression* Streaks = G.Add(G.Mul(G.Noise(VeilP, 1.0f / 90000.0f, 3), G.C(0.85f)), G.Mul(G.Noise(VeilP, 1.0f / 25000.0f, 2), G.C(0.15f)));
+		// Patches, not a lid: a coarse mask keeps the veil to bands across
+		// part of the sky, with clear blue between them.
+		UMaterialExpression* Patches = G.Sat(G.Mul(G.Sub(G.Noise(VeilP, 1.0f / 300000.0f, 2), G.C(0.45f)), G.C(3.0f)));
+		UMaterialExpression* VeilAlpha = G.Mul(G.Mul(G.Mul(G.Sat(G.Mul(G.Sub(Streaks, G.C(0.4f)), G.C(2.0f))), G.C(0.55f)), Patches), Veil);
+		// Over: the cumulus in front of the veil.
+		UMaterialExpression* Total = G.Sub(G.C(1.0f), G.Mul(G.Sub(G.C(1.0f), Alpha), G.Sub(G.C(1.0f), VeilAlpha)));
+		UMaterialExpression* Front = G.Mul(G.Mul(Color, Shade), Alpha);
+		UMaterialExpression* Back = G.Mul(G.Mul(Color, G.C(1.15f)), G.Mul(VeilAlpha, G.Sub(G.C(1.0f), Alpha)));
+		UMaterialExpression* Mixed = G.Div(G.Add(Front, Back), G.Max(Total, G.C(0.001f)));
+
 		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
-		EditorOnly->EmissiveColor.Expression = G.Mul(G.Mul(Color, Shade), Brightness);
-		EditorOnly->Opacity.Expression = G.Mul(Alpha, Fade);
+		EditorOnly->EmissiveColor.Expression = G.Mul(Mixed, Brightness);
+		EditorOnly->Opacity.Expression = G.Mul(Total, Fade);
 		Parent->MaterialDomain = MD_Surface;
 		Parent->BlendMode = BLEND_Translucent;
 		Parent->SetShadingModel(MSM_Unlit);
@@ -2315,7 +2335,19 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 	{
 		return false;
 	}
-	if (bForce || !ParentExists(ApexTrackMaterials::CloudName))
+	bool bBakeCloud = bForce || !ParentExists(ApexTrackMaterials::CloudName);
+	if (!bBakeCloud)
+	{
+		// One baked before the cirrus veil draws a bare blue fair sky.
+		const UMaterialInterface* Existing = LoadObject<UMaterialInterface>(nullptr, *ApexTrackMaterials::ObjectPath(ApexTrackMaterials::CloudName));
+		float Veil = 0.0f;
+		bBakeCloud = Existing && !Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(TEXT("CirrusVeil")), Veil);
+		if (bBakeCloud)
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no cirrus veil; baking it again"), ApexTrackMaterials::CloudName);
+		}
+	}
+	if (bBakeCloud)
 	{
 		if (!BakeOne(ApexTrackMaterials::CloudName, [](UMaterial* M) { BuildCloudLayer(M); }, OutError))
 		{

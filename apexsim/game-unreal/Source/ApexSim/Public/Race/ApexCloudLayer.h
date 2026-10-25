@@ -33,8 +33,8 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** The sky's cloud: cover 0..1, the sheet's colour, its brightness in cd/m². */
-	void SetSky(float Cover, const FLinearColor& Color, float Brightness);
+	/** The sky's cloud: cover 0..1, the sheet's colour, its brightness in cd/m², and the high veil 0..1. */
+	void SetSky(float Cover, const FLinearColor& Color, float Brightness, float Veil = 0.0f);
 
 	/** The wind the cloud drifts with, cm/s in world axes (the dome scales it down: a cloud is far). */
 	void SetWind(const FVector& InWindCmPerS);
@@ -57,6 +57,7 @@ private:
 	TObjectPtr<UMaterialInstanceDynamic> Material;
 
 	float CoverNow = 0.0f;
+	float VeilNow = 0.0f;
 	bool bDrawn = false;
 	/** The wind now, cm/s, and how far it has carried the cloud, cm. */
 	FVector2D WindCmPerS = FVector2D::ZeroVector;

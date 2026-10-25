@@ -708,10 +708,16 @@ See [protocol.md](protocol.md) for the append-only rules.
   100 lamps lit: Mandarina Bay has some 450) may stop down to
   `FloodlitMaxEv` (11), or its road under the lights read near white.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
-  by weather, thickened in a live sky to the server's fog
-  (`SkyNow.visibility_m` -> `FApexSkyNow::VisibilityM`; density
-  `ApexSky::FogDensityFor`: 3.9 / visibility, never under the weather's
-  haze; `apexsim.sky.ServerFog 0` draws the haze alone, `apexsim.sky.FogVisibility N` the fog for N m in place of the server's) (its inscattering a luminance, `ApexSky::FogLuminance`: the
+  by weather, each weather's haze a visibility (`ApexSky::HazeVisibilityM`:
+  sunny 8 km, cloudy 6, overcast 4.5, light rain 3.5, heavy rain 2.2,
+  snow 2.8), so a circuit's far end and horizon soften by day, thickened
+  in a live sky to the server's fog (`SkyNow.visibility_m` ->
+  `FApexSkyNow::VisibilityM`, `ApexSky::FogDensityFor`, never under the
+  weather's haze). A visibility becomes the engine's fog density through
+  `ApexSky::FogDensityForVisibility`: the engine takes the density per
+  1000 cm in powers of two, so its extinction is density x ln 2 / 10 per
+  metre and Koschmieder's 3.912 / extinction gives density = 56.4 /
+  visibility (0.0015 is 37 km of air); `apexsim.sky.ServerFog 0` draws the haze alone, `apexsim.sky.FogVisibility N` the fog for N m in place of the server's) (its inscattering a luminance, `ApexSky::FogLuminance`: the
   weather's fog colour lit as the sky lights the clouds, x `HazeGain` 1.4,
   so far land fades into pale haze rather than sinking into dark blue), the road family's material roughness eased toward
   `ApexSky::WetRoadRoughness` (0.3) with the road's water (the road itself
@@ -742,8 +748,16 @@ See [protocol.md](protocol.md) for the append-only rules.
   `Weather::cloud`'s rung (cloudy 0.5, overcast 0.85, rain 0.9 / 1, snow 1)
   for a fixed sky and the server's eased `cloud_pct` for a live one;
   `CloudLook` lights it (`CloudColor`, `CloudBrightness` in cd/m²: a few
-  thousand under a high sun, near nothing at night). The dome hides itself
-  under a clear sky and spawns with the first sky that has cloud.
+  thousand under a high sun, near nothing at night). A fair sky carries a
+  cirrus veil on a second plane six times higher (`FSkyState::CirrusVeil`,
+  `ApexSky::CirrusVeilOf`: sunny 0.7, cloudy 0.35, none under a sheet):
+  noise drawn out five to one into streaks, kept to patches by a coarse
+  mask, at most 0.55 opaque and lit whiter than the cumulus, so a clear
+  day is not a flat blue. The dome hides itself under a bare sky and
+  spawns with the first sky that has cloud or veil; a parent baked before
+  the veil (no `CirrusVeil` parameter) is baked again by
+  `-run=ApexMaterialBake`. Verify runs `g8-sky-<stem>-<weather>`
+  (Armadillos and Monzarella, sunny, cloudy, overcast).
 - Spray: on a wet road each car throws pale puffs back and up from behind
   its wheels (`AApexRaceCarActor::UpdateSpray`, the rears twice as often),
   into the same smoke rings as the tyre smoke, as much as its tyres are wet

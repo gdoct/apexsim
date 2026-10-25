@@ -2459,15 +2459,16 @@ void AApexRaceDirector::ApplySkyLighting()
 			Rain->ClearWind();
 		}
 	}
-	// The cloud over the circuit: scattered on a cloudy day, one sheet from
-	// overcast on; the dome hides itself under a clear sky.
-	if (Sky.CloudCover > 0.0f && !Clouds)
+	// The cloud over the circuit: the cirrus veil on a fair day, scattered
+	// cumulus on a cloudy one, one sheet from overcast on; the dome hides
+	// itself under a bare sky.
+	if ((Sky.CloudCover > 0.0f || Sky.CirrusVeil > 0.0f) && !Clouds)
 	{
 		Clouds = World->SpawnActor<AApexCloudLayerActor>(AApexCloudLayerActor::StaticClass(), FVector::ZeroVector, FRotator::ZeroRotator);
 	}
 	if (Clouds)
 	{
-		Clouds->SetSky(Sky.CloudCover, Sky.CloudColor, Sky.CloudBrightness);
+		Clouds->SetSky(Sky.CloudCover, Sky.CloudColor, Sky.CloudBrightness, Sky.CirrusVeil);
 		if (LitSky.bValid)
 		{
 			const FVector2D Wind = LitSky.WindServerMps();

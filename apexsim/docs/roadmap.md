@@ -293,20 +293,6 @@ closed by live-oak belts at the property line and hills to the north.
 **Check:** the `sf-ref-*` horizon and a `g3-horizon`-style shot at
 Armadillos; re-dress `--all` counts for the other open-country circuits.
 
-### 45. The daytime sky: haze and high cloud
-
-- Aerial perspective at `sunny` midday on this circuit: the far gantry, the
-  pit building and the horizon should soften with distance (the far haze
-  since `ApexSky::FogLuminance` is verified at the Nordschleife only;
-  verification.md's row names the other cases).
-- A thin high cloud veil inside `sunny` (cloud cover is 0 there; the live
-  day has cirrus): a cirrus sheet at low cover in `ApexCloudLayer`, or a
-  `cloudy` variant with a high, thin look, so a bright-overcast day is a
-  choice on the create screen.
-
-**Check:** the `sf-ref-*` frame against the live one; `SkyModelTests` hold;
-the sky ladder's other weathers unchanged in their verify shots.
-
 ### 46. The start gantry
 
 The kit has no start gantry mesh (`props/bridge/gantries.blend` holds the

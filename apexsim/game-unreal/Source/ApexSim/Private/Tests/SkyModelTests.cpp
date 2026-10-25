@@ -326,10 +326,22 @@ bool FApexSkyLiveTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("10 km is the haze"), FMath::IsNearlyEqual(DeriveLive(Dawn, Clear).FogDensity, Haze));
 		FApexSkyNow Foggy = Clear;
 		Foggy.VisibilityM = 150;
-		TestTrue(TEXT("150 m is thick"), FMath::IsNearlyEqual(DeriveLive(Dawn, Foggy).FogDensity, 3.9f / 150.0f));
+		TestTrue(TEXT("150 m is thick"), FMath::IsNearlyEqual(DeriveLive(Dawn, Foggy).FogDensity, FogDensityForVisibility(150.0f)));
 		Foggy.VisibilityM = 1700;
 		const float Mist = DeriveLive(Dawn, Foggy).FogDensity;
-		TestTrue(TEXT("1.7 km between"), Mist > Haze && Mist < 3.9f / 150.0f);
+		TestTrue(TEXT("1.7 km between"), Mist > Haze && Mist < FogDensityForVisibility(150.0f));
+	}
+
+	// The engine's fog in metres: density / 1000 per centimetre in powers
+	// of two, so a density's visibility is 3.912 / (density x ln 2 / 10).
+	{
+		const float D = FogDensityForVisibility(8000.0f);
+		const float ExtinctionPerM = D * UE_LN2 / 10.0f;
+		TestTrue(TEXT("8 km round trip"), FMath::IsNearlyEqual(3.912f / ExtinctionPerM, 8000.0f, 1.0f));
+		TestTrue(TEXT("the fair day's haze is 8 km"),
+			FMath::IsNearlyEqual(Derive(At(EApexWeather::Sunny, 13)).FogDensity, D, 1e-6f));
+		TestTrue(TEXT("a fair sky carries a veil"), Derive(At(EApexWeather::Sunny, 13)).CirrusVeil > 0.0f);
+		TestTrue(TEXT("overcast hides it"), Derive(At(EApexWeather::Overcast, 13)).CirrusVeil == 0.0f);
 	}
 
 	// Rain arriving: between overcast and light rain, the streaks part way.
