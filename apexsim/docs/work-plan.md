@@ -55,7 +55,7 @@ takes it up (— : no step, taken opportunistically).
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
-| V3 | Verification runs R4, R5, R6, R8, R10 | Verification | P3 | 🟡 | S each | — |
+| V3 | Verification runs R4, R5, R8, R10 | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
 | N22 | Localisation | Accessibility | P3 | 🔴 | M | — |
@@ -234,10 +234,9 @@ beyond the weather already on the wire. 🔴 for the models.
   reversing out of a barrier. Also the human look at side-by-side traffic
   since the 2026-10-24 traffic change (AI).
 
-#### V3. R4, R5, R6, R8, R10 — P3 · 🟡 · S each
+#### V3. R4, R5, R8, R10 — P3 · 🟡 · S each
 Snow/ice/melt and wind veer (R4 needs A2), Marina Bay night clouds and kerbs
-(R5, pairs with G2), Nordschleife dressing close-ups (R6), stadium stands
-(R8), sun at solar noon and changeable sky (R10).
+(R5, pairs with G2), stadium stands (R8), sun at solar noon and changeable sky (R10).
 
 #### H1. Wheel, pedals and FFB sitting — P1 · 🔴 · S
 *Source: verification §2.* The core of a sim, and none of it has been felt:

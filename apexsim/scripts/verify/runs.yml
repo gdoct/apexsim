@@ -477,6 +477,36 @@ runs:
         checks: "R6 bridge: the slot, its walls, the deck, the road under it"
         exec: "apexsim.cam.LookAt -141.1 -61.4 8.1 -118.9 -43.7 -9.9"
 
+  - id: r6-nordschleife-under
+    about: "R6. The deck's underside from the road under two of the lap's bridges"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=11:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "under the bridge at 80 m (one side)"
+        checks: "R6 bridge: the deck's underside from the road under it"
+        exec: "apexsim.cam.LookAt 80.5 10.1 -0.8 78.0 -5.7 0.7"
+      - at: 15
+        label: "under the bridge at 80 m (the other)"
+        checks: "R6 bridge: the deck's underside from the road under it"
+        exec: "apexsim.cam.LookAt 75.5 -21.5 -0.8 78.0 -5.7 0.7"
+      - at: 20
+        label: "under the bridge at 1814 m (one side)"
+        checks: "R6 bridge: the deck's underside from the road under it"
+        exec: "apexsim.cam.LookAt 1336.2 630.0 -68.9 1338.8 614.2 -67.4"
+      - at: 25
+        label: "under the bridge at 1814 m (the other)"
+        checks: "R6 bridge: the deck's underside from the road under it"
+        exec: "apexsim.cam.LookAt 1341.4 598.4 -68.9 1338.8 614.2 -67.4"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

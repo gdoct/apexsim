@@ -177,28 +177,6 @@ plus `LookAt` stops ([apexsim-content/docs/props.md](../../apexsim-content/docs/
   cameras (the 2995 m shot's road 27% darker, blown pixels 7.6% to 4%);
   a human's eye on whether the night now reads too dark between lamps.
 
-### R6. Nordschleife, sunny, TV lap and dressing stops
-
-The TV camera follows a lap; `LookAt` stops come from the layout dossier
-([apexsim-content/docs/circuits.md](../../apexsim-content/docs/circuits.md))
-and `spots.py --prop`. Seen (`r6-nordschleife` 2026-10-24,
-`r6-nordschleife-close` and `r6-nordschleife-rest` 2026-10-25): the
-Karussell, skid marks, the overpass, the gantry, the camp villages, the
-K 73 bridge, the road graffiti, marshal post 1's number from 18 m, a rail
-tag on its rail the right way round, the toll booths, a spectator bank on
-its verge, the hillside letters through the Döttinger Höhe's trees, the
-grade plates (12 % at 1939 m, 10 % at 190 m half behind a fence post),
-the Hohe Acht tower on its hill from 140 m off the road (behind a hill
-from the road itself), and Brünnchen from both verges with no lighter
-strip of green against the grass. Left:
-
-`r6-nordschleife-bridges` (2026-10-25): the five bridges over roads (80,
-1814, 7922, 17779 and 20623 m) from above beside each: the slot between
-its walls, the asphalt down in it, the deck and its parapets, the
-guardrails crossing on the deck and not in the slot. Left:
-
-- The deck's underside, from the road under it.
-
 ### R7. A seeded pile-up replay, before and after
 
 Four unattended runs (snow and heavy rain, chase and watch cameras) left
