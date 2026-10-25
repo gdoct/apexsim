@@ -1,7 +1,8 @@
 # Work plan
 
 A prioritised view over the four backlogs, snapshot of 2026-10-24 at
-`50d69b4e`. What the plan's finished items brought is in
+`50d69b4e`, with the COTA start/finish packages (roadmap 38-50) added
+2026-10-25. What the plan's finished items brought is in
 [features-by-date.md](features-by-date.md). The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
@@ -43,10 +44,23 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
+| V4 | COTA start/finish reference shot (roadmap 38) | Verification | P2 | 🟢 | S | 2 |
+| G7 | Road surface detail (roadmap 39) | Rendering | P2 | 🟡 | M | 2 |
+| C6 | Grid boxes, chequer, COTA apron paint (roadmap 40) | Content | P2 | 🟡 | S | 2 |
+| C7 | Main straight walls: catch fences, pit wall, screens (roadmap 41) | Content | P2 | 🟡 | M | 2 |
+| C8 | No track lighting at a day venue (roadmap 42) | Content | P2 | 🟢 | S | 2 |
+| C9 | The Main Grandstand: crowd twin, canopy, setback (roadmap 43) | Content | P2 | 🟡 | M | 2 |
+| C10 | Horizon for open-country circuits (roadmap 44) | Content | P2 | 🟡 | M | 2 |
+| G8 | Daytime sky: haze and high cloud (roadmap 45) | Rendering | P2 | 🟡 | S | 2 |
+| C11 | Start gantry mesh (roadmap 46) | Content | P2 | 🟡 | S | 2 |
+| C12 | Formula car up close (roadmap 47) | Content | P2 | 🟡 | S–M | 2 |
+| G9 | Mirror faces glow from outside at low exposure (roadmap 48) | Rendering | P2 | 🟢 | S | 2 |
+| G10 | T-cam rung (roadmap 49) | Rendering | P2 | 🟡 | S | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
+| N29 | Broadcast HUD layout (roadmap 50) | Feature | P3 | 🟡 | S | — |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
 | A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
@@ -67,7 +81,11 @@ takes it up (— : no step, taken opportunistically).
 1. **H1** in one sitting, with B8's cooling and S1's crown on the wheel.
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
-   kit gaps are built.
+   kit gaps are built. The COTA start/finish packages (V4 first, then
+   G7 to G10 and C6 to C12 in any order, each judged on V4's frame)
+   belong to this pass: they are independent of each other, and one or
+   two at a time is the right pace, since the content ones re-dress
+   and re-export every track.
 3. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
    close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
 4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -162,6 +180,32 @@ view): one LOD, materials and shadows fine; from above at midday a formula
 car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
+#### G7. Road surface detail — P2 · 🟡 · M
+*Source: roadmap 39, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
+The single largest gap in the frame: the shared asphalt set reads as
+uniform soft charcoal from a cockpit. Aggregate at road scale, a macro
+variation mask, a static wear layer (lighter band between the wheel
+tracks, patches) under the live rubber. One material for every track:
+judged on V4's frame and two other circuits' S/F runs.
+
+#### G8. Daytime sky: haze and high cloud — P2 · 🟡 · S
+*Source: roadmap 45.* Aerial perspective at sunny midday on COTA (the
+far haze is verified at the Nordschleife only) and a thin cirrus veil
+inside `sunny` or as a high, thin `cloudy`. Judged on V4's frame against
+the live one.
+
+#### G9. Mirror faces glow from outside at low exposure — P2 · 🟢 · S
+*Source: roadmap 48.* `ScreenNitsAt` scales the mirror and display
+emissive for the seat; from a chase rung at dusk the faces burn out and
+throw two lobes on the road. Clamp from outside, or cockpit-only; checked
+with the sunset frame's recipe before and after.
+
+#### G10. T-cam rung — P2 · 🟡 · S
+*Source: roadmap 49.* A `tcam` rung in `ApexChase::Views()`: roll hoop,
+pitched down, wide FOV, halo and helmet in frame; saved `ChaseViewLevel`
+indices must keep their meaning. A person picks the pitch and FOV from
+the shots.
+
 ### Content and circuits
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
@@ -205,6 +249,39 @@ barrier column changes `walls.msgpack` and needs the AI survey; a dress or
 rule change touches every track's `.ats`, export and catalogue; people is a
 new kit family plus client instancing and waits on nothing.
 
+#### C6 to C12. COTA start/finish, the content packages — P2 · 🟡 · S–M each
+*Source: roadmap 40 to 47, [cota-startfinish-comparison.md](cota-startfinish-comparison.md).*
+Each stands alone and is judged on V4's frame; none needs another first.
+The track's audit page is
+[Armadillos.md](../../apexsim-content/docs/circuit-references/audit/Armadillos.md).
+
+- **C6. Grid boxes, chequer, apron paint** (roadmap 40): solid numbered
+  boxes in `ue_export.rs`'s `grid_boxes`, the chequer's length, a
+  `custom` marking or decals for COTA's blue-and-white apron. S.
+- **C7. Main straight walls** (roadmap 41): concrete + `catch_fence_6m`
+  both sides in `barriers::decide`, `pit_wall_gantry_6m` over the box span
+  at permanent circuits, the four pit-building screens laid and facing the
+  stand. Moves `walls.msgpack`: AI survey against the commit before. M.
+- **C8. No track lighting at a day venue** (roadmap 42): a day-venue
+  flag that lays no `floodlight_tower` ring and keeps car-park lamps off
+  the fence; 🟢, judged by re-dress counts and one night run. S.
+- **C9. The Main Grandstand** (roadmap 43): a `_crowd` twin for the
+  stadium family, a tensile canopy, flags on the rail, the setback to the
+  OSM outline. M.
+- **C10. Horizon for open-country circuits** (roadmap 44): a
+  `forest_impostor` belt at the property edge for the prairie style, the
+  DEM horizon mesh checked for the hills north of COTA. M.
+- **C11. Start gantry mesh** (roadmap 46): `bridge/start_gantry.glb`, a
+  dark truss with a branded fascia and a small light housing; the
+  countdown's `ApexStartLight` lenses on its lamp row. S.
+- **C12. Formula car up close** (roadmap 47): decided on V4's frame; if
+  the sponsor atlas still reads as absent at T-cam distance, larger
+  wordmarks, wing carbon, rim and sidewall at close range. S–M.
+
+**Watch out:** C7, C8, C9 and C10 re-dress `--all` and touch every
+track's `.ats` and export; run them one at a time, and C7's barrier
+change needs the survey.
+
 ### Audio and features
 
 #### AU1. Audio overhaul — P3 · 🔴 · L
@@ -223,6 +300,13 @@ animation and sound in first person, rain-driven auto mode. Server need: none
 beyond the weather already on the wire. 🔴 for the models.
 
 ### Verification
+
+#### V4. COTA start/finish reference shot — P2 · 🟢 · S
+*Source: roadmap 38.* The `cota-sf-reference` run (Armadillos, SF-26,
+sunny, 13:00, cockpit, racing line off; shots on the line, from the grid
+and from the `roof` rung) and the comparison doc's frame table rewritten
+from it. Do first: every COTA package is judged against this frame, and
+the reshoot alone closes the time-of-day and camera differences.
 
 #### V2. R1, R2, R7 — P2 · 🟡 · S each
 - R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (photo mode
@@ -276,6 +360,11 @@ filter pills already exist.
 Render scale (TSR) and HDR are built. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
 the default; you accept NVIDIA's DLSS SDK terms when the plugin is
 downloaded, so the download is yours), and the checks in verification.md.
+
+#### N29. Broadcast HUD layout — P3 · 🟡 · S
+*Source: roadmap 50.* A shipped layout of timing tower, lower third and
+sector bar from HUD components, bindable to watching. Optional; last of
+the COTA set.
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).
