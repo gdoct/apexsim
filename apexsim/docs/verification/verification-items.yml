@@ -2335,3 +2335,81 @@
   status: open
   needs: [by-hand]
 
+- id: v-c10-armadillos-hills
+  title: The hills north of Armadillos from a raised camera
+  area: track
+  kind: screen
+  check_by: c10-horizon-armadillos
+  created: 2026-10-25
+  commit: 36680c50
+  plan: C10
+  doc: ../../apexsim-content/docs/track-pipeline.md
+  what: >-
+    The DEM horizon at Armadillos from 60 m and 300 m over the start line: the
+    land to the north rising over the pit building, the tree line, and the skirt
+    running on into the haze with no seam.
+  status: judged
+  evidence:
+  - run: c10-horizon-armadillos
+    date: 2026-10-25
+    commit: 36680c50
+    shots: [1, 2, 3, 4, 5]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: looks-right
+    text: >-
+      Land and wood patches to the horizon in every direction from 60 m, no
+      seam at the skirt from 300 m. The land north of the circuit is gentle,
+      as the DEM has it (29 m of relief on the lap): no hills to speak of over
+      the pit building.
+    shots: [1, 5]
+
+- id: v-c10-dem-horizons
+  title: >-
+    A DEM horizon and tree line at Endianapolis, Hermanos RodriQueso and Moscow
+    Mule
+  area: track
+  kind: screen
+  check_by: c10-horizon-moscowmule
+  created: 2026-10-25
+  commit: 36680c50
+  plan: C10
+  doc: ../../apexsim-content/docs/track-pipeline.md
+  what: >-
+    The three circuits with a DEM sidecar from dem_fetch.DEM_ONLY (their OSM
+    fits miss the dossier gate): land to the horizon, the far field's tree line,
+    the valley's hills round Hermanos RodriQueso, Moscow's re-derived relief
+    with no step between road and ground; runs c10-horizon-endianapolis, -hermanosrodriqueso
+    and -moscowmule, before and after (b).
+  status: judged
+  evidence:
+  - run: c10-horizon-endianapolis
+    date: 2026-10-25
+    commit: 36680c50
+    shots: [1, 2, 3, 4, 5]
+    kind: shot
+  - run: c10-horizon-hermanosrodriqueso
+    date: 2026-10-25
+    commit: 36680c50
+    shots: [1, 2, 3, 4, 5]
+    kind: shot
+  - run: c10-horizon-moscowmule
+    date: 2026-10-25
+    commit: 36680c50
+    shots: [1, 2, 3, 4, 5]
+    kind: shot
+  verdict:
+    date: 2026-10-25
+    by: agent
+    says: looks-right
+    text: >-
+      Before (history: a flat plane ending in a hard edge against the sky at
+      all three) and after: Moscow rolls with wood patches and the land runs
+      on into the haze; Endianapolis closes with a broken tree line; Hermanos
+      RodriQueso shows the valley's volcanic hills and the Penon hill beside
+      the circuit. Moscow's road sits on its new relief with no step to the
+      ground. b shows before and after.
+    shots: [1, 2]
+

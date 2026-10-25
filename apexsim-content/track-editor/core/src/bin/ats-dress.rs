@@ -10,7 +10,7 @@
 //! belts around them — with the belts confined to the real woodland.
 //!
 //! ```text
-//! ats-dress --all                           # every track that has a dossier
+//! ats-dress --all                           # every track that has a dossier (or a DEM)
 //! ats-dress tracks/default/Monzarella/Monzarella.yaml  # one circuit
 //! ats-dress --all --dry-run                 # report without writing
 //! ats-dress --no-groom SpaFrankenchamps.yaml             # dress only
@@ -18,7 +18,8 @@
 //! ```
 //!
 //! Idempotent: both passes own what they lay, so a second run over a
-//! dressed scene writes nothing.
+//! dressed scene writes nothing. A circuit with an elevation model and no
+//! dossier gets its far field alone (`dress::lay_far_field`).
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -28,7 +29,8 @@ use track_core::{ats_io, dress, groom, layout, project, ue_export_io};
 const USAGE: &str = "\
 usage: ats-dress [--all] [--dry-run] [--no-groom] [--verbose] [--explain] [track.yaml ...]
 
-  --all, -a       every track under tracks/{default,custom} that has a dossier
+  --all, -a       every track under tracks/{default,custom} that has a dossier,
+                  or a DEM sidecar (the far field alone)
   --dry-run, -n   report what would change without writing
   --no-groom      dress only; leave barriers, boards and trees alone
   --verbose, -v   list dossier entries that could not be placed
@@ -80,6 +82,40 @@ fn explain_scene(scene: &track_core::ats::AtsScene) -> Vec<String> {
     lines
 }
 
+/// A circuit with an elevation model and no dossier: its far field alone
+/// ([`dress::lay_far_field`]), the rest of its scene left as authored, then
+/// groomed as `ats-groom` grooms it (its props re-seated on the ground the
+/// model shapes).
+fn far_field_only(
+    track_path: &std::path::Path,
+    dry_run: bool,
+    no_groom: bool,
+) -> Result<String, String> {
+    let opened = project::open_project(track_path).map_err(|e| e.to_string())?;
+    let mut scene = opened.scene.ok_or("scene failed to load")?;
+    let dem = track_core::dem::load_dem(track_core::dem::dem_path_for(track_path))
+        .map_err(|e| format!("elevation sidecar unusable ({e})"))?
+        .ok_or("no elevation sidecar")?;
+    let n = dress::lay_far_field(&opened.track, &mut scene, &dem).ok_or("degenerate centerline")?;
+    let groomed = if no_groom {
+        String::new()
+    } else {
+        let g = groom::groom_scene_with_dem(&opened.track, &mut scene, None, Some(&dem))
+            .ok_or("grooming failed")?;
+        format!(
+            "; groom: {} wall(s), {} board(s), {} barrier(s), {} tree(s), {} pushed, {} reseated",
+            g.walls, g.boards, g.barriers, g.trees, g.pushed, g.reseated
+        )
+    };
+    if !dry_run {
+        ats_io::save_ats(&opened.ats_path, &scene).map_err(|e| format!("failed to save: {e}"))?;
+    }
+    Ok(format!(
+        "no dossier: the far field alone, {n} impostor(s){groomed}{}",
+        if dry_run { " (dry run)" } else { "" }
+    ))
+}
+
 fn main() -> ExitCode {
     let mut all = false;
     let mut dry_run = false;
@@ -109,11 +145,9 @@ fn main() -> ExitCode {
 
     if all {
         match ue_export_io::all_track_files() {
-            Ok(found) => tracks.extend(
-                found
-                    .into_iter()
-                    .filter(|t| layout::layout_path_for(t).exists()),
-            ),
+            Ok(found) => tracks.extend(found.into_iter().filter(|t| {
+                layout::layout_path_for(t).exists() || track_core::dem::dem_path_for(t).exists()
+            })),
             Err(e) => {
                 eprintln!("failed to list the track folders: {e}");
                 return ExitCode::FAILURE;
@@ -143,6 +177,17 @@ fn main() -> ExitCode {
         let layout_path = layout::layout_path_for(track_path);
         let layout = match layout::load_layout(&layout_path) {
             Ok(Some(layout)) => layout,
+            Ok(None) if track_core::dem::dem_path_for(track_path).exists() => {
+                // No dossier, but an elevation model: the far field alone.
+                match far_field_only(track_path, dry_run, no_groom) {
+                    Ok(line) => println!("{name}: {line}"),
+                    Err(e) => {
+                        eprintln!("{name}: {e}");
+                        failures += 1;
+                    }
+                }
+                continue;
+            }
             Ok(None) => {
                 eprintln!(
                     "{name}: no {} — nothing to dress from",

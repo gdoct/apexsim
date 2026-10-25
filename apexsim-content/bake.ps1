@@ -153,14 +153,16 @@ if ($Stage -contains 'ground') {
 }
 
 if ($Stage -contains 'dress') {
-    # Only a track with a layout dossier has anything to dress from; naming
-    # one without to ats-dress is a failure.
+    # Only a track with a layout dossier, or an elevation model (its far
+    # field alone), has anything to dress from; naming one without to
+    # ats-dress is a failure.
     $dressFiles = @($trackFiles | Where-Object {
-            Test-Path (Join-Path $ContentRoot ([IO.Path]::ChangeExtension($_, '.layout.json')))
+            (Test-Path (Join-Path $ContentRoot ([IO.Path]::ChangeExtension($_, '.layout.json')))) -or
+            (Test-Path (Join-Path $ContentRoot ([IO.Path]::ChangeExtension($_, '.dem.msgpack'))))
         })
     $undressed = @($trackFiles | Where-Object { $dressFiles -notcontains $_ })
     if ($undressed.Count -gt 0) {
-        Write-Host ("No layout dossier, scene kept as it is: " +
+        Write-Host ("No layout dossier or DEM, scene kept as it is: " +
             (($undressed | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) }) -join ', ')) `
             -ForegroundColor DarkGray
     }
@@ -168,8 +170,8 @@ if ($Stage -contains 'dress') {
         Write-Step 'Skipping the dressing pass; no named track has a layout dossier'
     }
     else {
-        Write-Step $(if ($Track) { "Dressing $($dressFiles.Count) track(s) from their layout dossiers" }
-            else { 'Dressing every track (default and custom) that has a layout dossier' })
+        Write-Step $(if ($Track) { "Dressing $($dressFiles.Count) track(s) from their layout dossiers (or DEMs)" }
+            else { 'Dressing every track (default and custom) that has a layout dossier or a DEM' })
         $dressArgs = @('run', '--quiet', '--manifest-path', 'track-editor\Cargo.toml', '--bin', 'ats-dress')
         if ($Release) { $dressArgs += '--release' }
         $dressArgs += '--'

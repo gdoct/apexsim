@@ -15,7 +15,7 @@ a 10 m one over the circuit itself and a 90 m one out to 8 km, which is the
 horizon a driver sees from a valley floor.
 
     python tools/dem_fetch.py RedPullRing        # one circuit
-    python tools/dem_fetch.py --all            # every circuit with a dossier
+    python tools/dem_fetch.py --all            # every circuit with a dossier, and DEM_ONLY
     python tools/dem_fetch.py Monzarella --offline  # reuse the cached tiles
 
 The georeferencing is not re-derived here: `osm_layout.fit_track` returns the
@@ -59,6 +59,26 @@ from pathlib import Path
 import numpy as np
 
 from osm_layout import BBOXES, ROOT, R_EARTH, fit_track
+
+# Circuits with no dossier, because OSM's raceway ways are another layout
+# variant than the YAML's or miss a stretch (osm_layout.BBOXES' notes), but
+# whose fit still explains most of the lap to within a few metres. That is
+# not good enough to place a stand, and plenty for terrain on 10 m and 90 m
+# grids whose heights the centerline overrides within 40 m of the road: the
+# horizon, the far field and its tree line. Boxes as the notes give them.
+# Yas Marina fits too (85.7% at 3.2 m) but stays without one, as Marina Bay
+# does: reclaimed flat land where a surface model reads the hotel and the
+# buildings as hills (along the road the model rises 8 m over a flat lap).
+DEM_ONLY = {
+    "Endianapolis": [(-86.245, 39.783, -86.222, 39.805)],
+    "HermanosRodriQueso": [(-99.102, 19.396, -99.080, 19.413)],
+    "MoscowMule": [(36.243, 55.987, 36.283, 56.005)],
+}
+
+
+def dem_gate(report: dict) -> bool:
+    """A fit good enough for terrain: most of the lap, to within a few metres."""
+    return report["centerline_covered"] >= 0.6 and report["rmse_m"] <= 4.5
 from track_dirs import track_dir, track_glob
 
 DEM_CACHE = ROOT / ".cache" / "dem"
@@ -511,7 +531,9 @@ def pack_f32(a: np.ndarray) -> Raw:
 
 def build(stem: str, offline: bool) -> dict:
     print(f"== {stem}")
-    track, osm, a, t, report = fit_track(stem, offline)
+    if stem in DEM_ONLY:
+        BBOXES.setdefault(stem, DEM_ONLY[stem])
+    track, osm, a, t, report = fit_track(stem, offline, gate=dem_gate if stem in DEM_ONLY else None)
     frame = Frame(osm, a, t)
 
     inner = grid_spec(track.pts, INNER_MARGIN_M, INNER_CELL_M)
@@ -605,7 +627,7 @@ def main() -> int:
     args = ap.parse_args()
 
     stems = (
-        [p.name.split(".")[0] for p in track_glob("*.layout.json")]
+        sorted({p.name.split(".")[0] for p in track_glob("*.layout.json")} | set(DEM_ONLY))
         if args.all
         else args.tracks
     )
@@ -613,7 +635,7 @@ def main() -> int:
         ap.print_help()
         return 1
     for stem in stems:
-        if stem not in BBOXES:
+        if stem not in BBOXES and stem not in DEM_ONLY:
             layout = track_dir(stem) / f"{stem}.layout.json"
             if args.all and layout.exists() and "combined_from" in json.loads(layout.read_text(encoding="utf-8")):
                 print(f"{stem}: combined (tools/combine_tracks.py writes its DEM), skipped")

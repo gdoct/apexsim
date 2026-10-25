@@ -394,14 +394,7 @@ pub fn dress_scene_with_dem(
     // Anything the circuit has of its own is respected: a venue with its
     // own lighting masts in the dossier does not get a generated set.
     let has_lighting = layout.landmarks.iter().any(|l| l.kind == "floodlight");
-    let bare = track
-        .metadata
-        .as_ref()
-        .and_then(|m| m.environment_type.as_deref())
-        .is_some_and(|env| {
-            let env = env.trim();
-            env.eq_ignore_ascii_case("desert") || env.eq_ignore_ascii_case("dune")
-        });
+    let bare = bare_country(track);
     let style = crate::circuit_style::CircuitStyle::for_scene(scene);
     let extras = surroundings::lay(
         &path,
@@ -518,6 +511,62 @@ pub fn dress_scene_with_dem(
         scene.props.push(prop);
     }
     Some(report)
+}
+
+/// A desert or dune circuit: nothing grows on its slopes.
+fn bare_country(track: &TrackFile) -> bool {
+    track
+        .metadata
+        .as_ref()
+        .and_then(|m| m.environment_type.as_deref())
+        .is_some_and(|env| {
+            let env = env.trim();
+            env.eq_ignore_ascii_case("desert") || env.eq_ignore_ascii_case("dune")
+        })
+}
+
+/// The far field alone, for a circuit with an elevation model but no
+/// layout dossier (`dem_fetch.DEM_ONLY`: OSM carries another variant of its
+/// lap): the impostors on its slopes and the horizon's tree line, which
+/// need nothing but the DEM. The impostors laid before are replaced and
+/// nothing else in the scene is touched, so a hand-seeded scene keeps its
+/// stands and trees. Returns how many were laid, `None` for a degenerate
+/// centerline.
+pub fn lay_far_field(track: &TrackFile, scene: &mut AtsScene, dem: &DemFile) -> Option<usize> {
+    let path = CenterlinePath::from_track(track)?;
+    let terrain = crate::groom::seating_terrain(&path, scene, Some(dem))?;
+    let terrain = terrain.with_under_roads(&crate::groom::under_road_paths(scene));
+    let style = crate::circuit_style::CircuitStyle::for_scene(scene);
+    let mut laid = surroundings::far_field(
+        &path,
+        &terrain,
+        dem,
+        bare_country(track),
+        !style.city_buildings,
+    );
+    laid.retain(|p| {
+        !crate::groom::stands_in_water(&terrain, p)
+            && !crate::groom::stands_on_under_road(&terrain, p)
+    });
+    let mut recycled: Vec<u64> = scene
+        .props
+        .iter()
+        .filter(|p| surroundings::far_field_prop(p))
+        .map(|p| p.id)
+        .collect();
+    recycled.sort_unstable();
+    recycled.reverse();
+    scene.props.retain(|p| !surroundings::far_field_prop(p));
+    let n = laid.len();
+    for mut prop in laid {
+        prop.id = recycled.pop().unwrap_or_else(|| {
+            let id = scene.next_id;
+            scene.next_id += 1;
+            id
+        });
+        scene.props.push(prop);
+    }
+    Some(n)
 }
 
 fn name_of(name: &Option<String>) -> String {
@@ -3328,6 +3377,37 @@ mod surroundings {
             part("floodlights", &mut out, &|o| floodlights(&ctx, o));
         }
         out
+    }
+
+    /// The forest sub-layer on its own, with no dossier (no mapped woods):
+    /// [`super::lay_far_field`].
+    pub fn far_field(
+        path: &CenterlinePath,
+        terrain: &TerrainHeightfield,
+        dem: &DemFile,
+        bare: bool,
+        horizon: bool,
+    ) -> Vec<Prop> {
+        let layout = Layout::default();
+        let ctx = Ctx {
+            path,
+            terrain,
+            layout: &layout,
+            bare,
+            fan: false,
+            horizon,
+        };
+        let mut out = Vec::new();
+        forests(&ctx, Some(dem), &mut out);
+        stamp_from(&mut out, 0, FAR_FIELD_STAMP);
+        out
+    }
+
+    const FAR_FIELD_STAMP: &str = "surroundings: forest";
+
+    /// A prop the far field laid: the forest sub-layer's stamp.
+    pub fn far_field_prop(prop: &Prop) -> bool {
+        prop.source.as_deref() == Some(FAR_FIELD_STAMP)
     }
 
     /// Stamp the props from `start` on that have no stamp yet.

@@ -215,6 +215,12 @@ cargo run --manifest-path track-editor/Cargo.toml --bin ats-dress -- --all
 #   or <yaml> [--dry-run] [--verbose] [--no-groom]
 ```
 
+A circuit with a DEM sidecar and no dossier (`dem_fetch.DEM_ONLY`) gets its
+far field alone (`dress::lay_far_field`): the `surroundings: forest`
+impostors on its slopes and the horizon's tree line replaced, nothing else
+in its hand-seeded scene touched, then groomed as `ats-groom` grooms it.
+`--all` and `bake.ps1` include such a circuit.
+
 The report gives placed counts; `--verbose` lists each dossier entry it could
 not place, with the reason, and which entries lost props to the water, a
 city block or the pit zone. Every prop the pass lays carries a **source
@@ -392,7 +398,10 @@ as canopy, node 0 kept exactly (the sidecar's datum), the raceline carried by
 the road's change. Every circuit with a DEM sidecar is re-derived except
 Shanghai (its 11 m of relief on a flat site is grandstands the surface model
 reads as ground), Monza (the park's canopy: 140 samples read as trees, and
-the fit moved the racecraft, tyre-window and mesh-agreement tests). On a
+the fit moved the racecraft, tyre-window and mesh-agreement tests),
+Indianapolis (a flat oval the model gives 8 m of relief and a 3.8% grade:
+its stands) and Hermanos Rodriguez (the model's relief is the YAML's, 3 m;
+re-deriving would only move noise). On a
 wooded circuit the model reads trees over whole stretches: look at the fit
 before trusting `--report`. **A circuit that crosses itself** (Suzuka):
 the DEM sees only the bridge deck over both roads, so `crossovers` finds
@@ -452,6 +461,16 @@ a skirt past its edge (`horizon_skirt`): a spoke from every eighth edge
 post out 30 km, held at that post's height and falling with the earth's
 curvature, so the land runs on into the haze from a crest instead of
 ending in a band of sky.
+
+Three circuits have no dossier because OSM carries another layout variant
+than the YAML's, or misses a stretch (`osm_layout.BBOXES`' notes:
+Indianapolis, Hermanos Rodriguez, Moscow). Their fit still explains 67-76%
+of the lap to about 4 m, short of the dossier's gate and plenty for terrain
+whose heights the centerline overrides within 40 m: `dem_fetch.DEM_ONLY`
+holds their boxes and takes a looser gate (60% covered, 4.5 m), so they get
+a sidecar, the horizon mesh and the far field's tree line. Yas Marina and
+Marina Bay stay without one: reclaimed flat land, where a surface model
+reads the hotels and roofs as hills.
 `track_location.py` writes `metadata.altitude_m` / `latitude_deg` /
 `longitude_deg` from the georeference (its `MANUAL` table covers circuits
 without a DEM); `ats-export` writes `latitude_deg`, `longitude_deg`,

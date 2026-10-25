@@ -10060,3 +10060,95 @@ runs:
       - {at: 14, lead: 1, label: "chase roof rung, pole box", checks: "roadmap 38: the old frame's camera", exec: "apexsim.cam.Chase roof"}
       - {at: 18, lead: 1, label: "eye on the line, down the lap", checks: "roadmap 38: gantry, both walls, horizon, sky", exec: "apexsim.cam.LookAt -1.7 -1.9 1.0 53.3 137.7 2.3"}
       - {at: 22, lead: 1, label: "eye on the line, back over the grid", checks: "roadmap 38: grid boxes, chequer, apron", exec: "apexsim.cam.LookAt -1.7 -1.9 1.0 -23.7 -57.7 1.2"}
+
+  # Roadmap 44 / C10: the DEM horizon from 60 m over the start line, four
+  # ways (track frames are north-up to within 2 degrees), then the eye on
+  # the line. The three circuits got their DEM sidecar from dem_fetch.DEM_ONLY.
+  - id: c10-horizon-armadillos
+    about: "C10. Circuit of the Armadillos: the hills north of the circuit over the pit building"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Armadillos
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "60 m up, north", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 1.0 4.0 60.2 1.0 4004.0 0.2", item: v-c10-armadillos-hills}
+      - {at: 14, lead: 1, label: "60 m up, east", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 1.0 4.0 60.2 4001.0 4.0 0.2", item: v-c10-armadillos-hills}
+      - {at: 18, lead: 1, label: "60 m up, south", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 1.0 4.0 60.2 1.0 -3996.0 0.2", item: v-c10-armadillos-hills}
+      - {at: 22, lead: 1, label: "60 m up, west", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 1.0 4.0 60.2 -3999.0 4.0 0.2", item: v-c10-armadillos-hills}
+      - {at: 26, lead: 1, label: "300 m up, north", checks: "C10: the horizon mesh and its skirt into the haze", exec: "apexsim.cam.LookAt 1.0 4.0 300.2 1.0 6004.0 0.2", item: v-c10-armadillos-hills}
+  - id: c10-horizon-endianapolis
+    about: "C10. Endianapolis: the DEM horizon and tree line"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Endianapolis
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "60 m up, north", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.0 0.0 60.0 0.0 4000.0 0.0", item: v-c10-dem-horizons}
+      - {at: 14, lead: 1, label: "60 m up, east", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.0 0.0 60.0 4000.0 0.0 0.0", item: v-c10-dem-horizons}
+      - {at: 18, lead: 1, label: "60 m up, south", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.0 0.0 60.0 0.0 -4000.0 0.0", item: v-c10-dem-horizons}
+      - {at: 22, lead: 1, label: "60 m up, west", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.0 0.0 60.0 -4000.0 0.0 0.0", item: v-c10-dem-horizons}
+      - {at: 26, lead: 1, label: "300 m up, north", checks: "C10: the horizon mesh and its skirt into the haze", exec: "apexsim.cam.LookAt 0.0 0.0 300.0 0.0 6000.0 0.0", item: v-c10-dem-horizons}
+  - id: c10-horizon-hermanosrodriqueso
+    about: "C10. Hermanos RodriQueso: the DEM horizon (the hills round the valley) and tree line"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=HermanosRodriQueso
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "60 m up, north", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt -1.9 3.2 60.0 -1.9 4003.2 0.0", item: v-c10-dem-horizons}
+      - {at: 14, lead: 1, label: "60 m up, east", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt -1.9 3.2 60.0 3998.1 3.2 0.0", item: v-c10-dem-horizons}
+      - {at: 18, lead: 1, label: "60 m up, south", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt -1.9 3.2 60.0 -1.9 -3996.8 0.0", item: v-c10-dem-horizons}
+      - {at: 22, lead: 1, label: "60 m up, west", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt -1.9 3.2 60.0 -4001.9 3.2 0.0", item: v-c10-dem-horizons}
+      - {at: 26, lead: 1, label: "300 m up, north", checks: "C10: the horizon mesh and its skirt into the haze", exec: "apexsim.cam.LookAt -1.9 3.2 300.0 -1.9 6003.2 0.0", item: v-c10-dem-horizons}
+  - id: c10-horizon-moscowmule
+    about: "C10. Moscow Mule: the DEM horizon, tree line and the re-derived relief"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=MoscowMule
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexGridOrder=@host
+      - -ApexLaps=1
+      - -ApexCountdown=40
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=cockpit
+      - -ApexRacingLine=off
+    exec:
+      1: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, lead: 1, label: "60 m up, north", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 0.9 3999.9 0.0", item: v-c10-dem-horizons}
+      - {at: 14, lead: 1, label: "60 m up, east", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 4000.9 -0.1 0.0", item: v-c10-dem-horizons}
+      - {at: 18, lead: 1, label: "60 m up, south", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 0.9 -4000.1 0.0", item: v-c10-dem-horizons}
+      - {at: 22, lead: 1, label: "60 m up, west", checks: "C10: land, hills and a tree line to the horizon, no seam at the skirt", exec: "apexsim.cam.LookAt 0.9 -0.1 60.0 -3999.1 -0.1 0.0", item: v-c10-dem-horizons}
+      - {at: 26, lead: 1, label: "300 m up, north", checks: "C10: the horizon mesh and its skirt into the haze", exec: "apexsim.cam.LookAt 0.9 -0.1 300.0 0.9 5999.9 0.0", item: v-c10-dem-horizons}

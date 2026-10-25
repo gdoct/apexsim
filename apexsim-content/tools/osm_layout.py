@@ -4895,7 +4895,7 @@ def drop_structures_under_landmarks(structures: list[dict], landmarks: list[dict
 # ----------------------------------------------------------- georeferencing
 
 
-def fit_track(stem: str, offline: bool) -> tuple[Track, Osm, np.ndarray, np.ndarray, dict]:
+def fit_track(stem: str, offline: bool, gate=None) -> tuple[Track, Osm, np.ndarray, np.ndarray, dict]:
     """Georeference one circuit onto its own YAML frame.
 
     Returns `(track, osm, a, t, report)`, where a point in the OSM extract's
@@ -4906,6 +4906,10 @@ def fit_track(stem: str, offline: bool) -> tuple[Track, Osm, np.ndarray, np.ndar
     `tools/dem_fetch.py`) has to use the *same* alignment the dossier was
     built from: two independent fits agreeing to within a metre would still
     leave the hills a metre off the grandstands standing on them.
+
+    `gate(report) -> bool` replaces the dossier's own test for a use that
+    tolerates a looser fit (`dem_fetch.DEM_ONLY`: terrain on 10 m and 90 m
+    grids, where a few metres of misfit do not show).
     """
     paths = fetch(stem, offline)
     track = Track(stem)
@@ -4935,7 +4939,7 @@ def fit_track(stem: str, offline: bool) -> tuple[Track, Osm, np.ndarray, np.ndar
     # road in OSM (the N138 down to Mulsanne), so there the test is that
     # the permanent section matches to within a couple of metres over
     # kilometres - which no wrong alignment can do.
-    ok = report["centerline_covered"] >= 0.9 or (
+    ok = gate(report) if gate else report["centerline_covered"] >= 0.9 or (
         report["centerline_covered_m"] >= 1500 and report["rmse_m"] <= 3.0
     )
     if not ok:

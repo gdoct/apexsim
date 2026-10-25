@@ -201,17 +201,6 @@ rail carries no flags or dressing (`build_kit_gaps_stands.py`).
 **Check:** `c9-stadium-armadillos` and the `sf-ref-*` frames of a circuit
 using the family.
 
-### 44. The DEM horizon at Armadillos
-
-The far field's tree line is laid on every circuit with a DEM. Left: the
-DEM horizon mesh at Armadillos (the `outer` grid and `horizon_skirt`)
-checked for the hills north of the circuit over the pit building, from
-a raised camera rather than the haze-flattened eye on the line; and the
-three circuits without a DEM sidecar (Endianapolis, HermanosRodriQueso,
-MoscowMule), which get no far trees at all.
-
-**Check:** a `g3-horizon`-style shot at Armadillos.
-
 ### 17. League rules
 
 - Success ballast by championship position (needs championships), a
