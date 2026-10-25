@@ -443,6 +443,40 @@ runs:
         checks: "The bank and its hedge, the green against the grass"
         exec: "apexsim.cam.LookAt -467.0 -5238.1 -78.9 -492.6 -5220.3 -82.9"
 
+  - id: r6-nordschleife-bridges
+    about: "R6. The lap's bridges over roads, each from above beside it"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=11:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 10
+        label: "the bridge at 80 m, from above beside it"
+        checks: "R6 bridge: the slot, its walls, the deck, the road under it"
+        exec: "apexsim.cam.LookAt 59.0 15.5 17.2 78.0 -5.7 -0.8"
+      - at: 15
+        label: "the bridge at 1814 m, from above beside it"
+        checks: "R6 bridge: the slot, its walls, the deck, the road under it"
+        exec: "apexsim.cam.LookAt 1314.2 628.4 -50.9 1338.8 614.2 -68.9"
+      - at: 20
+        label: "the bridge at 7922 m, from above beside it"
+        checks: "R6 bridge: the slot, its walls, the deck, the road under it"
+        exec: "apexsim.cam.LookAt 2967.9 -3094.2 -273.2 2955.2 -3119.6 -291.2"
+      - at: 25
+        label: "the bridge at 17779 m, from above beside it"
+        checks: "R6 bridge: the slot, its walls, the deck, the road under it"
+        exec: "apexsim.cam.LookAt -632.4 -2805.9 -53.3 -608.7 -2790.3 -71.3"
+      - at: 30
+        label: "the bridge at 20623 m, from above beside it"
+        checks: "R6 bridge: the slot, its walls, the deck, the road under it"
+        exec: "apexsim.cam.LookAt -141.1 -61.4 8.1 -118.9 -43.7 -9.9"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

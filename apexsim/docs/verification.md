@@ -192,12 +192,12 @@ the Hohe Acht tower on its hill from 140 m off the road (behind a hill
 from the road itself), and Brünnchen from both verges with no lighter
 strip of green against the grass. Left:
 
-- The roads under the lap's other bridges (B 257 at Quiddelbach and
-  Breidscheid, L 92, L 93; the GP circuit's and the 24h layout's
-  Müllenbach link too): the slot, its walls and the deck's underside
-  under the `track_bridge_10m` tiles, the asphalt down there, from the lap
-  and from beside the bridge; the rails crossing the bridge on the deck,
-  not in the slot.
+`r6-nordschleife-bridges` (2026-10-25): the five bridges over roads (80,
+1814, 7922, 17779 and 20623 m) from above beside each: the slot between
+its walls, the asphalt down in it, the deck and its parapets, the
+guardrails crossing on the deck and not in the slot. Left:
+
+- The deck's underside, from the road under it.
 
 ### R7. A seeded pile-up replay, before and after
 
