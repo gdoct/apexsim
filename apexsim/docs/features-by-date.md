@@ -36,6 +36,11 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
   - a row still scrolling in reaches the footer below its list, the school's Back (`36c7bb0e`)
   - Season and Track select keep a pad going with nothing listed (`293d52de`)
 - **R14, R20, R21 (verification)** — the Profile walked by pad, the palettes through a CVD simulator, photo mode over a saved replay (`2dc362d7`, `1f2db1c8`, `68027569`)
+- **R10 (verification)** — the sun goes where the circuit is once its track is in (`a8094440`); rain arriving and easing under a written forecast (`4f994efe`)
+- **R6, R8 (verification)** — the Nordschleife's plates, tower, Brünnchen and bridges; the stadium wedge, a curved pit row and the crowd (`9e10e5d6`, `fa3ec6ce`)
+- **Crowd** — each seated row shows its own window of the strip, the flags off their diagonal (`0d2ca668`)
+- **Cockpit** — a class wheel's shift lights follow the revs and the palette (`15785530`)
+- **R5 (verification)** — Mandarina Bay's pit building and sausage kerbs at night (`7cb12ff1`, `7b504327`)
 
 ## 2026-10-24
 
