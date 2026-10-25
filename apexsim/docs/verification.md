@@ -517,7 +517,9 @@ Spotter, Race engineer) laid out like the rows above them. Run 2026-10-24:
 car_left/right each followed by its clear_* (eight pairs), safety_car,
 box_confirmed, sc_in, green_green, last_lap, chequered, position_6, no
 line twice in a row; no yellow line, as the stopped car went straight to a
-safety car. Left: hearing it, and the settings shot.
+safety car. The settings shots (2026-10-25): Radio volume 80 %, Spotter
+and Race engineer ON, laid out as the rows above; walking down by pad
+brings Race engineer into view. Left: hearing it.
 
 ### R20. Colour-vision palettes
 

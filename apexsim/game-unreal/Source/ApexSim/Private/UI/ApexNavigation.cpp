@@ -163,12 +163,20 @@ namespace ApexNav
 
 		Widget->SetKeyboardFocus();
 
-		// Focus that lands below the fold of a list is invisible focus.
-		for (UWidget* At = Widget->GetParent(); At; At = At->GetParent())
+		// Focus that lands below the fold of a list is invisible focus. Up
+		// through the user widgets too: a segment's pills are in a tree of
+		// their own, whose root has no parent, inside the screen's list.
+		auto Up = [](UWidget* At) -> UWidget*
+		{
+			UWidget* Parent = At->GetParent();
+			return Parent ? Parent : At->GetTypedOuter<UUserWidget>();
+		};
+		for (UWidget* At = Up(Widget); At; At = Up(At))
 		{
 			if (UScrollBox* Scroll = Cast<UScrollBox>(At))
 			{
-				Scroll->ScrollWidgetIntoView(Widget, /*AnimateScroll*/ true);
+				// A little past it: a row's description runs on under its control.
+				Scroll->ScrollWidgetIntoView(Widget, /*AnimateScroll*/ true, EDescendantScrollDestination::IntoView, /*Padding*/ 24.0f);
 				break;
 			}
 		}

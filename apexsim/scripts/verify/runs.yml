@@ -7729,8 +7729,17 @@ runs:
       - -ApexCountdown=5
       - -ApexOpenSettings=20
       - -ApexSettingsTab=6
+    # Race engineer is below the fold: the pad's way down the rows brings it in.
+    exec:
+      25: ["apexsim.ui.Key Right"]
+      25.5: ["apexsim.ui.Key Down"]
+      26: ["apexsim.ui.Key Down"]
+      26.5: ["apexsim.ui.Key Down"]
+      27: ["apexsim.ui.Key Down"]
+      27.5: ["apexsim.ui.Key Down"]
     shots:
       - {at: 24, label: "Settings > Audio", checks: "N14 the Radio section: Radio volume 80 %, Spotter ON, Race engineer ON, nothing clipped"}
+      - {at: 31, label: "scrolled to the end", checks: "N14 Race engineer ON, laid out like Spotter"}
 
   # The race HUD in each colour-vision palette, then the cockpit dash in
   # each: the console switches the palette (and the HUD rebuilds) a few

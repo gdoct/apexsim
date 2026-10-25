@@ -105,6 +105,10 @@ and widget factories), so layouts are reviewable as diffs.
   would start from the corner of the screen. `UApexNavigableWidget` sends
   Up/Down on its own slider the same way (`NativeOnPreviewKeyDown`). Every
   screen and overlay is walked by pad in `ApexSim.UI.PadWalk` (below).
+  `ApexNav::Focus` scrolls the control it lands on into view, 24 px past
+  it, in the nearest scroll box up through the user widgets it sits in (a
+  segment's pills are a tree of their own): the walk checks focus, not
+  what is on screen.
 - The pause menu in a race: Close menu, Settings, PIT PLAN (a driver in a
   race or free practice), BACK TO GARAGE (hotlap and
   qualifying, on track), BACK TO TRACK / BACK TO PITS (a stuck car; see
