@@ -524,7 +524,8 @@ Five percentages: front, rear, left, right, engine.
 - **Effects** (1.0 undamaged): front downforce and up to 60% of the radiator; rear up to 40%
   rear downforce; a side's tyres up to 12% grip (`side_grip_factor`) and the fronts toed
   toward it (`toe_offset_rad`); engine up to 40% power (`engine_power_factor`).
-- **Out** at 100% in any zone (`DamageState::refresh`): `update_car_3d` returns early; after
+- **Out** at 100% in any zone (`DamageState::refresh`): `update_car_3d` stops the car where
+  it is (velocities and `speed_mps` zeroed, so the telemetry reads it stopped) and returns; after
   `TOW_AFTER_S` (10 s) `update_retirements` moves the car to its pit box (if there is a
   lane) and out of every collision, wake, DRS and pit pass (`CarState::towed`).
 - **Visible damage** is drawn by the client from the same percentages (dents,

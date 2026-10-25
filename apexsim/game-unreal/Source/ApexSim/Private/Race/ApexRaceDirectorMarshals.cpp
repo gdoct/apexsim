@@ -126,12 +126,6 @@ void AApexRaceDirector::SampleMarshalCars(const FApexTelemetryFrame& Frame)
 		{
 			Sample.bOut |= Damage >= 99.5f;
 		}
-		// The server holds a car out of the race where it stands but leaves
-		// its last speed on the wire until the tow (follow-ups 40).
-		if (Sample.bOut)
-		{
-			Sample.SpeedMps = 0.0f;
-		}
 		MarshalCars.Add(Sample);
 	}
 }

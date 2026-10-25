@@ -217,9 +217,7 @@ tested on the synthetic ring; the director draws it
   `OnRoadAfterS` (6 s) on the road. At most `MaxIncidents` (3) scenes; a new
   one takes the place of a finished one, else the oldest, and a car whose
   scene was dropped or ran its course gets none again until it moves. A
-  car out of the race counts as stopped whatever its speed (the server
-  holds it where it stands, its last speed still on the wire), and a car
-  put more than 30 m away while stopped (towed to its box, which the
+  car put more than 30 m away while stopped (towed to its box, which the
   server counts as outside the lane) gets none until it has driven again.
 - **Marshals**: two kit `misc/marshal_figure` cards side by side at the
   verge `PostUpCm` (12 m) up the road from the car, on its side and at

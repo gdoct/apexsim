@@ -239,19 +239,6 @@ the client does not show all of them yet, and the server leaves a few edges.
 the field, a jump start and a red-light exit served; `race_start_test`,
 `penalty_test`.
 
-### 40. Findings of the 2026-10-25 verification review
-
-Seen by the owner in the runs' shots. The runs stay under `out/verify/`
-until each is fixed and shot again.
-
-- A car out of the race keeps its last speed on the wire until the tow:
-  `physics.rs` returns early for an undrivable car without zeroing
-  `speed_mps` or the velocities, so the HUD and the tower show a parked
-  wreck at racing speed, and the client's marshals read it as stopped only
-  because they special-case out cars (`SampleMarshalCars`). Zero them in
-  the sim (check what reads a dead car's speed: the VSC trigger, the yellow
-  flags), then drop the client's special case; judge with the AI survey.
-
 ### 41. The tread's surfaces up close
 
 Found framing R2's close-ups (`r2-tread-race`, then `r2-tread-replay`:

@@ -244,8 +244,14 @@ pub fn update_car_3d(
     track: &TrackConfig,
     dt: f32,
 ) {
-    // Skip physics if car is undrivable
+    // An undrivable car stands where it stopped: no physics, and no motion
+    // left on it for the telemetry, the HUD and the client's marshals to read.
     if !state.damage.is_drivable {
+        state.vel_x = 0.0;
+        state.vel_y = 0.0;
+        state.vel_z = 0.0;
+        state.speed_mps = 0.0;
+        state.angular_vel_yaw = 0.0;
         return;
     }
     // A car in its box is being worked on, or a recovered one is waiting
