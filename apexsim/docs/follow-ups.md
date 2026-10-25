@@ -247,8 +247,6 @@ until each is fixed and shot again.
 - Snow (`r4-spa-snow`, shots 7, 10, 12): strange circles on the road and
   road triangles show through the snow in a long race. Find the cause on the
   road mesh / road-state material, fix it as a rule for every circuit.
-- Night road (`r5-mandarina-night`): the road is slightly too dark between
-  lamps. Raise it without brightening the lit pools.
 - A car out of the race keeps its last speed on the wire until the tow:
   `physics.rs` returns early for an undrivable car without zeroing
   `speed_mps` or the velocities, so the HUD and the tower show a parked

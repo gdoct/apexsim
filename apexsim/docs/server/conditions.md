@@ -706,7 +706,11 @@ See [protocol.md](protocol.md) for the append-only rules.
   night's exposure ceiling is EV 8, so a dark circuit's night stays dark
   with a lamp in view; a floodlit circuit (`ApexLights::FloodlitLampCount`,
   100 lamps lit: Mandarina Bay has some 450) may stop down to
-  `FloodlitMaxEv` (11), or its road under the lights read near white.
+  `FloodlitMaxEv` (11), or its road under the lights read near white, and
+  its bias is raised by `FloodlitBiasEv` (0.25). Its arm lamps
+  (`lamp_arm_twin`, 40 m apart) reach `ArmRadiusCm` (45 m), so the
+  engine's attenuation window keeps the road between two lit and the
+  exposure no longer stops down on bright pools over dark gaps.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
   by weather, each weather's haze a visibility (`ApexSky::HazeVisibilityM`:
   sunny 8 km, cloudy 6, overcast 4.5, light rain 3.5, heavy rain 2.2,

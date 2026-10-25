@@ -35,7 +35,13 @@ namespace ApexLights
 	 * is that x1.5 at its 9.2 m height and wider cone.
 	 */
 	inline constexpr float ArmLumens = 80000.0f;
-	inline constexpr float ArmRadiusCm = 2800.0f;
+	/**
+	 * Arms stand 40 m apart, so the road between two is 20 m from either
+	 * head. The engine's window (1 - (d/r)^4)^2 at 28 m kept 38% there and
+	 * left a dark band between the pools; at 45 m it keeps 89% there and
+	 * under the head (9 m) all but the same as before.
+	 */
+	inline constexpr float ArmRadiusCm = 4500.0f;
 	inline constexpr float ArmInnerDeg = 60.0f;
 	inline constexpr float ArmOuterDeg = 110.0f;
 	inline constexpr float ArmColorTemperatureK = 3300.0f;
@@ -64,6 +70,13 @@ namespace ApexLights
 	 */
 	inline constexpr int32 FloodlitLampCount = 100;
 	inline constexpr float FloodlitMaxEv = 11.0f;
+	/**
+	 * Added to a floodlit night's exposure bias. The arms' longer reach
+	 * evens the road between them, and the exposure stops down for it:
+	 * this gives the pools back their brightness on screen and lifts the
+	 * stretches between them with them.
+	 */
+	inline constexpr float FloodlitBiasEv = 0.25f;
 
 	/** Defaults of `apexsim.lights.Max` and `apexsim.lights.Range` (metres). */
 	inline constexpr int32 DefaultMaxLights = 90;

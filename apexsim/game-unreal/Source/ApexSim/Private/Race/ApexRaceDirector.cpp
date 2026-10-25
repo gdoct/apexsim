@@ -2421,7 +2421,7 @@ void AApexRaceDirector::ApplySkyLighting()
 		Settings.AutoExposureMaxBrightness = bFloodlit ? FMath::Max(Sky.ExposureMaxEv, ApexLights::FloodlitMaxEv)
 			: Sky.ExposureMaxEv;
 		Settings.bOverride_AutoExposureBias = true;
-		Settings.AutoExposureBias = Sky.ExposureBias;
+		Settings.AutoExposureBias = Sky.ExposureBias + (bFloodlit ? ApexLights::FloodlitBiasEv : 0.0f);
 		Settings.bOverride_ColorSaturation = true;
 		Settings.ColorSaturation = FVector4(Sky.Saturation, Sky.Saturation, Sky.Saturation, 1.0f);
 		Settings.bOverride_ColorContrast = true;
