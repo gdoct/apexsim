@@ -75,6 +75,18 @@ races:
     max_seconds: 520
     weather: sunny
     time: "20:40"
+  brands:
+    track: BrandsScratch
+    car: posh-gt3rs
+    weather: sunny
+    time: "16:30"
+  nordschleife:
+    track: Mordschleife
+    car: posh-gt3rs
+    laps: 1
+    max_seconds: 720
+    weather: cloudy
+    time: "11:00"
 
 action:
   - id: grid-start
@@ -102,7 +114,7 @@ action:
 
   - id: banking
     about: The pack through the banked hairpin, on the long lens
-    pick: 4
+    pick: 2
     race: zandvoort
     window: {corner: "Hugenholtz", before: 150, after: 120, min_cars: 4}
     length: 4.0
@@ -117,8 +129,8 @@ action:
     camera: {mode: tv, shot: reverse, follow: lead}
 
   - id: night-lights
-    about: The field at sunset, headlights on
-    pick: 6
+    about: A formula car under the floodlights, headlights on
+    pick: 2
     race: sakhir
     window: {station: 400, before: 200, after: 150, min_cars: 3}
     length: 4.0
@@ -145,7 +157,9 @@ action:
   # A replay carries no damage, so this one draws it with the preview
   # console variable (front, rear, left, right, engine percent), set a second
   # in: every car in the clip wears it, hence a window with one car in view.
-  # No `pick` yet and not in site/media.yml: take it and look at the sheet.
+  # No `pick` and not in site/media.yml: on 2026-10-25 the variable was set
+  # (the log says so) but the replay's cars stayed clean; look at the sheet
+  # once the preview draws in a replay.
   - id: damage
     about: A GT3 car with its nose and wing gone, trailing engine smoke
     race: brands
@@ -153,6 +167,33 @@ action:
     length: 4.0
     camera: {mode: tv, shot: tracking, follow: lead}
     extra_args: ['-ApexExecAfter=1=apexsim.car.DamagePreview 70,30,45,0,65']
+
+  - id: forest
+    about: GT3s through the forest at the Nordschleife, guard rail close to the road
+    pick: 4
+    race: nordschleife
+    window: {corner: "Brünnchen", before: 250, after: 200, min_cars: 2, include_lap_1: true}
+    length: 4.0
+    camera: {mode: chase, chase: near, follow: lead}
+
+  - id: karussell
+    about: The Karussell and the forest round it from the air
+    pick: 2
+    race: nordschleife
+    window: {corner: "Karussell", before: 120, after: 80, min_cars: 1, include_lap_1: true}
+    length: 4.0
+    camera: {mode: tv, shot: helicopter, follow: lead}
+
+  # The race is simulated dry; the snow is the shot's own look.
+  - id: snow
+    about: Formula cars through the snow at Spa, late afternoon
+    pick: 6
+    race: spa
+    window: {corner: "Les Combes", before: 200, after: 150, min_cars: 3}
+    length: 4.0
+    weather: snow
+    time: "16:20"
+    camera: {mode: tv, shot: trackside, follow: lead}
 
 ui:
   - id: hud-chase
@@ -181,11 +222,6 @@ ui:
     args: [-ApexAutoRace, -ApexTrack=RedPullRing, -ApexCar=RS, -ApexAiCount=9, -ApexOpenHudEditor=14]
     at: [22]
 
-  # Not on the page yet: take `finish` and `lobby`, look at the sheets, then
-  # add screen-finish.webp / screen-lobby.webp (site/shots/finish.webp,
-  # lobby.webp) to site/media.yml and both screens to site/copy.yml: the
-  # screens grid wants them in pairs.
-  #
   # The view after the flag, opened by the console (the auto race's own car
   # never takes it): the results card over the race, the broadcast camera on
   # another car, as a click on its row does.
@@ -206,9 +242,48 @@ ui:
            -ApexWeather=sunny, -ApexTimeOfDay=17:30]
     at: [25, 33, 41, 49]
 
-  # No `pick` yet and not in site/media.yml: take it and look at the sheet,
-  # then add guide.webp to media.yml and a screen to copy.yml.
   - id: guide
     about: The track guide at Raidillon (stop 2), on the first trackside camera
+    pick: 1
     args: [-ApexGuide=SpaFrankenchamps:GT3, -ApexGuideCorner=2, -ApexGuideCamera=1]
     at: [20, 26, 32]
+
+  # A two-class field: hypercars and GT3s on the same grid, the HUD's
+  # standings by class.
+  - id: multiclass
+    about: A hypercar and GT3 field from the broadcast camera, the HUD on
+    pick: 1
+    args: [-ApexAutoRace, -ApexTrack=Lemons, -ApexCar=994P, '-ApexClasses=Hypercar:5,GT3:6', -ApexLaps=3,
+           -ApexWeather=sunny, -ApexTimeOfDay=19:30, -ApexCountdown=8, -ApexView=tv]
+    at: [45, 60, 75, 90]
+
+  # The formation lap: the field single file behind the pole car, the phase
+  # banner on the HUD.
+  - id: formation
+    about: The formation lap from the broadcast camera
+    pick: 1
+    args: [-ApexAutoRace, -ApexFormationLap, -ApexTrack=Monzarella, -ApexCar=GT3, -ApexAiCount=11, -ApexLaps=3,
+           -ApexWeather=cloudy, -ApexTimeOfDay=14:00, -ApexCountdown=8, -ApexView=tv]
+    at: [30, 40, 50, 60]
+
+  # Garage > Tracks: the globe with the circuits pinned, one chosen.
+  - id: globe
+    about: The Tracks globe, flown to a chosen circuit
+    pick: 1
+    args: ['-ApexExecAfter=14=apexsim.ui.Click Garage|16=apexsim.ui.Click Tracks|18=apexsim.ui.Globe spin 0|19=apexsim.ui.Globe select SpaFrankenchamps']
+    at: [26, 32]
+
+  # Drive > Season: the season's setup card and calendar.
+  - id: season
+    about: The offline season's setup
+    pick: 1
+    args: [-ApexStartScreen=12, '-ApexExecAfter=12=apexsim.season.Setup 8 11 6|13=apexsim.season.FastestLap 1 1|14=apexsim.season.Round 2 4 18 15 0 45']
+    at: [20, 26]
+
+  # Photo mode over a watched hotlap: the orbit camera, a long lens wide open.
+  - id: photo
+    about: Photo mode's lens card over a held hotlap
+    pick: 1
+    args: [-ApexWatchHotlap, -ApexTrack=SpaFrankenchamps, -ApexWeather=sunny, -ApexTimeOfDay=18:30,
+           '-ApexExecAfter=40=apexsim.photo on|42=apexsim.photo orbit|43=apexsim.photo look 120 10|44=apexsim.photo focal 50|45=apexsim.photo aperture 1.4']
+    at: [50, 56]

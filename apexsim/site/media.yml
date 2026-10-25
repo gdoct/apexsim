@@ -91,11 +91,22 @@ images:
   shot-night.webp:     {src: site/shots/endurance-dusk.webp, width: 1000, zoom: 1920}
   shot-banking.webp:   {src: site/shots/banking.webp, width: 1000, zoom: 1920}
   shot-pack.webp:      {src: site/shots/marina-night.webp, width: 1000, zoom: 1920}
+  shot-karussell.webp: {src: site/shots/karussell.webp, width: 1000, zoom: 1920}
+  shot-forest.webp:    {src: site/shots/forest.webp, width: 1000, zoom: 1920}
+  shot-snow.webp:      {src: site/shots/snow.webp, width: 1000, zoom: 1920}
   # ...and the game as a player sees it.
   screen-hud.webp:        {src: site/shots/hud-chase.webp, width: 1280, quality: 86, zoom: 1920}
   screen-garage.webp:     {src: site/shots/garage.webp, width: 1280, quality: 86, zoom: 1920}
   screen-menu.webp:       {src: site/shots/menu-demo.webp, width: 1280, quality: 86, zoom: 1920}
   screen-hud-editor.webp: {src: site/shots/hud-editor.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-finish.webp:     {src: site/shots/finish.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-lobby.webp:      {src: site/shots/lobby.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-guide.webp:      {src: site/shots/guide.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-multiclass.webp: {src: site/shots/multiclass.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-formation.webp:  {src: site/shots/formation.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-globe.webp:      {src: site/shots/globe.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-season.webp:     {src: site/shots/season.webp, width: 1280, quality: 86, zoom: 1920}
+  screen-photo.webp:      {src: site/shots/photo.webp, width: 1280, quality: 86, zoom: 1920}
 
 # Files that live in docs/assets as they are: nothing in the repo they are
 # rebuilt from (the hero loop is cut from the promo video by hand). The build

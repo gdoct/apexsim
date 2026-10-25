@@ -7,9 +7,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ApexSim — Racing Simulator</title>
-<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 17 cars across 5 classes and 28 real-world circuits, a 20.8 km mountain loop among them.">
+<meta name="description" content="ApexSim is a source-available racing simulator: a 420 Hz authoritative Rust physics server, an Unreal Engine 5 client, 17 cars across 5 classes and 29 real-world circuits, a 25.9 km mountain loop among them.">
 <meta property="og:title" content="ApexSim — Racing Simulator">
-<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 17 cars, 28 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
+<meta property="og:description" content="420 Hz authoritative physics, Unreal Engine 5, 17 cars, 29 real circuits, tyres, fuel, pit stops and damage simulated on the server.">
 <meta property="og:image" content="https://gdoct.github.io/apexsim/assets/splash.webp">
 <meta property="og:url" content="https://gdoct.github.io/apexsim/">
 <meta name="theme-color" content="#0b0d10">
@@ -46,7 +46,7 @@
     <div>
       <div class="eyebrow">Source-available simracing platform</div>
       <h1 style="margin-top:18px">The server decides <br><em>where every car is.</em></h1>
-      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Seventeen cars, twenty-eight real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
+      <p class="lede">ApexSim runs a 420&nbsp;Hz authoritative physics simulation in Rust and renders it in Unreal&nbsp;Engine&nbsp;5. Seventeen cars, twenty-nine real circuits, and no second physics model to argue with. Cars, circuits and the HUD are files you can open.</p>
       <div class="ctas">
         <a class="btn primary" href="#cars">See the grid</a>
         <a class="btn" href="https://youtu.be/U7uFrgXyT0U" data-trailer="U7uFrgXyT0U"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
@@ -70,8 +70,8 @@
   <div class="wrap stagger">
     <div class="stat"><b>420<sup>Hz</sup></b><span>Authoritative physics tick</span></div>
     <div class="stat"><b>17</b><span>Cars · five classes</span></div>
-    <div class="stat"><b>28</b><span>Real-world circuits</span></div>
-    <div class="stat"><b>160<sup>km</sup></b><span>Of surveyed tarmac</span></div>
+    <div class="stat"><b>29</b><span>Real-world circuits</span></div>
+    <div class="stat"><b>186<sup>km</sup></b><span>Of surveyed tarmac</span></div>
     <div class="stat"><b>0</b><span>Client-side physics</span></div>
   </div>
 </div>
@@ -87,7 +87,7 @@
         <svg class="ico" viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="18" r="14"/><circle cx="18" cy="18" r="5"/><path d="M18 4v9M18 23v9M4 18h9M23 18h9"/></svg>
         <div class="num">01 / PHYSICS</div>
         <h3>A four-wheel model that earns its grip</h3>
-        <p>Per-wheel loads, Pacejka-style tyres, suspension and a drivetrain with real gear ratios, driving on the same road mesh the client draws: a kerb is five centimetres tall in the physics too. Downforce follows ride height and rake, a tow saves drag and dirty air takes the front wing away; a crest unloads the car and a floor too close to the road can porpoise. Gravel and sand traps bog a car down and throw dust behind it. Camber, toe, roll centres and a running differential shape the grip. Deterministic to the bit, guarded by a test that asserts identical runs.</p>
+        <p>Per-wheel loads, Pacejka-style tyres, suspension and a drivetrain with real gear ratios, driving on the same road mesh the client draws: a kerb is five centimetres tall in the physics too, and the road falls from a crown to its edges with the bumps in between. Downforce follows ride height and rake, a tow saves drag and dirty air takes the front wing away; a crest unloads the car and a floor too close to the road can porpoise. Gravel and sand traps bog a car down and throw dust behind it. Camber, toe, roll centres and a running differential shape the grip. Deterministic to the bit, guarded by a test that asserts identical runs.</p>
         <ul><li>Pacejka tyres</li><li>Ride-height aero</li><li>Slipstream</li><li>Suspension geometry</li><li>Road mesh</li><li>Gravel traps</li><li>Deterministic</li></ul>
       </article>
       <article class="feat wide">
@@ -115,12 +115,12 @@
       <article class="feat">
         <div class="num">06 / STRATEGY</div>
         <h3>Pit stops, DRS and deployment</h3>
-        <p>Turn into the pit lane and the server drives the car to its own box on the limiter, where a crew changes tyres, refuels and repairs; a red light holds it at the exit while traffic passes. The AI plans its own stops. DRS arms within a second of the car ahead. Hybrids have harvest, balanced and attack modes, a lap budget and an overtake button, and a HUD panel that tells you how many laps the battery lasts at this pace.</p>
+        <p>Turn into the pit lane and the server drives the car to its own box on the limiter, where a crew changes tyres, refuels and repairs; a red light holds it at the exit while traffic passes. The AI plans its own stops. DRS arms within a second of the car ahead. Hybrids have harvest, balanced and attack modes, a lap budget and an overtake button, and a HUD panel that tells you how many laps the battery lasts at this pace. Under a tyre rule the sets are counted: a qualifying allowance, the race started on the set that set the time, parc fermé holding the setup, and a stint no longer than the rule says.</p>
       </article>
       <article class="feat">
         <div class="num">07 / CIRCUITS</div>
         <h3>Real ground, real furniture</h3>
-        <p>Measured centerlines with per-side width and banking, and terrain from the Copernicus GLO-30 elevation model out to an eight kilometre horizon. Stands, pit lanes, barriers and woodland are laid from OpenStreetMap dossiers on 24 of the 28 circuits. Mandarina Bay is a street circuit: Tecpro the whole way round, water either side of its raised bridges, and a start straight lit for the night.</p>
+        <p>Measured centerlines with per-side width and banking, and terrain from the Copernicus GLO-30 elevation model out to an eight kilometre horizon. Stands, pit lanes, barriers and woodland are laid from OpenStreetMap dossiers on 25 of the 29 circuits. Mandarina Bay is a street circuit: Tecpro the whole way round, water either side of its raised bridges, and a start straight lit for the night.</p>
       </article>
       <article class="feat">
         <div class="num">08 / FORCE FEEDBACK</div>
@@ -130,12 +130,12 @@
       <article class="feat">
         <div class="num">09 / AUDIO</div>
         <h3>Engines that are simulated, not sampled</h3>
-        <p>A crank turned at live RPM fires each cylinder into exhaust banks, headers and a silencer. Crossplane burble, overrun pops, gear whine, and tyres that howl only past their grip peak. Zero audio files.</p>
+        <p>A crank turned at live RPM fires each cylinder into exhaust banks, headers and a silencer. Crossplane burble, overrun pops, gear whine, and tyres that howl only past their grip peak. Not one engine sample. A spotter calls the car alongside and the flags; the engineer calls the box, the fuel and the tyres.</p>
       </article>
       <article class="feat">
         <div class="num">10 / WEATHER</div>
         <h3>Rain, wind and thin air</h3>
-        <p>Six weather states from sun to snow, any hour on any day of the year, a host-picked air temperature and wind that gusts. Wet grip, air density and altitude are baked into the session, so physics, AI and the racing line all follow: at 2,240&nbsp;m a turbo keeps its power and a wing does not. Let the clock run and the sky can change with it. Floodlights and headlights come on after dark.</p>
+        <p>Six weather states from sun to snow, any hour on any day of the year, a host-picked air temperature and wind that gusts. Wet grip, air density and altitude are baked into the session, so physics, AI and the racing line all follow: at 2,240&nbsp;m a turbo keeps its power and a wing does not. Let the clock run and the sky can change with it. A still clear night lays dew and a radiation fog the sun burns off; the rain radar on the HUD shows the next shower drifting in on the wind. Floodlights and headlights come on after dark.</p>
       </article>
       <article class="feat">
         <div class="num">11 / TRACK</div>
@@ -145,41 +145,68 @@
       <article class="feat">
         <div class="num">12 / RACE FORMAT</div>
         <h3>Sprint, weekend or twenty-four hours</h3>
-        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Or run a weekend: practice, up to three knockout qualifying rounds and the race, each day under its own sky. Qualify from the garage and the race grids from the result, or drag the drivers into any order. Take the flag and the camera pulls back over the circuit while the results fill in; click a car still running to watch it home. Stuck in a barrier? Back to track or to the pits, for a hold and the lap.</p>
+        <p>Race for laps or against the clock, from a short sprint to a full day: when time runs out, the leader's next lap is the last. Or run a weekend: practice, up to three knockout qualifying rounds and the race, each day under its own sky. Qualify from the garage and the race grids from the result, or drag the drivers into any order. Mix classes on one grid: the quicker class starts ahead, every car is placed in its class, and the slower class is shown the blue flag. Take the flag and the camera pulls back over the circuit while the results fill in; click a car still running to watch it home.</p>
       </article>
       <article class="feat">
         <div class="num">13 / SCREENS</div>
         <h3>Three monitors, one picture</h3>
-        <p>Triple screens render three real views from one eye point, with the side panels toed in to match your rig and the bezels allowed for. The HUD and menus stay on the centre screen. Two or four are refused on purpose: an even row puts a bezel in front of the driver.</p>
+        <p>Triple screens render three real views from one eye point, with the side panels toed in to match your rig and the bezels allowed for. The HUD and menus stay on the centre screen. Two or four are refused on purpose: an even row puts a bezel in front of the driver. HDR output with its own paper white, and palettes for red-green and blue-yellow colour vision: nothing on the HUD is told in colour alone.</p>
       </article>
       <article class="feat">
         <div class="num">14 / HOTLAP</div>
         <h3>Garage, ghost, repeat</h3>
         <p>Time attack with sector splits, track limits and records that persist. Chase your best lap's ghost, replay it from the TV cameras, then work through 31 setup knobs shown in real units: psi, N/mm, millimetres of ride height, with the downforce, balance and drag a wing change adds up to.</p>
       </article>
+      <article class="feat">
+        <div class="num">15 / PRACTICE</div>
+        <h3>Wind the lap back</h3>
+        <p>Driving alone, the pause menu winds the session back ten seconds, and again, up to a minute: the cars, the road and the sky go back with it and the lap is struck. Every full lap you drive is kept as a trace, and the pause menu lays any two over each other by distance: speed, pedals, and the time gained or lost, with the circuit's record lap among them.</p>
+      </article>
+      <article class="feat">
+        <div class="num">16 / DRIVERS</div>
+        <h3>Profiles and a licence</h3>
+        <p>Several drivers can share one install. A profile is a name, a picture, your settings, your best laps and your stats, with a key that stays on your machine and proves who you are to an event's entry list. The driving school sets licence tests on every circuit from its track guide: a braking test, a corner exit, a corner time and a clean lap, judged gold, silver or bronze against a car of your class.</p>
+      </article>
+      <article class="feat">
+        <div class="num">17 / TELEMETRY</div>
+        <h3>Your rig, your apps</h3>
+        <p>The client sends the car's motion, revs, pedals, tyres and session as a UDP packet to the app of your choice: SimHub, a motion platform, bass shakers, a dash. The layout is public and append-only. Each lap's trace is a CSV on disk, and a script turns them into a MoTeC i2 file.</p>
+      </article>
       <article class="feat wide">
-        <div class="num">15 / TRACK GUIDE</div>
+        <div class="num">18 / RACE CONTROL</div>
+        <h3>Flags, a safety car and stewards</h3>
+        <p>Pick a standing start with a formation lap, or a rolling start that forms up two by two on the way to the green; a jump start is a drive-through. Yellow flags go out by marshal sector for a car in trouble, a blue one to a car with a leader on its tail; light panels flash them round the circuit and the AI lifts under them. A car stranded on the road brings out a virtual safety car or the real one, which picks up the leader at the pit exit, closes the field up and lets the lapped cars by. Passes under yellow, red-light pit exits and jump starts cost time, a drive-through or a stop-go. Every contact and cut goes on an incident list the results screen opens in the replay, and a steward hands out or clears a penalty from the dashboard.</p>
+        <ul><li>Formation lap</li><li>Rolling start</li><li>Yellow and blue flags</li><li>Safety car</li><li>Penalties</li><li>Stewards</li></ul>
+      </article>
+      <article class="feat wide">
+        <div class="num">19 / SEASONS AND LEAGUES</div>
+        <h3>A season alone, a league together</h3>
+        <p>Run a season against the AI from the menu: rounds spread over the circuits, a points table of your choice, dropped rounds, success ballast by standing and a point for the fastest lap, each round with its own weather, hour and format if you want them; the field keeps the same drivers all season. On a server a race event outlives the session and the machine: an entry list of drivers proved by their own key, a weekend that resumes at its next phase after a restart, a start time that waits for nobody, and championships that add its rounds up, with the standings in the lobby and on the results. Reverse grids, a balance of performance per car and a results webhook for Discord come with it.</p>
+        <ul><li>Offline season</li><li>Success ballast</li><li>Race events</li><li>Championships</li><li>Driver keys</li><li>Discord results</li></ul>
+      </article>
+      <article class="feat wide">
+        <div class="num">20 / TRACK GUIDE</div>
         <h3>Every corner, walked through</h3>
         <p>Open any circuit from the track picker and the guide plays it corner by corner: three clean laps by cars of your class, at speed or in slow motion, from trackside, broadcast, chase and onboard cameras. Each stop names the gear, the braking point and the entry and exit speeds measured from the lap, and warns about what the ground hides: a crest, a downhill braking zone, a wall close on the exit.</p>
         <ul><li>Every circuit</li><li>Every class</li><li>Slow motion</li><li>Measured laps</li></ul>
       </article>
       <article class="feat wide">
-        <div class="num">16 / SPECTATING</div>
+        <div class="num">21 / SPECTATING</div>
         <h3>Watch any race, keep any race</h3>
-        <p>Watch a session running on the server from the browser, or the race behind the menus, with a timing tower, a choice of car and camera, and the broadcast director on hand. Every session you drive is recorded on your machine; save the ones worth keeping and play them back paused, sped up or skipped through. Or watch a hotlap: one AI car lapping any circuit alone on its racing line, in the car, weather and hour you pick, with each corner named as it comes.</p>
-        <ul><li>Live sessions</li><li>Timing tower</li><li>Replays</li><li>Pause and seek</li><li>Hotlap watch</li></ul>
+        <p>Watch a session running on the server from the browser, or the race behind the menus, with a timing tower, a choice of car and camera, and the broadcast director on hand. Every session you drive is recorded on your machine; save the ones worth keeping and play them back paused, sped up or skipped through. Or watch a hotlap: one AI car lapping any circuit alone on its racing line, in the car, weather and hour you pick, with each corner named as it comes. Stop any of them in photo mode: a free or orbiting camera, a lens from wide to long, aperture and exposure, and a shot at four times the screen.</p>
+        <ul><li>Live sessions</li><li>Timing tower</li><li>Replays</li><li>Pause and seek</li><li>Hotlap watch</li><li>Photo mode</li></ul>
       </article>
       <article class="feat wide">
-        <div class="num">17 / RACECRAFT</div>
+        <div class="num">22 / RACECRAFT</div>
         <h3>AI that races, and a TV director</h3>
         <p>Deterministic AI drivers race in your car's class at a level the host sets. A quicker car pulls out of the tow into a braking zone and dives up the inside, or tucks back in if it is not alongside; a car under attack covers the inside, and a backmarker moves over for the leaders. They drive to the grip they have (cold tyres, dirty air, a damaged wing) and reverse out of a barrier they end up against. Behind the menus a recorded AI race plays, and a broadcast director follows its battles through trackside, helicopter and onboard shots; a session's lobby flies over its own circuit.</p>
         <ul><li>Overtaking</li><li>Defending</li><li>Host-set level</li><li>Pit strategy</li><li>Broadcast cameras</li></ul>
       </article>
       <article class="feat wide">
-        <div class="num">18 / MODDING</div>
+        <div class="num">23 / MODDING</div>
         <h3>Open the files</h3>
-        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 29 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
-        <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>AC importers</li></ul>
+        <p>A car is a <code>car.toml</code> and a GLB. A circuit is an export the game builds as it loads. The HUD is 33 JSON components with an in-game layout editor, and several saved layouts that switch by where you are: watching, hotlap, or your car's class. Nothing is cooked, so a change is a file save and a rescan. A circuit or a car travels as a pack: one hash-checked file the launcher installs beside the starter set a release ships. Tracks and cars from your own Assetto Corsa install import with one command, or from the launcher, and stay on your machine.</p>
+        <ul><li>car.toml</li><li>Runtime tracks</li><li>JSON HUD</li><li>Content packs</li><li>AC importers</li></ul>
       </article>
     </div>
   </div>
@@ -210,7 +237,7 @@
       <div>
         <div class="eyebrow">Paint shop</div>
         <h3>Six liveries a car</h3>
-        <p>Liveries repaint paint, accent and logo at runtime on the race car and in the garage turntable. Pick yours in the lobby; the AI is dealt the rest in turn, so a full field never looks cloned.</p>
+        <p>Liveries repaint paint, accent and logo at runtime on the race car and in the garage turntable. Pick yours in the lobby; the AI is dealt the rest in turn, so a full field never looks cloned. Or paint your own: the garage's livery editor sets paint, accent, number and name, a template tool takes a whole skin, and the other drivers in the session see it on your car.</p>
       </div>
       <div class="liv-grid stagger">
         <figure><img src="assets/liveries-gt3-lmp2.webp" data-zoom="assets/liveries-gt3-lmp2-zoom.webp" tabindex="0" alt="Livery sheet for GT3 and LMP2 cars" loading="lazy"></figure>
@@ -229,8 +256,8 @@
 <section id="tracks">
   <div class="wrap">
     <div class="sec-head reveal-head">
-      <div><div class="eyebrow">The calendar</div><h2>28 circuits.<br>Surveyed, not sketched.</h2></div>
-      <p>Centerlines from public GPS traces, smoothed without shrinking the circuit, in 21 countries. The longest is the 20.8&nbsp;km Nürburger Mordschleife, routed over OpenStreetMap: 292&nbsp;m of relief, guard rail close to the road, the forest right behind it and the fans' graffiti on the asphalt. Banking is laid onto the bends it belongs to, and elevation comes from satellite surface models.</p>
+      <div><div class="eyebrow">The calendar</div><h2>29 circuits.<br>Surveyed, not sketched.</h2></div>
+      <p>Centerlines from public GPS traces, smoothed without shrinking the circuit, in 21 countries. The longest is the 25.9&nbsp;km Nürburger Mordschleife, routed over OpenStreetMap: 292&nbsp;m of relief, guard rail close to the road, the forest right behind it and the fans' graffiti on the asphalt. Banking is laid onto the bends it belongs to, and elevation comes from satellite surface models.</p>
     </div>
     <div class="filters" id="trackFilters"></div>
     <div class="track-layout">
@@ -266,18 +293,29 @@
     <div class="shots stagger">
       <figure><img src="assets/shot-grid.webp" data-zoom="assets/shot-grid-zoom.webp" tabindex="0" alt="Prototypes lined up on the grid at Zandervoort in low evening sun" loading="lazy"><figcaption>Zandervoort · the grid at golden hour</figcaption></figure>
       <figure><img src="assets/shot-rain.webp" data-zoom="assets/shot-rain-zoom.webp" tabindex="0" alt="GT3 cars with headlights on in heavy rain at Autodromo Monzarella" loading="lazy"><figcaption>Autodromo Monzarella · heavy rain</figcaption></figure>
-      <figure><img src="assets/shot-sunset.webp" data-zoom="assets/shot-sunset-zoom.webp" tabindex="0" alt="Formula cars under the palms at sunset at Bahrainless International Circuit" loading="lazy"><figcaption>Bahrainless International Circuit · sunset</figcaption></figure>
+      <figure><img src="assets/shot-sunset.webp" data-zoom="assets/shot-sunset-zoom.webp" tabindex="0" alt="A Formula car under the floodlights at night at Bahrainless International Circuit" loading="lazy"><figcaption>Bahrainless International Circuit · under the floodlights</figcaption></figure>
       <figure><img src="assets/shot-climb.webp" data-zoom="assets/shot-climb-zoom.webp" tabindex="0" alt="A Formula car over the top of the hill at Spa-Frankenchamps" loading="lazy"><figcaption>Spa-Frankenchamps · Raidillon</figcaption></figure>
       <figure><img src="assets/shot-night.webp" data-zoom="assets/shot-night-zoom.webp" tabindex="0" alt="A hypercar under floodlight towers at night at Lemons – Circuit du Peuple" loading="lazy"><figcaption>Lemons – Circuit du Peuple · after dark</figcaption></figure>
       <figure><img src="assets/shot-banking.webp" data-zoom="assets/shot-banking-zoom.webp" tabindex="0" alt="A prototype through the banked hairpin at Zandervoort" loading="lazy"><figcaption>Zandervoort · the banked hairpin</figcaption></figure>
       <figure><img src="assets/shot-pack.webp" data-zoom="assets/shot-pack-zoom.webp" tabindex="0" alt="GT3 cars on the grid under the lights at Mandarina Bay" loading="lazy"><figcaption>Mandarina Bay · the grid at night</figcaption></figure>
+      <figure><img src="assets/shot-karussell.webp" data-zoom="assets/shot-karussell-zoom.webp" tabindex="0" alt="Two GT3 cars round the banked Karussell at Nürburger Mordschleife, seen from the air" loading="lazy"><figcaption>Nürburger Mordschleife · Karussell</figcaption></figure>
+      <figure><img src="assets/shot-forest.webp" data-zoom="assets/shot-forest-zoom.webp" tabindex="0" alt="GT3 cars between the trees and the guard rail at Nürburger Mordschleife" loading="lazy"><figcaption>Nürburger Mordschleife · Brünnchen</figcaption></figure>
+      <figure><img src="assets/shot-snow.webp" data-zoom="assets/shot-snow-zoom.webp" tabindex="0" alt="Formula cars through falling snow at Spa-Frankenchamps" loading="lazy"><figcaption>Spa-Frankenchamps · snow</figcaption></figure>
     </div>
     <div class="eyebrow sub reveal">What the player sees</div>
     <div class="screens stagger">
-      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 29 moddable components</figcaption></figure>
+      <figure><img src="assets/screen-hud.webp" data-zoom="assets/screen-hud-zoom.webp" tabindex="0" alt="Chase view on the night grid at Mandarina Bay with the HUD" loading="lazy"><figcaption>Race view · a HUD of 33 moddable components</figcaption></figure>
       <figure><img src="assets/screen-garage.webp" data-zoom="assets/screen-garage-zoom.webp" tabindex="0" alt="The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to" loading="lazy"><figcaption>Hotlap garage · 31 setup knobs in real units</figcaption></figure>
       <figure><img src="assets/screen-menu.webp" data-zoom="assets/screen-menu-zoom.webp" tabindex="0" alt="Main menu over a recorded AI race" loading="lazy"><figcaption>Main menu · over a recorded AI race</figcaption></figure>
       <figure><img src="assets/screen-hud-editor.webp" data-zoom="assets/screen-hud-editor-zoom.webp" tabindex="0" alt="The in-game HUD layout editor" loading="lazy"><figcaption>HUD layout editor · move, resize and hide panels in game</figcaption></figure>
+      <figure><img src="assets/screen-finish.webp" data-zoom="assets/screen-finish-zoom.webp" tabindex="0" alt="The results card over the circuit after the flag, the camera on a car still racing" loading="lazy"><figcaption>After the flag · the results fill in while a car still racing is followed home</figcaption></figure>
+      <figure><img src="assets/screen-lobby.webp" data-zoom="assets/screen-lobby-zoom.webp" tabindex="0" alt="The session lobby with Spa-Frankenchamps flown behind it" loading="lazy"><figcaption>Session lobby · flown over its own circuit</figcaption></figure>
+      <figure><img src="assets/screen-guide.webp" data-zoom="assets/screen-guide-zoom.webp" tabindex="0" alt="The track guide stopped at Raidillon at Spa-Frankenchamps, from the trackside camera" loading="lazy"><figcaption>Track guide · Raidillon, stop 2, with its gear, braking point and speeds</figcaption></figure>
+      <figure><img src="assets/screen-multiclass.webp" data-zoom="assets/screen-multiclass-zoom.webp" tabindex="0" alt="Hypercars and GT3 cars on one grid at Lemons – Circuit du Peuple, the HUD on" loading="lazy"><figcaption>Multi-class · hypercars and GT3s in one race, each placed in its class</figcaption></figure>
+      <figure><img src="assets/screen-formation.webp" data-zoom="assets/screen-formation-zoom.webp" tabindex="0" alt="The field single file on the formation lap at Autodromo Monzarella" loading="lazy"><figcaption>Formation lap · the field single file to its slots</figcaption></figure>
+      <figure><img src="assets/screen-globe.webp" data-zoom="assets/screen-globe-zoom.webp" tabindex="0" alt="The Tracks globe with the circuits pinned and one chosen" loading="lazy"><figcaption>Tracks · 29 circuits pinned on a globe</figcaption></figure>
+      <figure><img src="assets/screen-season.webp" data-zoom="assets/screen-season-zoom.webp" tabindex="0" alt="The offline season's setup, its calendar and a round with rules of its own" loading="lazy"><figcaption>Season · rounds, points, ballast and each round's own rules</figcaption></figure>
+      <figure><img src="assets/screen-photo.webp" data-zoom="assets/screen-photo-zoom.webp" tabindex="0" alt="Photo mode's lens card over a held hotlap, the camera orbiting the car" loading="lazy"><figcaption>Photo mode · a long lens wide open over a held lap</figcaption></figure>
     </div>
   </div>
 </section>
@@ -289,11 +327,11 @@
       <p>Simulation logic stays isolated from presentation, so each piece can evolve on its own. The circuit you race is the circuit the server simulates, checked by CRC on both sides.</p>
     </div>
     <div class="arch stagger">
-      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records. A token-protected operator dashboard shows live timing, players, logs and performance, and edits the config. <code>/health</code> <code>/metrics</code></p></div>
+      <div class="node"><div class="k">server/ · Rust</div><h3>Authoritative server</h3><p>420&nbsp;Hz tokio loop. Physics, OBB collision against cars and baked barriers, tyres, fuel, heat and damage, race control and pit stops, AI, force feedback, lap timing and records, race events and championships. A token-protected operator dashboard shows live timing, players, logs and performance, runs the events, reviews incidents and edits the config. <code>/health</code> <code>/metrics</code></p></div>
       <div class="link"><span>UDP<br>60&nbsp;Hz</span></div>
-      <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, tyres and road drawn from its tyre and road state, TV director, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
+      <div class="node"><div class="k">game-unreal/ · C++</div><h3>Unreal client</h3><p>Tracks and cars built at runtime from their files, menus as C++ widget trees, a HUD from JSON, a cockpit built per car, dents and debris drawn from the server's damage figures, tyres and road drawn from its tyre and road state, TV director and photo mode, replays and track guides, synthesized audio, DirectInput wheels. Every car a telemetry puppet.</p></div>
       <div class="link"><span>exports<br>&amp; sidecars</span></div>
-      <div class="node"><div class="k">track-editor/ · Rust</div><h3>Track pipeline</h3><p><code>ats-dress</code>, <code>ats-groom</code> and <code>ats-export</code> turn a centerline and a dossier into the export the game builds, and the road mesh, walls, kerbs and pit lane the server drives on. A Bevy editor sits on top.</p></div>
+      <div class="node"><div class="k">track-editor/ · Rust</div><h3>Track pipeline</h3><p><code>ats-dress</code>, <code>ats-groom</code> and <code>ats-export</code> turn a centerline and a dossier into the export the game builds, and the road mesh, walls, kerbs and pit lane the server drives on. A Bevy editor sits on top, and <code>ats-pack</code> wraps a circuit or a car for the launcher.</p></div>
     </div>
     <div class="specs stagger">
       <div class="spec"><b>Collision that means it</b><p>Every armco, tyre wall, stand and building is baked into a walls sidecar. Nothing off the road is decorative.</p></div>
@@ -304,7 +342,7 @@
       <div class="spec"><b>Cockpit</b><p>Wheel, dash and scene-captured mirrors built per car, with a steering wheel modelled for each class and its dash on the wheel's screen. Seat, horizon lock and head motion are yours to set.</p></div>
       <div class="spec"><b>Records and ghosts</b><p>Your best legal lap per car and circuit survives restarts, with a trace of the lap that set it to race against.</p></div>
       <div class="spec"><b>Checked content</b><p>Each car and circuit carries a checksum of its source file. A client racing on different data than the server is told so.</p></div>
-      <div class="spec"><b>Replays nobody drove</b><p>A seeded AI race replays bit for bit. The menu's backdrop races and the trailer were run headless, then filmed by the game's own cameras.</p></div>
+      <div class="spec"><b>Replays nobody drove</b><p>A seeded AI race replays bit for bit. The game simulates its own backdrop races, and the trailer was run headless, then filmed by the game's own cameras.</p></div>
     </div>
   </div>
 </section>
@@ -341,7 +379,7 @@
   </div>
 </footer>
 
-<script src="assets/data.js?v=6c9cc438"></script>
+<script src="assets/data.js?v=743ac52b"></script>
 <script src="assets/site.js?v=4f158c3b"></script>
 </body>
 </html>
