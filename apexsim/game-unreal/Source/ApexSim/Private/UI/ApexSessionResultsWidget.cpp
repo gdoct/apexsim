@@ -438,7 +438,7 @@ UWidget* UApexSessionResultsWidget::BuildHeader()
 
 	UVerticalBox* Stack = WidgetTree->ConstructWidget<UVerticalBox>();
 	UBorder* Bar = ApexUI::MakePanel(*WidgetTree, Row, FMargin(ApexUI::Metrics::PageGutter, 0.0f), ApexUI::MakeBrush(ApexUI::Palette::Background));
-	Bar->SetVerticalAlignment(VAlign_Center);
+	ApexUI::AlignContent(*Bar, HAlign_Fill, VAlign_Center);
 	ApexUI::AddV(Stack, ApexUI::MakeSized(*WidgetTree, Bar, -1.0f, ApexUI::Metrics::TopBarHeight));
 	ApexUI::AddV(Stack, ApexUI::MakeDivider(*WidgetTree));
 	return Stack;

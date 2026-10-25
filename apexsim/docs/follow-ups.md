@@ -403,15 +403,4 @@ the same files.
   or sleep short and spin the last fraction; measure with
   `[debug] tick_jitter_seconds`.
 
-- A `UBorder`'s `SetHorizontalAlignment` / `SetVerticalAlignment` after
-  its content is set never reaches the content's slot (the slot keeps the
-  alignment it was made with, and `UBorderSlot::SynchronizeProperties`
-  wins at build): the main menu's Esc card filled the screen for that
-  (fixed 2026-10-24, `menu-esc-overlay`). `ApexUI::AlignContent` sets
-  both; the hotlap header and footer and the main menu's top bar use it.
-  Other screens still call the border's setters after `MakePanel`
-  (`grep -n "Bar->SetVerticalAlignment\|->SetHorizontalAlignment(HAlign_Center)"`
-  in `Private/UI`): their rows mostly centre their own children, so look
-  at each screen before moving it to the helper.
-
 **Check:** server and client build and tests.

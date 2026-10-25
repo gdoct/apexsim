@@ -1880,7 +1880,7 @@ UWidget* UApexSessionCreateWidget::BuildFooter()
 		Row,
 		FMargin(ApexUI::Metrics::PageGutter, 0.0f),
 		ApexUI::MakeBrush(ApexUI::Palette::Background));
-	Bar->SetVerticalAlignment(VAlign_Center);
+	ApexUI::AlignContent(*Bar, HAlign_Fill, VAlign_Center);
 
 	return ApexUI::MakeSized(*WidgetTree, Bar, -1.0f, 88.0f);
 }
