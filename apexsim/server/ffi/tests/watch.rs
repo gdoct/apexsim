@@ -160,10 +160,21 @@ fn a_watch_streams_its_laps_and_keeps_what_it_learnt() {
         "frames at about 30 a second"
     );
     unsafe { apx_watch_free(watch) };
-    assert!(
-        dir.join("watch_levels.json").is_file(),
-        "the ladder level is kept"
-    );
+    // The ladder climbs on legal laps, which need the baked road and
+    // ground: a checkout without an export (CI) keeps no level.
+    let baked = ["road", "ground"].iter().all(|kind| {
+        repo(TRACK)
+            .with_extension(format!("{kind}.msgpack"))
+            .is_file()
+    });
+    if baked {
+        assert!(
+            dir.join("watch_levels.json").is_file(),
+            "the ladder level is kept"
+        );
+    } else {
+        eprintln!("the ladder level: skipped, no road/ground sidecar (run ats-export)");
+    }
 
     // The same message and seed: the same stream.
     let (a, b) = (start(None), start(None));
