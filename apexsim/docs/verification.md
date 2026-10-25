@@ -248,8 +248,10 @@ session while driving (notice, then the menu).
   `r9-racing-line-replan` (2026-10-25, the Norisring, four laps): a
   `RacingLine` arrives at each lap's end on the same points, repainted in
   place (`AApexRacingLineActor::SetLine`, no new trace), and the dots sit
-  on the road on laps 2 and 3. Left: the braking points' shift, read
-  against a still pose, and the rain.
+  on the road on laps 2 and 3. In heavy rain (`r9-racing-line-rain`) the
+  same lap plans 117 braking dots against the dry 105 (597 throttle
+  against 611): the braking zones lengthen. Left: the braking points'
+  shift after the first lap, read against a still pose.
 - The garage's compound cards built from a car's own `[[tires.compound]]`
   list: only an AC import files one (its compounds plus the two rain
   tyres), so only the default five have been on screen

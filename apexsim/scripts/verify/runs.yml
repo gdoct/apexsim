@@ -8190,6 +8190,24 @@ runs:
       - {at: 100, label: "lap 2", checks: "R9 racing line: repainted without a hitch, still on the road"}
       - {at: 160, label: "lap 3", checks: "R9 racing line"}
 
+  - id: r9-racing-line-rain
+    about: "R9. The racing line aid in heavy rain against r9-racing-line-replan's dry line: longer braking zones (the client logs the dots' phases)"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=5
+      - -ApexWeather=heavyrain
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=full
+    shots:
+      - {at: 40, label: "lap 1 in heavy rain", checks: "R9 racing line: the braking dots longer than the dry run's"}
+
   - id: n22-colour-vision
     about: "N22. The HUD and the cockpit dash in the standard, red-green and blue-yellow palettes"
     server:
