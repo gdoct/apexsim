@@ -8170,6 +8170,26 @@ runs:
       - {at: 38, label: "blue-yellow palette", checks: "N22 wheel", exec: "apexsim.hud.Palette blue_yellow"}
       - {at: 42, label: "back to standard", exec: "apexsim.hud.Palette standard"}
 
+  - id: r9-racing-line-replan
+    about: "R9. The racing line aid planned again at a lap's end: the dots repainted, the braking points earlier on a full tank's first lap"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=4
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=full
+    shots:
+      - {at: 40, label: "lap 1", checks: "R9 racing line: the dots on the road"}
+      - {at: 100, label: "lap 2", checks: "R9 racing line: repainted without a hitch, still on the road"}
+      - {at: 160, label: "lap 3", checks: "R9 racing line"}
+
   - id: n22-colour-vision
     about: "N22. The HUD and the cockpit dash in the standard, red-green and blue-yellow palettes"
     server:

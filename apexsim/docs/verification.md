@@ -245,6 +245,11 @@ session while driving (notice, then the menu).
 - The racing line aid planned again at a lap's end: after the first lap
   with a full tank, the dots repaint (braking points earlier) without a
   hitch and stay on the road; in rain the braking zones lengthen.
+  `r9-racing-line-replan` (2026-10-25, the Norisring, four laps): a
+  `RacingLine` arrives at each lap's end on the same points, repainted in
+  place (`AApexRacingLineActor::SetLine`, no new trace), and the dots sit
+  on the road on laps 2 and 3. Left: the braking points' shift, read
+  against a still pose, and the rain.
 - The garage's compound cards built from a car's own `[[tires.compound]]`
   list: only an AC import files one (its compounds plus the two rain
   tyres), so only the default five have been on screen
