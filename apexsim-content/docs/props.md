@@ -196,7 +196,9 @@ there before using it as a `text`.
   the texture is one 8 m row of seated people, wrapping in u, at 256 px a
   metre across; the standing sheet's top half is the same for 1.9 m tall
   figures, its bottom half the group and marshal cells (`SHEET_CELLS`).
-  Every card repeats its strip, so a strip's only flag is a chequered one:
+  Each row of a bay's cards starts at its own hashed window
+  (`shuffle_crowd_windows.py`), so the strip's flag does not step up the
+  stand on a diagonal. Every card repeats its strip, so a strip's only flag is a chequered one:
   a national flag there would fill every stand at every circuit with one
   country. After repainting, `retexture_crowd.py` and `build_figures.py`
   carry the strips into the GLBs.
