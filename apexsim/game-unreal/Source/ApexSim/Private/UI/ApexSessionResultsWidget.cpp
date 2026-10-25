@@ -33,7 +33,7 @@ namespace
 {
 	FAutoConsoleCommandWithWorldAndArgs IncidentsCommand(
 		TEXT("apexsim.incidents"),
-		TEXT("The results screen's incident list: apexsim.incidents [show|hide|log|watch <n>] ")
+		TEXT("The results screen's incident list: apexsim.incidents [show|hide|log|watch <n>|watch heavy] ")
 		TEXT("(show turns the table to it and asks the server again; watch plays this session's replay from just before incident n, 0-based)"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -58,7 +58,18 @@ namespace
 			}
 			else if (Verb == TEXT("watch") && Args.Num() > 1)
 			{
-				Results->JumpToIncident(FCString::Atoi(*Args[1]));
+				// `heavy`: the race's first heavy contact, for a run that
+				// cannot know its index beforehand.
+				const int32 Index = Args[1].Equals(TEXT("heavy"), ESearchCase::IgnoreCase)
+					? Results->FirstHeavyContact() : FCString::Atoi(*Args[1]);
+				if (Index == INDEX_NONE)
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("apexsim.incidents watch heavy: no heavy contact in the list"));
+				}
+				else
+				{
+					Results->JumpToIncident(Index);
+				}
 			}
 			Results->LogIncidents();
 		}));
@@ -724,6 +735,19 @@ void UApexSessionResultsWidget::LogIncidents() const
 			*ApexIncidentList::Cars(Incident), *ApexIncidentList::Detail(Incident),
 			bWatchable ? *FString::Printf(TEXT(" (replay %.1f s)"), Seconds) : TEXT(""));
 	}
+}
+
+int32 UApexSessionResultsWidget::FirstHeavyContact() const
+{
+	const UApexNetSubsystem* Net = GetNet();
+	if (!Net)
+	{
+		return INDEX_NONE;
+	}
+	return Net->GetIncidents().Incidents.IndexOfByPredicate([](const FApexIncident& Incident)
+	{
+		return Incident.Kind == ApexIncident::Contact && Incident.Severity == ApexIncident::Heavy;
+	});
 }
 
 void UApexSessionResultsWidget::JumpToIncident(int32 Index)

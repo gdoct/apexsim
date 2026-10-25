@@ -59,6 +59,8 @@ public:
 	void ShowIncidents(bool bShow);
 	/** Activating incident row Index: the replay from just before it, or a toast why not. */
 	void JumpToIncident(int32 Index);
+	/** The list's first heavy contact (`apexsim.incidents watch heavy`), INDEX_NONE for none. */
+	int32 FirstHeavyContact() const;
 	/** The incident list as it stands, a log line each (`apexsim.incidents`). */
 	void LogIncidents() const;
 

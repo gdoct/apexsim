@@ -294,7 +294,7 @@ incident with the watch camera on the incident's car
 (`UApexReplayRecorder::ReplaySecondsOf`, `UApexRootWidget::WatchReplayAt`,
 which waits out of the session, seeks once the file has loaded and
 focuses the car by its roster index, which the replay's rows keep). Console: `apexsim.incidents [show|hide|log|watch
-<n>]` (0-based). Checks: `ApexSim.UI.IncidentList.*`,
+<n>|watch heavy]` (0-based; `heavy` the first heavy contact). Checks: `ApexSim.UI.IncidentList.*`,
 `ApexSim.Net.Protocol.GoldenDecode` (`S_Incidents`).
 
 ### Main menu (`UI/ApexMainMenuWidget.cpp`)
