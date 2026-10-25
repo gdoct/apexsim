@@ -1,6 +1,6 @@
 # Split off the content
 
-Status: phase 0 under way: the three roots are in place (2026-10-19); the rest is a proposal, not built.
+Status: phases 0 and 1 are built (2026-10-24: the three roots, the starter set, the formats crate, loose `.acp` packs installed locally); phases 2-4 are a proposal, not built.
 
 Today one repository holds the simulation (`server/`), the client
 (`game-unreal/`), the pipeline (`track-editor/`, `scripts/`) and every car,

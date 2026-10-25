@@ -250,15 +250,16 @@ features:
         forms up two by two on the way to the green; a jump start is a
         drive-through. Yellow flags go out by marshal sector for a car in
         trouble, a blue one to a car with a leader on its tail; light panels
-        flash them round the circuit and the AI lifts under them. A car
-        stranded on the road
+        flash them round the circuit and the AI lifts under them. Marshals
+        come out to wave yellow at a car stopped beside the road, and a
+        recovery tractor drives up to it. A car stranded on the road
         brings out a virtual safety car or the real one, which picks up the
         leader at the pit exit, closes the field up and lets the lapped cars
         by. Passes under yellow, red-light pit exits and jump starts cost
         time, a drive-through or a stop-go. Every contact and cut goes on
         an incident list the results screen opens in the replay, and a
         steward hands out or clears a penalty from the dashboard.
-      chips: [Formation lap, Rolling start, Yellow and blue flags, Safety car, Penalties, Stewards]
+      chips: [Formation lap, Rolling start, Yellow and blue flags, Marshals, Safety car, Penalties, Stewards]
     - tag: Seasons and leagues
       wide: true
       title: A season alone, a league together
@@ -323,8 +324,9 @@ features:
         A car is a <code>car.toml</code> and a GLB. A circuit is an export
         the game builds as it loads. The HUD is {{ n.hud_components }} JSON
         components with an in-game layout editor, and several saved layouts
-        that switch by where you are: watching, hotlap, or your car's class.
-        Nothing is cooked, so a change is a file save and a rescan. A
+        that switch by where you are: watching, hotlap, or your car's class;
+        a broadcast layout with a timing tower and a lower third ships with
+        it. Nothing is cooked, so a change is a file save and a rescan. A
         circuit or a car travels as a pack: one hash-checked file the
         launcher installs beside the starter set a release ships. Tracks
         and cars from your own Assetto Corsa install import with one

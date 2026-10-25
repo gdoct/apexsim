@@ -281,3 +281,4 @@ apexsim/out/verify_*_console.txt
 
 # Recordings the server writes when run from the repository root.
 /apexsim/replays/
+scratch-target/

@@ -151,16 +151,13 @@ from the content (decided 2026-10-18: one car per class, plus Spa,
 Zandvoort and Monza). The launcher, the server and the game get an upgrade
 path in which a code release and a content release are separate events.
 
-- Phase 0, two roots in this repository: `apexsim/` and
-  `apexsim-content/` (cars, tracks, props, the track editor, `track-core`
-  and the content tools), each laid out as its future repository. The
-  roots are in place; the steps left are in the proposal, from a content
-  `bake.ps1` and the starter set to a `formats` crate shared by the server
-  and `track-core`.
+- Built: phase 0 (two roots, then three with `apexsim-lib`, the content
+  baking itself with `bake.ps1`, the starter set a release ships, the
+  `apexsim-formats` crate) and phase 1 (loose content packs, `.acp`: a
+  local install by the launcher and the server, a release shipping the
+  content outside the starter set as `content/content.acp`, picking and
+  uninstalling items).
 
-- Phase 1, no network: `pack.json`, `installed.json`, `build_packs.ps1`,
-  `apexsim-server content install <file>`, the launcher installing a local
-  `.apxpack`.
 - Phase 2, the split: each root made into its repository with its history
   (`git filter-repo --subdirectory-filter`, LFS kept), the code pinning a
   content commit (`content.lock`), CI on both sides.
@@ -190,15 +187,6 @@ kit gaps in
 `scripts/verify/runs.yml` judged by a person; the AI survey against the
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
-
-### 17. League rules
-
-- Success ballast by championship position (needs championships), a
-  `CreateSession` rule; a car without it simulates as before. Built: the
-  reverse top-N grid (`race_rules.reverse_grid`) and balance of performance
-  per car (server.toml `[[balance]]`).
-
-**Check:** session tests per rule; the class calibration unchanged.
 
 ### 21. Benchmark from the menu
 

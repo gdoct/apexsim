@@ -30,7 +30,7 @@
     deflated tyre and a flat-spotted slick, after a long stint (server/vehicle-physics.md):
     a moving car blurs them, so they wait for a car held still, as FlatSpot2
     does.
-  status: judged
+  status: confirmed
   evidence:
   - run: r2-silverstone-stint
     date: 2026-10-25
@@ -71,6 +71,10 @@
     text: >-
       Review (cant-tell, score 2): can''t see it in the pictures. we need more
       detailed pictures of the tyre
+  review:
+    at: 2026-10-25T19:33:22
+    score: 3
+    processed: false
 
 - id: v-r2-rubbered-start
   title: A rubbered start
@@ -145,7 +149,7 @@
     Snow: ice (once the snowfall stops and the line freezes) and a melt (may
     never come at winter temperatures; if it does not show, it is a test-only
     item and moves to follow-ups.md).
-  status: judged
+  status: confirmed
   evidence:
   - run: r4-spa-snow
     date: 2026-10-25
@@ -212,6 +216,10 @@
       snow rows above (ice, melt, the veer, the props' snow) are still to judge.
   - date: 2026-10-25
     text: 'Review (cant-tell, score 3): same images as another run'
+  review:
+    at: 2026-10-25T19:34:37
+    score: 4
+    processed: false
 
 - id: v-r4-rally-field-snow
   title: A Rally field on the covered road
@@ -326,7 +334,7 @@
   commit: 01bcebd4
   doc: follow-ups.md
   what: A debris strike's dent.
-  status: judged
+  status: confirmed
   evidence:
   - run: r7-pileup-replay
     date: 2026-10-25
@@ -352,6 +360,10 @@
       exited silently (the silent exit is in follow-ups.md, content tooling),
       so this run watches a car that is hit in a seeded replay (`-ApexReplay`,
       `-ApexWatchCar`).
+  review:
+    at: 2026-10-25T19:32:50
+    score: 3
+    processed: false
 
 - id: v-r7-hanging-flutter
   title: A part hanging from a real hit, fluttering
@@ -364,7 +376,7 @@
   what: >-
     A part hanging from a real hit: its flutter (frames a fifth of a second
     apart).
-  status: judged
+  status: confirmed
   evidence:
   - run: r7-pileup-replay
     date: 2026-10-25
@@ -390,6 +402,10 @@
       exited silently (the silent exit is in follow-ups.md, content tooling),
       so this run watches a car that is hit in a seeded replay (`-ApexReplay`,
       `-ApexWatchCar`).
+  review:
+    at: 2026-10-25T19:33:07
+    score: 3
+    processed: false
 
 - id: v-r7-contact-sparks
   title: Contact sparks
@@ -402,7 +418,7 @@
   what: >-
     Contact sparks: a contact lasts a few frames and no timed shot has caught
     one (the steam and the engine smoke have been seen).
-  status: judged
+  status: confirmed
   evidence:
   - run: r7-pileup-replay
     date: 2026-10-25
@@ -428,6 +444,10 @@
       exited silently (the silent exit is in follow-ups.md, content tooling),
       so this run watches a car that is hit in a seeded replay (`-ApexReplay`,
       `-ApexWatchCar`).
+  review:
+    at: 2026-10-25T19:33:16
+    score: 3
+    processed: false
 
 - id: v-r7-racecraft
   title: 'Racecraft on screen: passes, defending, room, yielding'
@@ -443,7 +463,7 @@
     only off the AI survey's numbers and traces. Whether leaving a lane after
     a pass and the reverse look natural, and how the side-by-side contact the
     survey counts looks.
-  status: judged
+  status: confirmed
   evidence:
   - run: r7-pileup-replay
     date: 2026-10-25
@@ -466,6 +486,10 @@
       exited silently (the silent exit is in follow-ups.md, content tooling),
       so this run watches a car that is hit in a seeded replay (`-ApexReplay`,
       `-ApexWatchCar`).
+  review:
+    at: 2026-10-25T19:34:50
+    score: 3
+    processed: false
 
 - id: v-r7-reverse-out-yield
   title: An AI reversing out of a barrier stopping for a car arriving
@@ -478,7 +502,7 @@
   what: >-
     An AI backing out of a barrier after the pile-up stopping in reverse for
     a car arriving, and backing on once it is by (`racecraft::recover`, server/ai.md).
-  status: judged
+  status: later
   evidence:
   - run: r7-pileup-replay
     date: 2026-10-25
@@ -500,6 +524,10 @@
       exited silently (the silent exit is in follow-ups.md, content tooling),
       so this run watches a car that is hit in a seeded replay (`-ApexReplay`,
       `-ApexWatchCar`).
+  review:
+    at: 2026-10-25T19:34:58
+    score: 3
+    processed: false
 
 - id: v-r9-dossier-trace-page
   title: The dossier trace page in a browser
@@ -625,7 +653,7 @@
   what: >-
     The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
     13:33 at Spa): at 13:00 it stands a little east of due south over the circuit.
-  status: judged
+  status: confirmed
   evidence:
   - run: r10-spa-noon
     date: 2026-10-25
@@ -655,6 +683,10 @@
       pointing north.
   - date: 2026-10-25
     text: 'Review (cant-tell, score 3): wrong camera angle'
+  review:
+    at: 2026-10-25T19:34:41
+    score: 5
+    processed: false
 
 - id: v-r10-create-date-row
   title: >-
@@ -921,7 +953,7 @@
   what: >-
     A row's jump (`apexsim.incidents watch 0`): the session left, the replay
     playing from three seconds before that incident.
-  status: judged
+  status: confirmed
   evidence:
   - run: r3c-incidents
     date: 2026-10-24
@@ -956,6 +988,10 @@
       Finished state (or the list offered on the finish view too).
   - date: 2026-10-25
     text: 'Review (cant-tell, score 3): shot is not clear'
+  review:
+    at: 2026-10-25T19:35:23
+    score: 3
+    processed: false
 
 - id: v-r23-dashboard-watch-command
   title: The dashboard's copied -ApexWatchReplayAt command
@@ -2480,7 +2516,7 @@
     on masts instead of a slab on a truss, with a rail and two flags a module
     on its front step: no seam between modules, the canopy lit from below, the
     flags no nation's.
-  status: judged
+  status: confirmed
   evidence:
   - run: c9-stadium-armadillos
     date: 2026-10-25
@@ -2497,6 +2533,10 @@
       flag a module through the catch fence (4); the underside, ridge and valleys
       from the top row with the track beyond (5).
     shots: [2, 3, 4, 5]
+  review:
+    at: 2026-10-25T19:33:51
+    score: 4
+    processed: false
 
 - id: v-c10-armadillos-hills
   title: The hills north of Armadillos from a raised camera
@@ -2511,7 +2551,7 @@
     The DEM horizon at Armadillos from 60 m and 300 m over the start line: the
     land to the north rising over the pit building, the tree line, and the skirt
     running on into the haze with no seam.
-  status: judged
+  status: confirmed
   evidence:
   - run: c10-horizon-armadillos
     date: 2026-10-25
@@ -2528,6 +2568,10 @@
       as the DEM has it (29 m of relief on the lap): no hills to speak of over
       the pit building.
     shots: [1, 5]
+  review:
+    at: 2026-10-25T19:33:58
+    score: 5
+    processed: false
 
 - id: v-c10-dem-horizons
   title: >-
@@ -2546,7 +2590,7 @@
     the valley's hills round Hermanos RodriQueso, Moscow's re-derived relief
     with no step between road and ground; runs c10-horizon-endianapolis, -hermanosrodriqueso
     and -moscowmule, before and after (b).
-  status: judged
+  status: confirmed
   evidence:
   - run: c10-horizon-endianapolis
     date: 2026-10-25
@@ -2575,6 +2619,10 @@
       the circuit. Moscow's road sits on its new relief with no step to the
       ground. b shows before and after.
     shots: [1, 2]
+  review:
+    at: 2026-10-25T19:34:05
+    score: 5
+    processed: false
 
 - id: v-f6-dossierless-posts
   title: Marshal posts and light panels at circuits without a dossier
@@ -2588,7 +2636,7 @@
     Endianapolis, Hermanos RodriQueso and Moscow Mule have marshal posts with
     their marshals and light panels by the road (evenly spaced, no named corners),
     so race control's yellows show by the road there too.
-  status: judged
+  status: confirmed
   evidence:
   - run: f6-posts-moscowmule
     date: 2026-10-25
@@ -2605,4 +2653,8 @@
       green flag) beside the post at 300 m; shot 3 frames a post behind the
       boards, the panel not readable there.
     shots: [1, 2]
+  review:
+    at: 2026-10-25T19:34:20
+    score: 4
+    processed: false
 

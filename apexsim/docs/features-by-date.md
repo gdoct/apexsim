@@ -8,6 +8,23 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 
 ## 2026-10-25
 
+- **Roadmap 38-50 (the COTA start/finish comparison)**
+  - 38: a start/finish reference frame on every circuit (`73742bf9`)
+  - 39: road aggregate at road scale, repair patches and a tone wander (`c0f41d94`)
+  - 40: numbered, rubbered grid boxes and striped aprons (`897cdca6`)
+  - 41: concrete and a catch fence beside stands and the pit wall (`84f8661f`)
+  - 42: generated floodlight masts only after dark, car-park lamps off the fence (`090b168d`)
+  - 43: crowd twins fitted to a module's own rows (`f9e6ea88`)
+  - 44: a tree line closes every circuit's horizon (`b2ee199a`)
+  - 45: a fair day's haze and cirrus on every circuit (`e921ab6a`)
+  - 46: the prop kit's start gantry (`2992b6db`)
+  - 47: formula sponsors where the seat and the T-cam see them (`40bad41c`)
+  - 48: an open-wheeler throws no headlight beam (`ee3c368f`)
+  - 49: a T-cam rung on every car (`2c9ac563`)
+  - 50: a shipped Broadcast HUD layout and a lower third (`d84ecd15`)
+- **Verifier** — the verification backlog as items, and a review page over it (`6a73b42a`); the plan as packages 38-50 (`0db0898e`)
+- **Tests** — the ffi watch test checks the ladder level only with the road and ground sidecars (`591a092c`); the virtual safety car test skips without the curb sidecar (`29961a9b`)
+- **Dependencies** — webpki-roots 1.0.10, uuid 1.28.0, rustls 0.23.46, tokio 1.53.3 (`2c41df42`)
 - **A7** — the imported F1s' contact found: side by side under the dodge, from their handling (`58c0eb48`)
 - **Follow-ups #28**
   - no HUD panel drawn over another; gaps off each car's trail (`3abd877e`)

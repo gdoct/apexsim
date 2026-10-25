@@ -1,17 +1,17 @@
 # Work plan
 
-A prioritised view over the four backlogs, snapshot of 2026-10-24 at
-`50d69b4e`, with the COTA start/finish packages (roadmap 38-50) added
-2026-10-25. What the plan's finished items brought is in
+A prioritised view over the four backlogs, snapshot of 2026-10-25 at
+`d8249de5`. Roadmap 38-50 (the COTA start/finish packages) landed
+that day. What the plan's finished items brought is in
 [features-by-date.md](features-by-date.md). The backlogs stay the source of truth for *what* is open
 ([roadmap.md](roadmap.md), [simulation-gaps.md](simulation-gaps.md),
 [follow-ups.md](follow-ups.md), [verification.md](verification.md)); this
 file says *in what order*, *what kind of work* and *who has to be there*.
 When an item is done, delete it from its backlog and from here.
 
-## Current state (2026-10-24)
+## Current state (2026-10-25)
 
-Main is green at `50d69b4e` (server tests pass but for an occasional
+Main was green at `50d69b4e` (2026-10-24; the commits since are content, HUD and docs) (server tests pass but for an occasional
 `test_disconnect_cleanup` timeout under load; 352 client tests). Every
 agent branch of the 2026-10-23/24 night run is merged, A4's squeeze
 fix and A7's prototype measurements included. The imported F1s are measured (A7: their
@@ -317,10 +317,9 @@ What only you can do, roughly in the order it pays off:
 
 ## 6. Notes on the backlogs themselves
 
-- **roadmap.md is empty** apart from *Not yet scoped*; everything active now
-  lives in follow-ups and simulation-gaps. Several sim gaps (flags,
-  penalties, race events) are really product features and would sit better
-  as roadmap packages with a check.
+- **roadmap.md** holds the product packages that are not started or only
+  partly built (8-11, 21-24, 27, 29); the rest of what is
+  active lives in follow-ups and simulation-gaps.
 - **follow-ups P4 ("Unrefined")** holds your own notes without packages or
   checks (wipers, sound, top view, pit lane); this plan scopes them as B1,
   D1, F1, AU1 and G6.
