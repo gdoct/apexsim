@@ -234,6 +234,8 @@ struct APEXSIM_API FApexCarWheelSet
 	 * along world up. False with no wheels.
 	 */
 	bool ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld) const;
+	/** The wheel's hub in the world (its component's origin); false without wheels. */
+	bool Hub(ApexWheels::EWheel Wheel, FVector& OutWorld) const;
 
 private:
 	void Place();

@@ -66,6 +66,12 @@ public:
 	void ScriptMove(const FVector& Move, float Seconds);
 	/** Turn the camera (or the orbit) by degrees. */
 	void ScriptLook(float YawDeg, float PitchDeg);
+	/**
+	 * Orbit and focus on a wheel's hub (ApexWheels::EWheel order) or the body
+	 * (INDEX_NONE); an orbit is taken round the new subject from where the
+	 * camera is. False with no car to watch.
+	 */
+	bool SetSubject(int32 Wheel);
 	/** One of the lens's values, exactly (focal length mm, focus m, f-number, EV, multiplier). */
 	void SetLensValue(ApexPhoto::ESetting Setting, float Value);
 	/** Save the shot now; the toast names the file. */

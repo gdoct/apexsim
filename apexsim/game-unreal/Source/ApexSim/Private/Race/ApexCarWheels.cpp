@@ -468,6 +468,18 @@ bool FApexCarWheelSet::ContactPatch(ApexWheels::EWheel Wheel, FVector& OutWorld)
 	return true;
 }
 
+bool FApexCarWheelSet::Hub(ApexWheels::EWheel Wheel, FVector& OutWorld) const
+{
+	const int32 Index = static_cast<int32>(Wheel);
+	const UStaticMeshComponent* Component = bHasWheels && Components.IsValidIndex(Index) ? Components[Index].Get() : nullptr;
+	if (!Component)
+	{
+		return false;
+	}
+	OutWorld = Component->GetComponentLocation();
+	return true;
+}
+
 void FApexCarWheelSet::Update(float SteeringInput, float Distance, float MaxStepRad)
 {
 	if (!bHasWheels)

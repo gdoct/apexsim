@@ -206,4 +206,25 @@ bool FApexPhotoShotTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPhotoSubjectTest, "ApexSim.Photo.Subject", ApexTestFlags)
+
+bool FApexPhotoSubjectTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexPhoto;
+
+	// The wheels in ApexWheels::EWheel's order, any case; the body as none.
+	int32 Wheel = 7;
+	TestTrue(TEXT("fl"), SubjectFromName(TEXT("fl"), Wheel) && Wheel == 0);
+	TestTrue(TEXT("FR"), SubjectFromName(TEXT("FR"), Wheel) && Wheel == 1);
+	TestTrue(TEXT("rl"), SubjectFromName(TEXT(" rl "), Wheel) && Wheel == 2);
+	TestTrue(TEXT("rr"), SubjectFromName(TEXT("rr"), Wheel) && Wheel == 3);
+	TestTrue(TEXT("the body"), SubjectFromName(TEXT("body"), Wheel) && Wheel == INDEX_NONE);
+	Wheel = 7;
+	TestFalse(TEXT("no such wheel"), SubjectFromName(TEXT("front"), Wheel));
+	TestEqual(TEXT("left as it was"), Wheel, 7);
+	return true;
+}
+
 #endif

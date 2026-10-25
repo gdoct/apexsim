@@ -66,7 +66,7 @@ namespace ApexPhotoUi
 	FAutoConsoleCommandWithWorldAndArgs PhotoCommand(
 		TEXT("apexsim.photo"),
 		TEXT("Photo mode over a watched race: apexsim.photo [on|off|shot|orbit|hide|reset|pause|info] ")
-		TEXT("| move <forward> <right> <up> <seconds> | look <yaw> <pitch> ")
+		TEXT("| move <forward> <right> <up> <seconds> | look <yaw> <pitch> | wheel <fl|fr|rl|rr|body> ")
 		TEXT("| focal <mm> | focus <m, 0 on the car> | aperture <f-number, 0 off> | ev <stops> | res <1|2|4>"),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
 		{
@@ -102,6 +102,15 @@ namespace ApexPhotoUi
 			else if (Verb == TEXT("pause"))   { Photo->RunCommand(ApexPhoto::ECommand::PlayPause); }
 			else if (Verb == TEXT("move"))    { Photo->ScriptMove(FVector(Number(1), Number(2), Number(3)), Args.Num() > 4 ? Number(4) : 1.0f); }
 			else if (Verb == TEXT("look"))    { Photo->ScriptLook(Number(1), Number(2)); }
+			else if (Verb == TEXT("wheel"))
+			{
+				int32 Wheel = INDEX_NONE;
+				if (!Args.IsValidIndex(1) || !ApexPhoto::SubjectFromName(Args[1], Wheel) || !Photo->SetSubject(Wheel))
+				{
+					UE_LOG(LogApexSim, Warning, TEXT("apexsim.photo wheel: fl, fr, rl, rr or body, with a car to watch"));
+					return;
+				}
+			}
 			else if (SettingFromName(Verb, Setting) && Args.Num() > 1) { Photo->SetLensValue(Setting, Number(1)); }
 			else if (Verb != TEXT("info"))
 			{
@@ -357,6 +366,26 @@ void UApexPhotoModeWidget::ScriptMove(const FVector& Move, float Seconds)
 void UApexPhotoModeWidget::ScriptLook(float YawDeg, float PitchDeg)
 {
 	PendingLookDeg += FVector2D(YawDeg, PitchDeg);
+}
+
+bool UApexPhotoModeWidget::SetSubject(int32 Wheel)
+{
+	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	FVector Pivot = Camera.LocationCm;
+	if (!Director)
+	{
+		return false;
+	}
+	Director->SetPhotoSubjectWheel(Wheel);
+	if (!Director->GetPhotoSubject(Pivot))
+	{
+		return false;
+	}
+	if (Camera.bOrbit)
+	{
+		ApexPhoto::SetOrbit(Camera, true, Pivot);
+	}
+	return true;
 }
 
 void UApexPhotoModeWidget::SetLensValue(ApexPhoto::ESetting Setting, float Value)

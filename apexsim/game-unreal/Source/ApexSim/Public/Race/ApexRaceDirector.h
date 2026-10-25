@@ -379,8 +379,14 @@ public:
 	/** The camera on screen now: where it is, where it looks and its horizontal field of view. False with none. */
 	bool GetViewPose(FVector& OutLocationCm, FRotator& OutRotation, float& OutFovDeg) const;
 
-	/** The middle of the watched car's body, what photo mode orbits and focuses on. False with no car. */
+	/**
+	 * What photo mode orbits and focuses on: the middle of the watched car's
+	 * body, or one of its wheels' hubs (SetPhotoSubjectWheel). False with no car.
+	 */
 	bool GetPhotoSubject(FVector& OutCm) const;
+	/** The wheel photo mode orbits (ApexWheels::EWheel order), INDEX_NONE for the body. */
+	void SetPhotoSubjectWheel(int32 Wheel) { PhotoSubjectWheel = Wheel; }
+	int32 GetPhotoSubjectWheel() const { return PhotoSubjectWheel; }
 
 	/** The ground under a point (props aside), for the photo camera's clearance. False off the world. */
 	bool FindGroundBelow(const FVector& AboveCm, double& OutZ) const;
@@ -851,6 +857,8 @@ private:
 
 	UPROPERTY(Transient)
 	TObjectPtr<AApexRaceCarActor> FollowedCar;
+	/** GetPhotoSubject's wheel, INDEX_NONE for the body. */
+	int32 PhotoSubjectWheel = INDEX_NONE;
 
 	/** The record lap's puppet; exists only in a hotlap with a lap to drive. */
 	UPROPERTY(Transient)

@@ -145,6 +145,14 @@ namespace ApexPhoto
 	/** Lift the camera to GroundClearanceCm over `GroundZ` if it is lower. True when it moved. */
 	APEXSIM_API bool KeepAboveGround(FCamera& Camera, double GroundZ);
 
+	/**
+	 * What the orbit turns round and the focus follows: `body` (the middle of
+	 * the car, INDEX_NONE) or a wheel, `fl` `fr` `rl` `rr` (its hub; the
+	 * ApexWheels::EWheel order), for a tread's close-up. False for any other
+	 * name (`apexsim.photo wheel <name>`).
+	 */
+	APEXSIM_API bool SubjectFromName(const FString& Name, int32& OutWheel);
+
 	// --- The keys --------------------------------------------------------------------
 
 	/** A press in photo mode. */

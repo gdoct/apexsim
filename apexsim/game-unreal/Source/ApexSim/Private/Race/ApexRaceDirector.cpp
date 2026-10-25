@@ -3419,6 +3419,7 @@ void AApexRaceDirector::EndPhotoMode()
 		return;
 	}
 	bPhotoMode = false;
+	PhotoSubjectWheel = INDEX_NONE;
 	ClearPhotoLens();
 	bShotCameraPose = false;
 	ApplyCameraMode();
@@ -3480,6 +3481,11 @@ bool AApexRaceDirector::GetPhotoSubject(FVector& OutCm) const
 	if (!FollowedCar)
 	{
 		return false;
+	}
+	if (PhotoSubjectWheel >= 0 && PhotoSubjectWheel < ApexWheels::NumWheels
+		&& FollowedCar->GetWheelHub(static_cast<ApexWheels::EWheel>(PhotoSubjectWheel), OutCm))
+	{
+		return true;
 	}
 	const FBox Body = FollowedCar->GetBodyBox();
 	// The box is in the car's frame; its middle, carried into the world.

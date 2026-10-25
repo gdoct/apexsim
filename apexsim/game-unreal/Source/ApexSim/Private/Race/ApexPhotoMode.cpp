@@ -262,6 +262,26 @@ namespace ApexPhoto
 		return true;
 	}
 
+	bool SubjectFromName(const FString& Name, int32& OutWheel)
+	{
+		static const TCHAR* Wheels[] = { TEXT("fl"), TEXT("fr"), TEXT("rl"), TEXT("rr") };
+		const FString Key = Name.TrimStartAndEnd().ToLower();
+		if (Key == TEXT("body") || Key == TEXT("car"))
+		{
+			OutWheel = INDEX_NONE;
+			return true;
+		}
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Wheels); ++Index)
+		{
+			if (Key == Wheels[Index])
+			{
+				OutWheel = Index;
+				return true;
+			}
+		}
+		return false;
+	}
+
 	// --- The keys --------------------------------------------------------------------
 
 	ECommand CommandFor(const FKey& Key)

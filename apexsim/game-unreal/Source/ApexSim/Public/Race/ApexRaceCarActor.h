@@ -190,6 +190,8 @@ public:
 
 	/** Calls `Fn` for each wheel component, e.g. to hide them from a capture. */
 	void ForEachWheelComponent(TFunctionRef<void(UStaticMeshComponent&)> Fn) const { Wheels.ForEachComponent(Fn); }
+	/** A wheel's hub in the world: photo mode's orbit round a tread. False without drawn wheels. */
+	bool GetWheelHub(ApexWheels::EWheel Wheel, FVector& OutWorldCm) const { return Wheels.Hub(Wheel, OutWorldCm); }
 
 	/**
 	 * What the catalog knows about this car's cockpit: its class, which

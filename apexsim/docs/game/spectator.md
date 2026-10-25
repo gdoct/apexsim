@@ -480,7 +480,10 @@ and the watch keys until `EndPhotoMode`), flown every frame by
   button held, the right stick or I/J/K/L.
 - **Orbit** (O / Y): round the middle of the watched car's body, taken from
   where the camera is; the stick and the mouse turn it round, forward closes
-  in (to 2.5 m), up and down raise and lower it.
+  in (to 2.5 m), up and down raise and lower it. From the console it can
+  turn round a wheel's hub instead (`apexsim.photo wheel fl|fr|rl|rr`,
+  `body` back; `AApexRaceDirector::SetPhotoSubjectWheel`), which the focus
+  follows too: a tread's close-up for the verification runs.
 - Never more than 150 m from the car, and kept 25 cm over the ground under
   it (props aside: `AApexRaceDirector::FindGroundBelow`, the TV camera's
   trace).
@@ -508,7 +511,7 @@ the input processor (`FApexMenuInputProcessor`), so nothing takes focus and
 nothing reaches the watch view under it.
 
 Console, for unattended runs (`-ApexExecAfter`): `apexsim.photo
-on|off|shot|orbit|hide|reset|pause|info`, `move <forward> <right> <up>
+on|off|shot|orbit|hide|reset|pause|info`, `wheel <fl|fr|rl|rr|body>`, `move <forward> <right> <up>
 <seconds>` (as if the keys were held), `look <yaw> <pitch>` (degrees),
 `focal <mm>`, `focus <m, 0 on the car>`, `aperture <f, 0 off>`, `ev
 <stops>`, `res <1|2|4>`; each logs the camera and the lens. Recipes
