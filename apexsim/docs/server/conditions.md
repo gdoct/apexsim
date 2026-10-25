@@ -690,7 +690,10 @@ See [protocol.md](protocol.md) for the append-only rules.
   `ApexSky::DeriveLive` (blended from the server's cloud and rain,
   relit only when `LiveSkyMoved` says so: a game minute, a weather step, a few percent of cloud, rain, water or snow, a tenth of the fog's visibility); `FSkySite` (latitude, north from
   the catalog row's `bHasLocation` / `LatitudeDeg` / `NorthYawDeg`) turns
-  the sun's bearing into the track frame. A director-owned unbound
+  the sun's bearing into the track frame; the sky is derived again once the
+  track's actors are in (`ApplyTrackLevelConditions`, the `Track sky:` log
+  line), as the first derive can come before the track is known and fall
+  back to 50 N with north along +X. A director-owned unbound
   post-process volume carries exposure, wet desaturation and bloom. The
   night's exposure ceiling is EV 8, so a dark circuit's night stays dark
   with a lamp in view; a floodlit circuit (`ApexLights::FloodlitLampCount`,

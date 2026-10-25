@@ -507,6 +507,24 @@ runs:
         checks: "R6 bridge: the deck's underside from the road under it"
         exec: "apexsim.cam.LookAt 1341.4 598.4 -68.9 1338.8 614.2 -67.4"
 
+  - id: r10-spa-noon
+    about: "R10. Spa at 13:00: the sun at the circuit's own place and north (the client logs Track sky)"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=SpaFrankenchamps
+      - -ApexCar=SF-26
+      - -ApexAiCount=0
+      - -ApexLaps=2
+      - -ApexCountdown=60
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the grid from above"
+        checks: "R10: the shadows fall to the north (the sun a little east of due south)"
+        exec: "apexsim.cam.LookAt 305.1 -47.1 40.0 303.6 -37.3 -25.4"
+
   - id: r6-nordschleife
     about: "R6. Nordschleife, sunny, dressing stops and TV lap"
     # Stops from the .ats and the layout dossier (spots.py --prop / --at),

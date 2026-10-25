@@ -248,7 +248,10 @@ session while driving (notice, then the menu).
 
 - The sun at the circuit's own noon (`SessionJoined.Conditions.solar_noon_min`,
   13:33 at Spa): at 13:00 it stands a little east of due south over the
-  circuit.
+  circuit. `r10-spa-noon` (2026-10-25) logs it at 165 deg, 58.9 deg up, at
+  50.4 N with north at 92 deg; before then every run lit the circuit at
+  the default site (north along +X) until the sky next moved. Left: the
+  shadows on screen pointing north.
 - The create screen's Date row against a server that lists the track's
   site: the note naming the circuit's own noon ("SOLAR NOON ... HERE"), a
   December 16:30 at Silverstone previewed as dusk and raced as one. Seen

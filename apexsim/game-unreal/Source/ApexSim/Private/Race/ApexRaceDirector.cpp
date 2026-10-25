@@ -2554,6 +2554,15 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 	Track->GetActors(TrackActors);
 	bTrackConditionsApplied = true;
 
+	// The sky may have been derived before the track was known, at the
+	// default site (50 N, north along +X): the sun goes where the circuit is.
+	{
+		const ApexSky::FSkySite Site = CurrentSkySite();
+		Sky = DeriveSky(LitSky);
+		UE_LOG(LogApexSim, Log, TEXT("Track sky: at %.1f N (north at %.0f deg), sun %.1f deg at %.0f deg"),
+			Site.LatitudeDeg, Site.NorthYawDeg, Sky.Sun.ElevationDeg, Sky.Sun.AzimuthDeg);
+	}
+
 	static const FName EmissiveStrengthParam(TEXT("EmissiveStrength"));
 	static const FName LampTag(TEXT("ApexEmissive_floodlight_lamp"));
 
