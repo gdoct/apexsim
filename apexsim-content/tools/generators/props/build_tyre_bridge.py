@@ -1,15 +1,17 @@
-"""bridge/tyre_bridge: a giant tyre's flat arc over the road on two low legs,
-with a footbridge deck under it, the kind at a long-distance circuit's
-chicane (about two and a half times wider than tall).
+"""bridge/tyre_bridge: a giant tyre's arc over the road, the kind at a
+long-distance circuit's chicane. The arc springs from the ground well beyond
+the run-off on both sides (about three and a half times wider than tall); a
+footbridge deck crosses straight under its crown, and the sidewall above the
+deck is solid, a brand panel on each face. Below the deck the arc is open.
 
 Headless:  blender -b --python tools/generators/props/build_tyre_bridge.py
 (from apexsim-content/). Writes props/bridge/tyre_bridge.{glb,blend} and a
 preview in props/_preview/.
 
-The span (23.7 m across local Y), the pivot (road centre on the ground) and
-the slot names stay as the kit has them: `tyre_bridge_brand` is a brand
-slot the client fills at runtime, its UVs one brand per 0..1 in u and the
-band's height in v, so a brand reads upright on both sidewalls.
+The pivot is the road centre on the ground, the span across local Y. The
+client places it at its authored span (`ApexProps::BridgeKeepsSpan`): it
+stands over the run-off, not the road's edges. `tyre_bridge_brand` is a
+brand slot the client fills at runtime, one 3:1 brand across 0..1 in u.
 """
 import importlib.util, math, os, sys
 
@@ -19,149 +21,128 @@ apex = importlib.util.module_from_spec(_spec)
 sys.modules["apex"] = apex
 _spec.loader.exec_module(apex)
 
-# Overall shape.
-HALF_SPAN = 11.85     # concrete pads' outer faces, across Y
-TOP = 9.5             # top of the tyre's tread
-BAND = 1.9            # the tyre's radial thickness
-HALF_DEPTH = 1.6      # the tyre's half width along the track (X)
-END_Y = 11.1          # where the band's centre meets the legs
-END_Z = 5.0
-SEGMENTS = 48
+# The outer arc: through the ground at +-HALF_SPAN and the crown at TOP.
+HALF_SPAN = 22.0
+TOP = 13.0
+BAND = 2.6            # the tyre's radial thickness where the arc is open
+HALF_DEPTH = 2.2      # the tyre's half width along the track (X)
+FOOT_Z = -2.0         # the arc runs on into the ground, for uneven verges
+RIM = 0.35            # the coloured rim along the sidewall's outer edge
+SEGMENTS = 64
 
-# Legs and deck.
-LEG_IN, LEG_OUT = 10.2, 11.6
-LEG_HALF_X = 1.4
-LEG_TOP = 4.6
-DECK_Z0, DECK_Z1 = 4.4, 4.9
-DECK_HALF_X = 1.0
-RAIL_Z = 6.0
+# The footbridge deck under the crown: its underside is the arc's opening.
+DECK_Z0, DECK_Z1 = 5.6, 6.8
+FASCIA_PROUD = 0.15
+FASCIA_DROP = 0.08
 
-# The sidewall: rubber lips at the inner and outer edge, the brand between.
-LIP_IN, LIP_OUT = 0.22, 0.32
-CHAMFER = 0.18
+# The brand panel on each sidewall, above the deck.
+PANEL_GAP = 0.3       # above the deck's fascia
+PANEL_MARGIN = 0.45   # below the rim at its upper corners
+PANEL_PROUD = 0.03
 
 
-def arc():
-    """Centre and radius of the band's mid-line circle, and its half angle."""
-    rise = (TOP - BAND / 2) - END_Z
-    radius = (END_Y ** 2 + rise ** 2) / (2 * rise)
-    centre_z = TOP - BAND / 2 - radius
-    half = math.asin(END_Y / radius)
-    return centre_z, radius, half
+def circle():
+    """Centre height and radius of the outer arc."""
+    radius = (HALF_SPAN ** 2 + TOP ** 2) / (2 * TOP)
+    return TOP - radius, radius
 
 
 def build():
     apex.reset_scene()
-    rubber = apex.material("tyre_bridge_rubber", (0.035, 0.035, 0.04), roughness=0.85)
+    sidewall = apex.material("tyre_bridge_sidewall", (0.07, 0.2, 0.3), roughness=0.6)
+    rim = apex.material("tyre_bridge_rim", (0.85, 0.65, 0.02), roughness=0.55)
     tread = apex.material("tyre_bridge_tread", (0.05, 0.05, 0.055), roughness=0.92)
+    fascia = apex.material("tyre_bridge_fascia", (0.85, 0.65, 0.02), roughness=0.6)
     brand = apex.image_material(
         "tyre_bridge_brand", os.path.join(apex.PROPS_ROOT, "board", "brands", "piretti.png"), roughness=0.7)
     concrete = apex.material("bridge_concrete", (0.55, 0.55, 0.52), roughness=0.9)
-    dark = apex.material("bridge_dark", (0.09, 0.09, 0.1), roughness=0.8)
-    steel = apex.material("bridge_steel", (0.38, 0.4, 0.43), metallic=0.6, roughness=0.45)
 
     b = apex.Builder("tyre_bridge")
-    cz, rc, half = arc()
-    r_in, r_out = rc - BAND / 2, rc + BAND / 2
+    cz, r_out = circle()
+    r_in = r_out - BAND
+    hx = HALF_DEPTH
 
     def at(angle, r, x):
-        # angle 0 at the top; positive toward +Y.
+        # angle 0 at the crown; positive toward +Y.
         return (x, r * math.sin(angle), cz + r * math.cos(angle))
 
-    angles = [-half + 2 * half * i / SEGMENTS for i in range(SEGMENTS + 1)]
-    arc_len = 2 * half * rc
+    def inner(angle):
+        # The solid reaches down to the deck's underside where that is below
+        # the inner circle, so the sidewall above the deck is closed.
+        return min(r_in, (DECK_Z0 - cz) / math.cos(angle))
 
-    # The tyre's cross-section, walked round: inner face, the -X sidewall
-    # up to the tread, the tread, the +X sidewall down. Each piece is its own
-    # strip so it gets its own slot and UVs.
-    def strip(mat, pts_xr, uv_of):
-        """Loft a polyline of (x, r) across the arc; uv_of(i, k) gives the UV
-        of section i, profile point k."""
-        rows = [[at(a, r, x) for (x, r) in pts_xr] for a in angles]
-        for i in range(SEGMENTS):
-            for k in range(len(pts_xr) - 1):
-                quad = [rows[i][k], rows[i + 1][k], rows[i + 1][k + 1], rows[i][k + 1]]
-                uvs = [uv_of(i, k), uv_of(i + 1, k), uv_of(i + 1, k + 1), uv_of(i, k + 1)]
-                b.quad_uv(mat, quad, uvs)
+    foot = math.acos((FOOT_Z - cz) / r_out)
+    kink = math.acos((DECK_Z0 - cz) / r_in)
+    angles = sorted({-foot + 2 * foot * i / SEGMENTS for i in range(SEGMENTS + 1)} | {-kink, kink})
 
-    along = lambda i: arc_len * i / SEGMENTS  # metres along the band's mid-line
-    hx = HALF_DEPTH
-    # Inner face (seen from under the arc), rubber.
-    strip(rubber, [(hx, r_in), (-hx, r_in)], lambda i, k: (along(i), (hx, -hx)[k]))
-    # Tread on top, between the chamfers.
-    strip(tread, [(-hx + CHAMFER, r_out), (hx - CHAMFER, r_out)],
-          lambda i, k: ((-hx + CHAMFER, hx - CHAMFER)[k], along(i)))
-    # Chamfers, rubber.
-    strip(rubber, [(-hx, r_out - CHAMFER), (-hx + CHAMFER, r_out)], lambda i, k: (along(i), k * CHAMFER))
-    strip(rubber, [(hx - CHAMFER, r_out), (hx, r_out - CHAMFER)], lambda i, k: (along(i), k * CHAMFER))
-
-    # Sidewalls: lip, brand band, lip. The brand repeats a whole number of
-    # times along the arc, one 3:1 brand per repeat.
-    band_lo, band_hi = r_in + LIP_IN, r_out - CHAMFER - LIP_OUT
-    band_h = band_hi - band_lo
-    repeats = max(1, round(arc_len / (3.0 * band_h)))
-    for x, sign in ((-hx, -1), (hx, 1)):
-        # Seen from -X (the approach), the viewer's right is -Y: u runs from
-        # +Y to -Y there, and the other way on the back.
-        u_of = (lambda i: repeats * (1 - i / SEGMENTS)) if sign < 0 else (lambda i: repeats * i / SEGMENTS)
-        prof_lo = [(x, r_in), (x, band_lo)]
-        prof_hi = [(x, band_hi), (x, r_out - CHAMFER)]
-        if sign > 0:
-            prof_lo, prof_hi = prof_lo[::-1], prof_hi[::-1]
-        strip(rubber, prof_lo, lambda i, k: (along(i), k * LIP_IN))
-        strip(rubber, prof_hi, lambda i, k: (along(i), k * LIP_OUT))
-        prof_band = [(x, band_lo), (x, band_hi)]
-        if sign > 0:
-            strip(brand, prof_band[::-1], lambda i, k: (u_of(i), 1 - k))
-        else:
-            strip(brand, prof_band, lambda i, k: (u_of(i), k))
-
-    # End caps where the tyre sits on the legs.
+    # Walk the arc: tread on top, the inner face under it, and on each side
+    # the sidewall with its rim. Quads wind outward on their own: the tread
+    # faces away from the centre, the inner face toward it.
+    for a0, a1 in zip(angles, angles[1:]):
+        b.sheet(tread, at(a0, r_out, -hx), at(a0, r_out, hx), at(a1, r_out, hx), at(a1, r_out, -hx))
+        b.sheet(sidewall, at(a0, inner(a0), hx), at(a0, inner(a0), -hx),
+                at(a1, inner(a1), -hx), at(a1, inner(a1), hx))
+        for x in (-hx, hx):
+            q_side = [at(a0, inner(a0), x), at(a0, r_out - RIM, x), at(a1, r_out - RIM, x), at(a1, inner(a1), x)]
+            q_rim = [at(a0, r_out - RIM, x), at(a0, r_out, x), at(a1, r_out, x), at(a1, r_out - RIM, x)]
+            if x > 0:
+                q_side, q_rim = q_side[::-1], q_rim[::-1]
+            b.sheet(sidewall, *q_side)
+            b.sheet(rim, *q_rim)
+    # Close the feet underground.
     for a in (angles[0], angles[-1]):
-        ring = [at(a, r_in, -hx), at(a, r_in, hx), at(a, band_lo, hx), at(a, band_hi, hx),
-                at(a, r_out - CHAMFER, hx), at(a, r_out, hx - CHAMFER), at(a, r_out, -hx + CHAMFER),
-                at(a, r_out - CHAMFER, -hx), at(a, band_hi, -hx), at(a, band_lo, -hx)]
-        f = b.bm.faces.new([b.bm.verts.new(p) for p in ring])
-        f.material_index = b.slot(rubber)
+        cap = [at(a, inner(a), -hx), at(a, inner(a), hx), at(a, r_out, hx), at(a, r_out, -hx)]
+        b.sheet(sidewall, *(cap if a > 0 else cap[::-1]))
 
-    # Legs: concrete pads, then tapered steel-clad pillars up under the ends.
+    # Concrete pads round the feet where they meet the ground.
     for s in (-1, 1):
-        y0, y1 = sorted((s * (LEG_IN - 0.3), s * HALF_SPAN))
-        b.box(concrete, (-2.0, y0, 0.0), (2.0, y1, 0.5))
-        y0, y1 = sorted((s * LEG_IN, s * LEG_OUT))
-        b.box(concrete, (-LEG_HALF_X, y0, 0.5), (LEG_HALF_X, y1, LEG_TOP))
-        # A cap plate the tyre rests on.
-        y0, y1 = sorted((s * (LEG_IN - 0.1), s * (LEG_OUT + 0.15)))
-        b.box(dark, (-LEG_HALF_X - 0.1, y0, LEG_TOP), (LEG_HALF_X + 0.1, y1, LEG_TOP + 0.25))
+        y_in = math.sqrt(r_in ** 2 - cz ** 2)
+        y0, y1 = sorted((s * (y_in - 0.6), s * (HALF_SPAN + 0.6)))
+        b.box(concrete, (-hx - 0.6, y0, -0.6), (hx + 0.6, y1, 0.3))
 
-    # The footbridge deck between the legs, with a rail each side.
-    b.box(dark, (-DECK_HALF_X, -LEG_IN, DECK_Z0), (DECK_HALF_X, LEG_IN, DECK_Z1))
-    for x in (-DECK_HALF_X + 0.05, DECK_HALF_X - 0.05):
-        b.bar(steel, (x, -LEG_IN, RAIL_Z), (x, LEG_IN, RAIL_Z), 0.05)
-        b.bar(steel, (x, -LEG_IN, (DECK_Z1 + RAIL_Z) / 2), (x, LEG_IN, (DECK_Z1 + RAIL_Z) / 2), 0.03)
-        n = int(2 * LEG_IN / 2.0)
-        for k in range(n + 1):
-            y = -LEG_IN + 2 * LEG_IN * k / n
-            b.bar(steel, (x, y, DECK_Z1), (x, y, RAIL_Z), 0.04)
+    # The deck's fascia across the opening, standing a little proud of both
+    # sidewalls and running into the arc's legs. Its underside hangs a
+    # little below the opening's top, which would z-fight at the same height.
+    deck_y = math.sqrt(r_in ** 2 - (DECK_Z0 - cz) ** 2) + 0.5
+    b.box(fascia, (-hx - FASCIA_PROUD, -deck_y, DECK_Z0 - FASCIA_DROP), (hx + FASCIA_PROUD, deck_y, DECK_Z1))
 
-    # The strips are separate quads with their own UVs: weld them (UVs live
-    # on the loops, so seams keep theirs) so the arc shades smooth, and wind
-    # every closed piece outward.
+    # The body is closed: weld it and wind it outward before the panels,
+    # which are single quads wound by hand.
     apex.bmesh.ops.remove_doubles(b.bm, verts=b.bm.verts[:], dist=1e-4)
     apex.bmesh.ops.recalc_face_normals(b.bm, faces=b.bm.faces[:])
+
+    # The brand panel: the tallest 3:1 that fits between the fascia and the
+    # rim at its upper corners.
+    z0 = DECK_Z1 + PANEL_GAP
+    h = 0.0
+    while True:
+        nh = h + 0.05
+        y = 1.5 * nh
+        if y >= r_out or cz + math.sqrt(r_out ** 2 - y ** 2) - RIM - PANEL_MARGIN < z0 + nh:
+            break
+        h = nh
+    half_w, z1 = 1.5 * h, z0 + h
+    # Seen from -X (the approach), the viewer's right is -Y; seen from +X it
+    # is +Y. Either way u runs left to right and v bottom to top.
+    xa = hx + PANEL_PROUD
+    b.quad_uv(brand, [(-xa, half_w, z0), (-xa, -half_w, z0), (-xa, -half_w, z1), (-xa, half_w, z1)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+    b.quad_uv(brand, [(xa, -half_w, z0), (xa, half_w, z0), (xa, half_w, z1), (xa, -half_w, z1)],
+              [(0, 0), (1, 0), (1, 1), (0, 1)])
+
     ob = b.finish(planar_uv=True, recalc=False)
-    return ob
+    return ob, (2 * hx + 2 * FASCIA_PROUD, 2 * (HALF_SPAN + 0.6), TOP), (2 * half_w, h)
 
 
 if __name__ == "__main__":
-    ob = build()
-    print("STATS", apex.stats())
+    ob, size, panel = build()
+    print("STATS", apex.stats(), "SIZE", size, "PANEL", panel)
     apex.preview_ground()
-    glb, size = apex.export_one("bridge", "tyre_bridge")
-    print("GLB", glb, size)
+    glb, nbytes = apex.export_one("bridge", "tyre_bridge")
+    print("GLB", glb, nbytes)
     apex.preview(os.path.join(apex.PROPS_ROOT, "_preview", "tyre_bridge.png"),
-                 look_from=(-30, -14, 4), look_at=(0, 0, 5))
+                 look_from=(-70, -22, 6), look_at=(0, 0, 6))
     apex.preview(os.path.join(apex.PROPS_ROOT, "_preview", "tyre_bridge_b.png"),
-                 look_from=(-45, 0, 2), look_at=(0, 0, 5))
+                 look_from=(-80, 0, 2), look_at=(0, 0, 6))
     # The preview objects stay out of the GLB (export_one selects the asset).
     apex.save_blend("bridge", "tyre_bridge")

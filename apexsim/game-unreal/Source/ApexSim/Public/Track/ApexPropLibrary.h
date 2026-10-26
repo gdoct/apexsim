@@ -205,7 +205,9 @@ namespace ApexProps
 	APEXSIM_API float BridgeSpanScale(float SpanM);
 	/** A bridge whose span is its own, not the road's: the banked oval's
 	 *  curve and piers would stretch with a wider road, and its piers clear
-	 *  any road up to 18 m as authored. */
+	 *  any road up to 18 m as authored; the tyre arch springs from the
+	 *  ground beyond the run-off, and squeezed to a road's width it is a
+	 *  narrow hoop. */
 	APEXSIM_API bool BridgeKeepsSpan(const FString& Asset);
 
 	// ---- Grandstands ---------------------------------------------------------

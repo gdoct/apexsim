@@ -130,7 +130,7 @@ pub const KIT: &[KitAsset] = kit![
     // Overhead
     Bridge "start_gantry" 2.0 x 20.0 x 7.2,
     Bridge "truss_bridge" 2.7 x 20.4 x 8.7,
-    Bridge "tyre_bridge" 4.0 x 23.7 x 9.5,
+    Bridge "tyre_bridge" 4.7 x 46.0 x 13.0,
     // Platforms cantilevered from both sides over the straight, and a
     // banked oval deck on piers crossing the road (build_kit_gaps_stands.py).
     Bridge "sky_platform" 26.0 x 32.4 x 15.4,

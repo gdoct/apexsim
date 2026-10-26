@@ -406,7 +406,7 @@ namespace ApexProps
 
 	bool BridgeKeepsSpan(const FString& Asset)
 	{
-		return Asset == TEXT("banked_oval_span");
+		return Asset == TEXT("banked_oval_span") || Asset == TEXT("tyre_bridge");
 	}
 
 	float BridgeSpanScale(float SpanM)
