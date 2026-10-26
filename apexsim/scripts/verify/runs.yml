@@ -10435,3 +10435,64 @@ runs:
       - {at: 216, lead: 0.3, label: "the heavy contact, 3.5 s after the jump settles", checks: "R7: the cars of the heavy contact under the chase camera: contact sparks, a dent, a part hanging and its flutter", item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
       - {at: 220, lead: 0.5, label: "held, HUD hidden", checks: "R7: the cars after the contact, the damage on them", exec: ["apexsim.watch hold", "apexsim.hud.Hide 1"], item: [v-r7-debris-dent, v-r7-hanging-flutter, v-r7-contact-sparks, v-r7-racecraft]}
       - {at: 226, lead: 4, label: "played on, four seconds later", checks: "R7: a car reversing out of the barrier, another giving it room", exec: "apexsim.watch play", item: [v-r7-reverse-out-yield, v-r7-racecraft]}
+
+  # R4 driver swaps: three drivers a car, two minutes each, over a race of
+  # three laps (1:18 a lap: about five minutes with the stops), so every
+  # car, the stand-in's too, has to hand over twice. hud.Data logs the
+  # crew points.
+  - id: r4-driver-swaps
+    about: "R4. Driver swaps: three drivers a car, two minutes each"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=3
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=chase
+      - -ApexRacingLine=off
+      - -ApexDriversPerCar=3
+      - -ApexMaxDriverMinutes=2
+    exec:
+      30: ["apexsim.hud.Data crew."]
+      100: ["apexsim.hud.Data crew.", "apexsim.hud.Data pit.service_phase"]
+      200: ["apexsim.hud.Data crew."]
+    shots:
+      - {at: 20, label: "after the green: the Driver 1 panel", checks: "R4: race state Driver 1, about 2:00 left", item: v-r4-driver-swaps}
+      - {at: 64, label: "the first stop window, 64 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 68, label: "the first stop window, 68 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 72, label: "the first stop window, 72 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 76, label: "the first stop window, 76 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 80, label: "the first stop window, 80 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 84, label: "the first stop window, 84 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 88, label: "the first stop window, 88 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 92, label: "the first stop window, 92 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 96, label: "the first stop window, 96 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 100, label: "the first stop window, 100 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 104, label: "the first stop window, 104 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 108, label: "the first stop window, 108 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 112, label: "the first stop window, 112 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 116, label: "the first stop window, 116 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 120, label: "the first stop window, 120 s", checks: "R4: the pit panel DRIVER CHANGE · DRIVER 2 after the work; then Driver 2 at 2:00", item: v-r4-driver-swaps}
+      - {at: 140, label: "the second driver out", checks: "R4: Driver 2 counting down", item: v-r4-driver-swaps}
+      - {at: 150, label: "the second stop window, 150 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 155, label: "the second stop window, 155 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 160, label: "the second stop window, 160 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 165, label: "the second stop window, 165 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 170, label: "the second stop window, 170 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 175, label: "the second stop window, 175 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 180, label: "the second stop window, 180 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 185, label: "the second stop window, 185 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 190, label: "the second stop window, 190 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 195, label: "the second stop window, 195 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 200, label: "the second stop window, 200 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 205, label: "the second stop window, 205 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 210, label: "the second stop window, 210 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 215, label: "the second stop window, 215 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 220, label: "the second stop window, 220 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 225, label: "the second stop window, 225 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
+      - {at: 330, label: "after the flag", checks: "R4: no PEN in the results: every driver kept the 2 min", item: v-r4-driver-swaps}

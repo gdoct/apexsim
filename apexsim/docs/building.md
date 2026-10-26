@@ -532,7 +532,10 @@ The unattended screen runs and the wheel sittings are
 backlog they clear is `docs/verification/verification-items.yml`, and
 `python scripts/verify/verifier.py serve` (from `apexsim/`) is its review
 page on http://localhost:9410 ([verifier.md](verifier.md)). Both need only
-Python with PyYAML and Pillow.
+Python with PyYAML and Pillow. The runs start the server from
+`server/server/target/release`; while a server of yours runs from there,
+build into another `CARGO_TARGET_DIR` and point
+`APEXSIM_VERIFY_SERVER_EXE` at that build's `apexsim-server.exe`.
 
 ## Reclaiming disk space
 

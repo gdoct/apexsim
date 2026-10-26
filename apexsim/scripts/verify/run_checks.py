@@ -76,7 +76,9 @@ checks with their answer words.
 
 Needs the ApexSimEditor target built and `cargo build --release` in server/server/
 (both are checked against the source and warned about), the content
-initialised, and the editor closed.
+initialised, and the editor closed. With a server of the user's running
+from target/release, build into another CARGO_TARGET_DIR and set
+APEXSIM_VERIFY_SERVER_EXE to that build's apexsim-server.exe.
 """
 
 from __future__ import annotations
@@ -103,7 +105,10 @@ OUT = REPO / "out" / "verify"
 SIT_OUT = REPO / "out" / "sit"
 SAVED = REPO / "game-unreal" / "Saved"
 SERVER_DIR = REPO / "server" / "server"
-SERVER_EXE = SERVER_DIR / "target" / "release" / "apexsim-server.exe"
+# APEXSIM_VERIFY_SERVER_EXE names another build (a scratch CARGO_TARGET_DIR's
+# release/apexsim-server.exe) while a running server holds target/release.
+SERVER_EXE = Path(os.environ.get("APEXSIM_VERIFY_SERVER_EXE")
+                  or SERVER_DIR / "target" / "release" / "apexsim-server.exe")
 CLIENT_LOGS = REPO / "game-unreal" / "Saved" / "Logs"
 EDITOR_BINARIES = REPO / "game-unreal" / "Binaries" / "Win64"
 
