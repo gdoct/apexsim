@@ -1590,3 +1590,82 @@ fn the_ai_hands_its_car_on_before_a_driver_runs_out_of_time() {
         assert!(!gs.overran_driver_time(id));
     }
 }
+
+/// A stop the AI's plan chose is judged again at the lane
+/// (`GameSession::plan_ai_stops`): on worn tyres the car decides to stop
+/// early in the lap; with the reason still there it comes in, and with it
+/// gone by the lane (here its tyres made fresh) it races on past.
+#[test]
+fn an_ai_stop_is_judged_again_at_the_lane() {
+    for keep in [true, false] {
+        let track = monza();
+        if track.pit_lane.is_none() {
+            return;
+        }
+        let car = gt3();
+        let car_id = car.id;
+        let mut car_configs = HashMap::new();
+        car_configs.insert(car.id, car);
+        let mut profile = AiDriverProfile::new("Judge AI", 95);
+        profile.id = Uuid::from_u128(7400);
+        profile.preferred_car_id = Some(car_id);
+        let driver = profile.id;
+        let mut session = RaceSession::new(
+            Uuid::from_u128(1),
+            Uuid::nil(),
+            SessionKind::Multiplayer,
+            8,
+            1,
+            6,
+        );
+        session.lap_limit = 6;
+        let mut gs = GameSession::with_ai_profiles(session, track, car_configs, vec![profile]);
+        gs.spawn_ai_drivers();
+        gs.start_countdown_mode(1, GameMode::Race);
+        for t in gs
+            .session
+            .participants
+            .get_mut(&driver)
+            .unwrap()
+            .tires
+            .each_mut()
+        {
+            t.wear_percent = 72.0;
+        }
+        let mut decided = false;
+        let mut entered = false;
+        for _ in 0..(HZ * 60 * 4) {
+            let inputs: HashMap<PlayerId, PlayerInputData> =
+                [(driver, gs.generate_ai_input(&driver))].into();
+            gs.tick(&inputs);
+            let s = gs.session.participants.get_mut(&driver).unwrap();
+            if s.pit.wants_stop && !decided {
+                decided = true;
+                assert!(!s.pit.driving, "decided short of the lane");
+                if !keep {
+                    for t in s.tires.each_mut() {
+                        t.wear_percent = 30.0;
+                    }
+                }
+            }
+            // The pit route taken (Monza's lane runs beside its grid, so
+            // being in the lane's outline says nothing).
+            entered |= s.pit.driving;
+            if s.current_lap >= 2 && decided {
+                break;
+            }
+        }
+        let s = &gs.session.participants[&driver];
+        println!(
+            "keep {keep}: decided {decided}, entered {entered}, lap {}, stops {}, wants {}",
+            s.current_lap, s.pit.stops, s.pit.wants_stop
+        );
+        assert!(decided, "the worn tyres make a stop");
+        if keep {
+            assert!(entered, "in for the worn tyres");
+        } else {
+            assert!(!entered, "fresh by the lane: on past it");
+            assert!(!s.pit.wants_stop);
+        }
+    }
+}

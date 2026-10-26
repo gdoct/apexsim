@@ -394,7 +394,14 @@ off by `Racecraft::blend`; the controller holds it across the road
   `AI_REJOIN_WAIT_LAPS` (2) past its share, and nothing is brought forward:
   no undercut onto a busy road, and a car behind that has turned in is
   answered by the **overcut**, staying out on the road its stop cleared,
-  instead of a cover. Faults, damage and a short tank never wait. Under the session's pit rule (`data::PitRule`,
+  instead of a cover. Faults, damage and a short tank never wait. A stop
+  the plan chose (`GameSession::planned_stops`; not the weather's tyre, a
+  penalty or the track's tyre) is planned again as the car reaches
+  `AI_PIT_APPROACH_M` (250 m) before the lane, on the road as it is then:
+  if the rejoin is now in traffic, or the reason has gone (an undercut's
+  gap opened), the car races on and the plan looks again from the next
+  tick, so a decision made up to a lap before the lane does not drive it
+  into traffic that came since. Under the session's pit rule (`data::PitRule`,
   [sessions](sessions.md#session-rules-set-on-create); `StopContext::stops_owed`
   and `compound_owed`, `GameSession::stops_owed`) the stops it owes split
   the race into even stints: an owed stop is due once this stint has run

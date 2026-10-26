@@ -670,6 +670,11 @@ pub struct GameSession {
     /// has driven past the most per driver.
     crews: std::collections::BTreeMap<PlayerId, crate::crew::Crew>,
     driver_overrun: std::collections::BTreeSet<PlayerId>,
+    /// The AI cars (and the server's stand-ins) whose stop the stop plan
+    /// chose (`pit::plan_stop`): judged again at the lane
+    /// (`plan_ai_stops`). A weather, penalty or tyre-for-the-track stop is
+    /// not in it.
+    planned_stops: std::collections::BTreeSet<PlayerId>,
     /// Set when session membership changed since the last roster broadcast;
     /// starts true so the roster goes out once when the session first ticks.
     roster_dirty: bool,
@@ -1266,6 +1271,7 @@ impl GameSession {
             stint_overrun: Default::default(),
             crews: Default::default(),
             driver_overrun: Default::default(),
+            planned_stops: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -1368,6 +1374,7 @@ impl GameSession {
             stint_overrun: Default::default(),
             crews: Default::default(),
             driver_overrun: Default::default(),
+            planned_stops: Default::default(),
             roster_dirty: true,
             listed_state: SessionState::Lobby,
             ai_speed_profiles: HashMap::new(),
@@ -7610,6 +7617,17 @@ impl GameSession {
             ai_ids.extend(self.away.iter().copied());
         }
         for ai_id in ai_ids {
+            // Short of fuel is no reason to stop in a car the rules do not
+            // refuel (an F1): the stop would add none, and the car would
+            // come in again every lap.
+            let lap_fuel = match self.session.participants.get(&ai_id) {
+                Some(state) => {
+                    let car_id = state.car_config_id;
+                    let refuels = self.refuels(car_id);
+                    self.lap_fuel_liters(car_id).filter(|_| refuels)
+                }
+                None => continue,
+            };
             let Some(state) = self.session.participants.get(&ai_id) else {
                 continue;
             };
@@ -7634,14 +7652,6 @@ impl GameSession {
             if !state.pit.wants_stop {
                 let laps_left = self.laps_left(state);
                 let car_id = state.car_config_id;
-                // Short of fuel is no reason to stop in a car the rules do
-                // not refuel (an F1): the stop would add none, and the car
-                // would come in again every lap.
-                let refuels = self.refuels(car_id);
-                let lap_fuel = self.lap_fuel_liters(car_id).filter(|_| refuels);
-                let Some(state) = self.session.participants.get(&ai_id) else {
-                    continue;
-                };
                 // The weather first: rain on slicks, a dry line on treaded
                 // tyres (`pit::tyres_for_the_track`).
                 let crossover = self.crossover_context(state, laps_left, line_snow);
@@ -7659,18 +7669,10 @@ impl GameSession {
                         state.pit.fuel_only = false;
                         state.pit.next_compound = compound;
                     }
+                    self.planned_stops.remove(&ai_id);
                     continue;
                 }
-                let usable = self
-                    .car_configs
-                    .get(&car_id)
-                    .map_or(state.fuel_liters, |c| {
-                        crate::pit::usable_fuel_liters(state, c)
-                    });
-                let ctx = crate::pit::StopContext {
-                    usable_fuel_l: Some(usable),
-                    ..self.stop_context(state, laps_left, lap_fuel, total)
-                };
+                let ctx = self.ai_stop_context(state, laps_left, lap_fuel, total);
                 if let Some(plan) = crate::pit::plan_stop(state, &ctx) {
                     // In the rain or on snow the tyre is the weather's;
                     // either way one of the car's own.
@@ -7695,12 +7697,26 @@ impl GameSession {
                         state.pit.fuel_only = plan.fuel_only;
                         state.pit.next_compound = compound;
                     }
+                    self.planned_stops.insert(ai_id);
                 }
                 continue;
             }
             let to_entry = (entry - state.track_progress).rem_euclid(total.max(1.0));
             // Not into a lane closed under the safety car: the next lap.
             if to_entry <= approach && !self.race_control.pit_closed() {
+                // A stop the plan chose, up to a lap ago, is judged again
+                // at the lane: the rejoin as the road behind is now, and
+                // the reason still there. Dropped, the car races on and
+                // the plan looks again from the next tick.
+                if self.planned_stops.remove(&ai_id) {
+                    let ctx = self.ai_stop_context(state, self.laps_left(state), lap_fuel, total);
+                    if crate::pit::plan_stop(state, &ctx).is_none() {
+                        if let Some(state) = self.session.participants.get_mut(&ai_id) {
+                            state.pit.wants_stop = false;
+                        }
+                        continue;
+                    }
+                }
                 if let Some(state) = self.session.participants.get_mut(&ai_id) {
                     state.pit.driving = true;
                     state.pit.serviced = false;
@@ -7980,6 +7996,27 @@ impl GameSession {
             })
             .map(|o| (state.track_progress - o.track_progress).rem_euclid(total_m) / pace);
         crate::pit::rejoins_in_traffic(loss_s, behind)
+    }
+
+    /// What the AI's stop plan reads for `state` (`stop_context`, with the
+    /// lap's fuel `lap_fuel_l`), and the fuel the stint may still burn.
+    fn ai_stop_context(
+        &self,
+        state: &CarState,
+        laps_left: u32,
+        lap_fuel_l: Option<f32>,
+        total_m: f32,
+    ) -> crate::pit::StopContext {
+        let usable = self
+            .car_configs
+            .get(&state.car_config_id)
+            .map_or(state.fuel_liters, |c| {
+                crate::pit::usable_fuel_liters(state, c)
+            });
+        crate::pit::StopContext {
+            usable_fuel_l: Some(usable),
+            ..self.stop_context(state, laps_left, lap_fuel_l, total_m)
+        }
     }
 
     /// What an AI weighs a stop against (`pit::plan_stop`): the race left,

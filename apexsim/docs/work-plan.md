@@ -111,8 +111,7 @@ Bundle by module, each judged by the survey:
 
 - **Racecraft:** switchback/cutback on exit; defence squeeze toward the
   edge; reading a player's intent (dummy, pulling out of the tow).
-- **Strategy:** read rivals' stop windows and tyres; rejoin judged at the
-  lane, not when decided.
+- **Strategy:** read rivals' stop windows and tyres.
 - **Hybrid:** save the battery for a straight; read lap budget into where to
   attack.
 - **Straight-line cap:** the skill cap costs 0.8 s/lap at Monza on
