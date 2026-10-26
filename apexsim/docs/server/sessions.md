@@ -353,7 +353,7 @@ Top 10, All: `qualifying_tyre_start` 10 or 255) and Parc fermé where the
 session qualifies (a qualifying session or a weekend), Weekend sets (Free,
 6, 8, 10, 13) in a weekend, Stint laps (Free, 10, 15, 20, 30) and Stint
 time (Free, 20, 30, 45, 60 min) in any race, and Drivers a car (One, 2,
-3, 4) with Drive time each (Free, 30, 60, 120, 240 min) once it is more
+3 or 4 drivers) with Drive time each (Free, 30, 60, 120, 240 min) once it is more
 than one; `RaceRulesToSend` leaves the
 qualifying keys off where the session does not qualify, the weekend's
 sets off outside a weekend (`QualifiesBeforeRace`) and the drive time off

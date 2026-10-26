@@ -1318,7 +1318,7 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Stint time"), Chips(ApexCreateSession::StintMinuteChoices, TEXT("Free"), TEXT(" min")), StintMinuteButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
-		ApexUI::AddV(Section, MakeChipRow(TEXT("Drivers a car"), Chips(ApexCreateSession::DriverChoices, TEXT("One"), TEXT("")), DriverButtons),
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Drivers a car"), Chips(ApexCreateSession::DriverChoices, TEXT("One"), TEXT(" drivers")), DriverButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		DriverMinutesRow = MakeChipRow(TEXT("Drive time each"), Chips(ApexCreateSession::DriverMinuteChoices, TEXT("Free"), TEXT(" min")),
 			DriverMinuteButtons);

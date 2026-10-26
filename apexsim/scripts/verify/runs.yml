@@ -10496,3 +10496,45 @@ runs:
       - {at: 220, label: "the second stop window, 220 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
       - {at: 225, label: "the second stop window, 225 s", checks: "R4: DRIVER CHANGE · DRIVER 3; then Driver 3", item: v-r4-driver-swaps}
       - {at: 330, label: "after the flag", checks: "R4: no PEN in the results: every driver kept the 2 min", item: v-r4-driver-swaps}
+
+  # R4 driver swaps on the menus: the create screen's Drivers a car and
+  # Drive time each rows (the drive time shown only once more than one),
+  # set to three drivers and 240 minutes. Saved to the profile as they
+  # change: keep a copy of ApexProfile.sav and put it back after.
+  - id: r4-driver-rows
+    about: "R4. The create screen's driver rows"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=6
+    exec:
+      10: ["apexsim.ui.Texts"]
+      11: ["apexsim.ui.Click 15 min"]
+      12: ["apexsim.ui.Key Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down Down"]
+      16: ["apexsim.ui.Click 3 drivers"]
+      17: ["apexsim.ui.Click 240 min"]
+      18: ["apexsim.ui.Texts"]
+    shots:
+      - {at: 15, label: "Tyres and stints with one driver a car", checks: "R4: Drivers a car row on One, no Drive time each row", item: v-r4-driver-swaps}
+      - {at: 21, label: "three drivers, 240 min each", checks: "R4: both rows lit, the line ends 3 DRIVERS A CAR, 240 MIN EACH", item: v-r4-driver-swaps}
+
+  # The pause menu's pit plan in a race with drivers sharing the cars: the
+  # Driver row (CREW'S CALL) between Pad set and Box this lap.
+  - id: r4-driver-pit-plan
+    about: "R4. The pit plan's Driver row"
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=Caravan
+      - -ApexAiCount=1
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexDriversPerCar=2
+      - -ApexOpenPause=12
+    exec:
+      14: ["apexsim.ui.Texts PIT", "apexsim.ui.Click PIT PLAN"]
+      17: ["apexsim.ui.Texts"]
+    shots:
+      - {at: 18, label: "pause > PIT PLAN with two drivers a car", checks: "R4: the Driver row, CREW'S CALL", item: v-r4-driver-swaps}
