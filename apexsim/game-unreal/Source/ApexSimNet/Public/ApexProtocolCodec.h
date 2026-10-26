@@ -90,6 +90,8 @@ namespace ApexProtocol
 	APEXSIMNET_API TArray<uint8> EncodeOpenGrid(uint16 CountdownSeconds);
 	/** A driver on the grid is ready to start, or not any more. */
 	APEXSIMNET_API TArray<uint8> EncodeSetReady(bool bReady);
+	/** This driver's client is still building the circuit, or has it (a countdown waits). */
+	APEXSIMNET_API TArray<uint8> EncodeSetLoading(bool bLoading);
 	/** A line of text chat to the lobby or the session (`Chat { text }`). */
 	APEXSIMNET_API TArray<uint8> EncodeChat(const FString& Text);
 	/** The livery this driver's car wears from now on, in a session: 0 as authored, 1.. its liveries. */

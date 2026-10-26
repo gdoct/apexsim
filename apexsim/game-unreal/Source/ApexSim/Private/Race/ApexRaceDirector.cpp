@@ -1648,6 +1648,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	SnapRacingLineToTrack();
 	UpdateLiveSky(DeltaSeconds);
 	ApplyTrackLevelConditions();
+	UpdateRaceReveal(DeltaSeconds);
 	UpdateRoadState();
 	UpdatePitBoxMarker();
 	UpdateMarshals(DeltaSeconds);
@@ -3775,6 +3776,10 @@ void AApexRaceDirector::BeginRaceView()
 
 	LoadTrackLevel();
 	ApplyRaceEnvironment();
+	// From the lobby the circuit is already up and shows at once; otherwise
+	// the shell covers the world until it is built (UpdateRaceReveal).
+	RaceReveal = IsTrackVisible() ? 1.0f : 0.0f;
+	RaceViewSeconds = 0.0f;
 
 	// The view a race opens in comes from the settings; -ApexView=chase or
 	// -ApexView=cockpit overrides it for a screenshot run.
@@ -3882,6 +3887,7 @@ void AApexRaceDirector::EndRaceView()
 	DestroyRacingLine();
 	DestroyAllCars();
 	UnloadTrackLevel();
+	TellLoading(false);
 	RestoreMenuEnvironment();
 	ApplyRaceInputMode(false);
 
@@ -4569,6 +4575,43 @@ void AApexRaceDirector::UpdateDemoOpacity(float DeltaSeconds)
 	DemoOpacity = Target > DemoOpacity
 		? FMath::Min(Target, DemoOpacity + DeltaSeconds * 0.8f)
 		: FMath::Max(Target, DemoOpacity - DeltaSeconds * 3.0f);
+}
+
+void AApexRaceDirector::UpdateRaceReveal(float DeltaSeconds)
+{
+	if (bDemoView || bReplayView)
+	{
+		// Those fade by their own opacity (and the replay's loading phase).
+		RaceReveal = 1.0f;
+		return;
+	}
+	RaceViewSeconds += DeltaSeconds;
+	// No track yet may be a session the lobby cache has not listed (the next
+	// snapshot loads it) or a circuit with no export; give the first a few
+	// seconds. A build that never finishes gives way too.
+	const bool bBuilding = Track ? !Track->HasFailed() && !(IsTrackVisible() && bTrackConditionsApplied)
+								 : RaceViewSeconds < 5.0f;
+	const bool bWaiting = bBuilding && RaceViewSeconds < 60.0f;
+	TellLoading(bWaiting);
+	if (!bWaiting && RaceReveal <= 0.0f)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Race view revealed after %.2f s%s"), RaceViewSeconds,
+			IsTrackVisible() ? TEXT("") : TEXT(" without a track"));
+	}
+	RaceReveal = bWaiting ? 0.0f : FMath::Min(1.0f, RaceReveal + DeltaSeconds * 3.0f);
+}
+
+void AApexRaceDirector::TellLoading(bool bLoading)
+{
+	if (bLoading == bToldLoading)
+	{
+		return;
+	}
+	bToldLoading = bLoading;
+	if (UApexNetSubsystem* Net = GetNet())
+	{
+		Net->SetLoading(bLoading);
+	}
 }
 
 // --- Lobby view ------------------------------------------------------------------

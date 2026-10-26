@@ -489,6 +489,15 @@ pub enum ClientMessage {
     // (docs/server/sessions.md "Championships"): answered with
     // `Championships`.
     RequestChampionships,
+
+    // TCP - This driver's client is still building the session's circuit,
+    // or has it now: a countdown stands while a connected driver is
+    // loading, for up to `MAX_LOADING_HOLD_SECONDS`
+    // (docs/server/sessions.md). A client from before the message never
+    // holds one.
+    SetLoading {
+        loading: bool,
+    },
 }
 
 // --- Message Priority ---
@@ -9082,6 +9091,25 @@ mod tests {
             }
             other => panic!("Wrong message type: {other:?}"),
         }
+    }
+
+    /// `SetLoading`, pinned on the client as `ApexGolden::C_SetLoading`.
+    /// `cargo test set_loading_wire_format -- --nocapture` prints it.
+    #[test]
+    fn test_set_loading_wire_format() {
+        let bytes = rmp_serde::to_vec_named(&ClientMessage::SetLoading { loading: true }).unwrap();
+        println!(
+            "C_SetLoading: {}",
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        assert!(matches!(
+            rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap(),
+            ClientMessage::SetLoading { loading: true }
+        ));
     }
 
     /// The race's grid before the countdown: `OpenGrid`, `SetReady`,

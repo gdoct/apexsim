@@ -512,6 +512,17 @@ picks the tyres it starts on and its livery, and says they are ready.
   `SetLivery { livery }` repaints a driver's car in the session (the roster
   carries it) and keeps it for their next `SelectCar`.
 
+**Waiting for loading clients.** A client that enters the race view with
+the circuit still building sends `SetLoading { loading: true }`, and
+`loading: false` once it is in (`AApexRaceDirector::TellLoading`, from the
+race view's loading cover in [../game/client.md](../game/client.md)).
+`set_loading` keeps the set of seated humans loading; while one of them is
+connected (not away), `tick_countdown` holds the clock, for at most
+`MAX_LOADING_HOLD_SECONDS` (30) per countdown, so a stuck client cannot hold
+the room. Leaving the session drops a driver from the set. A client that
+never sends it never holds a countdown. Test:
+`game_session::tests::countdown_waits_for_a_loading_driver`.
+
 **Client.** The menus start every race through the grid
 (`UApexNetSubsystem::BeginSession`: `OpenGrid` for a race, `StartCountdown`
 for anything else): the session lobby's Start, the one-click start, Drive

@@ -243,6 +243,9 @@ pub(crate) async fn handle_message(
         ClientMessage::SetReady { ready } => {
             handle_set_ready(ctx, connection_id, ready).await;
         }
+        ClientMessage::SetLoading { loading } => {
+            handle_set_loading(ctx, connection_id, loading).await;
+        }
         ClientMessage::SetLivery { livery } => {
             handle_set_livery(ctx, connection_id, livery).await;
         }
@@ -1821,6 +1824,27 @@ async fn handle_set_ready(ctx: &GameLoopCtx, connection_id: ConnectionId, ready:
         debug!(
             "Player {} ready on the grid: {}",
             conn_info.player_name, ready
+        );
+    }
+}
+
+/// A driver's client is building the circuit, or has it
+/// (`GameSession::set_loading`); a countdown waits for it.
+async fn handle_set_loading(ctx: &GameLoopCtx, connection_id: ConnectionId, loading: bool) {
+    let Some(conn_info) = ctx.connection(connection_id).await else {
+        return;
+    };
+    let Some(session_id) = conn_info.in_session else {
+        return;
+    };
+    let mut state_write = ctx.state.write().await;
+    let Some(game_session) = state_write.sessions.get_mut(&session_id) else {
+        return;
+    };
+    if game_session.set_loading(conn_info.player_id, loading) {
+        debug!(
+            "Player {} loading the circuit: {}",
+            conn_info.player_name, loading
         );
     }
 }

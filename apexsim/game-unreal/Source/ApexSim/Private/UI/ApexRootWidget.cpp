@@ -511,13 +511,7 @@ void UApexRootWidget::NativeConstruct()
 			FTimerHandle Handle;
 			GetWorld()->GetTimerManager().SetTimer(
 				Handle,
-				FTimerDelegate::CreateWeakLambda(this, [Seconds]()
-				{
-					UE_LOG(LogApexSim, Log, TEXT("-ApexScreenshotAfter: requesting a viewport screenshot (%.0f s)"), Seconds);
-					// bShowUI, or the grab is of the empty 3D scene behind the menu.
-					// Each grab gets the next free file name.
-					FScreenshotRequest::RequestScreenshot(true);
-				}),
+				FTimerDelegate::CreateWeakLambda(this, [this, Seconds]() { RequestTimedScreenshot(Seconds); }),
 				Seconds,
 				false);
 		}
@@ -959,6 +953,25 @@ UTexture2D* UApexRootWidget::MakeScrimTexture()
 	return ScrimTexture;
 }
 
+void UApexRootWidget::RequestTimedScreenshot(float Seconds)
+{
+	// A race still behind its cover would be a shot of the plain background;
+	// it is taken as soon as the circuit is in instead.
+	const AApexRaceDirector* Director = AApexRaceDirector::Find(this);
+	if (bRaceViewActive && Director && Director->GetRaceReveal() < 1.0f && GetWorld())
+	{
+		FTimerHandle Handle;
+		GetWorld()->GetTimerManager().SetTimer(
+			Handle, FTimerDelegate::CreateWeakLambda(this, [this, Seconds]() { RequestTimedScreenshot(Seconds); }),
+			0.25f, false);
+		return;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("-ApexScreenshotAfter: requesting a viewport screenshot (%.0f s)"), Seconds);
+	// bShowUI, or the grab is of the empty 3D scene behind the menu.
+	// Each grab gets the next free file name.
+	FScreenshotRequest::RequestScreenshot(true);
+}
+
 void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
 {
 	AApexRaceDirector* Director = AApexRaceDirector::Find(this);
@@ -1012,6 +1025,17 @@ void UApexRootWidget::UpdateBackdrop(float DeltaSeconds)
 		{
 			Director->EndLobbyView();
 		}
+	}
+
+	if (bRaceViewActive && Background)
+	{
+		// The plain background covers the race until its circuit is in, or
+		// the cars are seen floating in the empty menu world while it builds.
+		const float Reveal = Director ? Director->GetRaceReveal() : 1.0f;
+		Background->SetVisibility(Reveal < 1.0f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		Background->SetBrushColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f - Reveal));
+		// Painted over again from scratch once the race view is left.
+		AppliedBackdrop = -1.0f;
 	}
 
 	const bool bDemo = Director && Director->IsDemoViewActive() && !bRaceViewActive;

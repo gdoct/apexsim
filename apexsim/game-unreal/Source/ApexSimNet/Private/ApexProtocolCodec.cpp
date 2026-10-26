@@ -4581,6 +4581,15 @@ namespace ApexProtocol
 		return MoveTemp(Writer.GetBuffer());
 	}
 
+	TArray<uint8> EncodeSetLoading(bool bLoading)
+	{
+		FMsgPackWriter Writer(32);
+		BeginDataVariant(Writer, "SetLoading", 1);
+		Writer.WriteString("loading");
+		Writer.WriteBool(bLoading);
+		return MoveTemp(Writer.GetBuffer());
+	}
+
 	TArray<uint8> EncodeChat(const FString& Text)
 	{
 		FMsgPackWriter Writer(64 + Text.Len() * 3);

@@ -79,6 +79,14 @@ public:
 	UFUNCTION(BlueprintPure, Category = "ApexSim|Race")
 	bool IsRaceViewActive() const { return bRaceViewActive; }
 
+	/**
+	 * How much of a driven race the shell lets through, 0..1: held at 0 while
+	 * the circuit is still being built and lit, so nobody sees the cars float
+	 * in the empty menu world, then faded up. A track that never comes (no
+	 * export, a failed build, a stalled one) gives way after a grace.
+	 */
+	float GetRaceReveal() const { return RaceReveal; }
+
 	/** Swap between the cockpit view and the chase camera. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Race")
 	void SetCockpitView(bool bCockpit);
@@ -583,6 +591,8 @@ private:
 
 	/** Ease the demo backdrop's opacity toward whether there is anything worth showing. */
 	void UpdateDemoOpacity(float DeltaSeconds);
+	/** Ease the race view's reveal toward whether its circuit is in (GetRaceReveal). */
+	void UpdateRaceReveal(float DeltaSeconds);
 
 	/** The lobby view's frame: the track's lights and conditions, the camera, the fade. */
 	void UpdateLobbyView(float DeltaSeconds);
@@ -934,6 +944,14 @@ private:
 	void ApplyShotCameraCommandLine();
 
 	bool bRaceViewActive = false;
+	/** See GetRaceReveal. */
+	float RaceReveal = 1.0f;
+	/** Seconds since the race view began, for the reveal's graces. */
+	float RaceViewSeconds = 0.0f;
+	/** The server was told this client is still loading (SetLoading), so its countdown waits. */
+	bool bToldLoading = false;
+	/** Tell the server whether the countdown should wait for this client's circuit. */
+	void TellLoading(bool bLoading);
 
 	// --- Broadcast camera and demo --------------------------------------------------
 

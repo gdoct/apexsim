@@ -668,6 +668,9 @@ private:
 	 */
 	void UpdateBackdrop(float DeltaSeconds);
 
+	/** One -ApexScreenshotAfter grab, held while a race is still behind its cover. */
+	void RequestTimedScreenshot(float Seconds);
+
 	/** A left-to-right fade of the palette's background, built once in memory. */
 	UTexture2D* MakeScrimTexture();
 

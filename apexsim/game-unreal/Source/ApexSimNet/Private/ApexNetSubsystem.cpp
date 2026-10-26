@@ -753,6 +753,12 @@ void UApexNetSubsystem::SetReady(bool bReady)
 	SendPayload(ApexProtocol::EncodeSetReady(bReady));
 }
 
+void UApexNetSubsystem::SetLoading(bool bLoading)
+{
+	UE_LOG(LogApexSimNet, Log, TEXT("-> SetLoading %d"), bLoading ? 1 : 0);
+	SendPayload(ApexProtocol::EncodeSetLoading(bLoading));
+}
+
 void UApexNetSubsystem::SetLivery(int32 Livery, bool bOwn)
 {
 	SetPendingLivery(Livery, bOwn);

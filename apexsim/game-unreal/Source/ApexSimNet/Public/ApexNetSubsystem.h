@@ -533,6 +533,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void SetReady(bool bReady);
 
+	/** The circuit is still being built here, or is in: the server holds a countdown meanwhile (SetLoading). */
+	void SetLoading(bool bLoading);
+
 	/**
 	 * Repaints our car in the session (SetLivery) and keeps the pick as the
 	 * pending livery, so the next SelectCar carries it too.

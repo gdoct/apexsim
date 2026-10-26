@@ -230,6 +230,7 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 
 	CheckBytes(TEXT("OpenGrid"), ApexProtocol::EncodeOpenGrid(10), ApexGolden::C_OpenGrid);
 	CheckBytes(TEXT("SetReady"), ApexProtocol::EncodeSetReady(true), ApexGolden::C_SetReady);
+	CheckBytes(TEXT("SetLoading"), ApexProtocol::EncodeSetLoading(true), ApexGolden::C_SetLoading);
 	CheckBytes(TEXT("SetLivery"), ApexProtocol::EncodeSetLivery(2), ApexGolden::C_SetLivery);
 	{
 		FApexPitPlan Plan;

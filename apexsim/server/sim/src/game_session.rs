@@ -18,6 +18,10 @@ pub const DEFAULT_TICK_RATE_HZ: u16 = 420;
 /// anything longer would wrap (at 420 Hz past 156 s).
 pub const MAX_COUNTDOWN_SECONDS: u16 = 60;
 
+/// Longest a countdown waits for drivers whose clients are still building
+/// the circuit (`set_loading`), s: one stuck client does not hold the room.
+pub const MAX_LOADING_HOLD_SECONDS: u32 = 30;
+
 /// How long `StartSession` counts down before the race goes green.
 pub const START_SESSION_COUNTDOWN_SECONDS: u16 = 5;
 
@@ -732,6 +736,12 @@ pub struct GameSession {
     /// The humans who said they are ready on the grid (`GameMode::Grid`),
     /// cleared each time the grid goes up and when the countdown begins.
     ready: std::collections::BTreeSet<PlayerId>,
+    /// The humans whose clients are still building the circuit
+    /// (`SetLoading`): a countdown does not run while one is connected,
+    /// for up to [`MAX_LOADING_HOLD_SECONDS`].
+    loading: std::collections::BTreeSet<PlayerId>,
+    /// Ticks this countdown has been held for `loading`.
+    loading_hold_ticks: u32,
     /// The countdown the grid hands over to once every driver is ready
     /// (`OpenGrid.countdown_seconds`), s.
     grid_countdown_seconds: u16,
@@ -1270,6 +1280,8 @@ impl GameSession {
             liveries: HashMap::new(),
             own_liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
+            loading: std::collections::BTreeSet::new(),
+            loading_hold_ticks: 0,
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
             pit_plans: HashMap::new(),
@@ -1368,6 +1380,8 @@ impl GameSession {
             liveries: HashMap::new(),
             own_liveries: HashMap::new(),
             ready: std::collections::BTreeSet::new(),
+            loading: std::collections::BTreeSet::new(),
+            loading_hold_ticks: 0,
             grid_countdown_seconds: START_SESSION_COUNTDOWN_SECONDS,
             car_setups: HashMap::new(),
             pit_plans: HashMap::new(),
@@ -1635,7 +1649,10 @@ impl GameSession {
         // The pit lane is shut while the field lines up: the exit light
         // shows red until the start (`crate::pit::exit_closed`).
         self.update_pits();
-        if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
+        if self.session.countdown_ticks_remaining.is_some() && self.held_for_loading() {
+            // The clock stands until every driver can see the circuit.
+            self.loading_hold_ticks += 1;
+        } else if let Some(ref mut countdown) = self.session.countdown_ticks_remaining {
             if *countdown > 0 {
                 *countdown -= 1;
             } else {
@@ -3787,6 +3804,28 @@ impl GameSession {
         true
     }
 
+    /// A driver's client is still building the circuit, or has it now
+    /// (`SetLoading`). False (and nothing changes) for anyone not driving a
+    /// car here. Only a countdown reads it.
+    pub fn set_loading(&mut self, player_id: PlayerId, loading: bool) -> bool {
+        if self.is_ai_player(&player_id) || !self.session.participants.contains_key(&player_id) {
+            return false;
+        }
+        if loading {
+            self.loading.insert(player_id);
+        } else {
+            self.loading.remove(&player_id);
+        }
+        true
+    }
+
+    /// Whether the countdown waits this tick: a connected driver is still
+    /// loading, and the hold has not run its [`MAX_LOADING_HOLD_SECONDS`].
+    fn held_for_loading(&self) -> bool {
+        self.loading_hold_ticks < MAX_LOADING_HOLD_SECONDS * self.tick_rate_hz as u32
+            && self.loading.iter().any(|id| !self.away.contains(id))
+    }
+
     /// Whether this driver said they are ready on the grid.
     pub fn is_ready(&self, player_id: &PlayerId) -> bool {
         self.session.game_mode == GameMode::Grid && self.ready.contains(player_id)
@@ -3955,6 +3994,7 @@ impl GameSession {
                 // Default 10 second countdown as per spec
                 self.session.countdown_ticks_remaining = Some(self.tick_rate_hz * 10);
                 self.session.state = SessionState::Countdown;
+                self.loading_hold_ticks = 0;
             }
             GameMode::Grid => {
                 // The field lines up as for the start. The state is the
@@ -4860,6 +4900,7 @@ impl GameSession {
             self.roster_dirty = true;
         }
         self.shootout = None;
+        self.loading_hold_ticks = 0;
         self.session.game_mode = GameMode::Countdown;
         self.session.state = SessionState::Countdown;
         self.session.countdown_ticks_remaining = Some(
@@ -5244,6 +5285,7 @@ impl GameSession {
         if self.ready.remove(player_id) {
             self.roster_dirty = true;
         }
+        self.loading.remove(player_id);
     }
 
     /// Take an AI car out of the session (the dashboard's kick): off the
@@ -9741,6 +9783,41 @@ mod tests {
         game_session.remove_player(&a);
         game_session.tick(&HashMap::new());
         assert_eq!(game_session.session.game_mode, GameMode::Countdown);
+    }
+
+    /// A countdown stands while a driver's client is still loading the
+    /// circuit, runs on once it has it, and gives up waiting after
+    /// MAX_LOADING_HOLD_SECONDS.
+    #[test]
+    fn countdown_waits_for_a_loading_driver() {
+        let mut game_session = create_test_session();
+        let car_id = game_session.car_configs.values().next().unwrap().id;
+        let (a, b) = (Uuid::from_u128(1), Uuid::from_u128(2));
+        game_session.add_player(a, car_id).unwrap();
+        game_session.add_player(b, car_id).unwrap();
+        game_session.start_countdown_mode(5, GameMode::Race);
+        let start = game_session.session.countdown_ticks_remaining.unwrap();
+
+        assert!(game_session.set_loading(a, true));
+        for _ in 0..10 {
+            game_session.tick(&HashMap::new());
+        }
+        assert_eq!(game_session.session.countdown_ticks_remaining, Some(start));
+
+        assert!(game_session.set_loading(a, false));
+        game_session.tick(&HashMap::new());
+        assert_eq!(
+            game_session.session.countdown_ticks_remaining,
+            Some(start - 1)
+        );
+
+        // A client that never says it has loaded holds the room only so long.
+        game_session.set_loading(b, true);
+        let hold = MAX_LOADING_HOLD_SECONDS * game_session.tick_rate_hz as u32;
+        for _ in 0..hold + 3 {
+            game_session.tick(&HashMap::new());
+        }
+        assert!(game_session.session.countdown_ticks_remaining.unwrap() < start - 1);
     }
 
     fn racing_session_with_two_humans() -> (GameSession, PlayerId, PlayerId) {

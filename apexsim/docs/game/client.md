@@ -845,6 +845,21 @@ resizing and the race fading in.
 - Screen grabs through the compositor do not see a cloaked window; a
   screen-grab loop around a launch is how the hold is checked.
 
+## Race loading cover (`AApexRaceDirector::GetRaceReveal`)
+
+A race view starts as soon as the session leaves the lobby, but a track not
+already built behind the lobby builds over the next frames. Until it is
+visible and lit (`bTrackConditionsApplied`), `RaceReveal` stays 0 and
+`UApexRootWidget::UpdateBackdrop` keeps the plain menu background over the
+world, then fades it out in a third of a second. A session the lobby cache
+has not listed yet gets 5 s to resolve its track; a failed build gives way at
+once and a stalled one after 60 s, so the race is never held for good. The
+demo, replay and guide views fade by their own readiness instead. The log
+says `Race view revealed after N s`. While the cover is up the director tells
+the server `SetLoading`, and the server holds a countdown for it
+([../server/sessions.md](../server/sessions.md#the-races-grid)), so the
+player does not lose the start behind the cover.
+
 ## Car motion buffer (`Race/ApexCarMotion.h`)
 
 Cars are puppets of the telemetry. Each frame's sample goes into the car
@@ -1111,7 +1126,8 @@ Note `-ExecCmds` separates commands with commas, so
 ### Timed actions (`UApexRootWidget`)
 
 - `-ApexScreenshotAfter=N[,N...]` grabs the viewport (with UI) at each time;
-  works on any screen, not only in a race.
+  works on any screen, not only in a race. A grab due while a race is still
+  behind its loading cover waits for the cover to lift.
 - `-ApexExecAfter="N=command|N=command"` runs console commands N seconds in.
 - `-ApexCameraCycleAfter=N[,N]` presses C (camera step).
 - `apexsim.hud.Hide 1|0` hides the race HUD for shots (and shows it again)
