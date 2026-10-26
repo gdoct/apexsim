@@ -102,7 +102,8 @@ impl Crew {
 /// is followed where another driver is there to take over; unasked, the
 /// crew hands over when the driver in the car would, after another stint
 /// as long as the one just run (`next_stint_s`), be past
-/// [`REST_AFTER_S`] in this spell or past `rules`' most per driver, to the
+/// [`REST_AFTER_S`] in this spell (its time counted `heat` times over:
+/// `racecraft::heat_fatigue_rate`) or past `rules`' most per driver, to the
 /// next driver in turn who can drive that stint (or, if none can, to the
 /// one with the most time left when that is more than the driver in the
 /// car has).
@@ -111,6 +112,7 @@ pub fn change_at_stop(
     rules: &RaceRules,
     plan: &PitPlan,
     next_stint_s: f32,
+    heat: f32,
     tick: u32,
     rate_hz: f32,
 ) -> Option<u8> {
@@ -122,7 +124,7 @@ pub fn change_at_stop(
     let ordered = plan.change_driver == Some(true);
     if !ordered {
         let spell = crew.spell_s(tick, rate_hz);
-        let tired = spell + next_stint_s > REST_AFTER_S;
+        let tired = (spell + next_stint_s) * heat > REST_AFTER_S;
         let out_of_time = left(crew.driver) < next_stint_s;
         if !tired && !out_of_time {
             return None;
@@ -168,7 +170,7 @@ mod tests {
         for drivers in [0, 1] {
             let r = rules(drivers, 0);
             assert_eq!(
-                change_at_stop(&crew, &r, &order, 3000.0, at(3000.0), RATE),
+                change_at_stop(&crew, &r, &order, 3000.0, 1.0, at(3000.0), RATE),
                 None
             );
         }
@@ -181,12 +183,17 @@ mod tests {
         let unasked = PitPlan::default();
         // 25 min in, another 25 min stint: still fresh.
         assert_eq!(
-            change_at_stop(&crew, &r, &unasked, 1500.0, at(1500.0), RATE),
+            change_at_stop(&crew, &r, &unasked, 1500.0, 1.0, at(1500.0), RATE),
             None
         );
         // 40 min in, another 40: past the hour, so the second driver.
         assert_eq!(
-            change_at_stop(&crew, &r, &unasked, 2400.0, at(2400.0), RATE),
+            change_at_stop(&crew, &r, &unasked, 2400.0, 1.0, at(2400.0), RATE),
+            Some(1)
+        );
+        // On a hot day (twice the rate) 25 min in and 25 more is too long.
+        assert_eq!(
+            change_at_stop(&crew, &r, &unasked, 1500.0, 2.0, at(1500.0), RATE),
             Some(1)
         );
         // Ordered either way, the order stands.
@@ -195,7 +202,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            change_at_stop(&crew, &r, &stay, 2400.0, at(2400.0), RATE),
+            change_at_stop(&crew, &r, &stay, 2400.0, 1.0, at(2400.0), RATE),
             None
         );
         let swap = PitPlan {
@@ -203,7 +210,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            change_at_stop(&crew, &r, &swap, 600.0, at(600.0), RATE),
+            change_at_stop(&crew, &r, &swap, 600.0, 1.0, at(600.0), RATE),
             Some(1)
         );
     }
@@ -222,7 +229,7 @@ mod tests {
         assert!((crew.left_s(&r, 1, now, RATE).unwrap() - 600.0).abs() < 0.1);
         // Another 20 min stint: driver 2, the next in turn with the time.
         assert_eq!(
-            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, now, RATE),
+            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, 1.0, now, RATE),
             Some(2)
         );
         // With driver 2 used up too, nobody has the whole stint: the one
@@ -230,14 +237,14 @@ mod tests {
         crew.driven_s[0] = 2700.0;
         crew.driven_s[2] = 3500.0;
         assert_eq!(
-            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, now, RATE),
+            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, 1.0, now, RATE),
             Some(0)
         );
         assert!(crew.can_hand_on(&r, now, RATE));
         // With nobody better off than the driver in the car, stay in.
         crew.driven_s[0] = 3200.0;
         assert_eq!(
-            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, now, RATE),
+            change_at_stop(&crew, &r, &PitPlan::default(), 1200.0, 1.0, now, RATE),
             None
         );
         assert!(!crew.can_hand_on(&r, now, RATE));

@@ -119,7 +119,7 @@ Bundle by module, each judged by the survey:
   that only applies where the plan is optimistic.
 - **Wet line:** a separate racing line and plan from the road-state bins
   (High effort, Low impact — do last).
-- **Mistakes and fatigue:** self-made spins, cockpit heat, driver swaps.
+- **Mistakes and fatigue:** self-made spins.
 
 Tried 2026-10-24 and kept out (16 circuits x seeds 1-3, three classes,
 against contact 170.4, off-road 21.8, passes 1442): the switchback

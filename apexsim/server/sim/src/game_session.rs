@@ -6369,11 +6369,14 @@ impl GameSession {
             .or_else(|| self.lap_seconds.get(&state.car_config_id).copied())
             .unwrap_or(FALLBACK_LAP_SECONDS);
         let stint_laps = (laps_run(state, total_m) - state.pit.stint_start_laps).max(0.0);
-        // With drivers sharing the car, the driver's spell in it.
+        // With drivers sharing the car, the driver's spell in it; a hot
+        // cockpit makes it count for more.
         let in_car_s = match self.crew_of(&state.player_id) {
             Some(crew) => crew.spell_s(self.session.current_tick, self.tick_rate_hz as f32),
             None => stint_laps * lap_s,
-        };
+        } * crate::racecraft::heat_fatigue_rate(
+            self.track_config.track_surface.air_temperature_c,
+        );
         crate::racecraft::MistakeRisk::of(
             state,
             &config.tire_config,
@@ -7441,8 +7444,11 @@ impl GameSession {
                 .get(player_id)
                 .map_or(0.0, |state| self.stint_of(state, total_m).1);
             let rules = &self.session.race_rules;
+            let heat = crate::racecraft::heat_fatigue_rate(
+                self.track_config.track_surface.air_temperature_c,
+            );
             if let Some(next) =
-                crate::crew::change_at_stop(&crew, rules, &orders, next_stint_s, tick, rate)
+                crate::crew::change_at_stop(&crew, rules, &orders, next_stint_s, heat, tick, rate)
             {
                 crew.begin_change(next, tick, rate);
                 self.crews.insert(*player_id, crew);

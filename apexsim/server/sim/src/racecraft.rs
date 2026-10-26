@@ -195,6 +195,20 @@ const WET_RISK_SPAN: f32 = 0.3;
 /// all the risk counts after this.
 pub(crate) const FATIGUE_FROM_S: f32 = 3600.0;
 const FATIGUE_FULL_S: f32 = 4.0 * 3600.0;
+/// A hot cockpit tires a driver sooner: up to this air, °C, time in the
+/// car counts as it is; at [`COCKPIT_HOT_C`] it counts
+/// [`COCKPIT_HOT_RATE`] times over, and no more past it.
+const COCKPIT_MILD_C: f32 = 25.0;
+const COCKPIT_HOT_C: f32 = 40.0;
+const COCKPIT_HOT_RATE: f32 = 2.0;
+
+/// How fast time in the car tires a driver in air at `air_c`, against a
+/// mild day's: 1 up to [`COCKPIT_MILD_C`], rising evenly to
+/// [`COCKPIT_HOT_RATE`] at [`COCKPIT_HOT_C`].
+pub fn heat_fatigue_rate(air_c: f32) -> f32 {
+    let t = ((air_c - COCKPIT_MILD_C) / (COCKPIT_HOT_C - COCKPIT_MILD_C)).clamp(0.0, 1.0);
+    1.0 + (COCKPIT_HOT_RATE - 1.0) * t
+}
 /// How quickly the car moves onto a lane and back off it: the share of the
 /// way per second (attack, defend, back to the line).
 const BLEND_ATTACK_PER_S: f32 = 1.25;
@@ -2098,6 +2112,14 @@ mod tests {
             MistakeRisk::default(),
             "warm, on the road as baked, fresh"
         );
+    }
+
+    #[test]
+    fn a_hot_cockpit_tires_a_driver_sooner() {
+        assert_eq!(heat_fatigue_rate(15.0), 1.0);
+        assert_eq!(heat_fatigue_rate(COCKPIT_MILD_C), 1.0);
+        assert!((heat_fatigue_rate(32.5) - 1.5).abs() < 1e-5);
+        assert_eq!(heat_fatigue_rate(45.0), COCKPIT_HOT_RATE);
     }
 
     /// Stopped off the road with a car coming, a driver waits for it

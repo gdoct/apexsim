@@ -240,7 +240,9 @@ next `Brake` phase, its slowest point, the hand at the apex).
   the session was not set for) and a long stint (`FATIGUE_MISTAKE` 0.15,
   from an hour in the car to full at four, the stint's laps at its lap
   time, or with drivers sharing the car the driver's spell in it:
-  [sessions](sessions.md#driver-swaps)). An even draw says how (`Mistake`), of all four kinds under
+  [sessions](sessions.md#driver-swaps); a hot cockpit counts that time
+  faster, `racecraft::heat_fatigue_rate`: as it is up to 25 °C air, twice
+  over from 40 °C). An even draw says how (`Mistake`), of all four kinds under
   pressure or tired, and of the first three on cold tyres or a wet patch: it overcooks the braking (2.5-4.5% too fast,
   `Racecraft::overspeed`); it locks up late in the braking zone (80 m
   before the apex, or at the end of the braking: the pedal to the floor

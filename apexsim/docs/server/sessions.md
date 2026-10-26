@@ -512,7 +512,8 @@ Who takes over (`crew::change_at_stop`): the driver's order
 unasked (every AI, and a driver who never says), the crew's call: the
 driver in the car hands over when another stint as long as the one just
 run (`stint_of`) would take their spell past `crew::REST_AFTER_S` (an
-hour, where fatigue starts) or past the most per driver, to the next
+hour, where fatigue starts, counted faster on a hot day as the fatigue
+is: `racecraft::heat_fatigue_rate`) or past the most per driver, to the next
 driver in turn who can drive that stint, else to the one with the most
 time left if that is more than the driver in the car has. With drivers
 sharing the car an AI's fatigue (`racecraft::MistakeRisk::fatigue`)
