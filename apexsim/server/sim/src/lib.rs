@@ -13,6 +13,7 @@ pub mod classification;
 pub mod climate;
 pub mod conditions;
 pub mod content_crc;
+pub mod crew;
 pub mod curbs;
 pub mod damage;
 pub mod data;

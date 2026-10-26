@@ -1249,6 +1249,9 @@ namespace ApexCreateSession
 	/** Stint lengths: none, or so many laps; none, or so many minutes. */
 	inline constexpr int32 StintLapChoices[] = { 0, 10, 15, 20, 30 };
 	inline constexpr int32 StintMinuteChoices[] = { 0, 20, 30, 45, 60 };
+	/** Drivers a car: one (0), or 2 to 4 sharing it; the most each may drive: none, or so many minutes. */
+	inline constexpr int32 DriverChoices[] = { 0, 2, 3, 4 };
+	inline constexpr int32 DriverMinuteChoices[] = { 0, 30, 60, 120, 240 };
 
 	/**
 	 * The chip a value shows on in a row of choices whose first is "none"

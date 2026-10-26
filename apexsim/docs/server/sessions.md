@@ -324,7 +324,10 @@ nothing is set; echoed in `SessionJoined.RaceRules`):
 - `parc_ferme` (`bool`): a car's setup is held from its first qualifying
   run to the end of the race (see "Parc fermé");
 - `max_stint_laps` / `max_stint_minutes` (`u16`, 0 none): fixed stint
-  lengths (see "Fixed stint lengths").
+  lengths (see "Fixed stint lengths");
+- `drivers_per_car` (`u8`, 0 or 1 one driver, at most `crew::MAX_DRIVERS`
+  4) and `max_driver_minutes` (`u16`, 0 none): drivers sharing each car
+  (see "Driver swaps").
 
 The start rules are in "Race start: formation lap, rolling start, false
 starts", the penalties in "Penalties", the safety cars in "Virtual safety
@@ -349,14 +352,18 @@ parc fermé and stint keys: Qualifying sets (Free, 1-4), Race on them (Off,
 Top 10, All: `qualifying_tyre_start` 10 or 255) and Parc fermé where the
 session qualifies (a qualifying session or a weekend), Weekend sets (Free,
 6, 8, 10, 13) in a weekend, Stint laps (Free, 10, 15, 20, 30) and Stint
-time (Free, 20, 30, 45, 60 min) in any race; `RaceRulesToSend` leaves the
-qualifying keys off where the session does not qualify and the weekend's
-sets off outside a weekend (`QualifiesBeforeRace`). The sections' lines and
+time (Free, 20, 30, 45, 60 min) in any race, and Drivers a car (One, 2,
+3, 4) with Drive time each (Free, 30, 60, 120, 240 min) once it is more
+than one; `RaceRulesToSend` leaves the
+qualifying keys off where the session does not qualify, the weekend's
+sets off outside a weekend (`QualifiesBeforeRace`) and the drive time off
+with one driver a car. The sections' lines and
 the create summary name them short (`FApexRaceRules::Describe`: "ROLLING
 START · 2 PENALTIES · VSC · REVERSE GRID · 2 QUALIFYING SETS · PARC FERMÉ ·
 STINTS 20 LAPS"). `-ApexAutoRace` takes `-ApexQualifyingTyreSets=N`,
 `-ApexQualifyingTyreStart=N`, `-ApexWeekendTyreSets=N`, `-ApexParcFerme`,
-`-ApexMaxStintLaps=N` and `-ApexMaxStintMinutes=N`.
+`-ApexMaxStintLaps=N`, `-ApexMaxStintMinutes=N`, `-ApexDriversPerCar=N`
+and `-ApexMaxDriverMinutes=N`.
 
 **Ballast by driver**: `ballast` (`Vec<data::DriverBallast { driver, kg
 }>`, left off the wire when empty; echoed in `SessionJoined.Ballast`): a
@@ -469,8 +476,8 @@ laps, has overrun it (`stint_overrun`, kept to the flag;
 `GameSession::overran_stint`); the stint to the flag is checked again as
 the car takes it. A car that overran a stint is classified as one that
 missed the pit rule: behind every finisher that kept the rules, and marked
-`RosterEntry.MissedStops` (the client's PEN). Driver swaps are not
-simulated: the stint is the car's.
+`RosterEntry.MissedStops` (the client's PEN). The stint is the car's,
+whoever drives it (see "Driver swaps").
 
 The AI plans for it (`StopContext::stint_left_laps`: the laps the stint may
 still run, the minutes at the car's own lap pace, the smaller of the two):
@@ -485,6 +492,52 @@ rate), and publishes `stint.laps`, `stint.time_s`, `stint.laps_left` and
 `stint.time_left_s` ([hud-modding.md](../game/hud-modding.md)); the
 default race state shows a Stint left panel, lit under a lap or two
 minutes, red once past.
+
+## Driver swaps
+
+`race_rules.drivers_per_car` (2-4) shares each car of a race between
+that many drivers (`crate::crew`; `RaceRules::shares_cars`). A car's
+crew (`crew::Crew`, `GameSession::crews`, `crew_of`: the first driver in
+since the green light until the car first stops) knows who is in the car,
+since when, and each driver's time in the car in the spells already over.
+Drivers change only in the box, at a stop's service (`start_service`):
+the change takes `crew::DRIVER_CHANGE_S` (10 s) alongside the tyres, the
+fuel and the repairs (`ServicePlan::driver_s`; the stop lasts the longer
+of the two), the driver getting out ends their spell as the service
+starts, and the next one's spell starts as it ends (`finish_service`).
+Practice and qualifying keep one driver.
+
+Who takes over (`crew::change_at_stop`): the driver's order
+(`PitPlan::change_driver`: `true` the next driver, `false` stay in), or,
+unasked (every AI, and a driver who never says), the crew's call: the
+driver in the car hands over when another stint as long as the one just
+run (`stint_of`) would take their spell past `crew::REST_AFTER_S` (an
+hour, where fatigue starts) or past the most per driver, to the next
+driver in turn who can drive that stint, else to the one with the most
+time left if that is more than the driver in the car has. With drivers
+sharing the car an AI's fatigue (`racecraft::MistakeRisk::fatigue`)
+counts the driver's spell, not the tyres' stint.
+
+`race_rules.max_driver_minutes` caps each driver's time in the car over
+the race. A car whose driver goes past it (`update_stints`:
+`driver_overrun`, `GameSession::overran_driver_time`; the driver to the
+flag checked again as the car takes it) is classified as one that missed
+the pit rule. The AI plans for it as for a fixed stint: the driver's time
+left at the car's own pace counts as the stint's
+(`StopContext::stint_left_laps`) when another driver has more to take
+over with (`Crew::can_hand_on`), so the car comes in a lap short of it
+and the crew changes the driver. A human plays every driver of their
+car: the change costs them the stop's time, and the rule makes them
+bring the car in. The pause menu's pit plan has a Driver row (CREW'S
+CALL, STAY IN, CHANGE: `FApexPitPlan::ChangeDriver`); the HUD counts the
+driver in the car and their time from the green and each stop's
+`PitService` (`FApexHudMemory::FCarHistory::Driver`, `DrivenTicks`: a
+spell ends as the service starts, the next starts as it ends) and
+publishes `crew.driver`, `crew.driver_time_s` and
+`crew.driver_time_left_s` ([hud-modding.md](../game/hud-modding.md));
+the default race state shows a Driver panel (the time left under the
+rule, lit under five minutes, red once past), and the pit panel's phase
+reads DRIVER CHANGE once the other work is done.
 
 ## The race's grid
 

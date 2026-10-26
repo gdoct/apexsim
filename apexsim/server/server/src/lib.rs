@@ -54,6 +54,7 @@ pub use apexsim_sim::car_step;
 pub use apexsim_sim::classification;
 pub use apexsim_sim::conditions;
 pub use apexsim_sim::content_crc;
+pub use apexsim_sim::crew;
 pub use apexsim_sim::curbs;
 pub use apexsim_sim::damage;
 pub use apexsim_sim::data;

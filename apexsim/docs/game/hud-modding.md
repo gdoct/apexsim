@@ -541,6 +541,8 @@ which are.
 | `pit.compound_owed` | the rule asks for a second compound and the HUD has not seen another set on the car |
 | `stint.laps`, `stint.time_s` | the laps and seconds of the stint under way: from the green light (no laps) or the end of the last stop's service as this HUD saw them, as the server counts a stint ([sessions.md](../server/sessions.md#fixed-stint-lengths)); seconds from the frames' server ticks over the session's tick rate (*null* outside a race, before the green, at the flag, without a car, laps without the circuit's length, seconds without the tick rate, as for a spectator) |
 | `stint.laps_left`, `stint.time_left_s` | what the race's fixed stint lengths (`max_stint_laps`, `max_stint_minutes`) leave of it, negative once past (*null* without that rule, and as above; the server's own count decides at the flag) |
+| `crew.driver` | with drivers sharing the car (`drivers_per_car`), the one in it, from 1: the first from the green, then the one each stop's crew put in (`PitService`'s `Driver`) as the service ends ([sessions.md](../server/sessions.md#driver-swaps)) (*null* with one driver a car, outside a race, before the green, at the flag, without a car) |
+| `crew.driver_time_s`, `crew.driver_time_left_s` | that driver's time in the car over the race as this HUD saw the stops (a spell ends as its stop's service starts), and what the most per driver (`max_driver_minutes`) leaves of it, negative once past (*null* as above, without the tick rate, and the time left without that rule; the server's own count decides at the flag) |
 | `pit.box` | the car's box, from 1: the driver's own once the server deals it, another car's as its last stop named it (*null* until then) |
 | `pit.box_ahead_m` | metres along the lane to the driver's own box's stop spot, negative once past it (*null* until the box is dealt, and for another car) |
 | `fuel.liters` | fuel in the tank |
@@ -592,8 +594,8 @@ draws them. See [pit lane](../server/pit-lane.md).
 | `pit.service_total_s` | the whole stop |
 | `pit.service_elapsed_s` | seconds since the crew started |
 | `pit.service_progress` | elapsed over total, 0 to 1 |
-| `pit.service_phase` | the part in hand: `tyres`, `fuel` or `repair` |
-| `pit.service_phase_label` | in words: "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%" |
+| `pit.service_phase` | the part in hand: `tyres`, `fuel` or `repair`; `driver` once they are done and a driver change running alongside them is still under way |
+| `pit.service_phase_label` | in words: "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%", "DRIVER CHANGE · DRIVER 2" |
 | `pit.service_phase_left_s` | seconds left of the part in hand |
 | `pit.service_phase_progress` | how much of the part in hand is done, 0 to 1 |
 | `pit.service_tyres_s`, `pit.service_fuel_s`, `pit.service_repair_s` | each part's seconds, 0 when not done |

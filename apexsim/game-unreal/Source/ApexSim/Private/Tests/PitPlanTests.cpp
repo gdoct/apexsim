@@ -74,6 +74,19 @@ bool FApexPitPlanChoicesTest::RunTest(const FString& Parameters)
 	FApexPitPlan Boxed;
 	Boxed.bBoxThisLap = true;
 	TestTrue(TEXT("the request alone is still the crew's call"), IsCrewsCall(Boxed));
+
+	// The driver row: the crew's call, stay in, change.
+	FApexPitPlan Driver;
+	TestEqual(TEXT("the crew's call on the driver"), DriverChoice(Driver), 0);
+	SetDriverChoice(Driver, 2);
+	TestEqual(TEXT("change"), Driver.ChangeDriver, 1);
+	TestFalse(TEXT("an order on the driver"), IsCrewsCall(Driver));
+	TestEqual(TEXT("change summary"), Summary(Driver, Defaults), FString(TEXT("DRIVER CHANGE")));
+	SetDriverChoice(Driver, 1);
+	TestEqual(TEXT("stay in"), Driver.ChangeDriver, 0);
+	TestEqual(TEXT("stay label"), DriverChoiceLabel(1), FString(TEXT("STAY IN")));
+	SetDriverChoice(Driver, 0);
+	TestEqual(TEXT("back to the crew"), Driver.ChangeDriver, -1);
 	return true;
 }
 

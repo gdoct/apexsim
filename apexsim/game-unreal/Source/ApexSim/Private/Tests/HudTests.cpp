@@ -786,6 +786,29 @@ bool FApexHudPitProgressTest::RunTest(const FString& Parameters)
 		Near(TEXT("tyres only: no repair share"), P.PartShare[FApexPitStopProgress::Repair], 0.0f);
 	}
 
+	// A splash of 6 s with a 10 s driver change alongside: fuel first, then
+	// the change alone; a change with no other work is a stop too.
+	{
+		FApexPitService Stop;
+		Stop.FuelS = 6.0f;
+		Stop.FuelL = 15.0f;
+		Stop.DriverS = 10.0f;
+		Stop.Driver = 1;
+		Stop.TotalS = 10.0f;
+		const FApexPitStopProgress Fuel = ApexHudData::PitStopProgress(Stop, 7.0f);
+		TestEqual(TEXT("change: fuel first"), Fuel.PhaseKey, FString(TEXT("fuel")));
+		const FApexPitStopProgress Change = ApexHudData::PitStopProgress(Stop, 2.0f);
+		TestEqual(TEXT("change: then the driver"), Change.PhaseKey, FString(TEXT("driver")));
+		TestEqual(TEXT("change: label"), Change.PhaseLabel, FString(TEXT("DRIVER CHANGE · DRIVER 2")));
+		Near(TEXT("change: left"), Change.PhaseLeftS, 2.0f);
+		Near(TEXT("change: progress"), Change.PhaseProgress, 0.8f);
+		Stop.FuelS = 0.0f;
+		Stop.FuelL = 0.0f;
+		const FApexPitStopProgress Alone = ApexHudData::PitStopProgress(Stop, 5.0f);
+		TestTrue(TEXT("change alone: valid"), Alone.bValid);
+		TestEqual(TEXT("change alone: the driver"), Alone.PhaseKey, FString(TEXT("driver")));
+	}
+
 	// All three parts: 9 s of softs, 12.5 s for 25 L, 2 s of repairs.
 	FApexPitService Full;
 	Full.TyresS = 9.0f;
@@ -1209,6 +1232,75 @@ bool FApexHudDataStintTest::RunTest(const FString& Parameters)
 	In.TickRateHz = 0;
 	ApexHudData::Build(In, Memory, Data);
 	TestTrue(TEXT("no tick rate, no time"), HudValue(Data, TEXT("stint.time_left_s")).IsNone());
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexHudDataCrewTest, "ApexSim.Hud.Data.Crew", ApexTestFlags)
+
+bool FApexHudDataCrewTest::RunTest(const FString& Parameters)
+{
+	// Two drivers a car, 60 minutes each: the first in from the green, the
+	// second from the end of a stop whose crew changed the driver.
+	FApexTelemetryFrame Frame;
+	Frame.GameMode = EApexGameMode::Race;
+	Frame.SessionState = EApexSessionState::Racing;
+	Frame.ServerTick = 1000;
+	Frame.Cars.Add(HudCar(0, 1, 0.0f, 30.0f));
+	FApexCarTelemetry& Car = Frame.Cars[0];
+	TMap<int32, FApexPitService> Stops;
+	FApexHudInputs In;
+	In.Frame = &Frame;
+	In.LocalCarIndex = 0;
+	In.GameMode = EApexGameMode::Race;
+	In.TrackLengthM = 1000.0f;
+	In.TickRateHz = 100;
+	In.DriversPerCar = 2;
+	In.MaxDriverMinutes = 60;
+	In.PitServices = &Stops;
+	FApexHudMemory Memory;
+	FApexHudData Data;
+
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the first driver at the green"), HudValue(Data, TEXT("crew.driver")).AsNumber(), 1.0, 0.001);
+	TestEqual(TEXT("an hour to drive"), HudValue(Data, TEXT("crew.driver_time_left_s")).AsNumber(), 3600.0, 0.001);
+
+	// 40 minutes on the car stops; the crew puts the second driver in.
+	Frame.ServerTick += 2400 * 100;
+	Car.bPitServicing = true;
+	ApexHudData::Build(In, Memory, Data);
+	FApexPitService& Stop = Stops.Add(0);
+	Stop.DriverS = 10.0f;
+	Stop.Driver = 1;
+	Stop.TotalS = 10.0f;
+	Frame.ServerTick += 1000;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("still the first while the crew works"), HudValue(Data, TEXT("crew.driver")).AsNumber(), 1.0, 0.001);
+	Car.bPitServicing = false;
+	Frame.ServerTick += 100;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the second driver out of the box"), HudValue(Data, TEXT("crew.driver")).AsNumber(), 2.0, 0.001);
+	TestEqual(TEXT("no time yet"), HudValue(Data, TEXT("crew.driver_time_s")).AsNumber(), 0.0, 0.001);
+
+	// 20 minutes on: the second driver's time is their own.
+	Frame.ServerTick += 1200 * 100;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("twenty minutes in"), HudValue(Data, TEXT("crew.driver_time_s")).AsNumber(), 1200.0, 0.001);
+	TestEqual(TEXT("forty left"), HudValue(Data, TEXT("crew.driver_time_left_s")).AsNumber(), 2400.0, 0.001);
+
+	// A stop that keeps the driver in changes nothing.
+	Car.bPitServicing = true;
+	ApexHudData::Build(In, Memory, Data);
+	Stops.Add(0, FApexPitService());
+	Car.bPitServicing = false;
+	Frame.ServerTick += 100;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the same driver"), HudValue(Data, TEXT("crew.driver")).AsNumber(), 2.0, 0.001);
+
+	// One driver a car: no crew.
+	In.DriversPerCar = 0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("one driver"), HudValue(Data, TEXT("crew.driver")).IsNone());
+	TestTrue(TEXT("no time"), HudValue(Data, TEXT("crew.driver_time_left_s")).IsNone());
 	return true;
 }
 

@@ -182,7 +182,8 @@ namespace ApexSpectator
 		case EventPitService:
 		{
 			const FApexPitService& P = E.PitService;
-			W.WriteArrayHeader(9);
+			// A driver change goes after the nine, only when there is one (spectator.rs).
+			W.WriteArrayHeader(P.ChangesDriver() ? 11 : 9);
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, P.CarIndex)));
 			W.WriteUInt(static_cast<uint64>(FMath::Max(0, P.PitBox)));
 			W.WriteFloat(P.TyresS);
@@ -192,6 +193,11 @@ namespace ApexSpectator
 			W.WriteFloat(P.RepairS);
 			W.WriteFloat(P.RepairPct);
 			W.WriteFloat(P.TotalS);
+			if (P.ChangesDriver())
+			{
+				W.WriteFloat(P.DriverS);
+				W.WriteUInt(static_cast<uint64>(P.Driver));
+			}
 			break;
 		}
 		default:

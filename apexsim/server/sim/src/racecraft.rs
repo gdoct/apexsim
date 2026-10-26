@@ -193,7 +193,7 @@ const COLD_RISK_SPAN_C: f32 = 25.0;
 const WET_RISK_SPAN: f32 = 0.3;
 /// A stint starts to tire a driver after this long, s, and has tired it
 /// all the risk counts after this.
-const FATIGUE_FROM_S: f32 = 3600.0;
+pub(crate) const FATIGUE_FROM_S: f32 = 3600.0;
 const FATIGUE_FULL_S: f32 = 4.0 * 3600.0;
 /// How quickly the car moves onto a lane and back off it: the share of the
 /// way per second (attack, defend, back to the line).

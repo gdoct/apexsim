@@ -338,6 +338,15 @@ namespace ApexSpectatorCodec
 			}
 			Out.CarIndex = P.CarIndex;
 			Known = 9;
+			// A driver change rides after the nine.
+			if (Fields >= 11)
+			{
+				if (!Reader.ReadFloat(P.DriverS) || !ReadI32(Reader, P.Driver))
+				{
+					return false;
+				}
+				Known = 11;
+			}
 			break;
 		}
 		default:

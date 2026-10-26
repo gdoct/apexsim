@@ -2411,3 +2411,22 @@
     ahead should brake sooner. The dots should not visibly flicker.
   status: open
 
+- id: v-r4-driver-swaps
+  title: Driver swaps in a race
+  area: race-rules
+  kind: screen
+  check_by: agent
+  created: 2026-10-26
+  commit: f67122eb
+  plan: R4
+  doc: server/sessions.md#driver-swaps
+  what: >-
+    A race with drivers sharing the cars (-ApexAutoRace -ApexDriversPerCar=2
+    -ApexMaxDriverMinutes=5 over a race of about 12 minutes): the race state
+    Driver panel counting the driver time left, lit under five minutes; an AI
+    stop and the player own stop reading DRIVER CHANGE · DRIVER 2 in the pit
+    panel after the other work; the panel at Driver 2 with its full time once
+    the car leaves the box; the create screen Drivers a car and Drive time each
+    rows and their line; the pause menu pit plan Driver row only in such a race.
+  status: open
+

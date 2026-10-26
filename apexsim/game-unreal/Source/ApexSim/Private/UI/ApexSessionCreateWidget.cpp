@@ -367,6 +367,11 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 			}
 			AddAll(StintLapButtons);
 			AddAll(StintMinuteButtons);
+			AddAll(DriverButtons);
+			if (Flow->CreateRaceRules.SharesCars())
+			{
+				AddAll(DriverMinuteButtons);
+			}
 		}
 		if (Flow && Flow->IsCreatingWeekend())
 		{
@@ -1313,6 +1318,11 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Stint time"), Chips(ApexCreateSession::StintMinuteChoices, TEXT("Free"), TEXT(" min")), StintMinuteButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Drivers a car"), Chips(ApexCreateSession::DriverChoices, TEXT("One"), TEXT("")), DriverButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		DriverMinutesRow = MakeChipRow(TEXT("Drive time each"), Chips(ApexCreateSession::DriverMinuteChoices, TEXT("Free"), TEXT(" min")),
+			DriverMinuteButtons);
+		ApexUI::AddV(Section, DriverMinutesRow, FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		TyreRulesSection = Section;
 		ApexUI::AddV(Tab, Section, FMargin(0.0f, 0.0f, 0.0f, 22.0f));
 	}
@@ -2516,6 +2526,8 @@ void UApexSessionCreateWidget::RefreshSettings()
 			Rest.QualifyingTyreSets = Rest.QualifyingTyreStart = Rest.WeekendTyreSets = 0;
 			Rest.bParcFerme = false;
 			Rest.MaxStintLaps = Rest.MaxStintMinutes = 0;
+			Rest.DriversPerCar = 0;
+			Rest.MaxDriverMinutes = 0;
 			TArray<FString> Parts;
 			Parts.Add(Sent.Start == EApexStartType::Rolling ? TEXT("rolling start")
 				: Sent.bFormationLap ? TEXT("formation lap") : TEXT("standing start"));
@@ -2547,6 +2559,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 		Show(ParcFermeRow, bQualifies);
 		Show(WeekendTyreSetsRow, Flow->IsCreatingWeekend());
 		const FApexRaceRules& Rules = Flow->CreateRaceRules;
+		Show(DriverMinutesRow, Rules.SharesCars());
 		const auto Select = [](const TArray<TObjectPtr<UApexButtonWidget>>& Buttons, int32 Chip)
 		{
 			for (int32 Index = 0; Index < Buttons.Num(); ++Index)
@@ -2563,6 +2576,8 @@ void UApexSessionCreateWidget::RefreshSettings()
 		Select(ParcFermeButtons, Rules.bParcFerme ? 1 : 0);
 		Select(StintLapButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::StintLapChoices, Rules.MaxStintLaps));
 		Select(StintMinuteButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::StintMinuteChoices, Rules.MaxStintMinutes));
+		Select(DriverButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::DriverChoices, Rules.SharesCars() ? Rules.DriversPerCar : 0));
+		Select(DriverMinuteButtons, ApexCreateSession::ChoiceChip(ApexCreateSession::DriverMinuteChoices, Rules.MaxDriverMinutes));
 		if (TyreRulesInfoText)
 		{
 			const FApexRaceRules Sent = Flow->RaceRulesToSend();
@@ -2575,6 +2590,10 @@ void UApexSessionCreateWidget::RefreshSettings()
 			}
 			const FString Stints = FApexRaceRules::DescribeStints(Sent.MaxStintLaps, Sent.MaxStintMinutes);
 			Parts.Add(Stints.IsEmpty() ? FString(TEXT("stints free")) : Stints);
+			if (const FString Drivers = FApexRaceRules::DescribeDrivers(Sent.DriversPerCar, Sent.MaxDriverMinutes); !Drivers.IsEmpty())
+			{
+				Parts.Add(Drivers);
+			}
 			TyreRulesInfoText->SetText(FText::FromString(FString::Join(Parts, TEXT(" · ")).ToUpper()));
 		}
 	}
@@ -4108,6 +4127,18 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	if (const int32 Chip = ApexNav::IndexOf(StintMinuteButtons, Button); Chip != INDEX_NONE)
 	{
 		Flow->CreateRaceRules.MaxStintMinutes = ApexCreateSession::ChoiceOfChip(ApexCreateSession::StintMinuteChoices, Chip);
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(DriverButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.DriversPerCar = static_cast<uint8>(ApexCreateSession::ChoiceOfChip(ApexCreateSession::DriverChoices, Chip));
+		Changed();
+		return;
+	}
+	if (const int32 Chip = ApexNav::IndexOf(DriverMinuteButtons, Button); Chip != INDEX_NONE)
+	{
+		Flow->CreateRaceRules.MaxDriverMinutes = ApexCreateSession::ChoiceOfChip(ApexCreateSession::DriverMinuteChoices, Chip);
 		Changed();
 		return;
 	}

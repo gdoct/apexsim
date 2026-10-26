@@ -1296,7 +1296,9 @@ impl StreamEvent {
             }
             EventKind::PitService(p) => {
                 wr::uint(&mut out, EVENT_PIT_SERVICE as u64);
-                wr::array(&mut out, 9);
+                // A driver change goes after the nine, only when there is one.
+                let change = p.driver.filter(|_| p.driver_s > 0.0);
+                wr::array(&mut out, if change.is_some() { 11 } else { 9 });
                 wr::uint(&mut out, p.car_index as u64);
                 wr::uint(&mut out, p.pit_box as u64);
                 wr::f32(&mut out, p.tyres_s);
@@ -1306,6 +1308,10 @@ impl StreamEvent {
                 wr::f32(&mut out, p.repair_s);
                 wr::f32(&mut out, p.repair_pct);
                 wr::f32(&mut out, p.total_s);
+                if let Some(driver) = change {
+                    wr::f32(&mut out, p.driver_s);
+                    wr::uint(&mut out, driver as u64);
+                }
             }
             EventKind::Unknown(kind) => {
                 wr::uint(&mut out, *kind as u64);
@@ -1411,7 +1417,7 @@ impl StreamEvent {
                 if n < 9 {
                     return malformed("pit service of too few fields");
                 }
-                let event = EventKind::PitService(crate::network::PitServiceData {
+                let mut data = crate::network::PitServiceData {
                     car_index: rd.uint()? as u8,
                     pit_box: rd.uint()? as u8,
                     tyres_s: rd.f32()?,
@@ -1421,8 +1427,17 @@ impl StreamEvent {
                     repair_s: rd.f32()?,
                     repair_pct: rd.f32()?,
                     total_s: rd.f32()?,
-                });
-                rd.skip_rest(n, 9)?;
+                    driver_s: 0.0,
+                    driver: None,
+                };
+                let mut read = 9;
+                if n >= 11 {
+                    data.driver_s = rd.f32()?;
+                    data.driver = Some(rd.uint()? as u8);
+                    read = 11;
+                }
+                let event = EventKind::PitService(data);
+                rd.skip_rest(n, read)?;
                 event
             }
             other => {
@@ -3444,6 +3459,8 @@ mod tests {
                 repair_s: 0.0,
                 repair_pct: 0.0,
                 total_s: 8.5,
+                driver_s: 0.0,
+                driver: None,
             }),
         }
     }
@@ -3520,6 +3537,16 @@ mod tests {
             Record::decode(&service.encode()).unwrap(),
             Record::Event(service)
         );
+        // A driver change rides after the nine fields.
+        let mut change = sample_pit_service();
+        if let EventKind::PitService(p) = &mut change.kind {
+            p.driver_s = 10.0;
+            p.driver = Some(2);
+            p.total_s = 10.0;
+        }
+        let bytes = change.encode();
+        assert!(bytes.len() > sample_pit_service().encode().len());
+        assert_eq!(Record::decode(&bytes).unwrap(), Record::Event(change));
     }
 
     #[test]

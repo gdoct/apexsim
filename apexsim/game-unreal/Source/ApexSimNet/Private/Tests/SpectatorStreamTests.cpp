@@ -711,6 +711,23 @@ bool FApexSpectatorWriterTest::RunTest(const FString& Parameters)
 	RoundTrip(TEXT("pit service"), EventPitService, UE_ARRAY_COUNT(EventPitService));
 	RoundTrip(TEXT("ghost"), Ghost, UE_ARRAY_COUNT(Ghost));
 
+	// A stop that changes the driver carries the change after the nine
+	// fields, and reads back with it (spectator.rs).
+	{
+		FApexStreamRecord Record;
+		FString Error;
+		ApexSpectator::DecodeRecord(View(EventPitService, UE_ARRAY_COUNT(EventPitService)), Record, Error);
+		FApexStreamEvent Change = Record.Event;
+		Change.PitService.DriverS = 10.0f;
+		Change.PitService.Driver = 2;
+		const TArray<uint8> Bytes = ApexSpectator::EncodeEvent(Change);
+		TestTrue(TEXT("a driver change is longer"), Bytes.Num() > (int32)UE_ARRAY_COUNT(EventPitService));
+		FApexStreamRecord Back;
+		TestTrue(TEXT("a driver change decodes"), ApexSpectator::DecodeRecord(View(Bytes.GetData(), Bytes.Num()), Back, Error));
+		TestEqual(TEXT("its change"), Back.Event.PitService.DriverS, 10.0f);
+		TestEqual(TEXT("its driver"), Back.Event.PitService.Driver, 2);
+	}
+
 	// A row through the telemetry a race director reads and back is the row.
 	{
 		FApexStreamRecord Record;

@@ -250,7 +250,8 @@ public:
 	 * What CreateSession carries: the defaults in a session without a race;
 	 * no formation lap flag under a rolling start, which has its pace lap
 	 * anyway; the qualifying tyre rules and parc fermé only where the
-	 * session qualifies, and a weekend's allocation only in a weekend.
+	 * session qualifies, a weekend's allocation only in a weekend, and the
+	 * most per driver only with drivers sharing the cars.
 	 */
 	FApexRaceRules RaceRulesToSend() const
 	{
@@ -272,6 +273,11 @@ public:
 		if (!IsCreatingWeekend())
 		{
 			Rules.WeekendTyreSets = 0;
+		}
+		Rules.DriversPerCar = Rules.SharesCars() ? FMath::Min(Rules.DriversPerCar, FApexRaceRules::MaxDrivers) : 0;
+		if (!Rules.SharesCars())
+		{
+			Rules.MaxDriverMinutes = 0;
 		}
 		return Rules;
 	}

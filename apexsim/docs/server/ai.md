@@ -239,7 +239,8 @@ next `Brake` phase, its slowest point, the hand at the apex).
   road's grip was baked at: a puddle, a wet line in a drying race, rain
   the session was not set for) and a long stint (`FATIGUE_MISTAKE` 0.15,
   from an hour in the car to full at four, the stint's laps at its lap
-  time). An even draw says how (`Mistake`), of all four kinds under
+  time, or with drivers sharing the car the driver's spell in it:
+  [sessions](sessions.md#driver-swaps)). An even draw says how (`Mistake`), of all four kinds under
   pressure or tired, and of the first three on cold tyres or a wet patch: it overcooks the braking (2.5-4.5% too fast,
   `Racecraft::overspeed`); it locks up late in the braking zone (80 m
   before the apex, or at the end of the braking: the pedal to the floor
@@ -403,6 +404,7 @@ off by `Racecraft::blend`; the controller holds it across the road
   forward, worn tyres that reach the flag do not keep it out, and a car
   owing one does not save fuel to skip a stop (`saves_to_flag`). Under
   fixed stint lengths (`RaceRules::max_stint_laps` / `max_stint_minutes`,
+  or the most per driver with drivers sharing the car,
   [sessions](sessions.md#fixed-stint-lengths); `StopContext::stint_left_laps`)
   a stint with less than `AI_STINT_STOP_LAPS` (1 lap) left short of the
   flag is a stop at once, traffic or not. A race started on the set a car

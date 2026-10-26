@@ -4089,6 +4089,18 @@ pub struct RaceRules {
     pub max_stint_laps: u16,
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub max_stint_minutes: u16,
+    /// Drivers sharing each car in the race (up to `crew::MAX_DRIVERS`):
+    /// they change in the box at a stop (`crate::crew`), and a driver's
+    /// spell in the car, not the stint, tires them. 0 or 1 is one driver
+    /// to the flag.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub drivers_per_car: u8,
+    /// With drivers sharing a car, the most any one of them may drive in
+    /// the race, minutes. A car whose driver goes past it is classified
+    /// behind every finisher that kept the rules, as for a missed stop.
+    /// 0 is none.
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub max_driver_minutes: u16,
 }
 
 fn is_zero_u16(v: &u16) -> bool {
@@ -4120,6 +4132,16 @@ impl RaceRules {
     /// `max_stint_minutes`).
     pub fn limits_stints(&self) -> bool {
         self.max_stint_laps > 0 || self.max_stint_minutes > 0
+    }
+
+    /// Drivers share each car (`drivers_per_car` of two or more).
+    pub fn shares_cars(&self) -> bool {
+        self.drivers_per_car >= 2
+    }
+
+    /// The drivers each car has, 1 to `crew::MAX_DRIVERS`.
+    pub fn drivers(&self) -> u8 {
+        self.drivers_per_car.clamp(1, crate::crew::MAX_DRIVERS)
     }
 
     /// The start drives a lap before the green: a formation lap, or a

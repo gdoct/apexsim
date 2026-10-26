@@ -108,6 +108,23 @@
           ]
         }]
       },
+      // Drivers sharing the car: who is in it and, under a most per driver,
+      // the time they may still drive, lit under five minutes, red once past.
+      {
+        "type": "panel", "visible": "=has(crew.driver)",
+        "height": 76, "valign": "fill", "margin": [2, 0, 0, 0], "padding": [20, 9],
+        "background": "=has(crew.driver_time_left_s) && crew.driver_time_left_s < 0 ? 'error' : (has(crew.driver_time_left_s) && crew.driver_time_left_s < 300 ? 'accent' : 'surface')",
+        "children": [{
+          "type": "column",
+          "children": [
+            { "type": "label", "halign": "center", "text": "='Driver ' + str(crew.driver)" },
+            { "type": "text", "halign": "center", "margin": [0, 2, 0, 0], "font": "display", "size": 34,
+              "text": "=has(crew.driver_time_left_s) ? fmt_clock(max(crew.driver_time_left_s, 0)) : fmt_clock(crew.driver_time_s)" },
+            { "type": "text", "halign": "center", "font": "mono", "size": 12, "color": "text_secondary",
+              "text": "=has(crew.driver_time_left_s) ? 'left' : 'in the car'" }
+          ]
+        }]
+      },
       // The driver has asked to box this lap: lit until the stop is made.
       {
         "type": "panel", "visible": "=pit.requested",

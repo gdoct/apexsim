@@ -271,6 +271,10 @@ private:
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ParcFermeButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StintLapButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StintMinuteButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> DriverButtons;
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> DriverMinuteButtons;
+	/** The most per driver's row: shown only with drivers sharing the cars. */
+	UPROPERTY(Transient) TObjectPtr<UWidget> DriverMinutesRow;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> WeekendCutoffButtons;
 	/** Each weekend day's sky (0 practice, 1 qualifying): a weather stepper, an hour stepper and its forecast. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> WeekendDayRows[2];

@@ -2662,8 +2662,16 @@ pub struct PitServiceData {
     /// Repairs, s, and the damage repaired (percent, summed over the zones).
     pub repair_s: f32,
     pub repair_pct: f32,
-    /// The whole stop, s: the three parts added up.
+    /// The whole stop, s: the three parts added up, or the driver change
+    /// where that is longer.
     pub total_s: f32,
+    /// With drivers sharing the car (`RaceRules::drivers_per_car`): the
+    /// driver change, s, alongside the other parts, and the driver taking
+    /// over (0-based). Off the wire for a stop that keeps the driver in.
+    #[serde(default, skip_serializing_if = "is_zero_f32")]
+    pub driver_s: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub driver: Option<u8>,
 }
 
 /// A chat line as the server sends it on (`ServerMessage::Chat`).
@@ -5120,6 +5128,8 @@ mod tests {
             repair_s: 2.0,
             repair_pct: 50.0,
             total_s: 23.5,
+            driver_s: 0.0,
+            driver: None,
         });
         let bytes = rmp_serde::to_vec_named(&service).unwrap();
         println!("S_PitService: {}", hex(&bytes));
@@ -5145,6 +5155,102 @@ mod tests {
         );
     }
 
+    /// Drivers sharing a car: the rules (`drivers_per_car`,
+    /// `max_driver_minutes`) on the wire only when set, a stop's driver
+    /// change (`S_PitServiceDriver`) and the driver's order
+    /// (`C_SetPitPlanDriver`): `cargo test driver_change_wire_format --
+    /// --nocapture` prints the client's golden bytes.
+    #[test]
+    fn test_driver_change_wire_format() {
+        fn hex(bytes: &[u8]) -> String {
+            bytes
+                .iter()
+                .map(|b| format!("0x{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(", ")
+        }
+        let rules = RaceRules {
+            drivers_per_car: 3,
+            max_driver_minutes: 240,
+            ..Default::default()
+        };
+        let bytes = rmp_serde::to_vec_named(&rules).unwrap();
+        println!("RaceRulesDrivers: {}", hex(&bytes));
+        let text = String::from_utf8_lossy(&bytes);
+        assert!(text.contains("drivers_per_car") && text.contains("max_driver_minutes"));
+        assert_eq!(rmp_serde::from_slice::<RaceRules>(&bytes).unwrap(), rules);
+        let create = ClientMessage::CreateSession {
+            track_config_id: Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
+            max_players: 8,
+            ai_count: 3,
+            lap_limit: 5,
+            session_kind: SessionKind::Multiplayer,
+            allowed_assists: AllowedAssists::default(),
+            conditions: SessionConditions::DEFAULT,
+            damage: DamageLevel::Full,
+            ai_skill: None,
+            race_seconds: None,
+            grid_order: Vec::new(),
+            qualifying_seconds: None,
+            weekend: None,
+            watch: None,
+            qualifying_cutoff_pct: None,
+            mandatory_stops: 0,
+            compound_change: false,
+            qualifying_format: QualifyingFormat::Open,
+            qualifying_lap_allowance: 0,
+            race_rules: rules,
+            classes: Vec::new(),
+            ballast: Vec::new(),
+        };
+        println!(
+            "C_CreateSessionDriverRules: {}",
+            hex(&rmp_serde::to_vec_named(&create).unwrap())
+        );
+        let service = ServerMessage::PitService(PitServiceData {
+            car_index: 1,
+            pit_box: 4,
+            tyres_s: 0.0,
+            compound: 0,
+            fuel_s: 6.0,
+            fuel_l: 15.0,
+            repair_s: 0.0,
+            repair_pct: 0.0,
+            total_s: 10.0,
+            driver_s: 10.0,
+            driver: Some(1),
+        });
+        let bytes = rmp_serde::to_vec_named(&service).unwrap();
+        println!("S_PitServiceDriver: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
+            ServerMessage::PitService(data) => {
+                assert_eq!((data.driver_s, data.driver), (10.0, Some(1)));
+            }
+            other => panic!("Wrong message type: {other:?}"),
+        }
+        // A stop that keeps the driver carries neither key.
+        let kept = rmp_serde::to_vec_named(&PitServiceData {
+            driver_s: 0.0,
+            driver: None,
+            ..match service {
+                ServerMessage::PitService(d) => d,
+                _ => unreachable!(),
+            }
+        })
+        .unwrap();
+        assert!(!String::from_utf8_lossy(&kept).contains("Driver"));
+        let plan = ClientMessage::SetPitPlan(crate::pit::PitPlan {
+            change_driver: Some(false),
+            ..Default::default()
+        });
+        let bytes = rmp_serde::to_vec_named(&plan).unwrap();
+        println!("C_SetPitPlanDriver: {}", hex(&bytes));
+        match rmp_serde::from_slice::<ClientMessage>(&bytes).unwrap() {
+            ClientMessage::SetPitPlan(p) => assert_eq!(p.change_driver, Some(false)),
+            other => panic!("Wrong message type: {other:?}"),
+        }
+    }
+
     /// The bytes of a `SetPitPlan` with every order given, the client's
     /// `ApexGolden::C_SetPitPlan`, and of an empty one (`C_SetPitPlanEmpty`):
     /// `cargo test pit_plan_wire_format -- --nocapture` prints them.
@@ -5165,6 +5271,7 @@ mod tests {
             pads: Some(true),
             pad_set: Some(-1),
             box_this_lap: true,
+            change_driver: None,
         });
         let bytes = rmp_serde::to_vec_named(&plan).unwrap();
         println!("C_SetPitPlan: {}", hex(&bytes));

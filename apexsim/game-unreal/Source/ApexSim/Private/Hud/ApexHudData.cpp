@@ -276,7 +276,8 @@ bool FApexHudMemory::TimeAtDistance(int32 CarIndex, float DistanceM, double& Out
 	return true;
 }
 
-void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM, double TimeSeconds)
+void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM, double TimeSeconds,
+	const TMap<int32, FApexPitService>* PitServices)
 {
 	const bool bTrail = TimeSeconds > 0.0 && TrackLengthM > 0.0f;
 	if (bTrail && TimeSeconds < TrailClock)
@@ -347,6 +348,38 @@ void FApexHudMemory::SampleField(const FApexTelemetryFrame& Frame, float TrackLe
 		{
 			History->StintFromLaps = ApexHudData::LapsRun(Car.CurrentLap, Car.TrackProgress, TrackLengthM);
 			History->StintFromTick = Frame.ServerTick;
+		}
+		// The driver in the car: the first from the green; a stop whose crew
+		// changed the driver (its PitService, in by the service's end) ends
+		// the spell where the service began and starts the next one's as it
+		// ends.
+		if (!bRace)
+		{
+			History->Driver = 0;
+			History->DriverFromTick = -1;
+			FMemory::Memzero(History->DrivenTicks);
+		}
+		else if (bRaceGreen && History->DriverFromTick < 0)
+		{
+			History->DriverFromTick = Frame.ServerTick;
+		}
+		if (Car.bPitServicing && !History->bWasServicing)
+		{
+			History->ServiceFromTick = Frame.ServerTick;
+		}
+		else if (bRaceGreen && !Car.bPitServicing && History->bWasServicing && History->DriverFromTick >= 0)
+		{
+			const FApexPitService* Stop = PitServices ? PitServices->Find(Car.CarIndex) : nullptr;
+			if (Stop && Stop->ChangesDriver() && Stop->Driver != History->Driver && Stop->Driver < FApexRaceRules::MaxDrivers)
+			{
+				const int64 Out = History->ServiceFromTick >= 0 ? History->ServiceFromTick : Frame.ServerTick;
+				if (History->Driver >= 0 && History->Driver < FApexRaceRules::MaxDrivers)
+				{
+					History->DrivenTicks[History->Driver] += FMath::Max<int64>(0, Out - History->DriverFromTick);
+				}
+				History->Driver = Stop->Driver;
+				History->DriverFromTick = Frame.ServerTick;
+			}
 		}
 		History->bWasServicing = Car.bPitServicing;
 		// The trail runs forward only: a car going back (a spin, reversing out
@@ -457,10 +490,12 @@ FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, f
 	P.PartSeconds[FApexPitStopProgress::Fuel] = FMath::Max(0.0f, Stop.FuelS);
 	P.PartSeconds[FApexPitStopProgress::Repair] = FMath::Max(0.0f, Stop.RepairS);
 	const float Parts = P.PartSeconds[0] + P.PartSeconds[1] + P.PartSeconds[2];
-	// The server's total is the three added up; the sum stands in should it
-	// ever not send one.
-	P.TotalS = Stop.TotalS > 0.0f ? Stop.TotalS : Parts;
-	if (Parts <= 0.0f || P.TotalS <= 0.0f)
+	// The server's total is the three added up, or a driver change running
+	// alongside them where that is longer; the sum stands in should it ever
+	// not send one.
+	P.TotalS = Stop.TotalS > 0.0f ? Stop.TotalS : FMath::Max(Parts, Stop.DriverS);
+	const bool bChange = Stop.ChangesDriver();
+	if ((Parts <= 0.0f && !bChange) || P.TotalS <= 0.0f)
 	{
 		return P;
 	}
@@ -479,7 +514,7 @@ FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, f
 		{
 			continue;
 		}
-		P.PartShare[Part] = Seconds / Parts;
+		P.PartShare[Part] = Seconds / FMath::Max(Parts, KINDA_SMALL_NUMBER);
 		P.PartFill[Part] = FMath::Clamp((P.ElapsedS - Start) / Seconds, 0.0f, 1.0f);
 		if (P.Phase == INDEX_NONE && P.ElapsedS < Start + Seconds)
 		{
@@ -525,6 +560,15 @@ FApexPitStopProgress ApexHudData::PitStopProgress(const FApexPitService& Stop, f
 		break;
 	default:
 		break;
+	}
+	// The work done and the new driver still climbing in: the change is the
+	// part in hand.
+	if (bChange && P.ElapsedS < P.TotalS && (P.Phase == INDEX_NONE || P.PhaseLeftS <= 0.0f))
+	{
+		P.PhaseKey = TEXT("driver");
+		P.PhaseLabel = FString::Printf(TEXT("DRIVER CHANGE%sDRIVER %d"), Dot, Stop.Driver + 1);
+		P.PhaseLeftS = P.TotalS - P.ElapsedS;
+		P.PhaseProgress = Stop.DriverS > 0.0f ? FMath::Clamp(P.ElapsedS / Stop.DriverS, 0.0f, 1.0f) : 1.0f;
 	}
 	return P;
 }
@@ -846,7 +890,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 
 	// --- Standings ----------------------------------------------------------
 
-	Memory.SampleField(Frame, In.TrackLengthM, In.TimeSeconds);
+	Memory.SampleField(Frame, In.TrackLengthM, In.TimeSeconds, In.PitServices);
 
 	// Without a catalog length the stations still order cars within a lap; the
 	// nominal length only has to dwarf any real station so a completed lap
@@ -1280,6 +1324,22 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			? FApexHudValue::Of(In.MaxStintLaps - StintLaps) : FApexHudValue());
 		Out.Set(TEXT("stint.time_left_s"), bStintTime && In.MaxStintMinutes > 0
 			? FApexHudValue::Of(In.MaxStintMinutes * 60.0 - StintSeconds) : FApexHudValue());
+		// Drivers sharing the car: who is in it and their time in it over
+		// the race as this HUD saw the stops, against the most per driver
+		// (the server's own count decides at the flag).
+		const bool bCrew = Local && History && In.GameMode == EApexGameMode::Race && In.DriversPerCar >= 2
+			&& History->DriverFromTick >= 0 && Local->FinishPosition <= 0;
+		const bool bCrewTime = bCrew && In.TickRateHz > 0;
+		double DriverSeconds = 0.0;
+		if (bCrewTime && History->Driver >= 0 && History->Driver < FApexRaceRules::MaxDrivers)
+		{
+			DriverSeconds = (History->DrivenTicks[History->Driver] + FMath::Max<int64>(0, Frame.ServerTick - History->DriverFromTick))
+				/ static_cast<double>(In.TickRateHz);
+		}
+		Out.Set(TEXT("crew.driver"), bCrew ? FApexHudValue::Of(History->Driver + 1) : FApexHudValue());
+		Out.Set(TEXT("crew.driver_time_s"), bCrewTime ? FApexHudValue::Of(DriverSeconds) : FApexHudValue());
+		Out.Set(TEXT("crew.driver_time_left_s"), bCrewTime && In.MaxDriverMinutes > 0
+			? FApexHudValue::Of(In.MaxDriverMinutes * 60.0 - DriverSeconds) : FApexHudValue());
 		Out.Set(TEXT("car.retired"), Local && HudRetired(*Local));
 		Out.Set(TEXT("tyre.age_laps"), History && Local && Local->Compound >= 0
 			? FApexHudValue::Of(FMath::Max(0, Local->CurrentLap - History->TyresFromLap))

@@ -729,6 +729,8 @@ namespace
 			else if (Key == TEXT("weekend_tyre_sets"))     { bOk = Reader.ReadUInt64(Raw); Out.WeekendTyreSets = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
 			else if (Key == TEXT("max_stint_laps"))        { bOk = Reader.ReadUInt64(Raw); Out.MaxStintLaps = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else if (Key == TEXT("max_stint_minutes"))     { bOk = Reader.ReadUInt64(Raw); Out.MaxStintMinutes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
+			else if (Key == TEXT("drivers_per_car"))       { bOk = Reader.ReadUInt64(Raw); Out.DriversPerCar = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
+			else if (Key == TEXT("max_driver_minutes"))    { bOk = Reader.ReadUInt64(Raw); Out.MaxDriverMinutes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else                                      { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -1740,6 +1742,8 @@ namespace
 			else if (Key == TEXT("RepairS"))    { bOk = Reader.ReadFloat(Out.RepairS); }
 			else if (Key == TEXT("RepairPct"))  { bOk = Reader.ReadFloat(Out.RepairPct); }
 			else if (Key == TEXT("TotalS"))     { bOk = Reader.ReadFloat(Out.TotalS); }
+			else if (Key == TEXT("DriverS"))    { bOk = Reader.ReadFloat(Out.DriverS); }
+			else if (Key == TEXT("Driver"))     { bOk = Reader.ReadUInt64(Raw); Out.Driver = static_cast<int32>(FMath::Min<uint64>(Raw, 255)); }
 			else { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -4466,6 +4470,16 @@ namespace ApexProtocol
 				Writer.WriteString("max_stint_minutes");
 				Writer.WriteUInt(static_cast<uint32>(Rules.MaxStintMinutes));
 			}
+			if (Rules.DriversPerCar != 0)
+			{
+				Writer.WriteString("drivers_per_car");
+				Writer.WriteUInt(Rules.DriversPerCar);
+			}
+			if (Rules.MaxDriverMinutes != 0)
+			{
+				Writer.WriteString("max_driver_minutes");
+				Writer.WriteUInt(static_cast<uint32>(Rules.MaxDriverMinutes));
+			}
 		}
 		if (bClasses)
 		{
@@ -4664,9 +4678,10 @@ namespace ApexProtocol
 		const bool bCompound = Plan.Compound >= 0;
 		const bool bFuel = Plan.FuelL >= 0.0f;
 		const bool bPads = Plan.Pads >= 0;
+		const bool bDriver = Plan.ChangeDriver >= 0;
 		const int32 Count = (Plan.bKeepTyres ? 1 : 0) + (bCompound ? 1 : 0) + (bFuel ? 1 : 0)
 			+ (Plan.bNoRepair ? 1 : 0) + (bPads ? 1 : 0) + (Plan.bChoosePadSet ? 1 : 0)
-			+ (Plan.bBoxThisLap ? 1 : 0);
+			+ (Plan.bBoxThisLap ? 1 : 0) + (bDriver ? 1 : 0);
 		FMsgPackWriter Writer(128);
 		BeginDataVariant(Writer, "SetPitPlan", Count);
 		if (Plan.bKeepTyres)
@@ -4704,6 +4719,11 @@ namespace ApexProtocol
 		{
 			Writer.WriteString("box_this_lap");
 			Writer.WriteBool(true);
+		}
+		if (bDriver)
+		{
+			Writer.WriteString("change_driver");
+			Writer.WriteBool(Plan.ChangeDriver > 0);
 		}
 		return MoveTemp(Writer.GetBuffer());
 	}

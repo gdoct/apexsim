@@ -89,6 +89,9 @@ struct APEXSIM_API FApexHudInputs
 	/** The race's fixed stint lengths (SessionJoined.RaceRules): laps and minutes, 0 for none. */
 	int32 MaxStintLaps = 0;
 	int32 MaxStintMinutes = 0;
+	/** Drivers sharing each car (SessionJoined.RaceRules; 0 or 1 is one driver) and the most each may drive, minutes (0 none). */
+	int32 DriversPerCar = 0;
+	int32 MaxDriverMinutes = 0;
 	/** The session's tick rate (SessionJoined.Physics), for a stint's minutes from the frames' ticks; 0 unknown. */
 	int32 TickRateHz = 0;
 
@@ -226,9 +229,9 @@ struct APEXSIM_API FApexPitStopProgress
 
 	/** The part being worked on; INDEX_NONE when the plan is empty. Done, it is the last part. */
 	int32 Phase = INDEX_NONE;
-	/** `tyres`, `fuel`, `repair`, or empty. */
+	/** `tyres`, `fuel`, `repair`, `driver` (the work done, a driver change still under way), or empty. */
 	FString PhaseKey;
-	/** "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%". */
+	/** "CHANGING TYRES · SOFT", "REFUELLING · +25.0 L", "REPAIRING · 50%", "DRIVER CHANGE · DRIVER 2". */
 	FString PhaseLabel;
 	float PhaseLeftS = 0.0f;
 	float PhaseProgress = 0.0f;
@@ -312,6 +315,17 @@ struct APEXSIM_API FApexHudMemory
 		float StintFromLaps = 0.0f;
 		int64 StintFromTick = -1;
 		/**
+		 * Drivers sharing the car, as the server counts them: the one in the
+		 * car (0-based), the frame's tick their spell began (the green, or
+		 * the end of the stop that put them in; < 0 before the green), the
+		 * ticks each drove in the spells already over, and the tick the stop
+		 * under way began (a spell ends as the service starts).
+		 */
+		int32 Driver = 0;
+		int64 DriverFromTick = -1;
+		int64 DrivenTicks[FApexRaceRules::MaxDrivers] = {};
+		int64 ServiceFromTick = -1;
+		/**
 		 * Where the car has been: its race distance (m) and the HUD clock
 		 * then, a sample every TrailSpacingM, the last TrailLaps laps of it.
 		 * A gap is the time since the car ahead passed where this one is.
@@ -356,7 +370,8 @@ struct APEXSIM_API FApexHudMemory
 	}
 
 	/** Note this frame's pit stops and tyre changes, car by car, and (with a clock and the track's length) where each car is. */
-	void SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM = 0.0f, double TimeSeconds = 0.0);
+	void SampleField(const FApexTelemetryFrame& Frame, float TrackLengthM = 0.0f, double TimeSeconds = 0.0,
+		const TMap<int32, FApexPitService>* PitServices = nullptr);
 
 	/**
 	 * Feed one telemetry frame's local car into the delta's reference. Driven

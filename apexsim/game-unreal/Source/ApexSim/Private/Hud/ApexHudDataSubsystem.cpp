@@ -444,6 +444,8 @@ void UApexHudDataSubsystem::Refresh()
 		// The race's fixed stint lengths, counted against the frames' ticks.
 		In.MaxStintLaps = Net->GetSessionRaceRules().MaxStintLaps;
 		In.MaxStintMinutes = Net->GetSessionRaceRules().MaxStintMinutes;
+		In.DriversPerCar = Net->GetSessionRaceRules().DriversPerCar;
+		In.MaxDriverMinutes = Net->GetSessionRaceRules().MaxDriverMinutes;
 		In.TickRateHz = Net->GetSessionPhysics().TickRateHz;
 		RefreshCarNames();
 		In.CarNames = &CarNames;

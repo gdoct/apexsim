@@ -51,7 +51,7 @@ namespace
 	constexpr float LapTracePickReadoutWidth = 300.0f;
 
 	/** The pit plan's rows, in the order the crew works, then the request. */
-	enum EPitPlanRow : int32 { PlanTyres = 0, PlanFuel, PlanRepair, PlanPads, PlanPadSet, PlanBox, PlanRowCount };
+	enum EPitPlanRow : int32 { PlanTyres = 0, PlanFuel, PlanRepair, PlanPads, PlanPadSet, PlanDriver, PlanBox, PlanRowCount };
 	constexpr float PitPlanRowHeight = 52.0f;
 	constexpr float PitPlanReadoutWidth = 230.0f;
 }
@@ -126,7 +126,7 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	{
 		UVerticalBox* Plan = WidgetTree->ConstructWidget<UVerticalBox>();
 		static const TCHAR* const Labels[PlanRowCount] = {
-			TEXT("Tyres"), TEXT("Fuel"), TEXT("Repairs"), TEXT("Brake pads"), TEXT("Pad set"), TEXT("Box this lap"),
+			TEXT("Tyres"), TEXT("Fuel"), TEXT("Repairs"), TEXT("Brake pads"), TEXT("Pad set"), TEXT("Driver"), TEXT("Box this lap"),
 		};
 		for (int32 Index = 0; Index < PlanRowCount; ++Index)
 		{
@@ -141,7 +141,12 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 			{
 				AddV(Plan, MakeDivider(*WidgetTree), FMargin(0.0f, 8.0f, 0.0f, 4.0f));
 			}
-			AddV(Plan, MakeSized(*WidgetTree, Row, -1.0f, PitPlanRowHeight), FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+			UWidget* Sized = MakeSized(*WidgetTree, Row, -1.0f, PitPlanRowHeight);
+			AddV(Plan, Sized, FMargin(0.0f, Index == 0 ? 0.0f : 4.0f, 0.0f, 0.0f));
+			if (Index == PlanDriver)
+			{
+				PitPlanDriverRow = Sized;
+			}
 			PitPlanSteppers.Add(Stepper);
 		}
 		PitPlanSummaryText = MakeText(*WidgetTree, FString(), Font::Mono(11.0f, 80), Palette::TextSecondary);
@@ -530,6 +535,7 @@ void UApexPauseMenuWidget::RefreshPitPlan()
 	PitPlanSteppers[PlanRepair]->Formatter = [](int32 Value) { return ApexPitPlan::RepairChoiceLabel(Value); };
 	PitPlanSteppers[PlanPads]->Formatter = [](int32 Value) { return ApexPitPlan::PadsChoiceLabel(Value); };
 	PitPlanSteppers[PlanPadSet]->Formatter = [](int32 Value) { return ApexPitPlan::PadSetChoiceLabel(Value); };
+	PitPlanSteppers[PlanDriver]->Formatter = [](int32 Value) { return ApexPitPlan::DriverChoiceLabel(Value); };
 	PitPlanSteppers[PlanBox]->Formatter = [](int32 Value) { return Value > 0 ? FString(TEXT("BOX, BOX")) : FString(TEXT("NOT THIS LAP")); };
 
 	// Built afresh each time the page opens: the tyres row's length is the car's.
@@ -538,6 +544,13 @@ void UApexPauseMenuWidget::RefreshPitPlan()
 	PitPlanSteppers[PlanRepair]->Setup(0, 1, Plan.bNoRepair ? 1 : 0, PitPlanReadoutWidth);
 	PitPlanSteppers[PlanPads]->Setup(0, 2, ApexPitPlan::PadsChoice(Plan), PitPlanReadoutWidth);
 	PitPlanSteppers[PlanPadSet]->Setup(0, 3, ApexPitPlan::PadSetChoice(Plan), PitPlanReadoutWidth);
+	PitPlanSteppers[PlanDriver]->Setup(0, 2, ApexPitPlan::DriverChoice(Plan), PitPlanReadoutWidth);
+	if (PitPlanDriverRow)
+	{
+		const UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>();
+		const bool bShared = Net && Net->GetSessionRaceRules().SharesCars();
+		PitPlanDriverRow->SetVisibility(bShared ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
 	PitPlanSteppers[PlanBox]->Setup(0, 1, Plan.bBoxThisLap ? 1 : 0, PitPlanReadoutWidth);
 	RefreshPitPlanSummary();
 }
@@ -567,6 +580,7 @@ void UApexPauseMenuWidget::HandlePitPlanChanged(UApexStepperWidget* Control, int
 	case PlanRepair: Plan.bNoRepair = Value > 0; break;
 	case PlanPads:   ApexPitPlan::SetPadsChoice(Plan, Value); break;
 	case PlanPadSet: ApexPitPlan::SetPadSetChoice(Plan, Value); break;
+	case PlanDriver: ApexPitPlan::SetDriverChoice(Plan, Value); break;
 	case PlanBox:    Plan.bBoxThisLap = Value > 0; break;
 	default: return;
 	}

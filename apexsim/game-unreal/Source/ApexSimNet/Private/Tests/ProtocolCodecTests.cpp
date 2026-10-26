@@ -244,6 +244,9 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		Plan.bBoxThisLap = true;
 		CheckBytes(TEXT("SetPitPlan"), ApexProtocol::EncodeSetPitPlan(Plan), ApexGolden::C_SetPitPlan);
 		CheckBytes(TEXT("SetPitPlan empty"), ApexProtocol::EncodeSetPitPlan(FApexPitPlan()), ApexGolden::C_SetPitPlanEmpty);
+		FApexPitPlan Stay;
+		Stay.ChangeDriver = 0;
+		CheckBytes(TEXT("SetPitPlan keeping the driver in"), ApexProtocol::EncodeSetPitPlan(Stay), ApexGolden::C_SetPitPlanDriver);
 	}
 
 	CheckBytes(TEXT("SetDriverAids"),
@@ -431,6 +434,15 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("tyre rules described"), Tyres.Describe(),
 			FString(TEXT("3 qualifying sets · top 10 start on qualifying tyres · 8 weekend sets · parc fermé · stints 25 laps or 65 min")));
 		TestEqual(TEXT("minutes alone"), FApexRaceRules::DescribeStints(0, 45), FString(TEXT("stints 45 min")));
+
+		// Drivers sharing the cars: after the stint keys.
+		FApexRaceRules Drivers;
+		Drivers.DriversPerCar = 3;
+		Drivers.MaxDriverMinutes = 240;
+		CheckBytes(TEXT("CreateSession with drivers sharing the cars"), CreateWithRules(Drivers),
+			ApexGolden::C_CreateSessionDriverRules);
+		TestEqual(TEXT("drivers described"), Drivers.Describe(), FString(TEXT("3 drivers a car, 240 min each")));
+		TestTrue(TEXT("one driver is none"), FApexRaceRules::DescribeDrivers(1, 60).IsEmpty());
 
 		// Ballast by driver: after the classes; a blank or empty entry is
 		// not sent.
@@ -2363,6 +2375,18 @@ bool FApexProtocolPitServiceTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("repairs"), Stop.RepairS, 2.0f);
 	TestEqual(TEXT("repaired"), Stop.RepairPct, 50.0f);
 	TestEqual(TEXT("total"), Stop.TotalS, 23.5f);
+	TestFalse(TEXT("the driver stays in"), Stop.ChangesDriver());
+
+	FApexServerMessage Change;
+	if (!TestTrue(FString::Printf(TEXT("PitService with a driver change decodes (%s)"), *Error),
+			ApexProtocol::DecodeServerMessage(ApexGolden::S_PitServiceDriver, Change, Error)))
+	{
+		return false;
+	}
+	TestEqual(TEXT("the change"), Change.PitService.DriverS, 10.0f);
+	TestEqual(TEXT("the driver taking over"), Change.PitService.Driver, 1);
+	TestEqual(TEXT("the stop lasts the change"), Change.PitService.TotalS, 10.0f);
+	TestTrue(TEXT("changes the driver"), Change.PitService.ChangesDriver());
 	return true;
 }
 

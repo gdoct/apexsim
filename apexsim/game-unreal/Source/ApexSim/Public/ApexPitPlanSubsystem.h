@@ -45,6 +45,11 @@ namespace ApexPitPlan
 	APEXSIM_API void SetPadSetChoice(FApexPitPlan& Plan, int32 Choice);
 	APEXSIM_API FString PadSetChoiceLabel(int32 Choice);
 
+	/** The driver row (drivers sharing the car): 0 the crew's call, 1 stay in, 2 change. */
+	APEXSIM_API int32 DriverChoice(const FApexPitPlan& Plan);
+	APEXSIM_API void SetDriverChoice(FApexPitPlan& Plan, int32 Choice);
+	APEXSIM_API FString DriverChoiceLabel(int32 Choice);
+
 	/** Every order at the crew's own choice (the box request aside): nothing worth sending. */
 	APEXSIM_API bool IsCrewsCall(const FApexPitPlan& Plan);
 

@@ -121,7 +121,8 @@ and widget factories), so layouts are reviewable as diffs.
   stop ([pit-lane.md](../server/pit-lane.md)), one stepper each: Tyres (KEEP,
   SETUP'S, then the car's compounds by the setup sheet's names), Fuel (TO THE
   END, NONE, +5 L steps), Repairs, Brake pads (CREW'S CALL, KEEP, NEW), Pad
-  set (SETUP'S, ENDURANCE, STANDARD, SPRINT) and Box this lap, with the plan
+  set (SETUP'S, ENDURANCE, STANDARD, SPRINT), Driver (CREW'S CALL, STAY IN,
+  CHANGE; only with drivers sharing the cars) and Box this lap, with the plan
   in a line and DONE; Back returns to the rows, whose PIT PLAN badge is the
   same line (`ApexPitPlan::Summary`). `UApexPitPlanSubsystem` keeps the plan
   for the session it was given in and sends `SetPitPlan` on every change;

@@ -370,11 +370,14 @@ pub struct ServicePlan {
     pub pads: bool,
     /// New discs go on, and pads with them.
     pub discs: bool,
+    /// The driver change (`crew::DRIVER_CHANGE_S`), s: alongside the rest,
+    /// not after it.
+    pub driver_s: f32,
 }
 
 impl ServicePlan {
     pub fn total_s(&self) -> f32 {
-        self.tyres_s + self.fuel_s + self.repair_s
+        (self.tyres_s + self.fuel_s + self.repair_s).max(self.driver_s)
     }
 }
 
@@ -422,6 +425,12 @@ pub struct PitPlan {
     /// request is withdrawn.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub box_this_lap: bool,
+    /// With drivers sharing the car (`data::RaceRules::drivers_per_car`):
+    /// `Some(true)` the next driver takes over at the stop, `Some(false)`
+    /// the driver stays in; absent for the crew's call
+    /// (`crew::change_at_stop`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub change_driver: Option<bool>,
 }
 
 impl PitPlan {
@@ -506,6 +515,7 @@ pub fn plan_service_for(
         repair_pct,
         pads,
         discs,
+        driver_s: 0.0,
     }
 }
 

@@ -202,7 +202,10 @@ Called inside `update_air` before the physics, and in the countdown.
   `box_this_lap` is the driver's pit request: `PitState::requested`, sent
   back in telemetry as `PIT_FLAG_REQUESTED` until the stop is made (or a
   plan without it). It is a call to the crew only: the driver still
-  drives in.
+  drives in. With drivers sharing the car, `change_driver` (`true`,
+  `false`, absent for the crew's call) says whether the next driver takes
+  over ([sessions](sessions.md#driver-swaps)); the change runs alongside
+  the rest (`ServicePlan::driver_s`).
 - **Exit light** (`pit::exit_closed`, the same for every car): red before a
   race's start (countdown, or a race not yet racing) and while a car on the
   track, not on the pit route, is within max(3 s at its speed, 25 m) of
@@ -225,7 +228,8 @@ Called inside `update_air` before the physics, and in the countdown.
   `AUTOPILOT` 8, `EXIT_CLOSED` 16, `HELD` 32, `REQUESTED` 64),
   `service_ds` (seconds left, tenths), appended after `tow_pct`.
 - `ClientMessage::SetPitPlan` (`pit::PitPlan`: `keep_tyres`, `compound`,
-  `fuel_l`, `no_repair`, `pads`, `pad_set`, `box_this_lap`, each left off
+  `fuel_l`, `no_repair`, `pads`, `pad_set`, `box_this_lap`,
+  `change_driver`, each left off
   the wire at its default), reliable, from a driver. Client:
   `ApexProtocol::EncodeSetPitPlan(FApexPitPlan)`,
   `UApexNetSubsystem::SetPitPlan`; `FApexCarTelemetry::bPitRequested`.
@@ -234,7 +238,9 @@ Called inside `update_air` before the physics, and in the countdown.
   HUD's `pit.requested` and BOX badge.
 - `ServerMessage::PitService` (`PitServiceData`: car index, box, tyres /
   fuel / repair seconds in crew order, compound, litres, damage repaired,
-  total), reliable, to every human in the session as the crew starts
+  total; `DriverS` and `Driver`, the change and the driver taking over,
+  only on a stop that changes the driver; the spectator stream appends
+  them as fields 10-11 then), reliable, to every human in the session as the crew starts
   (`GameSession::take_pit_events`).
 - `ServerMessage::PitBox` (`PitBoxData`: the box, its stop spot and yaw,
   the spot's distance off the lane's middle (positive left: the garage
@@ -244,9 +250,10 @@ Called inside `update_air` before the physics, and in the countdown.
   their pit autopilot is switched (`GameSession::take_pit_box_news`).
 - Golden bytes: `cargo test --lib -- telemetry_compact_wire_format
   pit_service_wire_format pit_box_wire_format pit_plan_wire_format
+  driver_change_wire_format
   car_setup_wire_format --nocapture` ->
   `ApexUdpGolden::S_TelemetryCompactPit`, `ApexGolden::S_PitService`,
-  `ApexGolden::S_PitBox`, `ApexGolden::C_SetPitPlan` / `C_SetPitPlanEmpty`,
+  `ApexGolden::S_PitBox`, `ApexGolden::C_SetPitPlan` / `C_SetPitPlanEmpty`, `ApexGolden::S_PitServiceDriver` / `C_SetPitPlanDriver`,
   `ApexGolden::C_SetCarSetup` (the next-tyre knob). See
   [protocol.md](protocol.md).
 

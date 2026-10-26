@@ -184,6 +184,8 @@ pub fn pit_service_data(car_index: u8, service: &PitService) -> PitServiceData {
         repair_s: service.repair_s,
         repair_pct: service.repair_pct,
         total_s: service.total_s,
+        driver_s: service.driver_s,
+        driver: service.driver,
     }
 }
 

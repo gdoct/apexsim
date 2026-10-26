@@ -58,7 +58,6 @@ takes it up (— : no step, taken opportunistically).
 | C3 | Content tooling backlog | Tooling | P3 | 🟢 | S each | — |
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
-| R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
 | V3 | Verification runs R4, R10: what is left | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
@@ -132,11 +131,6 @@ off-road 51-61), a level-with-the-car ahead rule (240), and tuck, abort
 cool-down, plan share and late-braking tweaks (within noise). More passes
 cost contact or off-road every time; the next try needs a pass the car
 ahead sees coming, not a looser attack.
-
-### Race rules and sessions
-
-#### R4. Small race and qualifying rules — P3 · 🟢 · S–M each
-- Driver swaps (fixed stint lengths are built).
 
 ### Simulation
 

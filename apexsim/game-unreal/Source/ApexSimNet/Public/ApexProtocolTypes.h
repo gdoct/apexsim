@@ -475,6 +475,19 @@ struct APEXSIMNET_API FApexRaceRules
 
 	bool LimitsStints() const { return MaxStintLaps > 0 || MaxStintMinutes > 0; }
 
+	/** Drivers sharing each car in the race (2-MaxDrivers; 0 or 1 is one driver to the flag): they change in the box at a stop. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 DriversPerCar = 0;
+
+	/** With drivers sharing a car, the most any one of them may drive in the race, minutes; 0 none. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	int32 MaxDriverMinutes = 0;
+
+	/** `crew::MAX_DRIVERS`. */
+	static constexpr uint8 MaxDrivers = 4;
+
+	bool SharesCars() const { return DriversPerCar >= 2; }
+
 	/** The fields as the server keeps them: an unknown start or safety car is the default, a reverse of one is none. */
 	FApexRaceRules Normalised() const
 	{
@@ -494,6 +507,7 @@ struct APEXSIMNET_API FApexRaceRules
 		// The server's u16s.
 		Out.MaxStintLaps = FMath::Clamp(Out.MaxStintLaps, 0, 65535);
 		Out.MaxStintMinutes = FMath::Clamp(Out.MaxStintMinutes, 0, 65535);
+		Out.MaxDriverMinutes = FMath::Clamp(Out.MaxDriverMinutes, 0, 65535);
 		return Out;
 	}
 
@@ -504,7 +518,7 @@ struct APEXSIMNET_API FApexRaceRules
 			+ (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
 			+ (ReverseGrid != 0 ? 1 : 0) + (QualifyingTyreSets != 0 ? 1 : 0) + (QualifyingTyreStart != 0 ? 1 : 0)
 			+ (bParcFerme ? 1 : 0) + (WeekendTyreSets != 0 ? 1 : 0) + (MaxStintLaps != 0 ? 1 : 0)
-			+ (MaxStintMinutes != 0 ? 1 : 0);
+			+ (MaxStintMinutes != 0 ? 1 : 0) + (DriversPerCar != 0 ? 1 : 0) + (MaxDriverMinutes != 0 ? 1 : 0);
 	}
 
 	bool IsDefault() const { return CountSet() == 0; }
@@ -569,6 +583,10 @@ struct APEXSIMNET_API FApexRaceRules
 		{
 			Parts.Add(Stints);
 		}
+		if (const FString Drivers = DescribeDrivers(DriversPerCar, MaxDriverMinutes); !Drivers.IsEmpty())
+		{
+			Parts.Add(Drivers);
+		}
 		return FString::Join(Parts, TEXT(" · "));
 	}
 
@@ -606,6 +624,17 @@ struct APEXSIMNET_API FApexRaceRules
 		return Minutes > 0 ? FString::Printf(TEXT("stints %d min"), Minutes) : FString();
 	}
 
+	/** "2 drivers a car", "3 drivers a car, 240 min each"; empty for one driver. */
+	static FString DescribeDrivers(int32 Drivers, int32 MaxMinutes)
+	{
+		if (Drivers < 2)
+		{
+			return FString();
+		}
+		return MaxMinutes > 0 ? FString::Printf(TEXT("%d drivers a car, %d min each"), Drivers, MaxMinutes)
+			: FString::Printf(TEXT("%d drivers a car"), Drivers);
+	}
+
 	bool operator==(const FApexRaceRules& Other) const
 	{
 		return Start == Other.Start && bFormationLap == Other.bFormationLap && bJumpStart == Other.bJumpStart
@@ -613,7 +642,8 @@ struct APEXSIMNET_API FApexRaceRules
 			&& SafetyCar == Other.SafetyCar && ReverseGrid == Other.ReverseGrid
 			&& QualifyingTyreSets == Other.QualifyingTyreSets && QualifyingTyreStart == Other.QualifyingTyreStart
 			&& bParcFerme == Other.bParcFerme && WeekendTyreSets == Other.WeekendTyreSets
-			&& MaxStintLaps == Other.MaxStintLaps && MaxStintMinutes == Other.MaxStintMinutes;
+			&& MaxStintLaps == Other.MaxStintLaps && MaxStintMinutes == Other.MaxStintMinutes
+			&& DriversPerCar == Other.DriversPerCar && MaxDriverMinutes == Other.MaxDriverMinutes;
 	}
 	bool operator!=(const FApexRaceRules& Other) const { return !(*this == Other); }
 };
@@ -2653,9 +2683,18 @@ struct APEXSIMNET_API FApexPitService
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float RepairPct = 0.0f;
 
-	/** The whole stop, seconds. */
+	/** The whole stop, seconds: the parts added up, or the driver change where that is longer. */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	float TotalS = 0.0f;
+
+	/** With drivers sharing the car: the driver change, seconds (alongside the other parts; 0 when the driver stays in),
+	 * and the driver taking over, 0-based (-1 for none). */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	float DriverS = 0.0f;
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 Driver = -1;
+
+	bool ChangesDriver() const { return DriverS > 0.0f && Driver >= 0; }
 };
 
 /**
@@ -2700,6 +2739,10 @@ struct APEXSIMNET_API FApexPitPlan
 	/** Box this lap: comes back as FApexCarTelemetry::bPitRequested until the stop. */
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
 	bool bBoxThisLap = false;
+
+	/** With drivers sharing the car: -1 the crew's call, 0 the driver stays in, 1 the next driver takes over. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Race")
+	int32 ChangeDriver = -1;
 };
 
 /**

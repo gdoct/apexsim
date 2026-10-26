@@ -108,12 +108,28 @@ FString ApexPitPlan::PadSetChoiceLabel(int32 Choice)
 	return Choice <= 0 ? TEXT("SETUP'S") : Choice == 1 ? TEXT("ENDURANCE") : Choice == 2 ? TEXT("STANDARD") : TEXT("SPRINT");
 }
 
+int32 ApexPitPlan::DriverChoice(const FApexPitPlan& Plan)
+{
+	return Plan.ChangeDriver < 0 ? 0 : Plan.ChangeDriver == 0 ? 1 : 2;
+}
+
+void ApexPitPlan::SetDriverChoice(FApexPitPlan& Plan, int32 Choice)
+{
+	Plan.ChangeDriver = Choice <= 0 ? -1 : Choice == 1 ? 0 : 1;
+}
+
+FString ApexPitPlan::DriverChoiceLabel(int32 Choice)
+{
+	return Choice <= 0 ? TEXT("CREW'S CALL") : Choice == 1 ? TEXT("STAY IN") : TEXT("CHANGE");
+}
+
 bool ApexPitPlan::IsCrewsCall(const FApexPitPlan& Plan)
 {
 	FApexPitPlan Crew;
 	Crew.bBoxThisLap = Plan.bBoxThisLap;
 	return TyreChoice(Plan) == TyreChoice(Crew) && FuelChoice(Plan) == FuelChoice(Crew) && Plan.bNoRepair == Crew.bNoRepair
-		&& PadsChoice(Plan) == PadsChoice(Crew) && PadSetChoice(Plan) == PadSetChoice(Crew);
+		&& PadsChoice(Plan) == PadsChoice(Crew) && PadSetChoice(Plan) == PadSetChoice(Crew)
+		&& DriverChoice(Plan) == DriverChoice(Crew);
 }
 
 FString ApexPitPlan::Summary(const FApexPitPlan& Plan, const TArray<FString>& Compounds)
@@ -143,6 +159,10 @@ FString ApexPitPlan::Summary(const FApexPitPlan& Plan, const TArray<FString>& Co
 	if (const int32 Set = PadSetChoice(Plan); Set > 0)
 	{
 		Parts.Add(PadSetChoiceLabel(Set) + TEXT(" PADS"));
+	}
+	if (const int32 Driver = DriverChoice(Plan); Driver > 0)
+	{
+		Parts.Add(Driver == 1 ? TEXT("DRIVER STAYS IN") : TEXT("DRIVER CHANGE"));
 	}
 	if (Parts.Num() == 0)
 	{

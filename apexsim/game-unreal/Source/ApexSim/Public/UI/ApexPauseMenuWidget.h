@@ -192,9 +192,13 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> PitPlanPanel;
 
-	/** Tyres, fuel, repairs, pads, pad set, box this lap (Index 0..5). */
+	/** Tyres, fuel, repairs, pads, pad set, driver, box this lap (Index 0..6). */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UApexStepperWidget>> PitPlanSteppers;
+
+	/** The driver row: shown only with drivers sharing the cars. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> PitPlanDriverRow;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PitPlanSummaryText;
