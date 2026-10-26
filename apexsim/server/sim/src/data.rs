@@ -1962,6 +1962,11 @@ pub struct CarState {
     pub flag_yellow: u8,
     #[serde(default)]
     pub flag_blue: bool,
+    /// How long the car has been travelling against the track's direction
+    /// faster than `physics::WRONG_WAY_MIN_SPEED_MPS`, s; 0 once it is not
+    /// (`physics::note_wrong_way`). Runtime-only.
+    #[serde(skip)]
+    pub wrong_way_s: f32,
     /// The revs the gearbox forces on the engine past its limit (a missed
     /// downshift), as a ratio of `max_engine_rpm` (`physics::geared_rpm`,
     /// not in top gear); 0 while it is within the limit. `engine_rpm`
@@ -2379,6 +2384,7 @@ impl CarState {
             drs_allowed: false,
             flag_yellow: 0,
             flag_blue: false,
+            wrong_way_s: 0.0,
             over_rev_ratio: 0.0,
             shift_refused_s: 0.0,
             downshift_risk: false,

@@ -60,6 +60,7 @@ rule and the BOX badge after a pit request), `status`, `minimap`,
 `ers` (a hybrid only), `flags` (while race control shows the car a flag),
 `race_phase` (the formation or pace lap, the VSC or the safety car),
 `penalty` (a penalty as it is given, then one owed),
+`wrong_way` (while the server says the car is going the wrong way),
 `tyres` (the four tyres from above: tread temperature across each, wear, flat, leak and flat spots),
 `radar` (while a car is alongside), `chat` (the session's chat, while
 there are recent lines or the chat line is open);
@@ -515,6 +516,7 @@ which are.
 | `car.tow` | share of drag the slipstream saves, 0 to 1 |
 | `car.x`, `car.y`, `car.z`, `car.yaw_deg` | position in the track frame (+X along the start straight, +Y left) and heading |
 | `car.station_m` | distance along the lap |
+| `car.wrong_way` | the car is going the wrong way: travelling against the track faster than 20 km/h for a second, as the server judges it (telemetry `race_flags` bit 3), in any session; the `wrong_way` banner flashes |
 | `car.recovering` | the car is held by a recovery (back to track or pits) |
 | `car.recover_s` | seconds of the recovery's hold left; 0.1 while it waits for traffic (*null* when not recovering) |
 | `flag.yellow` | the yellow race control shows in the car's marshal sector or the next: 0 none, 1 single (no overtaking), 2 double (slow down, be ready to stop) |

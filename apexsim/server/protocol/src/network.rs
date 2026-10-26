@@ -1758,9 +1758,10 @@ pub struct CompactCarState {
     pub stint_energy_pct: u8,
     /// The flags race control shows this car (`crate::race_control`): bit 0
     /// the blue flag ([`RACE_FLAG_BLUE`]), bits 1-2 the yellow in its sector
-    /// and the next (0 none, 1 single, 2 double; [`RACE_FLAG_YELLOW_SHIFT`]).
-    /// Appended after `stint_energy_pct`; 0 outside a race and from an
-    /// older server.
+    /// and the next (0 none, 1 single, 2 double; [`RACE_FLAG_YELLOW_SHIFT`]),
+    /// bit 3 the car is going the wrong way ([`RACE_FLAG_WRONG_WAY`], any
+    /// session). Appended after `stint_energy_pct`; the flags are 0 outside
+    /// a race and from an older server.
     #[serde(default)]
     pub race_flags: u8,
     /// The gearbox's warnings (`crate::physics`): bit 0 the engine is
@@ -1810,10 +1811,15 @@ pub fn over_rev_pct_of(state: &CarState) -> u8 {
 pub const RACE_FLAG_BLUE: u8 = 1;
 /// `race_flags` bits 1-2: the yellow ahead of the car.
 pub const RACE_FLAG_YELLOW_SHIFT: u8 = 1;
+/// `race_flags` bit 3: the car is going the wrong way
+/// (`physics::is_wrong_way`), in any session.
+pub const RACE_FLAG_WRONG_WAY: u8 = 8;
 
 /// The `race_flags` byte of a car's telemetry.
 pub fn race_flags_of(state: &CarState) -> u8 {
-    (state.flag_blue as u8) | ((state.flag_yellow.min(2)) << RACE_FLAG_YELLOW_SHIFT)
+    (state.flag_blue as u8)
+        | ((state.flag_yellow.min(2)) << RACE_FLAG_YELLOW_SHIFT)
+        | ((crate::physics::is_wrong_way(state) as u8) * RACE_FLAG_WRONG_WAY)
 }
 
 /// Every marshal sector showing a yellow (`crate::race_control`),
@@ -4916,6 +4922,13 @@ mod tests {
                 assert_eq!(
                     car.race_flags,
                     RACE_FLAG_BLUE | (2 << RACE_FLAG_YELLOW_SHIFT)
+                );
+                let mut wrong = state.clone();
+                wrong.wrong_way_s = crate::physics::WRONG_WAY_HOLD_S;
+                assert_eq!(
+                    race_flags_of(&wrong),
+                    car.race_flags | RACE_FLAG_WRONG_WAY,
+                    "the wrong way beside the flags"
                 );
                 assert_eq!(car.last_lap_time_ms, Some(82_615));
                 assert_eq!(car.gear, 4);

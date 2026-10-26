@@ -1357,6 +1357,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			: Local->YellowAhead == 1 ? FApexHudValue::Of(FString(TEXT("YELLOW")))
 			: Local->bBlueFlag ? FApexHudValue::Of(FString(TEXT("BLUE FLAG")))
 			: FApexHudValue());
+		Out.Set(TEXT("car.wrong_way"), Local->bWrongWay);
 	}
 	else
 	{
@@ -1368,7 +1369,7 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 				 TEXT("car.station_m"), TEXT("pit.in_lane"), TEXT("pit.limiter"), TEXT("pit.servicing"), TEXT("pit.service_s"),
 				 TEXT("pit.autopilot"), TEXT("pit.exit_closed"), TEXT("pit.held"), TEXT("pit.requested"), TEXT("car.recovering"),
 				 TEXT("car.recover_s"), TEXT("flag.yellow"), TEXT("flag.blue"), TEXT("flag.name"), TEXT("car.over_rev"),
-				 TEXT("car.over_rev_pct"), TEXT("car.downshift_refused"), TEXT("car.downshift_risk")})
+				 TEXT("car.over_rev_pct"), TEXT("car.downshift_refused"), TEXT("car.downshift_risk"), TEXT("car.wrong_way")})
 		{
 			Out.SetNone(Name);
 		}

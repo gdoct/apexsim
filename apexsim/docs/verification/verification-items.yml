@@ -2377,3 +2377,19 @@
     out fails the try with 'Out of time'.
   status: open
 
+- id: v-hud-wrong-way
+  title: Wrong way banner
+  area: hud
+  kind: screen
+  check_by: 'Practice at any circuit: stop, turn round, drive back up the straight
+    at 40 km/h; then turn round again. Spin the car once at speed.'
+  created: 2026-10-26
+  commit: e20c0da9
+  doc: docs/server/sessions.md
+  what: >-
+    Turned round on track and driven against the race direction above 20 km/h,
+    the red WRONG WAY / TURN AROUND banner flashes at the top after about a
+    second; it goes the moment the car turns back or slows under 20 km/h, and
+    never shows during a spin that keeps sliding along the track.
+  status: open
+

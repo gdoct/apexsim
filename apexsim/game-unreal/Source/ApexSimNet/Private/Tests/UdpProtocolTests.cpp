@@ -1108,6 +1108,7 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			const FApexCarTelemetry& Car = Flags.Telemetry.Cars[0];
 			TestTrue(TEXT("shown the blue"), Car.bBlueFlag);
 			TestEqual(TEXT("a double yellow ahead"), Car.YellowAhead, 2);
+			TestFalse(TEXT("going the right way"), Car.bWrongWay);
 			TestEqual(TEXT("the stint before it still reads"), Car.StintEnergyPct, 40.0f);
 			TestEqual(TEXT("250 m sectors"), Flags.Telemetry.YellowSectorM, 250);
 			TestEqual(TEXT("two yellow sectors"), Flags.Telemetry.YellowSectors.Num(), 2);

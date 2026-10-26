@@ -4493,6 +4493,36 @@ pub fn seed_track_progress(state: &mut CarState, track: &TrackConfig) {
     state.wheels_off_track = false;
 }
 
+/// The speed above which a car travelling against the track is going the
+/// wrong way: 20 km/h, so a car backing out of a gravel trap or turning
+/// round after a spin is not.
+pub const WRONG_WAY_MIN_SPEED_MPS: f32 = 20.0 / 3.6;
+/// How far the car's direction of travel turns from the track's before it
+/// counts as against it: the cosine of 120°.
+const WRONG_WAY_COS: f32 = -0.5;
+/// How long a car travels against the track before it is told: longer than
+/// a spin slides backwards.
+pub const WRONG_WAY_HOLD_S: f32 = 1.0;
+
+/// Count the time the car has travelled against the track's direction at
+/// its nearest centerline point (`heading_rad`) faster than
+/// [`WRONG_WAY_MIN_SPEED_MPS`]; anything else sets it back to 0. The
+/// direction of travel is the velocity, not the yaw: a car spun round and
+/// still sliding on along the track is not going the wrong way.
+pub fn note_wrong_way(state: &mut CarState, heading_rad: f32, dt: f32) {
+    let speed = state.vel_x.hypot(state.vel_y);
+    let against = speed > WRONG_WAY_MIN_SPEED_MPS
+        && (state.vel_x * heading_rad.cos() + state.vel_y * heading_rad.sin())
+            < WRONG_WAY_COS * speed;
+    state.wrong_way_s = if against { state.wrong_way_s + dt } else { 0.0 };
+}
+
+/// The car has been going the wrong way for [`WRONG_WAY_HOLD_S`]: what
+/// telemetry carries as `RACE_FLAG_WRONG_WAY`.
+pub fn is_wrong_way(state: &CarState) -> bool {
+    state.wrong_way_s >= WRONG_WAY_HOLD_S
+}
+
 /// Update track progress and detect lap completion.
 ///
 /// Laps are validated with checkpoints: a lap only counts when every
@@ -4528,6 +4558,11 @@ pub fn update_track_progress_3d(
 
     let old_progress = state.track_progress;
     state.track_progress = track.centerline[nearest_idx].distance_from_start_m;
+    note_wrong_way(
+        state,
+        track.centerline[nearest_idx].heading_rad,
+        1.0 / tick_rate_hz.max(1) as f32,
+    );
 
     // Debug: Log track progress once per second
     if current_tick.is_multiple_of(tick_rate_hz as u32) {
@@ -7175,6 +7210,32 @@ mod tests {
             state.track_progress > 0.0,
             "Track progress should be positive"
         );
+    }
+
+    #[test]
+    fn wrong_way_needs_speed_against_the_track_held_a_second() {
+        let mut state = create_test_car_state();
+        let dt = 1.0 / 420.0;
+        let drive = |state: &mut CarState, vx: f32, vy: f32, s: f32| {
+            state.vel_x = vx;
+            state.vel_y = vy;
+            for _ in 0..(s / dt).round() as u32 {
+                note_wrong_way(state, 0.0, dt);
+            }
+        };
+        // Against the track at 30 km/h: told after the hold, not before.
+        drive(&mut state, -30.0 / 3.6, 0.0, 0.5);
+        assert!(!is_wrong_way(&state), "a spin's moment backwards is not");
+        drive(&mut state, -30.0 / 3.6, 0.0, 0.6);
+        assert!(is_wrong_way(&state));
+        // Turned round: cleared at once.
+        drive(&mut state, 30.0 / 3.6, 0.0, dt);
+        assert!(!is_wrong_way(&state));
+        // Backwards at 15 km/h, or across the track: never.
+        drive(&mut state, -15.0 / 3.6, 0.0, 3.0);
+        assert!(!is_wrong_way(&state), "under 20 km/h");
+        drive(&mut state, -5.0, 20.0, 3.0);
+        assert!(!is_wrong_way(&state), "across the track");
     }
 
     /// Move the car onto centerline point `idx` and update track progress.

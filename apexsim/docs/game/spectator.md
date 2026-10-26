@@ -93,7 +93,7 @@ them, from `CarState::wheel_slip_*`) and the surface under it (0 road, 1
 curb, 2 off): what the watched car's road sound plays from in a replay
 (`AApexRaceDirector::UpdateWatchedCarRoadSound`); then the soft ground under
 each tyre (`CompactCarState.ground`: a replay's dust and gravel) and race
-control's flags (`race_flags`: the blue, the yellow ahead). The client's recorder fills
+control's flags (`race_flags`: the blue, the yellow ahead, the wrong way). The client's recorder fills
 them for the own car from its driver feedback; the other cars of a
 client-recorded replay have none. Pressures, flat spots, brake temperatures,
 fuel and the hybrid ride in the `State` record instead; the steering forces

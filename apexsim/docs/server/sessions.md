@@ -734,7 +734,7 @@ before the green or once the session is `Finished`.
   ahead is crawling ([ai](ai.md)); its yield to a car lapping it is the
   racecraft's own.
 - On the wire: `CompactCarState.race_flags` (bit 0 blue, bits 1-2 the
-  yellow ahead) and `CompactTelemetry.yellow_flags` (`[sector_m, [[sector,
+  yellow ahead, bit 3 the wrong way, below) and `CompactTelemetry.yellow_flags` (`[sector_m, [[sector,
   level], ...]]`, left off while none is out), positional, appended.
 - Client: `FApexCarTelemetry::bBlueFlag` / `YellowAhead`,
   `FApexTelemetryFrame::YellowSectors` / `YellowAt`; the HUD's `flag.*`
@@ -1647,6 +1647,18 @@ the car reaches the line without every checkpoint. A struck lap is timed and
 counts, but cannot be a best. Telemetry's `lap_flags` bit 0 is "this lap
 struck", bit 1 "last lap struck", beside `last_lap_time_ms` and
 `best_lap_time_ms`.
+
+**Wrong way**: in every session, a car whose velocity points more than 120°
+from the track's heading at its nearest centerline point, faster than
+`physics::WRONG_WAY_MIN_SPEED_MPS` (20 km/h), for `WRONG_WAY_HOLD_S` (1 s)
+is going the wrong way (`physics::note_wrong_way`, counted in
+`update_track_progress_3d` into the runtime `CarState::wrong_way_s`;
+`is_wrong_way`). The velocity, not the yaw, decides: a car spun round and
+still sliding on along the track is not, and slowing under 20 km/h or
+turning back clears it at once. It only warns: telemetry's `race_flags`
+bit 3 (`RACE_FLAG_WRONG_WAY`), the client's `bWrongWay`, the HUD's
+`car.wrong_way` and its `wrong_way` banner. The lap itself is already safe:
+driving backwards credits no checkpoint.
 
 **Records** (`[records] enabled` / `dir`, default `./records`): each
 driver's best legal lap on a track in a car, in `lap_records.json`, keyed by

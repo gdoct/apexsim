@@ -829,6 +829,7 @@ FApexCarTelemetry FApexStreamCarRow::ToTelemetry() const
 	}
 	T.bBlueFlag = (RaceFlags & 1u) != 0;
 	T.YellowAhead = FMath::Min<int32>((RaceFlags >> 1) & 3u, 2);
+	T.bWrongWay = (RaceFlags & 8u) != 0;
 	return T;
 }
 
@@ -894,7 +895,8 @@ FApexStreamCarRow FApexStreamCarRow::FromTelemetry(const FApexCarTelemetry& T)
 		Row.WheelSurface[i] = static_cast<uint8>(T.WheelSurface[i]);
 		Row.Ground |= static_cast<uint8>((T.WheelGround[i] & 3u) << (2 * i));
 	}
-	Row.RaceFlags = (T.bBlueFlag ? 1u : 0u) | static_cast<uint8>(FMath::Clamp(T.YellowAhead, 0, 2) << 1);
+	Row.RaceFlags = (T.bBlueFlag ? 1u : 0u) | static_cast<uint8>(FMath::Clamp(T.YellowAhead, 0, 2) << 1)
+		| (T.bWrongWay ? 8u : 0u);
 	return Row;
 }
 

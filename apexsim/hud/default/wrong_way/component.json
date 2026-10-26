@@ -1,0 +1,22 @@
+// The server's warning that the local car is going the wrong way: against
+// the track faster than 20 km/h for a second. Flashes red at the top until
+// the car turns round or slows; hidden while watching.
+{
+  "name": "Wrong way",
+  "region": "top",
+  "order": 2,
+  "visible": "=car.wrong_way && !spectate.active",
+  "root": {
+    "type": "panel",
+    "padding": [18, 8, 18, 8],
+    "radius": 3,
+    "direction": "row",
+    "background": "=alpha('error', floor(hud.time_s * 3) % 2 == 0 ? 0.95 : 0.6)",
+    "children": [
+      { "type": "text", "font": "mono", "size": 16, "tracking": 100, "bold": true, "color": "on_accent",
+        "text": "WRONG WAY" },
+      { "type": "text", "margin": [14, 0, 0, 0], "font": "mono", "size": 11, "tracking": 40, "color": "on_accent",
+        "text": "TURN AROUND" }
+    ]
+  }
+}

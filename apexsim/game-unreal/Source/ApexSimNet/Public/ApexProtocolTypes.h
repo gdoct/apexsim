@@ -3303,6 +3303,14 @@ struct APEXSIMNET_API FApexCarTelemetry
 	int32 YellowAhead = 0;
 
 	/**
+	 * The car is going the wrong way (`race_flags` bit 3): travelling against
+	 * the track faster than 20 km/h for a second, as the server judges it, in
+	 * any session. Clear from a server that predates it.
+	 */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	bool bWrongWay = false;
+
+	/**
 	 * The gearbox's warnings (`engine_flags`, `over_rev_pct`): the engine
 	 * is forced past its limit now (a missed downshift; OverRevPct how far,
 	 * percent of the limit, which EngineRpm clamps away), the box refused a

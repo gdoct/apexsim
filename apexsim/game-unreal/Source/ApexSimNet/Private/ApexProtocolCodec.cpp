@@ -3235,9 +3235,10 @@ namespace
 			});
 		}
 		// Race control's flags for the car, appended after the stint energy:
-		// bit 0 blue, bits 1-2 the yellow ahead.
+		// bit 0 blue, bits 1-2 the yellow ahead, bit 3 the wrong way.
 		Out.bBlueFlag = false;
 		Out.YellowAhead = 0;
+		Out.bWrongWay = false;
 		if (Index < Known)
 		{
 			bOk &= Next([&]
@@ -3248,6 +3249,7 @@ namespace
 				}
 				Out.bBlueFlag = (Raw & 1u) != 0;
 				Out.YellowAhead = FMath::Min<int32>(static_cast<int32>((Raw >> 1) & 3u), 2);
+				Out.bWrongWay = (Raw & 8u) != 0;
 				return true;
 			});
 		}
