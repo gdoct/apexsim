@@ -16,6 +16,9 @@ Main was green at `50d69b4e` (2026-10-24; the commits since are content, HUD and
 agent branch of the 2026-10-23/24 night run is merged, A4's squeeze
 fix and A7's prototype measurements included. The imported F1s are measured (A7: their
 contact is left). N7 is done (fastest-lap rule and per-round rules offline, standings in a round's lobby and results online).
+The owner's verifier reviews of 2026-10-25 are processed (2026-10-26):
+twelve confirmed and closed (R2, R4, R7, R10, R23, C9, C10, F6), none not
+right or can't tell, so they add no work.
 
 ## Legend
 
@@ -45,7 +48,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
-| V2 | Verification runs R1, R2, R7 | Verification | P2 | 🟡 | S each | 3 |
+| V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
 | N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
@@ -56,7 +59,7 @@ takes it up (— : no step, taken opportunistically).
 | S2 | Low-impact physics gaps | Simulation | P3 | 🟢 | M–L | — |
 | A4 | AI depth: racecraft, strategy, hybrid, wet line | AI | P3 | 🟢 | M each | — |
 | R4 | Small race and qualifying rules | Race rules | P3 | 🟢 | S–M each | — |
-| V3 | Verification runs R4, R5, R10 | Verification | P3 | 🟡 | S each | — |
+| V3 | Verification runs R4, R10: what is left | Verification | P3 | 🟡 | S each | — |
 | F1 | Windshield wipers | Feature | P3 | 🔴 | M | — |
 | AU1 | Audio overhaul | Audio | P3 | 🔴 | L | — |
 | N22 | Localisation | Accessibility | P3 | 🔴 | M | — |
@@ -70,8 +73,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
    C5 alongside, its S/F column first, the rest column by column as the
    kit gaps are built.
-3. **Sittings as people and hardware are there.** H2, V2 (R1/R2's tyre
-   close-ups are framed with photo mode over the run's replay), P3 on an integrated-GPU machine.
+3. **Sittings as people and hardware are there.** H2, V2, P3 on an integrated-GPU machine.
 4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
 
 ## 3. Items by type
@@ -226,19 +228,24 @@ beyond the weather already on the wire. 🔴 for the models.
 
 ### Verification
 
-#### V2. R1, R2, R7 — P2 · 🟡 · S each
-- R1 Spa heavy rain: rain light, LEAK read-out, two flat spots (photo mode
-  over the run's replay holds the car for the close-up).
-- R2 Silverstone long stint: marbles and rubber, tyre wear visuals (photo mode),
-  brake material colours and disc wear/stint energy (needs a custom car.toml
-  with `disc_wear_per_mj` and `stint_energy_mj`).
-- R7 seeded pile-up replay: dents, hanging parts, sparks, racecraft and
-  reversing out of a barrier. Also the human look at side-by-side traffic
-  since the 2026-10-24 traffic change (AI).
+#### V2. R2, R7 — P2 · 🟡 · S each
+R1 is closed; R2's tread close-ups and R7's dents, hanging parts, sparks
+and racecraft were confirmed 2026-10-25. Left
+([verification-items.yml](verification/verification-items.yml)):
+- R2 Silverstone: a rubbered start (`v-r2-rubbered-start`, the line dark
+  from the first lap) and the brake material colours with the disc wear and
+  stint energy points (`v-r2-brake-colours`, needs a custom car.toml with
+  `disc_wear_per_mj` and `stint_energy_mj`).
+- R7: an AI reversing out of a barrier stopping for a car arriving
+  (`v-r7-reverse-out-yield`, reviewed *later*).
 
-#### V3. R4, R5, R10 — P3 · 🟡 · S each
-Snow/ice/melt and wind veer (R4 needs A2), Marina Bay night clouds and kerbs
-(R5, pairs with G2), sun at solar noon and changeable sky (R10).
+#### V3. R4, R10 — P3 · 🟡 · S each
+R5 is closed; R4's ice and melt and R10's solar noon were confirmed
+2026-10-25. Left: the Rally field on snow and the rally cars themselves
+(`v-r4-rally-*`); the create screen's Date row against a server and the far
+haze in rain, at dusk and at night (`v-r10-create-date-row`,
+`v-r10-haze-rain-dusk-night`); the flags in the wind wait for a circuit
+that places `sign/flag_pole` (`v-r10-flags-wind`, blocked).
 
 #### H1. Wheel, pedals and FFB sitting — P1 · 🔴 · S
 *Source: verification §2.* The core of a sim, and none of it has been felt:
@@ -326,5 +333,7 @@ What only you can do, roughly in the order it pays off:
 - **New features N1–N23** were not in any backlog; they are now packages in
   `roadmap.md`. Yellow and blue flags stay in `simulation-gaps.md` (race
   rules) and are split here into R1a (flags, P1) and R1b (safety car, P2).
-- **Verification:** R1/R2's tyre close-ups are framed with photo mode (N20)
-  over a paused replay of the run.
+- **Verification:** the backlog is
+  [verification/verification-items.yml](verification/verification-items.yml),
+  reviewed on the verifier's page ([verifier.md](verifier.md)); its reviews
+  of 2026-10-25 are processed and the confirmed items closed.
