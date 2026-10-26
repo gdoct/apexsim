@@ -198,6 +198,16 @@ as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
   61.2/1.2, 94.3/3.1, 17.1/6.7, 52.2/24.3 against 57.0/28.6, 62.0/0.5,
   18.3/0.9, 22.6/15.1 without; a slower return keeps cars across each
   other longer.
+  Alone they hold their plans as the shipped F1 does (2026-10-26,
+  `lone_car_against_its_plan` at AlbertParkour, Monzarella and
+  Hungoverring: no off-road, the same sliding, lap 1 0.6-1.5 s each), so
+  it is traffic alone. In traffic (`SURVEY_DBG`, six circuits:
+  AlbertParkour, Monzarella, Hungoverring, Shiverstone, Bahrainless,
+  Snorisring; seed 1; two minutes a pass for the three F1s) they also pass
+  twice as often (SF70H 47, RSS 42, shipped F1 23), are beside a car
+  1.2-1.4 times as long, and touch for 1.5-1.6% of the time beside
+  against 0.2%: a cheap loop to try a steering change on before the
+  calendar.
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
