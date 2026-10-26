@@ -1123,8 +1123,9 @@ as it is (`racing_line::LineWindow` through the physics library,
 `apx_line_*`). The forward pass starts at the car's speed, the backward pass
 past the window at the lap line's speed. The car's fuel and tyres
 (`CarState::tyres_grip_share`), the road state's grip along the stretch
-(`RoadState::line_grip_at`), the wind along it and the DRS zones all go into
-the plan. The window covers 800 m (`WINDOW_AHEAD_M`) and is planned 600 m
+(`RoadState::line_grip_at`), the wind along it (in the drag and, as the
+airflow's, in the downforce: a headwind corner is quicker) and the DRS zones
+all go into the plan. The window covers 800 m (`WINDOW_AHEAD_M`) and is planned 600 m
 further. Its phases replace the line's own over that stretch, so a car
 faster than the plan sees its braking point come earlier, and a wet stretch
 ahead brakes sooner. Only a dot that changes colour causes a repaint; a car

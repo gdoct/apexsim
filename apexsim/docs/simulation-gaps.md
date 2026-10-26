@@ -52,7 +52,7 @@ seen). Every deferred item is recorded in exactly one of the four.
 
 | Gap | Effort | Impact |
 |---|---|---|
-| The client's window over the stretch ahead (`racing_line::LineWindow`) leaves out the wake of a car ahead, and counts the wind in the drag but not in the downforce. The lap line it ends on is the server's, planned again only at a lap's end. The path itself is the track's minimum-curvature raceline, the same for every car. | Med | Low |
+| The client's window over the stretch ahead (`racing_line::LineWindow`) leaves out the wake of a car ahead (the client plans it without the other cars). The lap line it ends on is the server's, planned again only at a lap's end. The path itself is the track's minimum-curvature raceline, the same for every car. | Med | Low |
 
 ## Race rules and the pit lane
 

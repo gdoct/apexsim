@@ -258,10 +258,49 @@ impl CarEnvelope {
         v
     }
 
+    /// [`Self::grip_accel`] with `tail` m/s of wind behind the car along
+    /// its way (negative into it): the downforce is the airflow's, the
+    /// tyres' coefficient the car's speed's.
+    fn grip_accel_in(&self, speed: f32, road: f32, tail: f32) -> f32 {
+        if tail == 0.0 {
+            return self.grip_accel(speed, road);
+        }
+        let air = (speed - tail).max(0.0);
+        self.mu_at(speed) * road * (GRAVITY + self.downforce_k_at(air) * air * air)
+    }
+
+    /// [`Self::corner_speed`] with `tail` m/s of wind behind the car along
+    /// the corner: κ·v² = μ·(g + k·(v − tail)²) solved for v, k and μ
+    /// again at the answer.
+    fn corner_speed_in(&self, kappa: f32, road: f32, tail: f32) -> f32 {
+        if tail == 0.0 {
+            return self.corner_speed(kappa, road);
+        }
+        let solve = |k: f32, mu: f32| {
+            let mu = mu * LATERAL_GRIP_MARGIN;
+            let a = kappa - mu * k;
+            if a <= 1e-6 {
+                return self.top_speed;
+            }
+            let b = 2.0 * mu * k * tail;
+            let c = -mu * (GRAVITY + k * tail * tail);
+            let disc = b * b - 4.0 * a * c;
+            ((-b + disc.max(0.0).sqrt()) / (2.0 * a)).clamp(0.0, self.top_speed)
+        };
+        let mut v = self.corner_speed(kappa, road);
+        for _ in 0..4 {
+            v = solve(
+                self.downforce_k_at((v - tail).max(0.0)),
+                self.mu_at(v) * road,
+            );
+        }
+        v
+    }
+
     /// Grip left along the car once `kappa` at `speed` has taken its share
-    /// sideways (the friction circle).
-    fn longitudinal_grip(&self, speed: f32, kappa: f32, road: f32) -> f32 {
-        let total = self.grip_accel(speed, road);
+    /// sideways (the friction circle), with `tail` m/s of wind behind it.
+    fn longitudinal_grip_in(&self, speed: f32, kappa: f32, road: f32, tail: f32) -> f32 {
+        let total = self.grip_accel_in(speed, road, tail);
         let lateral = kappa * speed * speed;
         let used = (lateral / total.max(1e-3)).min(1.0);
         total * (1.0 - used * used).sqrt()
@@ -286,7 +325,22 @@ impl CarEnvelope {
         hybrid_share: f32,
         road: f32,
     ) -> f32 {
-        let grip = self.longitudinal_grip(speed, kappa, road);
+        self.acceleration_in(speed, kappa, grade, hybrid_share, road, 0.0)
+    }
+
+    /// [`Self::acceleration`] with `tail` m/s of wind behind the car in its
+    /// downforce (the drag is still the still air's: the caller adds what
+    /// the wind takes off it).
+    fn acceleration_in(
+        &self,
+        speed: f32,
+        kappa: f32,
+        grade: f32,
+        hybrid_share: f32,
+        road: f32,
+        tail: f32,
+    ) -> f32 {
+        let grip = self.longitudinal_grip_in(speed, kappa, road, tail);
         let traction = grip * self.driven_fraction;
         let drive = match self.motor_front_fraction {
             None => {
@@ -306,7 +360,13 @@ impl CarEnvelope {
 
     /// Deceleration at the braking limit (positive); `grade` as above.
     fn deceleration(&self, speed: f32, kappa: f32, grade: f32, road: f32) -> f32 {
-        let tyres = self.longitudinal_grip(speed, kappa, road) * BRAKING_GRIP_MARGIN;
+        self.deceleration_in(speed, kappa, grade, road, 0.0)
+    }
+
+    /// [`Self::deceleration`] with `tail` m/s of wind behind the car in its
+    /// downforce, the drag as for [`Self::acceleration_in`].
+    fn deceleration_in(&self, speed: f32, kappa: f32, grade: f32, road: f32, tail: f32) -> f32 {
+        let tyres = self.longitudinal_grip_in(speed, kappa, road, tail) * BRAKING_GRIP_MARGIN;
         tyres.min(self.brake_accel)
             + self.drag_k * speed * speed
             + self.rolling_accel
@@ -721,6 +781,11 @@ impl LineWindow {
             return &[];
         };
 
+        // The wind along the line at each point, behind the car positive:
+        // the downforce is the airflow's.
+        let wind = surface.wind_now_mps;
+        let tangent = &self.tangent;
+        let tail = |i: usize| wind[0] * tangent[i][0] + wind[1] * tangent[i][1];
         let road_state = track.road_state.as_ref();
         self.road.clear();
         self.corner.clear();
@@ -728,15 +793,14 @@ impl LineWindow {
             let i = (start + j) % n;
             let road = road_state.map_or(1.0, |r| r.line_grip_at(self.station_m[i]));
             self.road.push(road);
-            self.corner.push(envelope.corner_speed(self.kappa[i], road));
+            self.corner
+                .push(envelope.corner_speed_in(self.kappa[i], road, tail(i)));
         }
 
         // The passes count the drag in still air with the flap shut: what
         // the wind along the line, and the flap, take off it.
-        let wind = surface.wind_now_mps;
-        let tangent = &self.tangent;
         let drag_saved = |v: f32, i: usize, scale: f32| {
-            let air = v - (wind[0] * tangent[i][0] + wind[1] * tangent[i][1]);
+            let air = v - tail(i);
             envelope.drag_k * (v * v - scale * air * air.abs())
         };
 
@@ -745,12 +809,13 @@ impl LineWindow {
         for j in 1..m {
             let p = (start + j - 1) % n;
             let v = self.forward[j - 1];
-            let a = envelope.acceleration(
+            let a = envelope.acceleration_in(
                 v,
                 self.kappa[p],
                 self.grade[p],
                 self.hybrid_share[p],
                 self.road[j - 1],
+                tail(p),
             ) + drag_saved(v, p, self.drag_scale[p]);
             let reachable = (v * v + 2.0 * a * spacing).max(0.0).sqrt();
             self.forward.push(self.corner[j].min(reachable));
@@ -763,8 +828,9 @@ impl LineWindow {
             let i = (start + j) % n;
             let v = self.backward[j + 1];
             // The flap is shut under braking.
-            let d = envelope.deceleration(v, self.kappa[i], self.grade[i], self.road[j])
-                - drag_saved(v, i, 1.0);
+            let d =
+                envelope.deceleration_in(v, self.kappa[i], self.grade[i], self.road[j], tail(i))
+                    - drag_saved(v, i, 1.0);
             let enterable = (v * v + 2.0 * d * spacing).max(0.0).sqrt();
             self.backward[j] = self.corner[j].min(enterable);
         }
@@ -1464,6 +1530,40 @@ mod tests {
         let phases = window.plan(&track, &car, 0.0, 1.0, start, profile.speed_mps[start]);
         let brake = first_brake(phases).unwrap();
         assert!(brake > lap_brake, "into the wind {brake} vs {lap_brake}");
+    }
+
+    /// The wind in the downforce: into it, a downforce car's corner is
+    /// quicker than in still air, with it slower; a car without downforce
+    /// corners as in still air.
+    #[test]
+    fn a_headwind_loads_the_downforce_in_a_corner() {
+        let mut car = CarConfig {
+            lift_coefficient_front: 0.0,
+            lift_coefficient_rear: 0.0,
+            ..Default::default()
+        };
+        let envelope = |car: &CarConfig| CarEnvelope::new(car, 1.0, 1000.0, 1.0);
+        let kappa = 1.0 / 120.0;
+        let none = envelope(&car);
+        assert!(
+            (none.corner_speed_in(kappa, 1.0, -10.0) - none.corner_speed(kappa, 1.0)).abs() < 1e-3
+        );
+        car.lift_coefficient_front = -1.2;
+        car.lift_coefficient_rear = -1.6;
+        let winged = envelope(&car);
+        let still = winged.corner_speed_in(kappa, 1.0, 0.0);
+        assert_eq!(
+            still,
+            winged.corner_speed(kappa, 1.0),
+            "still air to the bit"
+        );
+        let into = winged.corner_speed_in(kappa, 1.0, -10.0);
+        let with = winged.corner_speed_in(kappa, 1.0, 10.0);
+        println!("corner at 120 m: still {still:.2}, into {into:.2}, with {with:.2} m/s");
+        assert!(into > still + 0.3 && with < still - 0.3);
+        // The answer holds the corner: the grip the airflow gives.
+        let grip = winged.grip_accel_in(into, 1.0, -10.0) * LATERAL_GRIP_MARGIN;
+        assert!((kappa * into * into - grip).abs() < 0.05 * grip);
     }
 
     #[test]
