@@ -140,8 +140,10 @@ acceleration (unsprung mass); porpoising with real heave. All Low impact —
 only if a car class needs them.
 
 #### Racing-line aid (player) — P3 · 🟢 · M
-Replanned only at lap end, in still air, on one grip share for the lap.
-Fold wind/wake and per-stretch grip in when the wet line (A4) exists.
+The stretch ahead is planned on the client from the car (its speed, fuel,
+tyres, the road state's grip, the wind in drag and downforce). Left: the
+wake of a car ahead (the client plans without the other cars), and one
+path for every car (the track's raceline) until the wet line (A4) exists.
 
 ### Rendering and visuals
 
