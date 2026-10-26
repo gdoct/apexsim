@@ -208,6 +208,16 @@ as much: contact 193.8 and 209.5 against 88.2 (the 919 137.9).
   1.2-1.4 times as long, and touch for 1.5-1.6% of the time beside
   against 0.2%: a cheap loop to try a steering change on before the
   calendar.
+  The dodge lane's speed is a lead (2026-10-26, that loop with posh-gt3rs,
+  seeds 1-3; contact / off-road car-s for SF70H, RSS, shipped F1, GT3):
+  `ai_driver::LANE_GRIP_SHARE` 0.9 (as built) 48.7/28.6, 52.2/0.5,
+  13.0/0.9, 16.5/15.1; 0.85 34.3/2.8, 31.3/0.6, 11.4/1.0, 25.6/4.8; 0.8
+  43.3/1.7, 28.3/1.9, 12.1/0.0, 26.2/8.8; passes unchanged. 0.85 takes a
+  third off the imports' contact but the GT3's rises by half (its off-road
+  falls by two thirds): kept out until a whole-calendar survey of the
+  shipped classes says which way the GT3 goes, or the share is read off
+  the car (a lane's speed planned on the lane's own radius and the car's
+  envelope, not a share).
 - The 918 Spyder import (`ks_porsche_918_spyder`, a 1709 kg road car)
   fails `car_stability_test::imported_cars_survive_a_full_lock_flick_with_the_steering_aid`
   (sliding 9 m/s after the flick at 80 m/s); an import from before the
