@@ -101,6 +101,11 @@ const AERO_TABLE_STEP_MPS: f32 = 2.0;
 const AERO_TABLE_TOP_MPS: f32 = 120.0;
 
 /// The car as a point mass: what limits its speed along a line.
+///
+/// Every limit takes `road`, the road's grip at the point against the grip
+/// the envelope was made for: 1 for a whole lap planned on one grip, the
+/// road state's figure along the aid's window ([`LineWindow`]).
+#[derive(Debug, Clone)]
 struct CarEnvelope {
     /// Tyre grip times track grip.
     mu: f32,
@@ -225,8 +230,8 @@ impl CarEnvelope {
     }
 
     /// Total grip the tyres offer at `speed`, m/s².
-    fn grip_accel(&self, speed: f32) -> f32 {
-        self.mu_at(speed) * (GRAVITY + self.downforce_k_at(speed) * speed * speed)
+    fn grip_accel(&self, speed: f32, road: f32) -> f32 {
+        self.mu_at(speed) * road * (GRAVITY + self.downforce_k_at(speed) * speed * speed)
     }
 
     /// Fastest speed a corner of curvature `kappa` can be taken at, capped at
@@ -234,7 +239,7 @@ impl CarEnvelope {
     /// car k depends on v, and with a load-sensitive tyre μ does, so it is
     /// solved again at the answer a few times (both move slowly with speed
     /// and this settles at once).
-    fn corner_speed(&self, kappa: f32) -> f32 {
+    fn corner_speed(&self, kappa: f32, road: f32) -> f32 {
         let solve = |k: f32, mu: f32| {
             let mu = mu * LATERAL_GRIP_MARGIN;
             let denominator = kappa - mu * k;
@@ -244,10 +249,10 @@ impl CarEnvelope {
                 (mu * GRAVITY / denominator).sqrt().min(self.top_speed)
             }
         };
-        let mut v = solve(self.downforce_k, self.mu);
+        let mut v = solve(self.downforce_k, self.mu * road);
         if !self.aero_factor.is_empty() || !self.mu_table.is_empty() {
             for _ in 0..4 {
-                v = solve(self.downforce_k_at(v), self.mu_at(v));
+                v = solve(self.downforce_k_at(v), self.mu_at(v) * road);
             }
         }
         v
@@ -255,8 +260,8 @@ impl CarEnvelope {
 
     /// Grip left along the car once `kappa` at `speed` has taken its share
     /// sideways (the friction circle).
-    fn longitudinal_grip(&self, speed: f32, kappa: f32) -> f32 {
-        let total = self.grip_accel(speed);
+    fn longitudinal_grip(&self, speed: f32, kappa: f32, road: f32) -> f32 {
+        let total = self.grip_accel(speed, road);
         let lateral = kappa * speed * speed;
         let used = (lateral / total.max(1e-3)).min(1.0);
         total * (1.0 - used * used).sqrt()
@@ -273,8 +278,15 @@ impl CarEnvelope {
     /// uphill.
     /// A front-axle motor on an RWD car puts its power down through the
     /// fronts' own grip, beside the engine's through the rears'.
-    fn acceleration(&self, speed: f32, kappa: f32, grade: f32, hybrid_share: f32) -> f32 {
-        let grip = self.longitudinal_grip(speed, kappa);
+    fn acceleration(
+        &self,
+        speed: f32,
+        kappa: f32,
+        grade: f32,
+        hybrid_share: f32,
+        road: f32,
+    ) -> f32 {
+        let grip = self.longitudinal_grip(speed, kappa, road);
         let traction = grip * self.driven_fraction;
         let drive = match self.motor_front_fraction {
             None => {
@@ -293,8 +305,8 @@ impl CarEnvelope {
     }
 
     /// Deceleration at the braking limit (positive); `grade` as above.
-    fn deceleration(&self, speed: f32, kappa: f32, grade: f32) -> f32 {
-        let tyres = self.longitudinal_grip(speed, kappa) * BRAKING_GRIP_MARGIN;
+    fn deceleration(&self, speed: f32, kappa: f32, grade: f32, road: f32) -> f32 {
+        let tyres = self.longitudinal_grip(speed, kappa, road) * BRAKING_GRIP_MARGIN;
         tyres.min(self.brake_accel)
             + self.drag_k * speed * speed
             + self.rolling_accel
@@ -455,39 +467,13 @@ fn plan_speeds(
 ) -> RacingLineProfile {
     let n = points.len();
     let kappa = curvature(points, spacing);
-    let grade: Vec<f32> = (0..n)
-        .map(|i| {
-            let next = points[(i + 1) % n];
-            ((next[2] - points[i][2]) / spacing).clamp(-0.3, 0.3)
-        })
+    let grade = grades(points, spacing);
+
+    let corner: Vec<f32> = kappa
+        .iter()
+        .map(|&k| envelope.corner_speed(k, 1.0))
         .collect();
-
-    let corner: Vec<f32> = kappa.iter().map(|&k| envelope.corner_speed(k)).collect();
-
-    // Inside a DRS zone the car's drag is the flap-open drag: the line is
-    // stationed along the raceline, the zones along the centerline, and
-    // the two run the same lap, so the station is scaled between them.
-    let drag_scale: Vec<f32> = {
-        let center_total = crate::laps::track_length_m(track);
-        let line_total = spacing * n as f32;
-        match (car.drs, center_total > 0.0 && line_total > 0.0) {
-            (Some(drs), true) if !track.drs_zones.is_empty() => (0..n)
-                .map(|i| {
-                    let station = i as f32 * spacing * center_total / line_total;
-                    let open = track
-                        .drs_zones
-                        .iter()
-                        .any(|z| crate::drs::inside(station, z.start_m, z.end_m, center_total));
-                    if open {
-                        1.0 - drs.drag_reduction
-                    } else {
-                        1.0
-                    }
-                })
-                .collect(),
-            _ => vec![1.0; n],
-        }
-    };
+    let drag_scale = drag_scales(track, car, n, spacing);
 
     // Both passes start from the slowest corner, where the speed is set by
     // the corner alone, so one lap each is enough for a closed loop.
@@ -500,7 +486,7 @@ fn plan_speeds(
         let i = (slowest + step) % n;
         let prev = (i + n - 1) % n;
         let v = forward[prev];
-        let a = envelope.acceleration(v, kappa[prev], grade[prev], hybrid_share[prev])
+        let a = envelope.acceleration(v, kappa[prev], grade[prev], hybrid_share[prev], 1.0)
             + envelope.drag_k * v * v * (1.0 - drag_scale[prev]);
         let reachable = (v * v + 2.0 * a * spacing).max(0.0).sqrt();
         forward[i] = forward[i].min(reachable);
@@ -511,28 +497,18 @@ fn plan_speeds(
         let i = (slowest + n - step) % n;
         let next = (i + 1) % n;
         let v = backward[next];
-        let d = envelope.deceleration(v, kappa[i], grade[i]);
+        let d = envelope.deceleration(v, kappa[i], grade[i], 1.0);
         let enterable = (v * v + 2.0 * d * spacing).max(0.0).sqrt();
         backward[i] = backward[i].min(enterable);
     }
 
     let speed: Vec<f32> = (0..n).map(|i| forward[i].min(backward[i])).collect();
     let mut phases: Vec<LinePhase> = (0..n)
-        .map(|i| {
-            if backward[i] < forward[i] - SPEED_EPSILON_MPS {
-                LinePhase::Brake
-            } else if forward[i] < corner[i] - SPEED_EPSILON_MPS
-                || corner[i] >= envelope.top_speed - SPEED_EPSILON_MPS
-            {
-                LinePhase::Throttle
-            } else {
-                LinePhase::Partial
-            }
-        })
+        .map(|i| phase_of(forward[i], backward[i], corner[i], envelope.top_speed))
         .collect();
 
-    downgrade_lifts(&mut phases, &speed);
-    absorb_short_runs(&mut phases, (MIN_RUN_M / spacing).ceil() as usize);
+    downgrade_lifts(&mut phases, &speed, true);
+    absorb_short_runs(&mut phases, (MIN_RUN_M / spacing).ceil() as usize, true);
 
     RacingLineProfile {
         spacing_m: spacing,
@@ -540,6 +516,325 @@ fn plan_speeds(
         unpaced_mps: speed.clone(),
         speed_mps: speed,
         phases,
+    }
+}
+
+/// How far past the car the aid's window reaches, m: beyond the 400 m the
+/// client draws the dots to, so the stretch in view is always planned.
+pub const WINDOW_AHEAD_M: f32 = 800.0;
+
+/// Planned beyond the window and not sent, m: a braking zone at the
+/// window's end is planned from the corner it is for. Longer than any
+/// braking zone.
+const WINDOW_TAIL_M: f32 = 600.0;
+
+/// How often a human's window is planned again, Hz.
+pub const WINDOW_HZ: f32 = 5.0;
+
+/// Points either side of the one the car was last found at that the next
+/// search looks through: 100 m, five times what a car covers between plans
+/// at 360 km/h.
+const LOCATE_REACH: usize = 40;
+
+/// A car further than this from the line is not on it (a run-off, the
+/// grass): no window is planned for it.
+pub const WINDOW_MAX_OFF_LINE_M: f32 = 30.0;
+
+/// The racing line aid's next stretch, planned again a few times a second
+/// from the car as it is (`GameSession::racing_line_window`): its speed
+/// now, its tyres and fuel, the road state's grip along the stretch and
+/// the wind along it. The lap's line ([`build_driven`]) is planned at a
+/// lap's end on one grip for the whole lap and assumes the car arrives
+/// everywhere at the planned speed; the window moves its braking points
+/// for a car that is faster or slower than that, and for a wet or
+/// rubbered stretch ahead. It lies on the lap's line's own points, so the
+/// client recolours that line's dots and draws nothing new.
+///
+/// The forward pass starts at the car's speed, held to the corner it is
+/// in (a car over the plan's corner speed is at its own limit, and a red
+/// dot under it is no advice); the backward pass starts past the window,
+/// at the lap's line's speed there.
+#[derive(Debug, Clone)]
+pub struct LineWindow {
+    spacing: f32,
+    points: Vec<[f32; 3]>,
+    kappa: Vec<f32>,
+    grade: Vec<f32>,
+    drag_scale: Vec<f32>,
+    /// Unit plan-view direction of the line at each point.
+    tangent: Vec<[f32; 2]>,
+    /// Each point's station along the centerline, m: the road state's.
+    station_m: Vec<f32>,
+    /// What the lap's line counts a hybrid's motor at (Balanced pacing).
+    hybrid_share: Vec<f32>,
+    /// The lap's line: its speeds (the window's far end) and phases.
+    lap_mps: Vec<f32>,
+    lap_phases: Vec<LinePhase>,
+    /// The envelope of the last plan, and what it was made for.
+    envelope: Option<(EnvelopeKey, CarEnvelope)>,
+    /// Where the car was found last.
+    hint: Option<usize>,
+    /// Per point of the window, reused from plan to plan.
+    road: Vec<f32>,
+    corner: Vec<f32>,
+    forward: Vec<f32>,
+    backward: Vec<f32>,
+    phases: Vec<LinePhase>,
+}
+
+/// What a window's envelope was made for: the fuel in whole litres, the
+/// tyres' share in hundredths, the air and the track's grip in thousandths.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EnvelopeKey {
+    fuel_l: i32,
+    tyres: i32,
+    air: i32,
+    grip: i32,
+}
+
+impl LineWindow {
+    /// The window over `profile`, the lap's line for `car` on `track`.
+    pub fn new(track: &TrackConfig, car: &CarConfig, profile: &RacingLineProfile) -> Self {
+        let points = profile.points.clone();
+        let n = points.len();
+        let spacing = profile.spacing_m;
+        let tangent = (0..n)
+            .map(|i| {
+                let (a, b) = (points[i], points[(i + 1) % n]);
+                let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+                let len = (dx * dx + dy * dy).sqrt().max(1e-6);
+                [dx / len, dy / len]
+            })
+            .collect();
+        let hybrid_share = match (
+            car.hybrid.deploy_kj_per_lap,
+            crate::hybrid::MotorPlan::new(car),
+        ) {
+            (Some(budget), Some(motor)) => paced_shares(profile, car, &motor, budget),
+            _ => vec![1.0; n],
+        };
+        Self {
+            spacing,
+            kappa: curvature(&points, spacing),
+            grade: grades(&points, spacing),
+            drag_scale: drag_scales(track, car, n, spacing),
+            station_m: centerline_stations(track, n, spacing),
+            tangent,
+            hybrid_share,
+            lap_mps: profile.speed_mps.clone(),
+            lap_phases: profile.phases.clone(),
+            points,
+            envelope: None,
+            hint: None,
+            road: Vec::new(),
+            corner: Vec::new(),
+            forward: Vec::new(),
+            backward: Vec::new(),
+            phases: Vec::new(),
+        }
+    }
+
+    /// The lap's line's phases: what the client shows outside a window.
+    pub fn lap_phases(&self) -> &[LinePhase] {
+        &self.lap_phases
+    }
+
+    /// The point of the line nearest `pos` (server frame, m), searched
+    /// near where the car was found last; `None` when the car is further
+    /// than [`WINDOW_MAX_OFF_LINE_M`] from the line.
+    pub fn locate(&mut self, pos: [f32; 3]) -> Option<usize> {
+        let n = self.points.len();
+        let max_d2 = WINDOW_MAX_OFF_LINE_M * WINDOW_MAX_OFF_LINE_M;
+        let points = &self.points;
+        let d2 = |i: usize| {
+            let p = points[i];
+            (p[0] - pos[0]).powi(2) + (p[1] - pos[1]).powi(2) + (p[2] - pos[2]).powi(2)
+        };
+        let near = self
+            .hint
+            .filter(|&h| h < n && n > 2 * LOCATE_REACH + 1)
+            .and_then(|h| {
+                let mut best = (h, d2(h), 0);
+                for off in 1..=LOCATE_REACH {
+                    for i in [(h + off) % n, (h + n - off) % n] {
+                        let d = d2(i);
+                        if d < best.1 {
+                            best = (i, d, off);
+                        }
+                    }
+                }
+                // Best at the edge, or off the line: the car went further
+                // than the reach (a reset, a rewind), so look everywhere.
+                (best.2 < LOCATE_REACH && best.1 <= max_d2).then_some((best.0, best.1))
+            });
+        let (index, d) = near.unwrap_or_else(|| {
+            (0..n)
+                .map(|i| (i, d2(i)))
+                .min_by(|a, b| a.1.total_cmp(&b.1))
+                .unwrap_or((0, f32::MAX))
+        });
+        if d > max_d2 {
+            self.hint = None;
+            return None;
+        }
+        self.hint = Some(index);
+        Some(index)
+    }
+
+    /// The phases of the window from point `start` on: `car` on `track`
+    /// as it is now (its road state, its wind and air), carrying
+    /// `fuel_liters`, on tyres worth `tyre_share` of the planned grip
+    /// (`CarState::tyres_grip_share`, the road under the car left out), at
+    /// `speed_mps`. [`WINDOW_AHEAD_M`] of them, or the lap less a point.
+    pub fn plan(
+        &mut self,
+        track: &TrackConfig,
+        car: &CarConfig,
+        fuel_liters: f32,
+        tyre_share: f32,
+        start: usize,
+        speed_mps: f32,
+    ) -> &[LinePhase] {
+        let n = self.points.len();
+        let spacing = self.spacing;
+        let shown = ((WINDOW_AHEAD_M / spacing).round() as usize).clamp(1, n - 1);
+        let m = (((WINDOW_AHEAD_M + WINDOW_TAIL_M) / spacing).round() as usize).clamp(shown, n - 1);
+        let start = start % n;
+        let surface = &track.track_surface;
+        let key = EnvelopeKey {
+            fuel_l: fuel_liters.round() as i32,
+            tyres: (tyre_share * 100.0).round() as i32,
+            air: (surface.air_density_ratio * 1000.0).round() as i32,
+            grip: (surface.base_grip * 1000.0).round() as i32,
+        };
+        if self.envelope.as_ref().is_none_or(|(k, _)| *k != key) {
+            let (mass, _) = car.laden(fuel_liters);
+            let envelope = CarEnvelope::new(
+                car,
+                surface.base_grip * tyre_share,
+                mass,
+                surface.air_density_ratio,
+            );
+            self.envelope = Some((key, envelope));
+        }
+        let Some((_, envelope)) = self.envelope.as_ref() else {
+            return &[];
+        };
+
+        let road_state = track.road_state.as_ref();
+        self.road.clear();
+        self.corner.clear();
+        for j in 0..m {
+            let i = (start + j) % n;
+            let road = road_state.map_or(1.0, |r| r.line_grip_at(self.station_m[i]));
+            self.road.push(road);
+            self.corner.push(envelope.corner_speed(self.kappa[i], road));
+        }
+
+        // The passes count the drag in still air with the flap shut: what
+        // the wind along the line, and the flap, take off it.
+        let wind = surface.wind_now_mps;
+        let tangent = &self.tangent;
+        let drag_saved = |v: f32, i: usize, scale: f32| {
+            let air = v - (wind[0] * tangent[i][0] + wind[1] * tangent[i][1]);
+            envelope.drag_k * (v * v - scale * air * air.abs())
+        };
+
+        self.forward.clear();
+        self.forward.push(speed_mps.max(0.0).min(self.corner[0]));
+        for j in 1..m {
+            let p = (start + j - 1) % n;
+            let v = self.forward[j - 1];
+            let a = envelope.acceleration(
+                v,
+                self.kappa[p],
+                self.grade[p],
+                self.hybrid_share[p],
+                self.road[j - 1],
+            ) + drag_saved(v, p, self.drag_scale[p]);
+            let reachable = (v * v + 2.0 * a * spacing).max(0.0).sqrt();
+            self.forward.push(self.corner[j].min(reachable));
+        }
+
+        self.backward.clear();
+        self.backward.resize(m, 0.0);
+        self.backward[m - 1] = self.corner[m - 1].min(self.lap_mps[(start + m - 1) % n]);
+        for j in (0..m - 1).rev() {
+            let i = (start + j) % n;
+            let v = self.backward[j + 1];
+            // The flap is shut under braking.
+            let d = envelope.deceleration(v, self.kappa[i], self.grade[i], self.road[j])
+                - drag_saved(v, i, 1.0);
+            let enterable = (v * v + 2.0 * d * spacing).max(0.0).sqrt();
+            self.backward[j] = self.corner[j].min(enterable);
+        }
+
+        self.phases.clear();
+        for j in 0..m {
+            self.phases.push(phase_of(
+                self.forward[j],
+                self.backward[j],
+                self.corner[j],
+                envelope.top_speed,
+            ));
+            // The speed the car is planned at, for the lifts.
+            self.forward[j] = self.forward[j].min(self.backward[j]);
+        }
+        downgrade_lifts(&mut self.phases, &self.forward, false);
+        absorb_short_runs(
+            &mut self.phases,
+            (MIN_RUN_M / spacing).ceil() as usize,
+            false,
+        );
+        &self.phases[..shown]
+    }
+}
+
+/// The slope from each point of a closed, evenly spaced line to the next,
+/// sin of it, positive uphill, held within ±0.3.
+fn grades(points: &[[f32; 3]], spacing: f32) -> Vec<f32> {
+    let n = points.len();
+    (0..n)
+        .map(|i| {
+            let next = points[(i + 1) % n];
+            ((next[2] - points[i][2]) / spacing).clamp(-0.3, 0.3)
+        })
+        .collect()
+}
+
+/// Where each of `n` points `spacing` apart along the line lies along the
+/// centerline, m: the line is stationed along the raceline, the track's
+/// zones and road along the centerline, and the two run the same lap, so
+/// the station is scaled between them.
+fn centerline_stations(track: &TrackConfig, n: usize, spacing: f32) -> Vec<f32> {
+    let center_total = crate::laps::track_length_m(track);
+    let line_total = spacing * n as f32;
+    (0..n)
+        .map(|i| i as f32 * spacing * center_total / line_total)
+        .collect()
+}
+
+/// The car's drag at each of `n` points `spacing` apart against its
+/// closed-flap drag: the flap-open drag inside a DRS zone, 1 elsewhere.
+fn drag_scales(track: &TrackConfig, car: &CarConfig, n: usize, spacing: f32) -> Vec<f32> {
+    let center_total = crate::laps::track_length_m(track);
+    let line_total = spacing * n as f32;
+    match (car.drs, center_total > 0.0 && line_total > 0.0) {
+        (Some(drs), true) if !track.drs_zones.is_empty() => centerline_stations(track, n, spacing)
+            .into_iter()
+            .map(|station| {
+                let open = track
+                    .drs_zones
+                    .iter()
+                    .any(|z| crate::drs::inside(station, z.start_m, z.end_m, center_total));
+                if open {
+                    1.0 - drs.drag_reduction
+                } else {
+                    1.0
+                }
+            })
+            .collect(),
+        _ => vec![1.0; n],
     }
 }
 
@@ -723,6 +1018,37 @@ fn curvature(points: &[[f32; 3]], spacing: f32) -> Vec<f32> {
         .collect()
 }
 
+/// What the driver does at a point the forward pass reaches at `forward`,
+/// the backward pass lets in at `backward`, and the corner holds to
+/// `corner`, for a car whose top speed is `top_speed`.
+fn phase_of(forward: f32, backward: f32, corner: f32, top_speed: f32) -> LinePhase {
+    if backward < forward - SPEED_EPSILON_MPS {
+        LinePhase::Brake
+    } else if forward < corner - SPEED_EPSILON_MPS || corner >= top_speed - SPEED_EPSILON_MPS {
+        LinePhase::Throttle
+    } else {
+        LinePhase::Partial
+    }
+}
+
+/// Contiguous runs of one phase as (start, length): around the loop from a
+/// phase change when `closed` (empty when the whole loop is a single
+/// phase), from the first point to the last when not.
+fn runs_of(phases: &[LinePhase], closed: bool) -> Vec<(usize, usize)> {
+    if closed {
+        return runs(phases);
+    }
+    let mut out = Vec::new();
+    let mut start = 0;
+    for i in 1..=phases.len() {
+        if i == phases.len() || phases[i] != phases[start] {
+            out.push((start, i - start));
+            start = i;
+        }
+    }
+    out
+}
+
 /// Contiguous runs of one phase around the loop, as (start, length), starting
 /// at a phase change. Empty when the whole loop is a single phase.
 fn runs(phases: &[LinePhase]) -> Vec<(usize, usize)> {
@@ -749,9 +1075,12 @@ fn runs(phases: &[LinePhase]) -> Vec<(usize, usize)> {
 /// Turn braking zones that barely slow the car into partial throttle: a
 /// fast kink wants a lift, and a brake marker there would teach a stab of
 /// the pedal the corner does not need.
-fn downgrade_lifts(phases: &mut [LinePhase], speed: &[f32]) {
+///
+/// `closed`: the phases go round a lap; otherwise they are a stretch of
+/// one, and a run at either end is cut off by it.
+fn downgrade_lifts(phases: &mut [LinePhase], speed: &[f32], closed: bool) {
     let n = phases.len();
-    for (start, len) in runs(phases) {
+    for (start, len) in runs_of(phases, closed) {
         if phases[start] != LinePhase::Brake {
             continue;
         }
@@ -765,15 +1094,16 @@ fn downgrade_lifts(phases: &mut [LinePhase], speed: &[f32]) {
     }
 }
 
-/// Merge runs shorter than `min_len` points into the run before them.
-fn absorb_short_runs(phases: &mut [LinePhase], min_len: usize) {
+/// Merge runs shorter than `min_len` points into the run before them; on a
+/// stretch (`closed` false) the first run has none and stays.
+fn absorb_short_runs(phases: &mut [LinePhase], min_len: usize, closed: bool) {
     let n = phases.len();
     // Each merge can create a new, longer run next to it, so repeat until
     // nothing changes; a handful of passes at most.
     for _ in 0..8 {
         let mut changed = false;
-        for (start, len) in runs(phases) {
-            if len >= min_len {
+        for (start, len) in runs_of(phases, closed) {
+            if len >= min_len || (!closed && start == 0) {
                 continue;
             }
             let before = phases[(start + n - 1) % n];
@@ -879,7 +1209,7 @@ mod tests {
             CarConfig::default().mass_kg,
             1.0,
         );
-        let expected = envelope.corner_speed(1.0 / 30.0);
+        let expected = envelope.corner_speed(1.0 / 30.0, 1.0);
         assert!(
             (slowest - expected).abs() < 1.0,
             "slowest {slowest} vs corner speed {expected}"
@@ -903,8 +1233,8 @@ mod tests {
         // Bounds from constant decelerations either side of what the car
         // does: tyres alone at their margin, and tyres plus drag at the top.
         let envelope = CarEnvelope::new(&car, 1.0, car.mass_kg, 1.0);
-        let weakest = envelope.grip_accel(0.0) * BRAKING_GRIP_MARGIN;
-        let strongest = envelope.deceleration(fastest, 0.0, 0.0);
+        let weakest = envelope.grip_accel(0.0, 1.0) * BRAKING_GRIP_MARGIN;
+        let strongest = envelope.deceleration(fastest, 0.0, 0.0, 1.0);
         let longest = (fastest * fastest - slowest * slowest) / (2.0 * weakest);
         let shortest = (fastest * fastest - slowest * slowest) / (2.0 * strongest);
         assert!(
@@ -930,7 +1260,7 @@ mod tests {
         let mut front = crank.clone();
         front.hybrid.axle = HybridAxle::Front;
         let at = |car: &CarConfig, grip: f32, speed: f32| {
-            CarEnvelope::new(car, grip, car.mass_kg, 1.0).acceleration(speed, 0.0, 0.0, 1.0)
+            CarEnvelope::new(car, grip, car.mass_kg, 1.0).acceleration(speed, 0.0, 0.0, 1.0, 1.0)
         };
         // A wet road at low speed: the rears are the limit.
         let (c, f) = (at(&crank, 0.4, 15.0), at(&front, 0.4, 15.0));
@@ -1039,7 +1369,7 @@ mod tests {
             *p = LinePhase::Brake;
             speed[i] = 80.0 - (i - 10) as f32 * 0.3;
         }
-        downgrade_lifts(&mut phases, &speed);
+        downgrade_lifts(&mut phases, &speed, true);
         assert!(phases.iter().all(|&p| p != LinePhase::Brake));
     }
 
@@ -1049,7 +1379,7 @@ mod tests {
         let mut phases = vec![
             Throttle, Throttle, Throttle, Partial, Brake, Brake, Brake, Brake,
         ];
-        absorb_short_runs(&mut phases, 2);
+        absorb_short_runs(&mut phases, 2, true);
         // The single Partial point takes the phase of the run before it.
         assert_eq!(phases[3], Throttle);
     }
@@ -1060,5 +1390,90 @@ mod tests {
         assert!(track.raceline.is_empty());
         let profile = build(&track, &CarConfig::default()).unwrap();
         assert!(profile.points.len() > 100);
+    }
+
+    /// A window over the stadium's first straight, from 100 m into it (the
+    /// line runs +x from its first point): the line, the window, its start
+    /// and where the lap's own line starts braking from there, in points.
+    fn straight_window() -> (
+        TrackConfig,
+        CarConfig,
+        RacingLineProfile,
+        LineWindow,
+        usize,
+        usize,
+    ) {
+        let track = stadium(800.0, 30.0);
+        let car = CarConfig::default();
+        let profile = build(&track, &car).unwrap();
+        let window = LineWindow::new(&track, &car, &profile);
+        let start = (100.0 / profile.spacing_m).round() as usize;
+        let lap_brake =
+            first_brake(&profile.phases[start..]).expect("the lap brakes for the corner");
+        (track, car, profile, window, start, lap_brake)
+    }
+
+    fn first_brake(phases: &[LinePhase]) -> Option<usize> {
+        phases.iter().position(|&p| p == LinePhase::Brake)
+    }
+
+    #[test]
+    fn a_window_on_the_plan_brakes_where_the_lap_does() {
+        let (track, car, profile, mut window, start, lap_brake) = straight_window();
+        let phases = window.plan(&track, &car, 0.0, 1.0, start, profile.speed_mps[start]);
+        assert_eq!(
+            phases.len(),
+            (WINDOW_AHEAD_M / profile.spacing_m).round() as usize
+        );
+        let brake = first_brake(phases).expect("the window brakes for the corner");
+        assert!(
+            brake.abs_diff(lap_brake) <= 1,
+            "window brakes at {brake}, the lap at {lap_brake}"
+        );
+    }
+
+    #[test]
+    fn a_window_moves_the_braking_point_with_the_car_s_speed_and_grip() {
+        let (track, car, profile, mut window, start, lap_brake) = straight_window();
+        let planned = profile.speed_mps[start];
+        let at = |window: &mut LineWindow, speed: f32, tyres: f32| {
+            first_brake(window.plan(&track, &car, 0.0, tyres, start, speed)).unwrap()
+        };
+        let fast = at(&mut window, planned + 10.0, 1.0);
+        let slow = at(&mut window, planned - 10.0, 1.0);
+        let worn = at(&mut window, planned, 0.7);
+        println!("lap {lap_brake}, fast {fast}, slow {slow}, worn {worn}");
+        assert!(
+            fast < lap_brake,
+            "faster brakes earlier: {fast} vs {lap_brake}"
+        );
+        assert!(
+            slow > lap_brake,
+            "slower brakes later: {slow} vs {lap_brake}"
+        );
+        assert!(
+            worn < lap_brake,
+            "less grip brakes earlier: {worn} vs {lap_brake}"
+        );
+    }
+
+    #[test]
+    fn a_headwind_moves_the_braking_point_later() {
+        let (mut track, car, profile, mut window, start, lap_brake) = straight_window();
+        track.track_surface.wind_now_mps = [-15.0, 0.0];
+        let phases = window.plan(&track, &car, 0.0, 1.0, start, profile.speed_mps[start]);
+        let brake = first_brake(phases).unwrap();
+        assert!(brake > lap_brake, "into the wind {brake} vs {lap_brake}");
+    }
+
+    #[test]
+    fn a_window_finds_the_car_on_the_line_and_not_off_it() {
+        let (_, _, profile, mut window, start, _) = straight_window();
+        let [x, y, z] = profile.points[start];
+        assert_eq!(window.locate([x + 0.4, y + 3.0, z]), Some(start));
+        // The next search starts from there, and still finds the car on.
+        let ahead = profile.points[start + 8];
+        assert_eq!(window.locate(ahead), Some(start + 8));
+        assert_eq!(window.locate([x, y - 2.0 * WINDOW_MAX_OFF_LINE_M, z]), None);
     }
 }

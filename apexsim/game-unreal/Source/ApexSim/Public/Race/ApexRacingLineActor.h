@@ -24,6 +24,13 @@ class UStaticMesh;
  * own heights, which are the track file's and can be a little off the baked
  * road.
  *
+ * The stretch ahead is planned again a few times a second from the local
+ * car as it is (UApexPredictionSubsystem::PlanLineWindow: its speed, fuel
+ * and tyres, the road and the wind ahead), and those dots take the window's
+ * colours: a car faster than the plan sees its braking point come earlier,
+ * a wet stretch ahead brakes sooner. Only dots whose colour changes cause a
+ * repaint, so a car on the plan costs nothing.
+ *
  * Spawned by the race director for the length of a race.
  */
 UCLASS()
@@ -65,8 +72,14 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
+	/** Plans the window again and repaints the dots it changed. */
+	void RefreshWindow();
+	/** The phase point Point is drawn in: the window's over its stretch, the line's own elsewhere. */
+	EApexLinePhase PhaseAt(int32 Point) const;
+
 	UInstancedStaticMeshComponent* MakeDots(const TCHAR* Name);
 	void Paint(UInstancedStaticMeshComponent* Dots, const FLinearColor& Color);
 
@@ -100,6 +113,20 @@ private:
 	TArray<FTransform> DotTransforms;
 	TArray<int32> DotPhasePoint;
 	EApexRacingLine Mode = EApexRacingLine::Off;
+	/** The window: the line's point it starts at and its phases from there, round the lap. */
+	int32 WindowStart = 0;
+	TArray<EApexLinePhase> WindowPhases;
+	FTimerHandle WindowTimer;
+	/** For the log every LogEveryRefreshes: windows planned, repaints they caused, the most points one moved. */
+	int32 WindowsPlanned = 0;
+	int32 WindowRepaints = 0;
+	int32 WindowMostChanged = 0;
+	int32 Refreshes = 0;
+	void LogWindows();
+	/** 30 s of refreshes. */
+	static constexpr int32 LogEveryRefreshes = 150;
+	/** How often the window is planned again, s. */
+	static constexpr float WindowSeconds = 0.2f;
 	bool bOnGround = false;
 	bool bWet = false;
 

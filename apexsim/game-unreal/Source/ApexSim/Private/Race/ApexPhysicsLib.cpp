@@ -316,6 +316,51 @@ namespace ApexPhysics
 	{
 		return apx_car_feedback_take(Car, &Out) == APX_OK;
 	}
+
+	FLine::~FLine()
+	{
+		if (Line)
+		{
+			apx_line_free(Line);
+		}
+	}
+
+	TUniquePtr<FLine> FLine::Create(const FTrack& Track, const FCar& Car, FString& OutError)
+	{
+		ApxLine* Handle = nullptr;
+		uint32 Points = 0;
+		if (apx_line_create(Track.Handle(), Car.Handle(), &Handle) != APX_OK || !Handle)
+		{
+			OutError = PhysicsError(TEXT("apx_line_create"));
+			return nullptr;
+		}
+		TUniquePtr<FLine> Out(new FLine());
+		Out->Line = Handle;
+		if (apx_line_point_count(Handle, &Points) != APX_OK)
+		{
+			OutError = PhysicsError(TEXT("apx_line_point_count"));
+			return nullptr;
+		}
+		Out->Points = static_cast<int32>(Points);
+		return Out;
+	}
+
+	bool FLine::Window(const FTrack& Track, const FCar& Car, int32& OutStart, TArray<uint8>& OutPhases)
+	{
+		// The window is 800 m of a line sampled every 2.5 m: 320 points.
+		OutPhases.SetNumUninitialized(1024, EAllowShrinking::No);
+		uint32 Start = 0;
+		uint32 Count = 0;
+		if (apx_line_window(Line, Track.Handle(), Car.Handle(), &Start, OutPhases.GetData(), OutPhases.Num(), &Count)
+			!= APX_OK)
+		{
+			OutPhases.Reset();
+			return false;
+		}
+		OutPhases.SetNum(static_cast<int32>(Count), EAllowShrinking::No);
+		OutStart = static_cast<int32>(Start);
+		return true;
+	}
 #else
 	namespace
 	{
@@ -421,6 +466,21 @@ namespace ApexPhysics
 	bool FCar::Save(TArray<uint8>& Out) const { Out.Reset(); return false; }
 	bool FCar::Load(TArrayView<const uint8>) { return false; }
 	bool FCar::TakeFeedback(ApxFeedback& Out) { Out = ApxFeedback{}; return false; }
+
+	FLine::~FLine() = default;
+
+	TUniquePtr<FLine> FLine::Create(const FTrack&, const FCar&, FString& OutError)
+	{
+		OutError = NotBuilt;
+		return nullptr;
+	}
+
+	bool FLine::Window(const FTrack&, const FCar&, int32& OutStart, TArray<uint8>& OutPhases)
+	{
+		OutStart = 0;
+		OutPhases.Reset();
+		return false;
+	}
 #endif
 
 	FApexDriverFeedback ToFeedback(const ApxFeedback& In, int64 Tick)

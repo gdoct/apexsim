@@ -149,6 +149,10 @@ void UApexPredictionSubsystem::Teardown(const FString& Why)
 		LogWindow(FPlatformTime::Seconds(), true);
 	}
 	Predictor.End();
+	Line.Reset();
+	LineCar.Reset();
+	bLineCarSeated = false;
+	bLineFailed = false;
 	Track.Reset();
 	// A load in flight finishes on its own; its result is dropped with the future.
 	PendingTrack = TFuture<FLoadResult>();
@@ -384,12 +388,28 @@ void UApexPredictionSubsystem::CreateCar()
 		Clicks.Add(static_cast<int8>(FMath::Clamp(Click, -128, 127)));
 	}
 	FString Error;
-	TUniquePtr<ApexPhysics::FCar> Car =
-		ApexPhysics::FCar::Create(*Track, CarToml, Clicks, GridPosition, Error, Balance.IsSet() ? &Balance.GetValue() : nullptr);
+	const ApxBalance* CarBalance = Balance.IsSet() ? &Balance.GetValue() : nullptr;
+	TUniquePtr<ApexPhysics::FCar> Car = ApexPhysics::FCar::Create(*Track, CarToml, Clicks, GridPosition, Error, CarBalance);
 	if (!Car)
 	{
 		FailedKey = LoadedKey;
 		Teardown(FString::Printf(TEXT("off: the car did not load: %s"), *Error));
+		return;
+	}
+	// The racing line's car: the server's state laid on it, never stepped.
+	// Its window's line is made again for the new setup; the newest blob
+	// seats it at once.
+	LineCar = ApexPhysics::FCar::Create(*Track, CarToml, Clicks, GridPosition, Error, CarBalance);
+	Line.Reset();
+	bLineCarSeated = false;
+	bLineFailed = false;
+	LineStateSerial = 0;
+	LineSnapshotSerial = 0;
+	if (CVarPredict.GetValueOnGameThread() <= 0)
+	{
+		// Loaded for the racing line alone: nothing to predict.
+		SetStatus(FString::Printf(TEXT("off (apexsim.net.Predict 0); %s at %s loaded for the racing line"), *CarName, *TrackName),
+			false);
 		return;
 	}
 	Predictor.Begin(Track.Get(), MoveTemp(Car), TickRateHz);
@@ -603,7 +623,7 @@ bool UApexPredictionSubsystem::Tick(float DeltaSeconds)
 	const int32 Mode = CVarPredict.GetValueOnGameThread();
 	UApexNetSubsystem* Net = GetGameInstance()->GetSubsystem<UApexNetSubsystem>();
 	bInUse = false;
-	if (Mode <= 0 || !Net)
+	if ((Mode <= 0 && !bLineWanted) || !Net)
 	{
 		if (!LoadedKey.IsEmpty() || bLoading)
 		{
@@ -744,6 +764,25 @@ bool UApexPredictionSubsystem::Tick(float DeltaSeconds)
 		}
 	}
 
+	// The racing line's car, whether prediction runs or not.
+	UpdateLineCar(*Net);
+	if (Mode <= 0)
+	{
+		// Loaded for the racing line; prediction turned off under it.
+		Predictor.End();
+		bInUse = false;
+		return true;
+	}
+	if (!Predictor.IsRunning())
+	{
+		// Prediction turned on with the track loaded for the racing line.
+		CreateCar();
+		if (!Predictor.IsRunning())
+		{
+			return true;
+		}
+	}
+
 	// What came in this frame, then the step.
 	const double Now = FPlatformTime::Seconds();
 	TArray<FApexSentInput> Sent;
@@ -849,6 +888,68 @@ bool UApexPredictionSubsystem::Tick(float DeltaSeconds)
 				Predictor.GetHeadTick(), Predictor.GetLeadTicks(Now), Predictor.GetRttSeconds() * 1000.0, S.Rewinds,
 				S.MeanReplayTicks(), S.CorrectionsMm.Num() > 0 ? S.CorrectionsMm.Last() : 0.0f,
 				Predictor.GetCorrectionOffsetM() * 1000.0f));
+	}
+	return true;
+}
+
+void UApexPredictionSubsystem::UpdateLineCar(UApexNetSubsystem& Net)
+{
+	if (!LineCar)
+	{
+		return;
+	}
+	if (Net.GetOwnCarStateSerial() != LineStateSerial)
+	{
+		LineStateSerial = Net.GetOwnCarStateSerial();
+		const FApexOwnCarStateAssembler& State = Net.GetOwnCarState();
+		bLineCarSeated = State.Blob.Num() > 0 && LineCar->Load(State.Blob);
+		// The snapshot newer than the blob goes on next.
+		LineSnapshotSerial = 0;
+	}
+	if (bLineCarSeated && Net.GetOwnCarSnapshotSerial() != LineSnapshotSerial)
+	{
+		LineSnapshotSerial = Net.GetOwnCarSnapshotSerial();
+		const FApexOwnCarSnapshot& Snapshot = Net.GetOwnCarSnapshot();
+		if (Snapshot.Tick >= Net.GetOwnCarState().Tick)
+		{
+			LineCar->ApplySnapshot(ApexPhysics::ToSnapshot(Snapshot));
+		}
+	}
+}
+
+bool UApexPredictionSubsystem::PlanLineWindow(int32 PointCount, int32& OutStart, TArray<EApexLinePhase>& OutPhases)
+{
+	OutStart = 0;
+	OutPhases.Reset();
+	if (!Track.IsValid() || !LineCar || !bLineCarSeated || bLineFailed)
+	{
+		return false;
+	}
+	if (!Line)
+	{
+		FString Error;
+		Line = ApexPhysics::FLine::Create(*Track, *LineCar, Error);
+		if (!Line)
+		{
+			bLineFailed = true;
+			UE_LOG(LogApexSim, Warning, TEXT("Racing line: no window for %s at %s: %s"), *CarName, *TrackName, *Error);
+			return false;
+		}
+	}
+	if (Line->PointCount() != PointCount)
+	{
+		return false;
+	}
+	TArray<uint8> Phases;
+	if (!Line->Window(*Track, *LineCar, OutStart, Phases) || Phases.Num() == 0)
+	{
+		return false;
+	}
+	OutPhases.Reserve(Phases.Num());
+	for (const uint8 Phase : Phases)
+	{
+		OutPhases.Add(Phase <= static_cast<uint8>(EApexLinePhase::Brake) ? static_cast<EApexLinePhase>(Phase)
+																		 : EApexLinePhase::Partial);
 	}
 	return true;
 }

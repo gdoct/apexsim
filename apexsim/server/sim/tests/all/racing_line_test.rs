@@ -102,3 +102,46 @@ fn a_gt_car_brakes_earlier_than_an_f1_car() {
     );
     assert!(gt_len > f1_len, "GT zone {gt_len} m vs F1 {f1_len} m");
 }
+
+/// The aid's window on the Nordschleife, the longest lap: the car on the
+/// line at the lap's own speed gets the lap's phases back, and planning it
+/// costs well under a millisecond (it runs a few times a second on the
+/// client, `racing_line::WINDOW_HZ`).
+#[test]
+fn the_window_on_the_longest_lap_matches_the_line_and_is_cheap() {
+    let track = TrackLoader::load_from_file(
+        "../../../apexsim-content/tracks/default/Mordschleife/Mordschleife.yaml",
+    )
+    .expect("track loads");
+    let car = CarLoader::load_from_file(Path::new(
+        "../../../apexsim-content/cars/default/fugazzi-sf26/car.toml",
+    ))
+    .expect("car loads");
+    let profile = racing_line::build(&track, &car).expect("line builds");
+    let mut window = racing_line::LineWindow::new(&track, &car, &profile);
+    let n = profile.points.len();
+    let starts: Vec<usize> = (0..40).map(|k| k * n / 40).collect();
+    let mut differing = 0;
+    let mut shown = 0;
+    let began = std::time::Instant::now();
+    for &start in &starts {
+        let p = profile.points[start];
+        let from = window.locate(p).expect("a point of the line is on it");
+        assert_eq!(from, start);
+        let phases = window.plan(&track, &car, 0.0, 1.0, from, profile.speed_mps[from]);
+        shown += phases.len();
+        differing += phases
+            .iter()
+            .enumerate()
+            .filter(|&(j, &ph)| ph != profile.phases[(from + j) % n])
+            .count();
+    }
+    let per_plan_us = began.elapsed().as_secs_f64() * 1e6 / starts.len() as f64;
+    println!(
+        "{n} points; {differing} of {shown} window points differ from the lap's; {per_plan_us:.0} us a plan"
+    );
+    assert!(
+        (differing as f32) < 0.02 * shown as f32,
+        "{differing} of {shown} differ"
+    );
+}

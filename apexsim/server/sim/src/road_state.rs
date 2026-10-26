@@ -940,6 +940,17 @@ impl RoadState {
         }
     }
 
+    /// The grip on the racing line at `station_m` ([`RoadSample::grip`] at
+    /// the cell's line): what the racing line aid's window plans on
+    /// (`racing_line::LineWindow`).
+    pub fn line_grip_at(&self, station_m: f32) -> f32 {
+        if self.cells.is_empty() {
+            return 1.0;
+        }
+        let lateral = self.cells[self.cell_index(station_m)].line_lateral_m;
+        self.sample(station_m, lateral).grip
+    }
+
     /// The puddle's share of a cell, 0..1 (for a display, or a test).
     pub fn puddle_at(&self, station_m: f32) -> f32 {
         if self.cells.is_empty() {

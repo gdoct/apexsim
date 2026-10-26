@@ -86,9 +86,40 @@ namespace ApexPhysics
 		 */
 		bool TakeFeedback(ApxFeedback& Out);
 
+		ApxCar* Handle() const { return Car; }
+
 	private:
 		FCar() = default;
 		ApxCar* Car = nullptr;
+	};
+
+	/**
+	 * The racing line aid's window over a car's line (apx_line_*): the line
+	 * the server sends in RacingLine, on the same points, planned again from
+	 * the car's state over the next stretch.
+	 */
+	class APEXSIM_API FLine : public FNoncopyable
+	{
+	public:
+		~FLine();
+
+		/** The window over Car's line on Track (the car with its setup). */
+		static TUniquePtr<FLine> Create(const FTrack& Track, const FCar& Car, FString& OutError);
+
+		/** The line's points: a window applies only to a RacingLine of as many. */
+		int32 PointCount() const { return Points; }
+
+		/**
+		 * The window from the car as its state stands on the track as it stands:
+		 * the line's point it starts at, and the phases from there (EApexLinePhase
+		 * values). No phases when the car is off the line. False on a failure.
+		 */
+		bool Window(const FTrack& Track, const FCar& Car, int32& OutStart, TArray<uint8>& OutPhases);
+
+	private:
+		FLine() = default;
+		ApxLine* Line = nullptr;
+		int32 Points = 0;
 	};
 
 	/**

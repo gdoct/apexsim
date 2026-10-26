@@ -466,6 +466,13 @@ livery show it.
 Small and independent. Do one or two alongside whatever package touches
 the same files.
 
+- Racing line window: a repaint (`AApexRacingLineActor::AddDots`) clears
+  and adds every dot of the lap. That is 753 at the Norisring, two or three
+  times a second while the car is off the plan (r9-racing-line-replan's log),
+  and about 7,000 on the Nordschleife. If it shows in a frame, recolour only
+  the window's dots, for example a per-instance colour in custom data on one
+  instanced mesh.
+
 - Server tests: `protocol_test::test_session_ticks_at_the_configured_rate`
   measures the tick rate and misses it in a debug build when the whole
   suite runs at once (it passes alone, and at opt-level 2 as CI runs).

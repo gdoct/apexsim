@@ -30,13 +30,14 @@ use apexsim_sim::car_step::{self, StepClock};
 use apexsim_sim::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
 use apexsim_sim::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
 use apexsim_sim::own_car::{self, OwnCarSnapshot};
+use apexsim_sim::racing_line::{self, LineWindow};
 use apexsim_sim::track_bundle::TrackFiles;
 use apexsim_sim::track_loader::RoadContactMode;
 use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 7;
+pub const APX_ABI_VERSION: u32 = 8;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -1778,6 +1779,139 @@ pub unsafe extern "C" fn apx_watch_free(watch: *mut ApxWatch) {
     }
     let watch = Box::from_raw(watch);
     let _ = catch_unwind(AssertUnwindSafe(|| watch.watch.keep()));
+}
+
+// ---------------------------------------------------------------------------
+// The racing line aid's window (ABI 8)
+// ---------------------------------------------------------------------------
+
+/// The racing line aid's next stretch for one car (`racing_line::LineWindow`):
+/// the car's lap line as the server sends it in `RacingLine` (the same
+/// points, from the same track), planned again from the car as it stands.
+pub struct ApxLine {
+    window: LineWindow,
+    points: u32,
+}
+
+/// The racing line aid's window over `car`'s line on `track`: the line the
+/// server sends a joining driver (`racing_line::build`, `car` with its
+/// setup), on the same points. Made again when the car is (a setup change).
+///
+/// # Safety
+/// `track` and `car` are live handles; `out` is writable. The handle is
+/// freed with [`apx_line_free`].
+#[no_mangle]
+pub unsafe extern "C" fn apx_line_create(
+    track: *const ApxTrack,
+    car: *const ApxCar,
+    out: *mut *mut ApxLine,
+) -> ApxStatus {
+    guard(|| {
+        non_null(track, "track")?;
+        non_null(car, "car")?;
+        non_null(out, "out")?;
+        let (track, car) = (&(*track).track, &*car);
+        let config = car.simulated.as_ref().unwrap_or(&car.shared);
+        let profile = racing_line::build(track, config)
+            .ok_or_else(|| Fail::new(APX_ERR_TRACK, "the track has no line to plan"))?;
+        let line = ApxLine {
+            window: LineWindow::new(track, config, &profile),
+            points: profile.points.len() as u32,
+        };
+        *out = Box::into_raw(Box::new(line));
+        Ok(())
+    })
+}
+
+/// How many points the line has: a window applies to a `RacingLine` of as
+/// many (the same track gives the same points), and to no other.
+///
+/// # Safety
+/// `line` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_line_point_count(line: *const ApxLine, out: *mut u32) -> ApxStatus {
+    guard(|| {
+        non_null(line, "line")?;
+        non_null(out, "out")?;
+        *out = (*line).points;
+        Ok(())
+    })
+}
+
+/// Plan the window from `car` as its state stands (its place and speed,
+/// its fuel, its tyres) on `track` as it stands (its road state, wind and
+/// air): `*start` gets the line's point it starts at, `phases` the phase
+/// of each point from there on round the lap (0 throttle, 1 partial, 2
+/// brake, as `RacingLine`), `*count` how many (at most `capacity`,
+/// `racing_line::WINDOW_AHEAD_M` of line). `*count` is 0 when the car is
+/// off the line: in the pit lane or the garage, being recovered or towed,
+/// the wrong way round, or further than
+/// `racing_line::WINDOW_MAX_OFF_LINE_M` from it.
+///
+/// # Safety
+/// `line`, `track` and `car` are live handles; `phases` points at
+/// `capacity` writable bytes; `start` and `count` are writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_line_window(
+    line: *mut ApxLine,
+    track: *const ApxTrack,
+    car: *const ApxCar,
+    start: *mut u32,
+    phases: *mut u8,
+    capacity: u32,
+    count: *mut u32,
+) -> ApxStatus {
+    guard(|| {
+        non_null(line, "line")?;
+        non_null(track, "track")?;
+        non_null(car, "car")?;
+        non_null(phases, "phases")?;
+        non_null(start, "start")?;
+        non_null(count, "count")?;
+        let (line, track, car) = (&mut *line, &(*track).track, &*car);
+        let state = &car.state;
+        *start = 0;
+        *count = 0;
+        let off_line = state.in_garage
+            || state.pit.in_lane
+            || state.towed
+            || state.recovery.is_some()
+            || state.wrong_way_s > 0.0;
+        if off_line {
+            return Ok(());
+        }
+        let Some(from) = line.window.locate([state.pos_x, state.pos_y, state.pos_z]) else {
+            return Ok(());
+        };
+        let config = car.simulated.as_ref().unwrap_or(&car.shared);
+        let planned = line.window.plan(
+            track,
+            config,
+            state.fuel_liters,
+            state.tyres_grip_share(),
+            from,
+            state.speed_mps,
+        );
+        let n = planned.len().min(capacity as usize);
+        let out = std::slice::from_raw_parts_mut(phases, n);
+        for (slot, phase) in out.iter_mut().zip(planned) {
+            *slot = phase.as_u8();
+        }
+        *start = from as u32;
+        *count = n as u32;
+        Ok(())
+    })
+}
+
+/// Free a line. A null handle is ignored.
+///
+/// # Safety
+/// `line` is a handle from [`apx_line_create`], not used again.
+#[no_mangle]
+pub unsafe extern "C" fn apx_line_free(line: *mut ApxLine) {
+    if !line.is_null() {
+        drop(Box::from_raw(line));
+    }
 }
 
 // ---------------------------------------------------------------------------

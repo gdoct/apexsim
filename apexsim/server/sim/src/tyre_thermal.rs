@@ -1231,13 +1231,29 @@ impl CarState {
         if !self.tyres_fitted {
             return 1.0;
         }
+        // A snow tyre's bite on the cover under the car comes on top.
+        self.weaker_axle_grip()
+            * self.surface_grip_share.clamp(0.0, 1.3)
+            * self.snow_tyre_share.clamp(0.0, 3.0)
+    }
+
+    /// [`Self::tyre_grip_share`] without the road under the car: the tyres
+    /// (and a snow tyre's bite), for a plan that reads the road along its
+    /// own stretch (`racing_line::LineWindow`).
+    pub fn tyres_grip_share(&self) -> f32 {
+        if !self.tyres_fitted {
+            return 1.0;
+        }
+        self.weaker_axle_grip() * self.snow_tyre_share.clamp(0.0, 3.0)
+    }
+
+    /// The weaker axle's grip factor, the mean of its two tyres.
+    fn weaker_axle_grip(&self) -> f32 {
         let t = &self.tires;
         let front = 0.5 * (t.front_left.grip_factor + t.front_right.grip_factor);
         let rear = 0.5 * (t.rear_left.grip_factor + t.rear_right.grip_factor);
         // A fresh soft is a little over the plan's tyre, and a driver uses it.
-        let tyres = front.min(rear).clamp(0.0, 1.03);
-        // A snow tyre's bite on the cover under the car comes on top.
-        tyres * self.surface_grip_share.clamp(0.0, 1.3) * self.snow_tyre_share.clamp(0.0, 3.0)
+        front.min(rear).clamp(0.0, 1.03)
     }
 }
 

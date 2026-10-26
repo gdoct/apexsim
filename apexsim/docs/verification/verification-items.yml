@@ -2393,3 +2393,21 @@
     never shows during a spin that keeps sliding along the track.
   status: open
 
+- id: v-racing-line-window
+  title: 'Racing line: the braking dots move with the car'
+  area: hud
+  kind: sitting
+  check_by: Racing line FULL, prediction off. At Monzarella, drive the straight
+    to T1 flat out once and once lifted 30 km/h early; watch where the red dots
+    start. Then the same in heavy rain. Note any flicker of dot colours near
+    the car.
+  created: 2026-10-26
+  commit: a838b252
+  doc: docs/game/client.md
+  what: >-
+    The racing line's next 800 m is planned again on the client every 0.2 s
+    from the car as it is. Arriving faster than the plan should bring the red
+    dots earlier, arriving slower should push them later, and a wet stretch
+    ahead should brake sooner. The dots should not visibly flicker.
+  status: open
+

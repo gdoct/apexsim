@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Async/Future.h"
 #include "Containers/Ticker.h"
+#include "ApexProtocolTypes.h"
 #include "Race/ApexOwnCarPredictor.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
@@ -10,6 +11,7 @@
 
 struct FApexRoadState;
 struct FApexTrackBundleChunk;
+class UApexNetSubsystem;
 
 /**
  * Fetches a track's physics bundle a chunk at a time (RequestTrackBundle), a
@@ -100,6 +102,11 @@ namespace ApexTrackBundleCache
  * snapshots stop. While the prediction is drawn, the force feedback, the
  * road and engine sound and the HUD's dash read it (GetOwnFeel, GetOwnCar);
  * otherwise they read the server's data as they always did.
+ *
+ * The racing line aid's window (PlanLineWindow) plans on the same track and
+ * a car of its own, the local car as the server last sent it: while the
+ * racing line actor wants it (SetLineWanted), the track and car are loaded
+ * with prediction off too.
  */
 UCLASS()
 class APEXSIM_API UApexPredictionSubsystem : public UGameInstanceSubsystem
@@ -139,6 +146,23 @@ public:
 	 */
 	bool GetOwnFeel(const FApexDriverFeedback*& OutFeel, uint32& OutSerial, double& OutSeconds) const;
 
+	/**
+	 * The racing line actor draws a line and wants its window: the track and
+	 * car stay loaded for it whether prediction is on or off.
+	 */
+	void SetLineWanted(bool bWanted) { bLineWanted = bWanted; }
+
+	/**
+	 * The racing line aid's next stretch planned from the local car as the
+	 * server last sent it (its place, speed, fuel and tyres) on the track as
+	 * it is (its road state, wind and air): the point of the server's line it
+	 * starts at, and the phases from there on round the lap. False with no
+	 * phases when there is nothing to plan: no track or car state yet, a line
+	 * not of PointCount points (the server's is another track's), or the car
+	 * off the line (the pit lane, the garage, a recovery, the wrong way).
+	 */
+	bool PlanLineWindow(int32 PointCount, int32& OutStart, TArray<EApexLinePhase>& OutPhases);
+
 	/** Where the puppet (the motion buffer) would draw the local car this frame, cm: the gap prediction closes. */
 	void ReportPuppetPose(int32 CarIndex, const FVector& LocationCm, float SpeedMps);
 
@@ -160,6 +184,8 @@ private:
 	/** The track from the bundle's bytes (just fetched), off the game thread. */
 	void StartBundleLoad(TArray<uint8> Bundle);
 	void CreateCar();
+	/** Lays the server's newest state blob and snapshot of the local car on LineCar. */
+	void UpdateLineCar(UApexNetSubsystem& Net);
 	void HandleRoadState(const FApexRoadState& Road);
 	/** A rewind: the predicted car starts over from the server's next state. */
 	void HandleRewound(const FApexRewound& Rewound);
@@ -224,6 +250,17 @@ private:
 	int32 RoadContact = 0;
 	/** The car as the server balances it (SessionJoined.Physics), when it does. */
 	TOptional<ApxBalance> Balance;
+
+	/** The racing line actor wants its window (SetLineWanted). */
+	bool bLineWanted = false;
+	/** The local car as the server last sent it, for the window, and the window over its line. */
+	TUniquePtr<ApexPhysics::FCar> LineCar;
+	TUniquePtr<ApexPhysics::FLine> Line;
+	bool bLineCarSeated = false;
+	/** The line could not be made for this car: not tried again until the car is made again. */
+	bool bLineFailed = false;
+	uint32 LineStateSerial = 0;
+	uint32 LineSnapshotSerial = 0;
 
 	/** RoadState messages heard before the track loaded, replayed onto it in order. */
 	TArray<FApexRoadState> PendingRoad;

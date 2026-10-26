@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 7u
+#define APX_ABI_VERSION 8u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -45,6 +45,7 @@ typedef int32_t ApxStatus;
 
 typedef struct ApxTrack ApxTrack;
 typedef struct ApxCar ApxCar;
+typedef struct ApxLine ApxLine;
 
 /* The driver's controls for one tick (ClientMessage::PlayerInput). */
 typedef struct ApxInput {
@@ -397,6 +398,30 @@ ApxStatus apx_watch_corners(const ApxWatch *watch, uint8_t *buf, size_t capacity
 
 /* End a watch, keeping its ladder level and ghost (null is ignored). */
 void apx_watch_free(ApxWatch *watch);
+
+/* ---- The racing line aid's window (ABI 8) ------------------------------ */
+
+/* The racing line aid's window over car's line on track: the line the server
+ * sends a joining driver (RacingLine), on the same points, the car with its
+ * setup. Made again when the car is. Freed with apx_line_free. */
+ApxStatus apx_line_create(const ApxTrack *track, const ApxCar *car, ApxLine **out);
+
+/* How many points the line has: a window applies only to a RacingLine of as many. */
+ApxStatus apx_line_point_count(const ApxLine *line, uint32_t *out);
+
+/* Plan the window from car as its state stands (place, speed, fuel, tyres) on
+ * track as it stands (road state, wind, air): *start gets the line's point it
+ * starts at, phases the phase of each point from there on round the lap
+ * (0 throttle, 1 partial, 2 brake), *count how many (at most capacity; the
+ * window is 800 m of line). *count is 0 when the car is off the line: in the
+ * pit lane or the garage, recovered or towed, the wrong way round, or over
+ * 30 m from it. */
+ApxStatus apx_line_window(ApxLine *line, const ApxTrack *track, const ApxCar *car,
+                          uint32_t *start, uint8_t *phases, uint32_t capacity,
+                          uint32_t *count);
+
+/* Free a line; NULL is ignored. */
+void apx_line_free(ApxLine *line);
 
 /* ---- A stream file's block (ABI 6; packing, ABI 7) ---------------------- */
 

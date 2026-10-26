@@ -1117,6 +1117,28 @@ onto actors tagged `ApexTrackMesh` by line traces once the track is built.
 `SetWet` gives them the road's sheen in rain. `-ApexRacingLine=off|braking|full`
 overrides the setting for a run.
 
+The stretch ahead is planned again on this client every 0.2 s, from the car
+as it is (`racing_line::LineWindow` through the physics library,
+`apx_line_*`). The forward pass starts at the car's speed, the backward pass
+past the window at the lap line's speed. The car's fuel and tyres
+(`CarState::tyres_grip_share`), the road state's grip along the stretch
+(`RoadState::line_grip_at`), the wind along it and the DRS zones all go into
+the plan. The window covers 800 m (`WINDOW_AHEAD_M`) and is planned 600 m
+further. Its phases replace the line's own over that stretch, so a car
+faster than the plan sees its braking point come earlier, and a wet stretch
+ahead brakes sooner. Only a dot that changes colour causes a repaint; a car
+on the plan costs nothing. A plan takes about 80 µs on the Nordschleife.
+
+`UApexPredictionSubsystem` plans it (`PlanLineWindow`) on its own track and a
+car of its own (`LineCar`). The car is never stepped: the server's newest
+state blob and snapshot of the local car are laid on it. While the actor
+draws a line (`SetLineWanted`), the track and that car are loaded with
+prediction off too. No window is planned in the pit lane or the garage,
+during a recovery, the wrong way round, more than 30 m off the line, or
+against a `RacingLine` of a different point count (another track's). Without
+the library the line is the server's alone. Every 30 s the log has a line
+with the windows planned, the repaints and the most points one moved.
+
 ## Unattended runs and debugging
 
 Screenshots, site shots and in-game checks are made without a keyboard.

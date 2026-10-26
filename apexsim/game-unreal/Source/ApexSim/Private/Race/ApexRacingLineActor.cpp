@@ -2,11 +2,14 @@
 
 #include "ApexSim.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Engine/GameInstance.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInterface.h"
+#include "Race/ApexPredictionSubsystem.h"
 #include "Race/ApexRaceCoordinate.h"
+#include "TimerManager.h"
 #include "Track/ApexTrackSceneBuilder.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -119,6 +122,110 @@ void AApexRacingLineActor::BeginPlay()
 	Paint(PartialDots, PartialColor);
 	Paint(BrakeDots, BrakeColor);
 	ApplyVisibility();
+	GetWorldTimerManager().SetTimer(WindowTimer, this, &AApexRacingLineActor::RefreshWindow, WindowSeconds, true);
+}
+
+void AApexRacingLineActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	GetWorldTimerManager().ClearTimer(WindowTimer);
+	LogWindows();
+	if (UGameInstance* GameInstance = GetGameInstance())
+	{
+		if (UApexPredictionSubsystem* Prediction = GameInstance->GetSubsystem<UApexPredictionSubsystem>())
+		{
+			Prediction->SetLineWanted(false);
+		}
+	}
+	Super::EndPlay(EndPlayReason);
+}
+
+void AApexRacingLineActor::LogWindows()
+{
+	if (WindowsPlanned > 0)
+	{
+		UE_LOG(LogApexSim, Log, TEXT("Racing line: %d window(s) planned, %d repaint(s), at most %d point(s) off the line's"),
+			WindowsPlanned, WindowRepaints, WindowMostChanged);
+	}
+	WindowsPlanned = 0;
+	WindowRepaints = 0;
+	WindowMostChanged = 0;
+}
+
+EApexLinePhase AApexRacingLineActor::PhaseAt(int32 Point) const
+{
+	const int32 Count = Line.Points.Num();
+	if (Count > 0 && WindowPhases.Num() > 0)
+	{
+		const int32 Along = (Point - WindowStart + Count) % Count;
+		if (WindowPhases.IsValidIndex(Along))
+		{
+			return WindowPhases[Along];
+		}
+	}
+	return Line.Phases.IsValidIndex(Point) ? Line.Phases[Point] : EApexLinePhase::Partial;
+}
+
+void AApexRacingLineActor::RefreshWindow()
+{
+	UGameInstance* GameInstance = GetGameInstance();
+	UApexPredictionSubsystem* Prediction = GameInstance ? GameInstance->GetSubsystem<UApexPredictionSubsystem>() : nullptr;
+	if (!Prediction)
+	{
+		return;
+	}
+	if (++Refreshes % LogEveryRefreshes == 0)
+	{
+		LogWindows();
+	}
+	const bool bWanted = Mode != EApexRacingLine::Off && HasLine();
+	Prediction->SetLineWanted(bWanted);
+	int32 Start = 0;
+	TArray<EApexLinePhase> Phases;
+	if (bWanted && Prediction->PlanLineWindow(Line.Points.Num(), Start, Phases))
+	{
+		if (WindowsPlanned++ == 0 && Refreshes < LogEveryRefreshes)
+		{
+			UE_LOG(LogApexSim, Log, TEXT("Racing line: the first window, %d point(s) from point %d of %d"), Phases.Num(), Start,
+				Line.Points.Num());
+		}
+	}
+	if (Phases.Num() == 0 && WindowPhases.Num() == 0)
+	{
+		return;
+	}
+
+	// Repaint only if a dot changes colour: over the old window and the new.
+	const int32 Count = Line.Points.Num();
+	auto NewPhaseAt = [&](int32 Point)
+	{
+		const int32 Along = Count > 0 ? (Point - Start + Count) % Count : 0;
+		return Phases.IsValidIndex(Along) ? Phases[Along] : Line.Phases[Point];
+	};
+	bool bChanged = false;
+	for (int32 Along = 0; Along < WindowPhases.Num() && !bChanged; ++Along)
+	{
+		const int32 Point = (WindowStart + Along) % Count;
+		bChanged = Line.Phases.IsValidIndex(Point) && PhaseAt(Point) != NewPhaseAt(Point);
+	}
+	for (int32 Along = 0; Along < Phases.Num() && !bChanged; ++Along)
+	{
+		const int32 Point = (Start + Along) % Count;
+		bChanged = Line.Phases.IsValidIndex(Point) && PhaseAt(Point) != NewPhaseAt(Point);
+	}
+	int32 OffLine = 0;
+	for (int32 Along = 0; Along < Phases.Num(); ++Along)
+	{
+		const int32 Point = (Start + Along) % Count;
+		OffLine += Line.Phases.IsValidIndex(Point) && Phases[Along] != Line.Phases[Point] ? 1 : 0;
+	}
+	WindowMostChanged = FMath::Max(WindowMostChanged, OffLine);
+	WindowStart = Start;
+	WindowPhases = MoveTemp(Phases);
+	if (bChanged && DotPhasePoint.Num() == DotTransforms.Num())
+	{
+		++WindowRepaints;
+		AddDots();
+	}
 }
 
 void AApexRacingLineActor::Paint(UInstancedStaticMeshComponent* Dots, const FLinearColor& Color)
@@ -153,6 +260,9 @@ void AApexRacingLineActor::SetWet(bool bInWet)
 
 void AApexRacingLineActor::SetLine(const FApexRacingLineData& InLine)
 {
+	// A new line drops the window over the old one; the next refresh plans it again.
+	WindowPhases.Reset();
+
 	// The server plans the line again during a session (fuel, tyres, the
 	// road) on the same points: keep the dots where they lie on the road and
 	// only repaint them, rather than tracing the whole lap again mid-race.
@@ -209,7 +319,7 @@ void AApexRacingLineActor::AddDots()
 		{
 			continue;
 		}
-		switch (Line.Phases[Point])
+		switch (PhaseAt(Point))
 		{
 		case EApexLinePhase::Throttle: Throttle.Add(DotTransforms[Dot]); break;
 		case EApexLinePhase::Brake:    Brake.Add(DotTransforms[Dot]);    break;
