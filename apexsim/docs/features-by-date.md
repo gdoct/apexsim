@@ -9,7 +9,7 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 ## 2026-10-26
 
 - **R4** — driver swaps: two to four drivers a car, a most per driver, the change in the box alongside the service, the pit plan's Driver row and the HUD's crew points (`851fcec6`); seen on screen (`62349c52`, `6def1c90`)
-- **A4** — an AI stop the plan chose is judged again at the lane (`e5323472`)
+- **A4** — an AI stop the plan chose is judged again at the lane (`e5323472`); a hot cockpit tires a driver sooner (`a8cb5a24`)
 - **Racing-line aid** — the stretch ahead counts the wind in the downforce (`5748285f`)
 - **Tests** — the street-lamp spec test follows the 45 m arm reach (`14b2e690`)
 
