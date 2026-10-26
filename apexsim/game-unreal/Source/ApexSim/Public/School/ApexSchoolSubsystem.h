@@ -97,6 +97,9 @@ public:
 	bool IsNewBest() const { return bNewBest; }
 	/** A try given up ("Back in the garage"), shown on the next test card; empty otherwise. */
 	const FString& GetNotice() const { return Notice; }
+	/** While a try is driven: the time limit's seconds left (the whole of it until the line), and whether its clock runs. */
+	float GetTimeLeftS() const { return Judge.GetTimeLeftS(); }
+	bool IsClockRunning() const { return Judge.IsClockRunning(); }
 
 	/** START / RETRY: out onto the run-up, the try judged from there. */
 	void Go();

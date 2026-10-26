@@ -140,6 +140,9 @@ bool FApexSchoolBuildTest::RunTest(const FString& Parameters)
 	const ApexSchool::FTest& Lap = Tests[3];
 	TestEqual(TEXT("lap"), Lap.Id, FString(TEXT("lap")));
 	TestEqual(TEXT("lap silver"), Lap.Limits[1], 94.5f, 0.001f);
+	TestEqual(TEXT("lap time limit"), Lap.TimeLimitS, 90.0f * ApexSchool::Rules::TimeLimitShare + ApexSchool::Rules::TimeLimitExtraS, 0.001f);
+	TestEqual(TEXT("brake time limit: pro rata to the line"), Brake.TimeLimitS,
+		90.0f * Brake.ToM / LapM * ApexSchool::Rules::TimeLimitShare + ApexSchool::Rules::TimeLimitExtraS, 0.001f);
 
 	TestEqual(TEXT("brake 2 m long is gold"), ApexSchool::MedalFor(Brake, 2.0f), EApexMedal::Gold);
 	TestEqual(TEXT("brake 5 m short is silver"), ApexSchool::MedalFor(Brake, -5.0f), EApexMedal::Silver);
@@ -324,6 +327,24 @@ bool FApexSchoolCornerLapJudgeTest::RunTest(const FString& Parameters)
 		});
 		TestFalse(TEXT("struck: failed"), Judge.GetResult().bPassed);
 		TestTrue(TEXT("struck: why"), Judge.GetResult().Why.StartsWith(TEXT("Off the track")));
+	}
+
+	// The time limit: its clock starts at the line; a crawl to the corner runs out of it.
+	{
+		ApexSchool::FJudge Judge;
+		Judge.Begin(Corner, LapM);
+		FDrive Drive;
+		Drive.StationM = LapM - 100.0f;
+		Run(Judge, Drive, [](const FDrive&) { return 5.0f; }, 10.0);
+		TestFalse(TEXT("limit: no clock before the line"), Judge.IsClockRunning());
+		TestEqual(TEXT("limit: all of it left"), Judge.GetTimeLeftS(), Corner.TimeLimitS);
+		Run(Judge, Drive, [](const FDrive&) { return 5.0f; }, 30.0);
+		TestTrue(TEXT("limit: clock at the line"), Judge.IsClockRunning());
+		TestEqual(TEXT("limit: counting down"), Judge.GetTimeLeftS(), Corner.TimeLimitS - 20.0f, 0.1f);
+		Run(Judge, Drive, [](const FDrive&) { return 5.0f; });
+		TestEqual(TEXT("limit: done"), Judge.GetPhase(), ApexSchool::EJudgePhase::Done);
+		TestFalse(TEXT("limit: failed"), Judge.GetResult().bPassed);
+		TestEqual(TEXT("limit: why"), Judge.GetResult().Why, FString(TEXT("Out of time")));
 	}
 	return true;
 }

@@ -137,6 +137,15 @@ TArray<ApexSchool::FTest> ApexSchool::BuildTests(const FApexTrackGuide& Guide)
 		Test.Title = TEXT("Clean lap");
 		SetReference(Test, Guide.Track.LapTimeS);
 	}
+
+	// The time limit, counted from the line: the guide car's time to the
+	// test's end, pro rata of its lap (or of 30 m/s without a lap time).
+	const float GuideLapS = Guide.Track.LapTimeS > 0.0f ? Guide.Track.LapTimeS : LapM / 30.0f;
+	for (FTest& Test : Tests)
+	{
+		const float EndM = Test.Kind == EApexSchoolKind::Lap ? LapM : Test.ToM;
+		Test.TimeLimitS = GuideLapS * FMath::Clamp(EndM / LapM, 0.0f, 1.0f) * Rules::TimeLimitShare + Rules::TimeLimitExtraS;
+	}
 	return Tests;
 }
 
@@ -375,6 +384,17 @@ void ApexSchool::FJudge::Begin(const FTest& InTest, float InLapM)
 	StartLap = 0;
 	TravelledM = 0.0f;
 	bStruckAtStart = false;
+	bClock = false;
+	ClockStartS = 0.0;
+}
+
+float ApexSchool::FJudge::GetTimeLeftS() const
+{
+	if (!bClock)
+	{
+		return Test.TimeLimitS;
+	}
+	return FMath::Max(0.0f, Test.TimeLimitS - static_cast<float>(Prev.TimeS - ClockStartS));
 }
 
 bool ApexSchool::FJudge::Crossed(float AtM, float FromStation, float ToStation, float& OutAlpha) const
@@ -476,6 +496,20 @@ bool ApexSchool::FJudge::Feed(const FSample& Sample)
 	float Alpha = 0.0f;
 	double AtTime = 0.0;
 	float AtSpeed = 0.0f;
+	if (Test.TimeLimitS > 0.0f)
+	{
+		if (!bClock && Crossed(0.0f, Last.StationM, Sample.StationM, Alpha))
+		{
+			Lerp(Alpha, AtTime, AtSpeed);
+			bClock = true;
+			ClockStartS = AtTime;
+		}
+		if (bClock && Sample.TimeS - ClockStartS > Test.TimeLimitS)
+		{
+			Finish(false, 0.0f, TEXT("Out of time"));
+			return true;
+		}
+	}
 	if (Phase == EJudgePhase::Waiting)
 	{
 		const float StartM = Test.Kind == EApexSchoolKind::Lap ? 0.0f : Test.FromM;

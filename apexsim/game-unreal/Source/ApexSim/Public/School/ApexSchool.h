@@ -86,6 +86,10 @@ namespace ApexSchool
 		inline constexpr float StoppedMps = 0.5f;
 		/** A station change this large between two samples is a relocation, not driving, metres. */
 		inline constexpr float JumpM = 150.0f;
+		/** The time limit: the guide car's time from the line to the test's end (pro rata of its lap) times this, ... */
+		inline constexpr float TimeLimitShare = 1.5f;
+		/** ... plus this, seconds (a stop, a slow start from the run-up). */
+		inline constexpr float TimeLimitExtraS = 10.0f;
 	}
 
 	/** One test of a circuit. */
@@ -111,6 +115,8 @@ namespace ApexSchool
 		float Reference = 0.0f;
 		/** What each medal asks, bronze, silver, gold, in the result's unit (FResult::Value); see Rules. */
 		float Limits[3] = { 0.0f, 0.0f, 0.0f };
+		/** Seconds from crossing the line to finish the test, or the try fails; 0 for none. */
+		float TimeLimitS = 0.0f;
 
 		bool IsReady() const { return Reference > 0.0f; }
 	};
@@ -221,6 +227,10 @@ namespace ApexSchool
 		/** Why it was aborted; empty otherwise. */
 		const FString& GetAbortReason() const { return AbortReason; }
 		bool IsOver() const { return Phase == EJudgePhase::Done || Phase == EJudgePhase::Aborted; }
+		/** Whether the time limit's clock runs: the car has crossed the line. */
+		bool IsClockRunning() const { return bClock; }
+		/** Seconds of the time limit left at the last sample; the whole limit until the line is crossed. */
+		float GetTimeLeftS() const;
 
 	private:
 		/** Whether the car passed station AtM between the last sample and this one; Alpha is where between. */
@@ -241,5 +251,8 @@ namespace ApexSchool
 		int32 StartLap = 0;
 		float TravelledM = 0.0f;
 		bool bStruckAtStart = false;
+		/** The time limit's clock: started at the line. */
+		bool bClock = false;
+		double ClockStartS = 0.0;
 	};
 }

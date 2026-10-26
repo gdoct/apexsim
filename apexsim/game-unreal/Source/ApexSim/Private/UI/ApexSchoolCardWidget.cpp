@@ -7,6 +7,8 @@
 #include "Catalog/ApexCatalogRows.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
+#include "Components/Overlay.h"
+#include "Components/OverlaySlot.h"
 #include "Components/SizeBox.h"
 #include "Components/Spacer.h"
 #include "Components/TextBlock.h"
@@ -21,6 +23,21 @@
 namespace ApexSchoolCard
 {
 	constexpr float CardWidth = 820.0f;
+	/** Under this many seconds left the countdown turns red. */
+	constexpr float HurryS = 10.0f;
+
+	/** "1:23" for a limit, "42.3" or "1:02.3" for a countdown. */
+	FString Clock(float Seconds, bool bTenths)
+	{
+		const float Shown = bTenths ? FMath::FloorToFloat(FMath::Max(0.0f, Seconds) * 10.0f) / 10.0f : FMath::CeilToFloat(FMath::Max(0.0f, Seconds));
+		const int32 Minutes = FMath::FloorToInt(Shown / 60.0f);
+		const float Rest = Shown - Minutes * 60.0f;
+		if (!bTenths)
+		{
+			return FString::Printf(TEXT("%d:%02d"), Minutes, FMath::RoundToInt(Rest));
+		}
+		return Minutes > 0 ? FString::Printf(TEXT("%d:%04.1f"), Minutes, Rest) : FString::Printf(TEXT("%.1f"), Rest);
+	}
 }
 
 UApexSchoolCardWidget::UApexSchoolCardWidget(const FObjectInitializer& ObjectInitializer)
@@ -105,7 +122,28 @@ void UApexSchoolCardWidget::BuildLayout()
 	AddV(Centre, MakeSized(*WidgetTree, MakePanel(*WidgetTree, Card, FMargin(40.0f, 32.0f), MakeBrush(Surface, Palette::Border, 1.0f)),
 		ApexSchoolCard::CardWidth, -1.0f), FMargin(), HAlign_Center);
 	AddV(Centre, WidgetTree->ConstructWidget<USpacer>(), FMargin(), HAlign_Fill, 1.0f);
-	WidgetTree->RootWidget = Centre;
+	CardHost = Centre;
+
+	// The countdown while a try is driven, top centre.
+	UVerticalBox* Timer = WidgetTree->ConstructWidget<UVerticalBox>();
+	TimerText = MakeText(*WidgetTree, FString(), Font::Display(40.0f), Palette::TextPrimary);
+	TimerText->SetJustification(ETextJustify::Center);
+	AddV(Timer, TimerText, FMargin(), HAlign_Center);
+	TimerNote = MakeText(*WidgetTree, FString(), Font::Mono(11.0f), Palette::TextMuted);
+	TimerNote->SetJustification(ETextJustify::Center);
+	AddV(Timer, TimerNote, FMargin(0.0f, 2.0f, 0.0f, 0.0f), HAlign_Center);
+	TimerPanel = MakePanel(*WidgetTree, Timer, FMargin(22.0f, 10.0f), MakeBrush(Surface, Palette::Border, 1.0f));
+	TimerPanel->SetVisibility(ESlateVisibility::Collapsed);
+
+	UOverlay* Root = WidgetTree->ConstructWidget<UOverlay>();
+	UOverlaySlot* CardSlot = Root->AddChildToOverlay(Centre);
+	CardSlot->SetHorizontalAlignment(HAlign_Fill);
+	CardSlot->SetVerticalAlignment(VAlign_Fill);
+	UOverlaySlot* TimerSlot = Root->AddChildToOverlay(TimerPanel);
+	TimerSlot->SetHorizontalAlignment(HAlign_Center);
+	TimerSlot->SetVerticalAlignment(VAlign_Top);
+	TimerSlot->SetPadding(FMargin(0.0f, 36.0f, 0.0f, 0.0f));
+	WidgetTree->RootWidget = Root;
 }
 
 void UApexSchoolCardWidget::SetOpen(bool bInOpen)
@@ -115,11 +153,57 @@ void UApexSchoolCardWidget::SetOpen(bool bInOpen)
 		return;
 	}
 	bOpen = bInOpen;
-	SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	if (bOpen)
 	{
 		Refresh();
 	}
+	UpdateVisibility();
+}
+
+void UApexSchoolCardWidget::UpdateVisibility()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexSchoolSubsystem* School = GameInstance ? GameInstance->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
+	const ApexSchool::FTest* Test = School ? School->GetActiveTest() : nullptr;
+	const bool bTimer = !bOpen && School && School->IsSchoolSession() && School->GetStage() == EApexSchoolStage::Driving
+		&& Test && Test->TimeLimitS > 0.0f;
+	if (CardHost)
+	{
+		CardHost->SetVisibility(bOpen ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (TimerPanel)
+	{
+		TimerPanel->SetVisibility(bTimer ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	SetVisibility(bOpen || bTimer ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (bTimer)
+	{
+		RefreshTimer();
+	}
+}
+
+void UApexSchoolCardWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
+{
+	Super::NativeTick(MyGeometry, InDeltaTime);
+	if (TimerPanel && TimerPanel->GetVisibility() != ESlateVisibility::Collapsed)
+	{
+		RefreshTimer();
+	}
+}
+
+void UApexSchoolCardWidget::RefreshTimer()
+{
+	const UGameInstance* GameInstance = GetGameInstance();
+	const UApexSchoolSubsystem* School = GameInstance ? GameInstance->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
+	if (!School || !TimerText || !TimerNote)
+	{
+		return;
+	}
+	const float Left = School->GetTimeLeftS();
+	const bool bRunning = School->IsClockRunning();
+	TimerText->SetText(FText::FromString(ApexSchoolCard::Clock(Left, bRunning)));
+	TimerText->SetColorAndOpacity(bRunning && Left < ApexSchoolCard::HurryS ? ApexUI::Palette::Error : ApexUI::Palette::TextPrimary);
+	TimerNote->SetText(FText::FromString(bRunning ? TEXT("TIME LEFT") : TEXT("TIME LIMIT  ·  STARTS AT THE LINE")));
 }
 
 void UApexSchoolCardWidget::Refresh()
@@ -128,6 +212,7 @@ void UApexSchoolCardWidget::Refresh()
 	const UApexSchoolSubsystem* School = GameInstance ? GameInstance->GetSubsystem<UApexSchoolSubsystem>() : nullptr;
 	const UApexMenuFlowSubsystem* Flow = GameInstance ? GameInstance->GetSubsystem<UApexMenuFlowSubsystem>() : nullptr;
 	const ApexSchool::FTest* Test = School ? School->GetActiveTest() : nullptr;
+	UpdateVisibility();
 	if (!bOpen || !Test || !Flow || !TitleText)
 	{
 		return;
@@ -166,7 +251,8 @@ void UApexSchoolCardWidget::Refresh()
 			Figure = FString::Printf(TEXT("Lap %s"), *ApexSchool::FigureText(*Test, Result.Seconds, bMetric));
 			break;
 		}
-		const bool bShowFigure = Result.bPassed || Test->Kind != EApexSchoolKind::Lap || Result.Seconds > 0.0f;
+		// A try failed before it was measured (off the track, out of time) has no figure.
+		const bool bShowFigure = Result.bPassed || Result.SpeedMps > 0.0f || Result.Seconds > 0.0f;
 		FigureText->SetText(FText::FromString(bShowFigure ? Figure : FString()));
 		WhyText->SetText(FText::FromString(Result.bPassed ? (School->IsNewBest() ? FString(TEXT("New best")) : FString()) : Result.Why));
 		WhyText->SetColorAndOpacity(Result.bPassed ? ApexUI::Palette::Live : ApexUI::Palette::Error);
@@ -182,9 +268,14 @@ void UApexSchoolCardWidget::Refresh()
 		PrimaryButton->SetLabel(TEXT("Start"));
 	}
 
-	TargetsText->SetText(FText::FromString(FString::Printf(TEXT("GOLD    %s\nSILVER  %s\nBRONZE  %s"),
+	FString Targets = FString::Printf(TEXT("GOLD    %s\nSILVER  %s\nBRONZE  %s"),
 		*ApexSchool::TargetText(*Test, EApexMedal::Gold, bMetric), *ApexSchool::TargetText(*Test, EApexMedal::Silver, bMetric),
-		*ApexSchool::TargetText(*Test, EApexMedal::Bronze, bMetric))));
+		*ApexSchool::TargetText(*Test, EApexMedal::Bronze, bMetric));
+	if (Test->TimeLimitS > 0.0f)
+	{
+		Targets += FString::Printf(TEXT("\nTIME    %s from the line"), *ApexSchoolCard::Clock(Test->TimeLimitS, false));
+	}
+	TargetsText->SetText(FText::FromString(Targets));
 	const FApexSchoolMedal* Best = School->GetBest(Test->Id);
 	BestText->SetText(FText::FromString(Best && Best->Medal != EApexMedal::None
 		? FString::Printf(TEXT("YOUR BEST: %s, %s  ·  %d TRIES"), *ApexSchool::MedalName(Best->Medal),

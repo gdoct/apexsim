@@ -2331,8 +2331,15 @@ void UApexRootWidget::SendCarSetup()
 		return;
 	}
 	// Clamped again by the server; sent whole so a knob put back to stock is
-	// stock there too.
-	Net->SetCarSetup(Settings->Get()->CarSetup);
+	// stock there too. A licence test's tyres are the test's: the stock pick,
+	// the tyre for the session's weather, whatever the last race was run on.
+	FApexCarSetup Setup = Settings->Get()->CarSetup;
+	const UApexSchoolSubsystem* School = GameInstance->GetSubsystem<UApexSchoolSubsystem>();
+	if (School && School->IsSchoolSession())
+	{
+		Setup.SetClick(ApexCarSetup::TyreCompound, 0);
+	}
+	Net->SetCarSetup(Setup);
 }
 
 void UApexRootWidget::HandleSettingsChangedForDriverAids(EApexSettingsGroup Group)

@@ -501,14 +501,19 @@ with `HotlapRelocate Track` (the run-up before the line) and back with
   the guide's recording as a try (gold 102%, silver 107%, bronze 115%).
   A **clean lap** from the line, by the server's lap time against the
   guide's `lap_time_s` (gold 102%, silver 105%, bronze 110%). A struck lap
-  fails any of them. The shares are `ApexSchool::Rules`; the guide car is
+  fails any of them. Each test has a **time limit** counted from the line
+  (`FTest::TimeLimitS`): the guide car's time from the line to the test's
+  end, pro rata of its lap, times `Rules::TimeLimitShare` (1.5) plus
+  `Rules::TimeLimitExtraS` (10 s); running out of it fails the try ("Out
+  of time"). The shares are `ApexSchool::Rules`; the guide car is
   an AI of the class, so the targets are the sim's, not a real driver's.
 - **Judging** (`ApexSchool::FJudge`, pure): fed the local car's samples
   (station, speed, lap, the lap flags, the server tick over its rate as the
   clock), it waits for the test's start station (the board, the corner's
   entry, the line), then judges; crossings are interpolated between two
-  samples. Back in the garage, a jump of 150 m or a clock that went back
-  (a rewind) gives the try up instead.
+  samples. The time limit's clock starts when the car crosses the line
+  (`IsClockRunning`, `GetTimeLeftS`). Back in the garage, a jump of 150 m
+  or a clock that went back (a rewind) gives the try up instead.
 - **Medals** are kept per profile in `UApexProfileSave::SchoolMedals`
   (`FApexSchoolMedal`: the key `<track id>|<car id>|<test id>`, the medal,
   the best figure, the tries); a passed try replaces the best when its
@@ -524,14 +529,19 @@ with `HotlapRelocate Track` (the run-up before the line) and back with
   medal takes and the best so far; Enter starts it. Change car goes through
   car select and back.
 - **In the session** `UApexSchoolSubsystem` creates a Practice-kind
-  session alone, dry at 13:00, counted into the hotlap on join. While the
+  session alone, dry at 13:00, counted into the hotlap on join. Its tyres
+  are the test's: the root sends the player's setup with the compound knob
+  at stock (the tyre for the weather), whatever the last session was run
+  on (`UApexRootWidget::SendCarSetup`). While the
   car is in the garage the root shows `UApexSchoolCardWidget` in place of
   the hotlap garage (the garage's keys and focus, `bGarageOpen`): the test
   card (the goal, the three targets, the best, why the last try was given
   up) with START, or after a try the result card (the medal or FAILED, the
   figure, the reason, NEW BEST) with RETRY; both have NEXT TEST and BACK TO
   SCHOOL (leaves for the School screen). START sends the car out; 1.5 s
-  after a try is judged the subsystem sends it back to the garage. The
+  after a try is judged the subsystem sends it back to the garage. While a
+  try is driven the card's widget shows the time limit at the top of the
+  screen, whole until the line, then counting down (red under 10 s). The
   hotlap's timing sheet stays hidden. `AApexSchoolMarkerActor` paints the
   test's marks across the road (flat strips traced onto the track's
   surfaces): the board yellow, the stop line white, the gold box's edges

@@ -307,6 +307,7 @@ void UApexSchoolSubsystem::ContinuePrepare()
 		// Timed as a try: entry to exit, the clip's own clock.
 		ApexSchool::FTest Timed = Test;
 		ApexSchool::SetReference(Timed, 1000.0f);
+		Timed.TimeLimitS = 0.0f;
 		ApexSchool::FJudge Judge;
 		Judge.Begin(Timed, LapM);
 		const double Duration = Clip.GetDurationSeconds();

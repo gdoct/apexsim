@@ -2359,3 +2359,21 @@
     the row with all three, and each one's console variables at 100%.
   status: open
 
+- id: v-menus-school-tyres-timer
+  title: >-
+    Driving school: test tyres, wrapped targets, time limit countdown
+  area: menus
+  kind: screen
+  check_by: Run a wet race, then Main menu > Drive > School, any circuit, the
+    brake test and the corner exit; let one run out of time.
+  created: 2026-10-26
+  commit: 01fb04fb
+  doc: docs/game/client.md
+  what: >-
+    After a wet race, a licence test goes out on the dry tyre; the School screen's
+    target lines wrap inside the card; the garage card lists TIME m:ss from
+    the line; while driving a timer sits top centre (whole limit until the line,
+    then counting down, red under 10 s) without covering HUD parts; running
+    out fails the try with 'Out of time'.
+  status: open
+

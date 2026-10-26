@@ -432,10 +432,18 @@ void UApexSchoolWidget::RebuildTests()
 		UTextBlock* Goal = MakeText(*WidgetTree, ApexSchool::GoalText(Test, bMetric), Font::Body(14.0f), Palette::TextSecondary);
 		Goal->SetAutoWrapText(true);
 		AddV(TestBox, Goal, FMargin(12.0f, 6.0f, 0.0f, 0.0f));
-		const FString Targets = FString::Printf(TEXT("GOLD %s  ·  SILVER %s  ·  BRONZE %s"),
+		FString Targets = FString::Printf(TEXT("GOLD %s  ·  SILVER %s  ·  BRONZE %s"),
 			*ApexSchool::TargetText(Test, EApexMedal::Gold, bMetric).ToUpper(), *ApexSchool::TargetText(Test, EApexMedal::Silver, bMetric).ToUpper(),
 			*ApexSchool::TargetText(Test, EApexMedal::Bronze, bMetric).ToUpper());
-		AddV(TestBox, MakeText(*WidgetTree, Targets, Font::Mono(11.0f), Palette::TextMuted), FMargin(12.0f, 4.0f, 0.0f, 0.0f));
+		if (Test.TimeLimitS > 0.0f)
+		{
+			const int32 Limit = FMath::CeilToInt(Test.TimeLimitS);
+			Targets += FString::Printf(TEXT("  ·  TIME %d:%02d FROM THE LINE"), Limit / 60, Limit % 60);
+		}
+		// Wrapped: a long target (the brake test's metres) ran past the card's edge.
+		UTextBlock* TargetLine = MakeText(*WidgetTree, Targets, Font::Mono(11.0f), Palette::TextMuted);
+		TargetLine->SetAutoWrapText(true);
+		AddV(TestBox, TargetLine, FMargin(12.0f, 4.0f, 0.0f, 0.0f));
 	}
 }
 
