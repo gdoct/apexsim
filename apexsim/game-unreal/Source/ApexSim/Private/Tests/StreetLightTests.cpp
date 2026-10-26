@@ -20,7 +20,7 @@ bool FApexLightsSpecsTest::RunTest(const FString& Parameters)
 	TestTrue(TEXT("and leans toward the road"),
 		Arm[0].AimLocal.Quaternion().GetForwardVector().Y * Arm[0].LocalCm.Y < 0.0);
 	TestTrue(TEXT("warm white"), Arm[0].Color.R > Arm[0].Color.B);
-	TestTrue(TEXT("28 m reach"), FMath::IsNearlyEqual(Arm[0].RadiusCm, 2800.0f));
+	TestTrue(TEXT("45 m reach: the road between two arms 40 m apart lit"), FMath::IsNearlyEqual(Arm[0].RadiusCm, 4500.0f));
 	// The older lamps keep their old figures.
 	const TArray<ApexLights::FLightSpec> Post = ApexLights::SpecsFor(TEXT("SM_lamp_post"));
 	TestEqual(TEXT("a post is one spot"), Post.Num(), 1);
