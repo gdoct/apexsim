@@ -200,8 +200,9 @@ to its judged shots (2026-10-21 for S/F, 2026-10-22 for the rest) but for
 the cells left open in track-improvements.md's status table, each with its
 reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
-The 2026-10-22 kit pieces (R21, R8, `c5-kit-*`, `c5-24h-*`) wait for a
-person to judge the shots. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
+The cells built 2026-10-22 (R21, R8, the kit pieces, the 24h layout) wait
+for a person to judge their shots, as the `v-c5-*` items on the verifier's
+page; their shots predate C9's stadium canopy and C10's horizons. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
 circuits without a dossier (their OSM fits fail on layout variants:
 `BBOXES`' notes); one track with selectable routes (follow-ups).
 **Watch out:** hand-placed props are discarded on the next dress; the

@@ -2097,3 +2097,245 @@
   status: open
   needs: [by-hand]
 
+- id: v-c5-bahrainless-stands
+  title: 'Bahrainless: the tent-roofed Main Grandstand'
+  area: track
+  kind: screen
+  check_by: c5-st-bahrainless
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Bahrainless' Main Grandstand under `grandstand/tent_roof_10m` and the pit
+    building's membrane storey, with the other stand families (general-admission
+    banks, a large roofed and a large open stand), against the circuit's references
+    (C5 Stands column).
+  status: open
+  evidence:
+  - run: c5-st-bahrainless
+    date: 2026-10-21
+    commit: e0cfb565
+    kind: shot
+
+- id: v-c5-bahrainless-screens-podium
+  title: 'Bahrainless: roof screens and podium'
+  area: track
+  kind: screen
+  check_by: c5-r20-bahrainless
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Bahrainless' roof screens seen from across the straight and the podium at
+    the entry end (C5, R12/R20).
+  status: open
+  evidence:
+  - run: c5-r20-bahrainless
+    date: 2026-10-22
+    commit: 879f7e7b
+    kind: shot
+
+- id: v-c5-mandarinabay-superscreens
+  title: 'Mandarina Bay: superscreens on the pit roof'
+  area: track
+  kind: screen
+  check_by: c5-sf-mandarinabay
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Mandarina Bay's start/finish: the three superscreens on the pit building's
+    roof, the stands from the pit wall and the pit side from the stands (C5
+    S/F column).
+  status: open
+  evidence:
+  - run: c5-sf-mandarinabay
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-albertparkour-sf
+  title: 'Albert Parkour: start/finish and the full pit lane'
+  area: track
+  kind: screen
+  check_by: c5-sf-albertparkour
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Albert Parkour's start/finish with the pit lane at its real length (R21,
+    4760-140) and its two roof screens: down the straight, the stands, the pit
+    side and back up the straight (C5 S/F column).
+  status: open
+  evidence:
+  - run: c5-sf-albertparkour
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-lemons-sf
+  title: 'Lemons: start/finish and the full pit lane'
+  area: track
+  kind: screen
+  check_by: c5-sf-lemons
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Lemons' start/finish with the pit lane at its real length, from the Raccordement
+    to the Dunlop curve (R21): down the straight, the stands, the pit side and
+    back up the straight (C5 S/F column).
+  status: open
+  evidence:
+  - run: c5-sf-lemons
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-gnocchi-landmarks
+  title: 'Gnocchi: the Fisht stadium and Olympic park'
+  area: track
+  kind: screen
+  check_by: c5-lm-gnocchi
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Gnocchi's landmarks: the Fisht stadium (`building/stadium_bowl` on its OSM
+    centre) toward the sea, the Olympic cauldron and the ice arenas (C5 Landmark
+    column).
+  status: open
+  evidence:
+  - run: c5-lm-gnocchi
+    date: 2026-10-21
+    commit: a20641b6
+    kind: shot
+  - run: c5-kit-gnocchi
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-monzarella-banking
+  title: 'Monzarella: the Sopraelevata banking'
+  area: track
+  kind: screen
+  check_by: c5-kit-monzarella
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Monzarella's Sopraelevata, Nord and Sud: OSM's banked curves laid as `building/banked_oval_10m`
+    modules from the dossier's `banking` (C5 Landmark column).
+  status: open
+  evidence:
+  - run: c5-kit-monzarella
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-shanghaied-stands
+  title: 'Shanghaied: Grandstand A under the lotus canopy'
+  area: track
+  kind: screen
+  check_by: c5-st-shanghaied
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Shanghaied's Grandstand A under `grandstand/lotus_canopy_10m`, with the
+    stadium stand, the general-admission banks and the large stands (C5 Stands
+    column). The run predates C9's stadium canopy, so its stadium-stand shot
+    shows the old slab roof.
+  status: open
+  evidence:
+  - run: c5-st-shanghaied
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-oskarsleben-trees
+  title: 'Oskarsleben: OSM tree rows'
+  area: track
+  kind: screen
+  check_by: c5-tr-oskarsleben
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Oskarsleben's OSM tree rows (`TREE_ROW_STEMS`, planted by the tree pass):
+    scrub, the broadleaf and conifer far forest and a broadleaf tree (C5 Trees
+    column).
+  status: open
+  evidence:
+  - run: c5-tr-oskarsleben
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-shanghaied-trees
+  title: 'Shanghaied: OSM tree rows'
+  area: track
+  kind: screen
+  check_by: c5-tr-shanghaied
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Shanghaied's OSM tree rows (`TREE_ROW_STEMS`, planted by the tree pass):
+    scrub and a broadleaf tree (C5 Trees column).
+  status: open
+  evidence:
+  - run: c5-tr-shanghaied
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-nuerburgerring24-layout
+  title: The Nurburgring 24h layout
+  area: track
+  kind: screen
+  check_by: c5-24h-nuerburgerring24
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    The 24-hour layout built by `combine_tracks.py`: down the start/finish straight,
+    the connector onto the Nordschleife past T13 and the connector back onto
+    the GP, with no step or seam where the two scenes meet (apexsim-content/docs/circuits.md).
+  status: open
+  evidence:
+  - run: c5-24h-nuerburgerring24
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+
+- id: v-c5-armadillos-veil-tower
+  title: 'Armadillos: the observation tower in its veil'
+  area: track
+  kind: screen
+  check_by: c5-kit-armadillos
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Armadillos' observation tower (`veil_tower`, 77 m in a red steel veil) and
+    the veil's plaza canopy (C5 kit pieces, apexsim-content/docs/props.md).
+  status: open
+  evidence:
+  - run: c5-kit-armadillos
+    date: 2026-10-23
+    commit: 0751e635
+    kind: shot
+
