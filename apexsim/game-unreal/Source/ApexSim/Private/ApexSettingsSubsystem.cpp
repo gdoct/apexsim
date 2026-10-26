@@ -8,6 +8,12 @@
 #include "ApexSim.h"
 #include "ApexSimInputModule.h"
 #include "AudioDevice.h"
+#include "DynamicRHI.h"
+#include "Containers/Ticker.h"
+#include "Modules/ModuleManager.h"
+#if APEX_WITH_DLSS
+#include "DLSSLibrary.h"
+#endif
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -90,6 +96,16 @@ void UApexSettingsSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	Load();
 
 	ApplyGraphics();
+	// Again on the first frame: in a packaged game this runs before
+	// PostEngineInit, where DLSS's modules load (its support query has nothing
+	// to ask until then) and FSR builds its upscaler, which writes its own
+	// quality mode's share into r.ScreenPercentage when on.
+	FirstFrameUpscalerHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
+	{
+		FirstFrameUpscalerHandle.Reset();
+		ApplyUpscaler();
+		return false;
+	}));
 	// Gameplay too, because one of its effects is a console variable rather than
 	// a widget: the minimap needs centerline parsing switched on before the first
 	// LobbyState arrives, which is well before any HUD exists to ask for it.
@@ -120,6 +136,11 @@ void UApexSettingsSubsystem::Deinitialize()
 			Input->OnDevicesChanged().Remove(DevicesChangedHandle);
 		}
 		DevicesChangedHandle.Reset();
+	}
+	if (FirstFrameUpscalerHandle.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(FirstFrameUpscalerHandle);
+		FirstFrameUpscalerHandle.Reset();
 	}
 
 	ClearMenuNavigation();
@@ -533,6 +554,75 @@ void UApexSettingsSubsystem::SetRenderScale(int32 Percent)
 	Changed(EApexSettingsGroup::Graphics);
 }
 
+void UApexSettingsSubsystem::SetUpscaler(EApexUpscaler Upscaler)
+{
+	if (!Settings || Settings->Upscaler == Upscaler) { return; }
+	Settings->Upscaler = Upscaler;
+	Changed(EApexSettingsGroup::Graphics);
+}
+
+bool UApexSettingsSubsystem::IsUpscalerSupported(EApexUpscaler Upscaler)
+{
+	switch (Upscaler)
+	{
+	case EApexUpscaler::Dlss:
+#if APEX_WITH_DLSS
+		// The library asks the driver; it has nothing to ask before the
+		// module has loaded (PostEngineInit).
+		return FModuleManager::Get().IsModuleLoaded(TEXT("DLSS")) && UDLSSLibrary::IsDLSSSupported();
+#else
+		return false;
+#endif
+	case EApexUpscaler::Fsr:
+		// The plugin's upscaler runs on its DirectX 12 backend only.
+		return FModuleManager::Get().IsModuleLoaded(TEXT("FFXFSRTemporalUpscaling"))
+			&& GDynamicRHI && GDynamicRHI->GetInterfaceType() == ERHIInterfaceType::D3D12;
+	default:
+		return true;
+	}
+}
+
+void UApexSettingsSubsystem::ApplyUpscaler()
+{
+	if (!Settings)
+	{
+		return;
+	}
+
+	// -ApexUpscaler=tsr|dlss|fsr for one run, the slot left alone.
+	EApexUpscaler Wanted = Settings->Upscaler;
+	FString Override;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexUpscaler="), Override))
+	{
+		Wanted = Override == TEXT("dlss") ? EApexUpscaler::Dlss : Override == TEXT("fsr") ? EApexUpscaler::Fsr : EApexUpscaler::Tsr;
+	}
+	const EApexUpscaler Upscaler = IsUpscalerSupported(Wanted) ? Wanted : EApexUpscaler::Tsr;
+	UE_LOG(LogApexSim, Log, TEXT("Upscaler: %s at %d%% (wanted %s; DLSS %s, FSR %s here)"),
+		*UEnum::GetValueAsString(Upscaler), Settings->RenderScalePct, *UEnum::GetValueAsString(Wanted),
+		IsUpscalerSupported(EApexUpscaler::Dlss) ? TEXT("runs") : TEXT("does not run"),
+		IsUpscalerSupported(EApexUpscaler::Fsr) ? TEXT("runs") : TEXT("does not run"));
+	IConsoleManager& Console = IConsoleManager::Get();
+	// FSR switches itself on as its plugin loads: off unless chosen, at code
+	// priority so the plugin's own ini default cannot win.
+	if (IConsoleVariable* Fsr = Console.FindConsoleVariable(TEXT("r.FidelityFX.FSR.Enabled")))
+	{
+		Fsr->Set(Upscaler == EApexUpscaler::Fsr ? 1 : 0, ECVF_SetByCode);
+	}
+	if (IConsoleVariable* Dlss = Console.FindConsoleVariable(TEXT("r.NGX.DLSS.Enable")))
+	{
+		Dlss->Set(Upscaler == EApexUpscaler::Dlss ? 1 : 0, ECVF_SetByCode);
+	}
+	// FSR writes its quality mode's share into r.ScreenPercentage at code
+	// priority when switched on (and puts the old one back when off): the
+	// render scale is the share, so it goes back over it, at the plugin's
+	// priority while FSR is on and the game setting's otherwise.
+	if (IConsoleVariable* Percentage = Console.FindConsoleVariable(TEXT("r.ScreenPercentage")))
+	{
+		Percentage->Set(static_cast<float>(FMath::Clamp(Settings->RenderScalePct, 50, 100)),
+			Upscaler == EApexUpscaler::Fsr ? ECVF_SetByCode : ECVF_SetByGameSetting);
+	}
+}
+
 void UApexSettingsSubsystem::SetHdrOutput(bool bEnabled)
 {
 	if (!Settings || Settings->bHdrOutput == bEnabled) { return; }
@@ -621,7 +711,8 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	User->SetVisualEffectQuality(Settings->DetailQuality);
 	User->SetFoliageQuality(Settings->DetailQuality);
 	User->SetShadingQuality(Settings->DetailQuality);
-	// The scene at a share of the window, TSR bringing it back up.
+	// The scene at a share of the window, the upscaler bringing it back up
+	// (ApplyUpscaler, after ApplySettings).
 	User->SetResolutionScaleValueEx(static_cast<float>(FMath::Clamp(Settings->RenderScalePct, 50, 100)));
 	if (User->SupportsHDRDisplayOutput())
 	{
@@ -632,6 +723,7 @@ void UApexSettingsSubsystem::ApplyGraphics()
 	// bCheckForCommandLineOverrides off: a -ResX on the command line would
 	// otherwise silently win over the resolution the player just picked.
 	User->ApplySettings(/*bCheckForCommandLineOverrides*/ false);
+	ApplyUpscaler();
 
 	// Shadow bucket 0 still renders virtual shadow maps; Low swaps them for
 	// cascaded shadow maps, which an integrated GPU can afford.
@@ -1498,6 +1590,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 			SetPresetRows(Settings->Preset);
 		}
 		Settings->MotionBlur = Defaults->MotionBlur;
+		Settings->Upscaler = Defaults->Upscaler;
 		Settings->TripleScreenWidthCm = Defaults->TripleScreenWidthCm;
 		Settings->TripleBezelCm = Defaults->TripleBezelCm;
 		Settings->TripleEyeDistanceCm = Defaults->TripleEyeDistanceCm;

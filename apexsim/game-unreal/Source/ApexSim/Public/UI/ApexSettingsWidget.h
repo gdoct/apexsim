@@ -293,6 +293,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> RenderScaleSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> RenderScaleFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RenderScaleValue;
+	/** The Upscaler row's options in order: the upscalers this machine runs (TSR first). */
+	TArray<EApexUpscaler> UpscalerChoices;
 	/** The HDR row: shown only where the display supports HDR output. */
 	UPROPERTY(Transient) TObjectPtr<UWidget> HdrRow;
 	UPROPERTY(Transient) TObjectPtr<USlider> PaperWhiteSlider;

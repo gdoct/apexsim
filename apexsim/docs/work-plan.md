@@ -50,7 +50,7 @@ takes it up (— : no step, taken opportunistically).
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
-| N10 | DLSS / FSR upscaling | Rendering | P3 | 🟡 | M | 2 |
+| N10 | DLSS / FSR upscaling: built, to judge in a race | Rendering | P3 | 🟡 | S | 2 |
 | G4 | Road and terrain outside Lumen's distance-field scene (A/B done) | Rendering | P3 | 🟡 | M | 2 |
 | A7 | Imported F1s' AI touches other cars twice as much (follow-ups #19) | AI | P3 | 🟢 | S | — |
 | G6 | Top view of formula cars looks cheap | Rendering | P3 | 🟡 | M | — |
@@ -282,10 +282,12 @@ browser gets an Internet tab. Opt-in per server in `operations` config.
 register themselves, so sign or verify them (TLS fingerprint); the browser's
 filter pills already exist.
 
-#### N10. DLSS / FSR — P3 · 🔴 · M
-Render scale (TSR) and HDR are built. Left: DLSS and FSR plugins (decided 2026-10-18: ship both, TSR stays
-the default; you accept NVIDIA's DLSS SDK terms when the plugin is
-downloaded, so the download is yours), and the checks in verification.md.
+#### N10. DLSS / FSR — P3 · 🟡 · S
+Built 2026-10-26: the Graphics tab's Upscaler row (TSR, DLSS, FSR, each
+where it runs; TSR the default) on the plugins installed in the engine
+(DLSS 8.9.0, FSR 4.1.1; [building.md](building.md#prerequisites)). Seen on
+the menu with all three; left: judging them in a race and a packaged build
+(`v-n10-upscalers`), and FSR 4 on a Radeon.
 
 #### N22. Localisation — P3 · 🔴 · M
 Move UI strings to string tables; translations need translators (🔴).

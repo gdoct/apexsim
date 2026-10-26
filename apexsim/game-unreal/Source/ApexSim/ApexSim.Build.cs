@@ -1,3 +1,4 @@
+using System.IO;
 using UnrealBuildTool;
 
 public class ApexSim : ModuleRules
@@ -63,5 +64,15 @@ public class ApexSim : ModuleRules
 			// when scripts/build_physics_lib.ps1 has not built it.
 			"ApexPhysics",
 		});
+
+		// DLSS's support query, when NVIDIA's plugin is installed in the engine
+		// (docs/building.md); the .uproject names it optional, and without it
+		// APEX_WITH_DLSS is 0 and the Upscaler row offers no DLSS.
+		bool bDlss = File.Exists(Path.Combine(EngineDirectory, "Plugins", "Marketplace", "DLSS", "DLSS.uplugin"));
+		if (bDlss)
+		{
+			PrivateDependencyModuleNames.Add("DLSSBlueprint");
+		}
+		PublicDefinitions.Add("APEX_WITH_DLSS=" + (bDlss ? "1" : "0"));
 	}
 }

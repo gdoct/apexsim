@@ -727,7 +727,28 @@ at that share of the window and lets the engine's temporal upscaler (TSR,
 the project's anti-aliasing method) bring it back to full size
 (`UGameUserSettings::SetResolutionScaleValueEx`); the HUD and menus are
 drawn at full size. The presets set it: LOW 70, MEDIUM 85, HIGH and ULTRA
-100; moving it by hand makes the preset CUSTOM. HDR (`bHdrOutput`,
+100; moving it by hand makes the preset CUSTOM.
+
+Upscaler (`EApexUpscaler`, `Upscaler`: TSR, DLSS, FSR; not part of the
+presets, TSR by default) picks what brings the scene back up; at 100% it
+only smooths edges (DLSS runs as DLAA, FSR as native AA). DLSS and FSR are
+engine plugins, optional in the `.uproject` ([building.md](../building.md#prerequisites)),
+and the row offers only what runs here
+(`UApexSettingsSubsystem::IsUpscalerSupported`: DLSS when its module is
+loaded and `UDLSSLibrary::IsDLSSSupported`, an RTX card and driver; FSR
+when its module is loaded on D3D12, FSR 4's ML path on Radeon RX 7000/9000
+and FSR 3 elsewhere); with TSR the only one the row is not shown. A
+choice the machine cannot run falls back to TSR when applied and stays in
+the slot. `ApplyUpscaler` sets `r.NGX.DLSS.Enable` and
+`r.FidelityFX.FSR.Enabled` at code priority, because FSR switches itself on
+as its plugin loads, and writes the render scale back into
+`r.ScreenPercentage` after FSR has put its own quality mode's share there
+(at code priority while FSR is on, the game setting's otherwise). DLSS
+takes any share from 50 to 100% (the driver's dynamic range), which is the
+slider's. It applies in `ApplyGraphics` and again on the first frame, after
+PostEngineInit, where DLSS's modules load and FSR builds its upscaler; the
+log line `Upscaler: ...` says which runs. `-ApexUpscaler=tsr|dlss|fsr`
+overrides it for one run and leaves the slot (and the row) alone. HDR (`bHdrOutput`,
 `EnableHDRDisplayOutput` at `HdrPeakNits`, 1000) and its paper white
 (`HdrPaperWhiteNits`, 80-500 in ten-nit steps, default 200,
 `SetHDRPaperWhiteNits`: how bright white is, the scene and the menus

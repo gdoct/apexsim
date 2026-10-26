@@ -416,7 +416,7 @@ bool UApexMenuFlowSubsystem::ConsumeProfilePrompt()
 	// ones that only set the machine up, or watch, leave the picker to the
 	// player (a verify run shoots it with nothing else).
 	static const TCHAR* const Observing[] = {
-		TEXT("ApexScreens="), TEXT("ApexContent"), TEXT("ApexNoSplashHold"), TEXT("ApexSettingsDir="),
+		TEXT("ApexScreens="), TEXT("ApexUpscaler="), TEXT("ApexContent"), TEXT("ApexNoSplashHold"), TEXT("ApexSettingsDir="),
 		TEXT("ApexScreenshotAfter="), TEXT("ApexExecAfter="),
 	};
 	TArray<FString> Tokens, Switches;

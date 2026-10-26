@@ -70,6 +70,20 @@ enum class EApexGraphicsPreset : uint8
 };
 
 /**
+ * What brings the scene back up from the render scale to the window. TSR is
+ * the engine's own and runs everywhere; DLSS (NVIDIA RTX) and FSR (DirectX 12)
+ * come from plugins installed in the engine and are offered only where they
+ * run (UApexSettingsSubsystem::IsUpscalerSupported). Saved by value: append only.
+ */
+UENUM(BlueprintType)
+enum class EApexUpscaler : uint8
+{
+	Tsr,
+	Dlss,
+	Fsr,
+};
+
+/**
  * One key bound to one action.
  *
  * An action can hold several of these — steering has a gamepad axis, two
@@ -304,6 +318,14 @@ public:
 	 */
 	UPROPERTY()
 	int32 RenderScalePct = 100;
+
+	/**
+	 * The upscaler at RenderScalePct; at 100 it is anti-aliasing only (DLSS
+	 * runs as DLAA, FSR as native AA). One the machine cannot run falls back
+	 * to TSR when applied, and the slot keeps the choice.
+	 */
+	UPROPERTY()
+	EApexUpscaler Upscaler = EApexUpscaler::Tsr;
 
 	/** HDR output to an HDR display (UGameUserSettings::EnableHDRDisplayOutput), at HdrPeakNits. */
 	UPROPERTY()

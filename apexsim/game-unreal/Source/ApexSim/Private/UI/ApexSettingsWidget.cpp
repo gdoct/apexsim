@@ -178,6 +178,7 @@ namespace
 	const FName SegPreset     = TEXT("Preset");
 	const FName SegVSync      = TEXT("VSync");
 	const FName SegHdr        = TEXT("Hdr");
+	const FName SegUpscaler   = TEXT("Upscaler");
 	const FName SegScreens    = TEXT("Screens");
 	const FName SegStartView  = TEXT("StartView");
 	const FName SegChaseView  = TEXT("ChaseView");
@@ -987,9 +988,28 @@ UWidget* UApexSettingsWidget::BuildGraphicsPage()
 	AddSliderRow(Left, TEXT("Motion blur"), TEXT(""), MotionBlurSlider, MotionBlurFill, MotionBlurValue, false);
 	MotionBlurSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleMotionBlurChanged);
 
-	AddSliderRow(Left, TEXT("Render scale"), TEXT("The scene at a share of the screen, upscaled (TSR): more frames on a slower card."),
+	AddSliderRow(Left, TEXT("Render scale"), TEXT("The scene at a share of the screen, upscaled: more frames on a slower card."),
 		RenderScaleSlider, RenderScaleFill, RenderScaleValue, false);
 	RenderScaleSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleRenderScaleChanged);
+
+	// What upscales it: only the upscalers this machine runs, and no row
+	// where TSR is the only one.
+	UpscalerChoices.Reset();
+	TArray<FString> UpscalerNames;
+	for (const TPair<EApexUpscaler, const TCHAR*>& Choice : TArray<TPair<EApexUpscaler, const TCHAR*>>{
+		{ EApexUpscaler::Tsr, TEXT("TSR") }, { EApexUpscaler::Dlss, TEXT("DLSS") }, { EApexUpscaler::Fsr, TEXT("FSR") } })
+	{
+		if (UApexSettingsSubsystem::IsUpscalerSupported(Choice.Key))
+		{
+			UpscalerChoices.Add(Choice.Key);
+			UpscalerNames.Add(Choice.Value);
+		}
+	}
+	if (UpscalerChoices.Num() > 1)
+	{
+		AddV(Left, MakeRow(TEXT("Upscaler"), TEXT("What scales the scene up; at 100% it only smooths edges."),
+			MakeSegment(SegUpscaler, UpscalerNames, 0, 80.0f)), FMargin(0.0f, 2.0f, 0.0f, 0.0f));
+	}
 
 	// Right column: the image itself.
 	ResolutionBox = MakeDropdown(*WidgetTree, {}, 0);
@@ -2148,6 +2168,8 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegPreset, static_cast<int32>(Values->Preset));
 	SetSegment(SegVSync, Values->bVSync ? 1 : 0);
 	SetSegment(SegHdr, Values->bHdrOutput ? 1 : 0);
+	// One this machine cannot run shows as TSR, which is what runs.
+	SetSegment(SegUpscaler, FMath::Max(0, UpscalerChoices.IndexOfByKey(Values->Upscaler)));
 	SetSegment(SegStartView, Values->bStartInCockpit ? 1 : 0);
 	// The row is closest first (ApexChase::Order), the save by stored index.
 	SetSegment(SegChaseView, ApexChase::StepOf(Values->ChaseViewLevel));
@@ -2540,6 +2562,10 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
 	else if (Id == SegVirtualMirror)  { Settings->SetVirtualMirror(Index == 1); }
 	else if (Id == SegMirrorQuality)  { Settings->SetMirrorQuality(Index); }
+	else if (Id == SegUpscaler)
+	{
+		if (UpscalerChoices.IsValidIndex(Index)) { Settings->SetUpscaler(UpscalerChoices[Index]); }
+	}
 	else if (Id == SegRadioSpotter)   { Settings->SetRadioSpotter(Index == 1); }
 	else if (Id == SegRadioEngineer)  { Settings->SetRadioEngineer(Index == 1); }
 	else if (Id == SegWheelDirection)

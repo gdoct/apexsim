@@ -2339,3 +2339,23 @@
     commit: 0751e635
     kind: shot
 
+- id: v-n10-upscalers
+  title: DLSS and FSR in a race
+  area: platform
+  kind: screen
+  check_by: human
+  created: 2026-10-26
+  commit: 56f404bd
+  plan: N10
+  doc: game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics
+  what: >-
+    The Upscaler row's DLSS and FSR against TSR in a race at render scale 50,
+    75 and 100 (`-ApexUpscaler=tsr|dlss|fsr` for one run each): sharpness, ghosting
+    behind a car and on the HUD-free road, shimmer on fences and kerbs, the
+    frame rate; DLSS at 100 is DLAA. The cockpit mirrors and a triple's side
+    views with each. A packaged build (build_release.ps1) on this machine offering
+    DLSS and FSR, which shows its DLLs were staged. FSR 4's ML path needs a
+    Radeon RX 7000/9000; here (NVIDIA) FSR runs 3.1.5. Seen so far: the menu,
+    the row with all three, and each one's console variables at 100%.
+  status: open
+

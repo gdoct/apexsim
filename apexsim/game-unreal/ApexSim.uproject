@@ -77,6 +77,16 @@
 		{
 			"Name": "LiveCodingToolset",
 			"Enabled": true
+		},
+		{
+			"Name": "DLSS",
+			"Enabled": true,
+			"Optional": true
+		},
+		{
+			"Name": "FSR",
+			"Enabled": true,
+			"Optional": true
 		}
 	]
 }

@@ -50,6 +50,16 @@ Paths in this doc are relative to the code root; a path that starts with
 - Python 3 with numpy, Pillow and PyYAML (track pipeline, ground textures).
 - Unreal Engine 5.8 (`EngineAssociation` in `game-unreal/ApexSim.uproject`)
   and Visual Studio's C++ toolchain, for the client and the commandlets.
+- Optional, for the Graphics tab's DLSS and FSR upscalers: NVIDIA's DLSS
+  plugin for UE 5.8 ([developer.nvidia.com/rtx/dlss](https://developer.nvidia.com/rtx/dlss),
+  "Download UE 5.8 DLSS Plugin": every folder under its `Plugins/`) and AMD's
+  FSR plugin ([gpuopen.com/learn/ue-fsr](https://gpuopen.com/learn/ue-fsr/):
+  `FSR` from its `5.8` folder), both copied into the engine's
+  `Engine/Plugins/Marketplace`. They stay out of the repository: the
+  download is where NVIDIA's and AMD's terms are accepted. The `.uproject`
+  names both optional, so a machine without them builds and runs on TSR
+  (`APEX_WITH_DLSS` 0); a package built where they are installed stages
+  their DLLs.
 - PowerShell for the build scripts (Windows; 5.1 works).
 
 ## Simulation (Rust, `server/sim/`)

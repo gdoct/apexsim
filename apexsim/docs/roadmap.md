@@ -59,16 +59,15 @@ box on the session browser for the lobby's own lines, a profanity filter
 
 ### 10. Upscaling and HDR
 
-Built: a render scale row (TSR) set by the presets, an HDR switch and its
-paper white ([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
-Left:
+Built: a render scale row set by the presets, an Upscaler row (TSR, DLSS,
+FSR, each where it runs; TSR the default), an HDR switch and its paper
+white ([game/client.md](game/client.md#graphics-quality-uapexsettingssubsystemapplygraphics)).
+Left: the check.
 
-- DLSS and FSR as plugins (decided 2026-10-18: both; TSR stays the
-  default, and NVIDIA's DLSS SDK terms are accepted when it is
-  downloaded).
-
-**Check:** the presets on the RTX machine and an integrated GPU; mirrors
-and triple screens at each scale; HDR on an HDR display.
+**Check:** the presets on the RTX machine and an integrated GPU; each
+upscaler at 50, 75 and 100% in a race (`-ApexUpscaler=`), FSR 4 on a
+Radeon, and a packaged build carrying the plugins' DLLs; mirrors and
+triple screens at each scale; HDR on an HDR display.
 
 ### 11. Own liveries
 

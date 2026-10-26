@@ -4,6 +4,7 @@
 #include "ApexMultiView.h"
 #include "ApexSettingsSave.h"
 #include "ApexWheelProfiles.h"
+#include "Containers/Ticker.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "ApexSettingsSubsystem.generated.h"
@@ -139,6 +140,10 @@ public:
 	void SetMotionBlur(float Amount01);
 	/** 50..100 percent of the window (ApexRenderScale); moves the preset to CUSTOM when off its value. */
 	void SetRenderScale(int32 Percent);
+	/** TSR, DLSS or FSR at the render scale; not part of the presets. */
+	void SetUpscaler(EApexUpscaler Upscaler);
+	/** Whether this machine runs the upscaler: TSR always, DLSS and FSR when their plugin is loaded and the GPU and RHI take it. */
+	static bool IsUpscalerSupported(EApexUpscaler Upscaler);
 	/** HDR output on or off; only offered where the display supports it (SupportsHdrOutput). */
 	void SetHdrOutput(bool bEnabled);
 	/** HDR paper white, nits, clamped to 80-500 (UApexSettingsSave::HdrPaperWhiteNits). */
@@ -455,6 +460,11 @@ private:
 	void Changed(EApexSettingsGroup Group);
 
 	void ApplyGraphics();
+	/**
+	 * The upscaler's console variables and the render scale under them; part
+	 * of ApplyGraphics, and again on the first frame (FirstFrameUpscalerHandle).
+	 */
+	void ApplyUpscaler();
 	void ApplyCamera();
 	void ApplyGameplay();
 	/** The aids reach the server through the root widget; this applies what is local (the line). */
@@ -508,6 +518,9 @@ private:
 
 	/** The input module's device-change subscription, dropped on the way out. */
 	FDelegateHandle DevicesChangedHandle;
+
+	/** The upscaler applied again on the first frame, after the plugins' PostEngineInit. */
+	FTSTicker::FDelegateHandle FirstFrameUpscalerHandle;
 
 	int32 ChangeCount = 0;
 	/** Suppresses the per-row counting and broadcasting while a preset applies. */
