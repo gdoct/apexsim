@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<section class="tight-top">
+  <div class="wrap faq">
+{%- for g in groups %}
+    <div class="faq-group reveal">
+      <h2>{{ g.title }}</h2>
+{%- for item in g['items'] %}
+      <details>
+        <summary>{{ item.q }}</summary>
+        <p>{{ item.a }}</p>
+      </details>
+{%- endfor %}
+    </div>
+{%- endfor %}
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

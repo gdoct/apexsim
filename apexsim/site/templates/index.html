@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+<header class="hero" id="top">
+  <img src="{{ asset(hero.image) }}" alt="{{ hero.image_alt|attr }}" fetchpriority="high">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">{{ hero.eyebrow }}</div>
+      <h1 style="margin-top:18px">{{ hero.headline }}</h1>
+      <p class="lede">{{ hero.lede }}</p>
+      <div class="ctas">
+        <a class="btn primary" href="{{ site.download }}">{{ site.download_label }}</a>
+        <a class="btn" href="https://youtu.be/{{ site.trailer }}" data-trailer="{{ site.trailer }}"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>Watch the trailer</a>
+        <a class="btn" href="{{ link('ac-import') }}">{{ ac.eyebrow }} →</a>
+      </div>
+    </div>
+    <aside class="telemetry" aria-label="Simulated telemetry readout">
+      <header><span>{{ hero.telemetry_label }}</span><i>{{ n.tick_hz }}&nbsp;Hz</i></header>
+      <div class="rows">
+        <span>THR</span><div class="bar"><u id="t-thr" style="--c:var(--green)"></u></div><b id="t-thr-v">0%</b>
+        <span>BRK</span><div class="bar"><u id="t-brk"></u></div><b id="t-brk-v">0%</b>
+        <span>FFB</span><div class="bar"><u id="t-ffb" style="--c:var(--amber)"></u></div><b id="t-ffb-v">0.00</b>
+        <span>LAT</span><div class="bar"><u id="t-lat" style="--c:var(--purple)"></u></div><b id="t-lat-v">0.0g</b>
+      </div>
+      <div class="big"><strong id="t-spd">0<small>KM/H</small></strong><span class="gear" id="t-gear">1</span></div>
+    </aside>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="wrap stagger">
+{%- for s in stats %}
+    <div class="stat"><b>{{ s.value }}{% if s.unit is defined %}<sup>{{ s.unit }}</sup>{% endif %}</b><span>{{ s.label }}</span></div>
+{%- endfor %}
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ overview.eyebrow }}</div><h2>{{ overview.title }}</h2></div>
+      <p><a class="more" href="{{ link('simulation') }}">{{ overview.more }} →</a></p>
+    </div>
+    <div class="tiles stagger">
+{%- for t in overview.tiles %}
+      <a class="tile" href="{{ link(t.href) }}">
+        <div class="num">{{ '%02d'|format(loop.index) }} / {{ t.tag|upper }}</div>
+        <h3>{{ t.title }}</h3>
+        <p>{{ t.body }}</p>
+        <span class="go" aria-hidden="true">→</span>
+      </a>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="ac-callout">
+  <div class="wrap reveal">
+    <div>
+      <div class="eyebrow">{{ ac.eyebrow }}</div>
+      <h2>{{ ac.title }}</h2>
+    </div>
+    <div>
+      <p>{{ ac.body }}</p>
+      <a class="btn primary" href="{{ link('ac-import') }}">{{ ac.button }} →</a>
+    </div>
+  </div>
+</section>
+
+<div class="band stagger">
+{%- for b in band %}
+  <figure><img src="{{ asset(b.image) }}"{{ zoom_attr(b.image) }} alt="{{ b.alt|attr }}" loading="lazy"><figcaption>{{ b.caption }}</figcaption></figure>
+{%- endfor %}
+</div>
+
+<section id="cars">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ grid.eyebrow }}</div><h2>{{ grid.title }}</h2></div>
+      <p>{{ grid.body }} <a class="more" href="{{ link('cars') }}">{{ grid.more }} →</a></p>
+    </div>
+    <div class="teaser-cars stagger">
+{%- for folder in grid.cars %}
+      <a class="teaser-car" href="{{ link('cars') }}">
+        <div class="shot"><img src="{{ car_picture(folder) }}" alt="{{ car(folder)|attr }}" loading="lazy"><span class="tag">{{ car_class(folder) }}</span></div>
+        <b>{{ car(folder) }}</b>
+      </a>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="tracks">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ calendar.eyebrow }}</div><h2>{{ calendar.title }}</h2></div>
+      <p>{{ calendar.body }} <a class="more" href="{{ link('circuits') }}">{{ calendar.more }} →</a></p>
+    </div>
+    <div class="teaser-tracks stagger">
+{%- for stem in calendar.circuits %}
+{%- set t = (circuits|selectattr('stem', 'equalto', stem)|first) %}
+      <a class="trk" href="{{ link('circuits') }}">
+        <svg viewBox="-6 -6 212 212" aria-hidden="true"><path d="{{ t.path }}" pathLength="1"/></svg>
+        <b>{{ name(stem) }}</b>
+        <span>{{ t.country }} · {{ '%.2f'|format(t.length / 1000) }} km</span>
+      </a>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+<section id="engine">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ engine.eyebrow }}</div><h2>{{ engine.title }}</h2></div>
+      <p>{{ engine.body }}</p>
+    </div>
+    <div class="shots stagger">
+{%- for s in engine.shots %}
+      <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

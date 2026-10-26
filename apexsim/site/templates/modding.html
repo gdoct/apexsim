@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<div class="wrap chapters solo">
+{%- for c in areas %}
+{{ parts.chapter(c, loop.index) }}
+{%- endfor %}
+</div>
+
+<section id="tech" class="alt">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ tech.eyebrow }}</div><h2>{{ tech.title }}</h2></div>
+      <p>{{ tech.intro }}</p>
+    </div>
+    <div class="arch stagger">
+{%- for node in tech.nodes %}
+      <div class="node"><div class="k">{{ node.key }}</div><h3>{{ node.title }}</h3><p>{{ node.body }}</p></div>
+{%- if not loop.last %}
+      <div class="link"><span>{{ tech.links[loop.index0] }}</span></div>
+{%- endif %}
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

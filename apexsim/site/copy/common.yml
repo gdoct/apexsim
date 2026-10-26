@@ -1,0 +1,117 @@
+# The words every page shares. scripts/site/build_site.py renders each
+# site/copy/<page>.yml through site/templates/<page>.html into
+# docs/<page>.html, with this file's keys beside the page's own (a page may
+# not reuse one of them).
+#
+# Every string is HTML (so `&amp;`, `&nbsp;`, <code>, <br> work) and may
+# quote the game's own figures, which the build reads from ../apexsim-content
+# and the server source (scripts/site/facts.py), so no number is typed here:
+#
+#   {{ n.cars }} {{ n.tracks }} {{ n.km }} {{ n.classes }} {{ n.dossiers }}
+#   {{ n.setup_knobs }} {{ n.hud_components }} {{ n.liveries }} {{ n.countries }}
+#   {{ n.longest_km }} {{ n.longest_relief }} {{ n.tick_hz }} {{ n.telemetry_hz }}
+#   {{ n.cars|words }}            fourteen
+#   {{ name('Monzarella') }}      a circuit's display name, by stem
+#   {{ car('posh-gt3rs') }}       a car's name, by folder
+#   {{ car_class('posh-gt3rs') }} its class as the game shows it
+#   {{ link('faq') }}             another page's address (link('simulation#tyres') keeps the fragment)
+#
+# Circuits and corners appear by their display names only (CLAUDE.md, "No
+# trademarks on screen"): write {{ name('SpaFrankenchamps') }}, never the
+# real name. Assetto Corsa is the one real product the site names, as plain
+# text for compatibility only, never with its logo or art, and always with
+# `disclaimer` on the page.
+#
+# `python scripts/site/build_site.py --stale` lists what changed in the
+# feature docs since this copy was last reviewed against them.
+
+site:
+  url: https://gdoct.github.io/apexsim/
+  repo: https://github.com/gdoct/apexsim
+  download: https://github.com/gdoct/apexsim/releases
+  download_label: Download
+  trailer: U7uFrgXyT0U
+  og_image: splash.webp
+
+# The menu, in order; the brand goes to the front page.
+nav:
+  - {page: simulation, label: Simulation}
+  - {page: cars, label: Cars}
+  - {page: circuits, label: Circuits}
+  - {page: ac-import, label: AC import}
+  - {page: modding, label: Modding}
+  - {page: faq, label: FAQ}
+  - {page: requirements, label: System specs}
+
+# The car classes, keyed by the class in car.toml; `title` is what the site
+# shows, `text` the garage's blurb.
+classes:
+  GT3:
+    title: GT3
+    text: >-
+      Front-engined and mid-engined production racers: heavy, planted and
+      forgiving at the limit. Steel brakes, big bodywork, bigger wings,
+      and the most door-to-door racing on the calendar.
+  LMP2:
+    title: LMP2
+    text: >-
+      Spec-engine prototypes with naturally aspirated V8s. Closed
+      canopies, long tails and downforce that builds with every km/h. The
+      class that races through the night.
+  Hypercar:
+    title: Hypercar
+    text: >-
+      The top of endurance racing: hybrids from a naturally aspirated V12
+      to a quad-turbo W16, each with an electric motor and a battery to
+      manage. Over a tonne, and the longest straights to use it on.
+  F1:
+    title: Formula
+    text: >-
+      Open-wheel single-seaters with turbo V6s screaming to 15,000 rpm
+      and half their power from the battery. The lightest cars, the most
+      sensitive to ride height, and a lap that has to be energy-managed.
+  Rally:
+    title: Rally
+    text: >-
+      The mid-eighties' wildest rally cars on their real figures, not
+      balanced against each other: a supercharged rear-drive coupe and two
+      turbocharged four-wheel-drive monsters, around a tonne and with no
+      downforce to speak of.
+
+# The circuit the circuit map opens on.
+featured: SpaFrankenchamps
+
+# The call to download, closing most pages.
+get:
+  image: cta.webp
+  eyebrow: In active development
+  title: Get on the grid
+  body: >-
+    Download the release, unzip it and run <code>launcher.exe</code>. It
+    starts the game, with a local server if you want one.
+
+disclaimer:
+  # in every page's footer
+  short: >-
+    ApexSim is an independent project, not affiliated with or endorsed by
+    Kunos Simulazioni or 505 Games. Assetto Corsa is a trademark of its
+    owner and is named only to say which files the importers read.
+  # on the AC import page, in full
+  full: >-
+    ApexSim is an independent project. It is not affiliated with, endorsed
+    by or sponsored by Kunos Simulazioni, 505 Games or any Assetto Corsa
+    mod author. Assetto Corsa is a trademark of its owner and is named
+    here only to say which files the importers read. ApexSim ships no
+    Assetto Corsa content: the importers convert content you already own,
+    on your own machine, for your own personal use, and what they make is
+    never shared or uploaded by ApexSim. You use them at your own risk, and
+    it is up to you to respect the terms of the game and of every mod's
+    author; some mod authors do not allow their work to be converted.
+
+footer:
+  logo: logo.png
+  logo_alt: ApexSim simracing platform
+  owner: Source-available · © ApexSim
+  lines:
+    - 'Circuit layouts © OpenStreetMap contributors (ODbL). Elevation: Copernicus GLO-30 DEM.'
+    - All car brands and models shown are fictional.

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<section id="cars" class="tight-top">
+  <div class="wrap">
+    <div class="garage" id="garage">
+      <div class="garage-pin">
+        <div class="garage-rail">
+          <div class="tabs" role="tablist" id="classTabs" aria-label="Car classes"></div>
+          <div class="garage-count" id="garageCount" aria-hidden="true"></div>
+        </div>
+        <div class="garage-stage" id="carStage"></div>
+      </div>
+    </div>
+
+    <div class="liveries reveal">
+      <div>
+        <div class="eyebrow">{{ liveries.eyebrow }}</div>
+        <h3>{{ liveries.title }}</h3>
+        <p>{{ liveries.body }}</p>
+      </div>
+      <div class="liv-grid stagger">
+{%- for i in liveries.images %}
+        <figure><img src="{{ asset(i.image) }}"{{ zoom_attr(i.image) }} alt="{{ i.alt|attr }}" loading="lazy"></figure>
+{%- endfor %}
+      </div>
+    </div>
+    <div class="details stagger">
+{%- for d in details %}
+      <figure><img src="{{ asset(d.image) }}"{{ zoom_attr(d.image) }} alt="{{ d.alt|attr }}" loading="lazy"></figure>
+{%- endfor %}
+    </div>
+    <div class="own reveal">
+      <h3>{{ own.title }}</h3>
+      <p>{{ own.body }}</p>
+      <div class="ctas">
+{%- for l in own.links %}
+        <a class="btn" href="{{ link(l.href) }}">{{ l.label }} →</a>
+{%- endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

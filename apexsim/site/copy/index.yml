@@ -1,0 +1,115 @@
+# The front page: short on purpose. A line or two per section; the detail
+# lives on the other pages, which each section links to. The keys and
+# figures are explained at the top of common.yml.
+
+meta:
+  title: ApexSim — Racing Simulator
+  description: >-
+    ApexSim is a source-available racing simulator: a {{ n.tick_hz }} Hz
+    authoritative Rust physics server, an Unreal Engine 5 client,
+    {{ n.cars }} cars across {{ n.classes }} classes and {{ n.tracks }}
+    real-world circuits, and your own Assetto Corsa cars and tracks
+    imported in one step.
+
+hero:
+  image: splash.webp
+  image_alt: Four GT cars racing into an alpine sunset under the ApexSim wordmark
+  eyebrow: Source-available simracing platform
+  headline: The server decides <br><em>where every car is.</em>
+  lede: >-
+    A {{ n.tick_hz }}&nbsp;Hz physics simulation in Rust, rendered in
+    Unreal&nbsp;Engine&nbsp;5. {{ n.cars|words|capitalize }} cars,
+    {{ n.tracks|words }} real circuits, and your own Assetto Corsa
+    content on top.
+  telemetry_label: Telemetry · S2
+
+stats:
+  - {value: '{{ n.tick_hz }}', unit: Hz, label: Authoritative physics tick}
+  - {value: '{{ n.cars }}', label: 'Cars · {{ n.classes|words }} classes'}
+  - {value: '{{ n.tracks }}', label: Real-world circuits}
+  - {value: '{{ n.km }}', unit: km, label: Of surveyed tarmac}
+  - {value: '0', label: Client-side physics}
+
+# Each tile is a line and a link to its part of the simulation page.
+overview:
+  eyebrow: What's under the bodywork
+  title: Built like<br>a race car
+  more: Everything that is simulated
+  tiles:
+    - {tag: Physics, title: 'Four wheels that earn their grip', href: 'simulation#car', body: 'Per-wheel loads, slip-based tyres and suspension geometry, on the same road mesh the game draws.'}
+    - {tag: Tyres, title: 'A car that changes over a stint', href: 'simulation#tyres', body: 'Three tread zones and a core, pressure by the gas law, wear with a cliff, flat spots you can see.'}
+    - {tag: Aero, title: 'Downforce that rides the road', href: 'simulation#aero', body: 'Ride height and rake, a tow that cuts drag, dirty air that takes the front away.'}
+    - {tag: Weather, title: 'Rain, snow, wind and thin air', href: 'simulation#weather', body: 'Any hour of any day; a sky that can change, a road that wets and dries.'}
+    - {tag: Damage, title: 'Every hit counts, and shows', href: 'simulation#damage', body: 'Five zones scored by closing speed; dents, lost wings, a smoking engine.'}
+    - {tag: Race control, title: 'Flags, safety car and stewards', href: 'simulation#race-control', body: 'Formation laps, rolling starts, yellow and blue flags, penalties served in the lane.'}
+    - {tag: AI, title: 'Drivers that race', href: 'simulation#ai', body: 'They pass, defend, plan their stops and drive to the grip they have.'}
+    - {tag: Force feedback, title: 'Feel the front let go', href: 'simulation#ffb', body: 'Steering torque from each front tyre: the rim goes light as the grip peaks.'}
+
+# The Assetto Corsa call-out.
+ac:
+  eyebrow: Assetto Corsa import
+  title: Your AC cars and tracks.<br>One click away.
+  body: >-
+    Own Assetto Corsa? The launcher converts the cars and circuits already
+    on your disk: physics, skins, layouts and pit lanes.
+  button: How it works
+
+band:
+  - image: band-left.webp
+    alt: '{{ car("posh-gt3rs") }} from the rear'
+    caption: '{{ car("posh-gt3rs") }} · {{ car_class("posh-gt3rs") }}'
+  - image: band-right.webp
+    alt: '{{ car("fugazzi-994p-hypercar") }} from the rear'
+    caption: '{{ car("fugazzi-994p-hypercar") }} · {{ car_class("fugazzi-994p-hypercar") }}'
+
+grid:
+  eyebrow: The grid
+  title: '{{ n.cars }} cars.<br>{{ n.classes|words|capitalize }} classes.'
+  body: GT3, prototypes, hypercars, formula cars and eighties rally monsters, each on its own figures.
+  more: See every car
+  # by folder under apexsim-content/cars/default
+  cars: [posh-gt3rs, fugazzi-lmp2, bugotti-chiffon-hypercar, fugazzi-sf26]
+
+calendar:
+  eyebrow: The calendar
+  title: '{{ n.tracks }} circuits.<br>Surveyed, not sketched.'
+  body: >-
+    Measured centerlines, satellite terrain and furniture from
+    OpenStreetMap, in {{ n.countries }} countries. The longest is
+    {{ n.longest_km }}&nbsp;km.
+  more: See every circuit
+  # by stem; drawn from each circuit's own centerline
+  circuits: [SpaFrankenchamps, Mordschleife, Monzarella, Zandervoort, Lemons, MandarinaBay]
+
+engine:
+  eyebrow: Unreal Engine 5
+  title: In the engine
+  body: Every picture is the game, from AI races nobody drove, filmed by its own broadcast cameras.
+  # site/shots.yml takes them, site/media.yml cuts them. The first is shown large.
+  shots:
+    - image: shot-grid.webp
+      alt: 'Prototypes lined up on the grid at {{ name("Zandervoort") }} in low evening sun'
+      caption: '{{ name("Zandervoort") }} · the grid at golden hour'
+    - image: shot-rain.webp
+      alt: 'GT3 cars with headlights on in heavy rain at {{ name("Monzarella") }}'
+      caption: '{{ name("Monzarella") }} · heavy rain'
+    - image: shot-sunset.webp
+      alt: 'A Formula car under the floodlights at night at {{ name("Bahrainless") }}'
+      caption: '{{ name("Bahrainless") }} · under the floodlights'
+    - image: shot-climb.webp
+      alt: 'A Formula car over the top of the hill at {{ name("SpaFrankenchamps") }}'
+      caption: '{{ name("SpaFrankenchamps") }} · Raidillon'
+    - image: shot-night.webp
+      alt: 'A hypercar under floodlight towers at night at {{ name("Lemons") }}'
+      caption: '{{ name("Lemons") }} · after dark'
+    - image: shot-karussell.webp
+      alt: 'Two GT3 cars round the banked Karussell at {{ name("Mordschleife") }}, seen from the air'
+      caption: '{{ name("Mordschleife") }} · Karussell'
+    - image: shot-snow.webp
+      alt: 'Formula cars through falling snow at {{ name("SpaFrankenchamps") }}'
+      caption: '{{ name("SpaFrankenchamps") }} · snow'
+
+# The closing call: common.yml's `get`, with these links beside the download.
+get_links:
+  - {label: System specs, href: requirements}
+  - {label: FAQ, href: faq}

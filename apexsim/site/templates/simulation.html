@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<div class="wrap with-index">
+  <nav class="page-index" aria-label="{{ index_title|attr }}" data-spy>
+    <b>{{ index_title }}</b>
+    <ol>
+{%- for c in chapters %}
+      <li><a href="#{{ c.id }}">{{ c.tag }}</a></li>
+{%- endfor %}
+    </ol>
+    <b>{{ around.eyebrow }}</b>
+    <ol>
+{%- for c in around.chapters %}
+      <li><a href="#{{ c.id }}">{{ c.tag }}</a></li>
+{%- endfor %}
+    </ol>
+  </nav>
+  <div class="chapters">
+{%- for c in chapters %}
+{{ parts.chapter(c, loop.index) }}
+{%- endfor %}
+    <div class="part-head reveal-head" id="around">
+      <div class="eyebrow">{{ around.eyebrow }}</div>
+      <h2>{{ around.title }}</h2>
+    </div>
+{%- for c in around.chapters %}
+{{ parts.chapter(c, chapters|length + loop.index) }}
+{%- endfor %}
+  </div>
+</div>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

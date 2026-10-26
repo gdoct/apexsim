@@ -1,5 +1,5 @@
 {
- "comment": "Written by build_site.py --reviewed: the feature docs as site/copy.yml last covered them.",
+ "comment": "Written by build_site.py --reviewed: the feature docs as site/copy last covered them.",
  "docs": {
   "../apexsim-content/docs/ac-import.md": {
    "Assetto Corsa import": "d5bc0e821eef",

@@ -1,17 +1,25 @@
-# The marketing page's source
+# The marketing site's source
 
-`docs/index.html` (published by GitHub Pages from `main` / `docs`) is
-generated from this folder. Nothing under `docs/index.html` or
+The pages under `docs/` (`index.html` and one `.html` per page, published by
+GitHub Pages) are generated from this folder. Nothing under `docs/*.html` or
 `docs/assets/` is edited by hand.
 
 | File | What it holds | Changes when |
 |---|---|---|
-| `template.html`, `site.css`, `site.js` | the page's structure, look and behaviour | the design changes |
-| `copy.yml` | every word: hero, feature cards, class blurbs, captions | the game gains a feature worth telling |
+| `copy/<page>.yml` | a page's words: `index` (the front page, kept short), `simulation`, `cars`, `circuits`, `ac-import`, `modding`, `faq`, `requirements` | the game gains a feature worth telling |
+| `copy/common.yml` | what every page shares: the menu, the class blurbs, the download call, the Assetto Corsa disclaimer, the footer | a page is added, or the shared words change |
+| `templates/<page>.html` | a page's structure, on `base.html` (head, menu, footer) and the pieces in `parts.html` | the design changes |
+| `site.css`, `site.js` | the look and behaviour of every page; each part of the script runs only where its elements are | the design changes |
 | `media.yml` | which picture goes where, cut from which file in the repo | a picture is added or swapped |
 | `shots.yml` | the in-engine shot list | a shot is added, or its camera or `pick` changes |
 | `shots/` | the picked in-engine masters (checked in) | `make_shots.py` runs |
 | `copy.lock.json` | the feature docs as the copy last covered them | `--reviewed` |
+
+A page is a `copy/<page>.yml` with a `templates/<page>.html` of the same
+name; the build renders every one into `docs/<page>.html` and removes a page
+that is gone. Link between pages with `{{ link('faq') }}` or
+`{{ link('simulation#tyres') }}`: a link to a page that does not exist fails
+the build, and a test checks that every `#fragment` lands on an id.
 
 ## Rebuilding
 
@@ -50,11 +58,12 @@ moment.
 
 ```powershell
 python scripts/site/build_site.py --stale      # sections of the feature docs (docs/, ../apexsim-content/docs) changed since the last review
-# ...rewrite site/copy.yml against them (in Claude Code: /site-refresh)...
+# ...rewrite site/copy/*.yml against them (in Claude Code: /site-refresh)...
 python scripts/site/build_site.py --reviewed   # record them as covered
 python scripts/site/build_site.py
 ```
 
-Numbers are never typed into `copy.yml`: write `{{ n.cars }}`,
-`{{ n.setup_knobs }}`, `{{ name('SpaFrankenchamps') }}` (the header of `copy.yml` lists
-them). Circuits appear by their display names only.
+Numbers are never typed into the copy: write `{{ n.cars }}`,
+`{{ n.setup_knobs }}`, `{{ name('SpaFrankenchamps') }}` (the header of
+`copy/common.yml` lists them). Circuits appear by their display names only.
+The detail belongs on its page; the front page gets a line and a link.

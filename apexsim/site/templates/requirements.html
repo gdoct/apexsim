@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<section class="tight-top">
+  <div class="wrap">
+    <div class="spec-table reveal" role="table" aria-label="System requirements">
+      <div class="row head" role="row"><span role="columnheader"></span>{% for c in table.columns %}<span role="columnheader">{{ c }}</span>{% endfor %}</div>
+{%- for r in table.rows %}
+      <div class="row" role="row"><b role="rowheader">{{ r[0] }}</b>{% for cell in r[1:] %}<span role="cell" data-col="{{ table.columns[loop.index0] }}">{{ cell }}</span>{% endfor %}</div>
+{%- endfor %}
+    </div>
+
+    <div class="sec-head reveal-head spaced">
+      <div><div class="eyebrow">{{ measured.eyebrow }}</div><h2>{{ measured.title }}</h2></div>
+    </div>
+    <div class="points stagger">
+{%- for p in measured.points %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+{%- for p in notes %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ server.eyebrow }}</div><h2>{{ server.title }}</h2></div>
+    </div>
+    <div class="points stagger">
+{%- for p in server.points %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+    </div>
+    <div class="own reveal">
+      <div class="eyebrow">{{ source.eyebrow }}</div>
+      <h3>{{ source.title }}</h3>
+      <p>{{ source.body }}</p>
+      <div class="ctas"><a class="btn" href="{{ source.url }}">{{ source.link }} →</a></div>
+    </div>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<section id="tracks" class="tight-top">
+  <div class="wrap">
+    <div class="filters" id="trackFilters"></div>
+    <div class="track-layout">
+      <div class="feature-track" aria-live="polite">
+        <svg viewBox="-6 -6 212 212" id="ftSvg" role="img" aria-label="Track map">
+          <path class="ft-path-bg" id="ftBg"/><path class="ft-path" id="ftPath" pathLength="1"/><path class="ft-run" id="ftRun"/>
+          <rect class="ft-start" id="ftStart" width="6" height="6" x="-3" y="-3"/><circle class="ft-car" id="ftCar" r="4.5"/>
+        </svg>
+        <div class="loc" id="ftLoc"></div>
+        <h3 id="ftName"></h3>
+        <dl>
+          <div><dt>Length</dt><dd id="ftLen"></dd></div>
+          <div><dt>Elevation Δ</dt><dd id="ftElev"></dd></div>
+          <div><dt>Since</dt><dd id="ftYear"></dd></div>
+        </dl>
+        <p class="about" id="ftAbout"></p>
+        <div class="corners" id="ftCorners"></div>
+      </div>
+      <div>
+        <div class="track-grid stagger" id="trackGrid"></div>
+        <p class="track-note">{{ note }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="plain">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ made.eyebrow }}</div><h2>{{ made.title }}</h2></div>
+    </div>
+    <div class="points stagger">
+{%- for p in made.points %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+    </div>
+    <div class="shots three stagger">
+{%- for s in shots %}
+      <figure><img src="{{ asset(s.image) }}"{{ zoom_attr(s.image) }} alt="{{ s.alt|attr }}" loading="lazy"><figcaption>{{ s.caption }}</figcaption></figure>
+{%- endfor %}
+    </div>
+    <div class="own reveal">
+      <h3>{{ own.title }}</h3>
+      <p>{{ own.body }}</p>
+      <div class="ctas">
+{%- for l in own.links %}
+        <a class="btn" href="{{ link(l.href) }}">{{ l.label }} →</a>
+{%- endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

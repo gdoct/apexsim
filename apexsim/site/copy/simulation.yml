@@ -1,0 +1,688 @@
+# The simulation page: every simulated system in detail, then what the game
+# builds around a race. Each chapter is a heading, a line, a grid of short
+# points and maybe a picture; keep each point to a few sentences, checked
+# against its doc (server/vehicle-physics.md, server/conditions.md,
+# server/sessions.md, server/ai.md, server/pit-lane.md,
+# game/input-and-ffb.md, game/audio.md, game/spectator.md) and never
+# promising what docs/simulation-gaps.md or docs/roadmap.md still list.
+
+meta:
+  title: The simulation · ApexSim
+  description: >-
+    Everything ApexSim's {{ n.tick_hz }} Hz authoritative server simulates:
+    tyres, aero, brakes, fuel and hybrids, damage, weather, the road, race
+    control, the pit lane, AI drivers and force feedback.
+
+hero:
+  eyebrow: The simulation
+  title: Everything the server simulates
+  lede: >-
+    One deterministic simulation at {{ n.tick_hz }}&nbsp;Hz, on the server.
+    The client draws what it says and has no physics of its own, your car
+    included.
+  image: shot-climb.webp
+
+index_title: On this page
+
+chapters:
+  - id: car
+    tag: Car physics
+    title: A four-wheel model that earns its grip
+    intro: >-
+      Every car is solved from its tyres outward, every tick, on the same
+      road the game draws.
+    points:
+      - title: Loads on every wheel
+        body: >-
+          Weight moves front to back under braking and power, and to the
+          outside in a corner, through each axle's roll centre and its
+          springs and bars. Fuel rides on top of the car's mass, so the
+          balance moves as the tank drains.
+      - title: Slip-based tyres
+        body: >-
+          Each tyre's force comes from its slip, its load and its grip,
+          with load sensitivity and a friction circle shared between
+          braking, power and cornering.
+      - title: Suspension geometry
+        body: >-
+          Camber that changes with roll and the linkage's gain, toe front
+          and rear, camber thrust, roll centres and bump stops. A car with
+          no geometry keys drives as it always did.
+      - title: A differential that decides
+        body: >-
+          Open, locked, clutch, viscous or Torsen, each splitting torque
+          between the wheels the way its type does once one tyre cannot
+          carry half.
+      - title: The road as triangles
+        body: >-
+          The server drives on the rendered road mesh: kerbs five
+          centimetres tall in the physics too, a crowned road with bumps,
+          run-off that is tarmac, and two levels where a circuit crosses
+          itself.
+      - title: Crests and compressions
+        body: >-
+          The road's curvature along the car's path loads or unloads it: a
+          crest lightens the car and, fast enough, lifts it off the ground;
+          a banked turn presses it down.
+      - title: Off the road
+        body: >-
+          Grass, gravel and sand each grip and drag the car their own way.
+          A gravel trap bogs a car down and throws dust behind it.
+      - title: Contact that means it
+        body: >-
+          Cars collide as boxes, with an impulse from their real masses;
+          every barrier, stand and building is a wall the car stops
+          against. Nothing off the road is decorative.
+      - title: Deterministic to the bit
+        body: >-
+          No random numbers and no clock in the simulation: a seeded race
+          replays identically, guarded by a test that asserts it.
+    chips: [Per-wheel loads, Slip tyres, Roll centres, Differentials, Road mesh, Gravel traps, Deterministic]
+
+  - id: tyres
+    tag: Tyres
+    title: A car that changes over a stint
+    intro: >-
+      Grip is a temperature, a pressure and a state of wear, and all three
+      move from the first lap to the last.
+    image: shot-rain.webp
+    alt: 'GT3 cars with headlights on in heavy rain at {{ name("Monzarella") }}'
+    caption: '{{ name("Monzarella") }} · heavy rain, on wets'
+    points:
+      - title: Three zones and a core
+        body: >-
+          Each tyre is a tread in three zones from shoulder to shoulder and
+          a core, conducting between them. Slip heats them, the air and the
+          road cool them; a hot shoulder costs its own grip even when the
+          average is right.
+      - title: Pressure by the gas law
+        body: >-
+          The pressures you set are the hot ones: a cold tyre is soft, a
+          cooked one over-inflated, and both cost grip.
+      - title: A working window
+        body: >-
+          Full grip inside the compound's window, less outside it, the cold
+          side gentler than the hot. An overheated tyre comes back over a
+          couple of gentle laps.
+      - title: Wear with a cliff
+        body: >-
+          Tyres wear with the energy they slide away, faster when hot, and
+          lose grip slowly until a cliff at the end of their life.
+      - title: Flat spots, pickup, punctures
+        body: >-
+          Hold a lock-up and the tyre flat-spots, felt in the wheel and
+          heard on the road. Drive through the marbles and the tyre picks
+          them up for most of a lap. A hard hit can puncture it.
+      - title: Compounds for every weather
+        body: >-
+          Soft, medium and hard slicks, intermediates and wets, each with
+          its own grip, wear and window; a rally car's studs on snow. A slick
+          in the rain costs what it should.
+      - title: You can see it
+        body: >-
+          Wets and intermediates carry their tread and a coloured ring, a
+          worn tyre streaks, a flat spot glazes and a puncture sits the car
+          down.
+
+  - id: aero
+    tag: Aero
+    title: Downforce that rides the road
+    intro: >-
+      Aero follows the car's attitude and the air around it, so a setup, a
+      crest or the car ahead all change what the wings make.
+    points:
+      - title: Ride height and rake
+        body: >-
+          Ride height is worked out from the loads on the springs, and the
+          downforce follows it: more as the floor nears the road, given back
+          when it stalls; more rake moves the balance forward.
+      - title: Yaw and roll
+        body: >-
+          A car sliding or rolling loses some of its downforce, so a moment
+          sideways costs grip just when it is needed.
+      - title: Porpoising
+        body: >-
+          A floor run too close to the road at speed can start to bounce,
+          building over half a second and dying away when the car rises.
+      - title: The tow
+        body: >-
+          Up to a third less drag right behind another car, fading with the
+          gap; dirty air takes up to a quarter of the downforce, most of it
+          off the front.
+      - title: DRS
+        body: >-
+          On the formula cars, crossing a detection line within a second of
+          the car ahead arms the flap for the zone. Not in the rain, not on
+          the opening laps.
+      - title: Thin air
+        body: >-
+          The air's density at the circuit's altitude, temperature and
+          humidity scales the downforce, the drag and a naturally aspirated
+          engine's power; a turbo keeps most of its.
+
+  - id: heat
+    tag: Brakes and engine
+    title: Carbon wants heat, steel fades
+    intro: >-
+      The brakes and the engine are thermal masses: what you do with them
+      on one lap shows on the next.
+    points:
+      - title: Brake temperature
+        body: >-
+          Each disc is heated by what its pads absorb and cooled through a
+          duct you size in the garage. A locked wheel heats its tyre, not
+          its disc.
+      - title: Two materials
+        body: >-
+          Carbon is weak when cold and at its best from 400 to
+          900&nbsp;°C; steel bites from cold and fades past its window.
+      - title: Pads and discs
+        body: >-
+          Endurance pads last, sprint pads bite harder. Pads wear with the
+          energy they absorb; a disc run hot wears and holds less heat, and
+          a stop can change both.
+      - title: Engine heat
+        body: >-
+          A radiator sized per car cools the engine through the air the car
+          meets, less of it in a long tow. Past its limit the engine gives
+          up power and takes damage.
+      - title: Engine wear
+        body: >-
+          Hours at racing revs wear an engine, and an over-rev on a missed
+          downshift can finish it in a second.
+
+  - id: energy
+    tag: Fuel and hybrids
+    title: Every litre and every kilojoule
+    intro: >-
+      Fuel is burned by the power the engine makes; a hybrid's battery is a
+      budget to spend.
+    points:
+      - title: Fuel burned by power
+        body: >-
+          The burn follows the power the engine makes and its efficiency; a
+          lift burns idle only. The race fill is worked out from the car's
+          own lap, with a margin.
+      - title: Weight that moves
+        body: >-
+          Fuel's weight sits on the car where its tank is, so a full car
+          and an empty one handle differently.
+      - title: Deployment modes
+        body: >-
+          Harvest, balanced and attack, a lap budget and an overtake button.
+          Balanced paces the battery over the lap rather than spending it
+          on the first straight.
+      - title: Recovery under braking
+        body: >-
+          A hybrid recovers energy from the axle it drives; with brake by
+          wire the pedal feels the same while the discs run cooler.
+      - title: A HUD that counts
+        body: >-
+          A panel tells you how many laps the battery lasts at this pace.
+
+  - id: damage
+    tag: Damage
+    title: Every hit counts, and shows
+    intro: >-
+      Contact is scored by closing speed across five zones, and each zone
+      costs the car what it would.
+    points:
+      - title: Five zones
+        body: >-
+          Front, rear, left, right and engine. Nothing under a walking
+          bump; a hard hit at speed takes a big share at once, and a zone
+          at 100% ends the race.
+      - title: What it costs
+        body: >-
+          A bent nose loses downforce and radiator flow, a damaged flank
+          pulls the steering, a hurt engine loses power.
+      - title: Kerbs, bottoming, landings
+        body: >-
+          A kerb struck hard costs its side, a car bottoming out its end, a
+          landing off a crest both.
+      - title: You see it
+        body: >-
+          Panels dent and scuff, wings and noses come off, debris stays on
+          the road, and a hurt engine trails smoke.
+      - title: The host decides
+        body: >-
+          Full, reduced or no damage, per session. A pit stop repairs it.
+
+  - id: weather
+    tag: Weather and air
+    title: Rain, snow, wind and thin air
+    intro: >-
+      The host picks the weather, the hour and the day; the server bakes
+      its grip and its air into the session, so physics, AI and the racing
+      line all follow.
+    image: shot-snow.webp
+    alt: 'Formula cars through falling snow at {{ name("SpaFrankenchamps") }}'
+    caption: '{{ name("SpaFrankenchamps") }} · snow'
+    points:
+      - title: Six skies
+        body: >-
+          Sunny, cloudy, overcast, light rain, heavy rain and snow, at any
+          hour on any day of the year, with an air temperature from
+          -5 to 45&nbsp;°C.
+      - title: A sky that moves
+        body: >-
+          Let the clock run, up to sixty times real time, and the weather
+          can change with it, or follow a forecast the host writes.
+      - title: Wind that gusts
+        body: >-
+          A mean wind from a direction, gusting about it, felt in every
+          car's aero down the straights and through the corners.
+      - title: Dew and fog
+        body: >-
+          A still, clear night lays dew and a radiation fog the morning sun
+          burns off.
+      - title: A rain radar
+        body: >-
+          The HUD's radar shows the next shower drifting in on the wind.
+      - title: After dark
+        body: >-
+          Floodlights and headlights come on as the light goes.
+
+  - id: road
+    tag: The road
+    title: A road that changes under you
+    intro: >-
+      The surface keeps a memory of the race, and the server sends it to
+      the game to paint.
+    image: shot-banking.webp
+    alt: 'A prototype through the banked hairpin at {{ name("Zandervoort") }}'
+    caption: '{{ name("Zandervoort") }} · the banked hairpin'
+    points:
+      - title: Rubber and marbles
+        body: >-
+          Cars lay rubber along the racing line and shed marbles beside it;
+          rain washes both away.
+      - title: Water that gathers
+        body: >-
+          Water collects in the low points of a lap, and the wheels dry a
+          line through it.
+      - title: Warm asphalt
+        body: >-
+          The sun warms the road with the clock, and the tyres feel it.
+      - title: Snow that settles
+        body: >-
+          Snow settles over the lap, the field packs a darker line through
+          it, and that line can freeze when the snow stops.
+      - title: Drawn as it is
+        body: >-
+          The dark line, the marbles, the dry line between wet edges and the
+          debris are all on screen.
+
+  - id: race-control
+    tag: Race control
+    title: Flags, a safety car and stewards
+    intro: >-
+      The server runs the race the way race control would, from the start
+      lights to the penalties.
+    image: screen-formation.webp
+    alt: 'The field single file on the formation lap at {{ name("Monzarella") }}'
+    caption: Formation lap · the field single file to its slots
+    points:
+      - title: Starts
+        body: >-
+          A standing start after a formation lap, or a rolling start that
+          forms up two by two on the way to the green. A jump start is a
+          drive-through.
+      - title: Yellow and blue
+        body: >-
+          Yellows go out by marshal sector for a car in trouble, blues for a
+          car with a leader on its tail. Light panels flash them and the AI
+          lifts under them.
+      - title: Marshals and recovery
+        body: >-
+          Marshals wave yellow at a car stopped beside the road, and a
+          recovery tractor drives up to it.
+      - title: Safety cars
+        body: >-
+          A car stranded on the road brings out a virtual safety car or the
+          real one, which picks up the leader, closes the field up and lets
+          the lapped cars by.
+      - title: Penalties
+        body: >-
+          Passing under yellow, a red light at the pit exit or a jump start
+          costs time, a drive-through or a stop-go, served in the lane.
+      - title: Track limits
+        body: >-
+          Four wheels past the kerb band for a fifth of a second strikes the
+          lap; cut the course and it goes too.
+      - title: Stewards
+        body: >-
+          Every contact and cut goes on an incident list the results open
+          in the replay, and a steward hands out or clears a penalty from
+          the dashboard.
+
+  - id: formats
+    tag: Race formats
+    title: Sprint, weekend or twenty-four hours
+    intro: >-
+      Laps or the clock, alone or as a weekend, one class or several on one
+      grid.
+    image: screen-multiclass.webp
+    alt: 'Hypercars and GT3 cars on one grid at {{ name("Lemons") }}, the HUD on'
+    caption: Multi-class · hypercars and GT3s, each placed in its class
+    points:
+      - title: Laps or time
+        body: >-
+          From a short sprint to a full day. When the time runs out, the
+          leader's next lap is the last.
+      - title: A race weekend
+        body: >-
+          Practice, up to three knockout qualifying rounds and the race,
+          each day under its own sky.
+      - title: Qualifying and grids
+        body: >-
+          Qualify from the garage and the grid comes from the result, or
+          drag the drivers into any order. Reverse grids too.
+      - title: Several classes
+        body: >-
+          The quicker class starts ahead, every car is placed in its class,
+          and the slower class is shown the blue flag.
+      - title: Tyre rules
+        body: >-
+          Counted sets, a qualifying allowance, the race started on the set
+          that set the time, parc fermé holding the setup, and a stint no
+          longer than the rule says.
+      - title: After the flag
+        body: >-
+          The camera pulls back over the circuit while the results fill in;
+          click a car still running to watch it home.
+
+  - id: pits
+    tag: Pit lane
+    title: Pit stops that cost what they should
+    intro: >-
+      A pit lane with a box per car, a limiter and a crew, on every circuit
+      that has one.
+    points:
+      - title: In and out
+        body: >-
+          Turn into the lane and the car is driven to its own box on the
+          limiter, or drive it yourself with the pit aid showing the way.
+      - title: The crew
+        body: >-
+          Tyres, fuel, repairs, pads and discs, each taking its time. The
+          pit panel sets what the next stop does.
+      - title: The exit light
+        body: >-
+          A red light holds a car at the exit while traffic passes; going
+          through it is a penalty.
+      - title: Strategy
+        body: >-
+          The AI plans its stops for tyres, fuel, the weather and the rules,
+          and takes a cheap one under a safety car.
+
+  - id: ai
+    tag: AI drivers
+    title: AI that races
+    intro: >-
+      Deterministic drivers in your car's class, at a level the host sets,
+      driving the same physics you do.
+    image: screen-menu.webp
+    alt: Main menu over a recorded AI race
+    caption: Behind the menu · a recorded AI race
+    points:
+      - title: Attack
+        body: >-
+          A quicker car pulls out of the tow into a braking zone and dives
+          up the inside, or tucks back in if it is not alongside.
+      - title: Defence
+        body: >-
+          A car under attack covers the inside, and a backmarker moves over
+          for the leaders.
+      - title: The grip they have
+        body: >-
+          They drive to their cold tyres, dirty air and a damaged wing, and
+          reverse out of a barrier they end up against.
+      - title: A field of levels
+        body: >-
+          The host picks a level and the field spreads around it, from
+          careful to quick, or a mixed field from novice to ace.
+      - title: Their own race
+        body: >-
+          They change tyres as the track dries or wets, serve their
+          penalties and stop under a safety car when it pays.
+
+  - id: ffb
+    tag: Force feedback and input
+    title: Feel the front let go
+    intro: >-
+      The steering torque is worked out on the server from the tyres, then
+      corrected for the network on your machine.
+    points:
+      - title: From the tyres
+        body: >-
+          Each front tyre's aligning moment, scrub and jacking are summed at
+          the column: the rim goes light as the grip peaks.
+      - title: The road in your hands
+        body: >-
+          Kerbs, lock-ups, flat spots and the road's own texture come
+          through it.
+      - title: No lag in the spring
+        body: >-
+          The server also sends how the torque changes with the wheel, so
+          the rim answers your hands at once rather than a round trip late.
+      - title: Wheelbase profiles
+        body: >-
+          A profile scales the forces to your base's peak torque, so a
+          direct drive is not three times the wheel it was tuned on.
+      - title: Wheels and pads
+        body: >-
+          DirectInput wheels, pedals and button boxes with the steering lock
+          matched to each car; a gamepad and a keyboard work too.
+      - title: Assists, host-controlled
+        body: >-
+          ABS, traction control, an automatic gearbox and a steering aid.
+          The host decides what is allowed; the server enforces it.
+
+  - id: sound
+    tag: Sound
+    title: Engines that are simulated, not sampled
+    intro: >-
+      Not one engine recording: every car's sound is synthesised from its
+      own figures as it drives.
+    points:
+      - title: Cylinders and exhausts
+        body: >-
+          A crank turned at live revs fires each cylinder into exhaust
+          banks, headers and a silencer: crossplane burble, overrun pops,
+          gear whine.
+      - title: Tyres and road
+        body: >-
+          Tyres that howl only past their grip peak, kerbs, gravel and wind.
+      - title: On the radio
+        body: >-
+          A spotter calls the car alongside and the flags; the engineer
+          calls the box, the fuel and the tyres.
+
+  - id: server
+    tag: Server and netcode
+    title: One simulation, clocked in server ticks
+    intro: >-
+      The client renders what the server says. Every rule lives on the
+      server, so every player races the same race.
+    image: screen-lobby.webp
+    alt: 'The session lobby with {{ name("SpaFrankenchamps") }} flown behind it'
+    caption: Session lobby · flown over its own circuit
+    points:
+      - title: '{{ n.tick_hz }}&nbsp;Hz'
+        body: >-
+          Physics, AI, collisions and timing every tick; one car's step
+          takes a couple of microseconds.
+      - title: Smooth without a second model
+        body: >-
+          Telemetry at {{ n.telemetry_hz }}&nbsp;Hz, interpolated between
+          samples and dead-reckoned across gaps, so motion stays smooth with
+          nothing to reconcile.
+      - title: Sealed input
+        body: >-
+          TCP and TLS for the lobby, UDP for telemetry and input, every
+          input datagram sealed under a per-connection key, so a forged or
+          replayed one is dropped.
+      - title: Rejoin
+        body: >-
+          Lose the connection and your seat is held: the server drives your
+          car on until you rejoin from the menu.
+      - title: Checked content
+        body: >-
+          Every car and circuit carries a checksum of its source file; a
+          player racing on different data than the server is told so.
+      - title: A dashboard
+        body: >-
+          A token-protected operator dashboard shows live timing, players,
+          logs and performance, runs events, reviews incidents and edits the
+          config. Health and Prometheus metrics for the rest.
+
+# What the game builds around a race.
+around:
+  eyebrow: Around the race
+  title: The game around it
+  chapters:
+    - id: hotlap
+      tag: Hotlap and setup
+      title: Garage, ghost, repeat
+      intro: >-
+        Time attack with sector splits, track limits and records that
+        survive restarts.
+      image: screen-garage.webp
+      alt: The hotlap garage on its Aero page, wings and ride heights with the downforce, balance and drag they add up to
+      caption: 'Hotlap garage · {{ n.setup_knobs }} setup knobs in real units'
+      points:
+        - title: Ghosts and records
+          body: >-
+            Your best legal lap per car and circuit is kept, with a ghost of
+            it to race against and a replay from the TV cameras.
+        - title: '{{ n.setup_knobs }} setup knobs'
+          body: >-
+            Pressures, springs, dampers, bars, wings, ride heights, gearing,
+            brake bias and ducts, in real units: psi, N/mm, millimetres,
+            with the downforce, balance and drag a wing change adds up to.
+        - title: Wind the lap back
+          body: >-
+            Driving alone, the pause menu winds the session back ten seconds,
+            and again, up to a minute: the cars, the road and the sky go
+            back with it and the lap is struck.
+        - title: Lap traces
+          body: >-
+            Every full lap you drive is kept as a trace; lay any two over
+            each other by distance: speed, pedals and the time gained or
+            lost, the record lap among them.
+
+    - id: school
+      tag: Drivers
+      title: Profiles and a licence
+      intro: >-
+        Several drivers can share one install, each with a licence to earn.
+      image: screen-guide.webp
+      alt: 'The track guide stopped at Raidillon at {{ name("SpaFrankenchamps") }}, from the trackside camera'
+      caption: Track guide · a stop with its gear, braking point and speeds
+      points:
+        - title: Profiles
+          body: >-
+            A name, a picture, your settings, your best laps and your stats,
+            with a key that stays on your machine and proves who you are to
+            an event's entry list.
+        - title: Driving school
+          body: >-
+            Licence tests on every circuit: a braking test, a corner exit, a
+            corner time and a clean lap, judged gold, silver or bronze
+            against a car of your class.
+        - title: Track guide
+          body: >-
+            Any circuit, corner by corner: clean laps by cars of your class
+            from trackside, broadcast and onboard cameras, with the gear,
+            the braking point and the speeds measured from the lap, and what
+            the ground hides.
+
+    - id: seasons
+      tag: Seasons and leagues
+      title: A season alone, a league together
+      intro: >-
+        A championship against the AI from the menu, or race events on a
+        server that outlive the session.
+      image: screen-season.webp
+      alt: The offline season's setup, its calendar and a round with rules of its own
+      caption: Season · rounds, points, ballast and each round's own rules
+      points:
+        - title: Offline seasons
+          body: >-
+            Rounds over the circuits, a points table of your choice, dropped
+            rounds, success ballast and a point for the fastest lap; each
+            round with its own weather, hour and format.
+        - title: Race events
+          body: >-
+            An entry list of drivers proved by their own key, a weekend that
+            resumes at its next phase after a restart, and a start time that
+            waits for nobody.
+        - title: Championships
+          body: >-
+            Rounds added up, with the standings in the lobby and on the
+            results; a balance of performance per car and a results webhook
+            for Discord.
+
+    - id: watch
+      tag: Spectating and replays
+      title: Watch any race, keep any race
+      intro: >-
+        Sessions live from the browser, replays of your own, and a
+        broadcast director to film them.
+      image: screen-photo.webp
+      alt: Photo mode's lens card over a held hotlap, the camera orbiting the car
+      caption: Photo mode · a long lens wide open over a held lap
+      points:
+        - title: Live
+          body: >-
+            Watch a session running on the server from the browser, with a
+            timing tower, a choice of car and camera, and the broadcast
+            director.
+        - title: Replays
+          body: >-
+            Every session you drive is recorded on your machine; keep the
+            ones worth keeping and play them paused, sped up or skipped
+            through.
+        - title: Hotlap watch
+          body: >-
+            One AI car lapping any circuit on its racing line, in the car,
+            weather and hour you pick, each corner named as it comes.
+        - title: Photo mode
+          body: >-
+            A free or orbiting camera, a lens from wide to long, aperture and
+            exposure, and a shot at four times the screen.
+
+    - id: screens
+      tag: Screens and rigs
+      title: Three monitors, one picture
+      intro: >-
+        Triple screens, HDR, colour-vision palettes and telemetry for the
+        rest of your rig.
+      image: screen-hud.webp
+      alt: Chase view on the night grid with the HUD
+      caption: 'Race view · a HUD of {{ n.hud_components }} components'
+      points:
+        - title: Triple screens
+          body: >-
+            Three real views from one eye point, the side panels toed in to
+            match your rig and the bezels allowed for; the HUD and menus stay
+            in the middle.
+        - title: Cockpit
+          body: >-
+            Wheel, dash and mirrors built per car; seat, horizon lock and
+            head motion are yours to set.
+        - title: HDR and colour vision
+          body: >-
+            HDR output with its own paper white, and palettes for red-green
+            and blue-yellow colour vision: nothing on the HUD is told in
+            colour alone.
+        - title: Telemetry out
+          body: >-
+            Motion, revs, pedals, tyres and session as a UDP packet to SimHub,
+            a motion platform, bass shakers or a dash. Each lap's trace is a
+            CSV, and a script turns them into a MoTeC i2 file.
+
+get_links:
+  - {label: Cars, href: cars}
+  - {label: Circuits, href: circuits}

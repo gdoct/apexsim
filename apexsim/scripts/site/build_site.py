@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
-"""Build the marketing page (docs/, published by GitHub Pages) from site/.
+"""Build the marketing site (docs/, published by GitHub Pages) from site/.
 
-    python scripts/site/build_site.py              # write docs/index.html and docs/assets
+    python scripts/site/build_site.py              # write docs/*.html and docs/assets
     python scripts/site/build_site.py --check      # CI: exit 1 if the committed page is out of date
     python scripts/site/build_site.py --stale      # what changed in the feature docs since the copy was reviewed
     python scripts/site/build_site.py --reviewed   # record the feature docs as covered by the copy
     python scripts/site/build_site.py --force      # encode every picture again
 
-The page has three kinds of content, kept apart so each can be refreshed
+The site is one page per site/copy/<page>.yml (common.yml aside), each
+rendered through site/templates/<page>.html into docs/<page>.html. It has
+three kinds of content, kept apart so each can be refreshed
 the way it has to be:
 
   facts   the car cards, the circuit list and every number in the text:
           read from ../apexsim-content and the server source on each build
           (scripts/site/facts.py). Never typed.
-  words   site/copy.yml, written by hand against the feature docs in docs/
+  words   site/copy/*.yml, written by hand against the feature docs in docs/
           and ../apexsim-content/docs. The
           build cannot tell whether they still describe the game, so it
           keeps a hash of every section of those documents in
@@ -52,6 +54,8 @@ import facts  # noqa: E402
 REPO = Path(__file__).resolve().parent.parent.parent
 CONTENT = REPO / ".." / "apexsim-content"
 SITE = REPO / "site"
+COPY = SITE / "copy"
+TEMPLATES = SITE / "templates"
 OUT = REPO / "docs"
 ASSETS = OUT / "assets"
 MANIFEST = ASSETS / "manifest.json"
@@ -247,16 +251,39 @@ def stale_report() -> list[str]:
 
 
 def write_lock():
-    text = json.dumps({"comment": "Written by build_site.py --reviewed: the feature docs as site/copy.yml last covered them.",
+    text = json.dumps({"comment": "Written by build_site.py --reviewed: the feature docs as site/copy last covered them.",
                        "docs": doc_state()}, indent=1, ensure_ascii=False) + "\n"
     LOCK.write_text(text, encoding="utf-8", newline="\n")
 
 
 # --- the page ------------------------------------------------------------
 
+def pages() -> list[str]:
+    """The site's pages: one per site/copy/<page>.yml but common.yml, the
+    front page first."""
+    stems = sorted(p.stem for p in COPY.glob("*.yml") if p.stem != "common")
+    if "index" not in stems:
+        raise SiteError("site/copy/index.yml is missing: the site needs a front page")
+    return ["index"] + [s for s in stems if s != "index"]
+
+
+def page_file(stem: str) -> str:
+    return f"{stem}.html"
+
+
+def link_to(target: str, stems: list[str]) -> str:
+    """A page's address from another page (`page#id` keeps its fragment). A
+    page that does not exist is an error, so a renamed page leaves no dead
+    link behind."""
+    page, _, fragment = target.partition("#")
+    if page not in stems:
+        raise SiteError(f"link('{target}'): no page site/copy/{page}.yml")
+    return page_file(page) + (f"#{fragment}" if fragment else "")
+
+
 def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
     """The text files of the site (path under docs/ -> content), the picture
-    plan and the static files the page needs."""
+    plan and the static files the pages need."""
     data = facts.gather()
     media = load_yaml(SITE / "media.yml")
     plan, zooms = image_plan(media, data["cars"])
@@ -276,26 +303,32 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
             raise SiteError(f"car('{folder}'): no such car under apexsim-content/cars/default")
         return by_folder[folder]["name"]
 
-    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(SITE)), undefined=jinja2.StrictUndefined,
+    env = jinja2.Environment(loader=jinja2.FileSystemLoader(str(TEMPLATES)), undefined=jinja2.StrictUndefined,
                              autoescape=False, keep_trailing_newline=True)
     env.filters["words"] = words
     env.filters["attr"] = attr
 
-    raw = load_yaml(SITE / "copy.yml")
-    class_titles = {key: value["title"] for key, value in raw["cars"]["classes"].items()}
+    raw_common = load_yaml(COPY / "common.yml")
+    class_titles = {key: value["title"] for key, value in raw_common["classes"].items()}
 
     def car_class(folder: str) -> str:
         car(folder)
         cls = by_folder[folder]["cls"]
         return class_titles.get(cls, facts.display_class(cls))
 
-    copy = render_copy(raw, env, {"n": data["n"], "name": name, "car": car, "car_class": car_class})
+    stems = pages()
 
-    missing = [c for c in data["classes"] if c not in copy["cars"]["classes"]]
+    def link(target: str) -> str:
+        return link_to(target, stems)
+
+    copy_context = {"n": data["n"], "name": name, "car": car, "car_class": car_class, "link": link}
+    common = render_copy(raw_common, env, copy_context, "copy/common.yml")
+
+    missing = [c for c in data["classes"] if c not in common["classes"]]
     if missing:
-        raise SiteError(f"site/copy.yml: cars.classes has no blurb for {', '.join(missing)}")
-    if copy["tracks"]["featured"] not in by_stem:
-        raise SiteError(f"site/copy.yml: tracks.featured names no circuit: {copy['tracks']['featured']}")
+        raise SiteError(f"site/copy/common.yml: classes has no blurb for {', '.join(missing)}")
+    if common["featured"] not in by_stem:
+        raise SiteError(f"site/copy/common.yml: featured names no circuit: {common['featured']}")
 
     hero_loop = []
     for item in media.get("hero_loop") or []:
@@ -306,9 +339,9 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
     site_data = {
         "cars": data["cars"],
         "tracks": data["tracks"],
-        "classes": {key: copy["cars"]["classes"][key] for key in data["classes"]},
+        "classes": {key: common["classes"][key] for key in data["classes"]},
         "order": data["classes"],
-        "featured": copy["tracks"]["featured"],
+        "featured": common["featured"],
         "heroLoop": hero_loop,
     }
     texts = {
@@ -320,7 +353,7 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
 
     def asset(file: str) -> str:
         if file not in known:
-            raise SiteError(f"the page uses assets/{file}, which site/media.yml does not list")
+            raise SiteError(f"the site uses assets/{file}, which site/media.yml does not list")
         return f"assets/{file}"
 
     def zoom_attr(file: str) -> str:
@@ -334,11 +367,28 @@ def render() -> tuple[dict[str, str], dict[str, dict], list[str]]:
         digest = hashlib.sha1(texts[f"assets/{file}"].replace("\r", "").encode("utf-8")).hexdigest()[:8]
         return f"assets/{file}?v={digest}"
 
-    try:
-        texts["index.html"] = env.get_template("template.html").render(
-            n=data["n"], asset=asset, zoom_attr=zoom_attr, versioned=versioned, **copy)
-    except jinja2.TemplateError as error:
-        raise SiteError(f"site/template.html: {error}") from error
+    def car_picture(folder: str) -> str:
+        """A car's card picture, by folder: the render site/media.yml's `cars` cuts."""
+        car(folder)
+        if not by_folder[folder].get("img"):
+            raise SiteError(f"car_picture('{folder}'): the car has no render yet")
+        return f"assets/{by_folder[folder]['img']}"
+
+    for stem in stems:
+        raw = load_yaml(COPY / f"{stem}.yml") or {}
+        clash = sorted(set(raw) & set(common))
+        if clash:
+            raise SiteError(f"site/copy/{stem}.yml: {', '.join(clash)} is already in common.yml")
+        copy = render_copy(raw, env, copy_context, f"copy/{stem}.yml")
+        try:
+            texts[page_file(stem)] = env.get_template(f"{stem}.html").render(
+                n=data["n"], page=stem, link=link, asset=asset, zoom_attr=zoom_attr, versioned=versioned,
+                car_picture=car_picture, name=name, car=car, car_class=car_class, circuits=data["tracks"],
+                **common, **copy)
+        except jinja2.TemplateNotFound as error:
+            raise SiteError(f"site/copy/{stem}.yml has no site/templates/{error.name}") from error
+        except jinja2.TemplateError as error:
+            raise SiteError(f"site/templates/{stem}.html: {error}") from error
     return {path: text.replace("\r", "") for path, text in texts.items()}, plan, static
 
 
@@ -373,6 +423,11 @@ def build(force: bool) -> int:
             written += 1
             print(f"  wrote    docs/{path}")
 
+    for old in sorted(OUT.glob("*.html")):
+        if old.name not in texts:
+            old.unlink()
+            print(f"  removed  docs/{old.name}  (no longer a page in site/copy)")
+
     problems = [f"docs/assets/{file} is missing (site/media.yml lists it under `static`)"
                 for file in static if not (ASSETS / file).is_file()]
     known = set(after) | set(static) | set(TEXT_ASSETS) | {"manifest.json"}
@@ -383,8 +438,9 @@ def build(force: bool) -> int:
         print(f"  ERROR    {problem}")
 
     stale = stale_report()
-    size = len(texts["index.html"].encode("utf-8"))
-    print(f"docs/index.html: {size / 1024:.0f} KB, {written} text file(s) written, {made} picture(s) encoded, "
+    html = [path for path in texts if path.endswith(".html")]
+    size = sum(len(texts[path].encode("utf-8")) for path in html)
+    print(f"{len(html)} pages, {size / 1024:.0f} KB of HTML, {written} text file(s) written, {made} picture(s) encoded, "
           f"{len(after)} pictures in all")
     if stale:
         print(f"The copy may be behind the game: {len(stale)} section(s) of the feature docs changed "
@@ -403,6 +459,9 @@ def check() -> int:
             problems.append(f"docs/{path} is missing")
         elif target.read_text(encoding="utf-8").replace("\r", "") != text:
             problems.append(f"docs/{path} is out of date")
+    for old in sorted(OUT.glob("*.html")):
+        if old.name not in texts:
+            problems.append(f"docs/{old.name} is no longer a page in site/copy")
     for out in after:
         if not (ASSETS / out).is_file():
             problems.append(f"docs/assets/{out} is missing")
@@ -410,14 +469,14 @@ def check() -> int:
         if not (ASSETS / file).is_file():
             problems.append(f"docs/assets/{file} is missing")
     if problems:
-        print("The marketing page is behind the content it is generated from:")
+        print("The marketing site is behind the content it is generated from:")
         for problem in problems:
             print(f"  {problem}")
         print("Run `python scripts/site/build_site.py` and commit docs/.")
         return 1
     stale = stale_report()
     if stale:
-        note = (f"site/copy.yml may be behind the game: {len(stale)} section(s) of the feature docs "
+        note = (f"site/copy may be behind the game: {len(stale)} section(s) of the feature docs "
                 f"changed since it was reviewed (python scripts/site/build_site.py --stale)")
         print(f"::warning::{note}" if os.environ.get("GITHUB_ACTIONS") else f"note: {note}")
     print("docs/ is up to date.")
@@ -425,15 +484,16 @@ def check() -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Build the marketing page into docs/.")
+    parser = argparse.ArgumentParser(description="Build the marketing site into docs/.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="exit 1 if docs/ is not what a build would write")
     mode.add_argument("--stale", action="store_true", help="list the feature-doc sections changed since --reviewed")
-    mode.add_argument("--reviewed", action="store_true", help="record the feature docs as covered by site/copy.yml")
+    mode.add_argument("--reviewed", action="store_true", help="record the feature docs as covered by site/copy")
     parser.add_argument("--force", action="store_true", help="encode every picture again")
     args = parser.parse_args(argv)
     try:
         if args.stale:
+            sys.stdout.reconfigure(errors="replace")
             lines = stale_report()
             print("\n".join(lines) if lines else "The copy has been reviewed against the feature docs as they are.")
             return 0

@@ -1,0 +1,162 @@
+# The modding page: cars, circuits, the HUD, packs and telemetry, and how
+# the three parts fit together. Checked against MODDING.md and
+# docs/game/hud-modding.md; the full how-to stays in MODDING.md, which the
+# page links.
+
+meta:
+  title: Modding · ApexSim
+  description: >-
+    Cars, circuits and the HUD are files ApexSim reads at runtime: a
+    car.toml and a model, a circuit export, JSON HUD components, content
+    packs, and your Assetto Corsa cars and tracks imported in one step.
+
+hero:
+  eyebrow: Modding
+  title: Open the files
+  lede: >-
+    Cars, circuits and the HUD are files the game reads as it runs. Nothing
+    is cooked, so a change is a file save and a restart: no Unreal editor,
+    no repackaging.
+  image: screen-hud.webp
+  links:
+    - {label: The modding guide, url: 'https://github.com/gdoct/apexsim/blob/main/apexsim/MODDING.md'}
+    - {label: Import from Assetto Corsa, href: ac-import}
+
+areas:
+  - id: car-files
+    tag: Cars
+    title: A car.toml and a model
+    intro: >-
+      A car is a folder: a <code>car.toml</code> with its physics and looks,
+      and the GLB it names. The server reads the physics tables, the game
+      the visual ones.
+    points:
+      - title: Physics in plain text
+        body: >-
+          Mass, engine, gearbox, tyres, aero, brakes, suspension, hybrid and
+          damage, every key documented; a key left out keeps its default,
+          so a car only says what makes it different.
+      - title: Liveries
+        body: >-
+          A <code>[[livery]]</code> table recolours the paint and accent and
+          swaps the logo; a whole skin is a texture. The garage's livery
+          editor paints yours in game.
+      - title: Sound from figures
+        body: >-
+          A car's <code>[sound]</code> table describes its cylinders and
+          exhausts, and the engine synth plays it.
+  - id: track-files
+    tag: Circuits
+    title: A centerline, then a pipeline
+    intro: >-
+      A circuit starts as a centerline from a GPS trace or OpenStreetMap,
+      and the track pipeline dresses, bakes and exports it.
+    points:
+      - title: The track pipeline
+        body: >-
+          <code>ats-dress</code>, <code>ats-groom</code> and
+          <code>ats-export</code> turn a centerline and a layout dossier into
+          the export the game builds, and the road mesh, walls, kerbs and
+          pit lane the server drives on.
+      - title: An editor
+        body: >-
+          A scene editor on top places props, kerbs, run-off and the pit
+          lane.
+      - title: Real ground
+        body: >-
+          Elevation from satellite surface models, the real furniture from
+          OpenStreetMap.
+  - id: hud
+    tag: HUD
+    title: '{{ n.hud_components }} components, all JSON'
+    intro: >-
+      The race HUD is a set of components laid out in JSON and bound to the
+      data points the game publishes every frame.
+    image: screen-hud-editor.webp
+    alt: The in-game HUD layout editor
+    caption: HUD layout editor · move, resize and hide panels in game
+    points:
+      - title: Moved in game
+        body: >-
+          The layout editor moves, resizes, adds and removes panels, and
+          keeps several named layouts that switch by where you are:
+          watching, hotlap or your car's class.
+      - title: Change one, add one
+        body: >-
+          Copy a shipped panel and edit it, hide one, or write a new one:
+          text, bars, gauges and expressions over the data points.
+      - title: A documented API
+        body: >-
+          Every data point is listed and kept stable, so a component keeps
+          working as the game moves on. A broadcast layout with a timing
+          tower and a lower third ships as an example.
+  - id: packs
+    tag: Sharing
+    title: One file to share
+    intro: >-
+      A car, a circuit or a HUD component travels as a pack the launcher
+      installs.
+    points:
+      - title: Install
+        body: >-
+          <b>Manage content &gt; Install pack...</b> lists what a pack holds
+          with a tick box each and puts it where both the game and its
+          server read it.
+      - title: Uninstall
+        body: >-
+          Tick your own content and press <b>Uninstall...</b>; shipped content
+          cannot be removed.
+      - title: Checked
+        body: >-
+          Packs are hash-checked, and every car and circuit carries a
+          checksum, so a player on different data than the server is told.
+  - id: rig
+    tag: Telemetry
+    title: Your rig, your apps
+    intro: >-
+      The game sends the car's state to the app of your choice.
+    points:
+      - title: UDP out
+        body: >-
+          Motion, revs, pedals, tyres and session as a UDP packet for
+          SimHub, a motion platform, bass shakers or a dash. The layout is
+          public and append-only.
+      - title: Lap data
+        body: >-
+          Each lap's trace is a CSV on disk, and a script turns them into a
+          MoTeC i2 file.
+
+tech:
+  eyebrow: Architecture
+  title: Three parts, one truth
+  intro: >-
+    The simulation stays apart from the presentation. The circuit you race
+    is the circuit the server simulates, checked by CRC on both sides.
+  nodes:
+    - key: server/ · Rust
+      title: Authoritative server
+      body: >-
+        {{ n.tick_hz }}&nbsp;Hz loop. Physics, collisions against cars and
+        baked barriers, tyres, fuel, heat and damage, race control and pit
+        stops, AI, force feedback, timing, events and championships.
+        <code>/health</code> <code>/metrics</code>
+    - key: game-unreal/ · C++
+      title: Unreal client
+      body: >-
+        Tracks and cars built at runtime from their files, a HUD from JSON,
+        a cockpit built per car, damage, tyres and road drawn from the
+        server's figures, synthesised audio, DirectInput wheels. Every car a
+        telemetry puppet.
+    - key: track-editor/ · Rust
+      title: Track pipeline
+      body: >-
+        The <code>ats-*</code> tools and an editor turn a centerline and a
+        dossier into the export the game builds and the sidecars the server
+        drives on; <code>ats-pack</code> wraps a circuit or a car.
+  links:
+    - UDP<br>{{ n.telemetry_hz }}&nbsp;Hz
+    - exports<br>&amp; sidecars
+
+get_links:
+  - {label: AC import, href: ac-import}
+  - {label: FAQ, href: faq}

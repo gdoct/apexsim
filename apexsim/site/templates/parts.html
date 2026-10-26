@@ -1,0 +1,64 @@
+{#- Pieces several pages share; imported `with context`, so link(), asset()
+    and the common copy are in reach. -#}
+
+{#- A page's opening: eyebrow, title, a line or two, an optional picture behind. -#}
+{% macro page_hero(h) -%}
+<header class="page-hero{% if h.image is defined %} with-image{% endif %}">
+{%- if h.image is defined %}
+  <img src="{{ asset(h.image) }}" alt="" fetchpriority="high">
+{%- endif %}
+  <div class="wrap">
+    <div class="eyebrow">{{ h.eyebrow }}</div>
+    <h1>{{ h.title }}</h1>
+    <p class="lede">{{ h.lede }}</p>
+{%- if h.links is defined %}
+    <div class="ctas">
+{%- for l in h.links %}
+      <a class="btn{% if loop.first %} primary{% endif %}" href="{{ l.url if l.url is defined else link(l.href) }}">{{ l.label }}</a>
+{%- endfor %}
+    </div>
+{%- endif %}
+  </div>
+</header>
+{%- endmacro %}
+
+{#- The closing call to download, with links of the page's choosing beside it. -#}
+{% macro get_on_the_grid(links) -%}
+<section class="cta">
+  <img src="{{ asset(get.image) }}" alt="" loading="lazy">
+  <div class="wrap">
+    <div class="eyebrow" style="justify-content:center">{{ get.eyebrow }}</div>
+    <h2 style="margin-top:18px">{{ get.title }}</h2>
+    <p>{{ get.body }}</p>
+    <div class="ctas">
+      <a class="btn primary" href="{{ site.download }}">{{ site.download_label }}</a>
+{%- for l in links %}
+      <a class="btn" href="{{ link(l.href) }}">{{ l.label }}</a>
+{%- endfor %}
+    </div>
+  </div>
+</section>
+{%- endmacro %}
+
+{#- A titled block of points: a heading, an intro, a grid of short cells, an
+    optional picture and chips. Used by the detail pages. -#}
+{% macro chapter(c, index) -%}
+<section class="chapter" id="{{ c.id }}">
+  <div class="chapter-head reveal-head">
+    <div class="eyebrow">{{ '%02d'|format(index) }} / {{ c.tag }}</div>
+    <h2>{{ c.title }}</h2>
+    <p>{{ c.intro }}</p>
+  </div>
+{%- if c.image is defined %}
+  <figure class="chapter-shot reveal"><img src="{{ asset(c.image) }}"{{ zoom_attr(c.image) }} alt="{{ c.alt|attr }}" loading="lazy"><figcaption>{{ c.caption }}</figcaption></figure>
+{%- endif %}
+  <div class="points stagger">
+{%- for p in c.points %}
+    <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+  </div>
+{%- if c.chips is defined %}
+  <ul class="chips">{% for chip in c.chips %}<li>{{ chip }}</li>{% endfor %}</ul>
+{%- endif %}
+</section>
+{%- endmacro %}

@@ -1,5 +1,6 @@
 """The marketing page's generator: python -m unittest discover -s scripts/site/tests"""
 
+import re
 import sys
 import tempfile
 import unittest
@@ -95,6 +96,14 @@ class CopyTest(unittest.TestCase):
         self.assertIn("hero.lede", str(raised.exception))
 
 
+class LinkTest(unittest.TestCase):
+    def test_a_link_names_a_page_that_exists_and_keeps_its_fragment(self):
+        self.assertEqual(build_site.link_to("faq", ["index", "faq"]), "faq.html")
+        self.assertEqual(build_site.link_to("faq#cost", ["index", "faq"]), "faq.html#cost")
+        with self.assertRaises(build_site.SiteError):
+            build_site.link_to("pricing", ["index", "faq"])
+
+
 class ZoomTest(unittest.TestCase):
     def test_a_zoom_is_a_second_uncropped_picture_of_the_same_source(self):
         src = "../apexsim-content/artwork/liveries_gt3_lmp2.jpg"
@@ -126,14 +135,36 @@ class RepoTest(unittest.TestCase):
             self.assertTrue(track["name"], track["stem"])
             self.assertGreater(track["length"], 1000, track["stem"])
 
-    def test_the_page_renders_and_names_no_asset_the_manifest_lacks(self):
+    def test_every_page_renders_and_names_no_asset_the_manifest_lacks(self):
         texts, plan, static = build_site.render()
-        page = texts["index.html"]
-        self.assertNotIn("{{", page)
-        self.assertNotIn("data:image/webp;base64", page)
+        pages = [path for path in texts if path.endswith(".html")]
+        self.assertEqual(sorted(pages), sorted(f"{stem}.html" for stem in build_site.pages()))
+        for path in pages:
+            self.assertNotIn("{{", texts[path], path)
+            self.assertNotIn("data:image/webp;base64", texts[path], path)
+            for asset in re.findall(r'(?:src|href|data-zoom)="(assets/[^"?]+)', texts[path]):
+                self.assertIn(asset[len("assets/"):], set(plan) | set(static) | set(build_site.TEXT_ASSETS), path)
         for name in plan:
             self.assertTrue(name.endswith(".webp"), name)
         self.assertIn("const SITE = {", texts["assets/data.js"])
+
+    def test_every_link_between_pages_lands_on_a_page_and_an_id(self):
+        texts, _, _ = build_site.render()
+        ids = {path: set(re.findall(r'\sid="([^"]+)"', text)) for path, text in texts.items() if path.endswith(".html")}
+        for path in ids:
+            for target in re.findall(r'href="([^":]+\.html(?:#[^"]*)?|#[^"]+)"', texts[path]):
+                page, _, fragment = target.partition("#")
+                page = page or path
+                self.assertIn(page, ids, f"{path} links to {target}")
+                if fragment:
+                    self.assertIn(fragment, ids[page], f"{path} links to {target}")
+
+    def test_every_page_says_it_is_not_affiliated_with_assetto_corsa(self):
+        texts, _, _ = build_site.render()
+        for path, text in texts.items():
+            if path.endswith(".html"):
+                self.assertIn("not affiliated with", text, path)
+        self.assertIn("ApexSim ships no Assetto Corsa content", texts["ac-import.html"])
 
 
 if __name__ == "__main__":

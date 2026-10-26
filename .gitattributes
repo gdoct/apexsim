@@ -17,7 +17,7 @@ apexsim/site/*.js                text eol=lf
 apexsim/site/*.json              text eol=lf
 apexsim/site/*.md                text eol=lf
 apexsim/site/shots/*             binary
-apexsim/docs/index.html          text eol=lf
+apexsim/docs/*.html              text eol=lf
 apexsim/docs/assets/*.css        text eol=lf
 apexsim/docs/assets/*.js         text eol=lf
 apexsim/docs/assets/*.json       text eol=lf

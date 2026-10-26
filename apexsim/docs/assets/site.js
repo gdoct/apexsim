@@ -1,4 +1,5 @@
-// The page's script. Everything it lists comes from `SITE`, which
+// The site's script, shared by every page: each part runs only where its
+// elements are on the page. Everything it lists comes from `SITE`, which
 // scripts/site/build_site.py writes into assets/data.js from the game's own
 // content: the cars, the circuits, the class blurbs.
 const DATA = SITE, CLASSES = SITE.classes, ORDER = SITE.order;
@@ -22,7 +23,10 @@ function engine(c){
    one's cards falling into place as the last one's leave; anywhere else
    (narrow, short, less motion) the classes stack and each falls in as it is
    reached. */
-const garage=document.getElementById("garage"), pin=garage.querySelector(".garage-pin"),
+const {layoutGarage,garageFrame}=(()=>{
+const garage=document.getElementById("garage");
+if(!garage) return {layoutGarage(){},garageFrame(){}};
+const pin=garage.querySelector(".garage-pin"),
   rail=garage.querySelector(".garage-rail"), stage=document.getElementById("carStage"),
   tabs=document.getElementById("classTabs"), count=document.getElementById("garageCount");
 const carCard=(c,k,i)=>`
@@ -119,9 +123,13 @@ tabs.addEventListener("click",e=>{
 // Stacked: each class falls in as it comes up the screen.
 const blockIO=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting&&!pinned) e.target.classList.add("on")}),{rootMargin:"0px 0px -15% 0px"});
 blocks.forEach(b=>blockIO.observe(b));
+return {layoutGarage,garageFrame};
+})();
 
-/* tracks */
+/* tracks: the circuit map and grid */
 const tg=document.getElementById("trackGrid"), tf=document.getElementById("trackFilters");
+let drawFeatured=()=>{};
+if(tg){
 const tracks=[...DATA.tracks].sort((a,b)=>a.name.localeCompare(b.name));
 tg.innerHTML=tracks.map(t=>`
   <button class="trk" data-stem="${t.stem}" data-cat="${esc(t.cat)}">
@@ -138,7 +146,7 @@ tf.onclick=e=>{
 };
 const ft={bg:ftBg,path:ftPath,run:ftRun,car:ftCar,start:ftStart};
 // The featured circuit's outline draws itself: on a pick, and when the section is reached.
-function drawFeatured(){ft.path.classList.remove("draw"); ft.path.getBoundingClientRect(); ft.path.classList.add("draw");}
+drawFeatured=()=>{ft.path.classList.remove("draw"); ft.path.getBoundingClientRect(); ft.path.classList.add("draw");};
 let anim=null;
 function selectTrack(stem){
   const t=DATA.tracks.find(x=>x.stem===stem); if(!t) return;
@@ -168,6 +176,7 @@ function selectTrack(stem){
 }
 tg.onclick=e=>{const b=e.target.closest(".trk"); if(b){selectTrack(b.dataset.stem); if(innerWidth<1000) document.querySelector(".feature-track").scrollIntoView({behavior:"smooth",block:"start"});}};
 selectTrack(DATA.tracks.some(t=>t.stem===SITE.featured)?SITE.featured:tracks[0].stem);
+}
 
 /* reveal: a heading (.reveal-head), a panel (.reveal) or a row of panels
    (.stagger, one after another) falls into place as it comes up the screen */
@@ -191,23 +200,29 @@ function countUp(b){
   };
   t.nodeValue=fmt(0); requestAnimationFrame(tick);
 }
-onReveal.set(document.querySelector(".stats .wrap"),()=>document.querySelectorAll(".stat b").forEach((b,i)=>setTimeout(()=>countUp(b),i*90)));
-onReveal.set(tg,drawFeatured);
+const statsRow=document.querySelector(".stats .wrap");
+if(statsRow) onReveal.set(statsRow,()=>document.querySelectorAll(".stat b").forEach((b,i)=>setTimeout(()=>countUp(b),i*90)));
+if(tg) onReveal.set(tg,drawFeatured);
 document.querySelectorAll(".reveal,.reveal-head,.stagger").forEach(el=>{
   if(el.classList.contains("stagger")) [...el.children].forEach((c,i)=>c.style.setProperty("--i",i));
   if(REDUCE) reveal(el); else io.observe(el);
 });
 setTimeout(()=>document.querySelectorAll(".reveal:not(.in),.reveal-head:not(.in),.stagger:not(.in)").forEach(el=>{if(el.getBoundingClientRect().top<innerHeight)reveal(el)}),1500);
 
-/* scroll: the nav, its progress line and the section it is in, the hero
-   sinking away, the pictures that drift against the page, and the garage */
+/* scroll: the nav and its progress line, the section an in-page index
+   ([data-spy]) is at, the hero sinking away, the pictures that drift
+   against the page, and the garage */
 const nav=document.getElementById("nav"), readBar=document.getElementById("readBar");
-const hero=document.querySelector(".hero"), heroCopy=hero.querySelector(".wrap");
-const spy=[...nav.querySelectorAll("ul a")].map(a=>[a,document.querySelector(a.getAttribute("href"))]).filter(([,s])=>s);
+const hero=document.querySelector(".hero"), heroCopy=hero&&hero.querySelector(".wrap");
+const spy=[...document.querySelectorAll('[data-spy] a[href^="#"]')].map(a=>[a,document.getElementById(a.getAttribute("href").slice(1))]).filter(([,s])=>s);
+// Narrow screens fold the menu behind a button.
+const menu=nav.querySelector(".menu");
+menu.addEventListener("click",()=>{const open=nav.classList.toggle("open"); menu.setAttribute("aria-expanded",open);});
+nav.querySelectorAll("ul a").forEach(a=>a.addEventListener("click",()=>{nav.classList.remove("open"); menu.setAttribute("aria-expanded",false);}));
 const drifting=REDUCE?[]:[...document.querySelectorAll(".band img,.shots figure:first-child img,.cta>img")]
   .map(img=>{img.classList.add("drift"); return {img,box:img.parentElement};});
 function heroFrame(y){
-  if(REDUCE) return;
+  if(REDUCE||!hero) return;
   const h=hero.offsetHeight, live=innerWidth>640;
   if(live&&y>h) return; // gone off the top: leave it where it went
   const f=live?y:0;
@@ -219,7 +234,7 @@ let queued=false;
 function frame(){
   queued=false;
   const y=scrollY, vh=innerHeight, max=document.documentElement.scrollHeight-vh;
-  nav.classList.toggle("solid",y>40);
+  nav.classList.toggle("solid",!hero||y>40);
   readBar.style.transform=`scaleX(${max>0?clamp(y/max,0,1).toFixed(4):0})`;
   let here=null; for(const [a,s] of spy) if(s.getBoundingClientRect().top<vh*.4) here=a;
   spy.forEach(([a])=>a===here?a.setAttribute("aria-current","location"):a.removeAttribute("aria-current"));
@@ -244,6 +259,7 @@ layoutGarage(); frame();
     [0,288,1,0,7,.2],[2.2,312,1,0,7,.1],[2.9,305,0,1,6,.4],[3.5,190,0,.85,4,1.2],[4.1,142,.2,.3,3,2.1],[4.9,138,.55,0,3,2.4],[5.8,176,.95,0,4,1.6],[7.0,232,1,0,5,.6],[8.4,270,1,0,6,.3],[9.6,288,1,0,7,.2]
   ];
   const T=seg[seg.length-1][0]; const $=id=>document.getElementById(id);
+  if(!$("t-thr")) return;
   let start=performance.now();
   function lerp(a,b,f){return a+(b-a)*f}
   function tick(now){

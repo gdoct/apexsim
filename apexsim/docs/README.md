@@ -6,8 +6,8 @@ These are the docs of the code root, `apexsim/`. The content root,
 a path that starts with `apexsim-content/` is in the content root.
 
 Each doc describes what is built, where its code is, how to check it, and
-its traps. What is *not* built lives in the three backlogs. `index.html` and
-`assets/` in this folder are the generated marketing page (GitHub Pages);
+its traps. What is *not* built lives in the three backlogs. The `.html` pages
+and `assets/` in this folder are the generated marketing site (GitHub Pages);
 see [marketing-site.md](marketing-site.md).
 
 ## Start here

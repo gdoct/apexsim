@@ -1,0 +1,90 @@
+# System specs. Figures from README.md ("System requirements",
+# "Performance"), docs/game/client.md (the benchmark, upscalers) and
+# docs/server/operations.md. Only measured figures: no CPU or GPU tier is
+# named that has not been run. Integrated graphics stay "untested" until
+# the integrated-GPU run (work plan P3) is done.
+
+meta:
+  title: System specs · ApexSim
+  description: >-
+    What ApexSim needs: Windows 10 or 11 64-bit, a DirectX 12 graphics
+    card, 16 GB of RAM and 4 GB of disk, with a wheel, a gamepad or a
+    keyboard.
+
+hero:
+  eyebrow: System specs
+  title: What it runs on
+  lede: >-
+    Windows and a DirectX&nbsp;12 graphics card. The physics runs on the
+    server, so the game's work is drawing.
+
+table:
+  columns: [Minimum, Recommended]
+  rows:
+    - [System, 'Windows 10 or 11, 64-bit (x64)', 'Windows 10 or 11, 64-bit (x64)']
+    - [Graphics, 'A DirectX&nbsp;12 GPU; integrated graphics start on the Low preset (untested)', 'A discrete DirectX&nbsp;12 GPU']
+    - [Memory, 16&nbsp;GB, 16&nbsp;GB]
+    - [Disk, 4&nbsp;GB free (the game is about 1.6&nbsp;GB unpacked), 4&nbsp;GB free]
+    - [Controls, A keyboard or a gamepad, A DirectInput wheel and pedals]
+
+measured:
+  eyebrow: Measured
+  title: How it runs
+  points:
+    - title: 'RTX 3080 · 1920×1080'
+      body: >-
+        A 12-car GT3 race replayed by the built-in benchmark: about
+        105&nbsp;fps on average, with 99% of frames under 12.1&nbsp;ms.
+    - title: The physics
+      body: >-
+        One car's step takes about 2.4&nbsp;µs on one core, and a whole
+        8-car tick (physics, AI, collisions, timing) about 40&nbsp;µs, under
+        2% of the time a {{ n.tick_hz }}&nbsp;Hz tick allows.
+    - title: No software rendering
+      body: >-
+        The game draws through the GPU; there is no CPU rendering fallback.
+
+notes:
+  - title: Upscaling
+    body: >-
+      TSR everywhere; DLSS on NVIDIA RTX cards; FSR, with FSR&nbsp;4's
+      machine-learning upscaler on Radeon RX 7000 and 9000.
+  - title: Displays
+    body: >-
+      One screen or three (triple screens with bezel and angle correction),
+      HDR output, and colour-vision palettes for the HUD.
+  - title: Input
+    body: >-
+      DirectInput wheels, pedals and button boxes with force feedback and
+      per-wheelbase profiles; gamepads with rumble; keyboard.
+  - title: Not supported
+    body: >-
+      macOS, Linux and Windows on Arm for the game; VR headsets.
+
+server:
+  eyebrow: Hosting
+  title: Running a server
+  points:
+    - title: Where it runs
+      body: >-
+        Windows, or Linux in Docker. The launcher can also start one beside
+        the game.
+    - title: Ports
+      body: 9000/TCP for the lobby and 9001/UDP for telemetry and input, open to your players.
+    - title: Content
+      body: >-
+        The same cars and circuits as the players; a checksum warns anyone
+        racing on different files.
+
+source:
+  eyebrow: From source
+  title: Building it yourself
+  body: >-
+    Windows with Unreal Engine 5.8, Rust and Python&nbsp;3 (numpy, Pillow,
+    PyYAML). The Assetto Corsa importers need Python 3.11 or newer.
+  link: The build guide
+  url: https://github.com/gdoct/apexsim/blob/main/apexsim/docs/building.md
+
+get_links:
+  - {label: FAQ, href: faq}
+  - {label: Simulation, href: simulation}

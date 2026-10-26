@@ -1,6 +1,6 @@
 name: Pages
 
-# The marketing page: apexsim/docs/index.html and apexsim/docs/assets/, written
+# The marketing site: apexsim/docs/*.html and apexsim/docs/assets/, written
 # by apexsim/scripts/site/build_site.py and committed. Only those are
 # published; the Markdown docs beside them are not part of the site.
 # (Settings > Pages > Source must be "GitHub Actions".)
@@ -36,7 +36,7 @@ jobs:
       - name: Stage the page
         run: |
           mkdir -p _site
-          cp apexsim/docs/index.html _site/
+          cp apexsim/docs/*.html _site/
           cp -r apexsim/docs/assets _site/assets
           touch _site/.nojekyll
 

@@ -1,15 +1,16 @@
-# Marketing page and promo video
+# Marketing site and promo video
 
 Two offline pipelines that show the game to people who do not have it: the
-marketing page (`docs/index.html`, served by GitHub Pages from `docs/` on
+marketing site (`docs/*.html`, served by GitHub Pages from `docs/` on
 `main`) and the promotional video. Both film races nobody drove: seeded
 headless AI races from `apexsim-replay`, played back in the game under the
 replay cameras (see [spectator](game/spectator.md)).
 
 ## Code
 
-- `site/`: the page's source (`template.html`, `site.css`, `site.js`,
-  `copy.yml`, `media.yml`, `shots.yml`, `shots/`, `copy.lock.json`,
+- `site/`: the site's source (`copy/<page>.yml` and `copy/common.yml`,
+  `templates/<page>.html` on `base.html` and `parts.html`, `site.css`,
+  `site.js`, `media.yml`, `shots.yml`, `shots/`, `copy.lock.json`,
   `README.md`).
 - `scripts/site/build_site.py` (the generator), `scripts/site/facts.py`
   (facts from content), `scripts/site/make_shots.py` (in-engine pictures),
@@ -17,14 +18,15 @@ replay cameras (see [spectator](game/spectator.md)).
 - `scripts/promo/shots.yml`, `scripts/promo/make_clips.py`,
   `scripts/promo/stitch_video.py`.
 - `.claude/commands/site-refresh.md`: the `/site-refresh` command.
-- CI: the `site` job in `.github/workflows/ci.yml`.
+- CI: the `site` job in `.github/workflows/ci.yml`; `.github/workflows/pages.yml`
+  publishes `docs/*.html` and `docs/assets/`.
 
-## The page
+## The site
 
-`docs/index.html` and `docs/assets/` are **generated**: never edit them.
+`docs/*.html` and `docs/assets/` are **generated**: never edit them.
 
 ```powershell
-python scripts/site/build_site.py              # -> docs/index.html, docs/assets
+python scripts/site/build_site.py              # -> docs/*.html, docs/assets
 python scripts/site/build_site.py --check      # CI: exit 1 when docs/ is behind
 python scripts/site/build_site.py --stale      # doc sections changed since the copy was reviewed
 python scripts/site/build_site.py --reviewed   # record them as covered
@@ -32,6 +34,38 @@ python scripts/site/build_site.py --force      # encode every picture again
 python scripts/site/make_shots.py [id ...]     # the in-engine pictures (opens the game)
 python -m unittest discover -s scripts/site/tests
 ```
+
+One page per `site/copy/<page>.yml` (`common.yml` aside), rendered through
+`site/templates/<page>.html` into `docs/<page>.html`; a page that is gone
+is removed from `docs/`. The pages:
+
+- `index`: the front page, short on purpose: the hero, the stats, eight
+  tiles that each link to a chapter of the simulation page, the Assetto
+  Corsa call-out, a car and circuit teaser and the in-engine pictures.
+- `simulation`: every simulated system in chapters of short points (car,
+  tyres, aero, brakes and engine, fuel and hybrids, damage, weather, the
+  road, race control, formats, pit lane, AI, force feedback, sound, the
+  server), then the game around a race, with a sticky index.
+- `cars` (the garage, liveries), `circuits` (the map and grid, how a
+  circuit is made), `modding` (cars, circuits, HUD, packs, telemetry, the
+  architecture).
+- `ac-import`: importing Assetto Corsa cars and tracks from the launcher,
+  what converts and what does not, and the legal line.
+- `faq` and `requirements` (system specs: measured figures only).
+
+`copy/common.yml` holds what every page shares: the menu (`nav`), the class
+blurbs the garage shows, the download call, the disclaimer and the footer.
+A page may not reuse a common key. Pages link with `link('faq')` or
+`link('simulation#tyres')`, which fails the build for a page that does not
+exist; `test_every_link_between_pages_lands_on_a_page_and_an_id` checks the
+fragments. `site.js` is shared: each part (garage, circuit map, hero
+telemetry, the index's section spy, the narrow-screen menu) runs only where
+its elements are.
+
+**Assetto Corsa** is the one real product the site names: as plain text for
+compatibility, never with its logo, its art or a picture of AC content, and
+always with `disclaimer.short` in every page's footer and `disclaimer.full`
+on the import page (a test holds both).
 
 Three kinds of content, refreshed three ways:
 
@@ -44,7 +78,7 @@ Three kinds of content, refreshed three ways:
   YAML or a car render therefore fails `--check` until `docs/` is rebuilt and
   committed. Display names only: `facts.display_class` mirrors
   `ApexCatalog::DisplayClass` (see [naming](../../apexsim-content/docs/naming.md)).
-- **Words** (`site/copy.yml`): hand-written, every string a Jinja template
+- **Words** (`site/copy/*.yml`): hand-written, every string a Jinja template
   over the facts (`{{ n.cars|words }}`, `{{ name('SpaFrankenchamps') }}`,
   `{{ car('posh-gt3rs') }}`), so no number is typed.
 - **Media** (`site/media.yml`): each picture's source file in the repo and how
@@ -66,9 +100,9 @@ The build cannot tell when prose is stale, so it watches the docs instead.
 (heading to next heading) of those docs into `site/copy.lock.json`; `--stale`
 lists the sections new, changed or removed since. In CI that is a warning, not
 a failure. The `/site-refresh` command is the rewrite pass: read the stale
-sections, update `copy.yml` against the code, [simulation gaps](simulation-gaps.md),
+sections, update `site/copy/` against the code, [simulation gaps](simulation-gaps.md),
 [follow-ups](follow-ups.md) and the [roadmap](roadmap.md) (promise nothing deferred), rebuild, look at the
-page, then `--reviewed`, `--check` and the unit tests. It does not commit.
+changed pages, then `--reviewed`, `--check` and the unit tests. It does not commit.
 
 ### In-engine pictures (`site/shots.yml` -> `site/shots/<id>.webp`)
 
@@ -186,6 +220,11 @@ the header of `ApexReplaySubsystem.h`.
 
 ## Traps
 
+- A comma inside a YAML flow mapping ends the value: `{title: Rain, snow}` is
+  a title of `Rain`. Quote any value with a comma in `{...}`.
+- The page marker on `<body>` is `data-page`, not a class: `page-<stem>`
+  collided with the simulation index's `.page-index`, which is hidden on
+  narrow screens, and blanked the whole front page there.
 - Keep the player's own cars off the page and the video: races are dealt
   from `apexsim-content/cars/default` (`cars_dir`), and the ui shots' server is
   started with `APEXSIM_CONTENT_CARS_DIR` pointing there, because an AC import

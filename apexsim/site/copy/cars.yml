@@ -1,0 +1,52 @@
+# The cars page: the garage (every shipped car by class, built by site.js
+# from assets/data.js and common.yml's `classes`), the paint shop and the
+# lamp details.
+
+meta:
+  title: The cars · ApexSim
+  description: >-
+    {{ n.cars }} cars across {{ n.classes }} classes, from GT3 to hypercars,
+    formula cars and eighties rally monsters, each a physics definition and
+    a 3D model the server and the client read alike.
+
+hero:
+  eyebrow: The grid
+  title: '{{ n.cars }} cars. {{ n.classes|words|capitalize }} classes.'
+  lede: >-
+    Every car is a physics definition and a 3D model, read from the same
+    files by the server and the client. The AI fills the field from your
+    car's own class.
+  image: band-left.webp
+
+liveries:
+  eyebrow: Paint shop
+  title: '{{ n.liveries|words|capitalize }} liveries a car'
+  body: >-
+    Liveries repaint paint, accent and logo at runtime on the race car and
+    in the garage turntable. Pick yours in the lobby; the AI is dealt the
+    rest in turn, so a full field never looks cloned. Or paint your own:
+    the garage's livery editor sets paint, accent, number and name, a
+    template tool takes a whole skin, and the other drivers in the session
+    see it on your car.
+  images:
+    - {image: liveries-gt3-lmp2.webp, alt: Livery sheet for GT3 and LMP2 cars}
+    - {image: liveries-hyper-f1.webp, alt: Livery sheet for Hypercar and Formula cars}
+
+details:
+  - {image: detail-1.webp, alt: GT3 headlight detail}
+  - {image: detail-2.webp, alt: Prototype tail light detail}
+  - {image: detail-3.webp, alt: Hypercar headlight detail}
+  - {image: detail-4.webp, alt: GT3 tail light detail}
+
+own:
+  title: More cars
+  body: >-
+    Bring your own: a car is a <code>car.toml</code> and a model, and your
+    Assetto Corsa cars import in one step.
+  links:
+    - {label: Import from Assetto Corsa, href: ac-import}
+    - {label: Make a car, href: 'modding#car-files'}
+
+get_links:
+  - {label: Circuits, href: circuits}
+  - {label: Simulation, href: simulation}

@@ -92,7 +92,7 @@ Code scripts run from `apexsim/`, content tools (`ats-*`, `tools/*.py`) from
   (`survey_ai_races_on_every_circuit`) against the commit before, comparing
   totals. The survey and the other offline tools drive the centerline; the
   live server drives the road mesh: a surface change must hold on both.
-- **Generated files are regenerated, not edited**: `apexsim/docs/index.html`
+- **Generated files are regenerated, not edited**: `apexsim/docs/*.html`
   and `apexsim/docs/assets/` (`apexsim/scripts/site/build_site.py`),
   `apexsim-content/build/tracks`, the track sidecars,
   `apexsim/game-unreal/Content` beyond the menu and catalog tables. A track

@@ -1,0 +1,142 @@
+# The FAQ: short answers, each pointing at the page or doc with the detail.
+# Licence answers follow LICENSE at the repository root; platform answers
+# README.md and docs/server/operations.md.
+
+meta:
+  title: FAQ · ApexSim
+  description: >-
+    Questions about ApexSim: what it costs, what it runs on, wheels, racing
+    online and offline, importing Assetto Corsa content, and modding.
+
+hero:
+  eyebrow: FAQ
+  title: Questions, answered
+  lede: >-
+    The short version of what people ask. Each answer links to where the
+    detail lives.
+
+groups:
+  - title: The game
+    items:
+      - q: What is ApexSim?
+        a: >-
+          A racing simulator built around one authoritative physics server:
+          a {{ n.tick_hz }}&nbsp;Hz simulation in Rust that every car, yours
+          included, is drawn from by an Unreal Engine 5 client. It ships
+          with {{ n.cars }} cars and {{ n.tracks }} real-world circuits.
+          <a href="{{ link('simulation') }}">What it simulates</a>.
+      - q: What does it cost?
+        a: >-
+          Nothing for personal, non-commercial use. ApexSim is
+          source-available, not open source: you may download, run, study
+          and modify it for yourself under the
+          <a href="https://github.com/gdoct/apexsim/blob/main/LICENSE">ApexSim licence</a>.
+          Selling it, redistributing it or running it as a paid or public
+          service needs a commercial licence.
+      - q: Where do I get it?
+        a: >-
+          From the <a href="https://github.com/gdoct/apexsim/releases">releases page</a>:
+          unzip it and run <code>launcher.exe</code>, which starts the game
+          and, if you want one, a local server.
+      - q: Is it finished?
+        a: >-
+          No: it is in active development and changes often. What is not
+          built yet is listed openly in the
+          <a href="https://github.com/gdoct/apexsim/blob/main/apexsim/docs/simulation-gaps.md">simulation gaps</a>
+          and the <a href="https://github.com/gdoct/apexsim/blob/main/apexsim/docs/roadmap.md">roadmap</a>.
+      - q: Why do the cars and circuits have unusual names?
+        a: >-
+          The cars are fictional, and the circuits carry names of their own
+          rather than anyone's trademark. The layouts themselves are
+          measured from the real circuits.
+
+  - title: Hardware
+    items:
+      - q: What do I need to run it?
+        a: >-
+          Windows 10 or 11 (64-bit, x64), a DirectX&nbsp;12 graphics card
+          and 16&nbsp;GB of RAM. <a href="{{ link('requirements') }}">Full system specs</a>.
+      - q: Does it run on Mac, Linux or Windows on Arm?
+        a: >-
+          The game runs on 64-bit x64 Windows only; Windows on Arm (Snapdragon)
+          is not supported. A dedicated server runs on Windows or, in Docker,
+          on Linux.
+      - q: Which wheels work?
+        a: >-
+          DirectInput wheels, pedals and button boxes, with force feedback
+          worked out from the tyres and scaled to your wheelbase's peak
+          torque. A gamepad or a keyboard works too.
+      - q: Triple screens? VR?
+        a: >-
+          Triple screens yes, with the side views toed in to match your
+          rig. VR is not supported yet.
+
+  - title: Racing
+    items:
+      - q: Can I race offline?
+        a: >-
+          Yes: races, weekends and whole seasons against AI drivers at a
+          level you choose, hotlaps against your own ghost, and the driving
+          school.
+      - q: Can I race online?
+        a: >-
+          Yes. Someone hosts a server (the launcher can start one, or run it
+          on its own) and the others join it by address. There is no public
+          server list yet.
+      - q: What does hosting take?
+        a: >-
+          The server, the same content as the players, and two ports open:
+          9000/TCP and 9001/UDP. An operator dashboard runs the sessions.
+      - q: Is the physics on my PC?
+        a: >-
+          No. The server simulates every car and enforces every rule:
+          collisions, track limits, the pit lane, assists. Your game draws
+          what it says.
+
+  - title: Content
+    items:
+      - q: Do I need Assetto Corsa?
+        a: >-
+          No. ApexSim comes with its own cars and circuits. If you do own
+          Assetto Corsa, you can bring its cars and tracks across.
+      - q: How do I import my Assetto Corsa cars and tracks?
+        a: >-
+          In the launcher, <b>Manage content &gt; Import from Assetto
+          Corsa</b>, then pick a car or track folder, or a whole folder of
+          them. It needs Python 3.11 or newer the first time.
+          <a href="{{ link('ac-import') }}">How it works and what converts</a>.
+      - q: Is importing Assetto Corsa content allowed?
+        a: >-
+          The importers convert content you already own, on your own
+          machine, for your own use, and nothing they make is shared or
+          uploaded by ApexSim. Respect the game's terms and each mod
+          author's; content encrypted by Custom Shaders Patch is refused.
+          ApexSim is not affiliated with or endorsed by the makers of
+          Assetto Corsa, and you use the importers at your own risk.
+      - q: Can I make my own cars, circuits or HUD?
+        a: >-
+          Yes: they are files the game reads at runtime, with a guide for
+          each. <a href="{{ link('modding') }}">Modding</a>.
+      - q: How do I share what I made?
+        a: >-
+          As a content pack: one file the other player installs from the
+          launcher's <b>Manage content</b>.
+
+  - title: Source
+    items:
+      - q: Can I build it from source?
+        a: >-
+          Yes, on Windows with Rust, Python&nbsp;3 and Unreal Engine 5.8:
+          <code>./scripts/initialize_content.ps1</code> once, then
+          <code>./scripts/play_editor.ps1 -Build</code>. The
+          <a href="https://github.com/gdoct/apexsim/blob/main/apexsim/docs/building.md">build guide</a>
+          has the rest.
+      - q: Can I use it for a commercial league or event?
+        a: >-
+          Paid events, public or paid servers and use inside a business need
+          a commercial licence; the <a href="https://github.com/gdoct/apexsim/blob/main/LICENSE">licence</a>
+          says how to ask for one.
+
+get_links:
+  - {label: System specs, href: requirements}
+  - {label: AC import, href: ac-import}

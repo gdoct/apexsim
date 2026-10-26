@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% import "parts.html" as parts with context %}
+{% block body %}
+{{ parts.page_hero(hero) }}
+
+<section class="steps-sec">
+  <div class="wrap">
+    <h2 class="small-title reveal">{{ steps_title }}</h2>
+    <ol class="steps stagger">
+{%- for s in steps %}
+      <li><span class="step-n">{{ loop.index }}</span><b>{{ s.title }}</b><p>{{ s.body }}</p></li>
+{%- endfor %}
+    </ol>
+  </div>
+</section>
+
+<section id="what" class="alt">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ what.eyebrow }}</div><h2>{{ what.title }}</h2></div>
+      <p>{{ what.intro }}</p>
+    </div>
+    <div class="lists stagger">
+      <div class="list"><h3>{{ what.cars_title }}</h3><ul>{% for i in what.cars %}<li>{{ i }}</li>{% endfor %}</ul></div>
+      <div class="list"><h3>{{ what.tracks_title }}</h3><ul>{% for i in what.tracks %}<li>{{ i }}</li>{% endfor %}</ul></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ after.eyebrow }}</div><h2>{{ after.title }}</h2></div>
+    </div>
+    <div class="points stagger">
+{%- for p in after.points %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+    </div>
+    <div class="limits reveal">
+      <div class="eyebrow">{{ limits.eyebrow }}</div>
+      <h3>{{ limits.title }}</h3>
+      <ul>{% for i in limits['items'] %}<li>{{ i }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="legal">
+  <div class="wrap">
+    <div class="sec-head reveal-head">
+      <div><div class="eyebrow">{{ legal.eyebrow }}</div><h2>{{ legal.title }}</h2></div>
+    </div>
+    <div class="points stagger">
+{%- for p in legal.points %}
+      <div class="point"><b>{{ p.title }}</b><p>{{ p.body }}</p></div>
+{%- endfor %}
+    </div>
+    <p class="disclaimer-box reveal">{{ disclaimer.full }}</p>
+  </div>
+</section>
+
+{{ parts.get_on_the_grid(get_links) }}
+{% endblock %}

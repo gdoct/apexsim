@@ -1,0 +1,78 @@
+# The circuits page: the map and grid of every shipped circuit (site.js,
+# from assets/data.js), how a circuit is made, and pictures of a few.
+
+meta:
+  title: The circuits · ApexSim
+  description: >-
+    {{ n.tracks }} real-world circuits in {{ n.countries }} countries,
+    {{ n.km }} km of measured centerline with satellite terrain and
+    furniture from OpenStreetMap.
+
+hero:
+  eyebrow: The calendar
+  title: '{{ n.tracks }} circuits. Surveyed, not sketched.'
+  lede: >-
+    Centerlines from public GPS traces, smoothed without shrinking the
+    circuit, in {{ n.countries }} countries. The longest is the
+    {{ n.longest_km }}&nbsp;km {{ name('Mordschleife') }}, with
+    {{ n.longest_relief }}&nbsp;m of relief.
+  image: shot-forest.webp
+
+note: >-
+  ● green = real layout dossier (named corners, stands, pit lane, woodland
+  from OpenStreetMap). Maps drawn from each circuit's own centerline data.
+
+made:
+  eyebrow: How a circuit is made
+  title: Real ground, real furniture
+  points:
+    - title: Measured centerlines
+      body: >-
+        Per-side width and banking along a surveyed line, the banking laid
+        onto the bends it belongs to.
+    - title: Satellite terrain
+      body: >-
+        Elevation from the Copernicus GLO-30 surface model out to an
+        eight-kilometre horizon.
+    - title: Layout dossiers
+      body: >-
+        Stands, pit lanes, barriers and woodland laid from OpenStreetMap on
+        {{ n.dossiers }} of the {{ n.tracks }} circuits, with every corner
+        named.
+    - title: A road the server drives
+      body: >-
+        The same road mesh, walls, kerbs and pit lane are baked for the
+        server and the game, checked by checksum on both sides.
+    - title: A street circuit
+      body: >-
+        {{ name('MandarinaBay') }}: Tecpro the whole way round, water either
+        side of its raised bridges, and a start straight lit for the night.
+    - title: The long one
+      body: >-
+        {{ name('Mordschleife') }}, routed over OpenStreetMap: guard rail
+        close to the road, the forest right behind it and the fans' graffiti
+        on the asphalt.
+
+shots:
+  - image: shot-karussell.webp
+    alt: 'Two GT3 cars round the banked Karussell at {{ name("Mordschleife") }}, seen from the air'
+    caption: '{{ name("Mordschleife") }} · Karussell'
+  - image: shot-pack.webp
+    alt: 'GT3 cars on the grid under the lights at {{ name("MandarinaBay") }}'
+    caption: '{{ name("MandarinaBay") }} · the grid at night'
+  - image: screen-globe.webp
+    alt: The Tracks globe with the circuits pinned and one chosen
+    caption: 'Tracks · {{ n.tracks }} circuits pinned on a globe'
+
+own:
+  title: More circuits
+  body: >-
+    Your Assetto Corsa circuits import with every layout, and the track
+    pipeline builds a circuit of your own from a centerline.
+  links:
+    - {label: Import from Assetto Corsa, href: ac-import}
+    - {label: Make a circuit, href: 'modding#track-files'}
+
+get_links:
+  - {label: Cars, href: cars}
+  - {label: Simulation, href: simulation}

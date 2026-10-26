@@ -1,0 +1,123 @@
+# The Assetto Corsa import page. Checked against
+# ../apexsim-content/docs/ac-import.md (what converts, "Not supported", the
+# legal line, importing from the launcher) and MODDING.md. No AC logo, art
+# or screenshot of AC content here (marketing-site.md, Traps), and the full
+# disclaimer stays on the page.
+
+meta:
+  title: Import from Assetto Corsa · ApexSim
+  description: >-
+    Your own Assetto Corsa cars and tracks import into ApexSim in one step
+    from the launcher: physics, skins, layouts and pit lanes, converted on
+    your machine.
+
+hero:
+  eyebrow: Assetto Corsa import
+  title: Your AC cars and tracks, in ApexSim
+  lede: >-
+    If you own Assetto Corsa, the cars and circuits already on your disk
+    convert into ApexSim in one step, from the launcher. No command line,
+    no editing files.
+  links:
+    - {label: Download ApexSim, url: 'https://github.com/gdoct/apexsim/releases'}
+    - {label: What converts, href: 'ac-import#what'}
+
+steps_title: Four steps, once
+steps:
+  - title: Open the launcher
+    body: In the ApexSim launcher, choose <b>Manage content &gt; Import from Assetto Corsa</b>.
+  - title: Pick a folder
+    body: >-
+      A car's folder or a track's from your Assetto Corsa install, or the
+      whole <code>cars</code> or <code>tracks</code> folder to bring
+      everything at once. The launcher tells cars and tracks apart itself.
+  - title: Let it run
+    body: >-
+      A window shows each car or layout as it converts, and a report at the
+      end. The first time, it needs Python 3.11 or newer from python.org
+      and sets the rest up on its own.
+  - title: Race
+    body: >-
+      Restart the game and its server: the cars are in the garage, the
+      circuits on the globe, ready for a race, a hotlap or the AI.
+
+what:
+  eyebrow: What converts
+  title: Not just the model
+  intro: >-
+    The importers read Assetto Corsa's own physics files and map them onto
+    ApexSim's simulation, so an imported car drives on its own figures, not
+    a guess.
+  cars_title: Cars
+  cars:
+    - The body, wheels and steering wheel, seated and lit, with working lights and mirrors
+    - Every skin, as a livery you can pick in the lobby
+    - The cockpit's eye point, wheel and mirrors for the cockpit view
+    - Mass, suspension geometry, springs, dampers, bars and bump stops
+    - The engine's torque curve, its turbo boost per gear and its rev limits
+    - Every tyre compound, with its grip, wear, temperature window and pressure
+    - Wings and floor, with their ride-height maps and the wings that move with speed
+    - Brakes, carbon or steel, hybrids and their energy, the DRS flap
+    - Parts that come off in a crash, as on the shipped cars
+  tracks_title: Circuits
+  tracks:
+    - Every layout of a track folder, each one a circuit of its own
+    - The road as a mesh with AC's own surfaces and their grip, kerbs and run-off
+    - Walls and barriers the cars stop against
+    - The racing line, sectors, grid slots and DRS zones
+    - The pit lane with a box per car, where the layout has one
+    - The track's textures and preview picture
+    - Its real place on Earth for the famous circuits, so the sun, the air and the weather are right
+
+after:
+  eyebrow: Then it races
+  title: Like any other car or circuit
+  points:
+    - title: The whole simulation
+      body: >-
+        Tyre heat and wear, damage, fuel, weather, track evolution and the
+        pit lane all apply to an import, and the AI races it.
+    - title: Online too
+      body: >-
+        Everyone imports from their own copy. Two players importing the same
+        car get the same id, and the content checksum confirms you are all
+        racing on the same data.
+    - title: Re-run any time
+      body: >-
+        Importing again gives byte-identical files. A newer importer can
+        replace an earlier import, and each import keeps a report of
+        exactly what it read and wrote.
+    - title: From a command line
+      body: >-
+        Building from source? <code>python tools/ac_car_import.py</code> and
+        <code>python tools/ac_import.py</code> take a folder, or
+        <code>--all</code> for a whole collection.
+
+limits:
+  eyebrow: What does not
+  title: The edges
+  items:
+    - Content encrypted by Custom Shaders Patch is refused, never decrypted.
+    - Tracks without an AI line, and point-to-point stages.
+    - Pit stops on a layout with no pit lane in its AI files.
+    - "AC's night lighting and its normal and detail maps: surfaces keep their colour textures."
+    - Physics AC has no figure for (brake pads, aero from body roll, porpoising) take ApexSim's defaults.
+
+legal:
+  eyebrow: Yours, and only yours
+  title: Your content stays on your machine
+  points:
+    - title: Nothing bundled
+      body: ApexSim ships converters, never Assetto Corsa's cars, tracks, textures or physics.
+    - title: Nothing shared
+      body: >-
+        Imports go to your own <code>custom</code> folders, which a release
+        never includes and ApexSim never uploads.
+    - title: Your own copy
+      body: >-
+        The importers read the install you own. The first run shows a notice
+        about personal use and mod authors' terms.
+
+get_links:
+  - {label: Modding, href: modding}
+  - {label: FAQ, href: faq}
