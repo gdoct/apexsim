@@ -184,7 +184,9 @@ iterate on.
   or `{at_s: 123.4}`.
 - **Cameras** (`mode`): `tv` (the broadcast director; `shot` holds one kind,
   `follow` locks a car), `fixed` (`eye`, `look`, `fov`), `pan` (adds
-  `look_bias`, `frame_width`, `min_fov`, `pan_speed`), `chase`
+  `look_bias`, `frame_width`, `min_fov`, `pan_speed`, and `reveal_s` with
+  `reveal_fov`: the shot opens on the `look` point at that lens and eases
+  down to the car and its framing over that many race seconds), `chase`
   (`chase: roof|close|near|far`), `cockpit`. An `eye` or `look` is
   `{corner|station, offset, lateral, side, height}` (`side` left, right,
   outside or inside of the bend) or `{landmark: <name or kind>, height}`. The

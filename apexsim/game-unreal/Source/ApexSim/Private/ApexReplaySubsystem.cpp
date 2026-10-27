@@ -246,6 +246,8 @@ bool UApexReplaySubsystem::ParseCommandLine()
 	ParseFloat(TEXT("ApexReplayLead="), Camera.LeadSeconds);
 	ParseFloat(TEXT("ApexReplayFrameWidth="), Camera.FrameWidthM);
 	ParseFloat(TEXT("ApexReplayMinFov="), Camera.MinFovDeg);
+	ParseFloat(TEXT("ApexReplayReveal="), Camera.RevealSeconds);
+	ParseFloat(TEXT("ApexReplayRevealFov="), Camera.RevealFovDeg);
 	float ClearanceM = Camera.GroundClearanceCm / 100.0f;
 	if (ParseFloat(TEXT("ApexReplayGroundClearance="), ClearanceM))
 	{
@@ -302,6 +304,7 @@ bool UApexReplaySubsystem::ParseCommandLine()
 	StartSeconds = FMath::Clamp(StartSeconds, 0.0, ClipSeconds);
 	EndSeconds = DurationSeconds > 0.0 ? FMath::Min(StartSeconds + DurationSeconds, ClipSeconds) : ClipSeconds;
 	PrerollSeconds = FMath::Max(PrerollSeconds, 0.0);
+	Camera.RevealStartS = StartSeconds;
 
 	// --- recording ---
 	if (!RecordDir.IsEmpty())

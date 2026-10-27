@@ -5562,14 +5562,21 @@ void AApexRaceDirector::UpdateReplayCamera(float DeltaSeconds)
 	const FVector Eye = ReplayCamera.EyeCm;
 	// The body's middle, not its floor: the pivot sits on the ground.
 	const FVector Centre = Target->GetActorLocation() + FVector(0.0, 0.0, 60.0);
+	// A reveal opens on the look point and comes down to the car.
+	const float Reveal = ReplayCamera.bHasLook
+		? ApexReplayCam::RevealProgress(ReplayTime, ReplayCamera.RevealStartS, ReplayCamera.RevealSeconds)
+		: 1.0f;
 	const FRotator Wanted = ReplayCamera.MaxPanDeg > 0.0f && ReplayCamera.bHasLook
 		// The guide's tripods: on the corner, turning toward the car only as far as keeps the corner in frame.
 		? ApexReplayCam::ClampedPanRotation(Eye, ReplayCamera.LookCm, Centre + Target->GetVelocity() * ReplayCamera.LeadSeconds,
 			ReplayCamera.MaxPanDeg)
 		: ApexReplayCam::PanRotation(Eye, Centre, Target->GetVelocity(),
-			ReplayCamera.bHasLook ? &ReplayCamera.LookCm : nullptr, ReplayCamera.LookBias, ReplayCamera.LeadSeconds);
-	const float WantedFov = ApexReplayCam::FramingFov(ReplayCamera.FrameWidthM, FVector::Dist(Eye, Centre),
+			ReplayCamera.bHasLook ? &ReplayCamera.LookCm : nullptr, FMath::Lerp(1.0f, ReplayCamera.LookBias, Reveal),
+			ReplayCamera.LeadSeconds);
+	const float FramedFov = ApexReplayCam::FramingFov(ReplayCamera.FrameWidthM, FVector::Dist(Eye, Centre),
 		ReplayCamera.MinFovDeg, ReplayCamera.FovDeg);
+	const float OpeningFov = ReplayCamera.RevealFovDeg > 0.0f ? ReplayCamera.RevealFovDeg : ReplayCamera.FovDeg;
+	const float WantedFov = FMath::Lerp(OpeningFov, FramedFov, Reveal);
 	if (!bReplayPanValid)
 	{
 		ReplayPanRotation = Wanted.Quaternion();

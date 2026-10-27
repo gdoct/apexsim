@@ -168,6 +168,12 @@ bool FApexReplayCameraTest::RunTest(const FString& Parameters)
 	TestNearlyEqual(TEXT("widest"), FramingFov(10.0f, 100.0, 1.0f, 60.0f), 60.0f, 1e-4f);
 	TestNearlyEqual(TEXT("longest"), FramingFov(10.0f, 1.0e7, 3.0f, 60.0f), 3.0f, 1e-4f);
 
+	// A reveal holds on the look point until it starts, eases, then stays on the car.
+	TestNearlyEqual(TEXT("reveal before"), RevealProgress(9.0, 10.0, 4.0f), 0.0f, 1e-5f);
+	TestNearlyEqual(TEXT("reveal halfway"), RevealProgress(12.0, 10.0, 4.0f), 0.5f, 1e-5f);
+	TestNearlyEqual(TEXT("reveal done"), RevealProgress(15.0, 10.0, 4.0f), 1.0f, 1e-5f);
+	TestNearlyEqual(TEXT("no reveal"), RevealProgress(0.0, 10.0, 0.0f), 1.0f, 1e-5f);
+
 	// Easing is frame-rate independent: two half steps are one whole one.
 	const float Whole = EaseAlpha(5.0f, 0.1f);
 	const float HalfStep = EaseAlpha(5.0f, 0.05f);

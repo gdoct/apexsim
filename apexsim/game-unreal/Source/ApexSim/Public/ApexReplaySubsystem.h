@@ -37,7 +37,9 @@ class FApexReplayClip;
  * `-ApexReplayLockTv`, `-ApexCamera=` / `-ApexCameraLookAt=` / `-ApexCameraFov=`
  * for the tripod (server frame, as for the screenshot camera),
  * `-ApexReplayLook=X,Y,Z` / `-ApexReplayLookBias=` / `-ApexReplayFrameWidth=`
- * / `-ApexReplayPanSpeed=` for a pan, `-ApexReplayChase=roof|close|near|far`.
+ * / `-ApexReplayPanSpeed=` for a pan, `-ApexReplayReveal=<s>` / `-ApexReplayRevealFov=`
+ * for a pan that opens on its look point and comes down to the car,
+ * `-ApexReplayChase=roof|close|near|far`.
  * The sky is the clip's; `-ApexReplayTimeOfDay=hh:mm` / `-ApexReplayWeather=`
  * override the look (not the grip the race was simulated with).
  * `docs/marketing-site.md` has the whole pipeline.

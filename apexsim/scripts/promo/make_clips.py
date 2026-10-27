@@ -324,6 +324,8 @@ class Planner:
             ("pan_speed", "ApexReplayPanSpeed"),
             ("frame_width", "ApexReplayFrameWidth"),
             ("min_fov", "ApexReplayMinFov"),
+            ("reveal_s", "ApexReplayReveal"),
+            ("reveal_fov", "ApexReplayRevealFov"),
             ("lead_s", "ApexReplayLead"),
             ("ground_clearance", "ApexReplayGroundClearance"),
             ("seed", "ApexReplaySeed"),

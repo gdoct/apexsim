@@ -91,6 +91,17 @@ namespace ApexReplayCam
 		 * Tripods, the chase camera and the broadcast camera's outside shots.
 		 */
 		float FrameBias = 0.0f;
+		/**
+		 * Pan with a look point: the shot opens on the look point (bias 1,
+		 * RevealFovDeg) and eases to LookBias and the framing over this many
+		 * clip seconds from RevealStartS (RevealProgress): the airship, then
+		 * the field under it. 0: no reveal.
+		 */
+		float RevealSeconds = 0.0f;
+		/** The clip second the reveal starts at: the first recorded frame. */
+		double RevealStartS = 0.0;
+		/** The field of view the reveal opens with; 0: FovDeg. */
+		float RevealFovDeg = 0.0f;
 	};
 
 	/**
@@ -230,6 +241,19 @@ namespace ApexReplayCam
 		}
 		const double Half = FMath::Atan((WidthM * 100.0 * 0.5) / DistanceCm);
 		return FMath::Clamp(static_cast<float>(FMath::RadiansToDegrees(2.0 * Half)), MinFovDeg, MaxFovDeg);
+	}
+
+	/**
+	 * How far a reveal has gone at clip second `Now`: 0 until `StartS`, an
+	 * ease in and out over `Seconds`, then 1 (and 1 when there is none).
+	 */
+	inline float RevealProgress(double Now, double StartS, float Seconds)
+	{
+		if (Seconds <= 0.0f)
+		{
+			return 1.0f;
+		}
+		return FMath::SmoothStep(0.0f, 1.0f, static_cast<float>((Now - StartS) / Seconds));
 	}
 
 	/** Frame-rate independent easing: how far to move toward a target this step. */

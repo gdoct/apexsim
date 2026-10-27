@@ -80,6 +80,24 @@ races:
     time: "21:00"             # the night race, under the lights
 
 shots:
+  - id: 00_lemans_airship
+    race: lemans
+    # Opens on the airship over the wheel and comes down onto the field
+    # (reveal_s) as the lap-1 pack reaches 05_lemans_wheel's tripod (37.1 s).
+    window: {at_s: 33.4}
+    length: 8.0
+    caption: "Lemons"
+    camera:
+      mode: pan
+      eye:  {station: 1200, lateral: 18, side: left, height: 6}
+      look: {landmark: blimp, height: 0}
+      reveal_s: 3.5           # the airship, then the field under it
+      reveal_fov: 40
+      look_bias: 0.2
+      fov: 55
+      follow: nearest
+      pan_speed: 3
+
   - id: 01_zandvoort_start
     race: zandvoort
     window: start
@@ -90,17 +108,19 @@ shots:
 
   - id: 02_spa_eau_rouge
     race: spa
-    window: {corner: "Eau Rouge", before: 120, after: 180, min_cars: 2, anchor: 0.35}
+    window: {corner: "Eau Rouge", before: 120, after: 180, min_cars: 3, anchor: 0.35}
     length: 3.5
     slowmo: 0.5
     caption: "Eau Rouge · Spa-Frankenchamps"
     camera:
+      # From the top of Raidillon down the hill: the cars climb toward the lens.
       mode: pan
-      eye:  {corner: "Eau Rouge", offset: -60, lateral: 14, side: outside, height: 1.8}
-      look: {corner: "Raidillon", offset: 60, lateral: 0, height: 6}
-      look_bias: 0.25
+      eye:  {corner: "Raidillon", offset: 25, lateral: 11, side: outside, height: 1.5}
+      look: {corner: "Eau Rouge", offset: 0, lateral: 0, height: 0}
+      look_bias: 0.1
       fov: 55
-      frame_width: 22
+      frame_width: 11
+      min_fov: 14
       follow: nearest
       pan_speed: 6
 
@@ -158,13 +178,23 @@ shots:
       follow: nearest
       pan_speed: 4
 
-  - id: 09_marina_start
+  - id: 09_marina_skyline
     race: marina
-    window: start
-    start_offset_s: -4.0      # five lights, then out, under the LED ribbon
-    length: 9.0
+    # at_s: four cars past this tripod on lap 1 (apexsim-replay find --station 4380
+    # --before 40 --after 40 --include-lap-1). Re-pick it if the race changes.
+    window: {at_s: 135.0}
+    length: 5.0
+    slowmo: 0.5
+    time: "19:30"             # dusk: the towers stand against the sky, the lights already on
     caption: "Mandarina Bay · night race"
-    camera: {mode: tv, shot: grid, follow: leader}
+    camera:
+      mode: pan
+      eye:  {station: 4360, lateral: 18, side: left, height: 8}   # over the street fences
+      look: {landmark: skypark, height: 70}
+      look_bias: 0.5          # the towers and the cars running at them
+      fov: 65
+      follow: nearest
+      pan_speed: 3
 
   - id: 10_marina_wheel
     race: marina
@@ -245,7 +275,7 @@ edit:
     seconds: 3.5
     background: null
   sequence:                   # shots in play order; a string or {id, transition, crossfade_s, brag}
-    - {id: 01_zandvoort_start, brag: "420 Hz authoritative physics"}
+    - {id: 00_lemans_airship, brag: "420 Hz authoritative physics"}
     - {id: 02_spa_eau_rouge, transition: fadewhite, crossfade_s: 0.25, brag: "Fully deterministic simulation"}
     - {id: 03_spa_onboard_raidillon, brag: "Triple screen. Wheel force feedback."}
     - {id: 04_zandvoort_hugenholtz_heli, brag: "Real elevation and banking"}
@@ -253,7 +283,7 @@ edit:
     - {id: 11_lemans_night, brag: "Races up to 24 hours"}
     - {id: 06_monza_rain_parabolica, brag: "Dynamic weather, live track state"}
     - {id: 08_spielberg_bull, brag: "Tyres, brakes, fuel and damage"}
-    - {id: 09_marina_start, transition: fadeblack, crossfade_s: 0.4, brag: "Night racing under the lights"}
+    - {id: 09_marina_skyline, transition: fadeblack, crossfade_s: 0.4, brag: "Night racing under the lights"}
     - {id: 10_marina_wheel, brag: "AI that passes and defends"}
     - {id: 13_zandvoort_luyendyk_final_lap, transition: smoothleft, brag: "Slipstream, dirty air, ride-height aero"}
     - {id: 14_zandvoort_finish, brag: "Watch, replay, share every race"}
