@@ -1,0 +1,56 @@
+# ApexSim settings.
+#
+# Edit this file to change how the game starts up. It is rewritten whenever
+# these settings are changed from inside the game, so comments of your own
+# will not survive that. Delete the file to go back to the defaults.
+
+display:
+  # WIDTHxHEIGHT, e.g. 2560x1440. Ignored in borderless, which always
+  # takes the size of the monitor it opens on.
+  resolution: 3440x1440
+  # fullscreen | borderless | windowed
+  window_mode: windowed
+  vsync: false
+  # Frames per second, or 0 for uncapped.
+  frame_limit: 144
+  # 1 for one monitor, or 3 for a triple-monitor rig: the window then spans
+  # the three monitors standing in a row and each shows its own view. The
+  # rig's measurements are under Settings > Graphics > Screens.
+  screens: 1
+  # auto | dx12 | dx11: the DirectX the game renders with, read when it
+  # starts. auto is DirectX 12 where the graphics card supports it. dx11
+  # is for a card or driver that draws the scene wrongly under DirectX 12;
+  # it looks plainer. -dx11 or -dx12 on the command line wins.
+  graphics_api: auto
+
+server:
+  # The server the game connects to when it starts. 127.0.0.1 is a server
+  # on this machine, such as the one the launcher starts for you.
+  host: 127.0.0.1
+  port: 9000
+  # TLS on the connection: auto | on | off. auto tries TLS and falls back
+  # to plaintext only when the server does not speak it; on never falls
+  # back. Telemetry and input (UDP) are never encrypted.
+  tls: auto
+  # Check the server's certificate against the system's trusted roots and
+  # the host name. false encrypts without checking: development only.
+  tls_verify: true
+  # Trust exactly this certificate instead (SHA-256, as the server's
+  # operator gives it, or as the game logs it when it refuses one): how a
+  # self-signed certificate is trusted. Empty: none. Cleared when host changes.
+  tls_fingerprint: 
+
+telemetry_out:
+  # A UDP packet of the car's motion, revs, pedals, tyres and session for
+  # SimHub, motion rigs, shakers and dash apps (the layout is in the game's
+  # docs: telemetry-output). 127.0.0.1 is an app on this machine.
+  enabled: false
+  host: 127.0.0.1
+  port: 9996
+  # Packets per second while driving, 1 to 400.
+  rate_hz: 60
+
+launcher:
+  # false: launcher.exe starts the game straight away, without a server, and
+  # shows no window. Run launcher.exe --show to bring the window back.
+  show: true
