@@ -436,20 +436,26 @@ p.cylinder(M.lamp_h, (0.0, 2.24, 0.405), 0.037, 0.14, segs=24, axis='Y')
 p.torus(M.metal, (0.0, 2.30, 0.405), 0.041, 0.005, segs=24, rings=6)
 
 # ---- halo: a 4 cm section. Centre pillar off the tub ahead of the driver,
-# the hoop round the cockpit just over the eye line, the rear legs down to
-# the tub behind the shoulders. In the body colour unless the car says carbon.
+# the hoop round the cockpit just over the eye line, widest beside the
+# helmet, the rear legs down to the tub behind the head (a hoop that closed
+# ahead of the eye brought its legs down either side of the camera).
+# In the body colour unless the car says carbon.
 HALO = M.paint if V["halo"] == "paint" else C
 HZ = EYE.z + 0.060
 hy0 = CP_Y[0] + 0.02
+HOOP_A, HOOP_L = math.pi * 0.62, 0.965     # sweep and plan length: the legs come off ~10 cm behind the eye
+
+
+def hoop_at(a, sx):
+    return (sx * 0.255 * math.sin(a), hy0 + 0.04 + HOOP_L * (1 - math.cos(a)) / 2, HZ + 0.012 * math.cos(a))
+
+
 pillar_foot_y = hy0 - 0.24
 pf = [(pillar_foot_y, L.roof_z(pillar_foot_y) - 0.015), (hy0 + 0.02, L.roof_z(hy0) - 0.01),
       (hy0 + 0.05, HZ - 0.02), (hy0 - 0.02, HZ + 0.03), (pillar_foot_y + 0.06, L.roof_z(pillar_foot_y + 0.06) + 0.03)]
 carlib.plate(p, HALO, pf, 0.0, 0.048, chamfer=0.012)
 for sx in (-1, 1):
-    hoop = []
-    for k in range(48):
-        a = math.pi * 0.84 * k / 47
-        hoop.append((sx * 0.255 * math.sin(a), hy0 + 0.04 + 0.48 * (1 - math.cos(a)) / 2, HZ + 0.012 * math.cos(a)))
+    hoop = [hoop_at(HOOP_A * k / 47, sx) for k in range(48)]
     x_e, y_e, _ = hoop[-1]
     hoop += [(sx * (abs(x_e) + 0.03), y_e + 0.06, HZ - 0.06),
              (sx * (abs(x_e) + 0.05), y_e + 0.10, L.z_at(y_e + 0.10, abs(x_e) + 0.05) - 0.02)]
@@ -494,7 +500,8 @@ for sx, key in ((1, "left"), (-1, "right")):
              (MIR_Y - 0.02, MIR_Z - 0.02)]
     carlib.plate(p, C, stalk, sx * (MIR_X - 0.07), 0.012, chamfer=0.004)
     # the second stay to the halo's leg, as the cars carry them
-    p.bar(C, (sx * (MIR_X - 0.08), MIR_Y + 0.02, MIR_Z + 0.02), (sx * 0.24, hy0 + 0.20, HZ - 0.01), 0.007, segs=6)
+    hx, hy, _ = hoop_at(math.acos(1 - 2 * 0.16 / HOOP_L), sx)     # the hoop 16 cm behind its start
+    p.bar(C, (sx * (MIR_X - 0.08), MIR_Y + 0.02, MIR_Z + 0.02), (hx, hy, HZ - 0.01), 0.007, segs=6)
 
 # ---- intakes: dark backing in the sidepod mouths and the airbox, a lip
 # round each so the hole has an edge, and the cooling gills on the pod tops
