@@ -203,7 +203,7 @@
     },
     "car-mclarsen-mcl40-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/mclarsen-mcl40_hero.png",
-      "sha256": "a9bb747050d05d2d6b40267884cb0c4bed76bfa36cdc33f79e8d1ca50e511b45",
+      "sha256": "dccecad0e4146bb1570136e2a37da66e71aef90f532ebda4d3f8452e502ef249",
       "params": {
         "width": 1200,
         "quality": 86
@@ -211,7 +211,7 @@
     },
     "car-mclarsen-mcl40.webp": {
       "src": "../apexsim-content/props/_preview/cars/mclarsen-mcl40_hero.png",
-      "sha256": "a9bb747050d05d2d6b40267884cb0c4bed76bfa36cdc33f79e8d1ca50e511b45",
+      "sha256": "dccecad0e4146bb1570136e2a37da66e71aef90f532ebda4d3f8452e502ef249",
       "params": {
         "width": 800,
         "aspect": 1.9,
@@ -243,7 +243,7 @@
     },
     "car-murcetes-amd-w17-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/murcetes-amd-w17_hero.png",
-      "sha256": "135ab48f4bd90bf5e3aace862c7b877d924db9e397bc6ca2c8f7a09616f86795",
+      "sha256": "953c9961423506f4c72281c96dca50fd5a276f79a48c8d244a06f91aa5fb5708",
       "params": {
         "width": 1200,
         "quality": 86
@@ -251,7 +251,7 @@
     },
     "car-murcetes-amd-w17.webp": {
       "src": "../apexsim-content/props/_preview/cars/murcetes-amd-w17_hero.png",
-      "sha256": "135ab48f4bd90bf5e3aace862c7b877d924db9e397bc6ca2c8f7a09616f86795",
+      "sha256": "953c9961423506f4c72281c96dca50fd5a276f79a48c8d244a06f91aa5fb5708",
       "params": {
         "width": 800,
         "aspect": 1.9,
