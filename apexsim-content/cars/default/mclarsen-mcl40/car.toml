@@ -241,6 +241,22 @@ rear_radius_m = 0.360
 front_width_m = 0.305
 rear_width_m = 0.375
 
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "front_wing"
+zone = "front"
+detach_pct = 30
+min_m = [2.545, -1.012, -0.094]   # forward, left, up
+max_m = [3.125, 1.012, 0.500]
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "rear_wing"
+zone = "rear"
+detach_pct = 45
+min_m = [-2.631, -1.012, 0.766]   # forward, left, up
+max_m = [-2.051, 1.012, 1.088]
+
 [driver]
 # the driver, drawn on the body (same frame) and hidden for the car the
 # cockpit camera sits in; written by the build script
@@ -270,22 +286,6 @@ mirror_right_size_cm = [15.0, 5.0]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 180.0
-
-[[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
-name = "front_wing"
-zone = "front"
-detach_pct = 30
-min_m = [2.545, -1.012, -0.094]   # forward, left, up
-max_m = [3.125, 1.012, 0.500]
-
-[[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
-name = "rear_wing"
-zone = "rear"
-detach_pct = 45
-min_m = [-2.631, -1.012, 0.766]   # forward, left, up
-max_m = [-2.051, 1.012, 1.088]
 
 # --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
