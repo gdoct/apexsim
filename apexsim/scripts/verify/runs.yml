@@ -1743,6 +1743,57 @@ runs:
         checks: "the field on the circuit"
         exec: "apexsim.cam.Release"
 
+  - id: sudoku-elevation
+    about: "Sudoku's real elevation: the crossover at 7 m, Degner to the hairpin, stands re-seated"
+    server:
+      stand_in: true
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Sudoku
+      - -ApexCar=SF-26
+      - -ApexAiCount=5
+      - -ApexLaps=3
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=13:00
+      - -ApexView=tv
+      - -ApexRacingLine=off
+    shots:
+      - at: 12
+        label: "the crossover from above, outside the lower road"
+        checks: "the deck over the road under it, no seam, walls on the deck"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt -769.8 -148.3 35.8 -730.2 -121.3 0.8"
+      - at: 17
+        label: "the lower road at 2490 m toward the bridge"
+        checks: "the deck spans the road with headroom; the road under it is lit and flat"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt -717.7 -178.2 3.2 -730.6 -119.6 2.8"
+      - at: 22
+        label: "on the deck at 4860 m"
+        checks: "the deck road meets the approach without a step; barriers on the deck"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt -787.5 -105.4 8.7 -730.3 -123.7 9.8"
+      - at: 27
+        label: "Degner to the hairpin, 2620 m looking 120 m on"
+        checks: "the climb toward the hairpin, barriers seated on the grade"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt -745.1 -51.1 4.5 -769.7 66.3 11.2"
+      - at: 32
+        label: "steepest grade 7.9% at 1805 m"
+        checks: "the grade reads as a slope, the verge follows it"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt -136.7 -53.4 7.6 -147.3 -37.0 5.6"
+      - at: 37
+        label: "a large stand at 170 m, from the road"
+        checks: "the stand sits on the ground, no float, no sink"
+        item: v-track-suzuka-elevation
+        exec: "apexsim.cam.LookAt 102.0 -115.3 -0.6 141.8 -105.3 -2.1"
+      - at: 45
+        label: "TV camera"
+        checks: "the field on the circuit"
+        exec: "apexsim.cam.Release"
+
   - id: r8-zandvoort
     about: "R8. Geometry sweep: Zandervoort"
     server:
@@ -3944,6 +3995,11 @@ runs:
         label: "back up the straight from above T1's side"
         checks: "C5 S/F: the audit page's S/F dossier pass, against the maps"
         exec: "apexsim.cam.LookAt 220.0 2.7 35.0 -40.0 -0.0 0.0"
+      - at: 33
+        label: "the pit roof's superscreens, from high over the stands"
+        checks: "C5 S/F: three superscreens along the pit building's roof"
+        exec: "apexsim.cam.LookAt -60.0 -80.0 55.0 20.0 36.0 15.0"
+        item: v-c5-mandarinabay-superscreens
 
   - id: c5-sf-monzarella
     about: "C5. Start/finish dressing: Autodromo Monzarella"
@@ -4601,10 +4657,17 @@ runs:
         label: "the Sopraelevata Nord banking"
         checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
         exec: "apexsim.cam.LookAt 120.0 860.0 40.0 360.0 1063.0 3.0"
+        item: v-c5-monzarella-banking
       - at: 20
         label: "the Sopraelevata Sud banking"
         checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
         exec: "apexsim.cam.LookAt 420.0 -540.0 40.0 600.0 -700.0 3.0"
+        item: v-c5-monzarella-banking
+      - at: 28
+        label: "the Sopraelevata Sud banking, over the trees"
+        checks: "C5 kit: the piece stands where the dossier puts it, on the ground, clear of the road"
+        exec: "apexsim.cam.LookAt 380.0 -500.0 110.0 600.0 -700.0 8.0"
+        item: v-c5-monzarella-banking
 
   - id: c5-24h-nuerburgerring24
     about: "The Nurburgring 24h layout: start/finish, pits and both connectors"

@@ -14,7 +14,26 @@
     Suzuka's real elevation (`dem_elevation.py`, the crossover held at 7 m):
     the bridge deck and the road under it from the road and from above, Degner-to-hairpin's
     new grades, and the stands and barriers re-seated on it (`spots.py Sudoku`).
-  status: open
+  status: judged
+  evidence:
+  - run: sudoku-elevation
+    date: 2026-10-28
+    commit: 67e3f7d1
+    shots: [1, 2, 3, 4, 5, 6]
+    kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The crossover reads: the deck spans the lower road on its embankments
+      with yellow-faced parapets, the road under it continuous with headroom
+      (1, 2); on the deck the road meets the approaches without a step, barriers
+      along it (3). Degner to the hairpin climbs with barriers and stands seated
+      on the grade (4); the 7.9% stretch at 1805 m reads as a slope with the
+      verge following it (5); the large stand at 170 m sits on the ground behind
+      its fence (6).
+    shots: [1, 2, 3, 4]
 
 - id: v-r2-rubbered-start
   title: A rubbered start
@@ -2111,12 +2130,22 @@
     building's membrane storey, with the other stand families (general-admission
     banks, a large roofed and a large open stand), against the circuit's references
     (C5 Stands column).
-  status: open
+  status: judged
   evidence:
   - run: c5-st-bahrainless
     date: 2026-10-21
     commit: e0cfb565
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The Main Grandstand under the tent roof reads well (1); two general-admission
+      banks of crowd on grass (2, 3), a large roofed (4) and a large open stand
+      (5) seated on the ground. The pit building's membrane storey is not in
+      these shots; it shows in c5-r20-bahrainless 1.
+    shots: [1, 4, 5]
 
 - id: v-c5-bahrainless-screens-podium
   title: 'Bahrainless: roof screens and podium'
@@ -2130,12 +2159,22 @@
   what: >-
     Bahrainless' roof screens seen from across the straight and the podium at
     the entry end (C5, R12/R20).
-  status: open
+  status: judged
   evidence:
   - run: c5-r20-bahrainless
     date: 2026-10-22
     commit: 879f7e7b
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      Roof screens stand on the pit building above the membrane storey from
+      across the straight (1); a screen and the membrane roof from the entry
+      end (2). The podium itself is not clearly picked out in 2: a dark pillar
+      blocks the near view.
+    shots: [1, 2]
 
 - id: v-c5-mandarinabay-superscreens
   title: 'Mandarina Bay: superscreens on the pit roof'
@@ -2150,12 +2189,28 @@
     Mandarina Bay's start/finish: the three superscreens on the pit building's
     roof, the stands from the pit wall and the pit side from the stands (C5
     S/F column).
-  status: open
+  status: judged
   evidence:
   - run: c5-sf-mandarinabay
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  - run: c5-sf-mandarinabay
+    date: 2026-10-28
+    commit: 67e3f7d1
+    shots: [5]
+    kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      Re-run with a high pose over the stands: the pit building's roof carries
+      its screens in three pairs showing the APEXSIM logo along its length (5);
+      the stands from the pit wall and the pit side from the stands look right
+      (2, 3). The screens are small at this distance: a closer look at the third,
+      far one would settle the count.
+    shots: [5]
 
 - id: v-c5-albertparkour-sf
   title: 'Albert Parkour: start/finish and the full pit lane'
@@ -2170,12 +2225,21 @@
     Albert Parkour's start/finish with the pit lane at its real length (R21,
     4760-140) and its two roof screens: down the straight, the stands, the pit
     side and back up the straight (C5 S/F column).
-  status: open
+  status: judged
   evidence:
   - run: c5-sf-albertparkour
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: not-readable
+    text: >-
+      The long straight and pit lane read at full length (1, 4), the stands
+      from the pit wall (2). The two roof screens are not visible in any shot:
+      the pit roof is low in frame (3). Needs a pose at the pit roof.
+    shots: [1, 3]
 
 - id: v-c5-lemons-sf
   title: 'Lemons: start/finish and the full pit lane'
@@ -2190,12 +2254,22 @@
     Lemons' start/finish with the pit lane at its real length, from the Raccordement
     to the Dunlop curve (R21): down the straight, the stands, the pit side and
     back up the straight (C5 S/F column).
-  status: open
+  status: judged
   evidence:
   - run: c5-sf-lemons
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The straight reads full length from both ends (1, 4) with the pit building
+      and garages along it; the stands face the grid from the pit wall (2) and
+      the pit side reads from the stands (3). Nothing floats or sits on the
+      road.
+    shots: [1, 4]
 
 - id: v-c5-gnocchi-landmarks
   title: 'Gnocchi: the Fisht stadium and Olympic park'
@@ -2210,7 +2284,7 @@
     Gnocchi's landmarks: the Fisht stadium (`building/stadium_bowl` on its OSM
     centre) toward the sea, the Olympic cauldron and the ice arenas (C5 Landmark
     column).
-  status: open
+  status: judged
   evidence:
   - run: c5-lm-gnocchi
     date: 2026-10-21
@@ -2220,6 +2294,16 @@
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The cauldron stands on its plinth (lm 1); the ice arenas read as domed
+      halls seated on the ground (lm 2-4); the Fisht bowl stands with a second
+      dome behind it (kit 1). The sea is not visible behind Fisht at this pose:
+      the horizon is grass. All three arena shots show the same dome mesh.
+    shots: [1]
 
 - id: v-c5-monzarella-banking
   title: 'Monzarella: the Sopraelevata banking'
@@ -2233,12 +2317,27 @@
   what: >-
     Monzarella's Sopraelevata, Nord and Sud: OSM's banked curves laid as `building/banked_oval_10m`
     modules from the dossier's `banking` (C5 Landmark column).
-  status: open
+  status: judged
   evidence:
   - run: c5-kit-monzarella
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  - run: c5-kit-monzarella
+    date: 2026-10-28
+    commit: 67e3f7d1
+    shots: [1, 2, 3]
+    kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      Re-run with a pose over the trees: the Nord banking follows its curve
+      on the ground, clear of the road (1); the Sud banking now shows its banked_oval
+      modules running along the forest edge where the dossier lays them (2,
+      3), seated on the ground.
+    shots: [1, 3]
 
 - id: v-c5-shanghaied-stands
   title: 'Shanghaied: Grandstand A under the lotus canopy'
@@ -2254,12 +2353,22 @@
     stadium stand, the general-admission banks and the large stands (C5 Stands
     column). The run predates C9's stadium canopy, so its stadium-stand shot
     shows the old slab roof.
-  status: open
+  status: judged
   evidence:
   - run: c5-st-shanghaied
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: not-readable
+    text: >-
+      Shot 1 sees the underside of a canopy from too close to read its shape,
+      and predates C9's stadium canopy; no shot frames Grandstand A's lotus
+      canopy. GA banks (2, 3) and the large roofed stand (4) look right. Needs
+      a re-run with a Grandstand A pose.
+    shots: [1]
 
 - id: v-c5-oskarsleben-trees
   title: 'Oskarsleben: OSM tree rows'
@@ -2274,12 +2383,22 @@
     Oskarsleben's OSM tree rows (`TREE_ROW_STEMS`, planted by the tree pass):
     scrub, the broadleaf and conifer far forest and a broadleaf tree (C5 Trees
     column).
-  status: open
+  status: judged
   evidence:
   - run: c5-tr-oskarsleben
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: not-readable
+    text: >-
+      Broadleaf trees and the broadleaf far forest read (2, 4). The scrub shot
+      (1) shows tall trees, no scrub picked out, and the conifer forest shot
+      (3) frames open grass with the forest only as a far line. The poses miss
+      scrub and conifers.
+    shots: [2, 4]
 
 - id: v-c5-shanghaied-trees
   title: 'Shanghaied: OSM tree rows'
@@ -2293,12 +2412,21 @@
   what: >-
     Shanghaied's OSM tree rows (`TREE_ROW_STEMS`, planted by the tree pass):
     scrub and a broadleaf tree (C5 Trees column).
-  status: open
+  status: judged
   evidence:
   - run: c5-tr-shanghaied
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: not-readable
+    text: >-
+      A broadleaf tree reads, seated on the ground (2). The scrub shot (1) shows
+      crowd groups on grass and broadleaf trees; no scrub is identifiable. Pose
+      misses the scrub.
+    shots: [2]
 
 - id: v-c5-nuerburgerring24-layout
   title: The Nurburgring 24h layout
@@ -2313,12 +2441,21 @@
     The 24-hour layout built by `combine_tracks.py`: down the start/finish straight,
     the connector onto the Nordschleife past T13 and the connector back onto
     the GP, with no step or seam where the two scenes meet (apexsim-content/docs/circuits.md).
-  status: open
+  status: judged
   evidence:
   - run: c5-24h-nuerburgerring24
     date: 2026-10-22
     commit: 35f2c9e7
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The GP start/finish with pits and grid (1); both connectors run continuous
+      with curbs and barriers along them and nothing on the road (2, 3); no
+      step or seam visible where the scenes meet at these poses.
+    shots: [2, 3]
 
 - id: v-c5-armadillos-veil-tower
   title: 'Armadillos: the observation tower in its veil'
@@ -2332,12 +2469,21 @@
   what: >-
     Armadillos' observation tower (`veil_tower`, 77 m in a red steel veil) and
     the veil's plaza canopy (C5 kit pieces, apexsim-content/docs/props.md).
-  status: open
+  status: judged
   evidence:
   - run: c5-kit-armadillos
     date: 2026-10-23
     commit: 0751e635
     kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      The observation tower stands at height with its red veil sweeping down
+      from the top (1) and down to the plaza canopy at its foot (2), clear of
+      the road.
+    shots: [1, 2]
 
 - id: v-n10-upscalers
   title: DLSS and FSR in a race
