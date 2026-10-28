@@ -47,6 +47,10 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
+| G8 | Realism reference sheet: game beside real frames, gaps ranked (roadmap 52) | Rendering | P2 | 🔴 | M | 2 |
+| G9 | Driver's hands and arms on the wheel (roadmap 53) | Rendering | P2 | 🟡 | M | 2 |
+| G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
+| G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🔴 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -69,9 +73,10 @@ takes it up (— : no step, taken opportunistically).
 
 1. **H1** in one sitting (its answers tapped in the verifier's sitting
    mode on a tablet beside the wheel), with B8's cooling and S1's crown on the wheel.
-2. **Visual quality pass.** G4 and N10, checked together on the RTX machine;
-   C5 alongside, its S/F column first, the rest column by column as the
-   kit gaps are built.
+2. **Visual quality pass.** G10 and G9 first (client-only, no decision
+   needed); G8's sheet, then G11 family by family in its ranking, with C5's
+   columns alongside (C5 places the kit, G11 makes it look real). G4 and N10
+   checked together on the RTX machine.
 3. **Sittings as people and hardware are there.** H2, V2, P3 on an integrated-GPU machine.
 4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
 
@@ -161,7 +166,34 @@ view): one LOD, materials and shadows fine; from above at midday a formula
 car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
+#### G8. Realism reference sheet — P2 · 🔴 · M
+*Source: roadmap 52.* Six views at Spa, Monza and the Nordschleife shot from a
+`runs.yml` run, each beside a real reference frame; the gaps ranked by how
+much of the frame they cover, into `game/realism.md`. 🔴 for the reference
+frames and the owner's agreement on the ranking.
+
+#### G9. Driver's hands and arms on the wheel — P2 · 🟡 · M
+*Source: roadmap 53.* The cockpit view hides the driver figure, so the wheel
+turns with no hands on it; outside, the figure's gloves stay still. Rigged
+gloves and sleeves, grip points in each wheel's `<model>.json`, two-bone IK,
+hand over hand on long-lock cars, paddle pulls, a Camera-tab toggle. Judged
+from shots at three locks in three classes.
+
+#### G10. Cockpit camera vibration — P2 · 🟡 · S
+*Source: roadmap 54.* Today's eye only leans with G. A head-and-neck
+spring-damper fed by the own-car state's vertical acceleration, suspension
+velocities, porpoising and rpm (no wire change), a Camera vibration slider
+whose 0 is today's view. Tested headless in `ApexCockpit`; the feel judged
+on an onboard clip and on the wheel.
+
 ### Content and circuits
+
+#### G11. Trackside kit realism — P2 · 🔴 · L
+*Source: roadmap 55.* The generated kit reads as cartoonish: clean flat
+colours, unbevelled edges, no wear, card trees and crowds. Materials through
+`KIT_SLOTS` (measured albedo, detail, weathering), bevels and real fixings
+on the close families, 3D trees and crowd figures. 🔴 for the sourcing
+decision (all generated vs. CC0 or licensed scans) and the per-family shots.
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*

@@ -187,6 +187,133 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
+### 52. Realism reference sheet
+
+The game reads as a game: the cockpit has no hands, the eye rides rigidly on
+the car, and the trackside kit looks cheap and cartoonish. Before the asset
+work, one sheet compares the game with the real thing and ranks what is
+furthest off, so that packages 53-55 and the ones after them go after what
+fills the most of the frame. Package 29 decides *what* stands where;
+this one and 55 decide how each thing *looks*.
+
+- Six views at three circuits (Spa, Monza, the Nordschleife): cockpit in a
+  GT3 and a formula car, the chase rung, a TV trackside camera, the pit lane,
+  a grandstand straight, a wooded section. Shots from a `runs.yml` run,
+  each beside a real reference frame from an onboard or a photo the owner
+  supplies (the references stay out of the repo if they are not ours to ship).
+- Per pair, the gaps named by what they cover on screen: materials (too
+  clean, too saturated, no wear), geometry (hard unbevelled edges, missing
+  detail at close range), vegetation, people, lighting, lens, the car itself.
+- The ranked list goes in `game/realism.md` (new) with a row per gap and the
+  package that takes it; candidates under
+  [Not yet scoped](#not-yet-scoped) get a scope from it.
+
+**Check:** the owner agrees with the ranking on the sheet.
+
+### 53. The driver's hands and arms in the cockpit
+
+Every car has a driver figure (`<stem>_driver.glb`, `carlib.driver_figure()`,
+[cars.md](../../apexsim-content/docs/cars.md)), but the cockpit view hides it
+for the car the camera sits in, so the player's wheel turns with no one
+holding it, and seen from outside the figure's gloves stay still while the rim
+turns under them.
+
+- Gloved hands and forearms in race-suit sleeves for the cockpit view: a rigged
+  GLB (Blender generator under `apexsim-content/tools/generators/`, brand-free
+  glove leather or suede, stitching, knuckle padding; in the car's class
+  colours or the livery's `paint`), drawn with the rig, shadowing the
+  cockpit, and in the mirrors.
+- Grip points per wheel model in the `<model>.json` beside the wheel GLB
+  (left and right grip, the paddles); the hands follow the rim with two-bone
+  IK to fixed shoulders at the eye's seat position.
+- Hands stay on the grips for wheels under about 180 degrees of lock
+  (formula, GT3, prototypes); road and rally cars go hand over hand past it.
+  A finger pulls the paddle at a gear change (gear from telemetry); on cars
+  with an H-shifter or a handbrake the left hand goes to it while the player
+  uses them.
+- The outside driver figure gets the same grips and IK, so the TV, chase and
+  replay views show the arms turning with the wheel.
+- A "Driver's arms" toggle on the Camera tab (some players with a real wheel in
+  front of them want the rim alone).
+
+**Check:** cockpit shots at centre, half lock and full lock in a formula
+car, a GT3 and a road car (`-ApexScreenshotAfter`), a gear change caught
+mid-pull, an outside shot of an AI car turning in; an automation test on the
+IK solve (hands on the grip points at every rim angle, elbows inside the
+cabin); judged by the owner.
+
+### 54. Cockpit camera vibration
+
+The cockpit eye has a lean from the car's G forces
+(`AApexRaceDirector::UpdateHeadMotion`, `ApexCockpit::HeadLean`, the Head
+motion setting) and nothing else: it rides kerbs, bumps and gravel as if
+bolted to a smooth rail. The own-car state already carries what a real
+head feels (`GForces`, `VerticalAccelMps2`, `SuspensionVelocityMps`,
+`Porpoise`, `EngineRpm` in `ApexProtocolTypes.h`), so this needs no wire
+change.
+
+- Heave and pitch: the eye on a spring-damper head-and-neck model driven by
+  the body's vertical acceleration and pitch rate, a few millimetres on a
+  bump, tens on a kerb or a crest; the neck holds the gaze, so the horizon
+  stays steadier than the car (real drivers' eyes stabilise; a rigid
+  shake causes motion sickness).
+- Road texture: small fast shake from the four suspension velocities
+  (kerbs, rumble strips, gravel, a flat spot), scaled down with a stiffer
+  seat-to-helmet path in formula cars than in road cars.
+- Engine: a sub-millimetre buzz tied to rpm, strongest at idle in a race car.
+- Porpoising from `Porpoise` (phase and amplitude) at its own frequency.
+- Spectating onboard another car: the same model fed from the motion
+  buffer's pose (z, pitch and roll differenced), the own-car fields being the
+  player's only.
+- A "Camera vibration" slider on the Camera tab beside Head motion, default
+  low; 0 is today's view exactly. The motion stays out of the HUD and the
+  mirrors' frames.
+- Pure maths in `ApexCockpit` (like `HeadLean`) so it is tested headless.
+
+**Check:** automation tests on the model (bounded in millimetres, zero on a
+smooth road at standstill but for the engine, the same over 30, 60 and
+144 fps frame times, 0 on the slider reproduces today's eye); an onboard
+clip over the Spa kerbs at Eau Rouge and the Nordschleife's Fuchsröhre
+judged by the owner, also in a session on the wheel.
+
+### 55. Trackside kit realism
+
+The trackside kit
+([props.md](../../apexsim-content/docs/props.md)) is built by bmesh
+builders (`apex_props.py`) on numpy tileable maps (`apex_tex.py`,
+`KIT_SLOTS`): clean uniform colours, hard edges with no highlight, no wear,
+card trees and card crowds. That is why it reads as cartoonish. Package 52's
+ranking sets the order; the families seen closest go first (barriers, tyre
+walls, catch fence, kerb edges, marshal posts, gantries, the pit building,
+boards).
+
+- **Decision (owner):** keep generating every asset, or take textures and
+  vegetation from CC0 libraries (Poly Haven, ambientCG) or licensed scans
+  (Fab/Megascans terms). The kit must still rebuild from a fresh clone
+  ([building.md](building.md)), so anything sourced is pinned and its
+  licence recorded beside it.
+- **Materials** through `KIT_SLOTS` and `retexture_kit.py`, so every GLB
+  picks them up: albedo inside measured real ranges (no saturated primaries
+  but paint), roughness and normal detail at close range, macro variation
+  over a long barrier run, weathering by rule (dirt at the base, rain
+  streaks under edges, rust on steel, rubber marks on barriers at the
+  braking zones), decals.
+- **Geometry**: bevelled edges for the highlights, real profiles and
+  fixings on the close families (armco posts and bolts, concrete block
+  joints, tyre-wall straps and conveyor belt, fence mesh with its posts and
+  cables); LODs so the far kit costs no more than today.
+- **Vegetation**: the card trees (`card_trees.py`) for 3D trees with
+  Nanite foliage, or cards with proper normals, thickness and translucency
+  at range; grass cards on verges and banks.
+- **People**: the card crowd strips (`gen_crowd.py`) for low-poly 3D
+  figures with a few animation variants (vertex-animation textures,
+  instanced), the marshals among them.
+
+**Check:** per family, a before/after shot run in `scripts/verify/runs.yml`
+from the views on package 52's sheet, judged by the owner; frame time on the
+RTX machine no worse than before and the integrated-GPU budget kept
+(work plan P3); `every_kit_file_is_catalogued` and the kit tests green.
+
 ### 21. Benchmark from the menu
 
 - The benchmark (`scripts/benchmark.py`, `-ApexReplayBench`) from the main
@@ -220,6 +347,13 @@ what it touches, how it is checked) before it becomes a package.
   photos (a 4-wide grid): split into single square crops, one per driver.
   Not on the spectator figures: a photo on their block heads read as a
   sticker. Needs the people's consent before it ships.
+- **Further realism candidates**, each scoped from package 52's ranking:
+  car paint (clearcoat flake, dirt, rubber and fly pickup over a stint),
+  road surface detail (patches, cracks, sealant lines, marbles off the
+  line), tyre smoke and dust kicked off the verge, heat haze over the grid
+  and behind exhausts, rain and dirt on the visor or windscreen, motion
+  blur, a lens for the TV cameras (barrel, soft highlights), the outside
+  driver figure's suit and helmet detail.
 - **Shared leaderboards across servers.** Lap records and the track
   leaderboard screen are per server; sharing needs a service and a trust
   model.
