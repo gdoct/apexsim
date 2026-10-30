@@ -45,7 +45,7 @@ winresource = "0.1"
 proptest = "1"
 tempfile = "3"
 # Writes the loose packs content_acp's tests install (the formats crate reads them).
-zip = { version = "2.4", default-features = false, features = ["deflate"] }
+zip = { version = "9.1", default-features = false, features = ["deflate"] }
 criterion = "0.8"
 
 [[bench]]
