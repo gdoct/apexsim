@@ -754,6 +754,10 @@ for x in (DX - 0.19, DX - 0.07, DX + 0.05):
     p.box(M.metal, (x - 0.030, -0.78 + SH, 0.140), (x + 0.030, -0.72 + SH, 0.265))
 p.box(M.metal, (DX + 0.13, -0.80 + SH, 0.140), (DX + 0.20, -0.70 + SH, 0.25))
 carlib.extinguisher(p, M, -0.40, -0.40 + SH, 0.19, r=0.046, length=0.32)
+# the canopy shell's inside, trimmed from the screen's foot to the bulkhead,
+# open at the glass: from the seat the paint showed round the windows
+carlib.inner_liner(p, M.liner, L, SCREEN_Y[0], BULK_Y, CAN_LO - 0.5, CAN_HI + 0.4,
+                   lambda y, j: face_mat(y, j * SAMP, True) is M.glass)
 carlib.inner_skin(p, M.alcantara, L, SCREEN_Y[1] + 0.03, SIDE_Y[1] - 0.03, 0.40,
                   drop=0.030, nu=10, nv=6)
 for sx in (-1, 1):

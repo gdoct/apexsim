@@ -2463,6 +2463,42 @@ def inner_skin(b, mat, loft, y0, y1, x_hw, drop=0.030, nu=10, nv=6, sx_range=(-1
             b.keep.add(f)
 
 
+def inner_liner(b, mat, loft, y0, y1, j0, j1, is_open, inset=0.04, nu=40, nj=24):
+    """The cabin's trim inside the body shell, both sides: the loft's flank
+    between stations `y0`..`y1` and control indices `j0`..`j1`, pulled `inset`
+    inboard along its normal (deeper than any vent, so it never shows outside)
+    and facing the cabin, with a hole wherever `is_open(y, j)` (the glass).
+    From the seat the shell's inside is the paint, livery and all."""
+    s = b.slot(mat)
+    bm = b.bm
+    for sx in (1, -1):
+        grid = []
+        for iu in range(nu + 1):
+            y = y0 + (y1 - y0) * iu / nu
+            row = []
+            for iv in range(nj + 1):
+                j = j0 + (j1 - j0) * iv / nj
+                p = loft.point(y, j) - loft.normal(y, j) * inset
+                row.append(bm.verts.new((p.x * sx, p.y, p.z)))
+            grid.append(row)
+        for iu in range(nu):
+            for iv in range(nj):
+                ym = y0 + (y1 - y0) * (iu + 0.5) / nu
+                jm = j0 + (j1 - j0) * (iv + 0.5) / nj
+                if is_open(ym, jm):
+                    continue
+                f = bm.faces.new((grid[iu][iv], grid[iu][iv + 1], grid[iu + 1][iv + 1], grid[iu + 1][iv]))
+                f.material_index = s
+                f.normal_update()
+                # facing the cabin: against the flank's outward normal
+                out = loft.normal(ym, jm)
+                if f.normal.x * sx * out.x + f.normal.y * out.y + f.normal.z * out.z > 0:
+                    f.normal_flip()
+                for l in f.loops:
+                    l[b.uv].uv = (l.vert.co.y, l.vert.co.z)
+                b.keep.add(f)
+
+
 def extinguisher(b, mats, x, y, z, r=0.055, length=0.36):
     b.cylinder(mats.towhook, (x, y, z), r, length, segs=14, axis='Y')
     b.cylinder(mats.metal, (x, y - 0.03, z), r * 0.5, 0.03, segs=10, axis='Y')

@@ -297,8 +297,10 @@ cage are modelled. Its panels are bare carbon at the twill's real tow size
 CC0 scan with its normal map ([cars.md](../../apexsim-content/docs/cars.md)).
 Left:
 
-- **Inner liners** on the doors and A-pillars: from the seat the inside of
-  the body shell shows the car's paint above the door cards.
+- The closed cars' shell is lined inside (`carlib.inner_liner`, open at
+  the glass) and the GT3's footwell closed by a front bulkhead; a patch of
+  paint still shows under the dash on the passenger side of the GT3s, and
+  the formula cars' tubs are not lined yet.
 - Satin black paint on the bulkhead and floor, the seat's fabric and the
   harness webbing from CC0 scans, at measured albedos (0.02-0.04).
 - The car material parents' default normal map sampled as a bump on every

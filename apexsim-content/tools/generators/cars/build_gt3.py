@@ -855,6 +855,7 @@ BULK_Y = HOOP_Y + 0.03
 DOOR0, DOOR1 = SIDE_SHUTS[0] + 0.03, SIDE_SHUTS[-1] - 0.03
 FLOOR_Y0 = min(DOOR0 - 0.25, EYE.y - 1.40)
 ibox(M.interior, (-XIN, FLOOR_Y0, 0.115), (XIN, BULK_Y, 0.155))             # floor
+ibox(M.interior, (-XIN, FLOOR_Y0 - 0.03, 0.115), (XIN, FLOOR_Y0, 0.60))       # front bulkhead: the footwell's end, not the bodywork ahead
 ibox(M.alcantara, (-XIN + 0.02, FLOOR_Y0 + 0.20, 0.155), (XIN - 0.02, SEAT_Y0 - 0.02, 0.160))   # footwell mats
 p.box(M.interior, (-0.17, FLOOR_Y0, 0.155), (0.17, BULK_Y, 0.31))            # tunnel
 p.box(M.trim, (-0.19, FLOOR_Y0, 0.31), (0.19, BULK_Y, 0.325))                 # tunnel top
@@ -906,6 +907,11 @@ p.box(M.metal, (DX + 0.14, PED_Y - 0.08, 0.165), (DX + 0.22, PED_Y + 0.02, 0.28)
 carlib.extinguisher(p, M, -0.48, SEAT_Y0 - 0.42, 0.225)
 p.bar(M.alc, (DX - 0.36, DASH_Y1 - 0.22, DASH_Z - 0.10), (DX - 0.36, DASH_Y1 + 0.02, DASH_Z - 0.10),
       0.008, segs=6)                                                            # stalk
+# the shell's inside, trimmed from the screen's foot to the bulkhead, open
+# at the side glass: the paint (and the livery's wordmark) showed above the
+# door cards and behind the side glass
+carlib.inner_liner(p, M.liner, L, FLOOR_Y0, BULK_Y, 1.0, ROOF + 0.4,
+                   lambda y, j: face_mat(y, j * SAMP, True) is M.glass)
 # headliner, hung under the roof between the screen and the rear glass
 carlib.inner_skin(p, M.alcantara, L, V["screen_y"][1] + 0.03, V["rear_glass_y"][0] - 0.03, 0.56,
                   drop=0.032, nu=10, nv=6)

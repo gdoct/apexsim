@@ -175,9 +175,9 @@ saw it, then a contact shadow under the car.
 
 #### G13. Cockpit interior: what is left — P2 · 🟢 · M
 *Source: roadmap 57.* Carbon panels and CC0 suede are in; the car parents
-take normal and metallic-roughness maps. Left: inner liners on doors and
-pillars (the paint shows from the seat), satin paint, seat fabric and
-harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
+take normal and metallic-roughness maps. Closed cars are lined inside. Left:
+the paint under the GT3 dash, the formula tubs, satin paint, seat fabric
+and harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
 
 #### G14. Ground and run-off materials — P2 · 🟢 · M
 *Source: roadmap 58.* CC0 grass, gravel and asphalt in the generated track
