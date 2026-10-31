@@ -173,11 +173,11 @@ view): one LOD, materials and shadows fine; from above at midday a formula
 car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
-#### G13. Cockpit interior materials and lighting — P2 · 🟢 · M
-*Source: roadmap 57.* The car parents take normal and metallic-roughness
-maps. Left, in order: metric UVs on carlib's parts, inner liners on doors and
-pillars, then CC0 suede, carbon and satin paint at measured albedos (the
-sources are pinned: `tools/cc0.py`). Judged on the `g8-*` cockpit pairs.
+#### G13. Cockpit interior: what is left — P2 · 🟢 · M
+*Source: roadmap 57.* Carbon panels and CC0 suede are in; the car parents
+take normal and metallic-roughness maps. Left: inner liners on doors and
+pillars (the paint shows from the seat), satin paint, seat fabric and
+harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
 
 #### G14. Ground and run-off materials — P2 · 🟢 · M
 *Source: roadmap 58.* CC0 grass, gravel and asphalt in the generated track

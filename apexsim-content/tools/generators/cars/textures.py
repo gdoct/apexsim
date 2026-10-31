@@ -20,8 +20,9 @@ Writes into cars/_textures/:
   can pick whichever reads on its paint. `carlib.atlas_uv(cell)` gives a
   cell's UV rectangle. Every name here is invented.
 
-* `suede.png`, `floor_mat.png` - the cockpit's suede (dash top, headliner)
-  and floor mats: the grain of a CC0 scan (`textures/cc0/sources.json`,
+* `suede.png`, `floor_mat.png`, `suede_nrm.png` - the cockpit's suede (dash
+  top, headliner) and floor mats, and the suede's normal map (OpenGL, as
+  glTF's): the grain of a CC0 scan (`textures/cc0/sources.json`,
   fetched by `tools/cc0.py`), grey, at a measured albedo (black suede 0.030,
   black carpet 0.022), 512 px and seamless as the scan is. Written by
   `textures.py scans`, which needs the scans fetched.
@@ -266,10 +267,21 @@ def scan_grain(source_id, albedo, size=512):
     return Image.fromarray(np.stack([g, g, g], axis=2), "RGB")
 
 
+def scan_normal(source_id, size=512):
+    """A CC0 scan's tangent-space normal map in glTF's (OpenGL) convention."""
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import cc0
+    found = sorted(cc0.fetch(source_id).glob("*_NormalGL.*"))
+    if not found:
+        raise SystemExit(f"{source_id}: no NormalGL map")
+    return Image.open(found[0]).convert("RGB").resize((size, size), Image.LANCZOS)
+
+
 if __name__ == "__main__" and sys.argv[1:] == ["scans"]:
     os.makedirs(OUT, exist_ok=True)
     scan_grain("Leather039", 0.030).save(os.path.join(OUT, "suede.png"), optimize=True)
     scan_grain("Carpet001", 0.022).save(os.path.join(OUT, "floor_mat.png"), optimize=True)
+    scan_normal("Leather039").save(os.path.join(OUT, "suede_nrm.png"), optimize=True)
     sys.exit(0)
 
 if __name__ == "__main__":

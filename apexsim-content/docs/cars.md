@@ -165,7 +165,7 @@ Slot names are the glTF material names; keep them when re-exporting.
 | `car_mirror_left`, `car_mirror_right` | mirror glass: the cockpit rig paints its rear-view captures on them (u from the driver's right to left, v top-down) |
 | `car_glass`, `car_lens_tint` | translucent (glTF `BLEND`) |
 | `car_carbon`, `car_sponsor`, `car_number` | the texture kit's twill, sponsor atlas and number panels; untouched by liveries |
-| `car_trim`, `car_interior`, `car_headlight`, `car_rainlight`, `car_display`, ... | authored look only; nothing at runtime changes them |
+| `car_trim`, `car_interior`, `car_headlight`, `car_rainlight`, `car_display`, ... | authored look only; nothing at runtime changes them. `car_interior` is the carbon twill and `car_alcantara` the CC0 suede with its normal map (`textures.py scans`); a tiling slot's planar UVs (metres) are scaled by `carlib.UV_SCALES` |
 
 The car parents ignore `KHR_materials_emissive_strength`; light levels come
 from `EmissiveFactor`. They draw a material's `baseColorTexture`,

@@ -82,14 +82,20 @@ TEXTURES = os.path.join(_ROOT, "cars", "_textures")
 # carbon_twill.png covers a quarter of a metre: the UVs of `car_carbon` faces
 # (planar, in metres) are scaled by this in join_and_export()
 CARBON_UV_SCALE = 4.0
+# Every tiling texture's repeats a metre, by slot: the planar UVs are metres,
+# and a slot left at 1 draws its texture a metre across (the cockpit's twill
+# came out as a basket weave). The suede scan covers a quarter of a metre.
+UV_SCALES = {"car_carbon": CARBON_UV_SCALE, "car_interior": CARBON_UV_SCALE, "car_alcantara": 4.0}
 # sponsors.png: 2 columns x 8 rows of 4:1 cells (tools/generators/cars/textures.py)
 SPONSOR_GRID = (2, 8)
 
 
 def textured_mat(name, path, color=(1, 1, 1), metallic=0.0, roughness=0.5, coat=0.0,
-                 coat_roughness=None, masked=False):
-    """`mat()` with a base-colour image (the only texture the client's car
-    parents take). masked=True: alpha cut at 0.5, glTF alphaMode MASK."""
+                 coat_roughness=None, masked=False, normal_path=None, normal_strength=1.0):
+    """`mat()` with a base-colour image, and a tangent-space normal map
+    (OpenGL convention, as glTF's) at `normal_strength` when `normal_path`
+    names one: the exporter writes it as `normalTexture` with that scale.
+    masked=True: alpha cut at 0.5, glTF alphaMode MASK."""
     m = mat(name, color, metallic, roughness, coat=coat, coat_roughness=coat_roughness)
     nt = m.node_tree
     b = nt.nodes["Principled BSDF"]
@@ -104,6 +110,16 @@ def textured_mat(name, path, color=(1, 1, 1), metallic=0.0, roughness=0.5, coat=
         gt.inputs[1].default_value = 0.5
         nt.links.new(ti.outputs["Alpha"], gt.inputs[0])
         nt.links.new(gt.outputs[0], b.inputs["Alpha"])
+    if normal_path:
+        nimg = bpy.data.images.load(normal_path, check_existing=True)
+        nimg.colorspace_settings.name = "Non-Color"
+        nimg.pack()
+        nt_img = nt.nodes.new("ShaderNodeTexImage")
+        nt_img.image = nimg
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.inputs["Strength"].default_value = normal_strength
+        nt.links.new(nt_img.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], b.inputs["Normal"])
     return m
 
 
@@ -177,6 +193,17 @@ def car_materials(paint_rgb, accent_rgb, caliper_rgb, logo_path=None, seat_rgb=(
     if carbon_weave and os.path.exists(weave):
         m["carbon"] = textured_mat("car_carbon", weave, metallic=0.30, roughness=0.32, coat=0.9,
                                    coat_roughness=0.04)
+    # The cockpit (G13): bare carbon panels in satin and black suede on the
+    # dash top, headliner and mats, at the albedos the real ones measure;
+    # the flat greys read as a light-grey box from the seat.
+    suede = os.path.join(TEXTURES, "suede.png")
+    suede_nrm = os.path.join(TEXTURES, "suede_nrm.png")
+    if os.path.exists(weave):
+        m["interior"] = textured_mat("car_interior", weave, metallic=0.0, roughness=0.55)
+    if os.path.exists(suede):
+        m["alcantara"] = textured_mat("car_alcantara", suede, roughness=0.97,
+                                      normal_path=suede_nrm if os.path.exists(suede_nrm) else None,
+                                      normal_strength=0.8)
     atlas = os.path.join(TEXTURES, "sponsors.png")
     if sponsors and os.path.exists(atlas):
         m["sponsor"] = textured_mat("car_sponsor", atlas, roughness=0.30, coat=1.0, coat_roughness=0.03,
@@ -2506,17 +2533,20 @@ def join_and_export(objs, stem, car_dir, export=True, hide=True):
         tmp.free()
         joined.from_mesh(tmp_me)
         bpy.data.meshes.remove(tmp_me)
-    # the carbon weave: planar UVs are metres, the texture a quarter of one
-    if "car_carbon" in [m.name.split(".")[0] for m in mat_list if m] and \
-            any(n.type == 'TEX_IMAGE' for m in mat_list if m and m.name.split(".")[0] == "car_carbon"
-                for n in m.node_tree.nodes):
-        ci = [i for i, m in enumerate(mat_list) if m and m.name.split(".")[0] == "car_carbon"]
-        uvl = joined.loops.layers.uv.active
-        if uvl is not None:
-            for f in joined.faces:
-                if f.material_index in ci:
-                    for l in f.loops:
-                        l[uvl].uv = (l[uvl].uv[0] * CARBON_UV_SCALE, l[uvl].uv[1] * CARBON_UV_SCALE)
+    # the tiling textures: planar UVs are metres, each slot's texture a
+    # fraction of one (UV_SCALES), on the slots that carry an image
+    scale_of = {}
+    for i, m in enumerate(mat_list):
+        slot = m.name.split(".")[0] if m else ""
+        if slot in UV_SCALES and m.node_tree and any(n.type == 'TEX_IMAGE' for n in m.node_tree.nodes):
+            scale_of[i] = UV_SCALES[slot]
+    uvl = joined.loops.layers.uv.active
+    if scale_of and uvl is not None:
+        for f in joined.faces:
+            k = scale_of.get(f.material_index)
+            if k:
+                for l in f.loops:
+                    l[uvl].uv = (l[uvl].uv[0] * k, l[uvl].uv[1] * k)
     final = bpy.data.meshes.new(stem)
     joined.to_mesh(final)
     joined.free()

@@ -292,22 +292,18 @@ RTX machine no worse than before and the integrated-GPU budget kept
 
 The sheet's second gap. The cockpit is the car GLB's own interior (`carlib`,
 `build_<class>.py`): switch panels, a display, door cards, seat, harness and
-cage are modelled, but in flat greys (`car_interior` 0.075) that read as a
-light-grey box, and the body paint shows on the inside of the doors. A first
-try (CC0 suede, carbon twill on the panels) showed what has to come first:
+cage are modelled. Its panels are bare carbon at the twill's real tow size
+(`carlib.UV_SCALES`) and its dash top, headliner and mats black suede from a
+CC0 scan with its normal map ([cars.md](../../apexsim-content/docs/cars.md)).
+Left:
 
-- **Metric UVs** on carlib's boxes, plates and bars, so a tiling texture has
-  a real scale (the twill came out as a basket weave: one tile per face).
-- The car material parents draw a GLB's normal and metallic-roughness maps
-  ([cars.md](../../apexsim-content/docs/cars.md), material slots); no
-  generated car carries any yet. Their normal input defaults to a scale of
-  0, because the default flat map sampled as a visible bump on every panel
-  (not understood; check it with the first car that brings a map).
-- **Inner liners** on the doors and A-pillars, so the paint is not seen from
-  the seat.
-- Then the materials: black suede on the dash top and headliner, carbon at
-  its real tow size, satin black paint, at measured albedos (0.02-0.04). The
-  CC0 sources are pinned in `textures/cc0/sources.json` (`tools/cc0.py`).
+- **Inner liners** on the doors and A-pillars: from the seat the inside of
+  the body shell shows the car's paint above the door cards.
+- Satin black paint on the bulkhead and floor, the seat's fabric and the
+  harness webbing from CC0 scans, at measured albedos (0.02-0.04).
+- The car material parents' default normal map sampled as a bump on every
+  panel, so their normal scale defaults to 0 and only a GLB's map sets it;
+  why the flat default did is not understood.
 
 **Check:** the `g8-*` cockpit pairs in both classes before and after.
 
