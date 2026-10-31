@@ -95,6 +95,12 @@ namespace ApexTrackMaterials
 	APEXSIM_API bool HasGroundTextures(const UMaterialInterface* Base);
 	/** Whether a base parent has the `SnowCover` parameter (one baked before snow has not). */
 	APEXSIM_API bool HasSnowCover(const UMaterialInterface* Base);
+	/**
+	 * How worn a key's paint is drawn (`PaintWear` on `M_ApexTrackBase`): 1
+	 * for the run-off paint, 0.6 for the astroturf and the paved run-off, 0
+	 * for everything else.
+	 */
+	APEXSIM_API float PaintWearFor(const FString& Family, const FString& Key);
 }	 // namespace ApexTrackMaterials
 
 /** Parameter overrides for one material instance. */

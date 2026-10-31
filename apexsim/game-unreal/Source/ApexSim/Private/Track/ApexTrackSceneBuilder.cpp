@@ -1053,6 +1053,19 @@ bool ApexTrackMaterials::HasGroundTextures(const UMaterialInterface* Base)
 	return Infos.ContainsByPredicate([](const FMaterialParameterInfo& Info) { return Info.Name == TextureAmount; });
 }
 
+float ApexTrackMaterials::PaintWearFor(const FString& Family, const FString& Key)
+{
+	if (Family == TEXT("marking") && Key.StartsWith(TEXT("marking_runoff")))
+	{
+		return 1.0f;
+	}
+	if (Family == TEXT("surface") && (Key == TEXT("surface_astroturf") || Key == TEXT("surface_asphalt_runoff")))
+	{
+		return 0.6f;
+	}
+	return 0.0f;
+}
+
 bool ApexTrackMaterials::HasSnowCover(const UMaterialInterface* Base)
 {
 	if (!Base)
@@ -1342,6 +1355,12 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 			Params.Scalar(TEXT("Roughness"), 0.45f);
 			Params.Scalar(TEXT("NoiseAmount"), 0.08f);
 			SetDetail(2.0f, 0.25f, 0.15f, 0.2f);
+		}
+		// Run-off paint, astroturf and paved run-off as a season leaves them:
+		// faded, dirty, streaked with the rubber of cars run wide.
+		if (const float Wear = ApexTrackMaterials::PaintWearFor(Source.Family, Source.Key); Wear > 0.0f)
+		{
+			Params.Scalar(TEXT("PaintWear"), Wear);
 		}
 
 		// Which baked set this family samples, and how hard. A version 3

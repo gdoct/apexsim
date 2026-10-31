@@ -143,6 +143,8 @@ namespace
 	void ApplySnowGraph(UMaterial* Parent, UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
 	void ApplyRoadWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
+	void ApplyPaintWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
 
 	/**
 	 * `bRoadState` builds `M_ApexTrackRoad`: the same surface, with the
@@ -674,6 +676,7 @@ namespace
 				kDetailTexture);
 		}
 
+		ApplyPaintWearGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness);
 		if (bRoadState)
 		{
 			ApplyRoadWearGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness);
@@ -1906,6 +1909,62 @@ return o;
 	}
 
 	/**
+	 * Run-off paint as it is after a season (`PaintWear`, 0 the default: a
+	 * clean coat, as every other surface keeps): faded and bleached in
+	 * long patches by the sun, a film of dirt, and rubber streaks where cars
+	 * ran wide, laid along the strip's station (the UVs' metres) in lanes a
+	 * third of a metre wide, each coming and going along the run. The scene
+	 * builder sets it on the run-off paint, the astroturf and the paved
+	 * run-off.
+	 */
+	void ApplyPaintWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness)
+	{
+		const FGraph G{Parent};
+		UMaterialExpressionScalarParameter* Amount = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+		Amount->ParameterName = TEXT("PaintWear");
+		Amount->DefaultValue = 0.0f;
+		static const TCHAR* kPaintWear = TEXT(R"(
+if (Amount <= 0.0) { return float4(Albedo, Rough); }
+float lane = UV.y * 3.0;
+float li = floor(lane);
+float lf = frac(lane);
+float hl = frac(sin(li * 12.9898 + 4.1) * 43758.5453);
+float hw = 0.12 + 0.16 * hl;
+float e = max(fwidth(lane), 0.02);
+float inLane = smoothstep(0.5 - hw - e, 0.5 - hw + e, lf) * (1.0 - smoothstep(0.5 + hw - e, 0.5 + hw + e, lf));
+// Along the run a streak comes and goes: a car ran over here, not there.
+float s = UV.x / 11.0 + hl * 37.0;
+float si = floor(s);
+float sf = frac(s);
+float a0 = frac(sin(si * 78.233 + li * 3.7) * 43758.5453);
+float a1 = frac(sin((si + 1.0) * 78.233 + li * 3.7) * 43758.5453);
+float along = lerp(a0, a1, sf * sf * (3.0 - 2.0 * sf));
+float streak = inLane * step(0.45, hl) * smoothstep(0.45, 0.8, along) * Amount;
+float luma = dot(Albedo, float3(0.3, 0.59, 0.11));
+float fade = Amount * (0.15 + 0.3 * Macro);
+float3 c = lerp(Albedo, luma * float3(1.04, 1.0, 0.93), fade);
+c *= 1.0 - Amount * 0.15 * Grime;
+c = lerp(c, c * 0.3 + 0.01, streak * 0.75);
+float r = lerp(Rough + fade * 0.08, 0.7, streak * 0.5);
+return float4(c, r);
+)");
+		UMaterialExpression* Macro = G.Noise(WorldPos, 1.0f / 1500.0f, 2);
+		UMaterialExpression* Grime = G.Noise(WorldPos, 1.0f / 120.0f, 2);
+		UMaterialExpressionCustom* Wear = AddCustom(Parent, TEXT("ApexPaintWear"), kPaintWear, CMOT_Float4,
+			{{TEXT("UV"), G.Mask(TexCoord, true, true, false)}, {TEXT("Macro"), Macro}, {TEXT("Grime"), Grime},
+				{TEXT("Albedo"), InOutAlbedo}, {TEXT("Rough"), InOutRoughness}, {TEXT("Amount"), Amount}});
+		InOutAlbedo = G.Mask(Wear, true, true, true);
+		UMaterialExpressionComponentMask* RoughOnly = AddExpr<UMaterialExpressionComponentMask>(Parent);
+		RoughOnly->Input.Expression = Wear;
+		RoughOnly->R = 0;
+		RoughOnly->G = 0;
+		RoughOnly->B = 0;
+		RoughOnly->A = 1;
+		InOutRoughness = RoughOnly;
+	}
+
+	/**
 	 * The road's age, static and the same on every circuit, under the live
 	 * road state (`M_ApexTrackRoad` only): saw-cut repair patches laid in
 	 * the strip's station / lateral metres (the road UVs), so they run with
@@ -2277,6 +2336,12 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 		else if (!ApexTrackMaterials::HasSnowCover(Current.Base))
 		{
 			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before snow (no SnowCover); baking it again"),
+				ApexTrackMaterials::BaseName);
+			bRebakeBase = true;
+		}
+		else if (float Wear = 0.0f; !Current.Base->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(TEXT("PaintWear")), Wear))
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before worn paint (no PaintWear); baking it again"),
 				ApexTrackMaterials::BaseName);
 			bRebakeBase = true;
 		}

@@ -652,6 +652,15 @@ measured albedos once the client has scaled them: turf about 0.07 / 0.10 /
 0.04 (`surface_kind_color`, `terrain::GROUND_COLOR`), run-off paint red
 0.30, yellow 0.45, white 0.60 (`runoff_paint_colours`).
 
+The run-off paint is drawn as a season leaves it: `M_ApexTrackBase`'s
+`PaintWear` (0 by default, so nothing else changes) fades and bleaches it in
+long patches, lays a film of dirt and streaks it with rubber where cars ran
+wide, in third-of-a-metre lanes along the strip's station that come and go
+along the run (`ApplyPaintWearGraph`). The scene builder sets 1 on
+`marking_runoff_*` and 0.6 on `surface_astroturf` and
+`surface_asphalt_runoff` (`ApexTrackMaterials::PaintWearFor`); a base baked
+before it is baked again by `-run=ApexMaterialBake`.
+
 ```bash
 python tools/bake_ground_textures.py [asphalt grass ...] [--size 512]
 UnrealEditor-Cmd.exe ../apexsim/game-unreal/ApexSim.uproject -run=ApexGroundTexImport   # -> /Game/Ground/T_ground_<set>_{col,nrm,rough}

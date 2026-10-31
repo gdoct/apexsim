@@ -280,9 +280,9 @@ Left:
 The sheet's third gap. Grass, gravel, asphalt and concrete sample CC0 scans
 and the turf and run-off paint sit at measured albedos
 ([track-pipeline.md](../../apexsim-content/docs/track-pipeline.md), Ground
-textures). Left:
+textures), the run-off paint faded and streaked with rubber, and a car run
+wide leaves its tracks in the grass. Left:
 
-- Run-off paint worn and dirty: tyre marks across it, faded at the edges.
 - Macro variation over long distances (cut stripes on the verges, dry
   patches) and a gravel trap's raked lines.
 
