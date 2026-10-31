@@ -20,6 +20,12 @@ Writes into cars/_textures/:
   can pick whichever reads on its paint. `carlib.atlas_uv(cell)` gives a
   cell's UV rectangle. Every name here is invented.
 
+* `suede.png`, `floor_mat.png` - the cockpit's suede (dash top, headliner)
+  and floor mats: the grain of a CC0 scan (`textures/cc0/sources.json`,
+  fetched by `tools/cc0.py`), grey, at a measured albedo (black suede 0.030,
+  black carpet 0.022), 512 px and seamless as the scan is. Written by
+  `textures.py scans`, which needs the scans fetched.
+
 The PNGs are checked in; the build scripts only load them. Re-run this when
 the art changes (the fonts are Poppins / Lora - drop the TTFs into
 cars/_fonts on Windows - with DejaVu as the fallback).
@@ -244,6 +250,27 @@ def numbers():
     a[..., 3] = np.where(a[..., 3] > 110, 255, 0).astype(np.uint8)
     return Image.fromarray(a, "RGBA")
 
+
+def scan_grain(source_id, albedo, size=512):
+    """A CC0 scan's base colour as grey grain whose mean linear albedo is
+    `albedo`: the texture is the surface's colour, the material's factor 1."""
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    import cc0
+    img = Image.open(cc0.color_map(source_id)).convert("RGB").resize((size, size), Image.LANCZOS)
+    s = np.asarray(img, dtype=np.float64) / 255.0
+    lin = np.where(s <= 0.04045, s / 12.92, ((s + 0.055) / 1.055) ** 2.4)
+    lum = lin @ np.array([0.2126, 0.7152, 0.0722])
+    v = np.clip(lum * (albedo / lum.mean()), 0.0, 1.0)
+    srgb = np.where(v <= 0.0031308, 12.92 * v, 1.055 * np.power(v, 1 / 2.4) - 0.055)
+    g = np.clip(np.round(srgb * 255), 0, 255).astype(np.uint8)
+    return Image.fromarray(np.stack([g, g, g], axis=2), "RGB")
+
+
+if __name__ == "__main__" and sys.argv[1:] == ["scans"]:
+    os.makedirs(OUT, exist_ok=True)
+    scan_grain("Leather039", 0.030).save(os.path.join(OUT, "suede.png"), optimize=True)
+    scan_grain("Carpet001", 0.022).save(os.path.join(OUT, "floor_mat.png"), optimize=True)
+    sys.exit(0)
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)

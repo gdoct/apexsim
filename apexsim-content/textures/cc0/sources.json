@@ -1,0 +1,29 @@
+{
+  "_comment": "CC0 texture sources (tools/cc0.py): each pinned by the SHA-256 of its download. Licence: CC0 1.0 Universal (https://creativecommons.org/publicdomain/zero/1.0/); ambientCG asks for no attribution.",
+  "sources": [
+    {
+      "id": "Leather039",
+      "url": "https://ambientcg.com/get?file=Leather039_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Leather039",
+      "licence": "CC0-1.0",
+      "use": "suede: dash top, headliner, wheel grips, seat",
+      "sha256": "c59bdb7bfb40185cd2f0db6201124771e92cb0994be9d1382eb94175ac99f632"
+    },
+    {
+      "id": "Carpet001",
+      "url": "https://ambientcg.com/get?file=Carpet001_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Carpet001",
+      "licence": "CC0-1.0",
+      "use": "floor mats",
+      "sha256": "f06d551e40d4d4d31a84df310bad2a1ec70753cd330342c7d8bcff3587fccbd1"
+    },
+    {
+      "id": "Leather026",
+      "url": "https://ambientcg.com/get?file=Leather026_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Leather026",
+      "licence": "CC0-1.0",
+      "use": "the driver's gloves",
+      "sha256": "6af2f446f9855c641da2a072f128d30965431ffae3306d22d75dbfff99c04646"
+    }
+  ]
+}

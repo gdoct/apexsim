@@ -426,9 +426,9 @@ public:
 	UPROPERTY()
 	bool bCockpitWheel = true;
 
-	/** The driver's gloved hands and arms on the wheel. */
+	/** The driver's gloved hands and arms on the wheel; off until their meshes are refined (G9). */
 	UPROPERTY()
-	bool bCockpitArms = true;
+	bool bCockpitArms = false;
 
 	/** The mirrors on the car. */
 	UPROPERTY()

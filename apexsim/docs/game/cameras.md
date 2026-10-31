@@ -54,7 +54,8 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   the car's `car_paint` colour, followed as a livery changes it
   (`TintSleeves`, the `Cockpit arms:` log lines). A car with its own
   `steering_wheel_model` or the rig's primitive rim has no gloves. The
-  Camera tab's "Driver's arms" (`bCockpitArms`, on by default) turns them off.
+  Camera tab's "Driver's arms" (`bCockpitArms`) turns them on; off by default
+  until the gloves and sleeves are refined (roadmap 53).
 - **Dash** (`UApexCockpitDashWidget`): gear, speed, rev lights, lap time, the
   countdown on the grid, race control's phase in place of the lap (`SC`,
   `VSC`, `FORM`) with the pace it holds the car to after it (`SC 80`, in
