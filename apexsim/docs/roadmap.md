@@ -189,9 +189,20 @@ reporting every other dossier unchanged after each dossier edit.
 
 ### 53. The driver's hands and arms in the cockpit
 
-The cockpit draws gloved hands on every class steering wheel and arms solved
-to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms). Left:
+The cockpit can draw gloved hands on every class steering wheel and arms
+solved to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms),
+off by default: the first meshes (extruded prisms from `build_hands.py`)
+read as toy hands, not as a driver's. Left:
 
+- **Real gloves and sleeves.** Modelled in Blender (a generator beside the
+  car scripts): each finger three phalanges with knuckles and the gaps
+  between them, the palm and thumb closed round the grip, a wrist strap and
+  stitched seams, subdivided (some 6-8k triangles a glove); sleeves with
+  folds at the elbow, a knit cuff and the suit's seams. Leather and
+  fire-suit fabric from CC0 scans with their normal and roughness maps,
+  which needs the car material parents to take both (shared with package
+  57). Judged beside the onboard reference frames (`g8-*` cockpit pairs)
+  before the setting goes on by default.
 - Hand over hand past about 180 degrees of lock (road and rally cars); the
   gloves now stay on the grips at every angle.
 - A finger pulling the paddle at a gear change (gear from telemetry); the
@@ -199,10 +210,10 @@ to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms). Left:
 - Grip points for a car's own `steering_wheel_model` (today no gloves).
 - The outside driver figure (`<stem>_driver.glb`) on the same grips and IK,
   so the TV, chase and replay views show the arms turning with the wheel.
-- Glove and suit materials from CC0 scans with package 57.
 
-**Check:** cockpit shots at full lock in a road car, a gear change caught
-mid-pull, an outside shot of an AI car turning in; judged by the owner.
+**Check:** the `g8-*` cockpit pairs beside their references, cockpit shots
+at full lock in a road car, a gear change caught mid-pull, an outside shot
+of an AI car turning in; judged by the owner.
 
 ### 54. Cockpit camera vibration
 
@@ -279,12 +290,22 @@ RTX machine no worse than before and the integrated-GPU budget kept
 
 ### 57. Cockpit interior materials and lighting
 
-The sheet's second gap: the procedural cockpit rig is flat, untextured
-grey panels lit like the outside. CC0 materials on the rig's parts (carbon
-weave, alcantara, painted and bare metal, rubber), switch panels and a
-screen on the dash, belts on the seat, and the interior darker than the
-windscreen the way an onboard shows it (an interior light falloff or
-occlusion term, not an exposure change outside).
+The sheet's second gap. The cockpit is the car GLB's own interior (`carlib`,
+`build_<class>.py`): switch panels, a display, door cards, seat, harness and
+cage are modelled, but in flat greys (`car_interior` 0.075) that read as a
+light-grey box, and the body paint shows on the inside of the doors. A first
+try (CC0 suede, carbon twill on the panels) showed what has to come first:
+
+- **Metric UVs** on carlib's boxes, plates and bars, so a tiling texture has
+  a real scale (the twill came out as a basket weave: one tile per face).
+- **Normal and roughness maps** in the car material parents (today base
+  colour only), so suede, carbon and paint read by their surface, not their
+  colour (shared with package 53's gloves).
+- **Inner liners** on the doors and A-pillars, so the paint is not seen from
+  the seat.
+- Then the materials: black suede on the dash top and headliner, carbon at
+  its real tow size, satin black paint, at measured albedos (0.02-0.04). The
+  CC0 sources are pinned in `textures/cc0/sources.json` (`tools/cc0.py`).
 
 **Check:** the `g8-*` cockpit pairs in both classes before and after.
 

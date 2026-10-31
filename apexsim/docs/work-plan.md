@@ -47,7 +47,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G9 | Driver's hands: hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | M | 2 |
+| G9 | Driver's hands: real glove and sleeve meshes, hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground and run-off materials (roadmap 58) | Rendering | P2 | 🟢 | M | 2 |
@@ -174,9 +174,10 @@ car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
 #### G13. Cockpit interior materials and lighting — P2 · 🟢 · M
-*Source: roadmap 57.* CC0 materials on the cockpit rig, dash panels and
-belts, the interior darker than the windscreen. Judged on the `g8-*`
-cockpit pairs.
+*Source: roadmap 57.* In order: metric UVs on carlib's parts, normal and
+roughness maps in the car material parents, inner liners on doors and
+pillars, then CC0 suede, carbon and satin paint at measured albedos (the
+sources are pinned: `tools/cc0.py`). Judged on the `g8-*` cockpit pairs.
 
 #### G14. Ground and run-off materials — P2 · 🟢 · M
 *Source: roadmap 58.* CC0 grass, gravel and asphalt in the generated track
@@ -191,11 +192,14 @@ frames.
 *Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a
 stint.
 
-#### G9. Driver's hands: what is left — P2 · 🟡 · M
-*Source: roadmap 53.* Gloves and arms are drawn on every class wheel. Left:
-hand over hand past 180 degrees of lock, the paddle pull, the H-shifter and
-handbrake hand, a car's own wheel, and the outside driver figure on the
-same IK.
+#### G9. Driver's hands: what is left — P2 · 🟡 · L
+*Source: roadmap 53.* Gloves and arms are drawn on every class wheel, off by
+default: the first meshes read as toy hands. First: real glove and sleeve
+meshes modelled in Blender with CC0 leather and fabric (needs G13's normal
+and roughness maps in the car parents), judged beside the onboard
+references. Then hand over hand past 180 degrees of lock, the paddle pull,
+the H-shifter and handbrake hand, a car's own wheel, and the outside driver
+figure on the same IK.
 
 #### G10. Cockpit camera vibration — P2 · 🟡 · S
 *Source: roadmap 54.* Today's eye only leans with G. A head-and-neck
