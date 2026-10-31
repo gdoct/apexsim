@@ -414,6 +414,13 @@ public:
 	UPROPERTY()
 	float HeadMotion = 0.5f;
 
+	/**
+	 * 0..1. How much the road, kerbs, crests, porpoising and the engine
+	 * shake the head (`ApexCockpit::StepHeadShake`); 0 is the eye with none.
+	 */
+	UPROPERTY()
+	float CameraVibration = 0.3f;
+
 	/** 0..1. How far the head turns into a corner with the steering. */
 	UPROPERTY()
 	float LookToApex = 0.3f;

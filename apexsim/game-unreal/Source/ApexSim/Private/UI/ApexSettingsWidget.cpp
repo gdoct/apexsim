@@ -1168,6 +1168,10 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 		MakeSliderCell(HeadMotionSlider, HeadMotionFill, HeadMotionValue, DropdownWidth)), RowGap);
 	HeadMotionSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleHeadMotionChanged);
 
+	AddV(Right, MakeRow(TEXT("Camera vibration"), TEXT("Road, kerbs and crests through the seat; 0 is still."),
+		MakeSliderCell(CameraVibrationSlider, CameraVibrationFill, CameraVibrationValue, DropdownWidth)), RowGap);
+	CameraVibrationSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleCameraVibrationChanged);
+
 	AddV(Right, MakeRow(TEXT("Look to apex"), TEXT("Turn the head into the corner with the steering."),
 		MakeSliderCell(LookToApexSlider, LookToApexFill, LookToApexValue, DropdownWidth)), RowGap);
 	LookToApexSlider->OnValueChanged.AddDynamic(this, &UApexSettingsWidget::HandleLookToApexChanged);
@@ -2215,6 +2219,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 		SignedDegrees(Values->ViewPitchDeg));
 	SetSlider(HorizonLockSlider, HorizonLockFill, HorizonLockValue, Values->HorizonLock, 0.0f, 1.0f, Percent(Values->HorizonLock));
 	SetSlider(HeadMotionSlider, HeadMotionFill, HeadMotionValue, Values->HeadMotion, 0.0f, 1.0f, Percent(Values->HeadMotion));
+	SetSlider(CameraVibrationSlider, CameraVibrationFill, CameraVibrationValue, Values->CameraVibration, 0.0f, 1.0f, Percent(Values->CameraVibration));
 	SetSlider(LookToApexSlider, LookToApexFill, LookToApexValue, Values->LookToApex, 0.0f, 1.0f, Percent(Values->LookToApex));
 	SetSlider(SteeringSlider, SteeringFill, SteeringValue, Values->SteeringSensitivity, 0.0f, 1.0f,
 		FString::FromInt(FMath::RoundToInt(Values->SteeringSensitivity * 100.0f)));
@@ -2754,6 +2759,13 @@ void UApexSettingsWidget::HandleHeadMotionChanged(float Value)
 	if (bRefreshing) { return; }
 	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetHeadMotion(Value); }
 	ReflectSlider(HeadMotionFill, HeadMotionValue, Value, Percent(Value));
+}
+
+void UApexSettingsWidget::HandleCameraVibrationChanged(float Value)
+{
+	if (bRefreshing) { return; }
+	if (UApexSettingsSubsystem* Settings = GetSettings()) { Settings->SetCameraVibration(Value); }
+	ReflectSlider(CameraVibrationFill, CameraVibrationValue, Value, Percent(Value));
 }
 
 void UApexSettingsWidget::HandleLookToApexChanged(float Value)

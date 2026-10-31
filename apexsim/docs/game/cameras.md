@@ -91,8 +91,34 @@ in the car frame, open cockpit or closed cabin from the catalog class (else
 from height). Per-car overrides are `FApexCarCatalogRow::Cockpit` (eye,
 wheel, mirrors; zero means derive), filled from car.toml `[cockpit]` (see
 [cars.md](../../../apexsim-content/docs/cars.md)). The player's seat slide and height, view
-pitch, horizon lock, head motion (inertia from speed and yaw-rate estimates)
-and look-to-apex are on `UApexSettingsSave`'s camera block.
+pitch, horizon lock, head motion (inertia from speed and yaw-rate estimates),
+camera vibration and look-to-apex are on `UApexSettingsSave`'s camera block.
+
+The eye rides a head on its neck (`ApexCockpit::StepHeadShake`, called from
+`AApexRaceDirector::UpdateHeadMotion`; the Camera tab's "Camera vibration",
+`UApexSettingsSave::CameraVibration`, default 0.3, where 0 is the still eye
+of before). A soft, well-damped neck (2.5 Hz, half critical) takes the
+body's heave, so the gaze holds steadier than the car: the own car's
+snapshot (`FApexOwnCarSnapshot`, no wire change) gives its vertical
+acceleration over crests and compressions, its four suspension speeds as a
+chassis input (each eased into 0.6 m/s: the server's is the compression's
+own rate, so a kerb's edge reads as its 6 m/s cap for a tick) and its
+porpoising, which bounces the head at the floor's 5 Hz through its 15 mm
+swing. A stiff path at 9 Hz adds the road's texture, the front against the
+rear nods the view under a degree, and the engine buzzes it under a
+millimetre at twice the crank's rate, most at idle. A formula tub passes
+the chassis to the helmet whole, a closed car's seat 0.65 of it
+(`SeatStiffness`). Integrated in fixed 2 ms steps, so 30 and 144 fps draw
+the same; clamped at 5 cm and 0.6 degrees. Onboard another car, or in a
+replay, only the eased pose's vertical acceleration feeds it (smoothed
+over a tenth of a second first). It adds to the eye and the view pitch,
+not to the mirrors' captures or the HUD. The speed-scaled Perlin
+micro-shake (`UpdateCameraFeel`) stays on top of it.
+`apexsim.cam.Vibration N` forces the setting for shots; with
+`-LogCmds="LogApexSim Verbose"` a `Head shake:` line a second gives the
+peak lift, nod, suspension speed and source. At 100 % a GT3 at Spa moves
+the eye 2-9 mm a second over the lap (`g10-vibration-spa`). Tests:
+`ApexSim.Cockpit.HeadShake`.
 
 ## Chase ladder (`ApexChase::Views()`, `Race/ApexChaseView.h`)
 

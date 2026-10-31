@@ -319,4 +319,107 @@ bool FApexCockpitArmSolveTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCockpitHeadShakeTest,
+	"ApexSim.Cockpit.HeadShake",
+	ApexTestFlags)
+
+namespace
+{
+	/** A kerb: the wheels' suspension speeds swinging at 20 Hz, half a metre a second. */
+	ApexCockpit::FHeadShakeInput KerbAt(float Seconds)
+	{
+		ApexCockpit::FHeadShakeInput In;
+		const float V = 0.5f * FMath::Sin(UE_TWO_PI * 20.0f * Seconds);
+		for (float& Wheel : In.SuspensionVelocityMps)
+		{
+			Wheel = V;
+		}
+		return In;
+	}
+
+	/** Run `Seconds` at `Fps` from rest; the input at each frame's start. The peak |z|, cm, and the last offset. */
+	template <typename InputAt>
+	float RunShake(float Fps, float Seconds, float Amount, InputAt Input, ApexCockpit::FHeadShakeOffset* Last = nullptr, float* PeakPitch = nullptr)
+	{
+		ApexCockpit::FHeadShake State;
+		ApexCockpit::FHeadShakeOffset Out;
+		float Peak = 0.0f;
+		const float Dt = 1.0f / Fps;
+		const int32 Frames = FMath::RoundToInt32(Seconds * Fps);
+		for (int32 Frame = 0; Frame < Frames; ++Frame)
+		{
+			Out = ApexCockpit::StepHeadShake(State, Input(Frame * Dt), Dt, Amount);
+			Peak = FMath::Max(Peak, FMath::Abs(static_cast<float>(Out.OffsetCm.Z)));
+			if (PeakPitch)
+			{
+				*PeakPitch = FMath::Max(*PeakPitch, FMath::Abs(Out.PitchDeg));
+			}
+		}
+		if (Last)
+		{
+			*Last = Out;
+		}
+		return Peak;
+	}
+}
+
+bool FApexCockpitHeadShakeTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCockpit;
+	const auto Still = [](float) { return FHeadShakeInput(); };
+	const auto Idle = [](float) { FHeadShakeInput In; In.EngineRpm = 1200.0f; return In; };
+	// A crest's compression: the body pushed up at 1 g for half a second.
+	const auto Crest = [](float T) { FHeadShakeInput In; In.VerticalAccelMps2 = T < 0.5f ? 9.81f : 0.0f; return In; };
+	const auto Kerb = [](float T) { return KerbAt(T); };
+	const auto Porpoising = [](float) { FHeadShakeInput In; In.PorpoiseAmp = 0.25f; return In; };
+
+	TestEqual(TEXT("a smooth road at a standstill is still"), RunShake(60.0f, 2.0f, 1.0f, Still), 0.0f);
+	const float Buzz = RunShake(60.0f, 2.0f, 1.0f, Idle);
+	TestTrue(TEXT("the engine buzzes under a millimetre"), Buzz > 0.0f && Buzz < 0.1f);
+
+	// 0 on the slider is today's eye, whatever the car does.
+	FHeadShakeOffset Last;
+	TestEqual(TEXT("off: no crest"), RunShake(60.0f, 1.0f, 0.0f, Crest, &Last), 0.0f);
+	TestTrue(TEXT("off: no nod"), Last.PitchDeg == 0.0f && Last.OffsetCm.IsZero());
+	TestEqual(TEXT("off: no kerb"), RunShake(60.0f, 1.0f, 0.0f, Kerb), 0.0f);
+
+	// Millimetres to a few centimetres, never the seat.
+	const float CrestPeak = RunShake(60.0f, 2.0f, 1.0f, Crest);
+	TestTrue(TEXT("a crest moves the head a few centimetres"), CrestPeak > 1.0f && CrestPeak < 5.01f);
+	float KerbPitch = 0.0f;
+	const float KerbPeak = RunShake(60.0f, 1.0f, 1.0f, Kerb, nullptr, &KerbPitch);
+	TestTrue(TEXT("a kerb shakes it by millimetres"), KerbPeak > 0.1f && KerbPeak < 3.0f);
+	// A kerb's edge reads as the server's 6 m/s cap for a snapshot: a jolt, not a leap.
+	const float StrikePeak = RunShake(60.0f, 1.0f, 1.0f, [](float T) {
+		FHeadShakeInput In;
+		for (float& Wheel : In.SuspensionVelocityMps) { Wheel = T < 0.01f ? 6.0f : 0.0f; }
+		return In; });
+	TestTrue(TEXT("a capped strike jolts the head under a centimetre and a half"), StrikePeak > 0.1f && StrikePeak < 1.5f);
+	const float PorpoisePeak = RunShake(60.0f, 2.0f, 1.0f, Porpoising);
+	TestTrue(TEXT("porpoising bounces it about the floor's swing"), PorpoisePeak > 0.5f && PorpoisePeak < 4.0f);
+	TestTrue(TEXT("half the setting is half the crest"),
+		FMath::IsNearlyEqual(RunShake(60.0f, 2.0f, 0.5f, Crest), CrestPeak * 0.5f, 0.01f));
+
+	// The front against the rear nods it, a fraction of a degree.
+	float Nod = 0.0f;
+	RunShake(60.0f, 1.0f, 1.0f, [](float T) { FHeadShakeInput In = KerbAt(T); In.SuspensionVelocityMps[2] = In.SuspensionVelocityMps[3] = 0.0f; return In; }, nullptr, &Nod);
+	TestTrue(TEXT("a front kerb nods the head under a degree"), Nod > 0.01f && Nod <= 0.6f);
+
+	// The same over 30, 60 and 144 frames a second.
+	FHeadShakeOffset At30, At60, At144;
+	RunShake(30.0f, 0.4f, 1.0f, Crest, &At30);
+	RunShake(60.0f, 0.4f, 1.0f, Crest, &At60);
+	RunShake(144.0f, 0.4f, 1.0f, Crest, &At144);
+	TestTrue(TEXT("frame rate: 30 like 60"), FMath::IsNearlyEqual(At30.OffsetCm.Z, At60.OffsetCm.Z, 0.05));
+	TestTrue(TEXT("frame rate: 144 like 60"), FMath::IsNearlyEqual(At144.OffsetCm.Z, At60.OffsetCm.Z, 0.05));
+	const float Peak30 = RunShake(30.0f, 1.0f, 1.0f, Porpoising);
+	const float Peak144 = RunShake(144.0f, 1.0f, 1.0f, Porpoising);
+	TestTrue(TEXT("frame rate: porpoising's swing alike"), FMath::Abs(Peak30 - Peak144) < 0.25f);
+
+	// A formula tub carries more of the road than a closed car's seat.
+	TestTrue(TEXT("a tub is stiffer than a seat"), SeatStiffness(true) > SeatStiffness(false));
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

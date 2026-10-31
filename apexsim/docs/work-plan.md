@@ -48,7 +48,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | G9 | Driver's hands: real glove and sleeve meshes, hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
-| G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
+| G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: tyre tracks in the grass, worn run-off paint (roadmap 58) | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
@@ -198,11 +198,13 @@ the H-shifter and handbrake hand, a car's own wheel, and the outside driver
 figure on the same IK.
 
 #### G10. Cockpit camera vibration — P2 · 🟡 · S
-*Source: roadmap 54.* Today's eye only leans with G. A head-and-neck
-spring-damper fed by the own-car state's vertical acceleration, suspension
-velocities, porpoising and rpm (no wire change), a Camera vibration slider
-whose 0 is today's view. Tested headless in `ApexCockpit`; the feel judged
-on an onboard clip and on the wheel.
+Built 2026-11-01 ([game/cameras.md](game/cameras.md)): the eye on a
+head-and-neck spring fed by the own car's snapshot (crests, suspension,
+porpoising, engine), the Camera tab's "Camera vibration" (default 30 %, 0
+the still eye), tested headless (`ApexSim.Cockpit.HeadShake`) and logged
+live (`g10-vibration-spa`). Left: the owner's judgement of the feel on an
+onboard (Eau Rouge, the Fuchsröhre) and on the wheel; the default level
+follows from it.
 
 ### Content and circuits
 

@@ -876,6 +876,14 @@ void UApexSettingsSubsystem::SetHeadMotion(float Value01)
 	Changed(EApexSettingsGroup::Camera);
 }
 
+void UApexSettingsSubsystem::SetCameraVibration(float Value01)
+{
+	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
+	if (!Settings || FMath::IsNearlyEqual(Settings->CameraVibration, Clamped)) { return; }
+	Settings->CameraVibration = Clamped;
+	Changed(EApexSettingsGroup::Camera);
+}
+
 void UApexSettingsSubsystem::SetLookToApex(float Value01)
 {
 	const float Clamped = FMath::Clamp(Value01, 0.0f, 1.0f);
@@ -1616,6 +1624,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->ViewPitchDeg = Defaults->ViewPitchDeg;
 		Settings->HorizonLock = Defaults->HorizonLock;
 		Settings->HeadMotion = Defaults->HeadMotion;
+		Settings->CameraVibration = Defaults->CameraVibration;
 		Settings->LookToApex = Defaults->LookToApex;
 		Settings->bCockpitShowCar = Defaults->bCockpitShowCar;
 		Settings->bCockpitWheel = Defaults->bCockpitWheel;

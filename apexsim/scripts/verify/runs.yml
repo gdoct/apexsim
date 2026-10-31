@@ -10783,3 +10783,21 @@ runs:
       - {at: 30, lead: 1, label: "aerial over the Lesmo woods", checks: "G15: the park green, the far end hazed", exec: "apexsim.cam.LookAt 1146.2 1689.6 132.6 1248.0 1389.6 2.7"}
       - {at: 34, lead: 1, label: "down the straight from above the line", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt -5.5 -148.7 35.4 5.5 60.8 0.1"}
       - {at: 38, lead: 1, label: "the sky down the straight", checks: "G15: the clear sky paler at the horizon", exec: "apexsim.cam.LookAt -5.5 -148.7 2.0 5.5 60.8 40.0"}
+
+  - id: g10-vibration-spa
+    about: "G10. Camera vibration at 100 % in a GT3 at Spa: the cockpit down to Eau Rouge and up the climb; the log's Head shake lines say what moved"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off, "-LogCmds=LogApexSim Verbose"]
+    exec:
+      4: ["apexsim.hud.Hide 1", "apexsim.cam.Vibration 1"]
+    shots:
+      - {at: 40, label: "cockpit, lap 1 (a)", checks: "G10: the eye in the seat, no jump out of it"}
+      - {at: 46, label: "cockpit, lap 1 (b)", checks: "G10: the eye in the seat"}
+      - {at: 52, label: "cockpit, down to the dip", checks: "G10: the eye in the seat at the compression"}
+      - {at: 58, label: "cockpit, up the climb", checks: "G10: the eye in the seat over the crest"}
+
+  - id: g10-camera-tab
+    about: "G10. The Camera tab with the Camera vibration row under Head motion"
+    args: [-ApexOpenSettings=6, -ApexSettingsTab=3]
+    shots:
+      - {at: 14, label: "Camera tab", checks: "G10: Camera vibration row reads 30 %, the column fits"}

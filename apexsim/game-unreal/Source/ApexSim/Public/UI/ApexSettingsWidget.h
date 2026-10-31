@@ -125,6 +125,7 @@ protected:
 	UFUNCTION() void HandleViewPitchChanged(float Value);
 	UFUNCTION() void HandleHorizonLockChanged(float Value);
 	UFUNCTION() void HandleHeadMotionChanged(float Value);
+	UFUNCTION() void HandleCameraVibrationChanged(float Value);
 	UFUNCTION() void HandleLookToApexChanged(float Value);
 	UFUNCTION() void HandleSteeringChanged(float Value);
 	UFUNCTION() void HandleDeadzoneChanged(float Value);
@@ -344,6 +345,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<USlider> HeadMotionSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> HeadMotionFill;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> HeadMotionValue;
+	UPROPERTY(Transient) TObjectPtr<USlider> CameraVibrationSlider;
+	UPROPERTY(Transient) TObjectPtr<UProgressBar> CameraVibrationFill;
+	UPROPERTY(Transient) TObjectPtr<UTextBlock> CameraVibrationValue;
 
 	UPROPERTY(Transient) TObjectPtr<USlider> LookToApexSlider;
 	UPROPERTY(Transient) TObjectPtr<UProgressBar> LookToApexFill;

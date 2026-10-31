@@ -199,6 +199,106 @@ namespace ApexCockpit
 		return FVector(Forward, Sideways, 0.0f) * Scale;
 	}
 
+	float SeatStiffness(bool bOpenWheel)
+	{
+		// A closed car's seat, mounts and padding take the edge off; a tub
+		// carries the road to the helmet.
+		return bOpenWheel ? 1.0f : 0.65f;
+	}
+
+	FHeadShakeOffset StepHeadShake(FHeadShake& State, const FHeadShakeInput& In, float DeltaSeconds, float Amount)
+	{
+		const float Scale = FMath::Clamp(Amount, 0.0f, 1.0f);
+		if (Scale <= 0.0f || !(DeltaSeconds > 0.0f))
+		{
+			if (Scale <= 0.0f)
+			{
+				State = FHeadShake();
+			}
+			return FHeadShakeOffset();
+		}
+
+		// The neck: a soft, well-damped spring that holds the gaze.
+		constexpr float NeckOmega = UE_TWO_PI * 2.5f;
+		constexpr float NeckDamping = 0.5f;
+		// The helmet against the seat back: stiff and lightly damped, the
+		// road's texture.
+		constexpr float TextureOmega = UE_TWO_PI * 9.0f;
+		constexpr float TextureDamping = 0.3f;
+		constexpr float TextureShare = 0.35f;
+		// The nod.
+		constexpr float PitchOmega = UE_TWO_PI * 3.0f;
+		constexpr float PitchDamping = 0.5f;
+		// What a suspension's speed does to the chassis, per second: a
+		// corner's damper on a quarter of the car (about 8 kN s/m on 300 kg).
+		constexpr float ChassisPerS = 28.0f;
+		// The nod per m/s of the front against the rear, deg/s².
+		constexpr float PitchPerMps = 240.0f;
+		// Porpoising (`aero.rs`): its frequency, full swing and the ride
+		// height it moves the car through there.
+		constexpr float PorpoiseHz = 5.0f;
+		constexpr float PorpoiseMaxSwing = 0.25f;
+		constexpr float PorpoiseHeightM = 0.015f;
+		// The engine: half a millimetre at idle, less as it revs, at twice
+		// the crank's rate.
+		constexpr float BuzzIdleM = 0.0005f;
+		constexpr float BuzzOrders = 2.0f;
+		constexpr float StepS = 1.0f / 500.0f;
+		// The server's suspension speed is the compression's own rate with
+		// no wheel mass, so a kerb's edge or a landing reads as the 6 m/s cap
+		// for a tick; a damper's shaft rarely passes a metre a second, so
+		// each wheel's is eased into 0.6 m/s.
+		constexpr float SuspensionLimitMps = 0.6f;
+
+		float V[4];
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			V[Wheel] = SuspensionLimitMps * FMath::Tanh(In.SuspensionVelocityMps[Wheel] / SuspensionLimitMps);
+		}
+		const float Stiffness = FMath::Clamp(In.Stiffness, 0.0f, 1.0f);
+		const float Heave = (V[0] + V[1] + V[2] + V[3]) * 0.25f;
+		const float FrontRear = (V[0] + V[1] - V[2] - V[3]) * 0.5f;
+		const float RoadAccel = Heave * ChassisPerS * Stiffness;
+		const float PorpoiseSwing = FMath::Clamp(In.PorpoiseAmp / PorpoiseMaxSwing, 0.0f, 1.0f) * PorpoiseHeightM;
+		const float PorpoiseOmega = UE_TWO_PI * PorpoiseHz;
+
+		const int32 Steps = FMath::Clamp(FMath::CeilToInt32(DeltaSeconds / StepS), 1, 200);
+		const float H = DeltaSeconds / static_cast<float>(Steps);
+		for (int32 Step = 0; Step < Steps; ++Step)
+		{
+			State.PorpoisePhase = FMath::Fmod(State.PorpoisePhase + PorpoiseOmega * H, UE_TWO_PI);
+			// The body's own heave, up positive: the head lags it.
+			const float BodyAccel = In.VerticalAccelMps2 + RoadAccel
+				- PorpoiseSwing * PorpoiseOmega * PorpoiseOmega * FMath::Sin(State.PorpoisePhase);
+
+			// Semi-implicit Euler: stable for these springs at this step.
+			State.NeckMps += (-BodyAccel - NeckOmega * NeckOmega * State.NeckM - 2.0f * NeckDamping * NeckOmega * State.NeckMps) * H;
+			State.NeckM += State.NeckMps * H;
+			State.TextureMps += (-RoadAccel * TextureShare - TextureOmega * TextureOmega * State.TextureM
+				- 2.0f * TextureDamping * TextureOmega * State.TextureMps) * H;
+			State.TextureM += State.TextureMps * H;
+			State.PitchDegps += (FrontRear * PitchPerMps * Stiffness - PitchOmega * PitchOmega * State.PitchDeg
+				- 2.0f * PitchDamping * PitchOmega * State.PitchDegps) * H;
+			State.PitchDeg += State.PitchDegps * H;
+		}
+		State.NeckM = FMath::Clamp(State.NeckM, -0.05f, 0.05f);
+		State.TextureM = FMath::Clamp(State.TextureM, -0.008f, 0.008f);
+		State.PitchDeg = FMath::Clamp(State.PitchDeg, -0.6f, 0.6f);
+
+		float Buzz = 0.0f;
+		if (In.EngineRpm > 300.0f)
+		{
+			State.BuzzPhase = FMath::Fmod(State.BuzzPhase + UE_TWO_PI * In.EngineRpm / 60.0f * BuzzOrders * DeltaSeconds, UE_TWO_PI);
+			const float Idle = FMath::Lerp(1.0f, 0.4f, FMath::Clamp(In.EngineRpm / 9000.0f, 0.0f, 1.0f));
+			Buzz = BuzzIdleM * Idle * Stiffness * FMath::Sin(State.BuzzPhase);
+		}
+
+		FHeadShakeOffset Out;
+		Out.OffsetCm = FVector(0.0f, 0.0f, (State.NeckM + State.TextureM + Buzz) * 100.0f * Scale);
+		Out.PitchDeg = State.PitchDeg * Scale;
+		return Out;
+	}
+
 	float ExposureToEv100(float Exposure)
 	{
 		return FMath::Log2(1.0f / (1.2f * FMath::Max(Exposure, UE_SMALL_NUMBER)));

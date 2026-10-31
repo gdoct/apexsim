@@ -307,6 +307,12 @@ namespace
 		}
 	}
 
+	TAutoConsoleVariable<float> CVarCameraVibration(
+		TEXT("apexsim.cam.Vibration"),
+		-1.0f,
+		TEXT("Debug: the cockpit's Camera vibration, 0..1, in place of the setting (below 0: the setting). For judging it in shots and clips."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarSunStepDeg(
 		TEXT("apexsim.sky.SunStepDeg"),
 		0.5f,
@@ -1584,6 +1590,8 @@ void AApexRaceDirector::UpdateCameraTarget()
 		// A new car is a new frame of reference for the inertia estimate.
 		bHavePrevMotion = false;
 		HeadOffset = FVector::ZeroVector;
+		HeadShake = ApexCockpit::FHeadShake();
+		HeadShakeOffset = ApexCockpit::FHeadShakeOffset();
 		LateralG = 0.0f;
 		LongitudinalG = 0.0f;
 		if (Rig)
@@ -2170,6 +2178,14 @@ void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
 	const float Speed = bHavePrevMotion
 		? static_cast<float>(FVector::Dist(Location, PrevLocation) / ApexRace::MetresToCentimetres) / DeltaSeconds
 		: FollowedCar->GetSpeedMps();
+	// The vertical speed smoothed over a tenth of a second before it is
+	// differenced: a second difference of frame positions spikes.
+	const float RawVerticalMps = bHavePrevMotion
+		? static_cast<float>((Location.Z - PrevLocation.Z) / ApexRace::MetresToCentimetres) / DeltaSeconds
+		: 0.0f;
+	const float VerticalMps = bHavePrevMotion ? FMath::FInterpTo(PrevVerticalMps, RawVerticalMps, DeltaSeconds, 10.0f) : 0.0f;
+	const float EasedVerticalAccel = bHavePrevMotion ? (VerticalMps - PrevVerticalMps) / DeltaSeconds : 0.0f;
+	PrevVerticalMps = VerticalMps;
 	if (bHavePrevMotion)
 	{
 		const float RawLongG = (Speed - PrevSpeedMps) / DeltaSeconds / 9.81f;
@@ -2187,6 +2203,50 @@ void AApexRaceDirector::UpdateHeadMotion(float DeltaSeconds)
 
 	const FVector Target = ApexCockpit::HeadLean(LateralG, LongitudinalG, Amount);
 	HeadOffset = FMath::VInterpTo(HeadOffset, Target, DeltaSeconds, 6.0f);
+
+	// The head on its neck. The own car's snapshot carries what shakes it;
+	// onboard another car (or a replay) the eased height's acceleration is
+	// all there is, which keeps the crests and loses the road's texture.
+	const float Forced = CVarCameraVibration.GetValueOnGameThread();
+	const float Vibration = Forced >= 0.0f ? Forced : (Values ? Values->CameraVibration : 0.0f);
+	ApexCockpit::FHeadShakeInput Shake;
+	Shake.Stiffness = ApexCockpit::SeatStiffness(FollowedCar->GetCockpitLayout().bOpenWheel);
+	const UApexNetSubsystem* Net = GetNet();
+	const bool bOwnSnapshot = Net && !bReplayView && !bSpectating && FollowedCar->GetCarIndex() == Net->GetLocalCarIndex()
+		&& Net->GetOwnCarSnapshot().Tick >= 0 && FPlatformTime::Seconds() - Net->GetOwnCarSnapshotSeconds() < 0.5;
+	if (bOwnSnapshot)
+	{
+		const FApexOwnCarSnapshot& Own = Net->GetOwnCarSnapshot();
+		Shake.VerticalAccelMps2 = Own.VerticalAccelMps2;
+		for (int32 Wheel = 0; Wheel < 4; ++Wheel)
+		{
+			Shake.SuspensionVelocityMps[Wheel] = Own.SuspensionVelocityMps[Wheel];
+		}
+		Shake.PorpoiseAmp = Own.Porpoise[1];
+		Shake.EngineRpm = Own.EngineRpm;
+	}
+	else
+	{
+		Shake.VerticalAccelMps2 = FMath::Clamp(EasedVerticalAccel, -30.0f, 30.0f);
+	}
+	HeadShakeOffset = ApexCockpit::StepHeadShake(HeadShake, Shake, DeltaSeconds, Vibration);
+	ShakePeakCm = FMath::Max(ShakePeakCm, FMath::Abs(static_cast<float>(HeadShakeOffset.OffsetCm.Z)));
+	ShakePeakDeg = FMath::Max(ShakePeakDeg, FMath::Abs(HeadShakeOffset.PitchDeg));
+	const float* V = Shake.SuspensionVelocityMps;
+	ShakePeakSuspensionMps = FMath::Max(ShakePeakSuspensionMps, FMath::Max(FMath::Max(FMath::Abs(V[0]), FMath::Abs(V[1])), FMath::Max(FMath::Abs(V[2]), FMath::Abs(V[3]))));
+	ShakePeakFrontRearMps = FMath::Max(ShakePeakFrontRearMps, FMath::Abs((V[0] + V[1] - V[2] - V[3]) * 0.5f));
+	ShakeLogSeconds += DeltaSeconds;
+	if (ShakeLogSeconds >= 1.0f)
+	{
+		UE_LOG(LogApexSim, Verbose, TEXT("Head shake: %.1f mm, nod %.2f deg over 1 s; suspension %.2f m/s, front-rear %.2f (%s, vibration %.2f)"),
+			ShakePeakCm * 10.0f, ShakePeakDeg, ShakePeakSuspensionMps, ShakePeakFrontRearMps,
+			bOwnSnapshot ? TEXT("own snapshot") : TEXT("eased pose"), Vibration);
+		ShakeLogSeconds = 0.0f;
+		ShakePeakCm = 0.0f;
+		ShakePeakDeg = 0.0f;
+		ShakePeakSuspensionMps = 0.0f;
+		ShakePeakFrontRearMps = 0.0f;
+	}
 }
 
 void AApexRaceDirector::UpdateLook(float DeltaSeconds)
@@ -3658,9 +3718,9 @@ void AApexRaceDirector::UpdateCockpitCamera()
 	// The car's orientation as far as the horizon lock allows, then the
 	// driver's gaze and head turn in the car's frame, then the shake.
 	const FRotator CarRotation = FollowedCar->GetActorRotation();
-	const FQuat View = ApexCockpit::ViewRotation(CarRotation, HorizonLock, ViewPitch, LookYawDeg)
+	const FQuat View = ApexCockpit::ViewRotation(CarRotation, HorizonLock, ViewPitch + HeadShakeOffset.PitchDeg, LookYawDeg)
 		* CockpitShake.Quaternion();
-	const FVector EyeLocal = CockpitEyeLocal() + HeadOffset;
+	const FVector EyeLocal = CockpitEyeLocal() + HeadOffset + HeadShakeOffset.OffsetCm;
 	CockpitCamera->SetWorldLocationAndRotation(
 		FollowedCar->GetActorLocation() + CarRotation.RotateVector(EyeLocal), View);
 }
@@ -3849,6 +3909,8 @@ void AApexRaceDirector::BeginRaceView()
 	}
 	LookYawDeg = 0.0f;
 	HeadOffset = FVector::ZeroVector;
+	HeadShake = ApexCockpit::FHeadShake();
+	HeadShakeOffset = ApexCockpit::FHeadShakeOffset();
 	bHavePrevMotion = false;
 	// Before the camera mode is first applied below, so the race opens on the shot.
 	ApplyShotCameraCommandLine();
@@ -5175,6 +5237,8 @@ void AApexRaceDirector::SnapCameras(int32 LagOffFrames)
 	bReplayPanValid = false;
 	bHavePrevMotion = false;
 	HeadOffset = FVector::ZeroVector;
+	HeadShake = ApexCockpit::FHeadShake();
+	HeadShakeOffset = ApexCockpit::FHeadShakeOffset();
 	if (bTvView)
 	{
 		Tv.RequestCut();

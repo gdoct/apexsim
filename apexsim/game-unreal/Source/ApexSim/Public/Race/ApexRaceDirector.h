@@ -4,6 +4,7 @@
 #include "ApexProtocolTypes.h"
 #include "GameFramework/Actor.h"
 #include "Race/ApexChaseView.h"
+#include "Race/ApexCockpitLayout.h"
 #include "Race/ApexFinishCamera.h"
 #include "Race/ApexLobbyCamera.h"
 #include "Race/ApexMarshals.h"
@@ -1117,6 +1118,17 @@ private:
 	float LookYawDeg = 0.0f;
 	/** Inertia offset of the eye, cm in the car's frame, eased. */
 	FVector HeadOffset = FVector::ZeroVector;
+	/** The head on its neck: road, kerbs, crests, porpoising, the engine (`ApexCockpit::StepHeadShake`). */
+	ApexCockpit::FHeadShake HeadShake;
+	ApexCockpit::FHeadShakeOffset HeadShakeOffset;
+	/** The followed car's eased vertical speed, m/s: its heave when no snapshot speaks for it. */
+	float PrevVerticalMps = 0.0f;
+	/** The shake's peaks over the last second, for the Verbose log. */
+	float ShakeLogSeconds = 0.0f;
+	float ShakePeakCm = 0.0f;
+	float ShakePeakDeg = 0.0f;
+	float ShakePeakSuspensionMps = 0.0f;
+	float ShakePeakFrontRearMps = 0.0f;
 	float LateralG = 0.0f;
 	float LongitudinalG = 0.0f;
 	FVector PrevLocation = FVector::ZeroVector;

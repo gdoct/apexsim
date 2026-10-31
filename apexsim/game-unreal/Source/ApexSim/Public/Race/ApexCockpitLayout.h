@@ -259,6 +259,64 @@ namespace ApexCockpit
 	 */
 	APEXSIM_API FVector HeadLean(float LateralG, float LongitudinalG, float Amount);
 
+	/** What shakes the head this frame, from the own car's snapshot. */
+	struct FHeadShakeInput
+	{
+		/** The body's vertical acceleration over crests and compressions, m/s² (`VerticalAccelMps2`). */
+		float VerticalAccelMps2 = 0.0f;
+		/** Each wheel's suspension speed, m/s, FL FR RL RR: kerbs, bumps, gravel, a flat spot. */
+		float SuspensionVelocityMps[4] = {};
+		/** Porpoising amplitude as a share of the downforce (`Porpoise[1]`, 0..0.25). */
+		float PorpoiseAmp = 0.0f;
+		float EngineRpm = 0.0f;
+		/**
+		 * How much of the chassis reaches the helmet, 0..1: a formula car's
+		 * tub carries the road straight to it (1), a closed car's seat and
+		 * mounts soften it (`SeatStiffness`).
+		 */
+		float Stiffness = 1.0f;
+	};
+
+	/** The head's own motion between frames. */
+	struct FHeadShake
+	{
+		/** The neck: the head's height against the seat, m, and its speed. */
+		float NeckM = 0.0f;
+		float NeckMps = 0.0f;
+		/** The helmet against the seat back's stiff path: road texture, m. */
+		float TextureM = 0.0f;
+		float TextureMps = 0.0f;
+		/** The head's nod, deg, and its rate. */
+		float PitchDeg = 0.0f;
+		float PitchDegps = 0.0f;
+		float PorpoisePhase = 0.0f;
+		float BuzzPhase = 0.0f;
+	};
+
+	/** Where the shake puts the eye: cm in the car's frame, and a nod, deg (positive up). */
+	struct FHeadShakeOffset
+	{
+		FVector OffsetCm = FVector::ZeroVector;
+		float PitchDeg = 0.0f;
+	};
+
+	/** The seat-to-helmet stiffness for a cockpit (`FHeadShakeInput::Stiffness`). */
+	APEXSIM_API float SeatStiffness(bool bOpenWheel);
+
+	/**
+	 * Advance the head on its neck by `DeltaSeconds` and return where it
+	 * puts the eye. The body's heave and the chassis' road input push the
+	 * head through a soft, well-damped neck (a few millimetres on a bump,
+	 * tens on a kerb or a crest), so the gaze holds steadier than the car;
+	 * a stiffer path adds the road's fast texture, the front against the
+	 * rear nods it, porpoising bounces it at the floor's own frequency, and
+	 * the engine buzzes it under a millimetre, most at idle. Integrated in
+	 * fixed steps, so a frame rate does not change it. Amount is the
+	 * player's 0..1 Camera vibration; 0 is no motion at all and settles the
+	 * state.
+	 */
+	APEXSIM_API FHeadShakeOffset StepHeadShake(FHeadShake& State, const FHeadShakeInput& In, float DeltaSeconds, float Amount);
+
 	/**
 	 * Rim roll for a steering input.
 	 *

@@ -215,40 +215,6 @@ read as toy hands, not as a driver's. Left:
 at full lock in a road car, a gear change caught mid-pull, an outside shot
 of an AI car turning in; judged by the owner.
 
-### 54. Cockpit camera vibration
-
-The cockpit eye has a lean from the car's G forces
-(`AApexRaceDirector::UpdateHeadMotion`, `ApexCockpit::HeadLean`, the Head
-motion setting) and nothing else: it rides kerbs, bumps and gravel as if
-bolted to a smooth rail. The own-car state already carries what a real
-head feels (`GForces`, `VerticalAccelMps2`, `SuspensionVelocityMps`,
-`Porpoise`, `EngineRpm` in `ApexProtocolTypes.h`), so this needs no wire
-change.
-
-- Heave and pitch: the eye on a spring-damper head-and-neck model driven by
-  the body's vertical acceleration and pitch rate, a few millimetres on a
-  bump, tens on a kerb or a crest; the neck holds the gaze, so the horizon
-  stays steadier than the car (real drivers' eyes stabilise; a rigid
-  shake causes motion sickness).
-- Road texture: small fast shake from the four suspension velocities
-  (kerbs, rumble strips, gravel, a flat spot), scaled down with a stiffer
-  seat-to-helmet path in formula cars than in road cars.
-- Engine: a sub-millimetre buzz tied to rpm, strongest at idle in a race car.
-- Porpoising from `Porpoise` (phase and amplitude) at its own frequency.
-- Spectating onboard another car: the same model fed from the motion
-  buffer's pose (z, pitch and roll differenced), the own-car fields being the
-  player's only.
-- A "Camera vibration" slider on the Camera tab beside Head motion, default
-  low; 0 is today's view exactly. The motion stays out of the HUD and the
-  mirrors' frames.
-- Pure maths in `ApexCockpit` (like `HeadLean`) so it is tested headless.
-
-**Check:** automation tests on the model (bounded in millimetres, zero on a
-smooth road at standstill but for the engine, the same over 30, 60 and
-144 fps frame times, 0 on the slider reproduces today's eye); an onboard
-clip over the Spa kerbs at Eau Rouge and the Nordschleife's Fuchsröhre
-judged by the owner, also in a session on the wheel.
-
 ### 55. Trackside kit realism
 
 The trackside kit

@@ -2,7 +2,7 @@
 
 The game set beside real frames at Spa, Monza and the Nordschleife, and what
 is furthest off ranked by how much of the frame it covers. The ranking sets
-the order of the realism packages (roadmap 53-55 and the candidates under
+the order of the realism packages (roadmap 53 and 55 and the candidates under
 *Not yet scoped*). Package 29 decides *what* stands where; this sheet and
 package 55 decide how each thing *looks*.
 

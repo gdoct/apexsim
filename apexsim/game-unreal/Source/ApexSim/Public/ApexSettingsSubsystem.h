@@ -205,6 +205,9 @@ public:
 	void SetHeadMotion(float Value01);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
+	void SetCameraVibration(float Value01);
+
+	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetLookToApex(float Value01);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
