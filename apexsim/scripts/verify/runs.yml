@@ -10815,3 +10815,16 @@ runs:
       - {at: 150, lead: 1, label: "the newest mark, from further", checks: "G14: marks in the grass from a TV distance", exec: "apexsim.road.GrassMarksLook 18 8"}
       - {at: 180, lead: 1, label: "the newest mark (d)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook 4 1.5"}
       - {at: 210, lead: 1, label: "the newest mark (e)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook"}
+
+  - id: g16-car-dirt
+    about: "G16. Grime on the cars: the field from the chase and the TV, clean, half and fully dirty (apexsim.car.DirtPreview)"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:7, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=chase, -ApexRacingLine=off]
+    exec:
+      4: ["apexsim.hud.Hide 1", "apexsim.cam.Chase near"]
+    shots:
+      - {at: 40, lead: 1, label: "chase near, clean", checks: "G16: the works paint clean", exec: "apexsim.car.DirtPreview 0"}
+      - {at: 44, lead: 1, label: "chase near, half dirty", checks: "G16: a film of grime on the sills and the tail, patchy", exec: "apexsim.car.DirtPreview 0.5"}
+      - {at: 48, lead: 1, label: "chase near, a long stint's grime", checks: "G16: grime up the lower body and over the tail, the top still paint", exec: "apexsim.car.DirtPreview 1"}
+      - {at: 54, lead: 1, label: "TV, fully dirty", checks: "G16: the field grimy from the TV camera", exec: ["apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"]}
+      - {at: 60, lead: 1, label: "TV, the car's own (a lap's film)", checks: "G16: a lap barely shows", exec: ["apexsim.car.DirtPreview -1"]}

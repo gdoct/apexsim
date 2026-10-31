@@ -65,6 +65,17 @@ namespace ApexDamage
 	inline constexpr int32 CpdAt2Left = 20;
 	inline constexpr int32 CpdAt2Right = 21;
 	inline constexpr int32 CpdCount = 22;
+	/**
+	 * How dirty the car is, 0 clean .. 1 a long stint's grime
+	 * (`AApexRaceCarActor::UpdateDirt`). The engine has 36 slots and a
+	 * wheel's component fills 18 on with its tyre's data, so this is the
+	 * slot a wheel keeps its tyre's rubber pickup in
+	 * (`ApexCarMaterials::TyreCpd::Pickup`): a rim, on the same component,
+	 * reads its own tyre's pickup as its grime.
+	 */
+	inline constexpr int32 CpdDirt = 33;
+	/** The dirt's parameter in the car parents, which the material bake checks for. */
+	inline const TCHAR* const DirtParameter = TEXT("CarDirt");
 	/** A second-dent slot of a zone with one dent: off the face (`FApexCarTelemetry::NoSecondDent`). */
 	inline constexpr float NoSecondDent = 9.0f;
 
@@ -95,6 +106,16 @@ namespace ApexDamage
 	 * hundred times a tap.
 	 */
 	APEXSIM_API float Visual(float Share);
+
+	/**
+	 * How dirty a car is after running `DistanceM` more (`CpdDirt`): it
+	 * closes on fully dirty a share each kilometre (dry, half way in about
+	 * 90 km: a sprint race leaves a film, an endurance stint grime), up to
+	 * six times as fast on wet tyres (the spray), and each wheel on gravel
+	 * or sand throws a coat on in seconds. Never cleaned in a session: the
+	 * crews wipe the screen at a stop, not the body.
+	 */
+	APEXSIM_API float DirtAfter(float Dirt, float DistanceM, float TyreWetness, int32 WheelsOnSoftGround, float DeltaSeconds);
 
 	/** The body zone a part belongs to, as an index into `FShares::Zone`. */
 	APEXSIM_API int32 ZoneIndex(EApexDamageZone Zone);

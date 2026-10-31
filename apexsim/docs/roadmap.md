@@ -290,9 +290,10 @@ textures). Left:
 
 ### 60. Car paint
 
-The sheet's sixth gap: clean, plastic-looking paint and one livery per
-model across a field. Clearcoat with flake, a livery per AI car from the
-car's livery set, dirt and rubber pickup over a stint.
+The sheet's sixth gap: clean, plastic-looking paint. The field wears each
+model's liveries in turn and dirt builds up over a session
+([cars.md](../../apexsim-content/docs/cars.md), Dirt). Left: clearcoat with
+flake.
 
 **Check:** the `g8-*` chase and TV pairs before and after.
 

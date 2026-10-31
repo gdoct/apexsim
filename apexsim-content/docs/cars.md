@@ -563,6 +563,19 @@ face) from it, which starts the second (`HitCentres::second`, `damage_at2`,
   round them. Imported-track
   scenery shares the parents and has the offset switched off
   (`SetEvaluateWorldPositionOffset(false)`).
+- **Dirt** builds up over a session in the same parents: `ApexDamage::CpdDirt`
+  (slot 33, `CarDirt`, 0 clean) greys the paint from the sills down and over
+  the tail in patches that grow together, duller and without its clear coat
+  (`BuildCarDamage`'s `Grime`, under the scuffs: a scrape's bare metal is
+  clean). Each car's figure is `ApexDamage::DirtAfter` of the distance it
+  ran (dry, half way in about 90 km; up to six times as fast on wet tyres)
+  and a coat in seconds for each wheel on gravel or sand; nothing cleans it
+  in a session (`AApexRaceCarActor::UpdateDirt`, written in 1 % steps). The
+  engine has 36 slots and a wheel fills 18-35 with its tyre's data, so the
+  slot is a wheel's rubber pickup (`TyreCpd::Pickup`, asserted equal): a rim
+  reads its own tyre's pickup as its grime. A parent baked before the dirt
+  (no `CarDirt`) is baked again by `-run=ApexMaterialBake`.
+  `apexsim.car.DirtPreview N` draws every car at N (run `g16-car-dirt`).
 - **Parts** come off. `[[damage_part]]` boxes split the body GLB at runtime
   (`ApexGlb::SplitByBoxes`, `LoadModelPieces`, `ApexCarContent::LoadBodyPieces`):
   each triangle whose centre lies in a box goes to that part's mesh, drawn on

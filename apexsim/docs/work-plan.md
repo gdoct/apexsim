@@ -52,7 +52,7 @@ takes it up (— : no step, taken opportunistically).
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: worn run-off paint, verge variation (roadmap 58); grass tyre tracks to judge | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
-| G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
+| G16 | Car paint: clearcoat flake (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
 | G17 | Car generators per car; GT3 and rally bodies with character (roadmap 61) | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
@@ -186,8 +186,10 @@ judge. Left: worn, dirty run-off paint; long-range variation on the verges
 and raked gravel. Judged on the `g8-*` pairs.
 
 #### G16. Car paint — P3 · 🟢 · M
-*Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a
-stint.
+*Source: roadmap 60.* The field already wears each model's liveries in turn
+(the server deals them), and dirt builds up over a session
+([cars.md](../../apexsim-content/docs/cars.md), Dirt; `g16-car-dirt`). Left:
+clearcoat flake.
 
 #### G9. Driver's hands: what is left — P2 · 🟡 · L
 *Source: roadmap 53.* Gloves and arms are drawn on every class wheel, off by

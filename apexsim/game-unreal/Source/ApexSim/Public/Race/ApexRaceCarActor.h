@@ -503,6 +503,10 @@ private:
 	uint8 WheelGround[4] = {0, 0, 0, 0};
 	float DustOwed = 0.0f;
 	void UpdateDust(float DeltaSeconds);
+	/** How dirty the car is (ApexDamage::DirtAfter), and the figure last written to its components. */
+	float Dirt = 0.0f;
+	float DirtShown = -1.0f;
+	void UpdateDirt(float DeltaSeconds);
 	/** The newest telemetry's compound index (-1 unknown) and the car's compound list, for the tyres' look. */
 	int32 TelemetryCompound = -1;
 	TArray<FApexCompoundSpec> Compounds;

@@ -99,6 +99,29 @@ bool FApexCarDamageTomlTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarDirtTest, "ApexSim.Cars.Damage.Dirt", ApexTestFlags)
+
+bool FApexCarDirtTest::RunTest(const FString& Parameters)
+{
+	using ApexDamage::DirtAfter;
+	TestEqual(TEXT("standing still stays clean"), DirtAfter(0.0f, 0.0f, 0.0f, 0, 1.0f), 0.0f);
+	const float Sprint = DirtAfter(0.0f, 30000.0f, 0.0f, 0, 600.0f);
+	const float Stint = DirtAfter(0.0f, 90000.0f, 0.0f, 0, 1800.0f);
+	TestTrue(TEXT("a dry sprint leaves a film"), Sprint > 0.1f && Sprint < 0.3f);
+	TestTrue(TEXT("a dry 90 km is half way"), FMath::IsNearlyEqual(Stint, 0.5f, 0.01f));
+	TestTrue(TEXT("the wet dirties faster"), DirtAfter(0.0f, 30000.0f, 1.0f, 0, 600.0f) > Sprint * 3.0f);
+	TestTrue(TEXT("a few seconds in the gravel throw a coat on"), DirtAfter(0.0f, 0.0f, 0.0f, 4, 2.0f) > 0.25f);
+	// Step by step as by the stint: the same however the frames fall.
+	float Stepped = 0.0f;
+	for (int32 Frame = 0; Frame < 1000; ++Frame)
+	{
+		Stepped = DirtAfter(Stepped, 90.0f, 0.0f, 0, 1.8f);
+	}
+	TestTrue(TEXT("frame by frame alike"), FMath::IsNearlyEqual(Stepped, Stint, 1e-3f));
+	TestTrue(TEXT("never past dirty"), DirtAfter(0.99f, 1.0e6f, 1.0f, 4, 100.0f) <= 1.0f);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexCarDamageSplitTest, "ApexSim.Cars.Damage.Split", ApexTestFlags)
 
 bool FApexCarDamageSplitTest::RunTest(const FString& Parameters)

@@ -1011,7 +1011,12 @@ namespace
 		UMaterialExpression* ScuffColor = nullptr;
 		/** Cracks, 0..1: a spider web round where the nose or the tail was hit (the glass draws it). */
 		UMaterialExpression* Crack = nullptr;
+		/** Grime, 0..1: road dirt and rubber on the lower body and the tail, as dirty as the car is. */
+		UMaterialExpression* Grime = nullptr;
 	};
+
+	/** What grime leaves on the paint: road film and rubber dust, a dull grey-brown. */
+	const FLinearColor kGrimeColor(0.085f, 0.077f, 0.068f);
 
 	/**
 	 * Cracked glass: radial lines and rings round where the nose (toward
@@ -1157,6 +1162,18 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		Out.Scuff = G.Mul(G.Sat(G.Mul(G.Sub(G.Add(G.Mul(Weight, G.C(1.2f)), Patches), G.C(1.0f)), G.C(3.0f))), G.C(0.8f));
 		UMaterialExpression* Streaks = G.Noise(G.Mul(NoisePos, G.C3(1.0f, 0.12f, 1.0f)), 0.35f, 1);
 		Out.ScuffColor = G.Lerp(G.C3(0.03f, 0.03f, 0.032f), G.C3(0.3f, 0.3f, 0.29f), G.Sat(G.Mul(G.Sub(Streaks, G.C(0.7f)), G.C(6.0f))));
+		// Grime: from the sills down, and over the tail the spray and the
+		// rubber of the cars ahead reach, in patches that grow together as
+		// the car gets dirtier (`CpdDirt`, 0 clean).
+		UMaterialExpression* Dirt = G.PrimitiveScalar(ApexDamage::DirtParameter, ApexDamage::CpdDirt);
+		UMaterialExpression* Pz = G.Mask(P, false, false, true);
+		UMaterialExpression* Low = G.Sat(G.Mul(G.Sub(G.C(0.25f), Pz), G.C(1.4f)));
+		UMaterialExpression* Tail = G.Mul(G.Sat(G.Mul(G.Sub(G.Mul(Py, G.C(-1.0f)), G.C(0.55f)), G.C(2.5f))), G.C(0.6f));
+		UMaterialExpression* Reach = G.Max(Low, Tail);
+		UMaterialExpression* Blots = G.Noise(NoisePos, 0.012f, 2);
+		UMaterialExpression* Grit = G.Noise(NoisePos, 0.2f, 1);
+		UMaterialExpression* Spread = G.Add(G.Mul(Reach, G.C(1.1f)), G.Add(G.Mul(Blots, G.C(0.75f)), G.Mul(Grit, G.C(0.2f))));
+		Out.Grime = G.Mul(G.Sat(G.Mul(G.Sub(G.Add(Spread, G.Mul(Dirt, G.C(0.5f))), G.C(1.3f)), G.C(2.0f))), G.Mul(Dirt, G.C(0.75f)));
 		Out.Crack = AddCustom(Parent, TEXT("ApexGlassCrack"), kGlassCrack, CMOT_Float1,
 			{{TEXT("P"), Local}, {TEXT("Centre"), Centre}, {TEXT("Extent"), Extent}, {TEXT("Front"), Front},
 				{TEXT("Rear"), Rear}, {TEXT("AtFront"), AtFront}, {TEXT("AtRear"), AtRear}, {TEXT("Local1"), Local1},
@@ -1245,8 +1262,10 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		const FGraph G{Parent};
 		const FCarDamage Damage = BuildCarDamage(Parent);
 		const bool bScuffs = Kind != ECarParent::Translucent;
-		auto Scuffed = [&](UMaterialExpression* Clean, UMaterialExpression* Worn) {
-			return bScuffs ? G.Lerp(Clean, Worn, Damage.Scuff) : Clean;
+		// Under the scuffs the grime: the bare metal of a scrape is clean.
+		auto Scuffed = [&](UMaterialExpression* Clean, UMaterialExpression* Worn, UMaterialExpression* Grimy = nullptr) {
+			UMaterialExpression* Dirty = bScuffs && Grimy ? G.Lerp(Clean, Grimy, Damage.Grime) : Clean;
+			return bScuffs ? G.Lerp(Dirty, Worn, Damage.Scuff) : Clean;
 		};
 
 		// glTF's metallic-roughness texture (B metal, G roughness) times the
@@ -1273,9 +1292,9 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 			G.Mul(G.Mask(Damage.Normal, false, false, true), G.Mask(NormalMap, false, false, true)));
 
 		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
-		EditorOnly->BaseColor.Expression = Scuffed(BaseColor, Damage.ScuffColor);
-		EditorOnly->Metallic.Expression = Scuffed(Metal, G.C(0.3f));
-		EditorOnly->Roughness.Expression = Scuffed(Rough, G.C(0.55f));
+		EditorOnly->BaseColor.Expression = Scuffed(BaseColor, Damage.ScuffColor, G.C3(kGrimeColor.R, kGrimeColor.G, kGrimeColor.B));
+		EditorOnly->Metallic.Expression = Scuffed(Metal, G.C(0.3f), G.C(0.0f));
+		EditorOnly->Roughness.Expression = Scuffed(Rough, G.C(0.55f), G.C(0.8f));
 		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
 		EditorOnly->WorldPositionOffset.Expression = Damage.Offset;
 		EditorOnly->Normal.Expression = G.Normalize(Detail);
@@ -1285,7 +1304,7 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		{
 		case ECarParent::ClearCoat:
 			Parent->SetShadingModel(MSM_ClearCoat);
-			EditorOnly->ClearCoat.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::ClearCoatFactor, 1.0f), G.C(0.0f));
+			EditorOnly->ClearCoat.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::ClearCoatFactor, 1.0f), G.C(0.0f), G.C(0.15f));
 			EditorOnly->ClearCoatRoughness.Expression = CarScalar(Parent, ApexCarMaterials::ClearCoatRoughnessFactor, 0.03f);
 			break;
 		case ECarParent::Masked:
@@ -2385,15 +2404,17 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 					}
 				}
 			}
-			// And one from before the normal and metallic-roughness maps.
+			// And one from before the normal and metallic-roughness maps, or the dirt.
 			float Scale = 0.0f;
+			float Dirt = 0.0f;
 			if (!Existing
 				|| (bCracks && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent)
-					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::NormalScale), Scale)))
+					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::NormalScale), Scale)
+					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexDamage::DirtParameter), Dirt)))
 			{
 				continue;
 			}
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph, cracks or normal map; baking it again"), Car.Key);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph, cracks, normal map or dirt; baking it again"), Car.Key);
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))

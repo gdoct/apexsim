@@ -6,6 +6,7 @@
 #include "Audio/ApexRoadSoundWave.h"
 #include "Input/ApexForceFeedback.h"
 #include "Cars/ApexCarContentSubsystem.h"
+#include "Cars/ApexCarMaterials.h"
 #include "Cars/ApexCarToml.h"
 #include "Components/AudioComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -127,6 +128,13 @@ namespace
 		TEXT(""),
 		TEXT("Damage drawn on every car instead of the server's: \"front,rear,left,right,engine\" percent, then optionally where each body zone was hit")
 		TEXT(" (four more, -1..1) and each one's second dent (four more, 9 for none); empty for the telemetry"),
+		ECVF_Default);
+
+	/** Every car's dirt instead of its own, 0..1, for an unattended look at the grime; negative for its own. */
+	TAutoConsoleVariable<float> CVarDirtPreview(
+		TEXT("apexsim.car.DirtPreview"),
+		-1.0f,
+		TEXT("Dirt drawn on every car instead of its own, 0 clean .. 1 a long stint's grime; negative for its own"),
 		ECVF_Default);
 
 	/** Every car's tyres on one soft ground, for an unattended look at the dust. */
@@ -632,6 +640,30 @@ void AApexRaceCarActor::UpdateDust(float DeltaSeconds)
 		Puff.Gravity = -0.02f;
 		Fx->Emit(Puff);
 	}
+}
+
+void AApexRaceCarActor::UpdateDirt(float DeltaSeconds)
+{
+	// The road's film and the spray build up with distance; a trip through
+	// the gravel throws a coat on at once.
+	int32 OnSoft = 0;
+	for (const uint8 Ground : WheelGround)
+	{
+		OnSoft += Ground != ApexGround::None ? 1 : 0;
+	}
+	const float Moved = static_cast<float>(Root->ComponentVelocity.Size()) / 100.0f * FMath::Max(DeltaSeconds, 0.0f);
+	Dirt = ApexDamage::DirtAfter(Dirt, Moved, TyreWetness, OnSoft, DeltaSeconds);
+	const float Preview = CVarDirtPreview.GetValueOnGameThread();
+	const float Shown = Preview >= 0.0f ? FMath::Min(Preview, 1.0f) : Dirt;
+	// Written in steps: each write dirties the components' render state.
+	if (FMath::Abs(Shown - DirtShown) < 0.01f)
+	{
+		return;
+	}
+	DirtShown = Shown;
+	ForEachDentedComponent([Shown](UStaticMeshComponent& Component) {
+		Component.SetCustomPrimitiveDataFloat(ApexDamage::CpdDirt, Shown);
+	});
 }
 
 void AApexRaceCarActor::SetWheels(const FApexWheelSpec& Spec)
@@ -1179,6 +1211,7 @@ void AApexRaceCarActor::Tick(float DeltaSeconds)
 	UpdateTyreSmoke(DeltaSeconds);
 	UpdateSpray(DeltaSeconds);
 	UpdateDust(DeltaSeconds);
+	UpdateDirt(DeltaSeconds);
 	UpdateTyreLook();
 	UpdateTyreSurface(DeltaSeconds);
 
@@ -1286,6 +1319,8 @@ void AApexRaceCarActor::ApplyDamageFrame()
 	};
 	auto Write = [&](UStaticMeshComponent& Component) { WriteAt(Component, Bounds.Origin); };
 	ForEachDentedComponent(Write);
+	// New components: the dirt is written to them again.
+	DirtShown = -1.0f;
 	// The flap's mesh has its origin at the hinge: the body's box seen from
 	// there, shut (the dents ride with it as it opens).
 	if (UStaticMeshComponent* Flap = GetDrsFlapComponent())
@@ -1306,6 +1341,8 @@ void AApexRaceCarActor::ForEachDentedComponent(TFunctionRef<void(UStaticMeshComp
 }
 
 static_assert(ApexDamage::NoSecondDent == FApexCarTelemetry::NoSecondDent, "the material's default is the wire's none");
+static_assert(ApexDamage::CpdDirt == ApexCarMaterials::TyreCpd::Pickup, "a rim reads its tyre's pickup as its grime");
+static_assert(ApexDamage::CpdDirt < FCustomPrimitiveData::NumCustomPrimitiveDataFloats, "the engine's slots");
 
 void AApexRaceCarActor::ApplyDents(const ApexDamage::FShares& Shares)
 {

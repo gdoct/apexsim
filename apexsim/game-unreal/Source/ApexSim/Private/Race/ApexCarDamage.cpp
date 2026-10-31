@@ -13,6 +13,18 @@ namespace ApexDamage
 		return Shares;
 	}
 
+	float DirtAfter(float Dirt, float DistanceM, float TyreWetness, int32 WheelsOnSoftGround, float DeltaSeconds)
+	{
+		constexpr float HalfWayDryKm = 90.0f;
+		constexpr float WetFactor = 5.0f;
+		constexpr float SoftPerWheelSecond = 0.04f;
+		const float Km = FMath::Max(DistanceM, 0.0f) / 1000.0f;
+		const float Road = Km * UE_LN2 / HalfWayDryKm * (1.0f + WetFactor * FMath::Clamp(TyreWetness, 0.0f, 1.0f));
+		const float Soft = SoftPerWheelSecond * FMath::Clamp(WheelsOnSoftGround, 0, 4) * FMath::Max(DeltaSeconds, 0.0f);
+		const float Clean = (1.0f - FMath::Clamp(Dirt, 0.0f, 1.0f)) * FMath::Exp(-(Road + Soft));
+		return 1.0f - Clean;
+	}
+
 	float Visual(float Share)
 	{
 		return Share > 0.0f ? FMath::Pow(FMath::Min(Share, 1.0f), 0.6f) : 0.0f;

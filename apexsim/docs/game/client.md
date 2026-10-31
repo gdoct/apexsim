@@ -1303,6 +1303,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.spectate.Info|Next`.
 - Cars: `apexsim.car.Rescan`, `apexsim.car.Interp*`, `apexsim.car.DamagePreview "F,R,L,Rt,E"`,
   `apexsim.car.GroundPreview 0-3` (every car's tyres on gravel, sand or the desert floor: its dust),
+  `apexsim.car.DirtPreview 0-1` (every car's grime, [cars.md](../../../apexsim-content/docs/cars.md)),
   `apexsim.car.DamageEffects`, `apexsim.car.HeadlightLumens|BrakeLightNits|TailLightNits|WheelMaxDegPerFrame`.
 - Tracks and lighting: `apexsim.track.Rescan|KeepLast|BuildBudgetMs|FlatShadows|HorizonShadows`,
   `apexsim.road.Draw|GrassMarks|GrassMarksLook` (the road state, the tyre marks in the grass),
