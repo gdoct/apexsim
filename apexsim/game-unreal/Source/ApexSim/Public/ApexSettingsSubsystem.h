@@ -212,6 +212,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetCockpitWheel(bool bShow);
+	void SetCockpitArms(bool bShow);
 
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Settings")
 	void SetCockpitMirrors(bool bShow);

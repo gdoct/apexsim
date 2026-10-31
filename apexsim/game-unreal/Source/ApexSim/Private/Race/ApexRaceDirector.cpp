@@ -3676,6 +3676,7 @@ void AApexRaceDirector::PushRigFeatures()
 	if (Values)
 	{
 		Features.bWheel = Values->bCockpitWheel;
+		Features.bArms = Values->bCockpitArms;
 		Features.bMirrors = Values->bCockpitMirrors;
 		Features.bVirtualMirror = Values->bVirtualMirror;
 		Features.MirrorQuality = Values->MirrorQuality;

@@ -736,7 +736,12 @@ def to_gltf(P, N):
             np.stack([-N[:, 0], N[:, 1], -N[:, 2]], axis=1))
 
 
-def write_glb(mesh: Mesh, path):
+def write_glb(mesh: Mesh, path, material_of=None, images=None, first="sw_carbon", node="steering_wheel"):
+    """`mesh` as a GLB at `path`: one primitive per material (`material_of`, the
+    wheel's by default) and the `images` the materials' textures index (the
+    carbon twill by default), `first` drawn first."""
+    material_of = material_of or material
+    images = [carbon_texture()] if images is None else images
     blob = bytearray()
     views, accessors, prims, mats = [], [], [], []
 
@@ -761,9 +766,9 @@ def write_glb(mesh: Mesh, path):
         return len(accessors) - 1
 
     names = sorted(mesh.parts)
-    if "sw_carbon" in names:
-        names.remove("sw_carbon")
-        names.insert(0, "sw_carbon")
+    if first in names:
+        names.remove(first)
+        names.insert(0, first)
     for name in names:
         Ps, Ns, UVs, Is = [], [], [], []
         base = 0
@@ -778,21 +783,21 @@ def write_glb(mesh: Mesh, path):
         na = add_acc(N.astype(np.float32), 5126, "VEC3", 34962)
         ta = add_acc(UV.astype(np.float32), 5126, "VEC2", 34962)
         ia = add_acc(I.astype(np.uint32).reshape(-1), 5125, "SCALAR", 34963)
-        mats.append(material(name))
+        mats.append(material_of(name))
         prims.append({"attributes": {"POSITION": pa, "NORMAL": na, "TEXCOORD_0": ta}, "indices": ia,
                       "material": len(mats) - 1})
-    img_view = add_view(carbon_texture())
+    img_views = [add_view(img) for img in images]
     gltf = {
         "asset": {"version": "2.0", "generator": "ApexSim build_steering_wheels.py"},
         "extensionsUsed": ["KHR_materials_emissive_strength"],
         "scene": 0,
         "scenes": [{"nodes": [0]}],
-        "nodes": [{"name": "steering_wheel", "mesh": 0}],
-        "meshes": [{"name": "steering_wheel", "primitives": prims}],
+        "nodes": [{"name": node, "mesh": 0}],
+        "meshes": [{"name": node, "primitives": prims}],
         "materials": mats,
-        "textures": [{"source": 0, "sampler": 0}],
+        "textures": [{"source": i, "sampler": 0} for i in range(len(img_views))],
         "samplers": [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}],
-        "images": [{"bufferView": img_view, "mimeType": "image/png"}],
+        "images": [{"bufferView": v, "mimeType": "image/png"} for v in img_views],
         "accessors": accessors,
         "bufferViews": views,
         "buffers": [{"byteLength": len(blob)}],

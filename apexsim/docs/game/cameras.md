@@ -42,6 +42,19 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   turns the rim exactly as far as the player's
   (`SetDriverRimLockDeg`, fed by `AApexRaceDirector::UpdateSteeringLock`; see
   [input-and-ffb.md](input-and-ffb.md)).
+- **Driver's arms**: on a class steering wheel, the driver's gloves
+  (`steering/<class>_hands.glb`, built round that wheel's grips) hang on the
+  wheel the way its mesh does and turn with it; a forearm and an upper-arm
+  sleeve (`hands/forearm.glb`, `hands/upper_arm.glb`, stretched joint to
+  joint) join each wrist (`wrist_cm` in the class's `.json`, mirrored for the
+  left) to a shoulder a hand behind, a head below and a shoulder's width
+  out from the eye (`ApexCockpit::ShoulderFromEye`), the elbow solved
+  between them and hanging down and out (`ApexCockpit::SolveElbow`, upper
+  arm 30 cm, forearm 27 cm; `ApexSim.Cockpit.ArmSolve`). The sleeves take
+  the car's `car_paint` colour, followed as a livery changes it
+  (`TintSleeves`, the `Cockpit arms:` log lines). A car with its own
+  `steering_wheel_model` or the rig's primitive rim has no gloves. The
+  Camera tab's "Driver's arms" (`bCockpitArms`, on by default) turns them off.
 - **Dash** (`UApexCockpitDashWidget`): gear, speed, rev lights, lap time, the
   countdown on the grid, race control's phase in place of the lap (`SC`,
   `VSC`, `FORM`) with the pace it holds the car to after it (`SC 80`, in

@@ -426,6 +426,10 @@ public:
 	UPROPERTY()
 	bool bCockpitWheel = true;
 
+	/** The driver's gloved hands and arms on the wheel. */
+	UPROPERTY()
+	bool bCockpitArms = true;
+
 	/** The mirrors on the car. */
 	UPROPERTY()
 	bool bCockpitMirrors = true;

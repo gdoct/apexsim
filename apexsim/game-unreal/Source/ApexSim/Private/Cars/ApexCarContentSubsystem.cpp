@@ -149,6 +149,23 @@ namespace
 			// The wheel still draws; the display keeps the rig's own place.
 			UE_LOG(LogApexSim, Warning, TEXT("Runtime cars: %s has no readable .json beside it; the hub display keeps its default place"), *Path);
 		}
+
+		// The driver's gloves on it (tools/generators/wheels/build_hands.py) and
+		// the sleeves to the shoulders: all three, with the wrist, or none.
+		const TArray<TSharedPtr<FJsonValue>>* Wrist = nullptr;
+		const FString SteeringDir = FPaths::GetPath(Path);
+		const FString Hands = SteeringDir / (Model.ToLower() + TEXT("_hands.glb"));
+		const FString Forearm = FPaths::GetPath(SteeringDir) / TEXT("hands/forearm.glb");
+		const FString UpperArm = FPaths::GetPath(SteeringDir) / TEXT("hands/upper_arm.glb");
+		IFileManager& Files = IFileManager::Get();
+		if (Files.FileExists(*Hands) && Files.FileExists(*Forearm) && Files.FileExists(*UpperArm) && Json.IsValid()
+			&& Json->TryGetArrayField(TEXT("wrist_cm"), Wrist) && Wrist && Wrist->Num() == 3)
+		{
+			Out.RuntimeHands = Hands;
+			Out.RuntimeWristCm = FVector((*Wrist)[0]->AsNumber(), (*Wrist)[1]->AsNumber(), (*Wrist)[2]->AsNumber());
+			Out.RuntimeForearm = Forearm;
+			Out.RuntimeUpperArm = UpperArm;
+		}
 		return true;
 	}
 
@@ -603,7 +620,7 @@ void UApexCarContentSubsystem::Prefetch(const FApexCarCatalogRow& Row)
 {
 	IImageWrapperModule* Wrappers = nullptr;
 	for (const FString* Path : {&Row.RuntimeModel, &Row.Wheels.RuntimeModel, &Row.Wheels.RearRuntimeModel, &Row.DrsFlap.RuntimeModel, &Row.Driver.RuntimeModel,
-			 &Row.Cockpit.RuntimeSteeringWheel})
+			 &Row.Cockpit.RuntimeSteeringWheel, &Row.Cockpit.RuntimeHands, &Row.Cockpit.RuntimeForearm, &Row.Cockpit.RuntimeUpperArm})
 	{
 		if (Path->IsEmpty())
 		{

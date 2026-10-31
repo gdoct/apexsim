@@ -117,6 +117,27 @@ struct APEXSIM_API FApexCockpitOverrides
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
 	float RuntimeDashWidthCm = 0.0f;
+
+	/**
+	 * The driver's gloves on a class steering wheel: `steering/<class>_hands.glb`
+	 * in the wheel GLB's own frame, hung on the wheel so they turn with it, and
+	 * the right glove's wrist in the wheel pivot's frame (cm; the left mirrors
+	 * it) from the class's `.json` (tools/generators/wheels/build_hands.py).
+	 * The sleeves, `hands/forearm.glb` and `hands/upper_arm.glb`, join the
+	 * wrists to the shoulders. Empty for a car with a wheel of its own. Never
+	 * saved.
+	 */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FString RuntimeHands;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FVector RuntimeWristCm = FVector::ZeroVector;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FString RuntimeForearm;
+
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Cockpit")
+	FString RuntimeUpperArm;
 };
 
 /**
@@ -150,6 +171,11 @@ struct APEXSIM_API FApexCockpitLayout
 	/** The hub display: centre in the wheel pivot's frame and width (cm). */
 	FVector DashCm = FVector(-2.2f, 0.0f, 0.5f);
 	float DashWidthCm = 21.0f;
+	/** The gloves on the wheel, the right wrist in the wheel pivot's frame and the sleeves (FApexCockpitOverrides::RuntimeHands); empty for none. */
+	FString HandsModel;
+	FVector WristCm = FVector::ZeroVector;
+	FString ForearmModel;
+	FString UpperArmModel;
 
 	bool bCentreMirror = false;
 	FVector MirrorCentre = FVector::ZeroVector;
@@ -205,6 +231,24 @@ namespace ApexCockpit
 	 * through a roll still rolls with the car.
 	 */
 	APEXSIM_API FQuat ViewRotation(const FRotator& CarRotation, float HorizonLock, float ViewPitchDeg, float LookYawDeg);
+
+	/** Upper arm and forearm (elbow to wrist), cm. */
+	inline constexpr float UpperArmCm = 30.0f;
+	inline constexpr float ForearmCm = 27.0f;
+
+	/**
+	 * A shoulder in the car's frame from the eye: behind it, below it and out
+	 * to the side the hand is on (+1 the right).
+	 */
+	APEXSIM_API FVector ShoulderFromEye(const FVector& Eye, float Side);
+
+	/**
+	 * The elbow of a two-bone arm from `Shoulder` to `Wrist` (upper arm
+	 * `UpperCm`, forearm `ForeCm`), bent toward `Pole`. Past full reach the
+	 * arm lies straight along the line; closer than the bones fold, at their
+	 * tightest bend.
+	 */
+	APEXSIM_API FVector SolveElbow(const FVector& Shoulder, const FVector& Wrist, float UpperCm, float ForeCm, const FVector& Pole);
 
 	/**
 	 * Where inertia moves the head, cm in the car's frame.

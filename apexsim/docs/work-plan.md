@@ -47,7 +47,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G9 | Driver's hands and arms on the wheel (roadmap 53) | Rendering | P2 | 🟡 | M | 2 |
+| G9 | Driver's hands: hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | M | 2 |
 | G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground and run-off materials (roadmap 58) | Rendering | P2 | 🟢 | M | 2 |
@@ -191,12 +191,11 @@ frames.
 *Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a
 stint.
 
-#### G9. Driver's hands and arms on the wheel — P2 · 🟡 · M
-*Source: roadmap 53.* The cockpit view hides the driver figure, so the wheel
-turns with no hands on it; outside, the figure's gloves stay still. Rigged
-gloves and sleeves, grip points in each wheel's `<model>.json`, two-bone IK,
-hand over hand on long-lock cars, paddle pulls, a Camera-tab toggle. Judged
-from shots at three locks in three classes.
+#### G9. Driver's hands: what is left — P2 · 🟡 · M
+*Source: roadmap 53.* Gloves and arms are drawn on every class wheel. Left:
+hand over hand past 180 degrees of lock, the paddle pull, the H-shifter and
+handbrake hand, a car's own wheel, and the outside driver figure on the
+same IK.
 
 #### G10. Cockpit camera vibration — P2 · 🟡 · S
 *Source: roadmap 54.* Today's eye only leans with G. A head-and-neck

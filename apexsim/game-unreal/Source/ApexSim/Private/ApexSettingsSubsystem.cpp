@@ -905,6 +905,13 @@ void UApexSettingsSubsystem::SetCockpitMirrors(bool bShow)
 	Changed(EApexSettingsGroup::Camera);
 }
 
+void UApexSettingsSubsystem::SetCockpitArms(bool bShow)
+{
+	if (!Settings || Settings->bCockpitArms == bShow) { return; }
+	Settings->bCockpitArms = bShow;
+	Changed(EApexSettingsGroup::Camera);
+}
+
 void UApexSettingsSubsystem::SetVirtualMirror(bool bShow)
 {
 	if (!Settings || Settings->bVirtualMirror == bShow) { return; }
@@ -1612,6 +1619,7 @@ void UApexSettingsSubsystem::ResetToDefaults(EApexSettingsGroup Group)
 		Settings->LookToApex = Defaults->LookToApex;
 		Settings->bCockpitShowCar = Defaults->bCockpitShowCar;
 		Settings->bCockpitWheel = Defaults->bCockpitWheel;
+		Settings->bCockpitArms = Defaults->bCockpitArms;
 		Settings->bCockpitMirrors = Defaults->bCockpitMirrors;
 		Settings->bVirtualMirror = Defaults->bVirtualMirror;
 		Settings->MirrorQuality = Defaults->MirrorQuality;

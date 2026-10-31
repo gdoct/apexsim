@@ -138,8 +138,45 @@ namespace ApexCockpit
 			Layout.DashCm = Overrides.RuntimeDashCm;
 			Layout.DashWidthCm = Overrides.RuntimeDashWidthCm;
 		}
+		if (!Layout.SteeringWheelModel.IsEmpty())
+		{
+			Layout.HandsModel = Overrides.RuntimeHands;
+			Layout.WristCm = Overrides.RuntimeWristCm;
+			Layout.ForearmModel = Overrides.RuntimeForearm;
+			Layout.UpperArmModel = Overrides.RuntimeUpperArm;
+		}
 
 		return Layout;
+	}
+
+	FVector ShoulderFromEye(const FVector& Eye, float Side)
+	{
+		// A seated driver's shoulder sits a hand behind the eye, a head and a
+		// neck below it and a shoulder's width out.
+		return Eye + FVector(-9.0f, 19.0f * Side, -26.0f);
+	}
+
+	FVector SolveElbow(const FVector& Shoulder, const FVector& Wrist, float UpperCm, float ForeCm, const FVector& Pole)
+	{
+		const FVector Reach = Wrist - Shoulder;
+		const float Distance = Reach.Size();
+		if (Distance < UE_KINDA_SMALL_NUMBER)
+		{
+			return Shoulder + Pole.GetSafeNormal() * UpperCm;
+		}
+		const FVector Along = Reach / Distance;
+		const float Max = UpperCm + ForeCm;
+		const float Min = FMath::Abs(UpperCm - ForeCm) + 0.5f;
+		const float D = FMath::Clamp(Distance, Min, Max);
+		// The elbow's distance along the reach and out from it (two circles).
+		const float A = (UpperCm * UpperCm - ForeCm * ForeCm + D * D) / (2.0f * D);
+		const float H = FMath::Sqrt(FMath::Max(UpperCm * UpperCm - A * A, 0.0f));
+		FVector Out = Pole - Along * FVector::DotProduct(Pole, Along);
+		if (!Out.Normalize())
+		{
+			Out = FVector::CrossProduct(Along, FVector::RightVector).GetSafeNormal();
+		}
+		return Shoulder + Along * A + Out * H;
 	}
 
 	FQuat ViewRotation(const FRotator& CarRotation, float HorizonLock, float ViewPitchDeg, float LookYawDeg)

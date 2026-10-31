@@ -24,6 +24,7 @@ struct FApexCockpitFeatures
 	/** The driver is in the cockpit view; nothing on the rig draws otherwise. */
 	bool bCockpitActive = false;
 	bool bWheel = true;
+	bool bArms = true;
 	bool bMirrors = true;
 	/** Rear view for the HUD; captured in either camera view. */
 	bool bVirtualMirror = false;
@@ -141,6 +142,9 @@ private:
 	void BuildWheel();
 	/** Load the car's own steering wheel from the layout, or clear it. */
 	void DressWheel();
+	void DressArms();
+	void UpdateArms();
+	void TintSleeves();
 	/** The rig's own rim: hub, grips and spokes. */
 	TArray<UStaticMeshComponent*, TInlineAllocator<5>> RimParts() const;
 	FMirror BuildMirror(const TCHAR* Name, const FIntPoint& BaseResolution, float FovDeg, bool bWithFace);
@@ -201,6 +205,16 @@ private:
 	UPROPERTY(VisibleAnywhere, Category = "Components")
 	TObjectPtr<UStaticMeshComponent> CarWheel;
 
+	// --- The driver's arms ------------------------------------------------------
+	/** Both gloves on the wheel, in the wheel GLB's frame: they turn with it. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Hands;
+	/** Wrist to elbow and elbow to shoulder, [0] the left arm. */
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> Forearms[2];
+	UPROPERTY(VisibleAnywhere, Category = "Components")
+	TObjectPtr<UStaticMeshComponent> UpperArms[2];
+
 	/**
 	 * The car wheel's shift lights, its `sw_led_green`, `sw_led_red` and
 	 * `sw_led_blue` slots (null where it has none), lit with the revs as the
@@ -255,6 +269,8 @@ private:
 	float SpeedCapMps = 0.0f;
 
 	float WheelRollDeg = 0.0f;
+	/** The paint colour the sleeves were last tinted with (the suit is the team's). */
+	FLinearColor SleeveTint = FLinearColor(-1.0f, -1.0f, -1.0f, 1.0f);
 	float DriverRimLockDeg = 0.0f;
 	/** Highest RPM the car has shown: the light bar's full scale. */
 	float ObservedMaxRpm = 8000.0f;

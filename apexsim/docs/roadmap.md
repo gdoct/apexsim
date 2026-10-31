@@ -189,35 +189,20 @@ reporting every other dossier unchanged after each dossier edit.
 
 ### 53. The driver's hands and arms in the cockpit
 
-Every car has a driver figure (`<stem>_driver.glb`, `carlib.driver_figure()`,
-[cars.md](../../apexsim-content/docs/cars.md)), but the cockpit view hides it
-for the car the camera sits in, so the player's wheel turns with no one
-holding it, and seen from outside the figure's gloves stay still while the rim
-turns under them.
+The cockpit draws gloved hands on every class steering wheel and arms solved
+to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms). Left:
 
-- Gloved hands and forearms in race-suit sleeves for the cockpit view: a rigged
-  GLB (Blender generator under `apexsim-content/tools/generators/`, brand-free
-  glove leather or suede, stitching, knuckle padding; in the car's class
-  colours or the livery's `paint`), drawn with the rig, shadowing the
-  cockpit, and in the mirrors.
-- Grip points per wheel model in the `<model>.json` beside the wheel GLB
-  (left and right grip, the paddles); the hands follow the rim with two-bone
-  IK to fixed shoulders at the eye's seat position.
-- Hands stay on the grips for wheels under about 180 degrees of lock
-  (formula, GT3, prototypes); road and rally cars go hand over hand past it.
-  A finger pulls the paddle at a gear change (gear from telemetry); on cars
-  with an H-shifter or a handbrake the left hand goes to it while the player
-  uses them.
-- The outside driver figure gets the same grips and IK, so the TV, chase and
-  replay views show the arms turning with the wheel.
-- A "Driver's arms" toggle on the Camera tab (some players with a real wheel in
-  front of them want the rim alone).
+- Hand over hand past about 180 degrees of lock (road and rally cars); the
+  gloves now stay on the grips at every angle.
+- A finger pulling the paddle at a gear change (gear from telemetry); the
+  left hand to an H-shifter or the handbrake while the player uses them.
+- Grip points for a car's own `steering_wheel_model` (today no gloves).
+- The outside driver figure (`<stem>_driver.glb`) on the same grips and IK,
+  so the TV, chase and replay views show the arms turning with the wheel.
+- Glove and suit materials from CC0 scans with package 57.
 
-**Check:** cockpit shots at centre, half lock and full lock in a formula
-car, a GT3 and a road car (`-ApexScreenshotAfter`), a gear change caught
-mid-pull, an outside shot of an AI car turning in; an automation test on the
-IK solve (hands on the grip points at every rim angle, elbows inside the
-cabin); judged by the owner.
+**Check:** cockpit shots at full lock in a road car, a gear change caught
+mid-pull, an outside shot of an AI car turning in; judged by the owner.
 
 ### 54. Cockpit camera vibration
 

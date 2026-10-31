@@ -184,6 +184,7 @@ namespace
 	const FName SegChaseView  = TEXT("ChaseView");
 	const FName SegCockpitCar = TEXT("CockpitCar");
 	const FName SegCockpitWheel   = TEXT("CockpitWheel");
+	const FName SegCockpitArms    = TEXT("CockpitArms");
 	const FName SegCockpitMirrors = TEXT("CockpitMirrors");
 	const FName SegVirtualMirror  = TEXT("VirtualMirror");
 	const FName SegMirrorQuality  = TEXT("MirrorQuality");
@@ -1177,6 +1178,8 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 		MakeSegment(SegCockpitCar, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)));
 	AddV(Right, MakeRow(TEXT("Wheel & display"), TEXT("Steering wheel with gear, speed and revs."),
 		MakeSegment(SegCockpitWheel, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
+	AddV(Right, MakeRow(TEXT("Driver's arms"), TEXT("Gloved hands on the wheel, arms to the shoulders."),
+		MakeSegment(SegCockpitArms, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
 	AddV(Right, MakeRow(TEXT("Mirrors"), TEXT("On the car, in the cockpit view."),
 		MakeSegment(SegCockpitMirrors, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
 	AddV(Right, MakeRow(TEXT("Virtual mirror"), TEXT("Rear view at the top of the HUD, in either view."),
@@ -2175,6 +2178,7 @@ void UApexSettingsWidget::RefreshFromSettings()
 	SetSegment(SegChaseView, ApexChase::StepOf(Values->ChaseViewLevel));
 	SetSegment(SegCockpitCar, Values->bCockpitShowCar ? 1 : 0);
 	SetSegment(SegCockpitWheel, Values->bCockpitWheel ? 1 : 0);
+	SetSegment(SegCockpitArms, Values->bCockpitArms ? 1 : 0);
 	SetSegment(SegCockpitMirrors, Values->bCockpitMirrors ? 1 : 0);
 	SetSegment(SegVirtualMirror, Values->bVirtualMirror ? 1 : 0);
 	SetSegment(SegMirrorQuality, FMath::Clamp(Values->MirrorQuality, 0, 2));
@@ -2559,6 +2563,7 @@ void UApexSettingsWidget::HandleSegmentChosen(UApexSegmentedWidget* Control, int
 	else if (Id == SegChaseView)     { Settings->SetChaseLevel(ApexChase::Order()[FMath::Clamp(Index, 0, ApexChase::Order().Num() - 1)]); }
 	else if (Id == SegCockpitCar)     { Settings->SetCockpitShowCar(Index == 1); }
 	else if (Id == SegCockpitWheel)   { Settings->SetCockpitWheel(Index == 1); }
+	else if (Id == SegCockpitArms)    { Settings->SetCockpitArms(Index == 1); }
 	else if (Id == SegCockpitMirrors) { Settings->SetCockpitMirrors(Index == 1); }
 	else if (Id == SegVirtualMirror)  { Settings->SetVirtualMirror(Index == 1); }
 	else if (Id == SegMirrorQuality)  { Settings->SetMirrorQuality(Index); }

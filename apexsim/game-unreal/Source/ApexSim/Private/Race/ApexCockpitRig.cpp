@@ -242,6 +242,111 @@ void AApexCockpitRig::BuildWheel()
 	// which the rake tips and the steering rolls about.
 	CarWheel = MakePart(TEXT("CarWheel"), nullptr);
 	CarWheel->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+
+	// The gloves are built in the wheel's frame and hang on it the same way.
+	Hands = MakePart(TEXT("Hands"), nullptr);
+	Hands->SetRelativeRotation(FRotator(0.0f, -90.0f, 0.0f));
+	// The sleeves are placed joint to joint in the car's frame every frame.
+	const TCHAR* Names[2][2] = {{TEXT("ForearmLeft"), TEXT("UpperArmLeft")}, {TEXT("ForearmRight"), TEXT("UpperArmRight")}};
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		Forearms[Side] = CreateDefaultSubobject<UStaticMeshComponent>(Names[Side][0]);
+		UpperArms[Side] = CreateDefaultSubobject<UStaticMeshComponent>(Names[Side][1]);
+		for (UStaticMeshComponent* Sleeve : {Forearms[Side].Get(), UpperArms[Side].Get()})
+		{
+			Sleeve->SetupAttachment(Root);
+			SetupPart(*Sleeve, nullptr);
+		}
+	}
+}
+
+void AApexCockpitRig::DressArms()
+{
+	auto Load = [](const FString& Path) -> UStaticMesh*
+	{
+		return Path.IsEmpty() ? nullptr : ApexCarContent::LoadMesh(TSoftObjectPtr<UStaticMesh>(), Path);
+	};
+	UStaticMesh* Gloves = Load(Layout.HandsModel);
+	UStaticMesh* Forearm = Gloves ? Load(Layout.ForearmModel) : nullptr;
+	UStaticMesh* UpperArm = Gloves ? Load(Layout.UpperArmModel) : nullptr;
+	if (Hands->GetStaticMesh() == Gloves && Forearms[0]->GetStaticMesh() == Forearm)
+	{
+		return;
+	}
+	Hands->SetStaticMesh(Gloves);
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		for (TPair<UStaticMeshComponent*, UStaticMesh*> Sleeve : {TPair<UStaticMeshComponent*, UStaticMesh*>(Forearms[Side], Forearm),
+				 TPair<UStaticMeshComponent*, UStaticMesh*>(UpperArms[Side], UpperArm)})
+		{
+			Sleeve.Key->EmptyOverrideMaterials();
+			Sleeve.Key->SetStaticMesh(Sleeve.Value);
+		}
+	}
+	SleeveTint = FLinearColor(-1.0f, -1.0f, -1.0f, 1.0f);
+	UE_LOG(LogApexSim, Log, TEXT("Cockpit arms: gloves %s, sleeves %s"), *GetNameSafe(Gloves), *GetNameSafe(Forearm));
+}
+
+void AApexCockpitRig::TintSleeves()
+{
+	// The suit is the team's: the sleeves take the car's paint, whichever
+	// livery has painted it since the arms were dressed.
+	UStaticMeshComponent* Body = Car ? Car->GetMeshComponent() : nullptr;
+	const int32 Paint = Body ? Body->GetMaterialIndex(TEXT("car_paint")) : INDEX_NONE;
+	UMaterialInterface* PaintMaterial = Paint != INDEX_NONE ? Body->GetMaterial(Paint) : nullptr;
+	FLinearColor Colour;
+	if (!PaintMaterial || !PaintMaterial->GetVectorParameterValue(FHashedMaterialParameterInfo(TEXT("BaseColorFactor")), Colour))
+	{
+		Colour = FLinearColor(0.05f, 0.05f, 0.06f, 1.0f);
+	}
+	Colour.A = 1.0f;
+	if (Colour.Equals(SleeveTint, 1.0e-3f))
+	{
+		return;
+	}
+	SleeveTint = Colour;
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		for (UStaticMeshComponent* Sleeve : {Forearms[Side].Get(), UpperArms[Side].Get()})
+		{
+			const int32 Slot = Sleeve->GetStaticMesh() ? Sleeve->GetMaterialIndex(TEXT("suit")) : INDEX_NONE;
+			if (UMaterialInstanceDynamic* Mid = Slot != INDEX_NONE ? ApexCarContent::OwnMaterialInstance(*Sleeve, Slot) : nullptr)
+			{
+				Mid->SetVectorParameterValue(TEXT("BaseColorFactor"), Colour);
+			}
+		}
+	}
+	UE_LOG(LogApexSim, Log, TEXT("Cockpit arms: sleeves tinted %s from %s"), *Colour.ToString(), *GetNameSafe(PaintMaterial));
+}
+
+void AApexCockpitRig::UpdateArms()
+{
+	if (!Hands->IsVisible())
+	{
+		return;
+	}
+	TintSleeves();
+	// Wrists ride the wheel; shoulders ride the seat. The elbows hang down
+	// and out between them.
+	const FTransform ToCar = WheelPivot->GetRelativeTransform();
+	const FVector Eye = EyeLocal.IsNearlyZero() ? Layout.Eye : EyeLocal;
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		const float Sign = Side == 0 ? -1.0f : 1.0f;
+		const FVector Wrist = ToCar.TransformPosition(FVector(Layout.WristCm.X, Layout.WristCm.Y * Sign, Layout.WristCm.Z));
+		const FVector Shoulder = ApexCockpit::ShoulderFromEye(Eye, Sign);
+		const FVector Elbow = ApexCockpit::SolveElbow(Shoulder, Wrist, ApexCockpit::UpperArmCm, ApexCockpit::ForearmCm,
+			FVector(-0.2f, 0.75f * Sign, -1.0f));
+		// A sleeve is 1 m along its +X from the hand end.
+		auto Span = [](UStaticMeshComponent& Sleeve, const FVector& From, const FVector& To)
+		{
+			const FVector Along = To - From;
+			Sleeve.SetRelativeLocationAndRotation(From, FRotationMatrix::MakeFromXZ(Along, FVector::UpVector).Rotator());
+			Sleeve.SetRelativeScale3D(FVector(Along.Size() / 100.0f, 1.0f, 1.0f));
+		};
+		Span(*Forearms[Side], Wrist, Elbow);
+		Span(*UpperArms[Side], Elbow, Shoulder);
+	}
 }
 
 TArray<UStaticMeshComponent*, TInlineAllocator<5>> AApexCockpitRig::RimParts() const
@@ -403,6 +508,7 @@ void AApexCockpitRig::AttachToCar(AApexRaceCarActor* InCar)
 	Layout = Car->GetCockpitLayout();
 	SeenCockpitRevision = Car->GetCockpitRevision();
 	DressWheel();
+	DressArms();
 	AttachToActor(Car, FAttachmentTransformRules::SnapToTargetNotIncludingScale);
 	// The parts ride the attachment, but the display reads the car's
 	// telemetry: same frame's values, after the car has taken them.
@@ -677,6 +783,15 @@ void AApexCockpitRig::ApplyVisibility()
 		CarWheel->SetVisibility(bOwnWheel);
 		Dash->SetVisibility(Layout.bRigDash);
 	}
+	// The gloves need the class wheel they were built round.
+	const bool bArms = WheelPivot->IsVisible() && Features.bArms && CarWheel->GetStaticMesh() != nullptr
+		&& Hands->GetStaticMesh() != nullptr;
+	Hands->SetVisibility(bArms);
+	for (int32 Side = 0; Side < 2; ++Side)
+	{
+		Forearms[Side]->SetVisibility(bArms && Forearms[Side]->GetStaticMesh() != nullptr);
+		UpperArms[Side]->SetVisibility(bArms && UpperArms[Side]->GetStaticMesh() != nullptr);
+	}
 
 	// A car that brings its own glass has exactly the mirrors it modelled:
 	// a face where it has none would hang in its windscreen.
@@ -794,6 +909,7 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 		Layout = Car->GetCockpitLayout();
 		SeenCockpitRevision = Car->GetCockpitRevision();
 		DressWheel();
+		DressArms();
 		bPlaced = false;
 		ApplyVisibility();
 	}
@@ -815,6 +931,7 @@ void AApexCockpitRig::Tick(float DeltaSeconds)
 	if (WheelPivot->IsVisible())
 	{
 		UpdateWheel(DeltaSeconds);
+		UpdateArms();
 		UpdateWheelLeds();
 		if (Layout.bRigDash)
 		{

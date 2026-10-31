@@ -220,13 +220,21 @@ function Copy-ApexClassWheels {
         # The class's steering wheel and where its screen is, for the cars that
         # bring none of their own (tools/generators/wheels/build_steering_wheels.py).
         $steeringOut = Join-Path $WheelsOut 'steering'
-        foreach ($ext in @('glb', 'json')) {
-            $steering = Join-Path $WheelsDir "steering\$wheel.$ext"
+        # With the driver's gloves built round it (build_hands.py).
+        foreach ($file in @("$wheel.glb", "$wheel.json", "${wheel}_hands.glb")) {
+            $steering = Join-Path $WheelsDir "steering\$file"
             if (Test-Path -LiteralPath $steering) {
                 New-Item -ItemType Directory -Path $steeringOut -Force | Out-Null
                 Copy-Item -LiteralPath $steering -Destination $steeringOut -Force
             }
         }
+    }
+    # The driver's sleeves, one pair for every class.
+    $hands = Join-Path $WheelsDir 'hands'
+    if (Test-Path -LiteralPath $hands) {
+        $handsOut = Join-Path $WheelsOut 'hands'
+        New-Item -ItemType Directory -Path $handsOut -Force | Out-Null
+        Copy-Item -Path (Join-Path $hands '*.glb') -Destination $handsOut -Force
     }
 }
 

@@ -278,4 +278,45 @@ bool FApexCockpitScreenNitsTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+// -----------------------------------------------------------------------------
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(
+	FApexCockpitArmSolveTest,
+	"ApexSim.Cockpit.ArmSolve",
+	ApexTestFlags)
+
+bool FApexCockpitArmSolveTest::RunTest(const FString& Parameters)
+{
+	using namespace ApexCockpit;
+	// A GT3 seat: eye 45 cm behind the hub and 18 cm above it, the right
+	// wrist 21 cm out from the hub turned through every rim angle a GT3 uses.
+	const FVector Eye(-35.0f, 38.0f, 108.0f);
+	const FVector Hub(10.0f, 38.0f, 90.0f);
+	const FVector Shoulder = ShoulderFromEye(Eye, 1.0f);
+	TestTrue(TEXT("the right shoulder is right of and below the eye"), Shoulder.Y > Eye.Y && Shoulder.Z < Eye.Z);
+	const FVector Pole(-0.2f, 0.75f, -1.0f);
+	for (int32 Deg = -270; Deg <= 270; Deg += 15)
+	{
+		const FVector Wrist = Hub + FRotator(0.0f, 0.0f, static_cast<float>(Deg)).RotateVector(FVector(-10.0f, 21.0f, -4.0f));
+		const FVector Elbow = SolveElbow(Shoulder, Wrist, UpperArmCm, ForearmCm, Pole);
+		const FString At = FString::Printf(TEXT(" at %d deg"), Deg);
+		// The bones keep their length wherever the wrist goes in reach.
+		TestEqual(TEXT("upper arm length") + At, static_cast<float>((Elbow - Shoulder).Size()), UpperArmCm, 0.05f);
+		if ((Wrist - Shoulder).Size() <= UpperArmCm + ForearmCm)
+		{
+			TestEqual(TEXT("forearm reaches the wrist") + At, static_cast<float>((Wrist - Elbow).Size()), ForearmCm, 0.05f);
+		}
+		// The elbow hangs: below the line from shoulder to wrist, and within
+		// a cabin's half width of the seat.
+		const FVector Mid = (Shoulder + Wrist) * 0.5f;
+		TestTrue(TEXT("the elbow hangs below the reach") + At, Elbow.Z < Mid.Z + 1.0f);
+		TestTrue(TEXT("the elbow stays in the cabin") + At, FMath::Abs(Elbow.Y - Eye.Y) < 60.0f);
+	}
+	// Out of reach: the arm lies straight along the line.
+	const FVector Far = Shoulder + FVector(100.0f, 0.0f, 0.0f);
+	const FVector Straight = SolveElbow(Shoulder, Far, UpperArmCm, ForearmCm, Pole);
+	TestEqual(TEXT("past full reach the elbow is on the line"), static_cast<float>(Straight.Y), static_cast<float>(Shoulder.Y), 0.05f);
+	return true;
+}
+
 #endif	  // WITH_DEV_AUTOMATION_TESTS

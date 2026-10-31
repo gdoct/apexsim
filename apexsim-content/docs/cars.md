@@ -372,6 +372,13 @@ wheel, `wheels/steering/<model>.glb` for its `[wheels] model`,
 written with a `<model>.json` by
 `python tools/generators/wheels/build_steering_wheels.py [f1 gt3 ...]`. The JSON's `dash_cm` / `dash_width_cm` put the
 rig's hub display on that wheel's screen (`FApexCockpitOverrides::RuntimeDashCm`).
+`python tools/generators/wheels/build_hands.py` (run after the wheels: the
+wheel build rewrites the `.json`) writes each class's gloves,
+`steering/<class>_hands.glb`, closed round that wheel's grips in its frame,
+with the right wrist as `wrist_cm` in the `.json`, and the class-free sleeves
+`hands/forearm.glb` and `hands/upper_arm.glb` (slots `glove_leather`,
+`glove_palm`, `glove_cuff`, `suit`, `suit_cuff`); the rig draws them as the
+driver's arms ([cameras.md](../../apexsim/docs/game/cameras.md)).
 A car's own `steering_wheel_model` is drawn in place of the rig's rim and
 turned exactly as it would be; author it straight and upright in the car
 GLB's axes, hub at the origin, rim in glTF XY, column along glTF +Z toward the
