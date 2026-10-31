@@ -54,6 +54,7 @@ takes it up (— : no step, taken opportunistically).
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
 | G15 | Atmosphere: haze and sky (roadmap 59) | Rendering | P2 | 🟢 | S | 2 |
 | G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
+| G17 | Car generators per car; GT3 and rally bodies with character (roadmap 61) | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -79,7 +80,9 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
    G14, G11 family by family with C5's columns alongside (C5 places the
-   kit, G11 makes it look real), G15, G16; G10 beside them. G4 and N10
+   kit, G11 makes it look real), G15, G16; G10 beside them. G17 after
+   G13 and G16 land (they touch the same car builds); its step 1 (the
+   per-car split, byte-identical output) runs unattended overnight. G4 and N10
    checked together on the RTX machine.
 3. **Sittings as people and hardware are there.** H2, V2, P3 on an integrated-GPU machine.
 4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -210,6 +213,15 @@ colours, unbevelled edges, no wear, card trees and crowds. Materials through
 `KIT_SLOTS` (measured albedo, detail, weathering), bevels and real fixings
 on the close families, 3D trees and crowd figures. Textures from CC0
 libraries (the owner's choice, 2026-10-31); 🟡 for the per-family shots.
+
+#### G17. Car generators per car; GT3 and rally bodies — P2 · 🟡 · L
+*Source: roadmap 61.* Step 1 (🟢, overnight): one script per car drives
+the build, the class scripts become replaceable stages, `carlib` stays
+mechanical; every car's GLBs and car.toml tables byte-identical, built
+headless with Blender 5.1 on a scratch copy of the content root. Step 2
+(🟡): each GT3 and rally car its own body description, the Limbotiti
+first, judged by the owner on orthographic preview sheets against a
+reference silhouette. Wait for G13 and G16 (car interiors and paint).
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*
