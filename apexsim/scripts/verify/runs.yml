@@ -10601,3 +10601,149 @@ runs:
       17: ["apexsim.ui.Texts"]
     shots:
       - {at: 18, label: "pause > PIT PLAN with two drivers a car", checks: "R4: the Driver row, CREW'S CALL", item: v-r4-driver-swaps}
+
+  # G8 realism reference sheet (game/realism.md): the six views at Spa, Monza
+  # and the Nordschleife, each paired with a reference frame the owner keeps
+  # outside the repo. One GT3 run and one formula run per circuit; the
+  # Nordschleife layout has no pit lane, so its pit frame is the GP's. A
+  # cockpit burst on lap 1, then the held poses, then the TV director, then
+  # a chase burst; the HUD hidden throughout.
+  - id: g8-spa-gt3
+    about: "G8. Spa in a GT3: cockpit down to the dip, the TV camera up the climb, the stands, pit lane, woods"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:9, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 58, label: "cockpit, lap 1 (a)", checks: "G8 cockpit GT3 (ref: Spa GT3 onboard driver view Eau Rouge)"}
+      - {at: 43, label: "cockpit, lap 1 (b)", checks: "G8 cockpit GT3"}
+      - {at: 46, label: "cockpit, lap 1 (c)", checks: "G8 cockpit GT3"}
+      - {at: 49, label: "cockpit, lap 1 (d)", checks: "G8 cockpit GT3"}
+      - {at: 52, label: "cockpit, lap 1 (e)", checks: "G8 cockpit GT3"}
+      - {at: 55, label: "cockpit, lap 1 (f)", checks: "G8 cockpit GT3"}
+      - {at: 40, label: "cockpit, lap 1 (g)", checks: "G8 cockpit GT3"}
+      - {at: 64, label: "TV, behind the dip up the climb", checks: "G8 TV (ref: rear broadcast camera Eau Rouge Raidillon)", exec: "apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"}
+      - {at: 68, label: "spectator behind the dip", checks: "G8 chase/spectator (ref: rear view Eau Rouge Raidillon)", exec: "apexsim.cam.LookAt 245.9 11.8 -19.5 429.8 -186.3 -6.0"}
+      - {at: 72, label: "the hairpin back up the straight, low", checks: "G8 grandstand straight (ref: finishing line)", exec: "apexsim.cam.LookAt -149.4 262.6 9.4 26.5 -40.2 2.2"}
+      - {at: 76, label: "down the straight from above the line", checks: "G8 grandstand straight (ref: main straight)", exec: "apexsim.cam.LookAt 81.4 -123.7 30.0 -32.1 52.9 2.1"}
+      - {at: 80, label: "aerial over the dip and the woods", checks: "G8 woods (ref: woods 2)", exec: "apexsim.cam.LookAt 117.6 165.2 108.0 433.2 -206.0 -5.4"}
+      - {at: 84, label: "pit lane at eye height, down the lane", checks: "G8 pit lane (ref: pit lane garages pit wall gantry)", exec: "apexsim.cam.LookAt 18.9 -2.1 1.3 -67.5 139.4 4.7"}
+      - {at: 88, label: "pit lane from above", checks: "G8 pit lane", exec: "apexsim.cam.LookAt 29.0 -23.7 14.0 -48.6 116.0 2.0"}
+      - {at: 96, label: "TV director (a)", checks: "G8 TV", exec: ["apexsim.cam.Release", "apexsim.tv.View 1"]}
+      - {at: 104, label: "TV director (b)", checks: "G8 TV"}
+      - {at: 112, label: "TV director (c)", checks: "G8 TV"}
+      - {at: 120, label: "TV director (d)", checks: "G8 TV"}
+      - {at: 128, label: "chase near", checks: "G8 chase", exec: ["apexsim.tv.View 0", "apexsim.cam.Chase near"]}
+      - {at: 160, label: "chase near, lap 2 (a)", checks: "G8 chase"}
+      - {at: 165, label: "chase near, lap 2 (b)", checks: "G8 chase"}
+      - {at: 170, label: "chase near, lap 2 (c)", checks: "G8 chase"}
+      - {at: 175, label: "chase near, lap 2 (d)", checks: "G8 chase"}
+      - {at: 180, label: "chase near, lap 2 (e)", checks: "G8 chase"}
+
+  - id: g8-spa-formula
+    about: "G8. Spa in a formula car: cockpit down to the dip"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=SF-26, -ApexAiCount=9, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 31, label: "cockpit, lap 1 (a)", checks: "G8 cockpit formula (no reference frame yet)"}
+      - {at: 34, label: "cockpit, lap 1 (b)", checks: "G8 cockpit formula"}
+      - {at: 37, label: "cockpit, lap 1 (c)", checks: "G8 cockpit formula"}
+      - {at: 40, label: "cockpit, lap 1 (d)", checks: "G8 cockpit formula"}
+      - {at: 43, label: "cockpit, lap 1 (e)", checks: "G8 cockpit formula"}
+      - {at: 46, label: "T-cam", checks: "G8 cockpit formula", exec: "apexsim.cam.Chase tcam"}
+
+  - id: g8-monza-gt3
+    about: "G8. Monza in a GT3: cockpit, the trackside camera before the Lesmos, the last corner, woods, stands, pit lane"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Monzarella, -ApexCar=Caravan, -ApexClasses=GT3:9, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 20, label: "cockpit, lap 1 (a)", checks: "G8 cockpit GT3 (ref: GT3 onboard McLaren 720S)"}
+      - {at: 25, label: "cockpit, lap 1 (b)", checks: "G8 cockpit GT3"}
+      - {at: 30, label: "cockpit, lap 1 (c)", checks: "G8 cockpit GT3"}
+      - {at: 35, label: "cockpit, lap 1 (d)", checks: "G8 cockpit GT3"}
+      - {at: 40, label: "cockpit, lap 1 (e)", checks: "G8 cockpit GT3"}
+      - {at: 45, label: "cockpit, lap 1 (f)", checks: "G8 cockpit GT3"}
+      - {at: 52, label: "trackside low, along the barrier before the Lesmos", checks: "G8 TV (ref: tv cam)", exec: "apexsim.cam.LookAt 1096.2 1668.5 3.8 1219.6 1647.7 3.0"}
+      - {at: 56, label: "trackside low, the other side", checks: "G8 TV (ref: tv cam)", exec: "apexsim.cam.LookAt 1099.8 1684.1 3.8 1219.6 1647.7 3.0"}
+      - {at: 60, label: "behind the last corner, broadcast height", checks: "G8 chase/TV (ref: chase)", exec: "apexsim.cam.LookAt 228.9 -302.3 7.7 221.9 -432.2 2.0"}
+      - {at: 64, label: "in the Lesmo woods, eye height", checks: "G8 woods (ref: trees, trees 2)", exec: "apexsim.cam.LookAt 1242.0 1539.7 4.3 1245.1 1419.5 3.0"}
+      - {at: 68, label: "aerial over the Lesmo woods", checks: "G8 woods", exec: "apexsim.cam.LookAt 1146.2 1689.6 132.6 1248.0 1389.6 2.7"}
+      - {at: 72, label: "back down the straight to the stands, low", checks: "G8 grandstand straight (no reference frame yet)", exec: "apexsim.cam.LookAt 28.3 149.5 4.2 -5.5 -148.7 2.0"}
+      - {at: 76, label: "down the straight from above the line", checks: "G8 grandstand straight", exec: "apexsim.cam.LookAt -5.5 -148.7 35.4 5.5 60.8 0.1"}
+      - {at: 80, label: "pit lane at eye height, down the lane", checks: "G8 pit lane (ref: GT3 onboard pitlane)", exec: "apexsim.cam.LookAt 19.9 37.6 1.6 37.8 202.3 1.4"}
+      - {at: 84, label: "pit lane from above", checks: "G8 pit lane", exec: "apexsim.cam.LookAt 13.1 14.6 14.0 37.8 172.0 0.0"}
+      - {at: 92, label: "TV director (a)", checks: "G8 TV", exec: ["apexsim.cam.Release", "apexsim.tv.View 1"]}
+      - {at: 100, label: "TV director (b)", checks: "G8 TV"}
+      - {at: 108, label: "TV director (c)", checks: "G8 TV"}
+      - {at: 116, label: "TV director (d)", checks: "G8 TV"}
+      - {at: 122, label: "chase near (a)", checks: "G8 chase (ref: chase)", exec: ["apexsim.tv.View 0", "apexsim.cam.Chase near"]}
+      - {at: 128, label: "chase near (b)", checks: "G8 chase"}
+      - {at: 134, label: "chase near (c)", checks: "G8 chase"}
+      - {at: 140, label: "chase near (d)", checks: "G8 chase"}
+
+  - id: g8-monza-formula
+    about: "G8. Monza in a formula car: cockpit"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Monzarella, -ApexCar=SF-26, -ApexAiCount=9, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 18, label: "cockpit, lap 1 (a)", checks: "G8 cockpit formula (ref: f1 onboard bridge, a render, not real)"}
+      - {at: 23, label: "cockpit, lap 1 (b)", checks: "G8 cockpit formula"}
+      - {at: 28, label: "cockpit, lap 1 (c)", checks: "G8 cockpit formula"}
+      - {at: 33, label: "cockpit, lap 1 (d)", checks: "G8 cockpit formula"}
+      - {at: 38, label: "cockpit, lap 1 (e)", checks: "G8 cockpit formula"}
+
+  - id: g8-nordschleife-gt3
+    about: "G8. The Nordschleife in a GT3: cockpit, trackside in the woods, aerial, chase"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Mordschleife, -ApexCar=Caravan, -ApexClasses=GT3:9, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 25, label: "cockpit, lap 1 (a)", checks: "G8 cockpit GT3 (ref: gt3 onboard, gt3 onboard graffiti)"}
+      - {at: 32, label: "cockpit, lap 1 (b)", checks: "G8 cockpit GT3"}
+      - {at: 39, label: "cockpit, lap 1 (c)", checks: "G8 cockpit GT3"}
+      - {at: 46, label: "cockpit, lap 1 (d)", checks: "G8 cockpit GT3"}
+      - {at: 53, label: "cockpit, lap 1 (e)", checks: "G8 cockpit GT3"}
+      - {at: 60, label: "cockpit, lap 1 (f)", checks: "G8 cockpit GT3"}
+      - {at: 66, label: "trackside low, facing the traffic, 16 km", checks: "G8 TV (ref: cinematic camera)", exec: "apexsim.cam.LookAt -563.1 -3724.1 -88.0 -580.4 -3842.5 -88.5"}
+      - {at: 70, label: "down to a bend in the woods, 8 km", checks: "G8 woods (ref: trees 1)", exec: "apexsim.cam.LookAt 3030.4 -3317.9 -262.0 2944.8 -3476.2 -265.0"}
+      - {at: 74, label: "in the woods at eye height, 1.5 km", checks: "G8 woods", exec: "apexsim.cam.LookAt 1034.3 603.5 -46.7 1176.7 588.2 -58.5"}
+      - {at: 78, label: "aerial over the forest, 9.6 km", checks: "G8 woods (ref: trees 2, cinematic cam)", exec: "apexsim.cam.LookAt 2119.7 -3664.1 -72.1 1854.6 -3795.2 -213.6"}
+      - {at: 86, label: "TV director (a)", checks: "G8 TV", exec: ["apexsim.cam.Release", "apexsim.tv.View 1"]}
+      - {at: 94, label: "TV director (b)", checks: "G8 TV"}
+      - {at: 102, label: "TV director (c)", checks: "G8 TV"}
+      - {at: 110, label: "TV director (d)", checks: "G8 TV"}
+      - {at: 116, label: "chase near (a)", checks: "G8 chase (ref: chase)", exec: ["apexsim.tv.View 0", "apexsim.cam.Chase near"]}
+      - {at: 122, label: "chase near (b)", checks: "G8 chase"}
+      - {at: 128, label: "chase near (c)", checks: "G8 chase"}
+      - {at: 134, label: "chase near (d)", checks: "G8 chase"}
+
+  - id: g8-nordschleife-formula
+    about: "G8. The Nordschleife in a formula car: cockpit and T-cam"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Mordschleife, -ApexCar=SF-26, -ApexAiCount=9, -ApexLaps=1, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 20, label: "cockpit, lap 1 (a)", checks: "G8 cockpit formula"}
+      - {at: 26, label: "cockpit, lap 1 (b)", checks: "G8 cockpit formula"}
+      - {at: 32, label: "cockpit, lap 1 (c)", checks: "G8 cockpit formula"}
+      - {at: 38, label: "T-cam (a)", checks: "G8 cockpit formula (ref: F1 nurburgring onboard, a T-cam)", exec: "apexsim.cam.Chase tcam"}
+      - {at: 44, label: "T-cam (b)", checks: "G8 cockpit formula"}
+      - {at: 50, label: "T-cam (c)", checks: "G8 cockpit formula"}
+
+  - id: g8-nuerburgring-pit
+    about: "G8. The GP circuit's pit lane, the Nordschleife's pit frame"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Nuerburgerring, -ApexCar=SF-26, -ApexAiCount=5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 14, label: "pit lane at eye height, down the lane", checks: "G8 pit lane (ref: nurburgring pit lane)", exec: "apexsim.cam.LookAt 203.8 217.8 3.8 86.7 102.9 3.1"}
+      - {at: 18, label: "down the straight from above the line", checks: "G8 grandstand straight", exec: "apexsim.cam.LookAt 109.7 102.4 37.2 -42.0 -42.8 -0.9"}

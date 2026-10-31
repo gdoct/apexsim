@@ -338,6 +338,10 @@ the launcher import with the network off.
 
 ### 12. Rendering
 
+- The TV director cuts to trackside cameras whose lens is filled by foliage
+  or armco (`g8-monza-gt3` #17, `g8-nordschleife-gt3` #11, #12, #14): the
+  blocked-view trace does not see card foliage, and armco close to the lens
+  is not inside it. Seen on the realism sheet ([game/realism.md](game/realism.md)).
 - The T-cam rung (`tcam`) has no broadcast look of its own: a touch of
   barrel distortion and bloom as a console variable, off by default, for
   shots (`g10-tcam-sf26` is the frame to judge it on).

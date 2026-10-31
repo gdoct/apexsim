@@ -169,8 +169,9 @@ saw it, then a contact shadow under the car.
 #### G8. Realism reference sheet — P2 · 🔴 · M
 *Source: roadmap 52.* Six views at Spa, Monza and the Nordschleife shot from a
 `runs.yml` run, each beside a real reference frame; the gaps ranked by how
-much of the frame they cover, into `game/realism.md`. 🔴 for the reference
-frames and the owner's agreement on the ranking.
+much of the frame they cover, into `game/realism.md`. The sheet and the
+ranking are made (`g8-*` runs, `scripts/verify/realism_sheet.py`); 🔴 for
+the owner's agreement on the ranking.
 
 #### G9. Driver's hands and arms on the wheel — P2 · 🟡 · M
 *Source: roadmap 53.* The cockpit view hides the driver figure, so the wheel
