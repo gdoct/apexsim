@@ -92,7 +92,10 @@ pub fn surface_lateral_fractions(surface: &Surface) -> Vec<f32> {
 /// gravel trap reads the same as a gravel-surfaced track node.
 pub fn surface_kind_color(kind: SurfaceKind) -> [f32; 4] {
     match kind {
-        SurfaceKind::Grass => [0.16, 0.42, 0.14, 1.0],
+        // Mown turf: yellower than a lawn in a catalogue (red about two
+        // thirds of green), about 0.07 / 0.10 / 0.04 once the client has
+        // taken it to albedo.
+        SurfaceKind::Grass => [0.20, 0.30, 0.10, 1.0],
         SurfaceKind::Gravel => [0.62, 0.55, 0.4, 1.0],
         SurfaceKind::AsphaltRunoff => [0.3, 0.3, 0.33, 1.0],
         SurfaceKind::Concrete => [0.55, 0.55, 0.55, 1.0],

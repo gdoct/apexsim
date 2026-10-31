@@ -311,13 +311,22 @@ Left:
 
 ### 58. Ground and run-off materials
 
-The sheet's third gap: one uniform green, clean saturated run-off paint,
-clean grey road with dark square patches, no gravel. CC0 grass, soil,
-gravel and asphalt textures through the generated track materials, macro
-variation over long distances, run-off paint at measured real colours
-with wear and rubber, the road's patches blended.
+The sheet's third gap. Grass, gravel, asphalt and concrete sample CC0 scans
+and the turf and run-off paint sit at measured albedos
+([track-pipeline.md](../../apexsim-content/docs/track-pipeline.md), Ground
+textures). Left:
 
-**Check:** the `g8-*` TV, grandstand and woods pairs before and after.
+- **Tracks in the grass**: a car that runs wide leaves its tyre marks in
+  the verge, flattened and darker grass with earth showing where it spun or
+  braked, that stay for the session (the server already knows every wheel
+  off the road; the client draws the marks into a per-circuit mask the
+  ground material reads, like the road's rubber).
+- Run-off paint worn and dirty: tyre marks across it, faded at the edges.
+- Macro variation over long distances (cut stripes on the verges, dry
+  patches) and a gravel trap's raked lines.
+
+**Check:** the `g8-*` TV, grandstand and woods pairs before and after; a
+car run wide at a known corner and the marks shot from the TV camera.
 
 ### 59. Atmosphere: haze and sky
 

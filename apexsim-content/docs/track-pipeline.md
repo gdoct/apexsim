@@ -643,7 +643,14 @@ The track surfaces sample tiling maps: seven sets (asphalt, grass, gravel,
 sand, concrete, astroturf, kerb), each a 1024² colour, normal and roughness
 map tileable over 2 m. The PNGs are checked in under
 `textures/ground/` and are deterministic; the generators are numpy in
-`tools/generators/props/apex_tex.py`.
+`tools/generators/props/apex_tex.py`. Grass, gravel, asphalt and concrete
+are taken from CC0 scans instead (`bake_ground_textures.SCANNED`, pinned in
+`textures/cc0/sources.json`, fetched by `tools/cc0.py`): the colour map
+turned grey at a mean of 0.5 like the generated ones, so the scan gives the
+pattern and the exporter's colour the hue. The exporter's colours are
+measured albedos once the client has scaled them: turf about 0.07 / 0.10 /
+0.04 (`surface_kind_color`, `terrain::GROUND_COLOR`), run-off paint red
+0.30, yellow 0.45, white 0.60 (`runoff_paint_colours`).
 
 ```bash
 python tools/bake_ground_textures.py [asphalt grass ...] [--size 512]

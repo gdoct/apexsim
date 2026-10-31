@@ -50,7 +50,7 @@ takes it up (— : no step, taken opportunistically).
 | G9 | Driver's hands: real glove and sleeve meshes, hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
-| G14 | Ground and run-off materials (roadmap 58) | Rendering | P2 | 🟢 | M | 2 |
+| G14 | Ground: tyre tracks in the grass, worn run-off paint (roadmap 58) | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
 | G15 | Atmosphere: haze and sky (roadmap 59) | Rendering | P2 | 🟢 | S | 2 |
 | G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
@@ -179,10 +179,11 @@ take normal and metallic-roughness maps. Closed cars are lined inside. Left:
 the paint under the GT3 dash, the formula tubs, satin paint, seat fabric
 and harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
 
-#### G14. Ground and run-off materials — P2 · 🟢 · M
-*Source: roadmap 58.* CC0 grass, gravel and asphalt in the generated track
-materials, run-off paint at real colours with wear. Judged on the `g8-*`
-pairs.
+#### G14. Ground: what is left — P2 · 🟡 · M
+*Source: roadmap 58.* CC0 ground scans and measured turf and paint colours are
+in. Left: tyre tracks in the grass where a car ran wide, kept for the session
+(the owner's ask, 2026-10-31); worn, dirty run-off paint; long-range variation
+on the verges and raked gravel. Judged on the `g8-*` pairs and a car run wide.
 
 #### G15. Atmosphere: haze and sky — P2 · 🟢 · S
 *Source: roadmap 59.* Valley haze and the clear sky against the reference

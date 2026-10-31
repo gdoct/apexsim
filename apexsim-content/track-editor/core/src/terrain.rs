@@ -159,7 +159,7 @@ const MAX_CANDIDATES: usize = 6;
 
 /// Preview / material color for the ground itself: darker than any grass
 /// band so authored surfaces still read on top of it.
-pub const GROUND_COLOR: [f32; 4] = [0.11, 0.27, 0.10, 1.0];
+pub const GROUND_COLOR: [f32; 4] = [0.17, 0.26, 0.09, 1.0];
 
 /// Grid spacing of the server's ground sidecar, meters.
 pub const GROUND_SIDECAR_CELL_M: f32 = 4.0;

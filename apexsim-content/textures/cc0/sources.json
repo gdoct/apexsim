@@ -24,6 +24,38 @@
       "licence": "CC0-1.0",
       "use": "the driver's gloves",
       "sha256": "6af2f446f9855c641da2a072f128d30965431ffae3306d22d75dbfff99c04646"
+    },
+    {
+      "id": "Grass004",
+      "url": "https://ambientcg.com/get?file=Grass004_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Grass004",
+      "licence": "CC0-1.0",
+      "use": "ground set grass (verges, aprons)",
+      "sha256": "4b63495f459db8481f4d5144e4e9069345c81cf898cc71f2216f5dd3bb344469"
+    },
+    {
+      "id": "Concrete034",
+      "url": "https://ambientcg.com/get?file=Concrete034_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Concrete034",
+      "licence": "CC0-1.0",
+      "use": "ground set concrete",
+      "sha256": "5839d284d94ffb8d2a56df742ec522b13dd311c52dbd42b8fd33f0409ceedb81"
+    },
+    {
+      "id": "Gravel023",
+      "url": "https://ambientcg.com/get?file=Gravel023_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Gravel023",
+      "licence": "CC0-1.0",
+      "use": "ground set gravel (traps)",
+      "sha256": "a00e7fd6246db4ae228473aac14f1bc427bd93f228ebe347a5d6390dd838b0a8"
+    },
+    {
+      "id": "Asphalt033",
+      "url": "https://ambientcg.com/get?file=Asphalt033_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Asphalt033",
+      "licence": "CC0-1.0",
+      "use": "ground set asphalt (road, run-off)",
+      "sha256": "c71801b342dbea594dbdd0bd2ddc0a6d13f813c923fca408b9f5b9ee5e58aba2"
     }
   ]
 }

@@ -4371,11 +4371,15 @@ fn physics_surface_of(kind: crate::ats::SurfaceKind) -> RoadSurface {
 }
 
 pub fn runoff_paint_colours(style: &str) -> Option<[[f32; 4]; 2]> {
-    const RED: [f32; 4] = [0.72, 0.08, 0.06, 1.0];
-    const YELLOW: [f32; 4] = [0.9, 0.72, 0.05, 1.0];
-    const WHITE: [f32; 4] = [0.85, 0.85, 0.82, 1.0];
-    const BLUE: [f32; 4] = [0.05, 0.25, 0.7, 1.0];
-    const GREEN: [f32; 4] = [0.1, 0.5, 0.18, 1.0];
+    // Road paint as it measures on a run-off (linear albedo, after the
+    // client's 0.85 for the marking family): weathered red 0.30, yellow
+    // 0.45, white 0.60. The first values (yellow at 0.77 on screen, above
+    // fresh snow) read as a toy's stripes on the realism sheet.
+    const RED: [f32; 4] = [0.35, 0.053, 0.041, 1.0];
+    const YELLOW: [f32; 4] = [0.53, 0.38, 0.047, 1.0];
+    const WHITE: [f32; 4] = [0.70, 0.70, 0.67, 1.0];
+    const BLUE: [f32; 4] = [0.035, 0.12, 0.35, 1.0];
+    const GREEN: [f32; 4] = [0.06, 0.24, 0.09, 1.0];
     Some(match style {
         "red_yellow" => [RED, YELLOW],
         "red_white" => [RED, WHITE],
