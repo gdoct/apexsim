@@ -718,12 +718,30 @@ See [protocol.md](protocol.md) for the append-only rules.
   engine's attenuation window keeps the road between two lit and the
   exposure no longer stops down on bright pools over dark gaps.
 - `ApplyTrackLevelConditions` (once the track is built and visible): fog
-  by weather, each weather's haze a visibility (`ApexSky::HazeVisibilityM`:
-  sunny 8 km, cloudy 6, overcast 4.5, light rain 3.5, heavy rain 2.2,
-  snow 2.8), so a circuit's far end and horizon soften by day, thickened
-  in a live sky to the server's fog (`SkyNow.visibility_m` ->
-  `FApexSkyNow::VisibilityM`, `ApexSky::FogDensityFor`, never under the
-  weather's haze). A visibility becomes the engine's fog density through
+  by weather, each weather's haze a visibility at the start line's height
+  (`ApexSky::HazeVisibilityM`: sunny 20 km, cloudy 12, overcast 4.5, light
+  rain 3.5, heavy rain 2.2, snow 2.8), so the far hills and the horizon
+  fade while the circuit stays crisp on a fair day, thickened in a live sky
+  by the server's fog (`SkyNow.visibility_m` -> `FApexSkyNow::VisibilityM`,
+  `ApexSky::FogDensityFor`: the fog's extinction beyond the server's clear
+  10 km, `ServerClearVisibilityM`, added to the weather's haze). The haze
+  is the boundary layer's aerosol: its density halves every
+  `HazeHalvingHeightM` (800 m) up from the fog actor at the track's origin
+  (`HazeHeightFalloff`), so a valley under the start (the Nordschleife's
+  floor lies 290 m below it) is barely hazier than the crest; a 50 m
+  halving height once drowned that floor in fifty times the haze. The fog
+  stops at `HazeCutoffCm` (100 km, past any terrain), so it lies on the
+  land and leaves the sky to the menu world's sky atmosphere, whose aerosol
+  the director scales by the weather (`FSkyState::Aerosol`,
+  `ApexSky::AerosolOf`: sunny 2.5, cloudy 3, else 4 times the engine's
+  `MieScatteringScale`, put back for the menu): the clear sky blue
+  overhead and pale toward the horizon. A fog thicker than 1.5 km of sight
+  has no cutoff (`FogCutoffFor`) and covers the sky. The sunny and cloudy
+  fog colours are that pale horizon's, measured off the Nordschleife's
+  from the start at 14:00, so far hills fade into it. Verify runs
+  `g15-haze-<mordschleife|spa|monza>`. One gap: from high over a circuit
+  the atmosphere's planet ground shows as a dark sliver between the
+  terrain's far edge and the horizon (follow-ups, Rendering). A visibility becomes the engine's fog density through
   `ApexSky::FogDensityForVisibility`: the engine takes the density per
   1000 cm in powers of two, so its extinction is density x ln 2 / 10 per
   metre and Koschmieder's 3.912 / extinction gives density = 56.4 /

@@ -13,6 +13,7 @@
 #include "Components/DirectionalLightComponent.h"
 #include "Components/ExponentialHeightFogComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "Components/PointLightComponent.h"
 #include "Components/SpotLightComponent.h"
@@ -2398,6 +2399,25 @@ void AApexRaceDirector::ApplySkyLighting()
 		break;
 	}
 
+	// The atmosphere's aerosol: the weather's haze in the sky itself, paler
+	// toward the horizon (the height fog stops short of the sky).
+	for (TObjectIterator<USkyAtmosphereComponent> It; It; ++It)
+	{
+		USkyAtmosphereComponent* Atmosphere = *It;
+		if (Atmosphere->GetWorld() != World)
+		{
+			continue;
+		}
+		if (!bMenuAerosolSaved)
+		{
+			MenuAtmosphere = Atmosphere;
+			MenuMieScatteringScale = Atmosphere->MieScatteringScale;
+			bMenuAerosolSaved = true;
+		}
+		Atmosphere->SetMieScatteringScale(ApexSky::DefaultMieScatteringScale * Sky.Aerosol);
+		break;
+	}
+
 	// Exposure and grading, over the track level's own volume: its daylight
 	// clamp (10..15 EV) would render a night race black.
 	if (!SkyPostProcess)
@@ -2497,6 +2517,10 @@ void AApexRaceDirector::RestoreMenuEnvironment()
 			Directional->MarkRenderStateDirty();
 		}
 	}
+	if (USkyAtmosphereComponent* Atmosphere = MenuAtmosphere.Get(); Atmosphere && bMenuAerosolSaved)
+	{
+		Atmosphere->SetMieScatteringScale(MenuMieScatteringScale);
+	}
 	// The sky light stays on real-time capture: it is simply correct, in the
 	// menu as much as in the race.
 	if (UWorld* World = GetWorld())
@@ -2592,6 +2616,7 @@ void AApexRaceDirector::ApplyTrackLevelConditions()
 			Fog->SetFogDensity(Sky.FogDensity);
 			Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
 			Fog->SetStartDistance(Sky.FogStartDistanceCm);
+			Fog->SetFogCutoffDistance(ApexSky::FogCutoffFor(Sky.FogDensity));
 			Fog->SetFogInscatteringColor(ApexSky::FogLuminance(Sky));
 			TrackFogs.Add(Fog);
 			continue;
@@ -3019,6 +3044,7 @@ void AApexRaceDirector::UpdateLiveSky(float DeltaSeconds)
 		Fog->SetFogDensity(Sky.FogDensity);
 		Fog->SetFogHeightFalloff(Sky.FogHeightFalloff);
 		Fog->SetStartDistance(Sky.FogStartDistanceCm);
+		Fog->SetFogCutoffDistance(ApexSky::FogCutoffFor(Sky.FogDensity));
 		Fog->SetFogInscatteringColor(ApexSky::FogLuminance(Sky));
 	}
 	if (Sky.LampGlow > 0.0f)

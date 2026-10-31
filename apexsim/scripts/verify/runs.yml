@@ -10747,3 +10747,39 @@ runs:
     shots:
       - {at: 14, label: "pit lane at eye height, down the lane", checks: "G8 pit lane (ref: nurburgring pit lane)", exec: "apexsim.cam.LookAt 203.8 217.8 3.8 86.7 102.9 3.1"}
       - {at: 18, label: "down the straight from above the line", checks: "G8 grandstand straight", exec: "apexsim.cam.LookAt 109.7 102.4 37.2 -42.0 -42.8 -0.9"}
+
+  - id: g15-haze-mordschleife
+    about: "G15. Haze and sky at the Nordschleife, sunny 14:00: the valley bends, the aerial, the horizon from the top"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Mordschleife, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 40, lead: 1, label: "down to a bend in the woods, 8 km (valley floor)", checks: "G15: haze only far away; the near trees and hill crisp (ref: trees 1)", exec: "apexsim.cam.LookAt 3030.4 -3317.9 -262.0 2944.8 -3476.2 -265.0"}
+      - {at: 44, lead: 1, label: "aerial over the forest, 9.6 km", checks: "G15: the forest green from above, not grey (ref: cinematic cam)", exec: "apexsim.cam.LookAt 2119.7 -3664.1 -72.1 1854.6 -3795.2 -213.6"}
+      - {at: 48, lead: 1, label: "in the woods at eye height, 1.5 km", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt 1034.3 603.5 -46.7 1176.7 588.2 -58.5"}
+      - {at: 52, lead: 1, label: "trackside low, 16 km", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt -563.1 -3724.1 -88.0 -580.4 -3842.5 -88.5"}
+      - {at: 56, lead: 1, label: "from high over the start, out over the hills", checks: "G15: far hills fade into a paler horizon; the sky paler low, bluer high", exec: "apexsim.cam.LookAt 0.0 0.0 120.0 2000.0 -2500.0 -150.0"}
+      - {at: 60, lead: 1, label: "the sky over the start", checks: "G15: the clear sky paler at the horizon", exec: "apexsim.cam.LookAt 0.0 0.0 30.0 1500.0 -1500.0 400.0"}
+
+  - id: g15-haze-spa
+    about: "G15. Haze and sky at Spa, sunny 14:00: up the climb, the aerial, the straight"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 30, lead: 1, label: "TV, behind the dip up the climb", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"}
+      - {at: 34, lead: 1, label: "aerial over the dip and the woods", checks: "G15: the hills green, far ones fading", exec: "apexsim.cam.LookAt 117.6 165.2 108.0 433.2 -206.0 -5.4"}
+      - {at: 38, lead: 1, label: "down the straight from above the line", checks: "G15: haze only far away; the sky paler low", exec: "apexsim.cam.LookAt 81.4 -123.7 30.0 -32.1 52.9 2.1"}
+
+  - id: g15-haze-monza
+    about: "G15. Haze and sky at Monza, sunny 14:00: the flat circuit's far end and the sky"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Monzarella, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 30, lead: 1, label: "aerial over the Lesmo woods", checks: "G15: the park green, the far end hazed", exec: "apexsim.cam.LookAt 1146.2 1689.6 132.6 1248.0 1389.6 2.7"}
+      - {at: 34, lead: 1, label: "down the straight from above the line", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt -5.5 -148.7 35.4 5.5 60.8 0.1"}
+      - {at: 38, lead: 1, label: "the sky down the straight", checks: "G15: the clear sky paler at the horizon", exec: "apexsim.cam.LookAt -5.5 -148.7 2.0 5.5 60.8 40.0"}

@@ -328,16 +328,6 @@ textures). Left:
 **Check:** the `g8-*` TV, grandstand and woods pairs before and after; a
 car run wide at a known corner and the marks shot from the TV camera.
 
-### 59. Atmosphere: haze and sky
-
-The sheet's fifth gap: valley haze washes the Nordschleife grey at a few
-hundred metres, and the clear sky is a uniform saturated blue. Height fog
-and distance haze tuned against the reference frames (haze only far
-away on a clear day), the clear sky paler at the horizon.
-
-**Check:** the Nordschleife woods and aerial pairs and every sky in the
-`g8-*` runs before and after.
-
 ### 60. Car paint
 
 The sheet's sixth gap: clean, plastic-looking paint and one livery per

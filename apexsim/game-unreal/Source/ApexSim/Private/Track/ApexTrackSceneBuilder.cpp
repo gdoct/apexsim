@@ -2552,9 +2552,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 		// A fair day's haze (ApexSky::HazeVisibilityM); the race director
 		// sets the weather's own once the sky is known.
 		FogComponent->SetFogDensity(ApexSky::FogDensityForVisibility(ApexSky::HazeVisibilityM(EApexWeather::Sunny)));
-		FogComponent->SetFogHeightFalloff(0.2f);
+		FogComponent->SetFogHeightFalloff(ApexSky::HazeHeightFalloff);
 		// Keep the first ~30 m crisp; the haze belongs to the distance.
 		FogComponent->SetStartDistance(3000.0f);
+		FogComponent->SetFogCutoffDistance(ApexSky::HazeCutoffCm);
 		OutActors.Add(Fog);
 	}
 

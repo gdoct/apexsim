@@ -27,6 +27,7 @@ class UMaterialParameterCollection;
 class ADirectionalLight;
 class APostProcessVolume;
 class ASkyLight;
+class USkyAtmosphereComponent;
 class UApexMenuFlowSubsystem;
 class UApexNetSubsystem;
 class UApexSettingsSubsystem;
@@ -1368,4 +1369,8 @@ private:
 	FLinearColor MenuSunColor = FLinearColor::White;
 	float MenuSunIntensity = 10.0f;
 	bool bMenuSunSaved = false;
+	/** The menu world's sky atmosphere and its aerosol, put back on leaving. */
+	TWeakObjectPtr<USkyAtmosphereComponent> MenuAtmosphere;
+	float MenuMieScatteringScale = ApexSky::DefaultMieScatteringScale;
+	bool bMenuAerosolSaved = false;
 };

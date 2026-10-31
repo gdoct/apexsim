@@ -193,6 +193,28 @@ namespace ApexSky
 		return Out;
 	}
 
+	/**
+	 * How high the haze's density halves, m: the aerosol of the boundary
+	 * layer, about a kilometre deep. The fog stands at the track's origin
+	 * (the start line); 50 m halved it so fast that a valley 290 m under
+	 * the Nordschleife's start sat in fifty times the haze and drew grey.
+	 */
+	inline constexpr float HazeHalvingHeightM = 800.0f;
+
+	/** The engine's height falloff for that: halving every 1000 / falloff cm. */
+	inline constexpr float HazeHeightFalloff = 1000.0f / (HazeHalvingHeightM * 100.0f);
+
+	/**
+	 * Past this the height fog draws nothing, cm: beyond any terrain, so it
+	 * lies on the land and leaves the sky to the atmosphere, whose own
+	 * aerosol (`FSkyState::Aerosol`) pales the horizon. A kilometre-deep
+	 * haze drawn over the sky as well dulled the whole dome grey.
+	 */
+	inline constexpr float HazeCutoffCm = 100000.0f * 100.0f;
+
+	/** The engine's default aerosol scattering in the sky atmosphere, per km. */
+	inline constexpr float DefaultMieScatteringScale = 0.003996f;
+
 	/** Everything the director sets, from one set of conditions. */
 	struct FSkyState
 	{
@@ -214,9 +236,9 @@ namespace ApexSky
 
 		/** Exponential height fog. */
 		float FogDensity = 0.0015f;
-		float FogHeightFalloff = 0.2f;
+		float FogHeightFalloff = HazeHeightFalloff;
 		float FogStartDistanceCm = 3000.0f;
-		FLinearColor FogColor = FLinearColor(0.45f, 0.52f, 0.62f);
+		FLinearColor FogColor = FLinearColor(0.80f, 0.75f, 0.64f);
 
 		/** Auto-exposure clamp and bias, EV100. */
 		float ExposureMinEv = 10.0f;
@@ -245,6 +267,12 @@ namespace ApexSky
 		 * hides it from overcast on), so a clear day is not a flat blue.
 		 */
 		float CirrusVeil = 0.0f;
+		/**
+		 * The sky atmosphere's aerosol as a multiple of the engine's default
+		 * (`AerosolOf`): more of it pales the sky toward the horizon and
+		 * lights the far hills' haze.
+		 */
+		float Aerosol = 1.0f;
 		/** The road's material roughness; 0.9 is the baked dry value. */
 		float RoadRoughness = 0.9f;
 		/** How far the road has gone from its baked dry look toward the wet
@@ -297,22 +325,22 @@ namespace ApexSky
 	}
 
 	/**
-	 * Each weather's own haze as the visibility it leaves, m: a fair day's
-	 * 8 km softens a circuit's far end and its horizon (a far grandstand at
-	 * a kilometre loses about a third of its contrast); rain and snow close
-	 * it in.
+	 * Each weather's own haze as the visibility it leaves at the start
+	 * line's height, m: a fair day's 20 km leaves the circuit crisp and
+	 * fades only the far hills and the horizon (a grandstand at a kilometre
+	 * loses a sixth of its contrast); rain and snow close it in.
 	 */
 	inline float HazeVisibilityM(EApexWeather Weather)
 	{
 		switch (Weather)
 		{
-		case EApexWeather::Sunny:     return 8000.0f;
-		case EApexWeather::Cloudy:    return 6000.0f;
+		case EApexWeather::Sunny:     return 20000.0f;
+		case EApexWeather::Cloudy:    return 12000.0f;
 		case EApexWeather::Overcast:  return 4500.0f;
 		case EApexWeather::LightRain: return 3500.0f;
 		case EApexWeather::HeavyRain: return 2200.0f;
 		case EApexWeather::Snow:      return 2800.0f;
-		default:                      return 8000.0f;
+		default:                      return 20000.0f;
 		}
 	}
 
@@ -324,6 +352,21 @@ namespace ApexSky
 		case EApexWeather::Sunny:  return 0.7f;
 		case EApexWeather::Cloudy: return 0.35f;
 		default:                   return 0.0f;
+		}
+	}
+
+	/**
+	 * The aerosol each weather carries (`FSkyState::Aerosol`): a fair day's
+	 * summer haze pales the clear sky low down where the engine's default
+	 * left it a saturated blue to the horizon; moister air carries more.
+	 */
+	inline float AerosolOf(EApexWeather Weather)
+	{
+		switch (Weather)
+		{
+		case EApexWeather::Sunny:  return 2.5f;
+		case EApexWeather::Cloudy: return 3.0f;
+		default:                   return 4.0f;
 		}
 	}
 
@@ -438,14 +481,18 @@ namespace ApexSky
 		// The cloud itself, for the dome.
 		S.CloudCover = CloudCoverOf(C.Weather);
 		S.CirrusVeil = CirrusVeilOf(C.Weather);
+		S.Aerosol = AerosolOf(C.Weather);
 		CloudLook(Elev, S.CloudCover, S.CloudColor, S.CloudBrightness);
 
 		// Fog: thicker with the weather, its colour the sky's, dark at night.
+		// A fair sky's is the pale horizon the aerosol draws (measured off
+		// the Nordschleife's from the start, 14:00), so the far hills fade
+		// into it rather than into a blue band under it.
 		S.FogDensity = FogDensityForVisibility(HazeVisibilityM(C.Weather));
 		switch (C.Weather)
 		{
-		case EApexWeather::Sunny:     S.FogColor = FLinearColor(0.45f, 0.52f, 0.62f); break;
-		case EApexWeather::Cloudy:    S.FogColor = FLinearColor(0.50f, 0.54f, 0.60f); break;
+		case EApexWeather::Sunny:     S.FogColor = FLinearColor(0.80f, 0.75f, 0.64f); break;
+		case EApexWeather::Cloudy:    S.FogColor = FLinearColor(0.78f, 0.75f, 0.68f); break;
 		case EApexWeather::Overcast:  S.FogColor = FLinearColor(0.52f, 0.54f, 0.57f); break;
 		case EApexWeather::LightRain: S.FogColor = FLinearColor(0.46f, 0.48f, 0.51f); break;
 		case EApexWeather::HeavyRain: S.FogColor = FLinearColor(0.40f, 0.42f, 0.45f); break;
@@ -454,7 +501,7 @@ namespace ApexSky
 		default: break;
 		}
 		S.FogStartDistanceCm = bFalling ? 1000.0f : 3000.0f;
-		S.FogHeightFalloff = 0.2f;
+		S.FogHeightFalloff = HazeHeightFalloff;
 		S.FogColor *= FMath::Lerp(0.012f, 1.0f, Day);
 
 		// Exposure: the baked daylight clamp (10..15 EV) would hold a night
@@ -536,6 +583,7 @@ namespace ApexSky
 		S.SnowCover = FMath::Lerp(A.SnowCover, B.SnowCover, T);
 		S.CloudCover = FMath::Lerp(A.CloudCover, B.CloudCover, T);
 		S.CirrusVeil = FMath::Lerp(A.CirrusVeil, B.CirrusVeil, T);
+		S.Aerosol = FMath::Lerp(A.Aerosol, B.Aerosol, T);
 		S.CloudColor = FMath::Lerp(A.CloudColor, B.CloudColor, T);
 		S.CloudBrightness = FMath::Lerp(A.CloudBrightness, B.CloudBrightness, T);
 		S.LampGlow = FMath::Lerp(A.LampGlow, B.LampGlow, T);
@@ -552,18 +600,33 @@ namespace ApexSky
 	 * fixed sky always drew it, and the sheen goes as the road dries. The
 	 * clock is read to the second (the director re-derives on a minute).
 	 */
+	/** The server's visibility in air without fog, m (`climate::CLEAR_VISIBILITY_M`). */
+	inline constexpr float ServerClearVisibilityM = 10000.0f;
+
 	/**
-	 * The height fog's density for the server's visibility through fog
-	 * (`FogDensityForVisibility`), never thinner than the weather's own
-	 * haze; 0 (not said) or a clear 10 km keeps the haze.
+	 * The height fog's density for the server's visibility through fog: the
+	 * weather's own haze plus what the fog takes beyond the server's clear
+	 * air (extinctions add, `FogDensityForVisibility`); 0 (not said) or a
+	 * clear 10 km keeps the haze.
 	 */
+	/**
+	 * The fog's cutoff for a density, cm (`HazeCutoffCm`): a haze stops short
+	 * of the sky; a fog thicker than 1.5 km of sight has none, and covers the
+	 * sky as a real one does.
+	 */
+	inline float FogCutoffFor(float FogDensity)
+	{
+		return FogDensity > FogDensityForVisibility(1500.0f) ? 0.0f : HazeCutoffCm;
+	}
+
 	inline float FogDensityFor(float WeatherDensity, int32 VisibilityM)
 	{
 		if (VisibilityM <= 0)
 		{
 			return WeatherDensity;
 		}
-		return FMath::Max(WeatherDensity, FogDensityForVisibility(static_cast<float>(VisibilityM)));
+		const float Fog = FogDensityForVisibility(static_cast<float>(VisibilityM)) - FogDensityForVisibility(ServerClearVisibilityM);
+		return WeatherDensity + FMath::Max(Fog, 0.0f);
 	}
 
 	inline FSkyState DeriveLive(const FApexSessionConditions& Session, const FApexSkyNow& Now, const FSkySite& Site = FSkySite())

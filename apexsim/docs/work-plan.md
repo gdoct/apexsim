@@ -52,7 +52,6 @@ takes it up (— : no step, taken opportunistically).
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: tyre tracks in the grass, worn run-off paint (roadmap 58) | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
-| G15 | Atmosphere: haze and sky (roadmap 59) | Rendering | P2 | 🟢 | S | 2 |
 | G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
 | G17 | Car generators per car; GT3 and rally bodies with character (roadmap 61) | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
@@ -80,7 +79,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
    G14, G11 family by family with C5's columns alongside (C5 places the
-   kit, G11 makes it look real), G15, G16; G10 beside them. G17 after
+   kit, G11 makes it look real), G16; G10 beside them. G17 after
    G13 and G16 land (they touch the same car builds); its step 1 (the
    per-car split, byte-identical output) runs unattended overnight. G4 and N10
    checked together on the RTX machine.
@@ -184,10 +183,6 @@ and harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
 in. Left: tyre tracks in the grass where a car ran wide, kept for the session
 (the owner's ask, 2026-10-31); worn, dirty run-off paint; long-range variation
 on the verges and raked gravel. Judged on the `g8-*` pairs and a car run wide.
-
-#### G15. Atmosphere: haze and sky — P2 · 🟢 · S
-*Source: roadmap 59.* Valley haze and the clear sky against the reference
-frames.
 
 #### G16. Car paint — P3 · 🟢 · M
 *Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a
