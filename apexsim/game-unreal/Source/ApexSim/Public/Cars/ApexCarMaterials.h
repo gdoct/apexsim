@@ -18,7 +18,11 @@ struct FApexGlbMaterial;
  * the livery, ghost and brake-light code sets:
  *
  *  - `BaseColorFactor` (linear RGBA), times `BaseColorTexture` (sRGB, white by default);
- *  - `MetallicFactor`, `RoughnessFactor`;
+ *  - `MetallicFactor`, `RoughnessFactor`, times `MetallicRoughnessTexture`'s
+ *    B and G as glTF packs them (a linear texture; white by default);
+ *  - `NormalTexture` (glTF `normalTexture`, tangent space) at `NormalScale`
+ *    (0 by default: the runtime sets the GLB's scale only with a map),
+ *    under the damage graph's dents;
  *  - `EmissiveFactor` (linear RGB). `KHR_materials_emissive_strength` is
  *    not drawn: Interchange's parent ignored it too, and the brake and tail
  *    lights scale this colour themselves;
@@ -70,6 +74,9 @@ namespace ApexCarMaterials
 	inline const TCHAR* const BaseColorTexture = TEXT("BaseColorTexture");
 	inline const TCHAR* const MetallicFactor = TEXT("MetallicFactor");
 	inline const TCHAR* const RoughnessFactor = TEXT("RoughnessFactor");
+	inline const TCHAR* const MetallicRoughnessTexture = TEXT("MetallicRoughnessTexture");
+	inline const TCHAR* const NormalTexture = TEXT("NormalTexture");
+	inline const TCHAR* const NormalScale = TEXT("NormalScale");
 	inline const TCHAR* const EmissiveFactor = TEXT("EmissiveFactor");
 	inline const TCHAR* const AlphaCutoff = TEXT("AlphaCutoff");
 	inline const TCHAR* const ClearCoatFactor = TEXT("ClearCoatFactor");

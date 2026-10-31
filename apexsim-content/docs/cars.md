@@ -168,7 +168,11 @@ Slot names are the glTF material names; keep them when re-exporting.
 | `car_trim`, `car_interior`, `car_headlight`, `car_rainlight`, `car_display`, ... | authored look only; nothing at runtime changes them |
 
 The car parents ignore `KHR_materials_emissive_strength`; light levels come
-from `EmissiveFactor`.
+from `EmissiveFactor`. They draw a material's `baseColorTexture`,
+`metallicRoughnessTexture` (B metallic, G roughness, times the factors) and
+`normalTexture` at its `scale` (both on `TEXCOORD_0`, loaded as linear
+textures), so a slot can carry a CC0 scan's maps; a slot without them shades
+as before.
 
 ## Runtime loading
 

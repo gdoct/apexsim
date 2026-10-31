@@ -793,7 +793,8 @@ TArray<UTexture2D*> UApexCarContentSubsystem::ModelTextures(const FString& Key, 
 		// body's 2048 map again, and two cars may share a decal sheet.
 		const FApexGlbImage& Image = Model.Images[i];
 		const FString ImageKey = Image.ContentHash != 0
-			? FString::Printf(TEXT("#%016llx_%dx%d_%d"), Image.ContentHash, Image.Width, Image.Height, int32(Image.Format))
+			? FString::Printf(TEXT("#%016llx_%dx%d_%d%s"), Image.ContentHash, Image.Width, Image.Height, int32(Image.Format),
+				  Image.bLinear ? TEXT("_linear") : TEXT(""))
 			: FString::Printf(TEXT("%s#%d"), *Key, i);
 		if (const TObjectPtr<UTexture2D>* Existing = EmbeddedImages.Find(ImageKey))
 		{
@@ -858,7 +859,8 @@ UTexture2D* UApexCarContentSubsystem::MakeTexture(const FApexGlbImage& Image, co
 		FMemory::Memcpy(Data, Pixels.GetData(), Pixels.Num());
 		Mip->BulkData.Unlock();
 	}
-	Texture->SRGB = true;
+	// A normal or metallic-roughness map is data, read raw.
+	Texture->SRGB = !Image.bLinear;
 	Texture->AddressX = TA_Wrap;
 	Texture->AddressY = TA_Wrap;
 	Texture->UpdateResource();
@@ -945,6 +947,15 @@ UStaticMesh* UApexCarContentSubsystem::BuildModel(const FString& Path, const FAp
 			if (Textures.IsValidIndex(Source.BaseColorImage) && Textures[Source.BaseColorImage])
 			{
 				Mid->SetTextureParameterValue(ApexCarMaterials::BaseColorTexture, Textures[Source.BaseColorImage]);
+			}
+			if (Textures.IsValidIndex(Source.MetallicRoughnessImage) && Textures[Source.MetallicRoughnessImage])
+			{
+				Mid->SetTextureParameterValue(ApexCarMaterials::MetallicRoughnessTexture, Textures[Source.MetallicRoughnessImage]);
+			}
+			if (Textures.IsValidIndex(Source.NormalImage) && Textures[Source.NormalImage])
+			{
+				Mid->SetTextureParameterValue(ApexCarMaterials::NormalTexture, Textures[Source.NormalImage]);
+				Mid->SetScalarParameterValue(ApexCarMaterials::NormalScale, Source.NormalScale);
 			}
 			Mid->SetScalarParameterValue(ApexCarMaterials::MetallicFactor, Source.Metallic);
 			Mid->SetScalarParameterValue(ApexCarMaterials::RoughnessFactor, Source.Roughness);

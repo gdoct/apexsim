@@ -174,8 +174,8 @@ car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
 #### G13. Cockpit interior materials and lighting — P2 · 🟢 · M
-*Source: roadmap 57.* In order: metric UVs on carlib's parts, normal and
-roughness maps in the car material parents, inner liners on doors and
+*Source: roadmap 57.* The car parents take normal and metallic-roughness
+maps. Left, in order: metric UVs on carlib's parts, inner liners on doors and
 pillars, then CC0 suede, carbon and satin paint at measured albedos (the
 sources are pinned: `tools/cc0.py`). Judged on the `g8-*` cockpit pairs.
 

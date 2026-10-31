@@ -298,9 +298,11 @@ try (CC0 suede, carbon twill on the panels) showed what has to come first:
 
 - **Metric UVs** on carlib's boxes, plates and bars, so a tiling texture has
   a real scale (the twill came out as a basket weave: one tile per face).
-- **Normal and roughness maps** in the car material parents (today base
-  colour only), so suede, carbon and paint read by their surface, not their
-  colour (shared with package 53's gloves).
+- The car material parents draw a GLB's normal and metallic-roughness maps
+  ([cars.md](../../apexsim-content/docs/cars.md), material slots); no
+  generated car carries any yet. Their normal input defaults to a scale of
+  0, because the default flat map sampled as a visible bump on every panel
+  (not understood; check it with the first car that brings a map).
 - **Inner liners** on the doors and A-pillars, so the paint is not seen from
   the seat.
 - Then the materials: black suede on the dash top and headliner, carbon at

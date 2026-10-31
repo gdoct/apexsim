@@ -1247,13 +1247,36 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 			return bScuffs ? G.Lerp(Clean, Worn, Damage.Scuff) : Clean;
 		};
 
+		// glTF's metallic-roughness texture (B metal, G roughness) times the
+		// factors, and its tangent-space normal map at `NormalScale`. A
+		// runtime car's data images are linear textures, which read raw
+		// whatever the sampler type; the defaults (white, flat) leave a car
+		// without them as it was.
+		UMaterialExpressionTextureSampleParameter2D* Packed = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+		Packed->ParameterName = ApexCarMaterials::MetallicRoughnessTexture;
+		Packed->Texture = White;
+		Packed->SamplerType = SAMPLERTYPE_Color;
+		UMaterialExpression* Metal = G.Mul(CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f), G.Mask(Packed, false, false, true));
+		UMaterialExpression* Rough = G.Mul(CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f), G.Mask(Packed, false, true, false));
+		UMaterialExpressionTextureSampleParameter2D* NormalMap = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
+		NormalMap->ParameterName = ApexCarMaterials::NormalTexture;
+		NormalMap->Texture = LoadObject<UTexture>(nullptr, TEXT("/Engine/EngineMaterials/DefaultNormal.DefaultNormal"));
+		NormalMap->SamplerType = SAMPLERTYPE_Normal;
+		// The map's slope at its scale over the dent's facet (a whiteout
+		// blend). The scale is 0 until a car's GLB brings a normal map, so a
+		// car without one shades by the dents alone, whatever the default
+		// texture samples to.
+		UMaterialExpression* Slope = G.Mul(G.Mask(NormalMap, true, true, false), CarScalar(Parent, ApexCarMaterials::NormalScale, 0.0f));
+		UMaterialExpression* Detail = G.Append(G.Add(G.Mask(Damage.Normal, true, true, false), Slope),
+			G.Mul(G.Mask(Damage.Normal, false, false, true), G.Mask(NormalMap, false, false, true)));
+
 		UMaterialEditorOnlyData* EditorOnly = Parent->GetEditorOnlyData();
 		EditorOnly->BaseColor.Expression = Scuffed(BaseColor, Damage.ScuffColor);
-		EditorOnly->Metallic.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f), G.C(0.3f));
-		EditorOnly->Roughness.Expression = Scuffed(CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f), G.C(0.55f));
+		EditorOnly->Metallic.Expression = Scuffed(Metal, G.C(0.3f));
+		EditorOnly->Roughness.Expression = Scuffed(Rough, G.C(0.55f));
 		EditorOnly->EmissiveColor.Expression = CarMask(Parent, Emissive, true, true, true, false);
 		EditorOnly->WorldPositionOffset.Expression = Damage.Offset;
-		EditorOnly->Normal.Expression = Damage.Normal;
+		EditorOnly->Normal.Expression = G.Normalize(Detail);
 		Parent->TwoSided = true;
 
 		switch (Kind)
@@ -2352,12 +2375,15 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 					}
 				}
 			}
+			// And one from before the normal and metallic-roughness maps.
+			float Scale = 0.0f;
 			if (!Existing
-				|| (bCracks && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent)))
+				|| (bCracks && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent)
+					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::NormalScale), Scale)))
 			{
 				continue;
 			}
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph or no cracks; baking it again"), Car.Key);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph, cracks or normal map; baking it again"), Car.Key);
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))

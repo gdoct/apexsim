@@ -432,6 +432,29 @@ namespace
 								Out.Images[Image].bUsed = true;
 							}
 						}
+						if (const FJsonObject* Texture = JsonObjectField(*Pbr, TEXT("metallicRoughnessTexture")))
+						{
+							const FJsonObject* TextureDef = JsonObjectAt(Textures, JsonInt(*Texture, TEXT("index"), INDEX_NONE));
+							const int32 Image = TextureDef ? JsonInt(*TextureDef, TEXT("source"), INDEX_NONE) : INDEX_NONE;
+							if (Out.Images.IsValidIndex(Image) && JsonInt(*Texture, TEXT("texCoord"), 0) == 0)
+							{
+								Material.MetallicRoughnessImage = Image;
+								Out.Images[Image].bUsed = true;
+								Out.Images[Image].bLinear = true;
+							}
+						}
+					}
+					if (const FJsonObject* Texture = JsonObjectField(*Source, TEXT("normalTexture")))
+					{
+						const FJsonObject* TextureDef = JsonObjectAt(Textures, JsonInt(*Texture, TEXT("index"), INDEX_NONE));
+						const int32 Image = TextureDef ? JsonInt(*TextureDef, TEXT("source"), INDEX_NONE) : INDEX_NONE;
+						if (Out.Images.IsValidIndex(Image) && JsonInt(*Texture, TEXT("texCoord"), 0) == 0)
+						{
+							Material.NormalImage = Image;
+							Material.NormalScale = static_cast<float>(JsonNumber(*Texture, TEXT("scale"), 1.0));
+							Out.Images[Image].bUsed = true;
+							Out.Images[Image].bLinear = true;
+						}
 					}
 					Material.Emissive = JsonColour(*Source, TEXT("emissiveFactor"), 3, FLinearColor::Black);
 					const FString AlphaMode = JsonString(*Source, TEXT("alphaMode"));

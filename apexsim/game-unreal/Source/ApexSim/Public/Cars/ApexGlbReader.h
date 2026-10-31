@@ -27,6 +27,10 @@ struct FApexGlbMaterial
 	int32 BaseColorImage = INDEX_NONE;
 	float Metallic = 1.0f;
 	float Roughness = 1.0f;
+	/** `metallicRoughnessTexture` (B metallic, G roughness) and `normalTexture` with its `scale`; INDEX_NONE for none. */
+	int32 MetallicRoughnessImage = INDEX_NONE;
+	int32 NormalImage = INDEX_NONE;
+	float NormalScale = 1.0f;
 	FLinearColor Emissive = FLinearColor::Black;
 	/** `KHR_materials_emissive_strength`; kept for the log, not drawn (see ApexCarMaterials). */
 	float EmissiveStrength = 1.0f;
@@ -52,6 +56,8 @@ struct FApexGlbImage
 	 * compresses to BC1 at half the size of BC3.
 	 */
 	bool bAlphaUsed = false;
+	/** Data, not colour (a normal or metallic-roughness map): made a linear texture. */
+	bool bLinear = false;
 	int32 Width = 0;
 	int32 Height = 0;
 	/** What `Encoded` hashed to (CityHash64), so an image two GLBs embed is made into one texture; 0 when unknown. */
