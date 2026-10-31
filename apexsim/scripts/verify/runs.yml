@@ -10801,3 +10801,17 @@ runs:
     args: [-ApexOpenSettings=6, -ApexSettingsTab=3]
     shots:
       - {at: 14, label: "Camera tab", checks: "G10: Camera vibration row reads 30 %, the column fits"}
+
+  - id: g14-grass-marks
+    about: "G14. Tyre marks in the grass at Spa: a GT3 field's first laps, the camera over the newest mark every half minute"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:13, -ApexLaps=4, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=tv, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 60, lead: 1, label: "the newest mark (a)", checks: "G14: darker flattened grass in a tyre's print, earth where it slid; on the ground, no floating, no seams", exec: "apexsim.road.GrassMarksLook"}
+      - {at: 90, lead: 1, label: "the newest mark (b)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook"}
+      - {at: 120, lead: 1, label: "the newest mark (c)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook"}
+      - {at: 150, lead: 1, label: "the newest mark, from further", checks: "G14: marks in the grass from a TV distance", exec: "apexsim.road.GrassMarksLook 18 8"}
+      - {at: 180, lead: 1, label: "the newest mark (d)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook 4 1.5"}
+      - {at: 210, lead: 1, label: "the newest mark (e)", checks: "G14: marks in the grass", exec: "apexsim.road.GrassMarksLook"}

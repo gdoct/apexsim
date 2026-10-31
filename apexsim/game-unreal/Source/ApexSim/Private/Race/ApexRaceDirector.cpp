@@ -1659,6 +1659,7 @@ void AApexRaceDirector::Tick(float DeltaSeconds)
 	ApplyTrackLevelConditions();
 	UpdateRaceReveal(DeltaSeconds);
 	UpdateRoadState();
+	UpdateGrassMarks(DeltaSeconds);
 	UpdatePitBoxMarker();
 	UpdateMarshals(DeltaSeconds);
 	UpdateStreetLights(DeltaSeconds, /*bForce*/ false);

@@ -50,7 +50,7 @@ takes it up (— : no step, taken opportunistically).
 | G9 | Driver's hands: real glove and sleeve meshes, hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
-| G14 | Ground: tyre tracks in the grass, worn run-off paint (roadmap 58) | Rendering | P2 | 🟡 | M | 2 |
+| G14 | Ground: worn run-off paint, verge variation (roadmap 58); grass tyre tracks to judge | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
 | G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
 | G17 | Car generators per car; GT3 and rally bodies with character (roadmap 61) | Content | P2 | 🟡 | L | 2 |
@@ -180,9 +180,10 @@ and harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
 
 #### G14. Ground: what is left — P2 · 🟡 · M
 *Source: roadmap 58.* CC0 ground scans and measured turf and paint colours are
-in. Left: tyre tracks in the grass where a car ran wide, kept for the session
-(the owner's ask, 2026-10-31); worn, dirty run-off paint; long-range variation
-on the verges and raked gravel. Judged on the `g8-*` pairs and a car run wide.
+in; tyre tracks in the grass where a car ran wide, kept for the session, are
+built ([game/client.md](game/client.md), `g14-grass-marks`), their look to
+judge. Left: worn, dirty run-off paint; long-range variation on the verges
+and raked gravel. Judged on the `g8-*` pairs.
 
 #### G16. Car paint — P3 · 🟢 · M
 *Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a

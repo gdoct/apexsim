@@ -70,6 +70,17 @@ struct FApexTrackMaterial
 			|| Family == TEXT("pit_lane") || Family == TEXT("decal")
 			|| (Family == TEXT("surface") && Key.StartsWith(TEXT("surface_")));
 	}
+
+	/**
+	 * Whether a tyre leaves its marks in this surface (`ApexGrassMarks`):
+	 * the terrain and the grass bands, on a circuit whose ground is grass
+	 * (a desert's `ground_set` is sand, an imported circuit's is its own).
+	 */
+	bool TakesTyreMarks() const
+	{
+		return Family == TEXT("surface") && (Key == TEXT("ground") || Key == TEXT("surface_grass"))
+			&& (GroundSet.IsEmpty() || GroundSet == TEXT("grass"));
+	}
 };
 
 /** One bakeable static mesh. */

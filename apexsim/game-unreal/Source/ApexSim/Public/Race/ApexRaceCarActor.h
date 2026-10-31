@@ -130,6 +130,12 @@ public:
 	/** Shares of the four wheels in gravel and in sand (a sand trap or the desert floor), from telemetry's ground. */
 	void GetGroundShares(float& OutGravel, float& OutSand) const;
 
+	/** Where a wheel (0 FL .. 3 RR) meets the ground, world cm; false without wheels. */
+	bool GetContactPatch(int32 Wheel, FVector& OutWorld) const
+	{
+		return Wheel >= 0 && Wheel < 4 && Wheels.ContactPatch(static_cast<ApexWheels::EWheel>(Wheel), OutWorld);
+	}
+
 	/** The driver's component when the car has one, for tinting. */
 	UStaticMeshComponent* GetDriverComponent() const { return Driver.HasDriver() ? Driver.GetComponent() : nullptr; }
 

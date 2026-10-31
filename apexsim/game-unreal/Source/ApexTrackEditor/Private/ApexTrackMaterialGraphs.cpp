@@ -796,6 +796,8 @@ namespace
 		EditorOnly->OpacityMask.Connect(4, Sample);
 		Parent->BlendMode = BLEND_Masked;
 		Parent->OpacityMaskClipValue = 0.4f;
+		// The tyre marks in the grass are instances of it (`AApexGrassMarksActor`).
+		Parent->bUsedWithInstancedStaticMeshes = true;
 		Parent->PostEditChange();
 	}
 
@@ -2325,7 +2327,15 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 			}
 			++Baked;
 		}
-		if (bForce || !ParentExists(ApexTrackMaterials::DecalName))
+		const UMaterial* Decal = ParentExists(ApexTrackMaterials::DecalName)
+			? LoadObject<UMaterial>(nullptr, *ApexTrackMaterials::ObjectPath(ApexTrackMaterials::DecalName))
+			: nullptr;
+		if (Decal && !Decal->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes))
+		{
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before the grass marks (no instanced use); baking it again"),
+				ApexTrackMaterials::DecalName);
+		}
+		if (bForce || !Decal || !Decal->GetUsageByFlag(MATUSAGE_InstancedStaticMeshes))
 		{
 			if (!BakeOne(ApexTrackMaterials::DecalName, [Placeholder](UMaterial* M) { BuildDecal(M, Placeholder); }, OutError))
 			{

@@ -282,17 +282,11 @@ and the turf and run-off paint sit at measured albedos
 ([track-pipeline.md](../../apexsim-content/docs/track-pipeline.md), Ground
 textures). Left:
 
-- **Tracks in the grass**: a car that runs wide leaves its tyre marks in
-  the verge, flattened and darker grass with earth showing where it spun or
-  braked, that stay for the session (the server already knows every wheel
-  off the road; the client draws the marks into a per-circuit mask the
-  ground material reads, like the road's rubber).
 - Run-off paint worn and dirty: tyre marks across it, faded at the edges.
 - Macro variation over long distances (cut stripes on the verges, dry
   patches) and a gravel trap's raked lines.
 
-**Check:** the `g8-*` TV, grandstand and woods pairs before and after; a
-car run wide at a known corner and the marks shot from the TV camera.
+**Check:** the `g8-*` TV, grandstand and woods pairs before and after.
 
 ### 60. Car paint
 

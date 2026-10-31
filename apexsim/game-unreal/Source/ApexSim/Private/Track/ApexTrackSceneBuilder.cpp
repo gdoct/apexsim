@@ -18,6 +18,7 @@
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
 #include "Misc/PackageName.h"
+#include "Race/ApexGrassMarks.h"
 #include "Race/ApexPropActors.h"
 #include "Race/ApexSkyModel.h"
 #include "StaticMeshAttributes.h"
@@ -2161,6 +2162,12 @@ void FApexTrackSceneBuilder::SpawnActors(
 		{
 			Component->ComponentTags.Add(kHorizonTag);
 		}
+		// What a tyre run wide marks (the trace finds the collision beside it).
+		const bool bTakesMarks = Material && Material->TakesTyreMarks();
+		if (bTakesMarks)
+		{
+			Component->ComponentTags.Add(ApexGrassMarks::GrassTag());
+		}
 		ApplyTrackShadowCasting(*Component);
 		if (Material && Material->IsScenery())
 		{
@@ -2175,6 +2182,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 				NewObject<UApexTrackCollisionComponent>(Actor, TEXT("Collision"), RF_Transactional);
 			Collision->CreationMethod = EComponentCreationMethod::Instance;
 			Collision->ComponentTags.Add(TrackMeshTag);
+			if (bTakesMarks)
+			{
+				Collision->ComponentTags.Add(ApexGrassMarks::GrassTag());
+			}
 			Collision->SetupAttachment(Component);
 			Actor->AddInstanceComponent(Collision);
 			Collision->RegisterComponent();

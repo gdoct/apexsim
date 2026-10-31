@@ -34,6 +34,7 @@ class UApexNetSubsystem;
 class UApexSettingsSubsystem;
 class UCameraComponent;
 class UMaterialInstanceDynamic;
+class AApexGrassMarksActor;
 class UExponentialHeightFogComponent;
 class UInstancedStaticMeshComponent;
 class UStaticMeshComponent;
@@ -1251,6 +1252,8 @@ private:
 	void PushRoadStateParameters();
 	/** Lay the debris pieces on the road (an instanced shard each). */
 	void UpdateRoadDebris();
+	/** The tyre marks in the grass (`AApexGrassMarksActor`), sampled once the track is in the world. */
+	void UpdateGrassMarks(float DeltaSeconds);
 	/** Drop the textures, the materials and the debris (the track went back). */
 	void ForgetRoadStateOnTrack();
 	/** Whether the road's materials draw the road state now (a slice has arrived). */
@@ -1290,6 +1293,9 @@ private:
 	TObjectPtr<UInstancedStaticMeshComponent> RoadDebris;
 	/** The pieces have been laid on the track on show (cleared when it goes). */
 	bool bRoadDebrisLaid = false;
+	/** The session's tyre marks in the grass; cleared when the track goes. */
+	UPROPERTY(Transient)
+	TObjectPtr<AApexGrassMarksActor> GrassMarks;
 
 	// --- Marshals and recovery (ApexRaceDirectorMarshals.cpp) ---
 

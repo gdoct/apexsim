@@ -1141,6 +1141,34 @@ against a `RacingLine` of a different point count (another track's). Without
 the library the line is the server's alone. Every 30 s the log has a line
 with the windows planned, the repaints and the most points one moved.
 
+## Tyre marks in the grass (`Race/ApexGrassMarks.h`)
+
+A car that runs wide leaves its tyres' print in the grass for the session:
+flattened, darker grass, and torn earth where it slid past 14 degrees or
+braked harder than 8 m/s² (`ApexGrassMarks::TearsEarth`). The server's
+ground under a tyre names gravel and sand only (grass reads as the road),
+so the client finds grass itself. `AApexGrassMarksActor`, spawned by the
+race director once the track is in the world (`UpdateGrassMarks`), traces
+under every car's four contact patches twenty times a second onto world
+static; a hit counts when the component carries `ApexGrassMarks::GrassTag()`
+(the scene builder sets it on the terrain and the grass bands of a circuit
+whose ground is grass, `FApexTrackMaterial::TakesTyreMarks`: not a desert's
+sand, not an imported circuit), lies within 20 cm of the patch (the terrain
+runs on under a road the trace passed through) and faces up (a normal's Z
+from 0.82: the carved face beside a road is no verge). Each wheel keeps a
+trail and lays a mark every 70 cm (`Advance`; a jump past 4 m starts a new
+trail), as an instance of the engine's plane on one of two instanced
+components drawn with the masked `M_ApexDecal` parent (dark green and damp
+earth tints; its texture `MarkPixels`: laid-blade streaks down the print,
+ragged edges and ends, tread bars), 28 cm wide, lifted 3 cm, casting no
+shadow. 30000 marks are kept; past that the oldest tenth goes. The marks
+belong to the track on show (`ForgetRoadStateOnTrack` clears them).
+`M_ApexDecal` is used with instanced meshes; a parent baked before is baked
+again by `-run=ApexMaterialBake`. `apexsim.road.GrassMarks 0` stops them;
+`apexsim.road.GrassMarksLook [back m] [up m]` parks the shot camera behind
+the newest mark, and a log line counts them each hundred. Verify run
+`g14-grass-marks` (Spa, a GT3 field); tests `ApexSim.GrassMarks.*`.
+
 ## Unattended runs and debugging
 
 Screenshots, site shots and in-game checks are made without a keyboard.
@@ -1277,6 +1305,7 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
   `apexsim.car.GroundPreview 0-3` (every car's tyres on gravel, sand or the desert floor: its dust),
   `apexsim.car.DamageEffects`, `apexsim.car.HeadlightLumens|BrakeLightNits|TailLightNits|WheelMaxDegPerFrame`.
 - Tracks and lighting: `apexsim.track.Rescan|KeepLast|BuildBudgetMs|FlatShadows|HorizonShadows`,
+  `apexsim.road.Draw|GrassMarks|GrassMarksLook` (the road state, the tyre marks in the grass),
   `apexsim.sky.SunStepDeg`, `apexsim.lights.Max|Range`.
 - HUD: `apexsim.hud.Reload|Data|Edit|EditStep`, `apexsim.hud.Palette
   standard|red_green|blue_yellow` (the colour-vision palette, as Settings >

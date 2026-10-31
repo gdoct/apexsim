@@ -11,6 +11,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Race/ApexGrassMarks.h"
 #include "Race/ApexRaceCoordinate.h"
 
 namespace ApexRoadStateDraw
@@ -54,6 +55,10 @@ namespace ApexRoadStateDraw
 
 	TAutoConsoleVariable<bool> CVarRoadDraw(TEXT("apexsim.road.Draw"), true,
 		TEXT("Whether the race director draws the server's road state (rubber, marbles, dry line, water, debris) on the road."),
+		ECVF_Default);
+
+	TAutoConsoleVariable<bool> CVarGrassMarks(TEXT("apexsim.road.GrassMarks"), true,
+		TEXT("Whether cars run wide leave their tyre marks in the grass for the session (AApexGrassMarksActor)."),
 		ECVF_Default);
 
 	/** A shard of debris: 25 x 12 x 3 cm, the engine cube scaled. */
@@ -270,8 +275,31 @@ void AApexRaceDirector::UpdateRoadDebris()
 	UE_LOG(LogApexSim, Verbose, TEXT("Road debris: %d of %d piece(s) laid"), Laid, Pieces.Num());
 }
 
+void AApexRaceDirector::UpdateGrassMarks(float DeltaSeconds)
+{
+	if (!bTrackConditionsApplied || !ApexRoadStateDraw::CVarGrassMarks.GetValueOnGameThread())
+	{
+		return;
+	}
+	if (!GrassMarks)
+	{
+		FActorSpawnParameters Params;
+		Params.Owner = this;
+		GrassMarks = GetWorld() ? GetWorld()->SpawnActor<AApexGrassMarksActor>(Params) : nullptr;
+	}
+	if (GrassMarks)
+	{
+		GrassMarks->Sample(Cars, DeltaSeconds);
+	}
+}
+
 void AApexRaceDirector::ForgetRoadStateOnTrack()
 {
+	// The marks belong to the track on show.
+	if (GrassMarks)
+	{
+		GrassMarks->Clear();
+	}
 	// The materials went back with the track; the textures and the map stay
 	// for the next track view of the same session.
 	RoadStateMids.Reset();
