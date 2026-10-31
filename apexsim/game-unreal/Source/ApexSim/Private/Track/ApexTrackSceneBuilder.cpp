@@ -2339,7 +2339,10 @@ void FApexTrackSceneBuilder::SpawnActors(
 		{
 			YawDeg += 180.0f;
 		}
-		const FRotator Rotation(0.0f, YawDeg, 0.0f);
+		// A wall module on a grade is pitched to it; a prop turned to face
+		// the other way climbs the other way along its own +X.
+		const float PitchDeg = YawDeg == Prop.YawDeg ? Prop.PitchDeg : -Prop.PitchDeg;
+		const FRotator Rotation(PitchDeg, YawDeg, 0.0f);
 
 		if (Resolved.bAuthored)
 		{

@@ -292,28 +292,6 @@ from the views on the realism sheet, judged by the owner; frame time on the
 RTX machine no worse than before and the integrated-GPU budget kept
 (work plan P3); `every_kit_file_is_catalogued` and the kit tests green.
 
-### 56. Forest cover
-
-The realism sheet's first gap: wooded circuits stand in open grass. Trees
-are planted only inside the dossier's woods, and the OSM extract reads ways
-only, so the large forests OSM maps as multipolygon relations (Monza's
-park, the Eifel round the Nordschleife, the Ardennes round Spa) never reach
-a dossier: Monza has 0.69 km² of wood, the Nordschleife 9 km², and no
-near trees stand inside 120 m at Spa or Monza.
-
-- **Woods from relations:** `osm_layout.py` assembles `natural=wood` and
-  `landuse=forest` multipolygons (outer rings less inner ones) into the
-  dossier's `woods`, through a woods-only refresh that leaves every other
-  layer as it is.
-- **Planting to the fence line:** inside a wood, near trees from the
-  belt's near distance out to where the impostors take over, at a stand
-  density, so the frame reads as a corridor through forest.
-- Every circuit, judged on the woods and aerial views of Spa, Monza and the
-  Nordschleife and on two other wooded circuits.
-
-**Check:** the `g8-*` woods, aerial and chase pairs before and after;
-frame time on the RTX machine no worse than 10 %; the content tests green.
-
 ### 57. Cockpit interior materials and lighting
 
 The sheet's second gap: the procedural cockpit rig is flat, untextured
@@ -386,7 +364,7 @@ what it touches, how it is checked) before it becomes a package.
   photos (a 4-wide grid): split into single square crops, one per driver.
   Not on the spectator figures: a photo on their block heads read as a
   sticker. Needs the people's consent before it ships.
-- **Further realism candidates**, after packages 56-60: road surface
+- **Further realism candidates**, after packages 57-60: road surface
   detail (cracks, sealant lines, marbles off the line), tyre smoke and dust kicked off the verge, heat haze over the grid
   and behind exhausts, rain and dirt on the visor or windscreen, motion
   blur, a lens for the TV cameras (barrel, soft highlights), the outside

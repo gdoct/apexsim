@@ -404,6 +404,10 @@ impl From<Dressing> for UeDressing {
     }
 }
 
+fn is_level_deg(pitch_deg: &f32) -> bool {
+    *pitch_deg == 0.0
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UeProp {
     pub kind: String,
@@ -412,6 +416,10 @@ pub struct UeProp {
     /// UE centimeters.
     pub location: [f32; 3],
     pub yaw_deg: f32,
+    /// Nose up along the prop's +X (a wall module on a grade), degrees;
+    /// absent when level.
+    #[serde(default, skip_serializing_if = "is_level_deg")]
+    pub pitch_deg: f32,
     pub scale: f32,
     #[serde(default)]
     pub text: Option<String>,
@@ -4311,6 +4319,7 @@ fn bake_prop(p: &Prop, path: &CenterlinePath) -> UeProp {
         asset: p.asset.clone(),
         location: to_ue((p.x, p.y, p.z)),
         yaw_deg: round(-p.yaw_rad.to_degrees(), 3),
+        pitch_deg: round(p.pitch_rad.to_degrees(), 3),
         scale: round(p.scale, 4),
         text: p.text.clone(),
         length_m,
@@ -4431,6 +4440,7 @@ fn bake_drs_boards(
                     asset: "corner_sign".to_string(),
                     location: to_ue((p.0, p.1, z)),
                     yaw_deg: round(-sample.heading_rad.to_degrees(), 3),
+                    pitch_deg: 0.0,
                     scale: 1.0,
                     text: Some(text.to_string()),
                     length_m: None,
@@ -4517,6 +4527,7 @@ fn pit_module(
         asset: kind_asset.1.to_string(),
         location: to_ue((pos.0, pos.1, sample.pos.2)),
         yaw_deg: round(-yaw.to_degrees(), 3),
+        pitch_deg: 0.0,
         scale: 1.0,
         text: None,
         length_m: None,
@@ -4671,6 +4682,7 @@ fn pit_signs(lane: &CenterlinePath, width_m: f32, side: f32, layout: &PitLayout)
             asset: asset.to_string(),
             location: to_ue((pos.0, pos.1, sample.pos.2)),
             yaw_deg: round(-sample.heading_rad.to_degrees(), 3),
+            pitch_deg: 0.0,
             scale: 1.0,
             text,
             length_m: None,

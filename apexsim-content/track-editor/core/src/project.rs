@@ -126,6 +126,7 @@ closed_loop: false
             y: 5.0,
             z: 0.0,
             yaw_rad: 0.0,
+            pitch_rad: 0.0,
             scale: 1.0,
             text: None,
             length_m: None,

@@ -159,6 +159,7 @@ mod tests {
             y: 8.0,
             z: 0.0,
             yaw_rad: 1.2,
+            pitch_rad: 0.0,
             scale: 1.0,
             text: Some("100".to_string()),
             length_m: None,

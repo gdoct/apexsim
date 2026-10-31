@@ -693,6 +693,7 @@ bool FApexTrackSceneReader::LoadFromFile(
 			Prop.Asset = GetString(Object, TEXT("asset"));
 			ReadLocation(Object, TEXT("location"), Prop.Location);
 			Prop.YawDeg = GetNumber(Object, TEXT("yaw_deg"));
+			Prop.PitchDeg = GetNumber(Object, TEXT("pitch_deg"));
 			Prop.Scale = GetNumber(Object, TEXT("scale"), 1.0f);
 			Prop.Text = GetString(Object, TEXT("text"));
 			// Layout hints the exporter only writes for the kinds that use them.

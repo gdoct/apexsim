@@ -153,11 +153,7 @@ BBOXES: dict[str, list[tuple[float, float, float, float]]] = {
     "Shanghaied": [(121.205, 31.328, 121.235, 31.352)],
     "Shebang": [(101.725, 2.750, 101.752, 2.772)],
     "Gnocchi": [(39.945, 43.398, 39.972, 43.415)],
-    "AlbertParkour": [
-        # The two large screens on the pit building (dossier S/F; text
-        # positions ~5100 and ~5240, to about 50 m): on its roof (R20).
-        dict(kind="screen", name="Pit building screen", station_m=5100.0, pit_roof=True),
-        dict(kind="screen", name="Pit building screen", station_m=5240.0, pit_roof=True),(144.955, -37.860, 144.985, -37.838)],
+    "AlbertParkour": [(144.955, -37.860, 144.985, -37.838)],
 }
 
 # Grandstands OSM does not have, from each circuit's own published
@@ -1483,13 +1479,6 @@ WOOD_LEAF: dict[str, dict[str, str]] = {
     "Nuerburgerring": {"*": "needleleaved"},
     # The Volkspark Dutzendteich's broadleaf park woods (Lageplan).
     "Snorisring": {"*": "broadleaved"},
-    # The Ardennes spruce plantations round Les Combes, Pouhon/Fagnes and
-    # Stavelot (dossier "Ardennes forest"): the three big woods there.
-    "SpaFrankenchamps": {
-        "area:984184": "needleleaved",
-        "area:294334": "needleleaved",
-        "area:157938": "needleleaved",
-    },
 }
 WOOD_LEAVES = ("broadleaved", "needleleaved", "mixed")
 
@@ -2991,7 +2980,6 @@ STRUCTURE_RANGE_M = 140.0
 # `WATER_STEMS` buildings count out to this range, from this size.
 CITY_STRUCTURE_RANGE_M = 260.0
 CITY_STRUCTURE_MIN_M2 = 600.0
-WOOD_RANGE_M = 260.0
 
 
 # ---------------------------------------------------------------- fetching
@@ -4455,37 +4443,10 @@ def extract(stem: str, track: Track, osm: Osm, to_track, fit_report) -> dict:
     landmarks += manual_landmarks(stem, track, osm, to_track, landmarks, pit)
     landmarks.sort(key=lambda e: e["station_m"])
 
-    woods = []
-    for w in osm.ways:
-        t = w.get("tags") or {}
-        # A plantation (`landuse=orchard`) is tree cover a circuit can sit
-        # in exactly like a forest -- Sepang's oil-palm estate is mapped
-        # this way, never as `natural=wood` -- so it is generically
-        # treated as woods too. `leaf_type` is essentially never tagged on
-        # an orchard, so default to broadleaved rather than the `mixed`
-        # conifer/broadleaf set a real forest falls back to.
-        is_orchard = t.get("landuse") == "orchard"
-        if t.get("natural") != "wood" and t.get("landuse") not in ("forest",) and not is_orchard:
-            continue
-        leaf = t.get("leaf_type") or ""
-        if leaf in ("broadleaved", "needleleaved", "mixed"):
-            pass
-        elif is_orchard:
-            leaf = "broadleaved"
-        else:
-            leaf = "mixed"
-        p = xy(w)
-        if p is None or len(p) < 4:
-            continue
-        d, _ = track.grid.query(p, max_rings=30)
-        if d.min() > WOOD_RANGE_M:
-            continue
-        ring = simplify(p, 6.0)
-        if len(ring) < 4 or ring_area(ring) < 400:
-            continue
-        woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
-
-    woods = with_wood_leaf(stem, woods + manual_woods(stem, track))
+    # The scanned woods come from their own query (`scanned_woods`, which
+    # `build` adds): the map extract has the ways but not the multipolygon
+    # relations most forests are mapped as.
+    woods = with_wood_leaf(stem, manual_woods(stem, track))
 
     # An authored landmark and an OSM building can be the same real
     # structure (Sakhir's control tower is mapped as building=yes, not as
@@ -4706,6 +4667,207 @@ def extract_tree_rows(osm: "Osm", lon0: float, lat0: float, to_track, track: Tra
             continue
         rows.append({"kind": "tree_row", "line": round_pts(p)})
     return rows
+
+
+# ---------------------------------------------------------------- woods
+
+# Woods within this distance of the lap become dossier woods. The tree belt
+# stops at 110 m and the far forest inside a mapped wood runs from 120 m to
+# the dress pass's IMPOSTOR_FAR_M (2.6 km); past this the slope and horizon
+# impostors take over, which keeps the far field's prop count bounded.
+WOODS_CORRIDOR_M = 900.0
+# The woods query reaches this far round the circuit's bbox, degrees, so a
+# forest whose outline runs outside the box still closes.
+WOODS_MARGIN_DEG = 0.015
+WOOD_SIMPLIFY_M = 6.0
+WOOD_MIN_AREA_M2 = 400.0
+OVERPASS_API = "https://overpass-api.de/api/interpreter"
+
+
+def fetch_woods(stem: str, offline: bool) -> dict:
+    """Every wood, forest and orchard round the circuit with its full
+    geometry, ways and multipolygon relations alike, cached beside the map
+    extract. The map API's extract cannot stand in: it carries a relation
+    but only the member ways inside the box, so a forest round the box
+    never closes."""
+    import urllib.parse
+    import urllib.request
+
+    path = CACHE_DIR / f"{stem}.woods.json"
+    if not path.exists():
+        if offline:
+            raise SystemExit(f"{stem}: no cached woods at {path}")
+        boxes = BBOXES[stem]
+        m = WOODS_MARGIN_DEG
+        b = (
+            f"{min(x[1] for x in boxes) - m},{min(x[0] for x in boxes) - m},"
+            f"{max(x[3] for x in boxes) + m},{max(x[2] for x in boxes) + m}"
+        )
+        query = (
+            "[out:json][timeout:300];("
+            f'way["natural"="wood"]({b});way["landuse"~"^(forest|orchard)$"]({b});'
+            f'relation["natural"="wood"]({b});relation["landuse"="forest"]({b});'
+            ");out geom;"
+        )
+        print(f"  fetching woods for {stem}")
+        import urllib.error
+
+        data = urllib.parse.urlencode({"data": query}).encode()
+        request = urllib.request.Request(OVERPASS_API, data=data, headers={"User-Agent": "apexsim-osm-layout"})
+        # Overpass sheds load with 429/502/504: wait and ask again.
+        for attempt in range(6):
+            try:
+                with urllib.request.urlopen(request, timeout=600) as r:
+                    body = r.read()
+                break
+            except urllib.error.HTTPError as e:
+                if e.code not in (429, 502, 503, 504) or attempt == 5:
+                    raise
+                time.sleep(30 * (attempt + 1))
+        time.sleep(5)
+        if not body.lstrip().startswith(b"{"):
+            raise SystemExit(f"{stem}: Overpass refused the woods query: {body[:200]!r}")
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(body)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def wood_leaf_of(tags: dict) -> str:
+    """OSM's `leaf_type`, else `mixed`. A plantation (`landuse=orchard`) is
+    tree cover a circuit can sit in exactly like a forest (Sepang's oil-palm
+    estate is mapped so, never as `natural=wood`); `leaf_type` is almost
+    never tagged on one, so it is broadleaved."""
+    leaf = tags.get("leaf_type") or ""
+    if leaf in WOOD_LEAVES:
+        return leaf
+    return "broadleaved" if tags.get("landuse") == "orchard" else "mixed"
+
+
+def wood_polygons(doc: dict, lon0: float, lat0: float, to_track) -> list[tuple[str, object]]:
+    """(leaf, shapely geometry) per wood in the dossier's frame: a closed way
+    as its ring, a multipolygon relation as its outer rings less its inner
+    ones (the members' lines noded and polygonised, so a ring split over
+    many ways closes)."""
+    from shapely.geometry import LineString, Polygon
+    from shapely.ops import polygonize, unary_union
+
+    def xy(geom: list) -> np.ndarray:
+        return to_track(np.array([enu(g["lon"], g["lat"], lon0, lat0) for g in geom if g]))
+
+    out = []
+    for e in doc["elements"]:
+        tags = e.get("tags") or {}
+        if e["type"] == "way":
+            g = e.get("geometry") or []
+            if len(g) < 4 or e["nodes"][0] != e["nodes"][-1]:
+                continue
+            poly = Polygon(xy(g)).buffer(0)
+        elif e["type"] == "relation" and tags.get("type") == "multipolygon":
+            lines = {"outer": [], "inner": []}
+            for mem in e.get("members", []):
+                g = mem.get("geometry") or []
+                role = mem.get("role") or "outer"
+                if mem["type"] == "way" and role in lines and len(g) >= 2:
+                    lines[role].append(LineString(xy(g)))
+            if not lines["outer"]:
+                continue
+            poly = unary_union(list(polygonize(unary_union(lines["outer"]))))
+            if lines["inner"]:
+                poly = poly.difference(unary_union(list(polygonize(unary_union(lines["inner"])))))
+        else:
+            continue
+        if not poly.is_empty:
+            out.append((wood_leaf_of(tags), poly))
+    return out
+
+
+def without_holes(geom) -> list:
+    """The polygons of `geom` with every hole cut open: a polygon with a
+    hole is split along the vertical through the hole's centre, which runs
+    through the hole, until none is left. The dossier's woods are plain
+    rings (the tree and impostor passes test a single ring)."""
+    from shapely.geometry import box
+
+    def polys(g):
+        if g.geom_type == "Polygon":
+            return [g]
+        return [p for p in getattr(g, "geoms", []) if p.geom_type == "Polygon"]
+
+    todo, out = polys(geom), []
+    while todo:
+        p = todo.pop()
+        if p.is_empty or p.area < WOOD_MIN_AREA_M2:
+            continue
+        if not p.interiors:
+            out.append(p)
+            continue
+        cx = p.interiors[0].centroid.x
+        x0, y0, x1, y1 = p.bounds
+        for half in (box(x0 - 1, y0 - 1, cx, y1 + 1), box(cx, y0 - 1, x1 + 1, y1 + 1)):
+            todo += polys(p.intersection(half))
+    return out
+
+
+def scanned_woods(stem: str, track: Track, lon0: float, lat0: float, to_track, offline: bool) -> list[dict]:
+    """The dossier's OSM woods: every wood within WOODS_CORRIDOR_M of the lap,
+    merged by leaf type (where a tagged leaf and an untagged wood overlap
+    the tagged one wins), cut free of holes and simplified, in a stable
+    order."""
+    from shapely.geometry import LineString
+    from shapely.ops import unary_union
+
+    pts = np.vstack([track.pts, track.pts[:1]]) if track.closed else track.pts
+    corridor = LineString(pts).buffer(WOODS_CORRIDOR_M)
+    by_leaf: dict[str, list] = {}
+    for leaf, poly in wood_polygons(fetch_woods(stem, offline), lon0, lat0, to_track):
+        by_leaf.setdefault(leaf, []).append(poly)
+    woods, taken = [], None
+    for leaf in ("needleleaved", "broadleaved", "mixed"):
+        if leaf not in by_leaf:
+            continue
+        g = unary_union(by_leaf[leaf]).intersection(corridor)
+        if taken is not None:
+            g = g.difference(taken)
+        taken = g if taken is None else taken.union(g)
+        for piece in without_holes(g):
+            ring = simplify(np.asarray(piece.exterior.coords), WOOD_SIMPLIFY_M)
+            if len(ring) < 4 or ring_area(ring) < WOOD_MIN_AREA_M2:
+                continue
+            woods.append({"leaf": leaf, "ring": round_pts(ring, 1)})
+    woods.sort(key=lambda w: (w["leaf"], w["ring"][0]))
+    return woods
+
+
+def refresh_woods(stems: list[str], dry_run: bool, offline: bool) -> int:
+    """`--woods`: rebuild a checked-in dossier's scanned woods from the woods
+    query, through the DEM sidecar's georeference as `--manual-only` does;
+    the authored belts are rebuilt and every other layer is left byte for
+    byte. A circuit without a DEM sidecar is skipped."""
+    import msgpack
+
+    for stem in stems:
+        out = track_dir(stem) / f"{stem}.layout.json"
+        dem_path = track_dir(stem) / f"{stem}.dem.msgpack"
+        if not out.exists() or not dem_path.exists():
+            print(f"{stem}: no dossier or no DEM sidecar, skipped")
+            continue
+        georef = msgpack.unpackb(dem_path.read_bytes(), raw=False)["georef"]
+        a = np.array(georef["a"], dtype=float).reshape(2, 2)
+        t = np.array(georef["t"], dtype=float)
+        to_track = lambda p: np.asarray(p, dtype=float).reshape(-1, 2) @ a.T + t  # noqa: E731
+        layout = json.loads(out.read_text(encoding="utf-8"))
+        track = Track(stem)
+        before = layout.get("woods", [])
+        woods = with_wood_leaf(
+            stem,
+            scanned_woods(stem, track, georef["lon0"], georef["lat0"], to_track, offline) + manual_woods(stem, track),
+        )
+        area = lambda ws: sum(ring_area(np.asarray(w["ring"])) for w in ws) / 1e6  # noqa: E731
+        print(f"{stem}: woods {len(before)} ({area(before):.2f} km2) -> {len(woods)} ({area(woods):.2f} km2)")
+        if not dry_run and woods != before:
+            layout["woods"] = woods
+            out.write_text(json.dumps(layout, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    return 0
 
 
 # An old banked oval beside the circuit, by the names OSM gives its
@@ -4956,6 +5118,9 @@ def build(stem: str, offline: bool) -> dict:
     track, osm, a, t, report = fit_track(stem, offline)
     to_track = lambda p: np.asarray(p, dtype=float).reshape(-1, 2) @ a.T + t
     layout = extract(stem, track, osm, to_track, report)
+    layout["woods"] = with_wood_leaf(
+        stem, scanned_woods(stem, track, osm.lon0, osm.lat0, to_track, offline) + manual_woods(stem, track)
+    )
     print(
         f"   {len(layout['corners'])} named corners, "
         f"{len(layout['stands'])} stands, {len(layout['structures'])} structures, "
@@ -5220,12 +5385,20 @@ def main() -> int:
         help="re-apply the hand-authored layers (stands, landmarks, crossings, graffiti, furniture) "
         "to the existing dossiers without the OSM extract, through the DEM sidecar's georeference",
     )
+    ap.add_argument(
+        "--woods",
+        action="store_true",
+        help="rebuild the existing dossiers' woods from the woods query (ways and multipolygon "
+        "relations) through the DEM sidecar's georeference, leaving every other layer",
+    )
     args = ap.parse_args()
 
     stems = sorted(BBOXES) if args.all else args.tracks
     if not stems:
         ap.print_help()
         return 1
+    if args.woods:
+        return refresh_woods(stems, args.dry_run, args.offline)
     if args.names_only:
         return rename_dossiers(stems, args.dry_run)
     if args.manual_only:

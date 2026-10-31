@@ -152,7 +152,7 @@ with empty `surfaces`). The server never reads it.
 | `curbs` | `side`, `start_m`/`end_m`, `width_m` outward from the edge, `style` |
 | `markings` | Painted rectangles: `kind` (`start_finish`, `grid_slot`, `edge_line`, `pit_entry`, `pit_exit`, `custom`), stations, `lat_from_m`/`lat_to_m`, linear RGBA `color`; optional `stripe` (`length_m`, `color`): bands along the track alternating the two colours, a painted apron (left off when absent) |
 | `pit_lane` | `nodes` (`[x,y,z]` world), `width_m`, `box_count`, `speed_limit_kmh`, `authored` (laid from the dossier: grooming never regenerates it) |
-| `props` | `kind`, `asset`, `x`/`y`/`z`, `yaw_rad`, `scale`, optional `text` (brand, board number, flag), `length_m` (a grandstand's length) and `source` (which pass laid it and from what, `stand Tribune F1`, `groom tree`; absent on a hand-placed prop; [track-pipeline.md](track-pipeline.md#dressing-ats-dress)). Kinds and assets: [props.md](props.md) |
+| `props` | `kind`, `asset`, `x`/`y`/`z`, `yaw_rad`, `pitch_rad` (nose up along the prop's +X; a rail module on a grade, absent when level), `scale`, optional `text` (brand, board number, flag), `length_m` (a grandstand's length) and `source` (which pass laid it and from what, `stand Tribune F1`, `groom tree`; absent on a hand-placed prop; [track-pipeline.md](track-pipeline.md#dressing-ats-dress)). Kinds and assets: [props.md](props.md) |
 | `decals` | Pictures painted on the road: `image` (`set/name`), `start_m`, `length_m`, `lat_m`, `width_m`, `reversed` |
 | `water` | Polygon rings in world metres, even-odd fill |
 | `bridges` | Station spans carried over water (bands and curbs are clipped out) |
@@ -240,7 +240,7 @@ array, so every scalar and object the catalog needs comes before
 | `mesh_blob` | The blob's file name, resolved beside the manifest |
 | `materials` | Sorted by key: `key`, `family` (`road`, `curb`, `surface`, `marking`, `pit_lane`, `decal`, `scenery`; the bake also emits `structure_*` and `horizon` keys), linear `base_color`. v3 adds `ground_set` on a surface, and `texture` (DDS relative to the manifest), `blend` (`opaque`/`masked`/`translucent`), `two_sided`, `roughness`, `alpha_cutoff` on scenery |
 | `meshes` | One header per mesh in blob order: `name` (`{material_key}_{section:03}`), `material_key`, `vertex_count`, `index_count`; v3 adds `draw_distance_m` and `collision: false` |
-| `props` | Transforms and asset keys, plus hints (`length_m`, `radius_m`, `span_m`, `text`) |
+| `props` | Transforms (`location`, `yaw_deg`, `pitch_deg` when not level, `scale`) and asset keys, plus hints (`length_m`, `radius_m`, `span_m`, `text`) |
 | `grid` | The starting grid, resolved as `track_loader.rs` resolves it |
 | `centerline` | The sampled centerline |
 | `pit_lane` | Width, box count, speed limit (its ribbon is in `meshes`) |

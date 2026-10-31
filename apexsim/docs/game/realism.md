@@ -44,7 +44,7 @@ the gap shows, in the views where it shows.
 
 | # | Gap | Where it shows | Share | Taken by |
 |---|---|---|---|---|
-| 1 | **Forest cover.** Wooded circuits stand in open grass with scattered trees: Monza's park is a lawn with a few trees (the Lesmo woods at eye height and from above), the Nordschleife at 8 km and 9.6 km is open meadow where the real track runs in a corridor through dense forest, Spa's hills are bare grass with conifer stands. The real frames are 50-90 % trees. | woods, aerial, TV, chase backgrounds, cockpit side windows | 40-80 % of woods and aerial frames, 20-40 % of the rest | new: forest cover from land-use data (dense stands to the fence line), then 55's vegetation for how each tree looks |
+| 1 | **Forest cover.** Wooded circuits stand in open grass with scattered trees: Monza's park is a lawn with a few trees (the Lesmo woods at eye height and from above), the Nordschleife at 8 km and 9.6 km is open meadow where the real track runs in a corridor through dense forest, Spa's hills are bare grass with conifer stands. The real frames are 50-90 % trees. | woods, aerial, TV, chase backgrounds, cockpit side windows | 40-80 % of woods and aerial frames, 20-40 % of the rest | the woods query and stand planting ([track-pipeline.md](../../../apexsim-content/docs/track-pipeline.md)); 55's vegetation for how each tree looks |
 | 2 | **Cockpit interior.** The procedural rig is flat, untextured grey panels lit like the outside: no carbon, no switch panels, screens or harness, a bare cage, no hands on the wheel, and none of the real interior's dark against a bright windscreen. | every cockpit frame, both classes | 55-65 % of cockpit frames | 53 (hands), new: cockpit interior materials and lighting |
 | 3 | **Ground and run-off materials.** Grass is one uniform green with tufts dotted on it; run-off paint is clean and saturated (Spa's red-yellow bands); the road is clean grey with dark square patches; no gravel texture, no worn verges. | every outside view | 20-40 % | 55 (materials), the road-surface candidate |
 | 4 | **Buildings, stands and people.** Buildings are white boxes with window grids (the Spa paddock block at Eau Rouge, the pit buildings); pit-lane furniture is flat red blocks; stands have no roof structure or crowd density; spectators are cards. | TV, grandstand, pit lane | 10-30 % of those frames | 55 (pit building, people) |
@@ -57,5 +57,5 @@ cuts to trackside cameras with foliage or armco filling the lens
 (`g8-monza-gt3` #17, `g8-nordschleife-gt3` #11, #12, #14); in
 [follow-ups.md](../follow-ups.md), Rendering.
 
-The owner agreed the ranking on 2026-10-31; it is work-plan items G12-G16
-with G9 and G11.
+The owner agreed the ranking on 2026-10-31; it is work-plan items G13-G16
+with G9 and G11 (forest cover, the first, is built).

@@ -584,6 +584,11 @@ pub struct Prop {
     pub z: f32,
     /// Counter-clockwise from +X, radians (server yaw convention).
     pub yaw_rad: f32,
+    /// Nose up along the prop's own +X, radians: a wall module following
+    /// a grade, so a run on a slope joins end to end instead of stepping.
+    /// Absent (level) on everything else.
+    #[serde(default, skip_serializing_if = "is_level")]
+    pub pitch_rad: f32,
     #[serde(default = "default_scale")]
     pub scale: f32,
     /// Optional text for signs/boards: the brand on a hoarding, the
@@ -606,6 +611,10 @@ pub struct Prop {
 
 fn default_scale() -> f32 {
     1.0
+}
+
+fn is_level(pitch_rad: &f32) -> bool {
+    *pitch_rad == 0.0
 }
 
 /// A picture painted on the road surface, anchored in station/lateral space
@@ -964,6 +973,7 @@ mod tests {
             y: 20.0,
             z: 0.0,
             yaw_rad: 0.0,
+            pitch_rad: 0.0,
             scale: 1.0,
             text: None,
             length_m: None,

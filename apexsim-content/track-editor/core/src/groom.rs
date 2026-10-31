@@ -1099,6 +1099,13 @@ pub fn groom_props_with_dem(
             }))
             .collect()
     });
+    // Where the dossier maps woods the belt grows only inside them, and
+    // there as a closed stand out to the far forest.
+    let belt = if layout.is_some_and(|l| !l.woods.is_empty()) {
+        style.trees.in_woods()
+    } else {
+        style.trees
+    };
     let mut trees = lay_tree_belts(
         &path,
         &terrain,
@@ -1107,7 +1114,7 @@ pub fn groom_props_with_dem(
         &props,
         tree_density(track),
         &woods,
-        &style.trees,
+        &belt,
         style.flora,
     );
     // And a tree every few metres along the mapped tree rows.
@@ -1390,6 +1397,7 @@ fn lay_hoardings(
             y,
             z: seat_z(terrain, &sample, seat_lat, x, y),
             yaw_rad: rail.yaw_rad,
+            pitch_rad: 0.0,
             scale: 1.0,
             text: Some(brand.to_string()),
             length_m: None,
@@ -1445,6 +1453,7 @@ fn props_match(old: &[Prop], new: &[Prop]) -> bool {
             && (a.y - b.y).abs() < MIN_MOVE_M
             && (a.z - b.z).abs() < MIN_MOVE_M
             && yaw_distance(a.yaw_rad, b.yaw_rad) < MIN_YAW_RAD
+            && (a.pitch_rad - b.pitch_rad).abs() < MIN_YAW_RAD
             && a.scale == b.scale
             && a.kind == b.kind
             && a.asset == b.asset
@@ -1655,6 +1664,7 @@ fn lay_distance_boards(
                 y: pos.1,
                 z: seat_z(terrain, &sample, lat, pos.0, pos.1),
                 yaw_rad: sample.heading_rad,
+                pitch_rad: 0.0,
                 scale: 1.0,
                 text,
                 length_m: None,
@@ -1813,6 +1823,7 @@ fn lay_german_signs(
                 y: pos.1,
                 z: seat_z(terrain, &sample, lat, pos.0, pos.1),
                 yaw_rad: sample.heading_rad,
+                pitch_rad: 0.0,
                 scale: 1.0,
                 text,
                 length_m: None,
@@ -2507,7 +2518,8 @@ fn lay_all_barriers(
                        asset: &'static str,
                        idx: usize,
                        p: (f32, f32, f32),
-                       yaw: f32| {
+                       yaw: f32,
+                       half_m: f32| {
                 let sample = &samples[idx];
                 // The circuit's own rail (German guard rail at the
                 // Nordschleife) in place of the kit's armco.
@@ -2516,6 +2528,18 @@ fn lay_all_barriers(
                     rail => rail.asset(asset, tightest_radius(path, sample.station_m)),
                 };
                 let lat = signed(side, side_half_width(sample, side) + offset[idx]);
+                // A module follows the grade between its two ends, so the
+                // run on a slope joins end to end instead of stepping.
+                let (sin_y, cos_y) = yaw.sin_cos();
+                let pitch = if half_m > 0.0 {
+                    let end = |k: f32| {
+                        let (x, y) = (p.0 + k * half_m * cos_y, p.1 + k * half_m * sin_y);
+                        seat_z(terrain, sample, lat, x, y)
+                    };
+                    (end(1.0) - end(-1.0)).atan2(2.0 * half_m)
+                } else {
+                    0.0
+                };
                 let prop = Prop {
                     id: 0,
                     kind: prop_kind,
@@ -2524,6 +2548,7 @@ fn lay_all_barriers(
                     y: p.1,
                     z: seat_z(terrain, sample, lat, p.0, p.1),
                     yaw_rad: yaw,
+                    pitch_rad: pitch,
                     scale: WALL_SCALE,
                     text: None,
                     length_m: None,
@@ -2556,7 +2581,16 @@ fn lay_all_barriers(
                 let (idx, p, yaw) = at_arc(centre);
                 let (prop_kind, asset) = kind.asset();
                 if placeable(p.0, p.1, samples[idx].pos.2) {
-                    lay(&mut walls, &mut rails, prop_kind, asset, idx, p, yaw);
+                    lay(
+                        &mut walls,
+                        &mut rails,
+                        prop_kind,
+                        asset,
+                        idx,
+                        p,
+                        yaw,
+                        module / 2.0,
+                    );
                 }
                 // The catch fence behind the wall, outward of the line.
                 if let Some((fence_kind, fence_asset, back_m)) = kind.catch_fence() {
@@ -2567,7 +2601,16 @@ fn lay_all_barriers(
                     };
                     let f = (p.0 - out * back_m * sin_y, p.1 + out * back_m * cos_y, p.2);
                     if placeable(f.0, f.1, samples[idx].pos.2) {
-                        lay(&mut walls, &mut rails, fence_kind, fence_asset, idx, f, yaw);
+                        lay(
+                            &mut walls,
+                            &mut rails,
+                            fence_kind,
+                            fence_asset,
+                            idx,
+                            f,
+                            yaw,
+                            module / 2.0,
+                        );
                     }
                 }
                 // Two kinds butting together each get the terminal that
@@ -2578,7 +2621,10 @@ fn lay_all_barriers(
                             if let Some((cap_kind, cap_asset)) = cap_of.end_cap() {
                                 let (idx, p, yaw) = at_arc(at);
                                 if placeable(p.0, p.1, samples[idx].pos.2) {
-                                    lay(&mut walls, &mut rails, cap_kind, cap_asset, idx, p, yaw);
+                                    lay(
+                                        &mut walls, &mut rails, cap_kind, cap_asset, idx, p, yaw,
+                                        0.0,
+                                    );
                                 }
                             }
                         }
@@ -2611,7 +2657,9 @@ fn lay_all_barriers(
                     let (sin_y, cos_y) = yaw.sin_cos();
                     let cap = (p.0 + direction * cos_y, p.1 + direction * sin_y, p.2);
                     if placeable(cap.0, cap.1, samples[idx].pos.2) {
-                        lay(&mut walls, &mut rails, cap_kind, cap_asset, idx, cap, yaw);
+                        lay(
+                            &mut walls, &mut rails, cap_kind, cap_asset, idx, cap, yaw, 0.0,
+                        );
                     }
                 }
             }
@@ -2846,6 +2894,7 @@ fn lay_ground_cover(
                     y: pos.1,
                     z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
                     yaw_rad: hash01(&seed, 3) * TAU,
+                    pitch_rad: 0.0,
                     scale: 0.8 + hash01(&seed, 4) * 0.7,
                     text: None,
                     length_m: None,
@@ -3009,6 +3058,7 @@ fn lay_tree_belts(
                     y: pos.1,
                     z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
                     yaw_rad: hash01(&tree, 3) * TAU,
+                    pitch_rad: 0.0,
                     scale: TREE_SCALE_MIN + hash01(&tree, 4) * (TREE_SCALE_MAX - TREE_SCALE_MIN),
                     text: None,
                     length_m: None,
@@ -3093,6 +3143,7 @@ fn lay_tree_rows(
                     y: pos.1,
                     z: seat_z(terrain, &ns, nlat, pos.0, pos.1),
                     yaw_rad: hash01(&key, 3) * TAU,
+                    pitch_rad: 0.0,
                     scale: TREE_SCALE_MIN + hash01(&key, 4) * (TREE_SCALE_MAX - TREE_SCALE_MIN),
                     text: None,
                     length_m: None,
@@ -3422,6 +3473,7 @@ mod tests {
             y,
             z,
             yaw_rad: 1.0,
+            pitch_rad: 0.0,
             scale: 1.0,
             text: None,
             length_m: None,

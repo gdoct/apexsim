@@ -101,6 +101,8 @@ struct FApexTrackProp
 	FString Asset;
 	FVector Location = FVector::ZeroVector;
 	float YawDeg = 0.0f;
+	/** Nose up along the prop's +X: a wall module following the grade (0 when level). */
+	float PitchDeg = 0.0f;
 	float Scale = 1.0f;
 	/** Brand on a hoarding, distance on a braking marker, number on a post. */
 	FString Text;

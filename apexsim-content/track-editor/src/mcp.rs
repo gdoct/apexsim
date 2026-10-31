@@ -565,6 +565,7 @@ fn drain_mcp_commands(
                         y: params.y,
                         z: params.z,
                         yaw_rad: params.yaw_rad.unwrap_or(0.0),
+                        pitch_rad: 0.0,
                         scale: params.scale.unwrap_or(1.0),
                         text: params.text.clone(),
                         length_m: params.length_m,

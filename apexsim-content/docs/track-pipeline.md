@@ -96,6 +96,7 @@ OpenStreetMap (ODbL; the attribution travels in the file):
 python tools/osm_layout.py --all          # or: Monza Spa [--offline] [--dry-run]
 python tools/osm_layout.py --all --names-only   # re-apply CORNER_DISPLAY / display_name only
 python tools/osm_layout.py <Stem> --manual-only # re-apply the MANUAL_* layers only (no extract)
+python tools/osm_layout.py --all --woods        # rebuild the woods only, from the woods query
 ```
 
 **Fit.** The OSM extract is georeferenced onto the track frame by an FFT
@@ -117,11 +118,24 @@ none for a table that counts the reference's own way, in parentheses, nor
 for a circuit whose numbers would not rise round the lap; `--names-only`
 writes them without the OSM extract)), the pit lane's polyline and
 side, grandstands (name, side, length, depth, roof, road-facing front),
-structures, crossings over the road, landmarks, woods with leaf type, and
+structures, crossings over the road, landmarks, woods with leaf type (below), and
 the surroundings: `barriers` (tyres, wall, guard rail, fence near the road),
 `roads`, `waterways`, `areas` (car parks, camp sites, meadow, farmland,
 villages, scrub, water), `poi`. Anything tagged within 250 m that no rule
 claims is counted in `unclassified`, so a circuit's gaps show in the file.
+
+**Woods** come from a query of their own (`fetch_woods`, Overpass, cached
+as `.cache/osm/<Stem>.woods.json`): `natural=wood`, `landuse=forest` and
+`landuse=orchard`, ways and multipolygon relations alike, with full
+geometry. The map extract cannot stand in: most large forests (Monza's park,
+the Eifel, the Ardennes) are relations, and the extract carries only the
+member ways inside its box. A relation is its outer rings less its inner
+ones; every wood within `WOODS_CORRIDOR_M` (900 m) of the lap is kept,
+merged by leaf type (a tagged leaf wins over an untagged wood where they
+overlap), cut free of holes (`without_holes`: the dossier's woods are plain
+rings) and simplified to 6 m. `--woods` rebuilds only this layer of a
+checked-in dossier, through the DEM sidecar's georeference as
+`--manual-only` does.
 
 **Manual tables** in the script, keyed by stem, hold what OSM lacks and
 survive a refetch; each entry's comment names its source. `MANUAL_STANDS`
@@ -367,12 +381,17 @@ or tyres. **Distance boards** (`groom::braking_corners`) stand at 200,
 100 and 50 m before every corner whose tightest point holds a car under
 30 m/s, on the outside of the bend, when its last 150 m bend no tighter
 than a 150 m radius (a flat-out kink leaves the approach clean); a board
-that would stand inside another corner is left out. **Trees** go only
-inside the dossier's woods, species from the
+that would stand inside another corner is left out. **Rails** follow the
+grade: each module is pitched from the ground under its two ends
+(`pitch_rad`), so a run on a slope joins end to end instead of stepping;
+end caps stay level. **Trees** go only
+inside the dossier's woods, there as a closed stand
+(`TreeBelt::in_woods`: 2.5 times the style's trees per cell, out to 120 m
+where the far forest starts), species from the
 leaf type and the circuit style's flora (poplars only in broadleaved woods;
 the desert sets plant date palms), and bushes (`bush_cluster`) inside its
 `scrub` areas. `WOOD_LEAF` in `osm_layout.py` sets a circuit's leaf types
-over OSM's (`*`, or one wood by `area:<m2>`). A dossier's `tree_rows` (OSM
+over OSM's (`*`, or one wood by `area:<m2>`; the merged woods rarely keep an area, so `*`). A dossier's `tree_rows` (OSM
 `natural=tree_row`, written for the `TREE_ROW_STEMS` circuits by
 `--manual-only` from a refetched extract) get a broadleaf tree about every
 9 m along the line (`groom::lay_tree_rows`), off the road by the belt's

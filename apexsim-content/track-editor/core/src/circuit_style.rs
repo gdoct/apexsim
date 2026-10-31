@@ -102,6 +102,28 @@ pub struct TreeBelt {
     pub empty_share: f32,
 }
 
+impl TreeBelt {
+    /// Trees per cell inside a mapped wood over the open belt's: the belt
+    /// spaces trees for a verge (one to 140-180 m²), and a wood is a closed
+    /// stand (one to 55-70 m²), which the realism sheet's woods frames show.
+    pub const STAND_DENSITY: f32 = 2.5;
+    /// Inside a mapped wood the belt runs out to where the dress pass's far
+    /// forest starts (`WOOD_IMPOSTOR_NEAR_M`), so no bare band lies between.
+    pub const STAND_FAR_M: f32 = 120.0;
+
+    /// The belt where the dossier maps the woods, so it grows only inside
+    /// them: as dense as a stand and out to the far forest.
+    pub fn in_woods(self) -> TreeBelt {
+        let more = |n: u32| (n as f32 * Self::STAND_DENSITY).round() as u32;
+        TreeBelt {
+            far_m: self.far_m.max(Self::STAND_FAR_M),
+            min_per_cell: more(self.min_per_cell),
+            max_per_cell: more(self.max_per_cell),
+            ..self
+        }
+    }
+}
+
 /// What grows beside the road. The kit's species are northern-European
 /// (broadleaf, spruce, poplar), which is right for most of the calendar
 /// and wrong in a desert or the tropics: Sakhir was ringed with spruce.
@@ -397,6 +419,22 @@ impl CircuitStyle {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_mapped_wood_is_a_closed_stand_out_to_the_far_forest() {
+        let open = CircuitStyle::DEFAULT.trees;
+        let stand = open.in_woods();
+        assert_eq!((stand.min_per_cell, stand.max_per_cell), (8, 15));
+        assert_eq!(stand.far_m, TreeBelt::STAND_FAR_M);
+        assert_eq!(
+            (stand.near_m, stand.empty_share),
+            (open.near_m, open.empty_share)
+        );
+        // A belt that already reaches past the far forest keeps its depth.
+        assert_eq!(CircuitStyle::NORDSCHLEIFE.trees.in_woods().far_m, 120.0);
+        // A street circuit plants no belt, mapped woods or not.
+        assert_eq!(CircuitStyle::STREET.trees.in_woods().max_per_cell, 0);
+    }
 
     #[test]
     fn every_other_circuit_keeps_the_old_rules() {
