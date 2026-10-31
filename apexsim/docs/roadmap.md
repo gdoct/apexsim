@@ -187,29 +187,6 @@ kit gaps in
 commit before for the barrier column; `--all --manual-only --dry-run`
 reporting every other dossier unchanged after each dossier edit.
 
-### 52. Realism reference sheet
-
-The game reads as a game: the cockpit has no hands, the eye rides rigidly on
-the car, and the trackside kit looks cheap and cartoonish. Before the asset
-work, one sheet compares the game with the real thing and ranks what is
-furthest off, so that packages 53-55 and the ones after them go after what
-fills the most of the frame. Package 29 decides *what* stands where;
-this one and 55 decide how each thing *looks*.
-
-- Six views at three circuits (Spa, Monza, the Nordschleife): cockpit in a
-  GT3 and a formula car, the chase rung, a TV trackside camera, the pit lane,
-  a grandstand straight, a wooded section. Shots from a `runs.yml` run,
-  each beside a real reference frame from an onboard or a photo the owner
-  supplies (the references stay out of the repo if they are not ours to ship).
-- Per pair, the gaps named by what they cover on screen: materials (too
-  clean, too saturated, no wear), geometry (hard unbevelled edges, missing
-  detail at close range), vegetation, people, lighting, lens, the car itself.
-- The ranked list goes in `game/realism.md` (new) with a row per gap and the
-  package that takes it; candidates under
-  [Not yet scoped](#not-yet-scoped) get a scope from it.
-
-**Check:** the owner agrees with the ranking on the sheet.
-
 ### 53. The driver's hands and arms in the cockpit
 
 Every car has a driver figure (`<stem>_driver.glb`, `carlib.driver_figure()`,
@@ -282,15 +259,16 @@ The trackside kit
 ([props.md](../../apexsim-content/docs/props.md)) is built by bmesh
 builders (`apex_props.py`) on numpy tileable maps (`apex_tex.py`,
 `KIT_SLOTS`): clean uniform colours, hard edges with no highlight, no wear,
-card trees and card crowds. That is why it reads as cartoonish. Package 52's
-ranking sets the order; the families seen closest go first (barriers, tyre
+card trees and card crowds. That is why it reads as cartoonish. The
+realism sheet ([game/realism.md](game/realism.md)) ranks it fourth (buildings,
+stands, people) and seventh (close kit); the families seen closest go first (barriers, tyre
 walls, catch fence, kerb edges, marshal posts, gantries, the pit building,
 boards).
 
-- **Decision (owner):** keep generating every asset, or take textures and
-  vegetation from CC0 libraries (Poly Haven, ambientCG) or licensed scans
-  (Fab/Megascans terms). The kit must still rebuild from a fresh clone
-  ([building.md](building.md)), so anything sourced is pinned and its
+- **Sources:** CC0 textures (Poly Haven, ambientCG), the owner's choice of
+  2026-10-31; meshes, trees and people stay generated. The kit must still
+  rebuild from a fresh clone ([building.md](building.md)), so each sourced
+  file is pinned by URL and hash, fetched by the content rebuild, and its
   licence recorded beside it.
 - **Materials** through `KIT_SLOTS` and `retexture_kit.py`, so every GLB
   picks them up: albedo inside measured real ranges (no saturated primaries
@@ -310,9 +288,70 @@ boards).
   instanced), the marshals among them.
 
 **Check:** per family, a before/after shot run in `scripts/verify/runs.yml`
-from the views on package 52's sheet, judged by the owner; frame time on the
+from the views on the realism sheet, judged by the owner; frame time on the
 RTX machine no worse than before and the integrated-GPU budget kept
 (work plan P3); `every_kit_file_is_catalogued` and the kit tests green.
+
+### 56. Forest cover
+
+The realism sheet's first gap: wooded circuits stand in open grass. Trees
+are planted only inside the dossier's woods, and the OSM extract reads ways
+only, so the large forests OSM maps as multipolygon relations (Monza's
+park, the Eifel round the Nordschleife, the Ardennes round Spa) never reach
+a dossier: Monza has 0.69 km² of wood, the Nordschleife 9 km², and no
+near trees stand inside 120 m at Spa or Monza.
+
+- **Woods from relations:** `osm_layout.py` assembles `natural=wood` and
+  `landuse=forest` multipolygons (outer rings less inner ones) into the
+  dossier's `woods`, through a woods-only refresh that leaves every other
+  layer as it is.
+- **Planting to the fence line:** inside a wood, near trees from the
+  belt's near distance out to where the impostors take over, at a stand
+  density, so the frame reads as a corridor through forest.
+- Every circuit, judged on the woods and aerial views of Spa, Monza and the
+  Nordschleife and on two other wooded circuits.
+
+**Check:** the `g8-*` woods, aerial and chase pairs before and after;
+frame time on the RTX machine no worse than 10 %; the content tests green.
+
+### 57. Cockpit interior materials and lighting
+
+The sheet's second gap: the procedural cockpit rig is flat, untextured
+grey panels lit like the outside. CC0 materials on the rig's parts (carbon
+weave, alcantara, painted and bare metal, rubber), switch panels and a
+screen on the dash, belts on the seat, and the interior darker than the
+windscreen the way an onboard shows it (an interior light falloff or
+occlusion term, not an exposure change outside).
+
+**Check:** the `g8-*` cockpit pairs in both classes before and after.
+
+### 58. Ground and run-off materials
+
+The sheet's third gap: one uniform green, clean saturated run-off paint,
+clean grey road with dark square patches, no gravel. CC0 grass, soil,
+gravel and asphalt textures through the generated track materials, macro
+variation over long distances, run-off paint at measured real colours
+with wear and rubber, the road's patches blended.
+
+**Check:** the `g8-*` TV, grandstand and woods pairs before and after.
+
+### 59. Atmosphere: haze and sky
+
+The sheet's fifth gap: valley haze washes the Nordschleife grey at a few
+hundred metres, and the clear sky is a uniform saturated blue. Height fog
+and distance haze tuned against the reference frames (haze only far
+away on a clear day), the clear sky paler at the horizon.
+
+**Check:** the Nordschleife woods and aerial pairs and every sky in the
+`g8-*` runs before and after.
+
+### 60. Car paint
+
+The sheet's sixth gap: clean, plastic-looking paint and one livery per
+model across a field. Clearcoat with flake, a livery per AI car from the
+car's livery set, dirt and rubber pickup over a stint.
+
+**Check:** the `g8-*` chase and TV pairs before and after.
 
 ### 21. Benchmark from the menu
 
@@ -347,10 +386,8 @@ what it touches, how it is checked) before it becomes a package.
   photos (a 4-wide grid): split into single square crops, one per driver.
   Not on the spectator figures: a photo on their block heads read as a
   sticker. Needs the people's consent before it ships.
-- **Further realism candidates**, each scoped from package 52's ranking:
-  car paint (clearcoat flake, dirt, rubber and fly pickup over a stint),
-  road surface detail (patches, cracks, sealant lines, marbles off the
-  line), tyre smoke and dust kicked off the verge, heat haze over the grid
+- **Further realism candidates**, after packages 56-60: road surface
+  detail (cracks, sealant lines, marbles off the line), tyre smoke and dust kicked off the verge, heat haze over the grid
   and behind exhausts, rain and dirt on the visor or windscreen, motion
   blur, a lens for the TV cameras (barrel, soft highlights), the outside
   driver figure's suit and helmet detail.

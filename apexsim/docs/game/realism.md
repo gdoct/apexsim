@@ -57,4 +57,5 @@ cuts to trackside cameras with foliage or armco filling the lens
 (`g8-monza-gt3` #17, `g8-nordschleife-gt3` #11, #12, #14); in
 [follow-ups.md](../follow-ups.md), Rendering.
 
-**Check:** the owner agrees with the ranking on the sheet.
+The owner agreed the ranking on 2026-10-31; it is work-plan items G12-G16
+with G9 and G11.

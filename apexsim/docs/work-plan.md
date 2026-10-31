@@ -47,10 +47,14 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G8 | Realism reference sheet: game beside real frames, gaps ranked (roadmap 52) | Rendering | P2 | 🔴 | M | 2 |
 | G9 | Driver's hands and arms on the wheel (roadmap 53) | Rendering | P2 | 🟡 | M | 2 |
 | G10 | Cockpit camera vibration: heave, kerbs, engine (roadmap 54) | Rendering | P2 | 🟡 | S | 2 |
-| G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🔴 | L | 2 |
+| G12 | Forest cover: woods from OSM relations, planting to the fence line (roadmap 56) | Content | P2 | 🟢 | L | 2 |
+| G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
+| G14 | Ground and run-off materials (roadmap 58) | Rendering | P2 | 🟢 | M | 2 |
+| G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
+| G15 | Atmosphere: haze and sky (roadmap 59) | Rendering | P2 | 🟢 | S | 2 |
+| G16 | Car paint: clearcoat, liveries across a field, dirt (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
 | P3 | Integrated-GPU run | Platform | P2 | 🔴 | S | 3 |
@@ -73,9 +77,10 @@ takes it up (— : no step, taken opportunistically).
 
 1. **H1** in one sitting (its answers tapped in the verifier's sitting
    mode on a tablet beside the wheel), with B8's cooling and S1's crown on the wheel.
-2. **Visual quality pass.** G10 and G9 first (client-only, no decision
-   needed); G8's sheet, then G11 family by family in its ranking, with C5's
-   columns alongside (C5 places the kit, G11 makes it look real). G4 and N10
+2. **Visual quality pass.** In the realism sheet's ranking
+   ([game/realism.md](game/realism.md), agreed 2026-10-31): G12, G13 with G9,
+   G14, G11 family by family with C5's columns alongside (C5 places the
+   kit, G11 makes it look real), G15, G16; G10 beside them. G4 and N10
    checked together on the RTX machine.
 3. **Sittings as people and hardware are there.** H2, V2, P3 on an integrated-GPU machine.
 4. Everything P3 opportunistically, bundled with whatever touches the same files (AU1's targets one at a time by ear).
@@ -166,12 +171,29 @@ view): one LOD, materials and shadows fine; from above at midday a formula
 car's shadow hides under its floor. Needs the view named by the person who
 saw it, then a contact shadow under the car.
 
-#### G8. Realism reference sheet — P2 · 🔴 · M
-*Source: roadmap 52.* Six views at Spa, Monza and the Nordschleife shot from a
-`runs.yml` run, each beside a real reference frame; the gaps ranked by how
-much of the frame they cover, into `game/realism.md`. The sheet and the
-ranking are made (`g8-*` runs, `scripts/verify/realism_sheet.py`); 🔴 for
-the owner's agreement on the ranking.
+#### G12. Forest cover — P2 · 🟢 · L
+*Source: roadmap 56.* Woods from OSM's multipolygon relations into every
+dossier (a woods-only refresh), near trees planted to the fence line inside
+them. Judged on the `g8-*` woods and aerial pairs and two more wooded
+circuits; frame time kept.
+
+#### G13. Cockpit interior materials and lighting — P2 · 🟢 · M
+*Source: roadmap 57.* CC0 materials on the cockpit rig, dash panels and
+belts, the interior darker than the windscreen. Judged on the `g8-*`
+cockpit pairs.
+
+#### G14. Ground and run-off materials — P2 · 🟢 · M
+*Source: roadmap 58.* CC0 grass, gravel and asphalt in the generated track
+materials, run-off paint at real colours with wear. Judged on the `g8-*`
+pairs.
+
+#### G15. Atmosphere: haze and sky — P2 · 🟢 · S
+*Source: roadmap 59.* Valley haze and the clear sky against the reference
+frames.
+
+#### G16. Car paint — P3 · 🟢 · M
+*Source: roadmap 60.* Clearcoat flake, liveries across a field, dirt over a
+stint.
 
 #### G9. Driver's hands and arms on the wheel — P2 · 🟡 · M
 *Source: roadmap 53.* The cockpit view hides the driver figure, so the wheel
@@ -193,8 +215,8 @@ on an onboard clip and on the wheel.
 *Source: roadmap 55.* The generated kit reads as cartoonish: clean flat
 colours, unbevelled edges, no wear, card trees and crowds. Materials through
 `KIT_SLOTS` (measured albedo, detail, weathering), bevels and real fixings
-on the close families, 3D trees and crowd figures. 🔴 for the sourcing
-decision (all generated vs. CC0 or licensed scans) and the per-family shots.
+on the close families, 3D trees and crowd figures. Textures from CC0
+libraries (the owner's choice, 2026-10-31); 🟡 for the per-family shots.
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*
