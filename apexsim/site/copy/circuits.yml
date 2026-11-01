@@ -33,7 +33,8 @@ made:
     - title: Satellite terrain
       body: >-
         Elevation from the Copernicus GLO-30 surface model out to an
-        eight-kilometre horizon.
+        eight-kilometre horizon, under turf and run-off from ground scans:
+        mown verges, raked gravel, dry patches in the grass.
     - title: Layout dossiers
       body: >-
         Stands, pit lanes, barriers and woodland laid from OpenStreetMap on

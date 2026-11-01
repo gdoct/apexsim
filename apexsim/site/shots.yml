@@ -130,7 +130,7 @@ action:
 
   - id: night-lights
     about: A formula car under the floodlights, headlights on
-    pick: 2
+    pick: 5
     race: sakhir
     window: {station: 400, before: 200, after: 150, min_cars: 3}
     length: 4.0
@@ -184,16 +184,18 @@ action:
     length: 4.0
     camera: {mode: tv, shot: helicopter, follow: lead}
 
-  # The race is simulated dry; the snow is the shot's own look.
+  # The race is simulated dry; the snow is the shot's own look. Tracking,
+  # not trackside: at Les Combes the trackside camera stands behind the
+  # catch fence.
   - id: snow
     about: Formula cars through the snow at Spa, late afternoon
-    pick: 6
+    pick: 2
     race: spa
     window: {corner: "Les Combes", before: 200, after: 150, min_cars: 3}
     length: 4.0
     weather: snow
     time: "16:20"
-    camera: {mode: tv, shot: trackside, follow: lead}
+    camera: {mode: tv, shot: tracking, follow: lead}
 
 ui:
   - id: hud-chase
@@ -252,7 +254,7 @@ ui:
   # standings by class.
   - id: multiclass
     about: A hypercar and GT3 field from the broadcast camera, the HUD on
-    pick: 1
+    pick: 3
     args: [-ApexAutoRace, -ApexTrack=Lemons, -ApexCar=994P, '-ApexClasses=Hypercar:5,GT3:6', -ApexLaps=3,
            -ApexWeather=sunny, -ApexTimeOfDay=19:30, -ApexCountdown=8, -ApexView=tv]
     at: [45, 60, 75, 90]

@@ -243,7 +243,8 @@ chapters:
       - title: You see it
         body: >-
           Panels dent and scuff, wings and noses come off, debris stays on
-          the road, and a hurt engine trails smoke.
+          the road, and a hurt engine trails smoke. Over a session the paint
+          picks up dirt, faster in the wet and off the road.
       - title: The host decides
         body: >-
           Full, reduced or no damage, per session. A pit stop repairs it.
@@ -310,8 +311,9 @@ chapters:
           it, and that line can freeze when the snow stops.
       - title: Drawn as it is
         body: >-
-          The dark line, the marbles, the dry line between wet edges and the
-          debris are all on screen.
+          The dark line, the marbles, the dry line between wet edges, the
+          debris and the tyre marks where a car ran wide over the grass are
+          all on screen.
 
   - id: race-control
     tag: Race control
@@ -387,6 +389,11 @@ chapters:
           Counted sets, a qualifying allowance, the race started on the set
           that set the time, parc fermé holding the setup, and a stint no
           longer than the rule says.
+      - title: Shared cars
+        body: >-
+          Two to four drivers to a car. The driver changes in the box
+          alongside the service, and a cap on each driver's time brings the
+          car in.
       - title: After the flag
         body: >-
           The camera pulls back over the circuit while the results fill in;
@@ -446,6 +453,10 @@ chapters:
         body: >-
           They change tyres as the track dries or wets, serve their
           penalties and stop under a safety car when it pays.
+      - title: Tired drivers
+        body: >-
+          A long spell wears a driver down, a hot cockpit sooner, and a
+          tired driver makes more mistakes; a shared car hands over first.
 
   - id: ffb
     tag: Force feedback and input
@@ -670,8 +681,9 @@ around:
             in the middle.
         - title: Cockpit
           body: >-
-            Wheel, dash and mirrors built per car; seat, horizon lock and
-            head motion are yours to set.
+            Wheel, dash and mirrors built per car, the view riding the car's
+            bumps and buzz; seat, horizon lock, head motion and how much the
+            view shakes are yours to set.
         - title: HDR and colour vision
           body: >-
             HDR output with its own paper white, and palettes for red-green
