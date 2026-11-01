@@ -20,6 +20,11 @@ The owner's verifier reviews of 2026-10-25 are processed (2026-10-26):
 twelve confirmed and closed (R2, R4, R7, R10, R23, C9, C10, F6), none not
 right or can't tell, so they add no work.
 
+The realism night of 2026-10-31/11-01 (unattended): G15 and G16 are done,
+G10 and G14 built and waiting for the owner's judgement (onboard feel; the
+`g14-grass-marks`, `g16-car-dirt` and `g8-*` sheets), G13's wheel wells and
+GT3 footwell fixed; the nine `ApexSim.Prediction` tests pass again.
+
 ## Legend
 
 **Priority** (re-assessed across all four docs, not copied from them):
