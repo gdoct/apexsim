@@ -109,15 +109,25 @@ class's, the sill below the hubs squashed to an 85 mm floor; each control
 point found by a fixed rule (the sill and flank top at fixed heights, the
 shoulder, belt, glass top and roof edge at fixed fractions of the
 half-width along the top), the arch stations bridged and every point
-smoothed along the car. Fitted keys are finished, so the car's own
+smoothed along the car. It was then matched to a studio photo of the real
+GT3: the camera solved from the wheels (and a 1.16 m roof), the car
+rendered through it and its outline laid over the photo. That moved the
+nose out to the real overhang and raked it, the glass forward to the
+A-pillar's foot, the door's end, the intake and the wing (low, on swan
+necks, overhanging the tail). Fitted keys are finished, so the car's own
 `body_loft` passes them to the kit's
 (`kit.body_loft(keys, faces=(bumper, tail), ny=240, hard=(2, 4))`) instead
 of through the class's shaping (`kit.shape_keys`): no roofline, hips or
 end remaps, which fought the fit as ripples, and creases only at the sill
 and shoulder, since creasing points that lie on a smooth curve steps the
-surface. The GT3 kit also takes `lamp_z` (the headlamps' height, apart
-from the nose's) and `valance_z` (how far the tail is open). The reference
-mesh is not in the repo; nothing of it ships but the shape.
+surface. It also sets `kit.SAMP = 14` (samples per control span round the
+section; the kit's 6 drew a raked vent edge or a crease as stairs). The
+GT3 kit takes `lamp_z` (the headlamps' height, apart from the nose's),
+`raked_nose` (a nose raked back under its lamps: parts are placed only
+where the skin rises to them, `carlib.surface_station(reach=True)`, and the
+lamp cut starts there), `valance_z` (how far the tail is open) and a
+sponsor slot of `None` to leave it out. The reference mesh and the photo
+are not in the repo; nothing of them ships but the shape.
 
 The rally cars are Group B, 1984-85, on their real figures and not balanced
 against each other: a front-engined five-cylinder turbo with four-wheel

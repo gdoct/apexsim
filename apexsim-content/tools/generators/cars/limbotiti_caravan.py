@@ -33,30 +33,38 @@ CAR = dict(
     axles=(-1.375, 1.375),
     # mid-engined wedge: the driver on the middle of the wheelbase, a
     # low roof over him and a long deck behind (the imported Huracan)
-    glass_y=(-0.95, 0.55), screen_y=(-1.02, -0.47), rear_glass_y=(0.62, 0.80),
+    # the glass where the real car's is (measured off a photo of it): the
+    # screen and side glass from the A-pillar's foot, the side window
+    # tapering to a point over the intake
+    glass_y=(-1.12, 0.80), screen_y=(-1.12, -0.47), rear_glass_y=(0.80, 0.86),
     eye=(0.36, 0.05, 0.92),
-    wing="pylon", wing_z=1.14, wing_y=1.80, wing_hw=0.88, ducktail=False,
-    # a short, steep plane swept to a V, faceted endplates carrying the
-    # brake lights as two upright bars, on narrow pylons
-    wing_plan=("swept", 0.10), wing_chord=0.30, wing_aoa=12.0, endplate="facet", wing_led="endplate",
-    sponsors=dict(sun=12, quarter=9, fender=15, ep=13),
-    pylon_x=0.40,
-    ends=dict(nose_top=0.49, tail_top=0.88, tail_bot=0.22),
+    wing="swan", wing_z=1.02, wing_y=1.92, wing_hw=0.88, ducktail=False,
+    # a broad plane swept to a V on swan necks, low and hung out past the
+    # tail, the brake lights as two upright bars on its endplates
+    wing_plan=("swept", 0.08), wing_chord=0.36, wing_aoa=10.0, endplate="swoop", wing_led="endplate",
+    sponsors=dict(sun=12, quarter=None, fender=15, ep=13),     # the intake fills the quarter
+    ends=dict(nose_top=0.45, tail_top=0.90, tail_bot=0.22),
     valance_z=(0.20, 0.52),            # the tail open from the diffuser to the lamps
     lights="ybar", grille=False, exhaust="hexquad", mirror="stalk",
-    # the lamps up on the fender fronts, either side of the bonnet
-    lamp_x=(0.42, 0.80), lamp_h=0.085, lamp_z=(0.47, 0.555), face="arrow", tail="y",
-    shutlines=[(-1.84, "upper"), (-0.94, "side"), (0.62, "side"), (0.86, "upper"), (1.84, "upper")],
-    vents=["deck_louvres"], scoop=(0.0, 0.62, 0.075),        # the snorkel at the roof's end
-    # the wedge: the intake low in the rear fender between the door and the
-    # wheel, raked back (it leaves the quarter no room for a sponsor), and a
-    # knife slot behind the front wheel leaning the other way
+    # the lamps on the nose's corners, just under the bonnet's leading edge
+    lamp_x=(0.38, 0.72), lamp_h=0.085, lamp_z=(0.36, 0.43), raked_nose=True, face="arrow", tail="y",
+    shutlines=[(-1.84, "upper"), (-0.94, "side"), (0.44, "side"), (0.86, "upper"), (1.84, "upper")],
+    # no deck louvres: the kit's flat blades stand off a cover crowned to a
+    # spine like this one
+    vents=[], scoop=(0.0, 0.62, 0.075),        # the snorkel at the roof's end
+    # the wedge: the intake behind the door, raked back and standing from the
+    # sill to the top of the flank, a knife slot behind the front wheel
+    # leaning the other way, and the crease between them
     # (j 2 is the sill at 15 cm, j 3 the top of the flank at 58 cm)
     side=[
-        ("recess", dict(y0=(0.68, 0.78), y1=(0.97, 0.99), j0=2.10, j1=2.85,
-                        depth=0.060, rim=0.040, bow=-0.04, blades=3, blade_r=0.008)),
+        ("recess", dict(y0=(0.38, 0.58), y1=(0.80, 0.90), j0=2.05, j1=3.00,
+                        depth=0.070, rim=0.025, bow=-0.04)),
         ("recess", dict(y0=(-0.94, -0.86), y1=(-0.84, -0.78), j0=2.35, j1=2.95,
                         depth=0.035, rim=0.016, blades=2, blade_r=0.005)),
+        # the door's crease, climbing from the foot of the front arch into the
+        # intake's top corner
+        ("swage", dict(y0=-0.90, y1=0.50, j_a=2.30, j_b=2.95, depth=0.016,
+                       width=0.30, fade=0.20)),
     ],
     decal_j=(2.00, 2.90),
     # Sections measured off a low-poly Huracan STO (CC BY, not in the repo):
@@ -123,12 +131,32 @@ def body_loft():
     keys = CAR["keys"]
     keys = carlib.scale_width(keys, 1.0 / max(x for (_, pts) in keys for (x, _) in pts))
     keys = carlib.fender_bump(keys, CAR["axles"], amount=0.03, width=0.55, j0=2.2, j1=4.3)
+    # the front overhang to the real car's: the stations ahead of the arch
+    # drawn out half as long again, so the nose runs out low and pointed
+    keys = [(y if y >= -1.80 else -1.80 + (y + 1.80) * 1.5, pts) for (y, pts) in keys]
+    # and the bonnet run down to the real car's leading edge (0.47 m): ahead of
+    # y -1.9 every point drops by up to 10 cm, in proportion to its height,
+    # so the floor and the chin stay where they are
+    def drop(y, pts):
+        d = 0.10 * carlib._smoothstep((-1.90 - y) / 0.45)
+        zb, zt = min(z for (_, z) in pts), max(z for (_, z) in pts)
+        return [(x, z - d * (z - zb) / (zt - zb)) for (x, z) in pts]
+    keys = [(y, drop(y, pts)) for (y, pts) in keys]
     k0, k1 = keys[0][0], keys[-1][0]
     # the model's own bumper face is too crude to copy: the nose is the first
-    # fitted section drawn forward and in, the tail the last drawn back
-    for (src, y, xs, zs) in ((k0, k0 - 0.06, 0.94, 0.90), (k0, k0 - 0.11, 0.80, 0.74),
-                             (k1, k1 + 0.03, 0.94, 0.92), (k1, k1 + 0.06, 0.80, 0.74)):
-        keys = carlib.tip_station(keys, src, y, x_scale=xs, z_shrink=zs)
+    # fitted section drawn forward, its top dropping and the chin running on
+    # low, so the face rakes forward from the bonnet's leading edge to the
+    # splitter as the real car's does (a tip shrunk about its middle made a
+    # bulb); the tail is the last section drawn back
+    src = keys[0][1]
+    zb = min(z for (_, z) in src)
+    for (dy, xs, zs) in ((0.06, 0.95, 0.78), (0.12, 0.86, 0.42)):
+        keys = [(k0 - dy, [(x * xs, zb + (z - zb) * zs) for (x, z) in src])] + keys
+    for (y, xs, zs) in ((k1 + 0.03, 0.94, 0.92), (k1 + 0.06, 0.80, 0.74)):
+        keys = carlib.tip_station(keys, k1, y, x_scale=xs, z_shrink=zs)
+    # 14 samples per control span round the section (the kit's 6 drew the
+    # intake's raked edges and the door crease as stairs)
+    kit.SAMP = 14
     kit.body_loft(keys, faces=(k0 - 0.06, k1), ny=240, hard=(2, 4))
 
 

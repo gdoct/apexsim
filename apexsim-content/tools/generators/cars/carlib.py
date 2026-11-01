@@ -1433,18 +1433,23 @@ def diffuser(b, mat, y0, y1, half_w, z0, z1, thick=0.014, strakes=(-0.66, -0.24,
             plate(b, mat, fp, sx * (half_w - 0.010), 0.014)
 
 
-def surface_station(loft, x, z, start, step=0.015, limit=1.2, margin=0.025):
+def surface_station(loft, x, z, start, step=0.015, limit=1.2, margin=0.025, reach=False):
     """The first station from `start` (searching towards the middle of the car)
     where the skin is at least `x` + `margin` half-wide at height `z`.
 
     Anything mounted on a corner - a lamp, a dive plane, a bumper duct - has
     to be put where the body is actually wide enough to hold it. Guessing a y
     near the nose leaves the part hanging in mid-air, because the nose station
-    is the narrowest part of the car."""
+    is the narrowest part of the car.
+
+    `reach` also skips stations whose skin does not rise to `z`: `x_at`
+    falls back to a section's widest sample above its top, which on a nose
+    raked back under its lamps put them on the tip. (Off by default: the
+    drawn cars' parts were placed with the fallback.)"""
     sign = 1.0 if start < (loft.nose + loft.tail) / 2 else -1.0
     y = start
     for _ in range(int(limit / step)):
-        if loft.x_at(y, z) >= abs(x) + margin:
+        if (not reach or max(q[1] for q in loft.half(y)) >= z) and loft.x_at(y, z) >= abs(x) + margin:
             return y
         y += sign * step
     return start + sign * limit

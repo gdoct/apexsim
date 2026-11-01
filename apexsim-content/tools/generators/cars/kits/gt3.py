@@ -93,9 +93,16 @@ def wing_dz(x):
     return TE(x)[1] - te_z
 
 
+def station(x, z, start, **kw):
+    """carlib.surface_station on the shell; a car whose nose is raked back
+    under its lamps (`raked_nose`) skips the stations its skin does not
+    rise to."""
+    return carlib.surface_station(L, x, z, start, reach=V.get("raked_nose", False), **kw)
+
+
 def nose_at(x, z, back=0.0):
     """The station where the skin passes (x, z) on the nose, `back` inside it."""
-    return carlib.surface_station(L, abs(x), z, NOSE, step=0.008, margin=0.004) + back
+    return station(abs(x), z, NOSE, step=0.008, margin=0.004) + back
 
 
 def mirrored(poly, sx):
@@ -108,7 +115,7 @@ def tail_skin(poly):
     """The most forward station at which the tail's skin passes any point of
     `poly`: a lamp plate that reaches back to it sits on the rounded tail
     corner as well as on the flat panel, instead of hiding behind it."""
-    return min(carlib.surface_station(L, abs(x), z, TAIL, step=0.004, margin=0.0) for (x, z) in poly)
+    return min(station(abs(x), z, TAIL, step=0.004, margin=0.0) for (x, z) in poly)
 
 
 def ibox(mat, lo, hi):
@@ -286,7 +293,7 @@ def arches():
 # becomes the walls of the opening, so the aperture comes out lined and the
 # lens sits in a hole instead of floating on the paint.
 def apertures():
-    global FACE, LAMP_YB, LAMP_ZC, RAIN_Z, VAL_POLY, VAL_Z
+    global FACE, LAMP_Y0, LAMP_YB, LAMP_ZC, RAIN_Z, VAL_POLY, VAL_Z
     # The face. Each car has its own set of shaped openings - outlines in the
     # (x, z) plane of the nose, right-hand ones mirrored - cut through the
     # bumper back to where the skin is behind every corner of the outline, then
@@ -332,10 +339,15 @@ def apertures():
     # headlamps: a box through the nose corner, deep enough to open on the flank
     # too, so the lamp wraps the corner as a GT3's does
     LAMP_ZC = (LAMP_Z[0] + LAMP_Z[1]) / 2
-    LAMP_YB = carlib.surface_station(L, LAMP_X[1], LAMP_ZC, NOSE, margin=0.02) + 0.06
+    LAMP_YB = station(LAMP_X[1], LAMP_ZC, NOSE, margin=0.02) + 0.06
+    # the cut starts ahead of the nose, or on a nose raked back under its lamps
+    # just ahead of where the skin first reaches their top (from the tip, it
+    # left the lining hanging in the air)
+    LAMP_Y0 = (station(LAMP_X[0], LAMP_Z[1], NOSE, step=0.005, margin=0.0) - 0.03
+               if V.get("raked_nose") else NOSE - 0.06)
     for sx in (-1, 1):
         x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
-        carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_YB, LAMP_Z[1]))
+        carlib.aperture(body, M, (x0, LAMP_Y0, LAMP_Z[0]), (x1, LAMP_YB, LAMP_Z[1]))
     VAL_Z = V.get("valance_z") or (E["tail_bot"] + 0.02, E["tail_bot"] + 0.19)
     VAL_HW = L.x_at(TAILP_Y, VAL_Z[1]) - 0.11
     # the rear valance, where the exhausts and the diffuser exit: a plain slot
@@ -387,12 +399,12 @@ def floor():
         carlib.plate(p, M.carbon, fence, sx * (L.x_at((fy0 + fy1) / 2, 0.17) - 0.030), 0.012,
                      chamfer=0.004)
     for sx in (-1, 1):
-        dy = carlib.surface_station(L, 0.78, 0.34, NOSE, margin=0.02)
+        dy = station(0.78, 0.34, NOSE, margin=0.02)
         dx = L.x_at(dy + 0.10, 0.34)
         dp = [(dy, 0.315), (dy + 0.26, 0.345), (dy + 0.26, 0.367), (dy, 0.337)]
         carlib.plate(p, M.carbon, dp, sx * (dx + 0.045), 0.105, chamfer=0.008)
         # upper canard, shorter chord, a hand above the first
-        dy2 = carlib.surface_station(L, 0.78, 0.43, NOSE, margin=0.02)
+        dy2 = station(0.78, 0.43, NOSE, margin=0.02)
         dx2 = L.x_at(dy2 + 0.08, 0.43)
         dp2 = [(dy2, 0.415), (dy2 + 0.20, 0.440), (dy2 + 0.20, 0.460), (dy2, 0.435)]
         carlib.plate(p, M.carbon, dp2, sx * (dx2 + 0.040), 0.090, chamfer=0.008)
@@ -593,12 +605,12 @@ def tail_lights():
             carlib.poly_bars(p, bar_mat, poly, yb - 0.030, angle_deg=ang, pitch=pitch,
                              t=0.009 if ang == 90.0 else 0.007, depth=0.028)
         if spec.get("rim"):
-            ys = min(carlib.surface_station(L, abs(x), z, NOSE, step=0.01, margin=0.0) for (x, z) in poly)
+            ys = min(station(abs(x), z, NOSE, step=0.01, margin=0.0) for (x, z) in poly)
             carlib.poly_rim(p, M.chrome, poly, ys - 0.012, w=0.016, depth=0.030)
         if spec.get("blade"):
             zs = [z for (_, z) in poly]
             z0, z1 = min(zs) + 0.004, max(zs) - 0.004
-            yf = carlib.surface_station(L, 0.02, z0, NOSE, step=0.004, margin=0.0) + 0.006
+            yf = station(0.02, z0, NOSE, step=0.004, margin=0.0) + 0.006
             carlib.plate(p, M.carbon, [(yf, z0), (yb, z0), (yb, z1), (yf + 0.03, z1)], 0.0, 0.016,
                          chamfer=0.004)
     # rear valance: mesh backing, the car's bars, exhausts inside it
@@ -848,7 +860,7 @@ def decals():
         carlib.conform_decal(p, M.number, L, NUM_Y[0], NUM_Y[1], NJ0, NJ1, sx=sx, lift=0.005, nu=8, nv=8,
                              flip_u=sx < 0, uv_rect=carlib.number_uv(NUM))
         q0, q1 = DOOR1 + 0.08, AX_R - TYRE_R - 0.10
-        if q1 - q0 > 0.30:
+        if q1 - q0 > 0.30 and SP.get("quarter") is not None:
             carlib.conform_decal(p, M.sponsor, L, q0, q1, LJ0 + 0.10, LJ1 - 0.05, sx=sx, lift=0.005, nu=10,
                                  nv=5, flip_u=sx < 0, uv_rect=carlib.atlas_uv(SP["quarter"]))
         f0, f1 = AX_F + TYRE_F + 0.10, min(DOOR0 - 0.04, AX_F + TYRE_F + 0.50)
