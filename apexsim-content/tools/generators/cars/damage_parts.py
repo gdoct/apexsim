@@ -71,6 +71,9 @@ MANUAL_REAR_WING = {
     # The boot rises under the wing to within a centimetre of it all along
     # its chord, so no band of heights behind the axle is empty.
     "murcetes-amd-gt3": (1.04, -1.88),
+    # The swan necks are blades standing in the band under the plane, so
+    # it is never empty: above the deck, from the endplates' front edge back.
+    "limbotiti-caravan-gt3": (1.00, -1.70),
 }
 
 
