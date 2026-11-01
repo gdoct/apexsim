@@ -522,39 +522,45 @@ def build_hand(name, mats, bvh):
     palm.ellipsoid(hypo, (m, across, dorsal), (2.6, 1.1, 1.0))
     palm.ellipsoid(wrist, (m, across, dorsal), (1.7, 2.75, 1.85))
 
-    # The thumb: its metacarpal from the heel (in the palm's family, so the
-    # thenar blends into it) to a knuckle on the driver's face of the grip,
-    # then two phalanges inward, laid down onto the spoke or the faceplate
-    # as far as they go without passing through it.
+    # The thumb: its metacarpal from the heel to a knuckle on the driver's
+    # face of the grip, then two phalanges inward, laid down onto the spoke
+    # or the faceplate as far as they go without passing through it. It is
+    # one surface with the palm, so the root blends into the thenar instead
+    # of standing on it, and each joint bends at most a joint's worth.
     vt = FINGERS[1][0] + 0.1
     gc = grip.centre(vt)
     t_mcp = gc + np.array([-(grip.rx + 1.0) * 0.15, 0.0, grip.ry + 0.55])
-    cmc = t_mcp + unit(thenar - t_mcp) * 4.4
-    palm.capsule(cmc, t_mcp, 1.15)
-    palm.ellipsoid((cmc + t_mcp) / 2 - dorsal * 0.5, (unit(t_mcp - cmc), across, dorsal), (2.4, 1.3, 1.05))
+    along = unit(np.array([-1.0, 0.05, -0.35]))             # inward, onto the spoke
+    cmc = t_mcp + unit(unit(thenar - t_mcp) * 0.55 - along * 0.45) * 4.4
+    palm.capsule(cmc, t_mcp, 1.12, stiffness=1.6)
+    palm.ellipsoid((cmc + t_mcp) / 2 - dorsal * 0.45, (unit(t_mcp - cmc), across, dorsal), (2.3, 1.25, 1.0),
+                   stiffness=1.4)
     tj = [t_mcp]
-    # Each phalanx as far toward the nose as is clear, the tip bending down
-    # past the knuckle's line but never more than a joint can.
-    lo = -1.0
-    for L, r in zip(THUMB, (0.98, 0.86)):
+    prev = unit(t_mcp - cmc)
+    for L, r, most in zip(THUMB, (0.96, 0.82), (38.0, 32.0)):
         p = tj[-1]
         best = None
-        for dw in np.linspace(lo, lo + 1.4, 29):
-            c = unit(np.array([-1.0, -0.18, dw]))
+        # Toward the spoke from the bone before, then down toward the nose
+        # until clear; the first clear one is the one lying on the wheel.
+        for dw in np.linspace(-0.9, 0.7, 33):
+            c = unit(along + np.array([0.0, 0.0, dw]))
+            ang = math.degrees(math.acos(np.clip(np.dot(c, prev), -1.0, 1.0)))
+            if ang > most:
+                c = unit(prev + (c - prev) * (most / ang))
             if clear_of(bvh, p, p + c * L, r * 0.95) <= 0.0:
-                best, lo = c, dw - 0.6
+                best = c
                 break
-        best = best if best is not None else unit(np.array([-1.0, -0.18, lo + 1.4]))
+        best = best if best is not None else prev
         tj.append(p + best * L)
-    thumb = Blob("Thumb")
-    thumb.capsule(tj[0] - unit(tj[1] - tj[0]) * 1.0, tj[1], 0.98)
-    thumb.capsule(tj[1], tj[2] - unit(tj[2] - tj[1]) * 0.3, 0.82)
+        prev = best
+    palm.capsule(tj[0], tj[1], 0.96, stiffness=1.6)
+    palm.capsule(tj[1], tj[2] - unit(tj[2] - tj[1]) * 0.25, 0.82, stiffness=1.6)
     # The pad of the thumb, flattened where it lies on the wheel.
     tip_dir = unit(tj[2] - tj[1])
     down = unit(np.array([0.0, 0.0, -1.0]) - tip_dir * tip_dir[2])
-    thumb.ellipsoid(tj[1] + (tj[2] - tj[1]) * 0.55 + down * 0.25, (tip_dir, np.cross(tip_dir, down), down),
-                    (1.3, 0.9, 0.55), stiffness=1.0)
-    parts.append(thumb.mesh())
+    palm.ellipsoid(tj[1] + (tj[2] - tj[1]) * 0.55 + down * 0.22, (tip_dir, np.cross(tip_dir, down), down),
+                   (1.25, 0.86, 0.52), stiffness=1.0)
+    log(f"  thumb: mcp {np.round(t_mcp, 2)}, ip {np.round(tj[1], 2)}, tip {np.round(tj[2], 2)}")
     parts.append(palm.mesh())
 
     hand = join(parts, "hand_r")
@@ -995,6 +1001,16 @@ def sleeve(name, mats, length, r0, r1, cuff_cm, elbow_end):
             for lp, (kk, ii) in zip(f.loops, ((k, i), (k, i + 1), (k + 1, i + 1), (k + 1, i))):
                 circ = 2 * math.pi * r0
                 lp[uv].uv = (ii / n_th * circ / 10.0, xs[kk] * length / 10.0)
+    # The open end (the forearm's wrist, the upper arm's shoulder) closed
+    # flat: with the wheel at full lock the eye looks straight into it.
+    ring = rows[0] if elbow_end else rows[-1]
+    mid = bm.verts.new(sum((v.co for v in ring), Vector()) / len(ring))
+    for i in range(n_th):
+        f = bm.faces.new((mid, ring[(i + 1) % n_th], ring[i]))
+        f.smooth = False
+        f.material_index = 1 if elbow_end else 0
+        for lp in f.loops:
+            lp[uv].uv = ((lp.vert.co.y + 0.5) * 10.0, (lp.vert.co.z + 0.5) * 10.0)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     me = bpy.data.meshes.new(name)
     bm.to_mesh(me)

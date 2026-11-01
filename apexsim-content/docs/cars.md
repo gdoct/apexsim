@@ -386,17 +386,20 @@ draws them as the driver's arms ([cameras.md](../../apexsim/docs/game/cameras.md
 Plain Python derives the CC0 maps into `wheels/hands/_textures/` (checked
 in; base colour at a measured albedo, roughness packed G, normal) when they
 are missing, then runs itself in Blender headless (`$BLENDER`). A hand is
-metaballs per finger, thumb and palm (each its own family, so fingers keep
+metaballs per finger and the palm (each its own family, so fingers keep
 a crease between them), each phalanx a chord round the grip's own section;
-the thumb lies down onto whatever stands in front of the rim (spoke,
-faceplate), the fingers wrap behind it through the paddles. Blender will
+the thumb is part of the palm's family so its root blends into the thenar,
+and lies down onto whatever stands in front of the rim (spoke, faceplate),
+each joint bending at most a joint's worth; the fingers wrap behind the rim
+through the paddles. Blender will
 not polygonise metaballs finer than 5 mm, so a `Blob` is built ten times
 over size and shrunk; a glove is decimated to about 11k triangles, then
 the knuckle pad, suede inside the grip (per-vertex weight, a majority pass
 so its edge runs clean), external finger seams snapped to the surface, the
 gauntlet with its strap and tab. Sleeves are modelled at their real length
-(27 / 30 cm) with elbow folds, a sag and an under-arm seam, and stretched
-to 1 m. `--preview` renders four Cycles views per class into
+(27 / 30 cm) with elbow folds, a sag and an under-arm seam, their open
+end (wrist, shoulder) capped because at full lock the eye looks into it,
+and stretched to 1 m. `--preview` renders four Cycles views per class into
 `apexsim/out/hands/` on the CPU with six threads: a GPU render from a
 headless run has frozen the machine.
 A car's own `steering_wheel_model` is drawn in place of the rig's rim and
