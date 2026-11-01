@@ -1019,7 +1019,27 @@ namespace
 		UMaterialExpression* Crack = nullptr;
 		/** Grime, 0..1: road dirt and rubber on the lower body and the tail, as dirty as the car is. */
 		UMaterialExpression* Grime = nullptr;
+		/** The undeformed position in the mesh's frame, cm: what the paint's flake is laid in. */
+		UMaterialExpression* Local = nullptr;
 	};
+
+	/**
+	 * Metallic paint's flake under the clear coat (`FlakeAmount`, 1): cells
+	 * of a few millimetres in the mesh's frame, one in eight a flake lying
+	 * glossier than the paint round it, so a highlight sparkles up close;
+	 * faded out where a cell falls under a pixel, and none on paint that is
+	 * not metallic.
+	 */
+	const TCHAR* kPaintFlake = TEXT(R"(
+float3 q = P * 2.5;
+float3 id = floor(q);
+float h = frac(sin(dot(id, float3(12.9898, 78.233, 37.719))) * 43758.5453);
+float fade = saturate(1.5 - length(fwidth(q)));
+float flake = step(0.875, h) * fade * saturate((Metal - 0.2) * 2.5) * Amount;
+return lerp(Rough, Rough * 0.35, flake);
+)");
+
+	const TCHAR* kFlakeAmount = TEXT("FlakeAmount");
 
 	/** What grime leaves on the paint: road film and rubber dust, a dull grey-brown. */
 	const FLinearColor kGrimeColor(0.085f, 0.077f, 0.068f);
@@ -1180,6 +1200,7 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		UMaterialExpression* Grit = G.Noise(NoisePos, 0.2f, 1);
 		UMaterialExpression* Spread = G.Add(G.Mul(Reach, G.C(1.1f)), G.Add(G.Mul(Blots, G.C(0.75f)), G.Mul(Grit, G.C(0.2f))));
 		Out.Grime = G.Mul(G.Sat(G.Mul(G.Sub(G.Add(Spread, G.Mul(Dirt, G.C(0.5f))), G.C(1.3f)), G.C(2.0f))), G.Mul(Dirt, G.C(0.75f)));
+		Out.Local = Local;
 		Out.Crack = AddCustom(Parent, TEXT("ApexGlassCrack"), kGlassCrack, CMOT_Float1,
 			{{TEXT("P"), Local}, {TEXT("Centre"), Centre}, {TEXT("Extent"), Extent}, {TEXT("Front"), Front},
 				{TEXT("Rear"), Rear}, {TEXT("AtFront"), AtFront}, {TEXT("AtRear"), AtRear}, {TEXT("Local1"), Local1},
@@ -1285,6 +1306,12 @@ return saturate(max(Wb.W(g - cF, amtF, frac(Seed * 0.731)), Wb.W(g - cR, amtR, f
 		Packed->SamplerType = SAMPLERTYPE_Color;
 		UMaterialExpression* Metal = G.Mul(CarScalar(Parent, ApexCarMaterials::MetallicFactor, 1.0f), G.Mask(Packed, false, false, true));
 		UMaterialExpression* Rough = G.Mul(CarScalar(Parent, ApexCarMaterials::RoughnessFactor, 1.0f), G.Mask(Packed, false, true, false));
+		if (Kind == ECarParent::ClearCoat)
+		{
+			Rough = AddCustom(Parent, TEXT("ApexPaintFlake"), kPaintFlake, CMOT_Float1,
+				{{TEXT("P"), Damage.Local}, {TEXT("Metal"), Metal}, {TEXT("Rough"), Rough},
+					{TEXT("Amount"), CarScalar(Parent, kFlakeAmount, 1.0f)}});
+		}
 		UMaterialExpressionTextureSampleParameter2D* NormalMap = AddExpr<UMaterialExpressionTextureSampleParameter2D>(Parent);
 		NormalMap->ParameterName = ApexCarMaterials::NormalTexture;
 		NormalMap->Texture = LoadObject<UTexture>(nullptr, TEXT("/Engine/EngineMaterials/DefaultNormal.DefaultNormal"));
@@ -2543,17 +2570,22 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 					}
 				}
 			}
-			// And one from before the normal and metallic-roughness maps, or the dirt.
+			// And one from before the normal and metallic-roughness maps, the
+			// dirt, or (the clear coat) the flake.
 			float Scale = 0.0f;
 			float Dirt = 0.0f;
+			float Flake = 0.0f;
+			const bool bFlake = Car.Value != ECarParent::ClearCoat
+				|| (Existing && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(kFlakeAmount), Flake));
 			if (!Existing
 				|| (bCracks && Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::DamageDentCm), Dent)
 					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexCarMaterials::NormalScale), Scale)
-					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexDamage::DirtParameter), Dirt)))
+					&& Existing->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(ApexDamage::DirtParameter), Dirt)
+					&& bFlake))
 			{
 				continue;
 			}
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph, cracks, normal map or dirt; baking it again"), Car.Key);
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s has no damage graph, cracks, normal map, dirt or flake; baking it again"), Car.Key);
 		}
 		const ECarParent Kind = Car.Value;
 		if (!BakeAs(PackageName, [Kind, White](UMaterial* M) { BuildCar(M, Kind, White); }, OutError))

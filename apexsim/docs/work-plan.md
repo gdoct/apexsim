@@ -52,7 +52,6 @@ takes it up (— : no step, taken opportunistically).
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: grass tracks, worn paint, dry patches, raked gravel built; to judge | Rendering | P2 | 🟡 | M | 2 |
 | G11 | Trackside kit realism: materials, geometry, trees, crowd (roadmap 55) | Content | P2 | 🟡 | L | 2 |
-| G16 | Car paint: clearcoat flake (roadmap 60) | Rendering | P3 | 🟢 | M | 2 |
 | G17 | Car generators per car; GT3 and rally bodies with character (roadmap 61) | Content | P2 | 🟡 | L | 2 |
 | H2 | Racing the AI, listening, pad sittings | Verification | P2 | 🔴 | S each | 3 |
 | V2 | Verification runs R2, R7: what is left | Verification | P2 | 🟡 | S each | 3 |
@@ -79,8 +78,8 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
    G14, G11 family by family with C5's columns alongside (C5 places the
-   kit, G11 makes it look real), G16; G10 beside them. G17 after
-   G13 and G16 land (they touch the same car builds); its step 1 (the
+   kit, G11 makes it look real); G10 beside them. G17 after
+   G13 lands (they touch the same car builds; G16, the paint, is in); its step 1 (the
    per-car split, byte-identical output) runs unattended overnight. G4 and N10
    checked together on the RTX machine.
 3. **Sittings as people and hardware are there.** H2, V2, P3 on an integrated-GPU machine.
@@ -187,12 +186,6 @@ and streaked with rubber, dry patches, mown verges and raked gravel
 textures). Left: the owner's judgement on the `g8-*` pairs and the
 `g14-grass-marks` / `g15-haze-spa` sheets.
 
-#### G16. Car paint — P3 · 🟢 · M
-*Source: roadmap 60.* The field already wears each model's liveries in turn
-(the server deals them), and dirt builds up over a session
-([cars.md](../../apexsim-content/docs/cars.md), Dirt; `g16-car-dirt`). Left:
-clearcoat flake.
-
 #### G9. Driver's hands: what is left — P2 · 🟡 · L
 *Source: roadmap 53.* Gloves and arms are drawn on every class wheel, off by
 default: the first meshes read as toy hands. First: real glove and sleeve
@@ -227,7 +220,7 @@ mechanical; every car's GLBs and car.toml tables byte-identical, built
 headless with Blender 5.1 on a scratch copy of the content root. Step 2
 (🟡): each GT3 and rally car its own body description, the Limbotiti
 first, judged by the owner on orthographic preview sheets against a
-reference silhouette. Wait for G13 and G16 (car interiors and paint).
+reference silhouette. Wait for G13 (car interiors).
 
 #### C2. Circuit dressing backlog — P3 · 🟡/🔴 · M–L
 *Source: follow-ups #6.*

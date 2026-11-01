@@ -275,15 +275,6 @@ Left:
 
 **Check:** the `g8-*` cockpit pairs in both classes before and after.
 
-### 60. Car paint
-
-The sheet's sixth gap: clean, plastic-looking paint. The field wears each
-model's liveries in turn and dirt builds up over a session
-([cars.md](../../apexsim-content/docs/cars.md), Dirt). Left: clearcoat with
-flake.
-
-**Check:** the `g8-*` chase and TV pairs before and after.
-
 ### 61. Car generators per car, and GT3 and rally bodies with character
 
 The generated GT3s look alike and none looks special (the Limbotiti reads

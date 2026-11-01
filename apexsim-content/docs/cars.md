@@ -576,6 +576,11 @@ face) from it, which starts the second (`HitCentres::second`, `damage_at2`,
   reads its own tyre's pickup as its grime. A parent baked before the dirt
   (no `CarDirt`) is baked again by `-run=ApexMaterialBake`.
   `apexsim.car.DirtPreview N` draws every car at N (run `g16-car-dirt`).
+- **Flake**: the clear-coat parent lays metallic paint's flake under the
+  coat (`FlakeAmount`, 1; `kPaintFlake`): 4 mm cells in the mesh's frame,
+  one in eight glossier than the paint round it, so a highlight sparkles up
+  close; faded out where a cell falls under a pixel, none below metallic
+  0.2. A clear-coat parent without it is baked again.
 - **Parts** come off. `[[damage_part]]` boxes split the body GLB at runtime
   (`ApexGlb::SplitByBoxes`, `LoadModelPieces`, `ApexCarContent::LoadBodyPieces`):
   each triangle whose centre lies in a box goes to that part's mesh, drawn on
