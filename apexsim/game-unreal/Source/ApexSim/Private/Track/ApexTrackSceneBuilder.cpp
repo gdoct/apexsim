@@ -1362,6 +1362,20 @@ bool FApexTrackSceneBuilder::BuildMaterials(const FApexTrackScene& Scene, FStrin
 		{
 			Params.Scalar(TEXT("PaintWear"), Wear);
 		}
+		// The groundsman's work: the verges mown in stripes, the turf dry in
+		// patches, the gravel raked.
+		if (Source.TakesTyreMarks())
+		{
+			Params.Scalar(TEXT("DryPatches"), 1.0f);
+			if (Source.Key == TEXT("surface_grass"))
+			{
+				Params.Scalar(TEXT("MowStripes"), 1.0f);
+			}
+		}
+		if (Source.Family == TEXT("surface") && Source.Key == TEXT("surface_gravel"))
+		{
+			Params.Scalar(TEXT("GravelRake"), 1.0f);
+		}
 
 		// Which baked set this family samples, and how hard. A version 3
 		// surface key may name its set outright (an imported circuit's

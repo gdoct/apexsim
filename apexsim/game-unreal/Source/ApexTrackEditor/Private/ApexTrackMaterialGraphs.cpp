@@ -145,6 +145,8 @@ namespace
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
 	void ApplyPaintWearGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
 		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness);
+	void ApplyGroundLookGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal);
 
 	/**
 	 * `bRoadState` builds `M_ApexTrackRoad`: the same surface, with the
@@ -677,6 +679,7 @@ namespace
 		}
 
 		ApplyPaintWearGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness);
+		ApplyGroundLookGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness, FinalNormal);
 		if (bRoadState)
 		{
 			ApplyRoadWearGraph(Parent, TexCoord, WorldPos, FinalAlbedo, FinalRoughness);
@@ -1965,6 +1968,77 @@ return float4(c, r);
 	}
 
 	/**
+	 * The grounds as a groundsman leaves them, each 0 by default: the verges'
+	 * mowing stripes (`MowStripes`: 2.4 m bands along the strip's station,
+	 * lighter and darker by the way the blades lie), dry patches yellowing
+	 * the turf over tens of metres (`DryPatches`, world space, so the
+	 * terrain takes them too), and a gravel trap's raked ridges
+	 * (`GravelRake`: 15 cm apart along the station, wandering a little,
+	 * shaded and bumped up close and fading out before they would shimmer).
+	 */
+	void ApplyGroundLookGraph(UMaterial* Parent, UMaterialExpression* TexCoord, UMaterialExpression* WorldPos,
+		UMaterialExpression*& InOutAlbedo, UMaterialExpression*& InOutRoughness, UMaterialExpression*& InOutNormal)
+	{
+		const FGraph G{Parent};
+		auto Param = [Parent](const TCHAR* Name) {
+			UMaterialExpressionScalarParameter* E = AddExpr<UMaterialExpressionScalarParameter>(Parent);
+			E->ParameterName = Name;
+			E->DefaultValue = 0.0f;
+			return E;
+		};
+		UMaterialExpressionScalarParameter* Mow = Param(TEXT("MowStripes"));
+		UMaterialExpressionScalarParameter* Dry = Param(TEXT("DryPatches"));
+		UMaterialExpressionScalarParameter* Rake = Param(TEXT("GravelRake"));
+		static const TCHAR* kGroundLook = TEXT(R"(
+float3 c = Albedo;
+float r = Rough;
+if (Mow > 0.0)
+{
+    float lit = clamp(sin(UV.y / 4.8 * 6.2831853) * 4.0, -1.0, 1.0);
+    float far = saturate(1.0 - fwidth(UV.y / 4.8) * 4.0);
+    c *= 1.0 + 0.07 * Mow * lit * far;
+}
+if (Dry > 0.0)
+{
+    float dry = saturate((Patches - 0.56) * 3.5) * Dry;
+    c = lerp(c, c * float3(1.3, 1.12, 0.62), dry * 0.55);
+    r = lerp(r, saturate(r + 0.05), dry);
+}
+return float4(c, r);
+)");
+		UMaterialExpression* Patches = G.Noise(WorldPos, 1.0f / 6000.0f, 2);
+		UMaterialExpressionCustom* Look = AddCustom(Parent, TEXT("ApexGroundLook"), kGroundLook, CMOT_Float4,
+			{{TEXT("UV"), G.Mask(TexCoord, true, true, false)}, {TEXT("Patches"), Patches}, {TEXT("Albedo"), InOutAlbedo},
+				{TEXT("Rough"), InOutRoughness}, {TEXT("Mow"), Mow}, {TEXT("Dry"), Dry}});
+		InOutAlbedo = G.Mask(Look, true, true, true);
+		UMaterialExpressionComponentMask* RoughOnly = AddExpr<UMaterialExpressionComponentMask>(Parent);
+		RoughOnly->Input.Expression = Look;
+		RoughOnly->R = 0;
+		RoughOnly->G = 0;
+		RoughOnly->B = 0;
+		RoughOnly->A = 1;
+		InOutRoughness = RoughOnly;
+
+		// The raked ridges: x the ridge's height (-1..1), yz its slope in the
+		// tangent frame, all faded out with distance.
+		static const TCHAR* kRake = TEXT(R"(
+if (Rake <= 0.0) { return float3(0.0, 0.0, 0.0); }
+float spacing = 0.15;
+float v = UV.y + 0.04 * sin(UV.x * 0.9) + 0.02 * sin(UV.x * 3.1 + 1.7);
+float ph = v / spacing * 6.2831853;
+float fade = saturate(1.5 - fwidth(v / spacing) * 3.0) * Rake;
+return float3(sin(ph) * fade, 0.0, -cos(ph) * 0.6 * fade);
+)");
+		UMaterialExpressionCustom* Ridge = AddCustom(Parent, TEXT("ApexGravelRake"), kRake, CMOT_Float3,
+			{{TEXT("UV"), G.Mask(TexCoord, true, true, false)}, {TEXT("Rake"), Rake}});
+		UMaterialExpression* Height = G.Mask(Ridge, true, false, false);
+		InOutAlbedo = G.Mul(InOutAlbedo, G.Add(G.C(1.0f), G.Mul(Height, G.C(0.1f))));
+		UMaterialExpression* Tilt = G.Append(G.Mask(Ridge, false, true, false), G.Mask(Ridge, false, false, true));
+		UMaterialExpression* Base = InOutNormal ? InOutNormal : G.C3(0.0f, 0.0f, 1.0f);
+		InOutNormal = G.Normalize(G.Add(Base, G.Append(Tilt, G.C(0.0f))));
+	}
+
+	/**
 	 * The road's age, static and the same on every circuit, under the live
 	 * road state (`M_ApexTrackRoad` only): saw-cut repair patches laid in
 	 * the strip's station / lateral metres (the road UVs), so they run with
@@ -2339,9 +2413,9 @@ bool ApexTrackMaterialGraphs::Bake(bool bForce, FString& OutError)
 				ApexTrackMaterials::BaseName);
 			bRebakeBase = true;
 		}
-		else if (float Wear = 0.0f; !Current.Base->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(TEXT("PaintWear")), Wear))
+		else if (float Rake = 0.0f; !Current.Base->GetScalarParameterDefaultValue(FHashedMaterialParameterInfo(TEXT("GravelRake")), Rake))
 		{
-			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before worn paint (no PaintWear); baking it again"),
+			UE_LOG(LogApexTrackImport, Display, TEXT("    %s was baked before worn paint and the groundsman (no GravelRake); baking it again"),
 				ApexTrackMaterials::BaseName);
 			bRebakeBase = true;
 		}

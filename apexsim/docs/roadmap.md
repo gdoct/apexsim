@@ -275,19 +275,6 @@ Left:
 
 **Check:** the `g8-*` cockpit pairs in both classes before and after.
 
-### 58. Ground and run-off materials
-
-The sheet's third gap. Grass, gravel, asphalt and concrete sample CC0 scans
-and the turf and run-off paint sit at measured albedos
-([track-pipeline.md](../../apexsim-content/docs/track-pipeline.md), Ground
-textures), the run-off paint faded and streaked with rubber, and a car run
-wide leaves its tracks in the grass. Left:
-
-- Macro variation over long distances (cut stripes on the verges, dry
-  patches) and a gravel trap's raked lines.
-
-**Check:** the `g8-*` TV, grandstand and woods pairs before and after.
-
 ### 60. Car paint
 
 The sheet's sixth gap: clean, plastic-looking paint. The field wears each

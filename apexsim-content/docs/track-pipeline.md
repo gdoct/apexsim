@@ -658,8 +658,15 @@ long patches, lays a film of dirt and streaks it with rubber where cars ran
 wide, in third-of-a-metre lanes along the strip's station that come and go
 along the run (`ApplyPaintWearGraph`). The scene builder sets 1 on
 `marking_runoff_*` and 0.6 on `surface_astroturf` and
-`surface_asphalt_runoff` (`ApexTrackMaterials::PaintWearFor`); a base baked
-before it is baked again by `-run=ApexMaterialBake`.
+`surface_asphalt_runoff` (`ApexTrackMaterials::PaintWearFor`). The grounds
+are kept the same way (`ApplyGroundLookGraph`, each 0 by default): every
+surface that takes tyre marks (`TakesTyreMarks`: a grass circuit's terrain
+and grass bands) yellows in dry patches tens of metres across
+(`DryPatches`, world space), the grass bands are mown in 2.4 m stripes along
+the station (`MowStripes`), and `surface_gravel` is raked in ridges 15 cm
+apart along the station that fade out before they would shimmer
+(`GravelRake`). A base baked before them (no `GravelRake`) is baked again by
+`-run=ApexMaterialBake`.
 
 ```bash
 python tools/bake_ground_textures.py [asphalt grass ...] [--size 512]
