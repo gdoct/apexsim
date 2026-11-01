@@ -197,8 +197,8 @@ gauntlet; suit sleeves with elbow folds; CC0 leather, suede and cloth maps)
 and seen from the seat (`g9-arms-gt3`, `g9-arms-formula`); the setting goes
 on by default once the owner has judged them. Left:
 
-- Refinement after that judgement: the thumb reads long and even, the
-  knuckles barely show from the eye; finger pads under load.
+- Refinement: the knuckles barely show from the eye; finger pads under
+  load.
 - Hand over hand past about 180 degrees of lock (road and rally cars); the
   gloves now stay on the grips at every angle.
 - A finger pulling the paddle at a gear change (gear from telemetry); the

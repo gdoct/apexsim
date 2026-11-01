@@ -83,7 +83,7 @@ FINGERS = [
     (-1.05, -11.0, (4.6, 2.85, 2.15), 1.0, 0.85, 5.9),
     (-2.95, 2.0, (3.7, 2.15, 1.95), 0.9, 0.77, 5.3),
 ]
-THUMB = (3.5, 2.85)            # the thumb's two phalanges
+THUMB = (3.05, 2.45)           # the thumb's two phalanges
 CUFF_CM = 8.5                  # the gauntlet from the wrist toward the elbow
 FOREARM_CM, UPPER_ARM_CM = 27.0, 30.0
 
@@ -528,29 +528,32 @@ def build_hand(name, mats, bvh):
     # as far as they go without passing through it.
     vt = FINGERS[1][0] + 0.1
     gc = grip.centre(vt)
-    t_mcp = gc + np.array([-(grip.rx + 1.0) * 0.2, 0.0, grip.ry + 1.0])
+    t_mcp = gc + np.array([-(grip.rx + 1.0) * 0.15, 0.0, grip.ry + 0.55])
     cmc = t_mcp + unit(thenar - t_mcp) * 4.4
-    palm.capsule(cmc, t_mcp, 1.2)
+    palm.capsule(cmc, t_mcp, 1.15)
     palm.ellipsoid((cmc + t_mcp) / 2 - dorsal * 0.5, (unit(t_mcp - cmc), across, dorsal), (2.4, 1.3, 1.05))
     tj = [t_mcp]
-    for L, r in zip(THUMB, (1.05, 0.93)):
+    # Each phalanx as far toward the nose as is clear, the tip bending down
+    # past the knuckle's line but never more than a joint can.
+    lo = -1.0
+    for L, r in zip(THUMB, (0.98, 0.86)):
         p = tj[-1]
         best = None
-        for dw in np.linspace(-0.7, 0.6, 27):
+        for dw in np.linspace(lo, lo + 1.4, 29):
             c = unit(np.array([-1.0, -0.18, dw]))
             if clear_of(bvh, p, p + c * L, r * 0.95) <= 0.0:
-                best = c
+                best, lo = c, dw - 0.6
                 break
-        best = best if best is not None else unit(np.array([-1.0, -0.18, 0.6]))
+        best = best if best is not None else unit(np.array([-1.0, -0.18, lo + 1.4]))
         tj.append(p + best * L)
     thumb = Blob("Thumb")
-    thumb.capsule(tj[0] - unit(tj[1] - tj[0]) * 1.0, tj[1], 1.02)
-    thumb.capsule(tj[1], tj[2] - unit(tj[2] - tj[1]) * 0.3, 0.86)
+    thumb.capsule(tj[0] - unit(tj[1] - tj[0]) * 1.0, tj[1], 0.98)
+    thumb.capsule(tj[1], tj[2] - unit(tj[2] - tj[1]) * 0.3, 0.82)
     # The pad of the thumb, flattened where it lies on the wheel.
     tip_dir = unit(tj[2] - tj[1])
     down = unit(np.array([0.0, 0.0, -1.0]) - tip_dir * tip_dir[2])
     thumb.ellipsoid(tj[1] + (tj[2] - tj[1]) * 0.55 + down * 0.25, (tip_dir, np.cross(tip_dir, down), down),
-                    (1.45, 0.95, 0.6), stiffness=1.0)
+                    (1.3, 0.9, 0.55), stiffness=1.0)
     parts.append(thumb.mesh())
     parts.append(palm.mesh())
 
