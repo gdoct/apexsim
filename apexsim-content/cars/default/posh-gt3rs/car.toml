@@ -225,6 +225,22 @@ rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
 
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "nose"
+zone = "front"
+detach_pct = 50
+min_m = [1.800, -1.115, -0.047]   # forward, left, up
+max_m = [2.410, 1.115, 0.542]
+
+[[damage_part]]
+# written by scripts/content/cars/damage_parts.py from the body's geometry
+name = "rear_wing"
+zone = "rear"
+detach_pct = 55
+min_m = [-2.472, -1.115, 1.143]   # forward, left, up
+max_m = [-1.732, 1.115, 1.440]
+
 [driver]
 # the driver, drawn on the body (same frame) and hidden for the car the
 # cockpit camera sits in; written by the build script
@@ -247,23 +263,7 @@ mirror_right_size_cm = [17.0, 6.5]
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 270.0
 
-[[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
-name = "nose"
-zone = "front"
-detach_pct = 50
-min_m = [1.800, -1.115, -0.047]   # forward, left, up
-max_m = [2.410, 1.115, 0.542]
-
-[[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
-name = "rear_wing"
-zone = "rear"
-detach_pct = 55
-min_m = [-2.472, -1.115, 1.143]   # forward, left, up
-max_m = [-1.732, 1.115, 1.440]
-
-# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+# --- liveries: written by tools/generators/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
@@ -271,39 +271,33 @@ name = "Orbital Heritage"
 paint = [0.230, 0.520, 0.780]
 accent = [0.950, 0.300, 0.020]
 metallic = 0.25
-logo = "textures/livery_heritage.png"
 
 [[livery]]
 name = "Flamingo Pink"
 paint = [0.880, 0.160, 0.400]
 accent = [0.010, 0.020, 0.075]
 metallic = 0.30
-logo = "textures/livery_flamingo.png"
 
 [[livery]]
 name = "Kraken Volt"
 paint = [0.800, 0.720, 0.000]
 accent = [0.012, 0.012, 0.014]
 metallic = 0.20
-logo = "textures/livery_volt.png"
 
 [[livery]]
 name = "Titan Silver"
 paint = [0.580, 0.600, 0.640]
 accent = [0.700, 0.015, 0.020]
 metallic = 0.95
-logo = "textures/livery_titan.png"
 
 [[livery]]
 name = "Ember Violet"
 paint = [0.220, 0.025, 0.420]
 accent = [0.950, 0.500, 0.015]
 metallic = 0.70
-logo = "textures/livery_ember.png"
 
 [[livery]]
 name = "Zest Citrus"
 paint = [0.950, 0.400, 0.015]
 accent = [0.015, 0.120, 0.400]
 metallic = 0.25
-logo = "textures/livery_citrus.png"

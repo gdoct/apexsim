@@ -239,31 +239,31 @@ model = "limbotiti_caravan_driver.glb"
 style = "closed"
 eye_cm = [-5.0, -36.0, 92.0]
 wheel_cm = [35.0, -36.0, 72.0]
-mirror_left_cm = [57.8, -88.4, 87.2]
+mirror_left_cm = [59.9, -94.3, 80.4]
 mirror_left_size_cm = [17.0, 6.5]
-mirror_right_cm = [57.8, 88.4, 87.2]
+mirror_right_cm = [59.9, 94.3, 80.4]
 mirror_right_size_cm = [17.0, 6.5]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
 wheel_lock_deg = 270.0
 
 [[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
+# written by tools/generators/cars/damage_parts.py from the body's geometry
 name = "nose"
 zone = "front"
 detach_pct = 50
-min_m = [1.800, -1.123, -0.047]   # forward, left, up
-max_m = [2.413, 1.123, 0.523]
+min_m = [1.800, -1.138, -0.047]   # forward, left, up
+max_m = [2.410, 1.138, 0.523]
 
 [[damage_part]]
-# written by scripts/content/cars/damage_parts.py from the body's geometry
+# written by tools/generators/cars/damage_parts.py from the body's geometry
 name = "rear_wing"
 zone = "rear"
 detach_pct = 55
-min_m = [-2.435, -1.123, 1.023]   # forward, left, up
-max_m = [-1.695, 1.123, 1.390]
+min_m = [-2.305, -1.138, 1.023]   # forward, left, up
+max_m = [-1.685, 1.138, 1.390]
 
-# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+# --- liveries: written by tools/generators/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
@@ -271,39 +271,33 @@ name = "Aurum Black"
 paint = [0.010, 0.010, 0.012]
 accent = [0.720, 0.500, 0.120]
 metallic = 0.55
-logo = "textures/livery_blackgold.png"
 
 [[livery]]
 name = "Tide Sunset"
 paint = [0.000, 0.300, 0.320]
 accent = [0.950, 0.400, 0.020]
 metallic = 0.50
-logo = "textures/livery_tide.png"
 
 [[livery]]
 name = "Polaris Arctic"
 paint = [0.740, 0.770, 0.810]
 accent = [0.030, 0.300, 0.620]
 metallic = 0.75
-logo = "textures/livery_arctic.png"
 
 [[livery]]
 name = "Vortex Cobalt"
 paint = [0.010, 0.160, 0.600]
 accent = [0.880, 0.880, 0.860]
 metallic = 0.70
-logo = "textures/livery_cobalt.png"
 
 [[livery]]
 name = "Pulse Neon"
 paint = [0.012, 0.012, 0.020]
 accent = [0.900, 0.060, 0.550]
 metallic = 0.30
-logo = "textures/livery_neon.png"
 
 [[livery]]
 name = "Riviera Classic"
 paint = [0.850, 0.850, 0.840]
 accent = [0.015, 0.080, 0.320]
 metallic = 0.15
-logo = "textures/livery_riviera.png"

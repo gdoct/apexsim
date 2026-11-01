@@ -26,7 +26,7 @@ import carlib                                              # noqa: E402
 kit = carlib.load("kits/gt3")
 
 CAR = dict(
-    folder="murcetes-amd-gt3", stem="murcetes_amd_gt3", logo="murcetes_logo.png",
+    folder="murcetes-amd-gt3", stem="murcetes_amd_gt3",
     paint=(0.56, 0.57, 0.60), accent=(0.0, 0.62, 0.60), caliper=(0.85, 0.10, 0.05),
     paint_metallic=0.90, number="88", roof_factor=1.0, hips=(0.035, 0.050),
     rear_number_y=(1.88, 2.14), cam_x=0.0,
@@ -36,7 +36,7 @@ CAR = dict(
     # 0.9 m behind it and running down in one fastback to the deck
     glass_y=(-0.45, 1.05), screen_y=(-0.45, 0.30), rear_glass_y=(1.05, 1.80),
     eye=(0.36, 0.60, 0.97),
-    logo_y=(-0.30, 0.75), bonnet_drop=None,
+    bonnet_drop=None,
     wing="pylon", wing_z=1.16, wing_y=1.95, wing_hw=0.86, ducktail=False,
     # a broad spoon-shaped plane on wide-set pylons, rounded endplates,
     # the brake strip only across the middle third
@@ -59,7 +59,7 @@ CAR = dict(
         ("swage", dict(y0=-0.75, y1=1.00, j_a=3.55, j_b=3.92, depth=0.008,
                        width=0.30, fade=0.30)),
     ],
-    logo_j=(2.05, 3.05),
+    decal_j=(2.05, 3.05),
     # Sections measured off the imported AMG GT3 (pass 5): 2.0 m over the
     # arches, a flank that stands near-vertical to a belt at ~0.95, fender
     # crowns at 0.80 a hand inboard of the flank, the bonnet in a valley
@@ -93,6 +93,6 @@ kit.fittings()
 kit.hardware()
 kit.numbers()
 kit.cockpit()
-kit.wordmark()
+kit.decals()
 kit.driver()
 kit.export()

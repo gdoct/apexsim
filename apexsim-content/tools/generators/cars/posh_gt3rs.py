@@ -26,7 +26,7 @@ import carlib                                              # noqa: E402
 kit = carlib.load("kits/gt3")
 
 CAR = dict(
-    folder="posh-gt3rs", stem="posh_gt3rs", logo="posh_logo.png",
+    folder="posh-gt3rs", stem="posh_gt3rs",
     paint=(0.02, 0.10, 0.42), accent=(0.86, 0.87, 0.90), caliper=(0.95, 0.75, 0.05),
     paint_metallic=0.78, number="91", roof_factor=1.0, hips=(0.050, 0.075),
     rear_number_y=(1.30, 1.62), cam_x=0.0, bonnet_drop=(0.075, 0.13),
@@ -61,7 +61,7 @@ CAR = dict(
         ("swage", dict(y0=-0.98, y1=0.62, j_a=3.55, j_mid=3.30, j_b=3.62, depth=0.007,
                        width=0.30, fade=0.30)),
     ],
-    logo_j=(2.05, 3.05), logo_y=(-0.62, 0.46),
+    decal_j=(2.05, 3.05),
     keys=[
         (-2.25, [(0, .195), (.55, .195), (.72, .31), (.79, .50), (.66, .60), (.46, .655), (.30, .68), (.14, .695), (0, .70)]),
         (-1.90, [(0, .095), (.86, .095), (.955, .35), (.985, .625), (.845, .735), (.60, .755), (.40, .74), (.18, .74), (0, .74)]),
@@ -91,6 +91,6 @@ kit.fittings()
 kit.hardware()
 kit.numbers()
 kit.cockpit()
-kit.wordmark()
+kit.decals()
 kit.driver()
 kit.export()

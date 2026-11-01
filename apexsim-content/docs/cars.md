@@ -102,6 +102,14 @@ kit module's globals; a stage's `global` line names what it hands on. A car
 changes one stage by calling a function of its own in its place, which reads
 and sets that state on the kit (`kit.L`, `kit.body`).
 
+A car's keys may also be fitted to a reference model rather than drawn:
+`limbotiti_caravan`'s sections were measured off a CC BY low-poly Huracan
+STO (scaled to the class wheelbase, the floor dropped to the kit's 85 mm),
+so its script names none of the kit's shape modifiers (`roof`,
+`bonnet_drop`, `belt_lift`) and only `hips` lifts the fenders over the
+GT3's larger wheels. The reference mesh is not in the repo; nothing of it
+ships but the shape.
+
 The rally cars are Group B, 1984-85, on their real figures and not balanced
 against each other: a front-engined five-cylinder turbo with four-wheel
 drive, a mid-engined turbo four with four-wheel drive, and a supercharged
@@ -179,7 +187,7 @@ Slot names are the glTF material names; keep them when re-exporting.
 | Slot | Meaning |
 |---|---|
 | `car_paint`, `car_accent` | body and accent colour: a livery repaints these (`BaseColorFactor`, `MetallicFactor`) |
-| `car_logo` | the flank wordmark texture: a livery's `logo` replaces it |
+| `car_logo` | the flank wordmark texture: a livery's `logo` replaces it (the GT3s have none) |
 | `car_skin`, `car_skin_*` | an imported car's skin textures: a livery's `skin` replaces them |
 | `car_brakelight` | `AApexRaceCarActor` drives `EmissiveFactor`: black off, the authored colour x `apexsim.car.BrakeLightNits` (3000) once telemetry brake passes 2% |
 | `car_taillight` | running lights, kept lit by the actor: x `apexsim.car.TailLightNits` (700) by day, a share of the brake level with the headlights on |
@@ -463,7 +471,8 @@ lacks is ignored, a missing file is a warning. A skin changes only the
 texture, not the slot's factors. Paths are relative to the car folder.
 `tools/generators/cars/liveries.py [folder ...]` (Pillow; fonts via
 `APEX_FONTS`) owns the shipped cars' tables and logos, appending new schemes
-so a saved pick keeps its index.
+so a saved pick keeps its index. The GT3s carry no wordmark on their flanks
+(no `car_logo` slot), so their schemes are colours alone (`NO_LOGO`).
 
 **Projected skins (the rally cars).** A rally livery is stripes, roundels
 and sponsors, which two colours and a logo cannot draw, so the rally

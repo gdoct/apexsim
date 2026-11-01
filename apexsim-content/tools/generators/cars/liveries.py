@@ -155,6 +155,9 @@ CARS = {
     "mclarsen-mcl40": ["heritage", "gunmetal", "tricolore", "cobalt", "titan", "desert"],
     "ashton-marvin-amr26": ["lava", "flamingo", "royal", "neon", "citrus", "sakura"],
 }
+# The GT3s carry no flank wordmark (their models have no `car_logo` slot), so
+# their schemes are the two colours and the metallic alone.
+NO_LOGO = {"posh-gt3rs", "limbotiti-caravan-gt3", "murcetes-amd-gt3"}
 # The rally cars paint skins, not two colours and a logo (rally_skins.py);
 # their schemes, in order, are rally_skins.CARS[...]["extra"].
 for _folder, _variant in rally_cars.BY_FOLDER.items():
@@ -231,11 +234,13 @@ def write_car(folder):
         blocks += rally_blocks(folder, car_dir)
     for key in ([] if folder in rally_cars.BY_FOLDER else CARS[folder]):
         s = SCHEMES[key]
-        logo = "textures/livery_%s.png" % key
-        draw_logo(s["logo"], os.path.join(car_dir, logo))
         blocks += ["[[livery]]", 'name = "%s"' % s["name"], "paint = %s" % fmt(s["paint"]),
-                   "accent = %s" % fmt(s["accent"]), "metallic = %.2f" % s["metallic"],
-                   'logo = "%s"' % logo, ""]
+                   "accent = %s" % fmt(s["accent"]), "metallic = %.2f" % s["metallic"]]
+        if folder not in NO_LOGO:
+            logo = "textures/livery_%s.png" % key
+            draw_logo(s["logo"], os.path.join(car_dir, logo))
+            blocks.append('logo = "%s"' % logo)
+        blocks.append("")
     text += "\n".join(blocks)
     with open(toml, "w", encoding="utf-8", newline="") as f:
         f.write(text.replace("\n", nl))

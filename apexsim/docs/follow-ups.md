@@ -471,6 +471,10 @@ player's own livery is painted on their car in a session only.
   stream's roster row would need the hash and the replay the package.
 - A race event refuses an own livery (`Error 403`, as `SetLivery`): its
   entrants race in the car's liveries.
+- The livery editor draws its number onto `car_logo`, which the GT3s do
+  not have (no flank wordmark), so on a GT3 the Number row changes nothing
+  on the car. It wants hiding there, or the number drawn on the door's
+  number panel instead.
 
 **Check:** a live spectator and a saved replay of a session with an own
 livery show it.

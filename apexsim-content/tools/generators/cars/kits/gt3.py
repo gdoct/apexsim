@@ -138,8 +138,8 @@ def start(car):
 def materials():
     global M, MIR, SP
     carlib.reset_scene()
+    # no logo: a GT3 carries no maker's wordmark on its flanks
     M = carlib.car_materials(V["paint"], V["accent"], V["caliper"],
-                             logo_path=os.path.join(CAR_DIR, "textures", V["logo"]),
                              paint_metallic=V.get("paint_metallic", 0.8), paint_rough=0.22,
                              carbon_weave=True, sponsors=True)
     MIR = {k: carlib.mat("car_mirror_" + k, (0.55, 0.57, 0.60), 1.0, 0.05) for k in ("left", "right")}
@@ -780,9 +780,9 @@ def cockpit():
     p.bar(M.alc, (DX - 0.36, DASH_Y1 - 0.22, DASH_Z - 0.10), (DX - 0.36, DASH_Y1 + 0.02, DASH_Z - 0.10),
           0.008, segs=6)                                                            # stalk
     # the shell's inside, trimmed from the screen's foot to the bulkhead, open
-    # at the side glass: the paint (and the livery's wordmark) showed above the
-    # door cards and behind the side glass, and the floor's own paint under the
-    # dash on the passenger side, so it runs from the floor's centre (j 0)
+    # at the side glass: the paint showed above the door cards and behind the
+    # side glass, and the floor's own paint under the dash on the passenger
+    # side, so it runs from the floor's centre (j 0)
     carlib.inner_liner(p, M.liner, L, FLOOR_Y0, BULK_Y, 0.0, ROOF + 0.4,
                        lambda y, j: face_mat(y, j * SAMP, True) is M.glass)
     # headliner, hung under the roof between the screen and the rear glass
@@ -817,23 +817,20 @@ def cockpit():
     carlib.inside_bar(p, M.cage, L, (-0.70, HOOP_Y, 0.58), (0.70, HOOP_Y, 0.58), 0.019, segs=8)
 
 
-# wordmark, laid on the flank rather than floated off it
-def wordmark():
-    LG0, LG1 = V.get("logo_y", (-0.52, 0.62))
-    LJ0, LJ1 = V.get("logo_j", (2.05, 3.05))
+# decals, laid on the flank rather than floated off it
+def decals():
+    LJ0, LJ1 = V.get("decal_j", (2.05, 3.05))
     # Pass 7: the door's number panel at its front, square on the flank (its
-    # length the height it spans), the maker's wordmark behind it; a sponsor on
-    # the sunstrip, one on the rear quarter, one on each front fender behind the
-    # arch, and the endplates'.
+    # length the height it spans); a sponsor on the sunstrip, one on the rear
+    # quarter, one on each front fender behind the arch, and the endplates'.
+    # No maker's wordmark: the door behind the number is plain paint.
     NJ0, NJ1 = LJ0 - 0.15, LJ1 + 0.30
     _yc = DOOR0 + 0.30
     _side = (L.point(_yc, NJ1) - L.point(_yc, NJ0)).length
     NUM_Y = (DOOR0 + 0.10, DOOR0 + 0.10 + _side)
-    LG0 = max(LG0, NUM_Y[1] + 0.06)
     for sx in (-1, 1):
         carlib.conform_decal(p, M.number, L, NUM_Y[0], NUM_Y[1], NJ0, NJ1, sx=sx, lift=0.005, nu=8, nv=8,
                              flip_u=sx < 0, uv_rect=carlib.number_uv(NUM))
-        carlib.conform_decal(p, M.logo, L, LG0, LG1, LJ0, LJ1, sx=sx, lift=0.005, nu=14, nv=6, flip_u=sx < 0)
         q0, q1 = DOOR1 + 0.08, AX_R - TYRE_R - 0.10
         if q1 - q0 > 0.30:
             carlib.conform_decal(p, M.sponsor, L, q0, q1, LJ0 + 0.10, LJ1 - 0.05, sx=sx, lift=0.005, nu=10,

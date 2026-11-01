@@ -226,28 +226,6 @@ rear_radius_m = 0.355
 front_width_m = 0.300
 rear_width_m = 0.330
 
-[driver]
-# the driver, drawn on the body (same frame) and hidden for the car the
-# cockpit camera sits in; written by the build script
-model = "murcetes_amd_gt3_driver.glb"
-
-[cockpit]
-# Written by the build script: the eye and wheel the cabin was built to
-# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
-# deriving them from the mesh box, so the greenhouse can sit where a
-# real one does. Remove a key to fall back to the derivation.
-# GT3: the seat where the class puts it.
-style = "closed"
-eye_cm = [-60.0, -36.0, 97.0]
-wheel_cm = [-20.0, -36.0, 77.0]
-mirror_left_cm = [2.9, -89.4, 90.6]
-mirror_left_size_cm = [17.0, 6.5]
-mirror_right_cm = [2.9, 89.4, 90.6]
-mirror_right_size_cm = [17.0, 6.5]
-# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
-# wheel on the Auto steering lock the real rim turns twice this lock to lock.
-wheel_lock_deg = 270.0
-
 [[damage_part]]
 # written by scripts/content/cars/damage_parts.py from the body's geometry
 name = "nose"
@@ -270,7 +248,29 @@ max_m = [-1.880, 1.159, 1.435]
 [damage]
 engine_m = 1.15
 
-# --- liveries: written by scripts/content/cars/liveries.py, edits below this line are lost ---
+[driver]
+# the driver, drawn on the body (same frame) and hidden for the car the
+# cockpit camera sits in; written by the build script
+model = "murcetes_amd_gt3_driver.glb"
+
+[cockpit]
+# Written by the build script: the eye and wheel the cabin was built to
+# (car frame: +X nose, +Y right, +Z up). The client uses these instead of
+# deriving them from the mesh box, so the greenhouse can sit where a
+# real one does. Remove a key to fall back to the derivation.
+# GT3: the seat where the class puts it.
+style = "closed"
+eye_cm = [-60.0, -36.0, 97.0]
+wheel_cm = [-20.0, -36.0, 77.0]
+mirror_left_cm = [2.9, -89.4, 90.6]
+mirror_left_size_cm = [17.0, 6.5]
+mirror_right_cm = [2.9, 89.4, 90.6]
+mirror_right_size_cm = [17.0, 6.5]
+# Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
+# wheel on the Auto steering lock the real rim turns twice this lock to lock.
+wheel_lock_deg = 270.0
+
+# --- liveries: written by tools/generators/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.
 
 [[livery]]
@@ -278,39 +278,33 @@ name = "Magma Lava"
 paint = [0.800, 0.100, 0.008]
 accent = [0.030, 0.030, 0.034]
 metallic = 0.40
-logo = "textures/livery_lava.png"
 
 [[livery]]
 name = "Crown Royal"
 paint = [0.015, 0.070, 0.420]
 accent = [0.880, 0.660, 0.020]
 metallic = 0.65
-logo = "textures/livery_royal.png"
 
 [[livery]]
 name = "Nebula Midnight"
 paint = [0.070, 0.020, 0.170]
 accent = [0.000, 0.580, 0.680]
 metallic = 0.85
-logo = "textures/livery_midnight.png"
 
 [[livery]]
 name = "Zest Citrus"
 paint = [0.950, 0.400, 0.015]
 accent = [0.015, 0.120, 0.400]
 metallic = 0.25
-logo = "textures/livery_citrus.png"
 
 [[livery]]
 name = "Mirage Sand"
 paint = [0.520, 0.380, 0.190]
 accent = [0.060, 0.035, 0.020]
 metallic = 0.45
-logo = "textures/livery_desert.png"
 
 [[livery]]
 name = "Voltaic Lime"
 paint = [0.420, 0.780, 0.015]
 accent = [0.012, 0.012, 0.014]
 metallic = 0.25
-logo = "textures/livery_voltaic.png"
