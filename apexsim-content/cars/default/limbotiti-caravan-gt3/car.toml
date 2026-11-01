@@ -253,15 +253,7 @@ name = "nose"
 zone = "front"
 detach_pct = 50
 min_m = [1.800, -1.153, -0.047]   # forward, left, up
-max_m = [2.547, 1.153, 0.496]
-
-[[damage_part]]
-# written by tools/generators/cars/damage_parts.py from the body's geometry
-name = "rear_wing"
-zone = "rear"
-detach_pct = 55
-min_m = [-2.425, -1.153, 0.953]   # forward, left, up
-max_m = [-1.785, 1.153, 1.319]
+max_m = [2.547, 1.153, 0.525]
 
 # --- liveries: written by tools/generators/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.

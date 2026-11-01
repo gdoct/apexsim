@@ -971,6 +971,19 @@ def aperture_poly(body, mats, poly_xz, y0, y1, mat=None):
     return cut_solid(body, prism_xz(mat or mats.lamp_h, poly_xz, min(y0, y1), max(y0, y1)))
 
 
+def prism_yz(mat, poly_yz, x0, x1, name="poly_cut"):
+    """A closed solid: the closed (y, z) polygon `poly_yz` swept along X
+    from x0 to x1 - a cutter for a shaped opening in a flank."""
+    return _prism(mat, poly_yz, min(x0, x1), max(x0, x1), name)
+
+
+def aperture_side(body, mats, poly_yz, x0, x1, mat=None):
+    """Cut a shaped opening through a flank (an intake, a vent) with lined
+    walls. A recess pushed into the loft can only follow its station grid,
+    so a raked edge came out as stairs; a cut is as straight as its outline."""
+    return cut_solid(body, prism_yz(mat or mats.lamp_h, poly_yz, x0, x1))
+
+
 def poly_fill(b, mat, poly_xz, y0, y1):
     """A solid slab of outline `poly_xz` between y0 and y1 (a grille backing,
     a lit lamp face). Fan-triangulated, so keep the outline convex or star-

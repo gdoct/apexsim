@@ -38,10 +38,11 @@ CAR = dict(
     # tapering to a point over the intake
     glass_y=(-1.12, 0.80), screen_y=(-1.12, -0.47), rear_glass_y=(0.80, 0.86),
     eye=(0.36, 0.05, 0.92),
-    wing="swan", wing_z=1.02, wing_y=1.92, wing_hw=0.88, ducktail=False,
-    # a broad plane swept to a V on swan necks, low and hung out past the
-    # tail, the brake lights as two upright bars on its endplates
-    wing_plan=("swept", 0.08), wing_chord=0.36, wing_aoa=10.0, endplate="swoop", wing_led="endplate",
+    # the real car's wing (own stage, `wing` below): a straight plane low over
+    # the tail hung from two blade swan necks that rise off the engine cover,
+    # arch over it and hook down onto its top, a brace behind each; long low
+    # endplates
+    wing_z=1.14, wing_y=1.86, wing_hw=0.88, wing_chord=0.38, wing_aoa=8.0, neck_x=0.42,
     sponsors=dict(sun=12, quarter=None, fender=15, ep=13),     # the intake fills the quarter
     ends=dict(nose_top=0.45, tail_top=0.90, tail_bot=0.22),
     valance_z=(0.20, 0.52),            # the tail open from the diffuser to the lamps
@@ -52,17 +53,17 @@ CAR = dict(
     # no deck louvres: the kit's flat blades stand off a cover crowned to a
     # spine like this one
     vents=[], scoop=(0.0, 0.62, 0.075),        # the snorkel at the roof's end
-    # the wedge: the intake behind the door, raked back and standing from the
-    # sill to the top of the flank, a knife slot behind the front wheel
-    # leaning the other way, and the crease between them
-    # (j 2 is the sill at 15 cm, j 3 the top of the flank at 58 cm)
+    # the wedge: the intake behind the door, a slot raked hard back from the
+    # sill to the top of the flank, and a knife slot behind the front wheel
+    # leaning the other way, both cut through the flank (`side_cuts` below:
+    # (y, z) outlines, depth), and the door's crease climbing from the foot of
+    # the front arch into the intake's top corner (j 2 is the sill at 15 cm,
+    # j 3 the top of the flank at 58 cm)
+    side_cuts=[
+        ([(0.46, 0.21), (0.66, 0.21), (0.84, 0.57), (0.68, 0.57)], 0.075),
+        ([(-0.95, 0.30), (-0.89, 0.30), (-0.81, 0.56), (-0.87, 0.56)], 0.040),
+    ],
     side=[
-        ("recess", dict(y0=(0.38, 0.58), y1=(0.80, 0.90), j0=2.05, j1=3.00,
-                        depth=0.070, rim=0.025, bow=-0.04)),
-        ("recess", dict(y0=(-0.94, -0.86), y1=(-0.84, -0.78), j0=2.35, j1=2.95,
-                        depth=0.035, rim=0.016, blades=2, blade_r=0.005)),
-        # the door's crease, climbing from the foot of the front arch into the
-        # intake's top corner
         ("swage", dict(y0=-0.90, y1=0.50, j_a=2.30, j_b=2.95, depth=0.016,
                        width=0.30, fade=0.20)),
     ],
@@ -160,14 +161,87 @@ def body_loft():
     kit.body_loft(keys, faces=(k0 - 0.06, k1), ny=240, hard=(2, 4))
 
 
+def side_cuts():
+    """The flank's openings, cut through it as the face's are: a recess
+    pushed into the loft can only follow its station grid, so a raked edge
+    came out as stairs. Each is lined with the mesh, back wall and all."""
+    for (poly, depth) in CAR["side_cuts"]:
+        x_in = min(kit.L.x_at(y, z) for (y, z) in poly) - depth
+        x_out = max(kit.L.x_at(y, z) for (y, z) in poly) + 0.10
+        outline = carlib.rounded(poly, 0.03 if depth > 0.05 else 0.012)
+        for sx in (-1, 1):
+            carlib.aperture_side(kit.body, kit.M, outline, sx * x_in, sx * x_out, mat=kit.M.mesh)
+    carlib.sharpen(kit.body, 34.0)
+
+
+def blade(b, mat, pts, x, w0, w1, thick, n=8):
+    """A flat strut: `thick` across X, swept along the Catmull-Rom curve
+    through the (y, z) points `pts`, `w0` wide at the first and `w1` at the
+    last. Faces are turned outward from the curve (the parts mesh is not
+    recalculated)."""
+    path = carlib.catmull(pts, n)
+    s, bm = b.slot(mat), b.bm
+    rings = []
+    for i, q in enumerate(path):
+        tg = (path[min(i + 1, len(path) - 1)] - path[max(i - 1, 0)]).normalized()
+        nv = carlib.Vector((-tg.y, tg.x)) * ((w0 + (w1 - w0) * i / (len(path) - 1)) / 2)
+        l, r = q + nv, q - nv
+        rings.append([bm.verts.new((x - thick / 2, l.x, l.y)), bm.verts.new((x - thick / 2, r.x, r.y)),
+                      bm.verts.new((x + thick / 2, r.x, r.y)), bm.verts.new((x + thick / 2, l.x, l.y))])
+    centre = [carlib.Vector((x, q.x, q.y)) for q in path]
+    faces = []
+    for i in range(len(rings) - 1):
+        for k in range(4):
+            faces.append((bm.faces.new((rings[i][k], rings[i][(k + 1) % 4], rings[i + 1][(k + 1) % 4],
+                                        rings[i + 1][k])), (centre[i] + centre[i + 1]) / 2))
+    faces.append((bm.faces.new(rings[0]), centre[1]))
+    faces.append((bm.faces.new(rings[-1]), centre[-2]))
+    for f, inner in faces:
+        f.material_index = s
+        f.normal_update()
+        if f.normal.dot(f.calc_center_median() - inner) < 0.0:
+            f.normal_flip()
+
+
+def wing():
+    """The kit's stage for the real car's wing: the plane and its gurney as
+    the kit draws them, long low endplates, and swan necks that are blades
+    rather than tubes - a front leg off the engine cover arching over the
+    plane and hooking down onto its top, and a brace from behind leaning
+    forward into the leg (the A between them is the real car's)."""
+    p, M, L = kit.p, kit.M, kit.L
+    WZ, WY, WHW, AOA = CAR["wing_z"], CAR["wing_y"], CAR["wing_hw"], CAR["wing_aoa"]
+    (te_y, te_z), TE = carlib.wing(p, M.carbon, WHW, CAR["wing_chord"], 0.105, -0.055, WY, WZ - 0.04,
+                                   angle_deg=AOA)
+    for (xa, xb, y, z) in carlib.spans(TE, -WHW, WHW, 12):
+        carlib.gurney(p, M.carbon, xa, xb, y, z, h=0.024, t=0.005, angle_deg=AOA)
+    # the endplate holds the kit's sponsor (decals: WY + 0.05..0.35, up to WZ + 0.0675)
+    ep = [(WY - 0.10, WZ + 0.075), (WY + 0.44, WZ + 0.075), (WY + 0.44, WZ - 0.085),
+          (WY + 0.30, WZ - 0.135), (WY - 0.04, WZ - 0.135), (WY - 0.12, WZ - 0.04)]
+    for sx in (-1, 1):
+        carlib.plate(p, M.carbon, ep, sx * (WHW + 0.012), 0.014, chamfer=0.005)
+    nx = CAR["neck_x"]
+    foot = lambda y: L.z_at(y, nx) - 0.012
+    apex = (WY - 0.06, WZ + 0.115)
+    for sx in (-1, 1):
+        blade(p, M.carbon, [(WY - 0.40, foot(WY - 0.40)), (WY - 0.28, WZ - 0.08), (WY - 0.16, WZ + 0.055),
+                            apex, (WY + 0.04, WZ + 0.09), (WY + 0.10, WZ - 0.005)],
+              sx * nx, 0.110, 0.060, 0.024)
+        blade(p, M.carbon, [(WY + 0.02, foot(WY + 0.02)), (WY - 0.08, WZ - 0.07), (WY - 0.19, WZ + 0.035)],
+              sx * nx, 0.070, 0.050, 0.022)
+    # what the later stages read off the kit's own wing
+    kit.WZ, kit.WY, kit.WHW, kit.TE, kit.te_z = WZ, WY, WHW, TE, te_z
+
+
 kit.start(CAR)
 kit.materials()
 body_loft()
 kit.arches()
 kit.apertures()
+side_cuts()
 kit.begin_parts()
 kit.floor()
-kit.wing()
+wing()
 kit.lights()
 kit.tail_lights()
 kit.vent_blades()

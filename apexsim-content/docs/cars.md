@@ -126,7 +126,14 @@ GT3 kit takes `lamp_z` (the headlamps' height, apart from the nose's),
 `raked_nose` (a nose raked back under its lamps: parts are placed only
 where the skin rises to them, `carlib.surface_station(reach=True)`, and the
 lamp cut starts there), `valance_z` (how far the tail is open) and a
-sponsor slot of `None` to leave it out. The reference mesh and the photo
+sponsor slot of `None` to leave it out. Its flank openings (the intake
+behind the door, the knife slot) are cut through the shell
+(`carlib.aperture_side`, a (y, z) outline swept across X, lined with the
+mesh) rather than pushed into the loft as recesses, whose raked edges can
+only follow the station grid and came out as stairs; and it draws its own
+`wing` stage: the kit's plane and gurney, long low endplates and swan
+necks swept as flat blades (a leg off the engine cover arching onto the
+plane's top, a brace leaning into it). The reference mesh and the photo
 are not in the repo; nothing of them ships but the shape.
 
 The rally cars are Group B, 1984-85, on their real figures and not balanced
