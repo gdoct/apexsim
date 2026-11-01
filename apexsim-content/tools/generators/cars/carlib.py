@@ -834,6 +834,10 @@ def arch(body, loft, mats, y_axle, tyre_r, sx=1, gap=0.022, x_in=0.50,
     mod.operation = 'DIFFERENCE'
     mod.object = c
     mod.solver = 'EXACT'
+    # The cutter's slot by name: by index (the default) its liner landed on
+    # the body's slot 0, the paint, and painted every well - on a GT3 the
+    # front well's inner wall stands in the passenger footwell.
+    mod.material_mode = 'TRANSFER'
     with bpy.context.temp_override(object=body, selected_editable_objects=[body]):
         bpy.ops.object.modifier_apply(modifier=mod.name)
     bpy.data.objects.remove(c)

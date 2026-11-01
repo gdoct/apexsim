@@ -173,9 +173,11 @@ saw it, then a contact shadow under the car.
 
 #### G13. Cockpit interior: what is left — P2 · 🟢 · M
 *Source: roadmap 57.* Carbon panels and CC0 suede are in; the car parents
-take normal and metallic-roughness maps. Closed cars are lined inside. Left:
-the paint under the GT3 dash, the formula tubs, satin paint, seat fabric
-and harness from CC0 scans. Judged on the `g8-*` cockpit pairs.
+take normal and metallic-roughness maps. Closed cars are lined inside and
+their wheel wells are liner, not paint (the GT3's passenger footwell
+showed the front well's painted wall). Left: satin paint, seat fabric and
+harness from CC0 scans; the formula tub's carbon reads light and coarse in
+the sun (`g8-monza-formula` #2), to judge. Judged on the `g8-*` cockpit pairs.
 
 #### G14. Ground: to judge — P2 · 🟡 · S
 Built 2026-11-01: CC0 ground scans at measured albedo; tyre tracks in the

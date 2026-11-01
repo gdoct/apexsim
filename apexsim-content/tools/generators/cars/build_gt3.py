@@ -909,8 +909,9 @@ p.bar(M.alc, (DX - 0.36, DASH_Y1 - 0.22, DASH_Z - 0.10), (DX - 0.36, DASH_Y1 + 0
       0.008, segs=6)                                                            # stalk
 # the shell's inside, trimmed from the screen's foot to the bulkhead, open
 # at the side glass: the paint (and the livery's wordmark) showed above the
-# door cards and behind the side glass
-carlib.inner_liner(p, M.liner, L, FLOOR_Y0, BULK_Y, 1.0, ROOF + 0.4,
+# door cards and behind the side glass, and the floor's own paint under the
+# dash on the passenger side, so it runs from the floor's centre (j 0)
+carlib.inner_liner(p, M.liner, L, FLOOR_Y0, BULK_Y, 0.0, ROOF + 0.4,
                    lambda y, j: face_mat(y, j * SAMP, True) is M.glass)
 # headliner, hung under the roof between the screen and the rear glass
 carlib.inner_skin(p, M.alcantara, L, V["screen_y"][1] + 0.03, V["rear_glass_y"][0] - 0.03, 0.56,
