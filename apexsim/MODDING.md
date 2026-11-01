@@ -78,22 +78,23 @@ physics tables; the client reads the visual ones. The full reference is
 
 ### Making a car
 
-**1. The body.** Either add a variant to a class generator, or bring your own
+**1. The body.** Either add a car script on a class kit, or bring your own
 GLB.
 
-- *Generator* (checkout, Blender): `apexsim-content/tools/generators/cars/build_gt3.py`,
-  `build_lmp2.py`, `build_hypercar.py` and `build_f1.py` each hold a
-  `VARIANTS` table over a shared hull (`carlib.py`). Copy an entry, give it
-  its own `folder`, `stem`, colours and shape and style keys, then in
-  Blender's Python console:
+- *Generator* (checkout, Blender): every generated car has its own script in
+  `apexsim-content/tools/generators/cars/` (`panini_zomba.py`, ...) that holds
+  its data and runs its class kit's stages (`kits/gt3.py`, `kits/lmp2.py`,
+  `kits/hypercar.py`, `kits/f1.py`, over a shared `carlib.py`). Copy one,
+  give its `CAR` its own `folder`, `stem`, colours and shape and style keys,
+  then in Blender's Python console:
 
   ```python
-  VARIANT = "mycar"
-  exec(open(r"E:\apexsim\apexsim-content\tools\generators\cars\build_hypercar.py").read())
+  exec(open(r"E:\apexsim\apexsim-content\tools\generators\cars\mycar.py").read())
   ```
 
-  Headless, set `APEXSIM_CONTENT` to your content root and run the same two lines
-  under Python with `bpy`. It writes `<stem>.glb`, `<stem>_driver.glb` (and an
+  Headless: `blender -b --factory-startup --python tools/generators/cars/mycar.py`
+  (with `APEXSIM_CONTENT` set to your content root if you exec it from
+  elsewhere). It writes `<stem>.glb`, `<stem>_driver.glb` (and an
   F1's `<stem>_drs.glb`) into the car's folder and rewrites the generated
   tables in its `car.toml` (`[cockpit]`, `[driver]`, `[drs_flap]`).
   `APEX_EXPORT=0` skips the export while you iterate. The generators write

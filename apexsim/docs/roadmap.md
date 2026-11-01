@@ -270,49 +270,37 @@ Left:
 
 **Check:** the `g8-*` cockpit pairs in both classes before and after.
 
-### 61. Car generators per car, and GT3 and rally bodies with character
+### 61. GT3 and rally bodies with character
 
 The generated GT3s look alike and none looks special (the Limbotiti reads
 as a hatchback, not a wedge), and the rally cars share their method. The
-cause is the shape description, not only the script layout: every GT3 is
-one `carlib.Loft` through 11 keys of 9 points with the same meaning per
-index and the same creases (`hard=(2, 3, 4, 5)`), then the same
-`fender_bump`, `tumblehome`, nose and tail remaps and arches, so a variant
-only moves points inside one section grammar. The Limbotiti's flank keys
-stand near-vertical to a hard belt crease, where the real wedge tumbles in
-hard under a narrow cabin on wide hips with one arc nose to tail.
-`build_rally.py` is the GT3 method with rally parts. The LMP2, hypercar and
-F1 shapes are acceptable.
+cause is the shape description: every GT3 is one `carlib.Loft` through 11
+keys of 9 points with the same meaning per index and the same creases
+(`hard=(2, 3, 4, 5)`), then the same `fender_bump`, `tumblehome`, nose and
+tail remaps and arches, so a car only moves points inside one section
+grammar. The Limbotiti's flank keys stand near-vertical to a hard belt
+crease, where the real wedge tumbles in hard under a narrow cabin on wide
+hips with one arc nose to tail. `kits/rally.py` is the GT3 method with
+rally parts. The LMP2, hypercar and F1 shapes are acceptable.
 
-1. **The car drives the build.** One script per car in
-   `apexsim-content/tools/generators/cars/` holds its data and calls the
-   build in stages (body, face, lamps, tail, wing, vents, cockpit, decals,
-   export); the class scripts become kits of those stages, which a car can
-   replace one at a time. `carlib` keeps everything mechanical. This step
-   moves no output: every car's `<stem>.glb`, `<stem>_driver.glb` (and the
-   F1's `_drs.glb`) and car.toml generated tables come out byte-identical
-   (or with identical mesh stats, if two runs of the old script already
-   differ), built headless with Blender 5.1
-   (`C:\Program Files\Blender Foundation\Blender 5.1`) on a scratch copy
-   of the content root so `cars/default` is not touched. `docs/cars.md`'s
-   generator table and "Running one" follow.
-2. **Bodies for the GT3 and rally cars, the Limbotiti first.** The body
-   stage each car's own: a loft with its own point count and creases where
-   that suffices (the boxy rally cars), character curves (plan outline,
-   side profile, belt and shoulder as 3D curves, surfaced between) for
-   the wedges. Judged by eye on orthographic side, top and front views and
-   a three-quarter view next to a reference silhouette (`preview_cars.py`),
-   not by measured numbers alone. The imported AC cars give proportions
-   only, never a mesh to fit tightly: a body evokes its car without copying
-   a protected design (naming.md's rule for names, carried to shapes).
+Each car already drives its own build (a script per car calling its kit's
+stages, [cars.md](../../apexsim-content/docs/cars.md)), so a car can take
+its own `body_loft` stage without touching the others:
 
-The realism work on the car interiors and paint (57, 60) touches the same
-builds; take this after it lands.
+- **Bodies for the GT3 and rally cars, the Limbotiti first.** The body
+  stage each car's own: a loft with its own point count and creases where
+  that suffices (the boxy rally cars), character curves (plan outline,
+  side profile, belt and shoulder as 3D curves, surfaced between) for
+  the wedges. Judged by eye on orthographic side, top and front views and
+  a three-quarter view next to a reference silhouette (`preview_cars.py`),
+  not by measured numbers alone. The imported AC cars give proportions
+  only, never a mesh to fit tightly: a body evokes its car without copying
+  a protected design (naming.md's rule for names, carried to shapes).
 
-**Check:** step 1 by the byte comparison over all seventeen cars; step 2 by
-before/after preview sheets per car judged by the owner, then the arches,
-`[wheels]` stance, cockpit eye and damage parts (`damage_parts.py`) still
-agreeing with the new body, and the cars seen in a race.
+**Check:** before/after preview sheets per car judged by the owner, then
+the arches, `[wheels]` stance, cockpit eye and damage parts
+(`damage_parts.py`) still agreeing with the new body, and the cars seen in
+a race.
 
 ### 21. Benchmark from the menu
 

@@ -1,4 +1,4 @@
-"""The rally cars' shape data, shared by build_rally.py (Blender) and the
+"""The rally cars' shape data, shared by kits/rally.py (Blender) and the
 livery painter (rally_skins.py, plain Python): no bpy here.
 
 Group B, 1984-85, each car as it was and under a sound-alike name

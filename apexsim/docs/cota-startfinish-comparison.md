@@ -211,7 +211,7 @@ stadium stand without a crowd (43), lamp posts along the pit-side fence
 | Fences, pit wall, screens, lamp rule | [props.md](../../apexsim-content/docs/props.md), [track-improvements.md](../../apexsim-content/docs/track-improvements.md) | `ats-dress`, `osm_layout.py` tables, `ue_export.rs` pit complex |
 | Stand crowd twin, canopy | [props.md](../../apexsim-content/docs/props.md) | `build_stand_crowds.py`, the stadium bay GLBs |
 | Horizon, haze, clouds | [server/conditions.md](server/conditions.md), [game/client.md](game/client.md) | `ApexSky`, `ApexCloudLayer`, the DEM `horizon` mesh |
-| Livery, tyres, carbon | [cars.md](../../apexsim-content/docs/cars.md) | `build_f1.py`, `liveries.py`, `textures.py` (`tools/generators/cars/`) |
+| Livery, tyres, carbon | [cars.md](../../apexsim-content/docs/cars.md) | `kits/f1.py`, `liveries.py`, `textures.py` (`tools/generators/cars/`) |
 | T-cam rung | [game/cameras.md](game/cameras.md) | `ApexChaseView.h`, `ApexCockpitRig` |
 | HUD preset | [game/hud-modding.md](game/hud-modding.md) | `content/hud` components |
 

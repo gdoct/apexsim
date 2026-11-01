@@ -223,7 +223,7 @@ def tyre_marks(w=2048, h=160):
 
 
 # ------------------------------------------------------------- race numbers
-# The numbers the generated cars carry (their VARIANTS' `number`); a cell
+# The numbers the generated cars carry (their car scripts' `number`); a cell
 # each in a 4 x 4 atlas of 512 px squares, numbered like the sponsor cells.
 NUMBERS = ["9", "50", "16", "7", "22", "51", "38", "91", "63", "88", "4", "14", "1", "2", "3", "5"]
 

@@ -4,7 +4,7 @@ plan and ends from the shape data in rally_cars.py.
 
 Plain Python and Pillow; `liveries.py` calls `paint()` for every rally car
 and writes the `[[livery]]` tables, and the works skin it draws is what
-build_rally.py puts in the GLB. Every name here is invented
+kits/rally.py puts in the GLB. Every name here is invented
 (docs/naming.md).
 
 A scheme is a design (how the colours are laid on: a sweep, stripes,
@@ -257,7 +257,7 @@ def furniture(s, A, car, sc):
     d0, d1 = A["door"]
     zc = (A["sill"] + A["belt"]) / 2 + 0.03
     # the door number on a white roundel, high on the door and behind the
-    # door mirror (build_rally.py puts it 0.30 m behind the screen's foot),
+    # door mirror (kits/rally.py puts it 0.30 m behind the screen's foot),
     # which hid it from the side
     r = min(0.14, (A["belt"] - A["sill"]) * 0.26)
     zr = A["belt"] - 0.06 - r

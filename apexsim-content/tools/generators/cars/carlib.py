@@ -50,6 +50,19 @@ _ROOT = (os.path.abspath(os.path.join(_SELF, "..", "..", ".."))
 CARS_ROOT = os.path.join(_ROOT, "cars", "default")
 
 
+def load(name):
+    """Load a module of this folder from its file, fresh, into sys.modules
+    (`kits/gt3`, `rally_cars`): a Blender session that runs a car script
+    again picks up an edited kit."""
+    import importlib.util, sys
+    path = os.path.join(_ROOT, "tools", "generators", "cars", name + ".py")
+    spec = importlib.util.spec_from_file_location(name.replace("/", "_"), path)
+    m = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = m
+    spec.loader.exec_module(m)
+    return m
+
+
 # --------------------------------------------------------------- materials
 def mat(name, color, metallic=0.0, roughness=0.5, coat=0.0, coat_roughness=None,
         alpha=1.0, emission=None):
