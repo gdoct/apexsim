@@ -102,13 +102,22 @@ kit module's globals; a stage's `global` line names what it hands on. A car
 changes one stage by calling a function of its own in its place, which reads
 and sets that state on the kit (`kit.L`, `kit.body`).
 
-A car's keys may also be fitted to a reference model rather than drawn:
-`limbotiti_caravan`'s sections were measured off a CC BY low-poly Huracan
-STO (scaled to the class wheelbase, the floor dropped to the kit's 85 mm),
-so its script names none of the kit's shape modifiers (`roof`,
-`bonnet_drop`, `belt_lift`) and only `hips` lifts the fenders over the
-GT3's larger wheels. The reference mesh is not in the repo; nothing of it
-ships but the shape.
+A car's keys may also be fitted to a reference model rather than drawn.
+`limbotiti_caravan`'s 42 sections, every 10 cm, were measured off a CC BY
+low-poly Huracan STO: x and z at 1.5 times the model with its axles on the
+class's, the sill below the hubs squashed to an 85 mm floor; each control
+point found by a fixed rule (the sill and flank top at fixed heights, the
+shoulder, belt, glass top and roof edge at fixed fractions of the
+half-width along the top), the arch stations bridged and every point
+smoothed along the car. Fitted keys are finished, so the car's own
+`body_loft` passes them to the kit's
+(`kit.body_loft(keys, faces=(bumper, tail), ny=240, hard=(2, 4))`) instead
+of through the class's shaping (`kit.shape_keys`): no roofline, hips or
+end remaps, which fought the fit as ripples, and creases only at the sill
+and shoulder, since creasing points that lie on a smooth curve steps the
+surface. The GT3 kit also takes `lamp_z` (the headlamps' height, apart
+from the nose's) and `valance_z` (how far the tail is open). The reference
+mesh is not in the repo; nothing of it ships but the shape.
 
 The rally cars are Group B, 1984-85, on their real figures and not balanced
 against each other: a front-engined five-cylinder turbo with four-wheel

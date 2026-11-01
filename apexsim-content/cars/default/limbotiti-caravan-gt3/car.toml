@@ -239,9 +239,9 @@ model = "limbotiti_caravan_driver.glb"
 style = "closed"
 eye_cm = [-5.0, -36.0, 92.0]
 wheel_cm = [35.0, -36.0, 72.0]
-mirror_left_cm = [59.9, -94.3, 80.4]
+mirror_left_cm = [59.9, -95.3, 81.0]
 mirror_left_size_cm = [17.0, 6.5]
-mirror_right_cm = [59.9, 94.3, 80.4]
+mirror_right_cm = [59.9, 95.3, 81.0]
 mirror_right_size_cm = [17.0, 6.5]
 # Rim turn at full steering, centre to lock (AC's STEER_LOCK). With a
 # wheel on the Auto steering lock the real rim turns twice this lock to lock.
@@ -252,16 +252,16 @@ wheel_lock_deg = 270.0
 name = "nose"
 zone = "front"
 detach_pct = 50
-min_m = [1.800, -1.138, -0.047]   # forward, left, up
-max_m = [2.410, 1.138, 0.523]
+min_m = [1.800, -1.148, -0.047]   # forward, left, up
+max_m = [2.363, 1.148, 0.523]
 
 [[damage_part]]
 # written by tools/generators/cars/damage_parts.py from the body's geometry
 name = "rear_wing"
 zone = "rear"
 detach_pct = 55
-min_m = [-2.305, -1.138, 1.023]   # forward, left, up
-max_m = [-1.685, 1.138, 1.390]
+min_m = [-2.305, -1.148, 1.023]   # forward, left, up
+max_m = [-1.685, 1.148, 1.390]
 
 # --- liveries: written by tools/generators/cars/liveries.py, edits below this line are lost ---
 # Livery 0 is the model as authored; these are 1..6 on the wire.

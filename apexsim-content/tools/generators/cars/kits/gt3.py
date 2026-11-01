@@ -156,9 +156,11 @@ def materials():
 # (`roofline`) rather than whatever nine section tables add up to. The
 # cabin sits where a real one does because the build writes its own
 # `[cockpit]` eye (`eye`), instead of being shifted to meet the derived one.
-def body_loft():
-    global ARCH_SPAN, E, K0, L, LAMP_X, LAMP_Z, NOSE, SIDE_BLADES, SIDE_FLOORS, TAIL, TAILP_Y
-    global TLAMP_J, TLAMP_Y0, TLAMP_Y1, body
+def shape_keys():
+    """The car's drawn keys shaped by the class: width, floor, belt, roof,
+    hips and tumblehome, then the nose and tail stations. A car whose keys
+    are fitted to a reference rather than drawn passes them to `body_loft`
+    finished and skips this."""
     KEYS = V["keys"]
     if V.get("cabin_shift"):
         KEYS = carlib.shift_upper(KEYS, V["cabin_shift"], j_from=6, y_from=-1.7, y_to=-1.1)
@@ -191,7 +193,20 @@ def body_loft():
     KEYS = carlib.remap_station(KEYS, K1 - 0.10, x_scale=0.985, z_hi=E["tail_top"] + 0.03, j_from=4)
     KEYS = carlib.tip_station(KEYS, K0, K0 - 0.06, x_scale=0.80, z_shrink=0.72)
     KEYS = carlib.tip_station(KEYS, K1, K1 + 0.05, x_scale=0.82, z_shrink=0.74)
-    L = carlib.Loft(KEYS, samp=SAMP, ny=110, hard=(2, 3, 4, 5))
+    return KEYS
+
+
+def body_loft(keys=None, faces=None, ny=110, hard=(2, 3, 4, 5)):
+    """The shell, lofted through `shape_keys()`, or through finished `keys`
+    whose bumper face and tail panel stand at the stations `faces`
+    (y0, y1); `ny` stations along the car, creased at the control indices
+    `hard`."""
+    global ARCH_SPAN, E, K0, L, LAMP_X, LAMP_Z, NOSE, SIDE_BLADES, SIDE_FLOORS, TAIL, TAILP_Y
+    global TLAMP_J, TLAMP_Y0, TLAMP_Y1, body
+    E = V["ends"]
+    K0, K1 = faces or (V["keys"][0][0], V["keys"][-1][0])
+    KEYS = shape_keys() if keys is None else keys
+    L = carlib.Loft(KEYS, samp=SAMP, ny=ny, hard=hard)
     NOSE, TAIL = L.nose, L.tail
     BUMPER_Y, TAILP_Y = K0, K1          # the flat faces sit here; the tips are rounded
 
@@ -240,7 +255,8 @@ def body_loft():
     # the corner's upper surface faces up and inward, so a pocket there was a
     # shelf whose lamps were seen edge-on from the road)
     LAMP_X = V["lamp_x"]
-    LAMP_Z = (E["nose_top"] - 0.030 - V["lamp_h"], E["nose_top"] - 0.030)
+    # under the bonnet's leading edge, or where the car's `lamp_z` puts them
+    LAMP_Z = V.get("lamp_z") or (E["nose_top"] - 0.030 - V["lamp_h"], E["nose_top"] - 0.030)
     # tail lamp bands wrap the rear corner the same way
     # (only the wrap-around tail has one; the bar and the Y sit on the tail panel)
     TLAMP_J = (2.95, 3.85)
@@ -320,7 +336,7 @@ def apertures():
     for sx in (-1, 1):
         x0, x1 = sorted((sx * LAMP_X[0], sx * LAMP_X[1]))
         carlib.aperture(body, M, (x0, NOSE - 0.06, LAMP_Z[0]), (x1, LAMP_YB, LAMP_Z[1]))
-    VAL_Z = (E["tail_bot"] + 0.02, E["tail_bot"] + 0.19)
+    VAL_Z = V.get("valance_z") or (E["tail_bot"] + 0.02, E["tail_bot"] + 0.19)
     VAL_HW = L.x_at(TAILP_Y, VAL_Z[1]) - 0.11
     # the rear valance, where the exhausts and the diffuser exit: a plain slot
     # on the coupe, a hexagon on the wedge, a trapezoid on the GT
