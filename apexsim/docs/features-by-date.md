@@ -6,11 +6,57 @@ day they landed (`git show <hash>` for the change). The open items are in
 backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md),
 [verification.md](verification.md)). Add a date's section when items land.
 
+## 2026-11-01
+
+- **G9** — gloves and sleeves modelled in Blender with CC0 leather and suit cloth (`1643c993`); the thumb on the faceplate edge (`5ad30a44`), grown out of the palm in one curve, sleeve ends capped (`7789e712`)
+- **G10** — the cockpit eye on a head and neck, fed by the own car's snapshot (`3b89f2a5`)
+- **G13** — wheel wells lined, not painted; the GT3's passenger footwell clean (`bf11e3b9`)
+- **G14**
+  - tyre marks in the grass where a car ran wide, kept for the session (`3518f590`)
+  - run-off paint faded, dirty and streaked with rubber (`77b68bc9`)
+  - dry patches, mown verges and raked gravel (`b73252f2`)
+- **G16** — dirt over a session on every car (`fa4ef578`); clear-coat flake (`68dc52a3`)
+- **Tests** — the SF-26's prediction fixture recorded again from the F1 rebuild (`31b16d95`)
+- **Verifier** — the reviews of 2026-10-28 and 2026-11-01 processed (`79447b04`)
+- **Release** — the package folder, `apexsim-<ver>.zip` without the content pack and `apexsim-content-<ver>.acp` beside it (`5afae5b2`); version 0.4.4 (`b7892a99`)
+
+## 2026-10-31
+
+- **G8** — a realism reference sheet and ranking (`fb381a5a`), become G12-G16 (`a7c138e4`)
+- **G9** — gloved hands on the wheel and arms to the shoulders (`f5dd8f3d`); the arms off by default (`cf4407d3`)
+- **G12** — forest cover; guard rails follow the grade (`916332cf`)
+- **G13**
+  - car material parents draw normal and metallic-roughness maps (`af848264`)
+  - carbon and CC0 suede in every generated cockpit (`334d4f0a`)
+  - the closed cars' shell lined inside (`05023b0c`)
+- **G14** — CC0 ground scans, turf and run-off paint at measured albedo (`3b1b3989`)
+- **G15** — haze as a kilometre-deep layer, off the sky; the atmosphere's aerosol pales the horizon (`aaf6fa1a`)
+- **Plans** — G9/G13 refinement (`9215b1d7`), G17 car generators per car (`96f0b23d`)
+
+## 2026-10-28
+
+- **Plans** — graphical realism as roadmap 52-55, work plan G8-G11 (`cb705883`)
+- **Verifier** — the Sudoku elevation run, C5 verdicts, poses for Monzarella Sud and Mandarina's roof screens (`12b425df`)
+
+## 2026-10-27
+
+- **F1 rebuild** — the halo's hoop runs back past the helmet, its legs land behind the driver (`3291f93c`); damage tables reordered, DRS flaps re-exported, previews (`a9413b58`)
+- **Promo** — an airship reveal opens the video, Eau Rouge from the top of Raidillon, the Marina skyline at dusk (`e1b93da4`)
+- **Marketing site** — the hero loop cut again (`4284f811`, `60e7ab21`), the F1 pictures from the new previews (`1ccb206b`), the trailer is the new promo (`67e3f7d1`)
+
 ## 2026-10-26
 
 - **R4** — driver swaps: two to four drivers a car, a most per driver, the change in the box alongside the service, the pit plan's Driver row and the HUD's crew points (`851fcec6`); seen on screen (`62349c52`, `6def1c90`)
 - **A4** — an AI stop the plan chose is judged again at the lane (`e5323472`); a hot cockpit tires a driver sooner (`a8cb5a24`)
-- **Racing-line aid** — the stretch ahead counts the wind in the downforce (`5748285f`)
+- **N10** — DLSS and FSR upscalers beside TSR (`01fb04fb`)
+- **Wrong way** — the server detects a car against the track, the HUD warns (`dbed6bdd`)
+- **Driving school** — the test's tyres, wrapped targets, a time limit (`e20c0da9`)
+- **Race start** — the world covered until the track is built, the countdown held for it (`a838b252`)
+- **Racing-line aid** — the stretch ahead planned again on the client from the car (`1fb807af`); it counts the wind in the downforce (`5748285f`)
+- **Props** — the tyre bridge is the arch again, at its own span (`1681820f`)
+- **Follow-ups #19** — the imported F1s hold their plans alone, a two-minute loop (`ce853437`); the dodge lane's grip share as a lead (`2cdd8ccb`)
+- **Marketing site** — several pages: a short front page, simulation and AC import pages (`f67122eb`)
+- **Verifier** — the 2026-10-25 reviews processed (`84e88772`); C5's unjudged shots as items (`56f404bd`)
 - **Tests** — the street-lamp spec test follows the 45 m arm reach (`14b2e690`)
 
 ## 2026-10-25
