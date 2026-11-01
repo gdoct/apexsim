@@ -213,14 +213,14 @@ layout dossier (their OSM fits fail; `BBOXES` in `tools/osm_layout.py`
 says why) and are not dressed. They are outside this work, and removing
 them from the calendar is the owner's option.
 
-**S/F column.** Done for every circuit but three: the dossier pass (each
+**S/F column.** Done for every circuit but two: the dossier pass (each
 audit page's "S/F dossier pass" lists what went in and what is left) and the
 `c5-sf-*` shots, judged 2026-10-21 (Gnocchi's main stand, `stadium` from
-the Stands pass, with the `c5-st-*` shots). Open, built 2026-10-22 and
-waiting for a person to judge the shots: Bahrainless (the Main
-Grandstand's `tent_roof_10m` and the pit building's membrane storey,
-`c5-st-bahrainless`, `c5-r20-bahrainless`) and MandarinaBay (its three
-superscreens on the pit building's roof, `c5-sf-mandarinabay`). Open: the
+the Stands pass, with the `c5-st-*` shots; MandarinaBay's three
+superscreens on the pit building's roof, `c5-sf-mandarinabay`, 2026-10-28).
+Open, built 2026-10-22 and waiting for a person to judge the shots:
+Bahrainless (the Main Grandstand's `tent_roof_10m` and the pit building's
+membrane storey, `c5-st-bahrainless`, `c5-r20-bahrainless`). Open: the
 Nordschleife, whose start/finish has no source for its T13 pumps and
 media tower (the T13 stand is in). AlbertParkour's and Lemons' pit lanes
 run their real length since 2026-10-22 (R21: Albert Park 4760-140 with its
@@ -234,7 +234,10 @@ Open: Gnocchi (the Fisht stadium, `building/stadium_bowl` on its OSM
 centre, built 2026-10-22; `c5-lm-gnocchi` waits for a person) and
 Monzarella (the Sopraelevate, OSM's banked curves laid as
 `building/banked_oval_10m` modules from the dossier's `banking`, built
-2026-10-22; `c5-kit-monzarella` waits for a person).
+2026-10-22; judged not right on `c5-kit-monzarella` 2026-10-28: the
+modules do not follow the banking's line, halfway round the banked side
+flips to the other edge, and the pieces overlap stepwise like
+weatherboarding instead of joining end to end).
 
 **Stands column.** Done but for one circuit: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier

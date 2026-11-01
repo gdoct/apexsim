@@ -2499,3 +2499,125 @@
     score: 4
     processed: true
 
+- id: v-c5-mandarinabay-superscreens
+  title: 'Mandarina Bay: superscreens on the pit roof'
+  area: track
+  kind: screen
+  check_by: c5-sf-mandarinabay
+  created: 2026-10-22
+  commit: 84e88772
+  plan: C5
+  doc: ../apexsim-content/docs/track-improvements.md
+  what: >-
+    Mandarina Bay's start/finish: the three superscreens on the pit building's
+    roof, the stands from the pit wall and the pit side from the stands (C5
+    S/F column).
+  status: confirmed
+  evidence:
+  - run: c5-sf-mandarinabay
+    date: 2026-10-22
+    commit: 35f2c9e7
+    kind: shot
+  - run: c5-sf-mandarinabay
+    date: 2026-10-28
+    commit: 67e3f7d1
+    shots: [5]
+    kind: shot
+  verdict:
+    date: 2026-10-28
+    by: agent
+    says: looks-right
+    text: >-
+      Re-run with a high pose over the stands: the pit building's roof carries
+      its screens in three pairs showing the APEXSIM logo along its length (5);
+      the stands from the pit wall and the pit side from the stands look right
+      (2, 3). The screens are small at this distance: a closer look at the third,
+      far one would settle the count.
+    shots: [5]
+  review:
+    at: 2026-10-28T18:19:13
+    score: 4
+    processed: true
+
+- id: v-r4-driver-swaps
+  title: Driver swaps in a race
+  area: race-rules
+  kind: screen
+  check_by: agent
+  created: 2026-10-26
+  commit: f67122eb
+  plan: R4
+  doc: server/sessions.md#driver-swaps
+  what: >-
+    A race with drivers sharing the cars (-ApexAutoRace -ApexDriversPerCar=2
+    -ApexMaxDriverMinutes=5 over a race of about 12 minutes): the race state
+    Driver panel counting the driver time left, lit under five minutes; an AI
+    stop and the player own stop reading DRIVER CHANGE · DRIVER 2 in the pit
+    panel after the other work; the panel at Driver 2 with its full time once
+    the car leaves the box; the create screen Drivers a car and Drive time each
+    rows and their line; the pause menu pit plan Driver row only in such a race.
+  status: confirmed
+  evidence:
+  - run: r4-driver-swaps
+    date: 2026-10-26
+    commit: 14b2e690
+    shots: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+    kind: shot
+  - run: r4-driver-pit-plan
+    date: 2026-10-26
+    commit: 699acdb4
+    shots: [1]
+    kind: shot
+  - run: r4-driver-rows
+    date: 2026-10-26
+    commit: 699acdb4
+    shots: [1, 2]
+    kind: shot
+  verdict:
+    date: 2026-10-26
+    by: agent
+    says: looks-right
+    text: >-
+      r4-driver-swaps: the race state shows the driver time left (1:47 after
+      the green, counting down), the player's stop reads CHANGING TYRES then
+      DRIVER CHANGE · DRIVER 2 at 0.9 s left, the car leaves at 1:57 for Driver
+      2, and the last shot shows DRIVER 3 with 0:11 left (hud.Data logs crew.driver
+      1 then 2). That race was set too long (four laps of 1:18 is more than
+      three 2-minute drivers can drive), so the after-flag shot came before
+      the flag; the run is now three laps. r4-driver-rows shot 2: the Drivers
+      a car and Drive time each rows lit on 3 drivers and 240 min, the section
+      line and the summary read 3 DRIVERS A CAR, 240 MIN EACH. r4-driver-pit-plan
+      shot 1: the pit plan's Driver row on CREW'S CALL between Pad set and Box
+      this lap.
+    shots: [1, 2, 9, 10, 11, 12, 34]
+  review:
+    at: 2026-10-28T17:59:14
+    score: 4
+    processed: true
+
+- id: v-g9-gloves
+  title: The driver's gloves and sleeves from the seat
+  area: cameras
+  kind: screen
+  check_by: g9-arms-gt3
+  created: 2026-11-01
+  commit: 2fd165c4
+  what: >-
+    The Blender-modelled gloves (leather back, suede palm, knuckle pad, finger
+    seams, strapped gauntlet) and fire-suit sleeves on the GT3 and formula wheels
+    (`g9-arms-gt3`, `g9-arms-formula`, `-ApexCockpitArms`): do they read as
+    a real driver's hands beside onboard footage? Then "Driver's arms" goes
+    on by default.
+  status: confirmed
+  evidence:
+  - run: g9-arms-gt3
+    date: 2026-11-01
+    commit: 2fd165c4
+    shots: [1, 2, 3]
+    kind: shot
+  review:
+    at: 2026-11-01T12:29:36
+    score: 3
+    processed: true
+

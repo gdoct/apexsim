@@ -25,6 +25,12 @@ G10 and G14 built and waiting for the owner's judgement (onboard feel; the
 `g14-grass-marks`, `g16-car-dirt` and `g8-*` sheets), G13's wheel wells and
 GT3 footwell fixed; the nine `ApexSim.Prediction` tests pass again.
 
+The owner's verifier reviews of 2026-10-28 and 2026-11-01 are processed
+(2026-11-01): three confirmed and closed (R4's driver swaps, C5's
+Mandarina Bay superscreens, G9's gloves and sleeves), two not right:
+Monzarella's banking (back to C5) and Suzuka's crossover walls (B16; the
+elevation itself is good).
+
 ## Legend
 
 **Priority** (re-assessed across all four docs, not copied from them):
@@ -51,8 +57,9 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
-| C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G9 | Driver's hands: gloves and sleeves built, to judge; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
+| B16 | Suzuka's crossover: see-through bridge walls (follow-ups #6) | Bug | P2 | 🟡 | S | 2 |
+| C5 | Circuit dressing to the references (roadmap 29): Monzarella's banking, open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
+| G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: grass tracks, worn paint, dry patches, raked gravel built; to judge | Rendering | P2 | 🟡 | M | 2 |
@@ -83,7 +90,7 @@ takes it up (— : no step, taken opportunistically).
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
    G14, G11 family by family with C5's columns alongside (C5 places the
-   kit, G11 makes it look real); G10 beside them. G17 after
+   kit, G11 makes it look real); G10 and B16 beside them. G17 after
    G13 lands (they touch the same car builds; G16, the paint, is in); its step 1 (the
    per-car split, byte-identical output) runs unattended overnight. G4 and N10
    checked together on the RTX machine.
@@ -102,6 +109,18 @@ the centring re-arming; the centring was made safe blind (no re-arm on a
 stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop for 10 s, read the `Wheel
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
+
+#### B16. Suzuka's crossover: see-through bridge walls — P2 · 🟡 · S
+*Source: follow-ups #6, the owner's review of `v-track-suzuka-elevation`
+(2026-10-28, score 4).* The elevation is right, but from the road you can
+see through the bridge's side walls: their ends do not line up with the
+deck and the approaches (`sudoku-elevation` shot 3). The walls and deck
+come from `ats-export`'s underpass build
+([road-mesh.md](../../apexsim-content/docs/road-mesh.md),
+[track-pipeline.md](../../apexsim-content/docs/track-pipeline.md)); a fix
+re-exports Sudoku and is judged on a new `sudoku-elevation` run. If the
+walls' collision moves too, it changes `walls.msgpack` and needs the AI
+survey on Sudoku.
 
 ### Platform and stability
 
@@ -196,8 +215,9 @@ textures). Left: the owner's judgement on the `g8-*` pairs and the
 #### G9. Driver's hands: what is left — P2 · 🟡 · L
 *Source: roadmap 53.* Gloves and arms are drawn on every class wheel, off by
 default. The gloves and sleeves are modelled in Blender with CC0 leather,
-suede and suit cloth (2026-11-01; `g9-arms-gt3`, `g9-arms-formula`): the
-owner judges them from the seat, then the setting goes on by default.
+suede and suit cloth (2026-11-01; `g9-arms-gt3`, `g9-arms-formula`), and
+the owner confirmed them from the seat the same day (score 3 of 5: good
+enough to ship, room to improve). Next: "Driver's arms" on by default.
 Then hand over hand past 180 degrees of lock, the paddle pull,
 the H-shifter and handbrake hand, a car's own wheel, and the outside driver
 figure on the same IK.
@@ -263,7 +283,13 @@ reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
 The cells built 2026-10-22 (R21, R8, the kit pieces, the 24h layout) wait
 for a person to judge their shots, as the `v-c5-*` items on the verifier's
-page; their shots predate C9's stadium canopy and C10's horizons. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
+page; their shots predate C9's stadium canopy and C10's horizons. Mandarina
+Bay's superscreens were confirmed 2026-10-28. Monzarella's Sopraelevata was
+judged not right the same day (`c5-kit-monzarella`, score 3; follow-ups
+#6): the `banked_oval_10m` modules do not follow the banking's line, the
+banked side flips to the other edge halfway round, and the pieces overlap
+stepwise instead of joining end to end; fix the laying from the dossier's
+`banking`, re-dress and shoot `c5-kit-monzarella` again. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
 circuits without a dossier (their OSM fits fail on layout variants:
 `BBOXES`' notes); one track with selectable routes (follow-ups).
 **Watch out:** hand-placed props are discarded on the next dress; the
@@ -400,4 +426,4 @@ What only you can do, roughly in the order it pays off:
 - **Verification:** the backlog is
   [verification/verification-items.yml](verification/verification-items.yml),
   reviewed on the verifier's page ([verifier.md](verifier.md)); its reviews
-  of 2026-10-25 are processed and the confirmed items closed.
+  up to 2026-11-01 are processed and the confirmed items closed.
