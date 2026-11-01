@@ -19,16 +19,25 @@
                         reads at runtime, showcase.yml for both sides, plus
                         the launcher and a manifest
         7. pack       - the default cars and circuits outside the starter
-                        set, into content/content.acp
-        8. zip        - optional, with -Zip
+                        set, into apexsim-content-<Version>.acp beside the
+                        package folder
+        8. zip        - the package folder as apexsim-<Version>.zip (not
+                        with -NoZip)
 
-    The package lands under artifacts/, which .gitignore already excludes, so
-    nothing here is ever committed.
+    The output lands under artifacts/, which .gitignore already excludes, so
+    nothing here is ever committed:
+
+        artifacts/release/ApexSim-<Version>-Win64/   the release itself
+        artifacts/release/apexsim-<Version>.zip      that folder, to upload
+        artifacts/release/apexsim-content-<Version>.acp
+                                                     the content pack, a
+                                                     separate download
 
     A release ships the starter set (../apexsim-content/starter.yml): its
     cars and circuits installed. The rest of apexsim-content's default cars
-    and circuits go beside them as one loose content pack, content/content.acp
-    (apexsim-content/docs/packs.md), that the launcher's Manage content >
+    and circuits go beside them as one loose content pack,
+    apexsim-content-<Version>.acp (apexsim-content/docs/packs.md), downloaded
+    apart from the zip, that the launcher's Manage content >
     Install pack... installs into the custom/ folders. -AllContent installs
     every car and circuit and makes no pack. No showcase or track guide
     ships: the game and the server make their own from showcase.yml and the
@@ -51,10 +60,6 @@
             Game/Cars/          every shipped car as its car.toml, GLBs and livery
                                 logos, built by the game when it is drawn
             Game/Wheels/        the class wheels the cars name, the pack's too
-            content/content.acp the cars and circuits outside the starter set:
-                                cars/<folder>/ as Game/Cars ships one,
-                                tracks/<Stem>/ the server's files, with the
-                                export and preview in tracks/<Stem>/game/
             Game/Drivers/portraits/  the pictures a driver profile picks from
             Game/Audio/radio/   the spotter's and the engineer's voice lines
             Game/Hud/           the HUD's components (default/, and custom/
@@ -72,7 +77,7 @@
     run aborts rather than shipping a package with a hole in it.
 
 .PARAMETER Version
-    Version stamped on the folder, the zip and release.json. Defaults to
+    Version stamped on the folder, the zip, the pack and release.json. Defaults to
     ProjectVersion in game-unreal/Config/DefaultGame.ini.
 
 .PARAMETER Configuration
@@ -85,16 +90,15 @@
     EngineAssociation, and then the default launcher install locations.
 
 .PARAMETER OutputDirectory
-    Directory that receives the versioned release folder. Defaults to
-    artifacts/release.
+    Directory that receives the versioned release folder, its zip and the
+    content pack. Defaults to artifacts/release.
 
 .PARAMETER BuildEditor
     Compile the ApexSimEditor target before baking tracks. Needed after C++
     changes under game-unreal/Source; skip it for a content-only release.
 
-.PARAMETER Zip
-    Also compress the finished package to <OutputDirectory>/<name>.zip, ready
-    to attach to a GitHub release.
+.PARAMETER NoZip
+    Leave the package as a folder: make no <OutputDirectory>/apexsim-<Version>.zip.
 
 .PARAMETER SkipServer
     Reuse the apexsim-server.exe already in server/server/target/release.
@@ -115,7 +119,7 @@
     only the starter set, and make no content pack.
 
 .PARAMETER NoContentPack
-    Make no content/content.acp: the release bakes and ships the starter set
+    Make no apexsim-content-<Version>.acp: the release bakes and ships the starter set
     alone.
 
 .PARAMETER IncludeCustomTracks
@@ -140,8 +144,8 @@
     default output of build_game_standalone.ps1.
 
 .EXAMPLE
-    ./scripts/build_release.ps1 -Zip
-    Full pipeline, Shipping client, ready-to-upload zip. The launcher is built as launcher.exe.
+    ./scripts/build_release.ps1
+    Full pipeline, Shipping client, ready-to-upload zip and content pack. The launcher is built as launcher.exe.
 
 .EXAMPLE
     ./scripts/build_release.ps1 -SkipTracks -Configuration Development
@@ -155,7 +159,7 @@ param(
     [string]$EngineRoot,
     [string]$OutputDirectory,
     [switch]$BuildEditor,
-    [switch]$Zip,
+    [switch]$NoZip,
     [switch]$SkipServer,
     [switch]$SkipLauncher,
     [switch]$SkipProps,
@@ -273,7 +277,7 @@ function Get-TrackFiles {
         })
 }
 
-# What content.acp carries: the default cars and circuits the starter set
+# What the content pack carries: the default cars and circuits the starter set
 # leaves out. Nothing with -AllContent, which installs them all, or with
 # -NoContentPack, and never custom\ content.
 function Get-PackCarFiles {
@@ -440,7 +444,7 @@ function Invoke-Preflight {
     Write-Detail "$($cars.Count) car(s) in $CarsDir"
     Write-Detail "$($tracks.Count) track(s) in $(Get-TrackFolderText)"
     if ($Starter -and -not $NoContentPack) {
-        Write-Detail "$(@(Get-PackCarFiles).Count) car(s) and $(@(Get-PackTrackFiles).Count) track(s) for content.acp"
+        Write-Detail "$(@(Get-PackCarFiles).Count) car(s) and $(@(Get-PackTrackFiles).Count) track(s) for the content pack"
     }
 }
 
@@ -543,7 +547,7 @@ function Copy-ServerContent {
     Write-MissingSidecars $missing
 }
 
-# content.acp: the pack's cars and circuits laid out as a loose pack
+# The content pack: the pack's cars and circuits laid out as a loose pack
 # (apexsim-content/docs/packs.md) in a staging folder, then zipped. A car is
 # cars\<folder>\ as Game\Cars ships one; a circuit tracks\<Stem>\ with the
 # server's files, its export and preview in tracks\<Stem>\game\. The class
@@ -594,6 +598,8 @@ if (-not $Version) { $Version = Get-ProjectVersion }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $RepoRoot 'artifacts\release' }
 
 $PackageName = "ApexSim-$Version-Win64"
+$ZipName     = "apexsim-$Version.zip"
+$PackName    = "apexsim-content-$Version.acp"
 $ReleaseDir  = [IO.Path]::GetFullPath((Join-Path $OutputDirectory $PackageName))
 $GameDir     = Join-Path $ReleaseDir 'Game'
 $ServerDir   = Join-Path $ReleaseDir 'Server'
@@ -797,15 +803,19 @@ New-Item -ItemType Directory -Force -Path $RadioDir | Out-Null
 Copy-Item -Path (Join-Path $ContentRoot 'audio\radio\*.wav') -Destination $RadioDir -Force
 Write-Detail "$(@(Get-ChildItem $RadioDir -Filter '*.wav').Count) radio line(s) in $RadioDir"
 # The default content the starter set leaves out, for the launcher's
-# Manage content > Install pack... (none with -AllContent).
-$ContentPackDir = Join-Path $ReleaseDir 'content'
-if (Test-Path $ContentPackDir) { Remove-Item -LiteralPath $ContentPackDir -Recurse -Force }
+# Manage content > Install pack... (none with -AllContent). It goes beside
+# the package folder, not in it: the zip stays small and the pack is its own
+# download. An older run's content\ folder inside the package goes.
+$OldContentPackDir = Join-Path $ReleaseDir 'content'
+if (Test-Path $OldContentPackDir) { Remove-Item -LiteralPath $OldContentPackDir -Recurse -Force }
+$PackPath = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) $PackName
+if (Test-Path $PackPath) { Remove-Item -LiteralPath $PackPath -Force }
 $packed = $null
 if ($Starter -and (@(Get-PackCarFiles).Count + @(Get-PackTrackFiles).Count) -gt 0) {
-    Write-Detail 'packing the rest of the default content into content\content.acp'
-    $packed = New-ContentPack -Path (Join-Path $ContentPackDir 'content.acp') -WheelsOut (Join-Path $GameDir 'Wheels')
-    Write-Detail ('{0} car(s), {1} track(s) in content\content.acp ({2})' -f `
-        $packed.Cars, $packed.Tracks, (Format-Size (Get-Item (Join-Path $ContentPackDir 'content.acp')).Length))
+    Write-Detail "packing the rest of the default content into $PackName"
+    $packed = New-ContentPack -Path $PackPath -WheelsOut (Join-Path $GameDir 'Wheels')
+    Write-Detail ('{0} car(s), {1} track(s) in {2} ({3})' -f `
+        $packed.Cars, $packed.Tracks, $PackName, (Format-Size (Get-Item $PackPath).Length))
 }
 # LICENSE sits at the root above the code and content roots.
 $License = Join-Path $RepoRoot 'LICENSE'
@@ -929,12 +939,13 @@ Write-TextFile (Join-Path $GameDir 'settings.sample.yml') $sampleSettings
 $carCount   = @(Get-CarFiles).Count
 $trackCount = @(Get-TrackFiles).Count
 
-$packText = if ($packed) { "`n    content\content.acp: $($packed.Tracks) more track(s), $($packed.Cars) more car(s)." } else { '' }
+$packText = if ($packed) { "`n    $($PackName): $($packed.Tracks) more track(s), $($packed.Cars) more car(s), a separate download." } else { '' }
 $packEntry = if ($packed) {
-    "    content\content.acp`n" +
-    "                       More cars and circuits, not installed. Use the`n" +
-    "                       launcher's Manage content > Install pack... and pick`n" +
-    "                       this file: they land in the custom folders.`n"
+    "    $PackName`n" +
+    "                       Not in here: a separate download beside this one,`n" +
+    "                       with more cars and circuits. Use the launcher's`n" +
+    "                       Manage content > Install pack... and pick that file:`n" +
+    "                       they land in the custom folders.`n"
 } else { '' }
 $readme = @"
 ApexSim $Version (Windows 64-bit)
@@ -1082,7 +1093,7 @@ $manifest = [ordered]@{
         cars         = $carCount
         tracks       = $trackCount
         runtime_tracks = $runtimeTrackCount
-        pack         = $(if ($packed) { [ordered]@{ file = 'content/content.acp'; cars = $packed.Cars; tracks = $packed.Tracks } } else { $null })
+        pack         = $(if ($packed) { [ordered]@{ file = $PackName; cars = $packed.Cars; tracks = $packed.Tracks } } else { $null })
         server       = (Split-Path -Leaf $ServerExe)
         render_tool  = (Split-Path -Leaf $ReplayExe)
         launcher     = 'launcher.exe'
@@ -1097,10 +1108,10 @@ Write-Detail ('{0} car(s), {1} track(s), {2} on disk' -f `
 # --- zip -------------------------------------------------------------------
 
 $zipPath = $null
-if ($Zip) {
+if (-not $NoZip) {
     Write-Step 'Compressing the package'
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $zipPath = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) "$PackageName.zip"
+    $zipPath = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) $ZipName
     if (Test-Path $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
     Write-Detail 'this takes a few minutes for a package this size'
     [IO.Compression.ZipFile]::CreateFromDirectory(
@@ -1115,6 +1126,9 @@ if ($zipPath) {
     Write-Host ('    Zip:     {0} ({1})' -f $zipPath, (Format-Size (Get-Item $zipPath).Length))
 }
 else {
-    Write-Host '    Re-run with -Zip to produce the archive to upload.'
+    Write-Host '    Re-run without -NoZip to produce the archive to upload.'
+}
+if ($packed) {
+    Write-Host ('    Pack:    {0} ({1})' -f $PackPath, (Format-Size (Get-Item $PackPath).Length))
 }
 Write-Host ('    Took {0:hh\:mm\:ss}' -f $stopwatch.Elapsed)

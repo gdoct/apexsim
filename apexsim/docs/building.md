@@ -463,13 +463,22 @@ runtime. `/Game/Tracks` and `/Game/Cars` are in `DirectoriesToNeverCook`
 
 ## Release package
 
-`scripts/build_release.ps1` runs everything front to back and assembles
-`artifacts/release/ApexSim-<Version>-Win64/` (version from `ProjectVersion`
-in `DefaultGame.ini` unless `-Version`). A release ships the **starter
+`scripts/build_release.ps1` runs everything front to back and leaves three
+things in `artifacts/release/` (version from `ProjectVersion` in
+`DefaultGame.ini` unless `-Version`):
+
+| Output | What it is |
+|---|---|
+| `ApexSim-<Version>-Win64/` | the release itself, runnable as it is |
+| `apexsim-<Version>.zip` | that folder, to upload; it holds no content pack |
+| `apexsim-content-<Version>.acp` | the content pack, a separate download |
+
+A release ships the **starter
 set**, `apexsim-content/starter.yml` (one car per class and three circuits):
 only those cars and circuits are installed. The rest of
 `apexsim-content`'s default cars and circuits are baked too and ship beside
-them, not installed, as one loose pack, `content\content.acp`
+them, not installed, as one loose pack, `apexsim-content-<Version>.acp`
+beside the package folder, not in it
 ([../../apexsim-content/docs/packs.md](../../apexsim-content/docs/packs.md#loose-packs-acp)):
 `cars/<folder>/` as `Game\Cars` ships a car, `tracks/<Stem>/` with the
 server's files and the export and preview in `tracks/<Stem>/game/`. The
@@ -497,9 +506,9 @@ left out.
    the server reads, `showcase.yml`), `Game\` (with `Tracks`, `Cars`, `Wheels`,
    `Hud`, `showcase.yml` and `settings.sample.yml`), `launcher.exe`,
    `Tools/importer/`, `README.txt`, `LICENSE`, `release.json`, `unblock.txt`
-7. pack: `content\content.acp`, staged in `<OutputDirectory>\<package>.content`
-   and zipped
-8. `-Zip`: compress it beside the folder
+7. pack: `apexsim-content-<Version>.acp`, staged in
+   `<OutputDirectory>\<package>.content` and zipped beside the folder
+8. zip: the folder as `apexsim-<Version>.zip` beside it (not with `-NoZip`)
 
 | Switch | Effect |
 |---|---|
@@ -507,8 +516,9 @@ left out.
 | `-ClientArtifactDirectory` | Where `-SkipClient` finds a client build |
 | `-BuildEditor` | Build `ApexSimEditor` before the track stage |
 | `-Configuration`, `-EngineRoot`, `-OutputDirectory`, `-Version` | As named |
-| `-AllContent` | Install every car and circuit, not only the starter set, and make no `content.acp` |
-| `-NoContentPack` | Make no `content.acp`: bake and ship the starter set alone |
+| `-AllContent` | Install every car and circuit, not only the starter set, and make no content pack |
+| `-NoContentPack` | Make no content pack: bake and ship the starter set alone |
+| `-NoZip` | Leave the package as a folder, with no zip |
 | `-IncludeCustomTracks`, `-IncludeCustomCars` | Ship `custom/` content |
 
 A skipped stage must still find the output it would have produced (a

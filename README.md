@@ -65,7 +65,7 @@ cd apexsim/server/server; cargo run               # in its own terminal: the ser
 cd apexsim                                 # the code scripts run from the code root
 ./scripts/initialize_content.ps1           # build the generated content a fresh clone lacks
 ./scripts/play_editor.ps1 -Build           # build the client and play it from the editor build
-./scripts/build_release.ps1 -Zip           # a release package: the starter set (apexsim-content/starter.yml)
+./scripts/build_release.ps1                # a release: folder, apexsim-<ver>.zip and apexsim-content-<ver>.acp
 
 cd apexsim-content                         # the content tools run from the content root
 ./bake.ps1 -Track SpaFrankenchamps                      # dress, export and draw a circuit (cargo and Python only)

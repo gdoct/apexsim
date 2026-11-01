@@ -154,7 +154,7 @@ path in which a code release and a content release are separate events.
   baking itself with `bake.ps1`, the starter set a release ships, the
   `apexsim-formats` crate) and phase 1 (loose content packs, `.acp`: a
   local install by the launcher and the server, a release shipping the
-  content outside the starter set as `content/content.acp`, picking and
+  content outside the starter set as `apexsim-content-<Version>.acp`, picking and
   uninstalling items).
 
 - Phase 2, the split: each root made into its repository with its history

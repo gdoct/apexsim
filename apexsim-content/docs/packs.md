@@ -149,6 +149,7 @@ uninstalls the ticked ones after asking. In a release it tells the
 player's own tracks from shipped ones by their folder in
 `Server\content	racks\custom`.
 
-A release ships one: `content\content.acp`, the default cars and circuits
+A release ships one: `apexsim-content-<Version>.acp`, a download apart
+from the release zip, the default cars and circuits
 outside the starter set (`apexsim/scripts/build_release.ps1`,
 [../../apexsim/docs/building.md](../../apexsim/docs/building.md#release-package)).
