@@ -10796,6 +10796,27 @@ runs:
       - {at: 52, label: "cockpit, down to the dip", checks: "G10: the eye in the seat at the compression"}
       - {at: 58, label: "cockpit, up the climb", checks: "G10: the eye in the seat over the crest"}
 
+  - id: g9-arms-gt3
+    about: "G9. The driver's gloves and sleeves from the seat of a GT3 at Spa: on the grid, through La Source, down to Eau Rouge"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:3, -ApexLaps=2, -ApexCountdown=8, -ApexWeather=sunny, -ApexTimeOfDay=14:00, -ApexView=cockpit, -ApexRacingLine=off, -ApexCockpitArms]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, label: "cockpit on the grid", checks: "G9: gloves on the rim at 9 and 3, thumbs on the spokes, gauntlets and sleeves to the shoulders; leather and suit cloth, no floating, no gaps at the wrist or elbow"}
+      - {at: 30, label: "cockpit, turning in", checks: "G9: the gloves turn with the rim; the sleeves follow the wrists"}
+      - {at: 45, label: "cockpit, lap 1", checks: "G9: the gloves in race light"}
+
+  - id: g9-arms-formula
+    about: "G9. The driver's gloves on a formula wheel at Monza, from the seat"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Monzarella, -ApexCar=SF-26, -ApexAiCount=2, -ApexLaps=2, -ApexCountdown=8, -ApexWeather=sunny, -ApexTimeOfDay=15:00, -ApexView=cockpit, -ApexRacingLine=off, -ApexCockpitArms]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 10, label: "cockpit on the grid", checks: "G9: gloves round the grips, thumbs on the faceplate, the arms down the cockpit sides"}
+      - {at: 35, label: "cockpit, lap 1", checks: "G9: the gloves in race light, turning with the wheel"}
+
   - id: g10-camera-tab
     about: "G10. The Camera tab with the Camera vibration row under Head motion"
     args: [-ApexOpenSettings=6, -ApexSettingsTab=3]

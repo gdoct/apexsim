@@ -52,7 +52,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
-| G9 | Driver's hands: real glove and sleeve meshes, hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
+| G9 | Driver's hands: gloves and sleeves built, to judge; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: grass tracks, worn paint, dry patches, raked gravel built; to judge | Rendering | P2 | 🟡 | M | 2 |
@@ -195,10 +195,10 @@ textures). Left: the owner's judgement on the `g8-*` pairs and the
 
 #### G9. Driver's hands: what is left — P2 · 🟡 · L
 *Source: roadmap 53.* Gloves and arms are drawn on every class wheel, off by
-default: the first meshes read as toy hands. First: real glove and sleeve
-meshes modelled in Blender with CC0 leather and fabric (needs G13's normal
-and roughness maps in the car parents), judged beside the onboard
-references. Then hand over hand past 180 degrees of lock, the paddle pull,
+default. The gloves and sleeves are modelled in Blender with CC0 leather,
+suede and suit cloth (2026-11-01; `g9-arms-gt3`, `g9-arms-formula`): the
+owner judges them from the seat, then the setting goes on by default.
+Then hand over hand past 180 degrees of lock, the paddle pull,
 the H-shifter and handbrake hand, a car's own wheel, and the outside driver
 figure on the same IK.
 

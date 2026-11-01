@@ -3769,6 +3769,8 @@ void AApexRaceDirector::PushRigFeatures()
 		Features.MirrorQuality = Values->MirrorQuality;
 		Features.bMetric = Values->Units == EApexUnits::Metric;
 	}
+	// Unattended shots of the driver's arms, whatever the setting says.
+	Features.bArms |= FParse::Param(FCommandLine::Get(), TEXT("ApexCockpitArms"));
 	Rig->SetFeatures(Features);
 }
 

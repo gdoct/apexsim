@@ -2632,3 +2632,24 @@
     score: 4
     processed: false
 
+- id: v-g9-gloves
+  title: The driver's gloves and sleeves from the seat
+  area: cameras
+  kind: screen
+  check_by: g9-arms-gt3
+  created: 2026-11-01
+  commit: 2fd165c4
+  what: >-
+    The Blender-modelled gloves (leather back, suede palm, knuckle pad, finger
+    seams, strapped gauntlet) and fire-suit sleeves on the GT3 and formula wheels
+    (`g9-arms-gt3`, `g9-arms-formula`, `-ApexCockpitArms`): do they read as
+    a real driver's hands beside onboard footage? Then "Driver's arms" goes
+    on by default.
+  status: open
+  evidence:
+  - run: g9-arms-gt3
+    date: 2026-11-01
+    commit: 2fd165c4
+    shots: [1, 2, 3]
+    kind: shot
+

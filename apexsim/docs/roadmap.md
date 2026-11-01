@@ -191,18 +191,14 @@ reporting every other dossier unchanged after each dossier edit.
 
 The cockpit can draw gloved hands on every class steering wheel and arms
 solved to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms),
-off by default: the first meshes (extruded prisms from `build_hands.py`)
-read as toy hands, not as a driver's. Left:
+off by default. The gloves and sleeves are modelled in Blender
+(`build_hands.py`: three phalanges a finger, knuckle pad, seams, strapped
+gauntlet; suit sleeves with elbow folds; CC0 leather, suede and cloth maps)
+and seen from the seat (`g9-arms-gt3`, `g9-arms-formula`); the setting goes
+on by default once the owner has judged them. Left:
 
-- **Real gloves and sleeves.** Modelled in Blender (a generator beside the
-  car scripts): each finger three phalanges with knuckles and the gaps
-  between them, the palm and thumb closed round the grip, a wrist strap and
-  stitched seams, subdivided (some 6-8k triangles a glove); sleeves with
-  folds at the elbow, a knit cuff and the suit's seams. Leather and
-  fire-suit fabric from CC0 scans with their normal and roughness maps,
-  which needs the car material parents to take both (shared with package
-  57). Judged beside the onboard reference frames (`g8-*` cockpit pairs)
-  before the setting goes on by default.
+- Refinement after that judgement: the thumb reads long and even, the
+  knuckles barely show from the eye; finger pads under load.
 - Hand over hand past about 180 degrees of lock (road and rally cars); the
   gloves now stay on the grips at every angle.
 - A finger pulling the paddle at a gear change (gear from telemetry); the

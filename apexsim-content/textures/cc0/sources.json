@@ -56,6 +56,14 @@
       "licence": "CC0-1.0",
       "use": "ground set asphalt (road, run-off)",
       "sha256": "c71801b342dbea594dbdd0bd2ddc0a6d13f813c923fca408b9f5b9ee5e58aba2"
+    },
+    {
+      "id": "Fabric082A",
+      "url": "https://ambientcg.com/get?file=Fabric082A_1K-JPG.zip",
+      "page": "https://ambientcg.com/view?id=Fabric082A",
+      "licence": "CC0-1.0",
+      "use": "the driver's fire-suit sleeves",
+      "sha256": "d9d2688fee6cd78733df349befffad23ee283b71747cb02fc03f514044235511"
     }
   ]
 }
