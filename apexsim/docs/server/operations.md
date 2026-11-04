@@ -47,14 +47,14 @@ All three run at 420 Hz.
 
 | Port | Key | What |
 |---|---|---|
-| 9000/tcp | `[network] tcp_bind` | Login, lobby, sessions, reliable messages |
-| 9001/udp | `[network] udp_bind` | Telemetry out, input in, after the UDP handshake |
-| 9002/tcp | `[network] health_bind` | `/health`, `/ready`, `/metrics`, `/showcase`, `/recordings` |
-| 9003/tcp | `[admin] http_bind` | Dashboard over HTTP (empty: off) |
-| 9004/tcp | `[admin] https_bind` | Dashboard over HTTPS (empty: off) |
+| 4938/tcp | `[network] tcp_bind` | Login, lobby, sessions, reliable messages |
+| 4939/udp | `[network] udp_bind` | Telemetry out, input in, after the UDP handshake |
+| 4940/tcp | `[network] health_bind` | `/health`, `/ready`, `/metrics`, `/showcase`, `/recordings` |
+| 4941/tcp | `[admin] http_bind` | Dashboard over HTTP (empty: off) |
+| 4942/tcp | `[admin] https_bind` | Dashboard over HTTPS (empty: off) |
 
-The built-in defaults bind loopback; to host, bind 9000 and 9001 to
-`0.0.0.0` and open 9000/tcp and 9001/udp.
+The built-in defaults bind loopback; to host, bind 4938 and 4939 to
+`0.0.0.0` and open 4938/tcp and 4939/udp.
 
 ## Configuration
 
@@ -209,7 +209,7 @@ falls under 90% ([../architecture.md](../architecture.md#tick-timing-on-windows)
 ## Admin dashboard
 
 A web page for operators on `[admin] http_bind` / `https_bind` (default
-`127.0.0.1:9003` / `:9004`), compiled into the binary from
+`127.0.0.1:4941` / `:4942`), compiled into the binary from
 `server/server/src/admin/web/`; nothing is served from disk.
 
 - **Access**: everything under `/api` needs `[admin] token` (empty: a random
@@ -383,7 +383,7 @@ admin_test::serve_demo_dashboard -- --ignored --nocapture` serves it on 19003/19
 ## Docker
 
 `server/Dockerfile` builds both binaries into a slim Debian image running as
-user `apexsim`, working directory and volume `/data`, ports 9000-9004, a
+user `apexsim`, working directory and volume `/data`, ports 4938-4942, a
 `HEALTHCHECK` on `/health`. Both images are built from the folder that holds
 the roots, each filtered by its own `<Dockerfile>.dockerignore`: the server
 builds against `apexsim/server/sim` and `apexsim-lib/formats` (`docker build -f

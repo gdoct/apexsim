@@ -227,7 +227,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Net")
 	void Connect(
 		const FString& InHost = TEXT("127.0.0.1"),
-		int32 InPort = 9000,
+		int32 InPort = 4938,
 		const FString& InPlayerName = TEXT("Player"),
 		const FString& InToken = TEXT("dev-token"));
 
@@ -1094,7 +1094,7 @@ private:
 	FApexLobbyState CachedLobbyState;
 
 	FString Host;
-	int32 Port = 9000;
+	int32 Port = 4938;
 	FString PlayerName;
 	/** The driver profile's id (SetDriverId) and key (SetDriverKey). */
 	FString DriverId;

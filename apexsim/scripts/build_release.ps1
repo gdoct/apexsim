@@ -906,7 +906,7 @@ server:
   # The server the game connects to when it starts. 127.0.0.1 is a server
   # on this machine, such as the one the launcher starts for you.
   host: 127.0.0.1
-  port: 9000
+  port: 4938
   # TLS on the connection: auto | on | off. auto tries TLS and falls back
   # to plaintext only when the server does not speak it; on never falls
   # back. Telemetry and input (UDP) are never encrypted.
@@ -955,7 +955,7 @@ QUICK START
 
     Double-click launcher.exe, the launcher. Launch starts the game; its
     drop-down has "Launch with local server".
-    In the menu, connect to 127.0.0.1:9000.
+    In the menu, connect to 127.0.0.1:4938.
 
 WHAT IS IN HERE
 
@@ -1025,11 +1025,11 @@ HOSTING FOR OTHER PEOPLE
 
     Run Server\apexsim-server.exe and open these ports to your players:
 
-        9000/tcp   login, lobby and session management
-        9001/udp   telemetry out, player input in
-        9002/tcp   health and Prometheus metrics (optional, keep it private)
+        4938/tcp   login, lobby and session management
+        4939/udp   telemetry out, player input in
+        4940/tcp   health and Prometheus metrics (optional, keep it private)
 
-    Players then connect to your machine's address on port 9000.
+    Players then connect to your machine's address on port 4938.
 
     Out of the box the server accepts any name (auth mode "dev") and does not
     require TLS, which suits a LAN or a private game among friends. For

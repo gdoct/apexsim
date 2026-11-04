@@ -70,7 +70,7 @@ server:
         Windows, or Linux in Docker. The launcher can also start one beside
         the game.
     - title: Ports
-      body: 9000/TCP for the lobby and 9001/UDP for telemetry and input, open to your players.
+      body: 4938/TCP for the lobby and 4939/UDP for telemetry and input, open to your players.
     - title: Content
       body: >-
         The same cars and circuits as the players; a checksum warns anyone

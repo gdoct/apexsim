@@ -87,7 +87,7 @@ A lightweight version of `TestClient` used for stress tests with minimal overhea
 
 ### Connection Timeout
 If you see connection timeouts:
-1. Verify the server is running on `127.0.0.1:9000`
+1. Verify the server is running on `127.0.0.1:4938`
 2. Check that no firewall is blocking the connection
 3. Ensure the server config uses the correct bind addresses
 

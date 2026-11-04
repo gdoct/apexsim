@@ -51,7 +51,7 @@ struct FApexBootSettings
 
 	FString ServerHost = TEXT("127.0.0.1");
 
-	int32 ServerPort = 9000;
+	int32 ServerPort = 4938;
 
 	/**
 	 * `server.tls` (auto | on | off), `server.tls_verify` and

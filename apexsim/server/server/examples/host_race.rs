@@ -6,7 +6,7 @@
 //! cargo run --example host_race -- [host:port] [ai_count] [laps] [seconds_to_stay]
 //! ```
 //!
-//! Defaults: 127.0.0.1:9000, 5 AI, 5 laps, 600 s. The host car is the lobby's
+//! Defaults: 127.0.0.1:4938, 5 AI, 5 laps, 600 s. The host car is the lobby's
 //! first, the track the lobby's first (set `APEXSIM_TRACK` to a name to pick
 //! one by substring). The session is the host's, so it ends when this does.
 
@@ -40,7 +40,7 @@ async fn recv(tcp: &mut TcpStream) -> Result<ServerMessage, Box<dyn std::error::
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().collect();
-    let addr = args.get(1).map_or("127.0.0.1:9000", |s| s.as_str());
+    let addr = args.get(1).map_or("127.0.0.1:4938", |s| s.as_str());
     let ai_count: u8 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(5);
     let laps: u8 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(5);
     let stay: u64 = args.get(4).and_then(|s| s.parse().ok()).unwrap_or(600);

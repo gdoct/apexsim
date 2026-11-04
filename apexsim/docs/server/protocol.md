@@ -33,8 +33,8 @@ keep a hand-written C++ codec in step with `rmp_serde`. Protocol version 2
 
 | Channel | Carries |
 |---|---|
-| TCP 9000 | Everything reliable: auth, lobby, sessions, rosters, lap timing, racing line, setup sheet, pit service, ghost laps, spectator records, a track's physics bundle on request. Telemetry for a client with no UDP binding. |
-| UDP 9001 | `PlayerInput` and `UdpHandshake` in; `TelemetryCompact`, `DriverFeedback`, `UdpHandshakeAck` and spectator frames out. |
+| TCP 4938 | Everything reliable: auth, lobby, sessions, rosters, lap timing, racing line, setup sheet, pit service, ghost laps, spectator records, a track's physics bundle on request. Telemetry for a client with no UDP binding. |
+| UDP 4939 | `PlayerInput` and `UdpHandshake` in; `TelemetryCompact`, `DriverFeedback`, `UdpHandshakeAck` and spectator frames out. |
 
 - **TCP framing**: `[u32 big-endian length][MessagePack body]`. The server
   rejects a client frame over 1,000,000 bytes; the client accepts server

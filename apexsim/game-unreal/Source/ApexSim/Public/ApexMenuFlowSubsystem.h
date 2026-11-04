@@ -420,7 +420,7 @@ public:
 	FString ServerHost = TEXT("127.0.0.1");
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
-	int32 ServerPort = 9000;
+	int32 ServerPort = 4938;
 
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Menu")
 	FString PlayerName = TEXT("Player");

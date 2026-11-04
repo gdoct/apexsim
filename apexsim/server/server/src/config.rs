@@ -88,8 +88,8 @@ impl Default for AdminSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            http_bind: "127.0.0.1:9003".to_string(),
-            https_bind: "127.0.0.1:9004".to_string(),
+            http_bind: "127.0.0.1:4941".to_string(),
+            https_bind: "127.0.0.1:4942".to_string(),
             tls_cert_path: String::new(),
             tls_key_path: String::new(),
             token: String::new(),
@@ -374,9 +374,9 @@ impl Default for ServerConfig {
                 reconnect_grace_seconds: default_reconnect_grace_seconds(),
             },
             network: NetworkSettings {
-                tcp_bind: "127.0.0.1:9000".to_string(),
-                udp_bind: "127.0.0.1:9001".to_string(),
-                health_bind: "127.0.0.1:9002".to_string(),
+                tcp_bind: "127.0.0.1:4938".to_string(),
+                udp_bind: "127.0.0.1:4939".to_string(),
+                health_bind: "127.0.0.1:4940".to_string(),
                 tls_cert_path: "./certs/server.crt".to_string(),
                 tls_key_path: "./certs/server.key".to_string(),
                 // Fail closed by default: plaintext requires an explicit
@@ -669,7 +669,7 @@ mod tests {
         let config = ServerConfig::default();
         assert_eq!(config.server.tick_rate_hz, 420);
         assert_eq!(config.server.max_sessions, 8);
-        assert_eq!(config.network.tcp_bind, "127.0.0.1:9000");
+        assert_eq!(config.network.tcp_bind, "127.0.0.1:4938");
     }
 
     #[test]

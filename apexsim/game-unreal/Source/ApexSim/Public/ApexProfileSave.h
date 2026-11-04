@@ -103,7 +103,7 @@ public:
 	FString ServerHost = TEXT("127.0.0.1");
 
 	UPROPERTY()
-	int32 ServerPort = 9000;
+	int32 ServerPort = 4938;
 
 	/** Content UUIDs, matched against the catalog and the server's lobby state. */
 	UPROPERTY()

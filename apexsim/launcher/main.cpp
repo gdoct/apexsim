@@ -56,7 +56,7 @@ namespace Gdiplus { using std::min; using std::max; }
 namespace fs = std::filesystem;
 
 static const wchar_t* kTroubleshootUrl = L"https://gdoct.github.io/apexsim";
-static const unsigned short kServerPort = 9000;  // the default server port
+static const unsigned short kServerPort = 4938;  // the default server port
 
 // ------------------------------------------------------------------ settings
 // The same flat two-level YAML subset UApexBootSettingsSubsystem reads, written

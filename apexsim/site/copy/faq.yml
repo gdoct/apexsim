@@ -86,7 +86,7 @@ groups:
       - q: What does hosting take?
         a: >-
           The server, the same content as the players, and two ports open:
-          9000/TCP and 9001/UDP. An operator dashboard runs the sessions.
+          4938/TCP and 4939/UDP. An operator dashboard runs the sessions.
       - q: Is the physics on my PC?
         a: >-
           No. The server simulates every car and enforces every rule:

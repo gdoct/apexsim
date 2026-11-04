@@ -4,9 +4,9 @@ max_sessions = 32
 session_timeout_seconds = 300
 
 [network]
-tcp_bind = "0.0.0.0:9000"
-udp_bind = "0.0.0.0:9001"
-health_bind = "0.0.0.0:9002"
+tcp_bind = "0.0.0.0:4938"
+udp_bind = "0.0.0.0:4939"
+health_bind = "0.0.0.0:4940"
 # Local development runs plaintext: leave the certificate paths empty and
 # require_tls = false. For production set both paths and require_tls = true.
 tls_cert_path = ""
@@ -77,8 +77,8 @@ list = "/content/showcase.yml"
 # APEXSIM_ADMIN_TOKEN (empty: a random one is printed in `docker logs` at each
 # start). The self-signed HTTPS certificate and the ban list are kept in /data.
 enabled = true
-http_bind = "0.0.0.0:9003"
-https_bind = "0.0.0.0:9004"
+http_bind = "0.0.0.0:4941"
+https_bind = "0.0.0.0:4942"
 redirect_http_to_https = true
 bans_file = "/data/records/bans.json"
 content_file = "/data/records/content.json"

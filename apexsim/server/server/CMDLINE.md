@@ -74,7 +74,7 @@ file), and each override is logged at startup. A value that does not parse
 as an error and ignored; the setting keeps its value from the file.
 
 The `_PORT` variables replace only the port of the matching bind address and
-keep its host, so `APEXSIM_NETWORK_TCP_PORT=9100` turns `127.0.0.1:9000` into
+keep its host, so `APEXSIM_NETWORK_TCP_PORT=9100` turns `127.0.0.1:4938` into
 `127.0.0.1:9100`. When both a `_BIND` and a `_PORT` variable are set, the
 port is applied after the bind.
 
@@ -89,11 +89,11 @@ port is applied after the bind.
 
 | Variable | Setting | Default |
 |---|---|---|
-| `APEXSIM_NETWORK_TCP_BIND` | `[network] tcp_bind`: login, lobby, sessions | `127.0.0.1:9000` |
+| `APEXSIM_NETWORK_TCP_BIND` | `[network] tcp_bind`: login, lobby, sessions | `127.0.0.1:4938` |
 | `APEXSIM_NETWORK_TCP_PORT` | port of `tcp_bind` | |
-| `APEXSIM_NETWORK_UDP_BIND` | `[network] udp_bind`: telemetry and input | `127.0.0.1:9001` |
+| `APEXSIM_NETWORK_UDP_BIND` | `[network] udp_bind`: telemetry and input | `127.0.0.1:4939` |
 | `APEXSIM_NETWORK_UDP_PORT` | port of `udp_bind` | |
-| `APEXSIM_NETWORK_HEALTH_BIND` | `[network] health_bind`: `/health`, `/ready`, `/metrics` | `127.0.0.1:9002` |
+| `APEXSIM_NETWORK_HEALTH_BIND` | `[network] health_bind`: `/health`, `/ready`, `/metrics` | `127.0.0.1:4940` |
 | `APEXSIM_NETWORK_HEALTH_PORT` | port of `health_bind` | |
 | `APEXSIM_NETWORK_TLS_CERT_PATH` | `[network] tls_cert_path` | |
 | `APEXSIM_NETWORK_TLS_KEY_PATH` | `[network] tls_key_path` | |
@@ -101,8 +101,8 @@ port is applied after the bind.
 | `APEXSIM_NETWORK_TELEMETRY_DIVISOR` | `[network] telemetry_divisor`: telemetry goes out every Nth tick | `7` (60 Hz at 420 Hz) |
 
 The default binds are loopback only. To host for other machines bind to
-`0.0.0.0` (e.g. `APEXSIM_NETWORK_TCP_BIND=0.0.0.0:9000` and the same for
-UDP) and open 9000/tcp and 9001/udp.
+`0.0.0.0` (e.g. `APEXSIM_NETWORK_TCP_BIND=0.0.0.0:4938` and the same for
+UDP) and open 4938/tcp and 4939/udp.
 
 ### Content
 
@@ -136,9 +136,9 @@ A web page for operators, on the same machine by default
 | Variable | Setting | Default |
 |---|---|---|
 | `APEXSIM_ADMIN_ENABLED` | `[admin] enabled` (`true`/`false`) | `true` |
-| `APEXSIM_ADMIN_HTTP_BIND` | `[admin] http_bind`; empty switches HTTP off | `127.0.0.1:9003` |
+| `APEXSIM_ADMIN_HTTP_BIND` | `[admin] http_bind`; empty switches HTTP off | `127.0.0.1:4941` |
 | `APEXSIM_ADMIN_HTTP_PORT` | port of `http_bind` | |
-| `APEXSIM_ADMIN_HTTPS_BIND` | `[admin] https_bind`; empty switches HTTPS off | `127.0.0.1:9004` |
+| `APEXSIM_ADMIN_HTTPS_BIND` | `[admin] https_bind`; empty switches HTTPS off | `127.0.0.1:4942` |
 | `APEXSIM_ADMIN_HTTPS_PORT` | port of `https_bind` | |
 | `APEXSIM_ADMIN_TOKEN` | `[admin] token`; empty makes a random one, printed once in the log | |
 
@@ -164,8 +164,8 @@ apexsim-server
 apexsim-server --config /etc/apexsim/server.toml --log-level debug
 
 # Host on every interface, without TLS (a LAN game)
-APEXSIM_NETWORK_TCP_BIND=0.0.0.0:9000 \
-APEXSIM_NETWORK_UDP_BIND=0.0.0.0:9001 \
+APEXSIM_NETWORK_TCP_BIND=0.0.0.0:4938 \
+APEXSIM_NETWORK_UDP_BIND=0.0.0.0:4939 \
 APEXSIM_NETWORK_REQUIRE_TLS=false \
 apexsim-server
 
@@ -178,8 +178,8 @@ apexsim-server
 On Windows (PowerShell) set the variables first:
 
 ```powershell
-$env:APEXSIM_NETWORK_TCP_BIND = "0.0.0.0:9000"
-$env:APEXSIM_NETWORK_UDP_BIND = "0.0.0.0:9001"
+$env:APEXSIM_NETWORK_TCP_BIND = "0.0.0.0:4938"
+$env:APEXSIM_NETWORK_UDP_BIND = "0.0.0.0:4939"
 .\apexsim-server.exe --log-level debug
 ```
 

@@ -27,7 +27,7 @@ server:
   # The server the game connects to when it starts. 127.0.0.1 is a server
   # on this machine, such as the one the launcher starts for you.
   host: 127.0.0.1
-  port: 9000
+  port: 4938
   # TLS on the connection: auto | on | off. auto tries TLS and falls back
   # to plaintext only when the server does not speak it; on never falls
   # back. Telemetry and input (UDP) are never encrypted.

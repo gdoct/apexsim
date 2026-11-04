@@ -22,11 +22,11 @@ services:
       content:
         condition: service_completed_successfully
     ports:
-      - "9000:9000/tcp"
-      - "9001:9001/udp"
-      - "9002:9002/tcp"
-      - "9003:9003/tcp"               # dashboard, redirects to HTTPS
-      - "9004:9004/tcp"               # dashboard, HTTPS
+      - "4938:4938/tcp"
+      - "4939:4939/udp"
+      - "4940:4940/tcp"
+      - "4941:4941/tcp"               # dashboard, redirects to HTTPS
+      - "4942:4942/tcp"               # dashboard, HTTPS
     environment:
       # server.docker.toml has TLS off and auth "dev" (accept anyone): fine on a
       # LAN, not on the internet.  For TLS, mount certs and set:

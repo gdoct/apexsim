@@ -39,9 +39,9 @@ WORKDIR /data
 USER apexsim
 VOLUME ["/data"]
 # TCP lobby, UDP telemetry/input, HTTP health/metrics, web dashboard (HTTP, HTTPS)
-EXPOSE 9000/tcp 9001/udp 9002/tcp 9003/tcp 9004/tcp
+EXPOSE 4938/tcp 4939/udp 4940/tcp 4941/tcp 4942/tcp
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s \
-  CMD curl -fs http://127.0.0.1:9002/health || exit 1
+  CMD curl -fs http://127.0.0.1:4940/health || exit 1
 # The config lives in /data/server.toml (seeded from /etc/apexsim on first start).
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []

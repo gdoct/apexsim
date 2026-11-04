@@ -78,7 +78,7 @@ void UApexConnectDialogWidget::OnScreenActivated()
 	{
 		if (HostField)  { HostField->SetText(FText::FromString(Flow->ServerHost)); }
 		// FromInt, not AsNumber: a port is an identifier, and localised grouping
-		// turns 9000 into "9,000", which then fails to parse back.
+		// turns 4938 into "4,938", which then fails to parse back.
 		if (PortField)  { PortField->SetText(FText::FromString(FString::FromInt(Flow->ServerPort))); }
 		if (NameField)  { NameField->SetText(FText::FromString(Flow->PlayerName)); }
 		if (TokenField) { TokenField->SetText(FText::FromString(Flow->AuthToken)); }
@@ -213,7 +213,7 @@ UWidget* UApexConnectDialogWidget::BuildFields()
 
 	UHorizontalBox* Row = WidgetTree->ConstructWidget<UHorizontalBox>();
 	ApexUI::AddH(Row, MakeField(*WidgetTree, TEXT("Host"), Host, TEXT("127.0.0.1")), FMargin(), VAlign_Fill, 1.6f);
-	ApexUI::AddH(Row, MakeField(*WidgetTree, TEXT("Port"), Port, TEXT("9000")), FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
+	ApexUI::AddH(Row, MakeField(*WidgetTree, TEXT("Port"), Port, TEXT("4938")), FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.0f);
 	ApexUI::AddH(Row, MakeField(*WidgetTree, TEXT("Driver name"), Name, TEXT("Player")), FMargin(14.0f, 0.0f, 0.0f, 0.0f), VAlign_Fill, 1.6f);
 	ApexUI::AddV(Stack, Row);
 

@@ -53,12 +53,12 @@ the topic docs under `docs/` go deeper.
 
 | From | To | How |
 |---|---|---|
-| Client | Server | TCP 9000 (auth, lobby, sessions, reliable messages), UDP 9001 (input) |
+| Client | Server | TCP 4938 (auth, lobby, sessions, reliable messages), UDP 4939 (input) |
 | Server | Client | TCP (reliable messages, telemetry fallback), UDP (telemetry, force feedback, spectator frames) |
 | Pipeline | Server | Files beside each track YAML: `<Stem>.{ground,curbs,walls,road,pit}.msgpack` sidecars |
 | Pipeline | Client | `apexsim-content/build/tracks/<Stem>.uescene.json` + `.uemesh` exports and previews (`Game/Tracks` in a package) |
 | `apexsim-content/cars` | Both | The server reads `car.toml`; the client reads the same file and the GLBs it names |
-| Operators | Server | HTTP 9002 (`/health`, `/ready`, `/metrics`), admin dashboard 9003/9004 |
+| Operators | Server | HTTP 4940 (`/health`, `/ready`, `/metrics`), admin dashboard 4941/4942 |
 
 The wire protocol is in [server/protocol.md](server/protocol.md); running a
 server in [server/operations.md](server/operations.md).

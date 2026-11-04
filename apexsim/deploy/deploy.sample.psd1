@@ -38,9 +38,9 @@
 
     # ---- network -----------------------------------------------------------
     BindAddress = '0.0.0.0'          # host interface the ports are published on
-    TcpPort     = 9000               # host-side ports (the container uses 9000/9001/9002)
-    UdpPort     = 9001
-    HealthPort  = 9002               # /health /ready /metrics
+    TcpPort     = 4938               # the server listens on these inside the container too
+    UdpPort     = 4939
+    HealthPort  = 4940               # /health /ready /metrics
     HealthBind  = ''                 # '' = same as BindAddress; '127.0.0.1' keeps it private
 
     # ---- server ------------------------------------------------------------

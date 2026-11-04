@@ -31,7 +31,7 @@ out/verify/<run>/:
 The server is started from server/server/target/release with a server.toml of the
 run's own (ports from 9400, records and replays inside the run's folder,
 the dashboard on 9403 with the token `verify`), so a server the user has
-running on 9000 is never touched and its records never written. The game
+running on 4938 is never touched and its records never written. The game
 reads a settings.yml of the run's own (-ApexSettingsDir): windowed, the
 run's resolution, that server.
 

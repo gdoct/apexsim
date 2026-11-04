@@ -204,7 +204,7 @@ def take_action(shot: dict, planner, game: list[str], defaults: dict, dry_run: b
 
 def server_address() -> tuple[str, int]:
     """Where the game will connect: the `server:` block of settings.yml."""
-    host, port = "127.0.0.1", 9000
+    host, port = "127.0.0.1", 4938
     if SETTINGS.is_file():
         in_server = False
         for line in SETTINGS.read_text(encoding="utf-8").splitlines():

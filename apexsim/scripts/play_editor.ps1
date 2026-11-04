@@ -125,9 +125,9 @@ if ($CreateShortcut) {
 
 # settings.yml is what the game reads at startup; only a server on this machine
 # is ours to start. The file does not exist until the game has run once, and
-# the game then defaults to 127.0.0.1:9000.
+# the game then defaults to 127.0.0.1:4938.
 $serverHost = '127.0.0.1'
-$serverPort = 9000
+$serverPort = 4938
 if (Test-Path $Settings) {
     $text = Get-Content $Settings -Raw
     if ($text -match '(?m)^\s+host:\s*(\S+)') { $serverHost = $Matches[1] }
@@ -230,8 +230,8 @@ if (-not $NoServer -and $isLocal) {
 
         Step "Starting the server on port $serverPort"
         if (-not $DryRun) {
-            # server.toml binds 9000; follow settings.yml if it names another port.
-            if ($serverPort -ne 9000) { $env:APEXSIM_NETWORK_TCP_BIND = "0.0.0.0:$serverPort" }
+            # server.toml binds 4938; follow settings.yml if it names another port.
+            if ($serverPort -ne 4938) { $env:APEXSIM_NETWORK_TCP_BIND = "0.0.0.0:$serverPort" }
             # Its own window, so its log is there to read, and working directory
             # server/, where server.toml and ../../apexsim-content resolve.
             Start-Process -FilePath $ServerExe -WorkingDirectory $ServerDir -WindowStyle Minimized

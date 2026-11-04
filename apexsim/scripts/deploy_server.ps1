@@ -58,7 +58,7 @@ $defaults = [ordered]@{
     Transfer = 'save'; Registry = ''; ImageTag = 'latest'; ContentTag = ''
     TlsCert = ''; TlsKey = ''; TlsFromHost = ''; TlsSyncCalendar = '*-*-* 04:30:00'; RequireTls = $true
     AuthMode = 'dev'; Tokens = @()
-    BindAddress = '0.0.0.0'; TcpPort = 9000; UdpPort = 9001; HealthPort = 9002; HealthBind = ''
+    BindAddress = '0.0.0.0'; TcpPort = 4938; UdpPort = 4939; HealthPort = 4940; HealthBind = ''
     TickRateHz = 240; MaxSessions = 32; TelemetryDivisor = 4; LogLevel = 'info'
     RoadContact = 'mesh'; ShowcaseEnabled = $true
     ContainerUser = 'auto'; Restart = 'unless-stopped'; MemoryLimit = ''; Cpus = ''
@@ -154,7 +154,7 @@ New-Item -ItemType Directory -Force $outDir -ErrorAction Stop | Out-Null
 
 # server.toml: the container's config with auth filled in (the one thing the
 # server has no environment override for).
-$toml = Get-Content -Raw -ErrorAction Stop (Join-Path $repo 'server\server.docker.toml')
+$toml = Get-Content -Raw -ErrorAction Stop (Join-Path $repo 'server\server\server.docker.toml')
 $tokenList = '[' + ((@($s.Tokens) | ForEach-Object { Toml $_ }) -join ', ') + ']'
 $authMode = Toml $s.AuthMode
 $toml = [regex]::Replace($toml, '(?m)^mode = "dev"', { param($m) "mode = $authMode" })
@@ -168,6 +168,12 @@ $vars = [ordered]@{
     APEXSIM_LOGGING_LEVEL             = $s.LogLevel
     APEXSIM_PHYSICS_ROAD_CONTACT      = $s.RoadContact
     APEXSIM_SHOWCASE_ENABLED          = "$($s.ShowcaseEnabled)".ToLower()
+    # The server listens on the published ports themselves, not 4938-4940
+    # behind a remap: it tells clients its UDP port (AuthSuccess.udp_port) and
+    # its replay port (LobbyState.recordings_port) as it bound them.
+    APEXSIM_NETWORK_TCP_PORT          = "$($s.TcpPort)"
+    APEXSIM_NETWORK_UDP_PORT          = "$($s.UdpPort)"
+    APEXSIM_NETWORK_HEALTH_PORT       = "$($s.HealthPort)"
 }
 if ($tls) {
     $vars['APEXSIM_NETWORK_TLS_CERT_PATH'] = '/certs/fullchain.pem'
@@ -193,9 +199,12 @@ $y.Add('    depends_on:')
 $y.Add('      content:')
 $y.Add('        condition: service_completed_successfully')
 $y.Add('    ports:')
-$y.Add("      - $(Yaml "$($s.BindAddress):$($s.TcpPort):9000/tcp")")
-$y.Add("      - $(Yaml "$($s.BindAddress):$($s.UdpPort):9001/udp")")
-$y.Add("      - $(Yaml "${healthBind}:$($s.HealthPort):9002/tcp")")
+$y.Add("      - $(Yaml "$($s.BindAddress):$($s.TcpPort):$($s.TcpPort)/tcp")")
+$y.Add("      - $(Yaml "$($s.BindAddress):$($s.UdpPort):$($s.UdpPort)/udp")")
+$y.Add("      - $(Yaml "${healthBind}:$($s.HealthPort):$($s.HealthPort)/tcp")")
+# The image's HEALTHCHECK asks :4940; ask the health port the server has.
+$y.Add('    healthcheck:')
+$y.Add("      test: ['CMD-SHELL', 'curl -fs http://127.0.0.1:$($s.HealthPort)/health || exit 1']")
 $y.Add('    environment:')
 foreach ($k in $vars.Keys) { $y.Add("      ${k}: $(Yaml $vars[$k])") }
 $y.Add('    volumes:')
@@ -229,7 +238,7 @@ if (-not $SkipBuild) {
         # filters it).
         Push-Location (Split-Path -Parent $repo)
         try {
-            & docker build -f "$(Split-Path -Leaf $repo)/server/Dockerfile" -t $serverImage .
+            & docker build -f "$(Split-Path -Leaf $repo)/server/server/Dockerfile" -t $serverImage .
         }
         finally { Pop-Location }
         if ($LASTEXITCODE -ne 0) { Fail 'Server image build failed.' }
@@ -242,7 +251,7 @@ if (-not $SkipBuild) {
         # server/Dockerfile.content.dockerignore.
         Push-Location (Split-Path -Parent $repo)
         try {
-            & docker build -f "$(Split-Path -Leaf $repo)/server/Dockerfile.content" -t $contentImage .
+            & docker build -f "$(Split-Path -Leaf $repo)/server/server/Dockerfile.content" -t $contentImage .
             if ($LASTEXITCODE -ne 0) { Fail 'Content image build failed.' }
         } finally { Pop-Location }
     }
