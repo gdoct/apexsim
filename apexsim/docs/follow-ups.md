@@ -296,11 +296,6 @@ face reads as plain black at 50 mm in sunshine, after half a minute at
 127-131 °C (the heat tint), with FS 43 on the front left (the glazed
 patch) and a slow leak on the rear right (the bulge).
 
-- A replay cannot show pickup or blisters: the stream's car rows
-  (`FApexStreamCarExtra`, the server's `spectator.rs` the same) carry the
-  flat spots, pressures and tread temperatures but not `TyrePickup` or
-  `TyreBlister`. Append them (both writers, the readers, the golden
-  `FileV2`), as the positional rule wants.
 - The flat spot and the heat tint are carried and still do not read: check
   first that the car's tyre slot is on `M_ApexCarTyre`
   (`FApexCarWheelSet::UsesTyreParent`; any other tyre material draws a

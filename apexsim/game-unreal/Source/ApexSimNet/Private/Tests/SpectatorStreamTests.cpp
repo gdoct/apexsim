@@ -303,6 +303,22 @@ bool FApexSpectatorCodecTest::RunTest(const FString& Parameters)
 				&& Other.DiscWearPct[0] < 0.0f && Other.StintEnergyPct < 0.0f);
 			TestTrue(TEXT("the discs and the stint on telemetry"), FMath::IsNearlyEqual(Car.DiscWearPct[0], 50.0f)
 				&& FMath::IsNearlyEqual(Car.DiscWearPct[3], 0.0f) && FMath::IsNearlyEqual(Car.StintEnergyPct, 40.0f));
+			TestTrue(TEXT("the tyres' pickup and blisters on telemetry"), Car.bHasTyreSurface
+				&& FMath::IsNearlyEqual(Car.TyrePickup[1], 0.34f) && FMath::IsNearlyEqual(Car.TyreBlister[2], 0.5f)
+				&& Car.TyrePickup[0] == 0.0f && Car.TyreBlister[3] == 0.0f);
+			// An entry from before them: the car works its tyres out itself.
+			TArray<uint8> Entry;
+			A.Write(Entry);
+			TestEqual(TEXT("an entry is ExtraSize bytes"), Entry.Num(), ApexSpectator::ExtraSize);
+			FApexStreamCarExtra Older;
+			TestTrue(TEXT("an entry from before the tyre surfaces reads"),
+				FApexStreamCarExtra::Read(Entry.GetData(), ApexSpectator::ExtraSizeDiscs, Older));
+			FApexCarTelemetry OlderCar;
+			Older.ApplyTo(OlderCar);
+			TestTrue(TEXT("without them the surfaces are unknown"), Older.TyrePickup[1] == 255 && !OlderCar.bHasTyreSurface
+				&& Older.StintEnergyPct == 40);
+			TestTrue(TEXT("a live car's surfaces go into a client-written state"),
+				FApexStreamCarExtra::FromTelemetry(Car).TyrePickup[1] == 34 && FApexStreamCarExtra::FromTelemetry(Car).TyreBlister[2] == 50);
 		}
 		TestEqual(TEXT("state yellows: 250 m sectors"), S.YellowSectorM, 250);
 		TestTrue(TEXT("state yellows"), S.YellowSectors.Num() == 2 && S.YellowSectors[1].Key == 4 && S.YellowSectors[1].Value == 2);

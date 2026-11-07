@@ -103,15 +103,17 @@ Layout: `spectator.rs`.
 **The state record** carries what changes too slowly to ride every 30 Hz
 row: `SkyNow` (so a showcase, a replay and the backdrop show the sky the race
 ran through, rain arriving and the clock moving, not the sky it started
-under), a timed race's `RaceClock`, one 49-byte `CarExtra` per car (44 in a
-stream from before the discs' wear and the stint's energy, 40 from before
+under), a timed race's `RaceClock`, one 57-byte `CarExtra` per car (with
+each tyre's picked-up rubber and blistering, so a replay's tread shows the
+server's; 49 in a stream from before them, where the car works its tyres'
+surfaces out itself, 44 from before the discs' wear and the stint's energy, 40 from before
 the second dents, 36 from before the damage centres; layout in
 `spectator.rs`), the race's yellow sectors (appended, nil while none
 is out, absent from an older stream) and the race's phase after them
 (`race_phase`: the formation or pace lap, the VSC, the safety car; nil at
 green, absent from an older stream). The player keeps the latest and puts it on every frame it
 completes (`Frame.Sky`, `RaceLeftMs`, `RacePhase`, each car's pressures,
-flat spots, brakes and tank), so the race director, the HUD (the
+flat spots, tyre surfaces, brakes and tank), so the race director, the HUD (the
 `race_phase` banner) and the tyre material need nothing special. The
 client's own replays write the same record. `BroadcastEncoder::state` makes it, `STATE_EVERY_S` (0.25 s) is its
 rate.

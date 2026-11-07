@@ -54,8 +54,10 @@ namespace ApexSpectator
 	constexpr uint8 RecordColumnBlock = 11;
 
 	/** Bytes of one car in a state record as written now; a newer writer only appends. */
-	constexpr int32 ExtraSize = 49;
-	/** ... as streams wrote them before the discs and the stint's energy (two dents a zone). */
+	constexpr int32 ExtraSize = 57;
+	/** ... as streams wrote them before the tyres' pickup and blisters. */
+	constexpr int32 ExtraSizeDiscs = 49;
+	/** ... before the discs and the stint's energy (two dents a zone). */
 	constexpr int32 ExtraSizeTwoDents = 44;
 	/** ... as streams wrote it before the second dents (one dent a zone): still read ... */
 	constexpr int32 ExtraSizeOneDent = 40;
@@ -294,6 +296,9 @@ struct APEXSIMNET_API FApexStreamCarExtra
 	uint8 DiscWear[4] = {255, 255, 255, 255};
 	/** The stint's energy left, percent, 255 without the rule (and from an older stream). */
 	uint8 StintEnergyPct = 255;
+	/** Each tyre's picked-up rubber and blistering, percent; 255 unknown (an older stream: the car works them out itself). */
+	uint8 TyrePickup[4] = {255, 255, 255, 255};
+	uint8 TyreBlister[4] = {255, 255, 255, 255};
 
 	static bool Read(const uint8* Bytes, int32 Len, FApexStreamCarExtra& Out);
 	/** The entry written back as its ApexSpectator::ExtraSize bytes, for tests. */

@@ -101,8 +101,10 @@ pub const BLOCK_SECONDS: u32 = 10;
 /// Seconds between two [`StreamState`] records of a stream.
 pub const STATE_EVERY_S: f32 = 0.25;
 /// Bytes of one car in a [`StreamState`]'s `extras` as this build writes them.
-pub const EXTRA_SIZE: usize = 49;
-/// ... as streams wrote them before the discs and the stint's energy ...
+pub const EXTRA_SIZE: usize = 57;
+/// ... as streams wrote them before the tyres' pickup and blisters ...
+pub const EXTRA_SIZE_DISCS: usize = 49;
+/// ... before the discs and the stint's energy ...
 pub const EXTRA_SIZE_TWO_DENTS: usize = 44;
 /// ... before the second dents (still read: one dent a zone) ...
 pub const EXTRA_SIZE_ONE_DENT: usize = 40;
@@ -1632,8 +1634,8 @@ impl StreamRoad {
 /// What a car carries that moves slowly: its tyres' pressures and flat
 /// spots, the brakes, the tank, the coolant, the hybrid. A [`StreamState`]
 /// holds one per car, so a viewer's HUD, a tyre's flat spot and a brake's
-/// glow follow the car without every 30 Hz row growing. 40 bytes (a stream
-/// from before the last field has 36), little-endian:
+/// glow follow the car without every 30 Hz row growing. 57 bytes (a stream
+/// from before the last fields has 49, 44, 40 or 36), little-endian:
 ///
 /// | Offset | Type | Field |
 /// |---|---|---|
@@ -1653,6 +1655,8 @@ impl StreamRoad {
 /// | 40 | i8 x 4 | each zone's second dent, as at 36; -128 none |
 /// | 44 | u8 x 4 | each disc's wear, percent; 255 a disc that never wears |
 /// | 48 | u8 | the stint's energy left, percent; 255 without the rule |
+/// | 49 | u8 x 4 | each tyre's picked-up rubber, percent; 255 unknown |
+/// | 53 | u8 x 4 | each tyre's blistering, percent; 255 unknown |
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CarExtra {
     pub car_index: u8,
@@ -1675,7 +1679,16 @@ pub struct CarExtra {
     /// a stream from before them).
     pub disc_wear: [u8; 4],
     pub stint_energy_pct: u8,
+    /// Each tyre's picked-up rubber and blistering, percent, as
+    /// `CompactCarState::tyre_pickup` / `tyre_blister`
+    /// ([`TYRE_SURFACE_UNKNOWN`] in a stream from before them).
+    pub tyre_pickup: [u8; 4],
+    pub tyre_blister: [u8; 4],
 }
+
+/// `CarExtra::tyre_pickup` / `tyre_blister` of a stream that does not carry
+/// them: the viewer works the tyre's surface out itself.
+pub const TYRE_SURFACE_UNKNOWN: u8 = u8::MAX;
 
 impl CarExtra {
     pub fn from_car_state(state: &CarState, car_index: u8) -> Self {
@@ -1697,6 +1710,8 @@ impl CarExtra {
             damage_at2: c.damage_at2,
             disc_wear: c.disc_wear,
             stint_energy_pct: c.stint_energy_pct,
+            tyre_pickup: c.tyre_pickup,
+            tyre_blister: c.tyre_blister,
         }
     }
 
@@ -1720,6 +1735,8 @@ impl CarExtra {
         out.extend(self.damage_at2.map(|v| v as u8));
         out.extend_from_slice(&self.disc_wear);
         out.push(self.stint_energy_pct);
+        out.extend_from_slice(&self.tyre_pickup);
+        out.extend_from_slice(&self.tyre_blister);
         debug_assert_eq!(out.len() - start, EXTRA_SIZE);
     }
 
@@ -1761,15 +1778,25 @@ impl CarExtra {
             } else {
                 [crate::damage::NO_SECOND_DENT; 4]
             },
-            disc_wear: if entry.len() >= EXTRA_SIZE {
+            disc_wear: if entry.len() >= EXTRA_SIZE_DISCS {
                 entry[44..48].try_into().ok()?
             } else {
                 [crate::network::DISC_WEAR_NONE; 4]
             },
-            stint_energy_pct: if entry.len() >= EXTRA_SIZE {
+            stint_energy_pct: if entry.len() >= EXTRA_SIZE_DISCS {
                 entry[48]
             } else {
                 u8::MAX
+            },
+            tyre_pickup: if entry.len() >= EXTRA_SIZE {
+                entry[49..53].try_into().ok()?
+            } else {
+                [TYRE_SURFACE_UNKNOWN; 4]
+            },
+            tyre_blister: if entry.len() >= EXTRA_SIZE {
+                entry[53..57].try_into().ok()?
+            } else {
+                [TYRE_SURFACE_UNKNOWN; 4]
             },
         })
     }
@@ -3417,6 +3444,8 @@ mod tests {
                     tow_pct: 8,
                     disc_wear: [50, 12, 3, 0],
                     stint_energy_pct: 40,
+                    tyre_pickup: [0, 34, 0, 0],
+                    tyre_blister: [0, 0, 50, 0],
                 },
                 CarExtra {
                     car_index: 1,
@@ -3435,6 +3464,8 @@ mod tests {
                     tow_pct: 0,
                     disc_wear: [crate::network::DISC_WEAR_NONE; 4],
                     stint_energy_pct: 255,
+                    tyre_pickup: [0; 4],
+                    tyre_blister: [0; 4],
                 },
             ],
             yellow_flags: Some(crate::network::YellowFlags {
@@ -3518,6 +3549,12 @@ mod tests {
         assert_eq!(two.damage_at2, [-128, -128, -95, -128]);
         assert_eq!(two.disc_wear, [crate::network::DISC_WEAR_NONE; 4]);
         assert_eq!(two.stint_energy_pct, 255);
+        // ... and one from before the tyres' pickup and blisters.
+        let discs = CarExtra::read(&entry[..EXTRA_SIZE_DISCS]).unwrap();
+        assert_eq!(discs.disc_wear, [50, 12, 3, 0]);
+        assert_eq!(discs.stint_energy_pct, 40);
+        assert_eq!(discs.tyre_pickup, [TYRE_SURFACE_UNKNOWN; 4]);
+        assert_eq!(discs.tyre_blister, [TYRE_SURFACE_UNKNOWN; 4]);
         // A state from before the yellows (seven fields) reads with none,
         // and one from before the race's phase (eight) with no phase.
         let mut old = sample_state();

@@ -940,9 +940,12 @@ bool FApexStreamCarExtra::Read(const uint8* B, int32 Len, FApexStreamCarExtra& O
 		Out.DamageAt[i] = Out.bHasDamageAt ? static_cast<int8>(B[36 + i]) : 0;
 		Out.DamageAt2[i] = Len >= ApexSpectator::ExtraSizeTwoDents ? static_cast<int8>(B[40 + i]) : -128;
 		// The discs and the stint's energy, appended after the second dents.
-		Out.DiscWear[i] = Len >= ApexSpectator::ExtraSize ? B[44 + i] : 255;
+		Out.DiscWear[i] = Len >= ApexSpectator::ExtraSizeDiscs ? B[44 + i] : 255;
+		// The tyres' pickup and blisters, appended after them.
+		Out.TyrePickup[i] = Len >= ApexSpectator::ExtraSize ? B[49 + i] : 255;
+		Out.TyreBlister[i] = Len >= ApexSpectator::ExtraSize ? B[53 + i] : 255;
 	}
-	Out.StintEnergyPct = Len >= ApexSpectator::ExtraSize ? B[48] : 255;
+	Out.StintEnergyPct = Len >= ApexSpectator::ExtraSizeDiscs ? B[48] : 255;
 	return true;
 }
 
@@ -973,6 +976,8 @@ void FApexStreamCarExtra::Write(TArray<uint8>& Out) const
 		B[36 + i] = static_cast<uint8>(DamageAt[i]);
 		B[40 + i] = static_cast<uint8>(DamageAt2[i]);
 		B[44 + i] = DiscWear[i];
+		B[49 + i] = TyrePickup[i];
+		B[53 + i] = TyreBlister[i];
 	}
 	B[48] = StintEnergyPct;
 }
@@ -1024,6 +1029,16 @@ void FApexStreamCarExtra::ApplyTo(FApexCarTelemetry& Car) const
 		Car.DiscWearPct[i] = DiscWear[i] == 255 ? -1.0f : DiscWear[i];
 	}
 	Car.StintEnergyPct = StintEnergyPct == 255 ? -1.0f : StintEnergyPct;
+	// The tyres' surfaces as the server had them, when the stream carries them.
+	if (TyrePickup[0] != 255)
+	{
+		Car.bHasTyreSurface = true;
+		for (int32 i = 0; i < 4; ++i)
+		{
+			Car.TyrePickup[i] = FMath::Min(TyrePickup[i], uint8(100)) / 100.0f;
+			Car.TyreBlister[i] = FMath::Min(TyreBlister[i], uint8(100)) / 100.0f;
+		}
+	}
 }
 
 FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& Car)
@@ -1055,6 +1070,11 @@ FApexStreamCarExtra FApexStreamCarExtra::FromTelemetry(const FApexCarTelemetry& 
 		Out.DamageAt2[i] = Car.DamageAt2[i] > 1.5f ? -128
 			: static_cast<int8>(FMath::Clamp(FMath::RoundToInt(Car.DamageAt2[i] * 127.0f), -127, 127));
 		Out.DiscWear[i] = Byte(Car.DiscWearPct[i], 255);
+		if (Car.bHasTyreSurface)
+		{
+			Out.TyrePickup[i] = static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TyrePickup[i] * 100.0f), 0, 100));
+			Out.TyreBlister[i] = static_cast<uint8>(FMath::Clamp(FMath::RoundToInt(Car.TyreBlister[i] * 100.0f), 0, 100));
+		}
 	}
 	Out.StintEnergyPct = Byte(Car.StintEnergyPct, 255);
 	return Out;
