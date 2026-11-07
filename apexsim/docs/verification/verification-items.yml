@@ -14,33 +14,37 @@
     Suzuka's real elevation (`dem_elevation.py`, the crossover held at 7 m):
     the bridge deck and the road under it from the road and from above, Degner-to-hairpin's
     new grades, and the stands and barriers re-seated on it (`spots.py Sudoku`).
-  status: not-right
+  status: judged
   evidence:
   - run: sudoku-elevation
     date: 2026-10-28
     commit: 67e3f7d1
     shots: [1, 2, 3, 4, 5, 6]
     kind: shot
+  - run: sudoku-elevation
+    date: 2026-11-08
+    commit: 894171e3
+    shots: [1, 2, 3, 4, 5, 6]
+    kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      The crossover reads: the deck spans the lower road on its embankments
-      with yellow-faced parapets, the road under it continuous with headroom
-      (1, 2); on the deck the road meets the approaches without a step, barriers
-      along it (3). Degner to the hairpin climbs with barriers and stands seated
-      on the grade (4); the 7.9% stretch at 1805 m reads as a slope with the
-      verge following it (5); the large stand at 170 m sits on the ground behind
-      its fence (6).
-    shots: [1, 2, 3, 4]
-  review:
-    at: 2026-10-28T18:18:14
-    score: 4
-    comment: >-
-      the elevation is good, but you can see through the walls of the bridge,
-      the sides do not propely line up. check the 3rd screenshot
-    processed: true
+      After the owner's review (see-through bridge walls, shot 3): the deck's
+      parapets, slab and fascias were swept profiles open at both ends, so from
+      the approach one looked into the parapets and out through their far faces.
+      ats-export now closes each end with the cross-section (deck_end_cap).
+      Shot 3 of 2026-11-08 against 2026-10-28: both parapets' near ends are
+      solid faces. The parapets still start on the embankment with no approach
+      barrier leading into them; judge whether that reads right.
+    shots: [3]
+  notes:
+  - date: 2026-10-28
+    text: >-
+      Review (not-right, score 4): the elevation is good, but you can see through
+      the walls of the bridge, the sides do not propely line up. check the 3rd
+      screenshot
 
 - id: v-r2-rubbered-start
   title: A rubbered start

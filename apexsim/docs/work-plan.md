@@ -67,7 +67,7 @@ takes it up (— : no step, taken opportunistically).
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B17 | Wheel feel: the understeer cue arrives late (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
-| B16 | Suzuka's crossover: see-through bridge walls (follow-ups #6) | Bug | P2 | 🟡 | S | 2 |
+| B16 | Suzuka's crossover: see-through bridge walls (fixed, to judge) | Bug | P2 | 🟡 | S | 2 |
 | C5 | Circuit dressing to the references (roadmap 29): Monzarella's banking, open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
@@ -131,16 +131,11 @@ without added latency (a product call), or send feedback at a finer rate.
 Needs the wheel.
 
 #### B16. Suzuka's crossover: see-through bridge walls — P2 · 🟡 · S
-*Source: follow-ups #6, the owner's review of `v-track-suzuka-elevation`
-(2026-10-28, score 4).* The elevation is right, but from the road you can
-see through the bridge's side walls: their ends do not line up with the
-deck and the approaches (`sudoku-elevation` shot 3). The walls and deck
-come from `ats-export`'s underpass build
-([road-mesh.md](../../apexsim-content/docs/road-mesh.md),
-[track-pipeline.md](../../apexsim-content/docs/track-pipeline.md)); a fix
-re-exports Sudoku and is judged on a new `sudoku-elevation` run. If the
-walls' collision moves too, it changes `walls.msgpack` and needs the AI
-survey on Sudoku.
+*Source: the owner's review of `v-track-suzuka-elevation` (2026-10-28,
+score 4).* The deck's parapets, slab and fascias were open at the deck's
+ends, so from the approach you looked into them; `ats-export` closes both
+ends since 2026-11-08 (`sudoku-elevation` shot 3 again, judged by the
+agent). Left: the owner's look at the new shots on the verifier's page.
 
 ### Platform and stability
 

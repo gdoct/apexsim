@@ -145,11 +145,6 @@ the same `ApexProps` code.
   curve, halfway round the banked side switches to the other edge (a
   heading or side flip along the OSM way), and consecutive pieces overlap
   stepwise like weatherboarding rather than meeting end to end.
-- Sudoku's crossover (the walls and deck `ats-export` builds over the
-  underpass): from the road you can see through the bridge's side walls,
-  whose ends do not line up with the deck and the approaches
-  (`sudoku-elevation` shot 3, 2026-10-28). The elevation itself is
-  confirmed.
 - Found by the dressing audit, outside dressing:
   - AlbertParkour's centerline is the pre-2021 layout (the Lakeside
     chicane at 2520-2670 m), and Barcelunatic's takes the RACC chicane

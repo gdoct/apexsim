@@ -3756,6 +3756,93 @@ impl Bake<'_> {
                 ProfilePoint::lifted(right - FASCIA_LEAN_M, -depth),
             ]);
         });
+        // The swept parapets, deck and fascias are open at the deck's ends:
+        // from the approach a driver looked into them and through the
+        // parapets' far faces. Each end is closed with the cross-section.
+        if let Some((from, to)) = resolve_span(&upper, start, end) {
+            for station in [from, to] {
+                self.deck_end_cap(&upper, station, top, depth, over);
+            }
+        }
+    }
+
+    /// One end face of an underpass's deck: its cross-section (the two
+    /// parapets with their fascias and the slab between) at `station` of
+    /// the upper road, drawn from both sides.
+    fn deck_end_cap(
+        &mut self,
+        upper: &CenterlinePath,
+        station: f32,
+        top: f32,
+        depth: f32,
+        over: f32,
+    ) {
+        let s = upper.sample_at(station);
+        let left = s.width_left_m + over;
+        let right = -(s.width_right_m + over);
+        let (w, lean, h) = (PARAPET_WIDTH_M, FASCIA_LEAN_M, PARAPET_HEIGHT_M);
+        // Convex pieces in (lateral, height over the road at that lateral).
+        let pieces: [[(f32, f32); 4]; 3] = [
+            [
+                (left - w, -depth),
+                (left + lean, -depth),
+                (left, h),
+                (left - w, h),
+            ],
+            [
+                (right + w, -depth),
+                (left - w, -depth),
+                (left - w, top),
+                (right + w, top),
+            ],
+            [
+                (right - lean, -depth),
+                (right + w, -depth),
+                (right + w, h),
+                (right, h),
+            ],
+        ];
+        let (sin_h, cos_h) = s.heading_rad.sin_cos();
+        let mut chunk = Chunk {
+            section: section_index(station),
+            material_key: STRUCTURE_KEY.to_string(),
+            positions: Vec::new(),
+            normals: Vec::new(),
+            uvs: Vec::new(),
+            indices: Vec::new(),
+        };
+        for piece in pieces {
+            for facing in [1.0f32, -1.0] {
+                let base = (chunk.positions.len() / 3) as u32;
+                for &(lat, up) in &piece {
+                    let p = offset_point(&s, lat);
+                    push_position(&mut chunk.positions, (p.0, p.1, p.2 + up));
+                    push_normal(&mut chunk.normals, (cos_h * facing, sin_h * facing, 0.0));
+                    chunk.uvs.push(round(lat, 3));
+                    chunk.uvs.push(round(up, 3));
+                }
+                if facing > 0.0 {
+                    chunk.indices.extend_from_slice(&[
+                        base,
+                        base + 1,
+                        base + 2,
+                        base,
+                        base + 2,
+                        base + 3,
+                    ]);
+                } else {
+                    chunk.indices.extend_from_slice(&[
+                        base,
+                        base + 2,
+                        base + 1,
+                        base,
+                        base + 3,
+                        base + 2,
+                    ]);
+                }
+            }
+        }
+        self.chunks.push(chunk);
     }
 
     fn marking(&mut self, path: &CenterlinePath, marking: &Marking) {

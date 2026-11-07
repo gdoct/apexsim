@@ -261,6 +261,55 @@ fn nothing_but_air_is_in_the_slot_under_the_bridge() {
     assert!(has("structure_concrete") && has("structure_fascia"));
 }
 
+/// The deck's parapets, slab and fascias are swept along the upper road and
+/// closed at both ends: from the approach a driver sees an end face, not
+/// into the parapets and out through their far sides (Sudoku's crossover,
+/// 2026-10-28).
+#[test]
+fn the_deck_is_closed_at_both_ends() {
+    let track = figure_eight();
+    let f = field(&track);
+    let u = the_underpass(&f);
+    let baked = ue_export::bake(&track, &scene_with_dressing(&track, &u)).unwrap();
+    let upper = f.road_path(u.upper_road);
+    for station in [u.deck_span_m.0, u.deck_span_m.1] {
+        let s = upper.sample_at(station);
+        let (sin_h, cos_h) = s.heading_rad.sin_cos();
+        let (mut ahead, mut back) = (0, 0);
+        for mesh in baked
+            .meshes
+            .iter()
+            .filter(|m| m.material_key == "structure_concrete")
+        {
+            for tri in mesh.indices.as_chunks::<3>().0 {
+                let n = tri[0] as usize * 3;
+                let (nx, ny, nz) = (mesh.normals[n], -mesh.normals[n + 1], mesh.normals[n + 2]);
+                let near = tri.iter().all(|&i| {
+                    let i = i as usize * 3;
+                    let (x, y) = (mesh.positions[i] / 100.0, -mesh.positions[i + 1] / 100.0);
+                    let along = (x - s.pos.0) * cos_h + (y - s.pos.1) * sin_h;
+                    along.abs() < 0.05
+                });
+                if !near || nz.abs() > 0.05 {
+                    continue;
+                }
+                let facing = nx * cos_h + ny * sin_h;
+                if facing > 0.99 {
+                    ahead += 1;
+                } else if facing < -0.99 {
+                    back += 1;
+                }
+            }
+        }
+        // Three pieces (two parapets and the slab), two triangles each, from
+        // both sides.
+        assert!(
+            ahead >= 6 && back >= 6,
+            "end face at {station:.1} m: {ahead} triangles facing along the road, {back} against it"
+        );
+    }
+}
+
 #[test]
 fn the_deck_underside_faces_down_at_the_road_below() {
     let track = figure_eight();

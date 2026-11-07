@@ -588,7 +588,8 @@ Where the course passes over itself with at least 4 m to spare (Suzuka) the
 terrain finds an `Underpass`: behind wall lines 3.5 m past the lower road's
 edges the ground is the upper road's embankment, so the lower road runs in a
 slot. The bake cuts the ground grid along the walls and draws the slot floor,
-abutment walls and the deck (parapets, fascia, material family `structure`);
+abutment walls and the deck (parapets, fascia, material family `structure`,
+closed at both ends with its cross-section so the approach sees a solid face);
 `ats-groom` lays no armco there. The ground sidecar reports the lower level
 under the bridge. A heightfield cannot hold both levels, so a car that leaves
 the bridge past the parapet falls into the slot. Water and road bridges over
