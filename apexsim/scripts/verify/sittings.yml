@@ -81,9 +81,10 @@ sittings:
     minutes: 15
     about: "Client prediction at 80 ms, Monza, GT3: on, off, on."
     setup: >-
-      Same car and track as block A. Predicted until 6 min (MARK "predict-off"
-      appears on screen), then the puppet until 10 min ("predict-on"), then
-      predicted. Drive through the pit lane once, touch an AI car once.
+      Same car and track as block A. Predicted until 2:30 (MARK "predict-off"
+      appears on screen), then the puppet until 5:00 ("predict-on"), then
+      predicted. Drive past 5:00 before answering: the comparison needs both.
+      Drive through the pit lane once, touch an AI car once.
     args:
       - -ApexAutoRace
       - -ApexTrack=Monzarella
@@ -97,8 +98,8 @@ sittings:
       - -ApexPredict
       - -ApexFakeLatencyMs=80
     exec:
-      360: [apexsim.net.Predict 0, apexsim.debug.Mark predict-off]
-      600: [apexsim.net.Predict 1, apexsim.debug.Mark predict-on]
+      150: [apexsim.net.Predict 0, apexsim.debug.Mark predict-off]
+      300: [apexsim.net.Predict 1, apexsim.debug.Mark predict-on]
     checks:
       - {id: answer, check: "The car answers the wheel at once (predicted) vs the puppet", answers: [better, same, worse]}
       - {id: corrections, check: "Corrections showing: twitch on a brake stab or kerb, a snapping slide, cockpit shake", answers: [none, some, often]}
@@ -132,6 +133,55 @@ sittings:
       - {id: bank, check: "Karussell: the bank as extra grip", answers: [OK, not felt, too much]}
       - {id: crest, check: "A diagonal crest: the car going light", answers: [OK, not felt, too much]}
       - {id: hshifter, check: "H-shifter in the rally car", answers: [OK, wrong, not attached]}
+
+  # Re-sits after the 2026-11-07 sitting: only the rows the FFB retune
+  # (commit 48b956eb) touched.
+  - id: a2-monza-retune
+    sitting: 1
+    minutes: 10
+    about: "Re-sit: Monza, GT3, alone, after the FFB retune (weight, road, kerbs, braking, soft lock)."
+    setup: >-
+      Cockpit view, the Wheel tab at its defaults (Force 50%, Road 50%).
+      Three laps: the corners' weight, the road down the straights, the kerbs
+      at the chicanes, braking into the Rettifilo, full lock once standing.
+      Let go of the rim once mid-corner.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Monzarella
+      - -ApexCar=Caravan
+      - -ApexAiCount=0
+      - -ApexLaps=5
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: weight, check: "Weight in a corner (was weak)"}
+      - {id: understeer, check: "The rim going light at the limit (was late)", answers: [OK, early, late, not felt]}
+      - {id: braking, check: "Braking felt through the rim (was strong)"}
+      - {id: road, check: "Road texture on a straight (was weak)"}
+      - {id: kerbs, check: "Kerbs (were strong)"}
+      - {id: softlock, check: "Soft lock at full lock (was weak)"}
+      - {id: letgo, check: "Letting go of the rim mid-corner, now heavier: it returns", answers: [OK, rings, holds, snaps]}
+
+  - id: c2-nordschleife-kerbs
+    sitting: 1
+    minutes: 10
+    about: "Re-sit: Nordschleife sausage kerbs in the rally car, after the FFB retune."
+    setup: >-
+      One lap. Take the sausage kerbs where the line uses them.
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Mordschleife
+      - -ApexCar=037
+      - -ApexAiCount=0
+      - -ApexLaps=1
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=14:00
+      - -ApexView=cockpit
+    checks:
+      - {id: kerbs, check: "Sausage kerbs (were strong)"}
 
   - id: c-mandarina
     sitting: 1

@@ -219,7 +219,9 @@ a race (`-ApexAutoRace` in its `args`), and its checks
 (`schema.game_checks`): the block's own `v-sit-*` checks with their answer
 words, then every other open item whose `check_by` is the block (its title
 as the check, its `what` as the detail, answered OK / not right / can't
-tell). Each carries the answer it was last given.
+tell). Each carries the answer it was last given. A check whose item is
+closed is left out, so `--sit --open` skips a block whose checks are all
+closed; a re-sit of some rows is a block of its own.
 
 In the game (`UI/ApexVerifyWidget.cpp`, `Verify/ApexVerifyCard.h`):
 

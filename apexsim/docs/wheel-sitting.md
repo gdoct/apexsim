@@ -107,8 +107,10 @@ judged before anything else.
 
 **Block B. Client prediction at 80 ms, Monza, GT3 (15 min).** Same car and
 track as A, so the comparison is fair. `-ApexPredict
--ApexFakeLatencyMs=80`, 3 laps; then `apexsim.net.Predict 0` from the
-console, 2 laps; then back on for 1 lap.
+-ApexFakeLatencyMs=80`: predicted to 2:30, the puppet to 5:00
+(`apexsim.net.Predict 0` and `1` from the block's `exec`, each with a MARK
+on screen), then predicted again. The card is answered after 5:00, or the
+puppet has not been driven.
 - Answer to the wheel at once vs the puppet; corrections showing (twitch on
   a brake stab or kerb, a snapping slide, cockpit shake).
 - The rim as heavy as A, understeer cue on time, no grain from rewinds,
@@ -130,7 +132,10 @@ in the GT3.
 
 **Agent between sittings:** the first pass of Phase 2 on blocks 0–C. If the
 baseline needs tuning, tune it and re-sit block A's rows that moved before
-Sitting 2.
+Sitting 2. The re-sits are blocks of their own holding only those rows
+(`a2-monza-retune`: weight, understeer, braking, road, kerbs, soft lock and
+let-go after the FFB retune; `c2-nordschleife-kerbs`), so the card does not
+ask a block's settled rows again.
 
 ### Sitting 2 — conditions and extras
 

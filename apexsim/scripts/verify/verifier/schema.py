@@ -584,11 +584,15 @@ def game_checks(block: dict, items: list[dict]) -> list[dict]:
     """What the game's verify card asks after a block (`-ApexVerify=`): the
     block's own checks, then every other item it is the `check_by` of (its
     title as the check, its `what` as the detail), each with its answer
-    words and the answer it was last given."""
+    words and the answer it was last given. A check whose item is not in
+    the file has been closed (every sitting check has an item, open or
+    closed): it is not asked again, and an answer would have nowhere to go."""
     by_id = {i["id"]: i for i in items}
     checks = []
     for check in block.get("checks") or []:
-        item = by_id.get(check["item"], {})
+        item = by_id.get(check["item"])
+        if item is None:
+            continue
         checks.append({"item": check["item"], "check": check["check"], "answers": check["answers"],
                        "status": item.get("status", "open"),
                        "before": (item.get("review") or {}).get("answer", "")})

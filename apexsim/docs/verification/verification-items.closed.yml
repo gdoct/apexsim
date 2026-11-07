@@ -2621,3 +2621,677 @@
     score: 3
     processed: true
 
+- id: v-r11-box-slot-second-compound
+  title: BoxThisLap on a real wheel; the second compound owed
+  area: pit
+  kind: hardware
+  check_by: a-monza
+  created: 2026-10-16
+  commit: 7a953d73
+  doc: game/client.md
+  what: >-
+    The `BoxThisLap` wheel slot on a real wheel, and the second compound owed
+    (`pit.compound_owed`, "2ND SET") under a Two compounds rule.
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      R11 (Pit plan and pit rule): `r11-pit-plan`, `r11-pit-rule` and `r11-create-pit-rule`
+      in `scripts/verify/runs.yml` (game/client.md, server/pit-lane.md, server/sessions.md).
+  - date: 2026-10-16
+    text: >-
+      R11 (Pit plan and pit rule): Seen on 2026-10-16: the pause menu's PIT
+      PLAN page set by pad (tyres kept, +5 L) and its row's summary, the `BoxThisLap`
+      key lighting BOX until the stop, the stop on that plan (the pit panel's
+      bar the fuel alone, `PitService` tyres 0 s, 5 L), the create screen's
+      Stops and Two compounds rows with the summary naming them, STOPS OWED
+      on the race state, and PEN on the finish overlay's rows after a one-lap
+      race under a one-stop rule.
+  review:
+    at: 2026-11-07T15:08:18
+    answer: OK
+    processed: true
+
+- id: v-predict-follows-predicted-car
+  title: FFB, sound and the dash follow the predicted car
+  area: network
+  kind: hardware
+  check_by: b-predict
+  created: 2026-10-18
+  commit: b76c4511
+  doc: game/client.md#client-prediction-raceapexpredictionsubsystemh
+  what: >-
+    Force feedback, the tyre and engine sound and the HUD's dash follow the
+    predicted car while it is drawn (the server's collector run in the library).
+    Whether the rim feels right: as heavy as the server's, the understeer cue
+    on time, no grain or lumps from rewinds (a correction replays ticks already
+    felt; only the ticks the clock reaches are), and whether the latency correction
+    (`steer_stiffness`) still helps or now overshoots. Whether a kerb or a hit
+    thumps once at the switch to and from the puppet (the pit lane), and whether
+    the engine note steps there. Unattended (stand-in, 80 ms, a client with
+    no Monza files) the bundle came in 0.2 s and the torque and revs were 112
+    and 108 ms ahead of the server's; only hands and ears can say the rest.
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:12:50
+    answer: OK
+    processed: true
+
+- id: v-wheel-peak-torques
+  title: Peak torques and the gear / hybrid minimum forces on a base
+  area: ffb-input
+  kind: hardware
+  check_by: 0-bench
+  created: 2026-10-14
+  commit: 01bcebd4
+  what: >-
+    The peak torques and the gear / hybrid minimum forces (5% / 3%) felt on
+    a base.
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:38
+    answer: OK
+    processed: true
+
+- id: v-wheel-crown-and-bumps
+  title: The road's crown and millimetre bumps through the rim
+  area: ffb-input
+  kind: hardware
+  check_by: a-monza
+  created: 2026-10-20
+  commit: 0d1d6bfb
+  what: >-
+    The road's crown and millimetre bumps (S1) through the rim: the road texture,
+    and the car on the crown down a straight.
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:08:20
+    answer: OK
+    processed: true
+
+- id: v-sit-0-bench-rotation
+  title: Wheel rotation set to the base's SEN (910)
+  area: ffb-input
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Wheel rotation set to the base's SEN (910)
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:25
+    answer: done
+    processed: true
+
+- id: v-sit-0-bench-meters
+  title: Meters
+  area: ffb-input
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: >-
+    Meters: right reads positive; throttle, brake and clutch run 0 to 1 with
+    no dead band
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:26
+    answer: OK
+    processed: true
+
+- id: v-sit-0-bench-bind
+  title: Bound
+  area: ffb-input
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: >-
+    Bound: Clutch, H-shifter gates (if attached), Handbrake, Box this lap, Mark,
+    Menu up/down/left/right/OK/back
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:28
+    answer: done
+    processed: true
+
+- id: v-sit-0-bench-direction
+  title: Direction test pushes the rim right, at a sensible strength
+  area: ffb-input
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Direction test pushes the rim right, at a sensible strength
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:31
+    answer: OK
+    processed: true
+
+- id: v-sit-0-bench-menus
+  title: Menus driven from the rim alone
+  area: menus
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: >-
+    Menus driven from the rim alone: out to the main menu and back into Settings
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:33
+    answer: OK
+    processed: true
+
+- id: v-sit-0-bench-profile
+  title: 'Wheelbase stepper: Auto = ClubSport V2.5, 8 Nm'
+  area: ffb-input
+  kind: sitting
+  check_by: 0-bench
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'Wheelbase stepper: Auto = ClubSport V2.5, 8 Nm'
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:35
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-weight
+  title: Weight in a corner
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Weight in a corner
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:06:53
+    answer: weak
+    comment: weak
+    processed: true
+
+- id: v-sit-a-monza-understeer
+  title: The rim going light at the limit (understeer cue)
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: The rim going light at the limit (understeer cue)
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:07
+    answer: late
+    comment: late
+    processed: true
+
+- id: v-sit-a-monza-letgo
+  title: 'Letting go of the rim mid-corner: it returns'
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'Letting go of the rim mid-corner: it returns'
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:13
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-braking
+  title: Braking felt through the rim
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Braking felt through the rim
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:20
+    answer: strong
+    comment: strong
+    processed: true
+
+- id: v-sit-a-monza-road
+  title: Road texture on a straight
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Road texture on a straight
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:25
+    answer: weak
+    comment: weak
+    processed: true
+
+- id: v-sit-a-monza-kerbs
+  title: Kerbs
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Kerbs
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:27
+    answer: strong
+    comment: strong
+    processed: true
+
+- id: v-sit-a-monza-softlock
+  title: Soft lock at full lock
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Soft lock at full lock
+  status: not-right
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:30
+    answer: weak
+    comment: weak
+    processed: true
+
+- id: v-sit-a-monza-centring
+  title: The rim centred at the start
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: The rim centred at the start
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:34
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-notch
+  title: No notch or tick from the constant force's 0.15 s restart
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: No notch or tick from the constant force's 0.15 s restart
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:07:46
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-gravel
+  title: >-
+    Gravel: how hard it bogs, can it be driven out, the rattle, the sound
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: server/vehicle-physics.md
+  what: >-
+    Gravel: how hard it bogs, can it be driven out, the rattle, the sound
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (A gravel trap by hand and Sakhir's desert
+      floor): A gravel trap by hand (a Monza chicane run straight on) and Sakhir's
+      desert floor: how hard the trap bogs the car and whether it can be driven
+      out (`OffGround`, server/vehicle-physics.md), and how each ground comes
+      through the rim and the pad (gravel's rattle, sand's slow heave and drag,
+      `ApexFfb::GroundMix`), and how it sounds (gravel's stones, sand's hiss).
+      Only the automation tests have run.
+  review:
+    at: 2026-11-07T15:07:49
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-lock-auto
+  title: >-
+    Steering lock Auto: the rim on screen turns as far as the hands
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: >-
+    Steering lock Auto: the rim on screen turns as far as the hands
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:08:00
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-clutch
+  title: 'Clutch: throw and torque cut from a standing start'
+  area: ffb-input
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'Clutch: throw and torque cut from a standing start'
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (A clutch pedal on the wheel tab's Clutch slot):
+      A clutch pedal on the wheel tab's `Clutch` slot (sent as `PlayerInput.clutch`):
+      whether its throw and the server's torque cut feel right.
+  review:
+    at: 2026-11-07T15:08:04
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-box
+  title: 'Box this lap from the rim: BOX on, off, on; one stop'
+  area: pit
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'Box this lap from the rim: BOX on, off, on; one stop'
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:08:12
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-ai-room
+  title: AI leaves room alongside into the Rettifilo / Roggia
+  area: ai
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: server/ai.md
+  what: AI leaves room alongside into the Rettifilo / Roggia
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (The room an AI leaves a player alongside into
+      a corner): The room an AI leaves a player alongside into a corner (server/ai.md,
+      Room): half a car alongside on the inside and the AI takes the outside
+      lane and lifts, widening if the player comes over. Only the unit test
+      `room_is_left_for_a_player_alongside` has run; the AI survey has no player
+      in it.
+  review:
+    at: 2026-11-07T15:08:13
+    answer: OK
+    processed: true
+
+- id: v-sit-a-monza-ai-defend
+  title: AI defends with one move to the inside, not two
+  area: ai
+  kind: sitting
+  check_by: a-monza
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: AI defends with one move to the inside, not two
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (An AI defending against a player): An AI defending
+      against a player: one move to the inside, early on the straight when the
+      player is closing in its tow, never a second one.
+  review:
+    at: 2026-11-07T15:08:16
+    answer: OK
+    processed: true
+
+- id: v-sit-b-predict-weight
+  title: The rim as heavy as block A
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: The rim as heavy as block A
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:12:34
+    answer: same
+    processed: true
+
+- id: v-sit-b-predict-understeer
+  title: Understeer cue on time
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Understeer cue on time
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:12:38
+    answer: OK
+    processed: true
+
+- id: v-sit-b-predict-grain
+  title: No grain or lumps from rewinds
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: No grain or lumps from rewinds
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:12:39
+    answer: OK
+    processed: true
+
+- id: v-sit-b-predict-stiffness
+  title: The latency correction helps or overshoots
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: The latency correction helps or overshoots
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:12:40
+    answer: helps
+    processed: true
+
+- id: v-sit-b-predict-pit-switch
+  title: Pit lane
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: game/client.md#client-prediction-raceapexpredictionsubsystemh
+  what: >-
+    Pit lane: a thump or engine-note step at the switch to and from the puppet
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (The switch to and from the puppet at the pit
+      entry and exit and after...): The switch to and from the puppet at the
+      pit entry and exit and after the flag (a 0.15 s blend across a gap of
+      the car's speed times the round trip).
+  review:
+    at: 2026-11-07T15:12:41
+    answer: none
+    processed: true
+
+- id: v-sit-b-predict-contact
+  title: 'Contact with an AI car: one blended correction'
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: game/client.md#client-prediction-raceapexpredictionsubsystemh
+  what: 'Contact with an AI car: one blended correction'
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (Car-to-car contact with an AI field.): Car-to-car
+      contact with an AI field (not predicted: one blended correction).
+  review:
+    at: 2026-11-07T15:12:44
+    answer: OK
+    processed: true
+
+- id: v-sit-c-nordschleife-kerbs
+  title: Sausage kerbs
+  area: ffb-input
+  kind: sitting
+  check_by: c-nordschleife
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Sausage kerbs
+  status: not-right
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (The sausage kerbs by hand on both circuits):
+      The sausage kerbs by hand on both circuits, and the Nordschleife's posts
+      and grade plates read from the cockpit.
+  review:
+    at: 2026-11-07T15:14:31
+    answer: strong
+    comment: strong
+    processed: true
+
+- id: v-sit-c-nordschleife-posts
+  title: Posts and grade plates readable from the cockpit
+  area: track
+  kind: sitting
+  check_by: c-nordschleife
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: Posts and grade plates readable from the cockpit
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:14:33
+    answer: OK
+    processed: true
+
+- id: v-sit-c-nordschleife-bank
+  title: 'Karussell: the bank as extra grip'
+  area: ffb-input
+  kind: sitting
+  check_by: c-nordschleife
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'Karussell: the bank as extra grip'
+  status: confirmed
+  needs: [wheel]
+  notes:
+  - text: >-
+      verification.md, section 2 (A banked turn and a crest taken across the
+      road by hand): A banked turn and a crest taken across the road by hand
+      (`physics::path_curvature_accel`): the bank's extra load felt as more
+      grip through it, a diagonal crest as the car going light. Only the unit
+      test and the hump test have run.
+  review:
+    at: 2026-11-07T15:14:36
+    answer: OK
+    processed: true
+
+- id: v-sit-c-nordschleife-crest
+  title: 'A diagonal crest: the car going light'
+  area: ffb-input
+  kind: sitting
+  check_by: c-nordschleife
+  created: 2026-10-18
+  commit: e56dd84a
+  doc: wheel-sitting.md
+  what: 'A diagonal crest: the car going light'
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T15:14:38
+    answer: OK
+    processed: true
+
+- id: v-sit-verify-card-from-the-rim
+  title: The verify card walked from the rim
+  area: menus
+  kind: hardware
+  check_by: 0-bench
+  created: 2026-11-07
+  commit: 77dbe565
+  doc: verifier.md#the-verify-card-in-the-game
+  what: >-
+    The in-game verify card driven with the wheel's menu buttons alone: the
+    pause key opens it once the time is up, answer words step to the next check,
+    the note's on-screen keyboard types and Done leaves it, Drive on returns
+    to the car, Next block quits and the runner starts the next block with the
+    answers saved.
+  status: confirmed
+  needs: [wheel]
+  review:
+    at: 2026-11-07T14:40:40
+    answer: OK
+    processed: true
+

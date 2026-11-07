@@ -56,6 +56,32 @@ are local, not in git, under `out/sit/2026-10-23/`.
 30 s: the rim stays still or settles, no growing shake (the `Wheel forces
 over 5 s standing:` log line says which force it is).
 
+### 42. Wheel feel: the cue's timing and prediction in traffic
+
+Found at the wheel sitting of 2026-11-07 (ClubSport V2.5, SEN 910, the
+Wheel tab at its defaults; run files local under `out/sit/2026-11-07/`).
+
+- The understeer cue is late on the server's torque (block A, Monza, GT3,
+  no added latency) but on time on the predicted car's (block B, 80 ms,
+  whose torque reached the rim 78-84 ms before the server's, per the
+  `Prediction (on): the steering torque felt ... before` lines). The tyre
+  model is therefore left alone (`PNEUMATIC_TRAIL_ZERO_AT_SLIP` 1.4).
+  What is left is delivery: the 60 Hz feedback messages, the round trip
+  and the 12 ms pole. Levers: the predicted car's torque on a wheel even
+  without latency, or feedback sent at a finer rate. Re-asked after the
+  weight change in `a2-monza-retune` (a heavier corner can move where the
+  fall is felt).
+- Prediction's corrections show in traffic (block B: "some"). The
+  5 s `Prediction (on, 5.0 s)` lines are p95 under 0.2 mm alone, but max
+  140-963 mm from 14:10:01 to 14:10:41, while the spotter called a car
+  alongside and three wide and the car ran over the grass. The suspect is
+  the other cars, which the predicted car meets where the server drew
+  them a round trip ago. Not yet read from the code.
+
+**Check:** `a2-monza-retune`'s understeer row; block B again (the switch to
+the puppet now at 2:30) with the 5 s correction lines read against the
+spotter calls.
+
 ## P2: depth
 
 ### 6. Circuit dressing

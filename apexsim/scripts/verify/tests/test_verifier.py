@@ -277,6 +277,12 @@ class GameCardTest(unittest.TestCase):
         self.assertEqual(checks[1]["answers"], schema.HAND_ANSWERS)
         self.assertEqual(checks[1]["detail"], "The road's crown through the rim.")
 
+    def test_a_closed_check_is_not_asked(self):
+        block = {"id": "a-monza", "checks": self.BLOCK["checks"] + [
+            {"id": "weight", "check": "Weight", "answers": ["OK", "weak"], "item": "v-sit-a-monza-weight"}]}
+        checks = schema.game_checks(block, schema.ItemsFile(self.path).items())
+        self.assertNotIn("v-sit-a-monza-weight", [c["item"] for c in checks])
+
     def test_answers_become_reviews(self):
         f = schema.ItemsFile(self.path)
         checks = schema.game_checks(self.BLOCK, f.items())
