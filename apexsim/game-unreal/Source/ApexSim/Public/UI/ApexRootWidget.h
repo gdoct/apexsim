@@ -24,6 +24,7 @@ class UApexRaceResultsWidget;
 class UApexScreenWidget;
 class UApexSettingsWidget;
 class UApexToastWidget;
+class UApexVerifyWidget;
 class UBorder;
 class UImage;
 class UTexture2D;
@@ -170,6 +171,22 @@ public:
 	void OpenChat();
 	void CloseChat();
 	bool IsChatOpen() const { return bChatOpen; }
+
+	/**
+	 * A sitting block's verify card (-ApexVerify=, UApexVerifyWidget): open
+	 * it owns the keys and the car's controls are off, as under the pause
+	 * menu. The pause key opens it once the time is up and closes it again;
+	 * the pause menu's VERIFY row opens it at any time.
+	 */
+	void OpenVerifyCard();
+	void CloseVerifyCard();
+	bool IsVerifyCardOpen() const;
+	/** The card's note keyboard is up: every key types, the pause key too. */
+	bool IsVerifyTyping() const;
+	/** A verify card was given and its time is up: the pause key opens it in place of the pause menu. */
+	bool IsVerifyDue() const;
+	/** `apexsim.verify ...`: the card driven from the console, for unattended checks. */
+	void HandleVerifyCommand(const TArray<FString>& Args);
 
 	/**
 	 * Opens the settings overlay on a page. From the pause menu it is a step
@@ -361,6 +378,13 @@ protected:
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "ApexSim|UI")
 	TObjectPtr<UApexPauseMenuWidget> PauseMenu;
+
+	/** A sitting block's verify card, over the pause menu's place. */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexVerifyWidget> VerifyPanel;
+	/** Tells the card what the player is doing, and opens it when it asks. */
+	void UpdateVerify();
+	void QuitFromVerify();
 
 	/** Photo mode's lens card and hints, over the HUD's place. */
 	UPROPERTY(Transient)

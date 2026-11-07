@@ -62,7 +62,7 @@ void FApexMenuInputProcessor::KeepFocusOnGame(FSlateApplication& SlateApp, uint3
 bool FApexMenuInputProcessor::IsDriving(const UApexRootWidget& Root)
 {
 	return Root.IsRaceViewActive() && !Root.IsPaused() && !Root.IsGarageOpen() && !Root.IsSettingsOpen()
-		&& !Root.IsHudEditorOpen() && !Root.IsFinishViewActive();
+		&& !Root.IsHudEditorOpen() && !Root.IsFinishViewActive() && !Root.IsVerifyCardOpen();
 }
 
 void FApexMenuInputProcessor::SetGamepadActive(UApexRootWidget& Root, bool bActive)
@@ -176,7 +176,18 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 			return false;
 		}
 
-		if (bPauseKey && !InKeyEvent.IsRepeat())
+		// The verify card: its note keyboard takes every key; else the pause
+		// key closes it, back to driving, and the rest navigate it.
+		if (Root->IsVerifyCardOpen())
+		{
+			if (bPauseKey && !InKeyEvent.IsRepeat() && !Root->IsVerifyTyping())
+			{
+				Root->CloseVerifyCard();
+				ApexUiAudio::Play(Root, EApexUiSound::Back);
+				return true;
+			}
+		}
+		else if (bPauseKey && !InKeyEvent.IsRepeat())
 		{
 			const bool bOpening = !Root->IsPaused();
 			Root->SetPaused(bOpening);
@@ -184,7 +195,7 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 			return true;
 		}
 
-		if (!Root->IsPaused() && !Root->IsGarageOpen() && !Root->IsFinishViewActive())
+		if (!Root->IsPaused() && !Root->IsGarageOpen() && !Root->IsFinishViewActive() && !Root->IsVerifyCardOpen())
 		{
 			// Driving: the keys belong to the car.
 			KeepFocusOnGame(SlateApp, InKeyEvent.GetUserIndex());

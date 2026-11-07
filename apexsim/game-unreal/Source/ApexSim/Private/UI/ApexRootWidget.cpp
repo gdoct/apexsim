@@ -56,6 +56,7 @@
 #include "UI/ApexProfileWidget.h"
 #include "UI/ApexSeasonWidget.h"
 #include "UI/ApexSchoolCardWidget.h"
+#include "UI/ApexVerifyWidget.h"
 #include "UI/ApexSchoolWidget.h"
 #include "School/ApexSchoolSubsystem.h"
 #include "UI/ApexLoadingScreenWidget.h"
@@ -99,6 +100,23 @@ namespace
 				if (It->GetWorld() == World && It->GetCachedWidget().IsValid())
 				{
 					It->HandleFinishCommand(Args);
+					return;
+				}
+			}
+		}));
+
+	FAutoConsoleCommandWithWorldAndArgs VerifyCommand(
+		TEXT("apexsim.verify"),
+		TEXT("A sitting block's verify card (-ApexVerify=) without the wheel: ")
+		TEXT("apexsim.verify [open|close|answer <n>|note|type <text>|flag|skip|back|more|next|stop] ")
+		TEXT("(answer: the current check's nth answer word, from 1; next and stop end the card and quit)"),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString>& Args, UWorld* World)
+		{
+			for (TObjectIterator<UApexRootWidget> It; It; ++It)
+			{
+				if (It->GetWorld() == World && It->GetCachedWidget().IsValid())
+				{
+					It->HandleVerifyCommand(Args);
 					return;
 				}
 			}
@@ -365,6 +383,9 @@ void UApexRootWidget::BuildShell()
 	RaceResults->OnWatchCar.AddDynamic(this, &UApexRootWidget::HandleRaceResultsWatch);
 	PauseMenu = WidgetTree->ConstructWidget<UApexPauseMenuWidget>();
 	PauseMenu->OnAction.AddDynamic(this, &UApexRootWidget::HandlePauseAction);
+	VerifyPanel = WidgetTree->ConstructWidget<UApexVerifyWidget>();
+	VerifyPanel->OnCloseRequested.AddUObject(this, &UApexRootWidget::CloseVerifyCard);
+	VerifyPanel->OnQuit.AddUObject(this, &UApexRootWidget::QuitFromVerify);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
 	SettingsOverlay->OnClosed.AddDynamic(this, &UApexRootWidget::HandleSettingsClosed);
 	SettingsOverlay->OnEditHudLayout.AddDynamic(this, &UApexRootWidget::OpenHudEditor);
@@ -429,6 +450,11 @@ void UApexRootWidget::BuildShell()
 	UOverlaySlot* PauseSlot = Frame->AddChildToOverlay(PauseMenu);
 	PauseSlot->SetHorizontalAlignment(HAlign_Fill);
 	PauseSlot->SetVerticalAlignment(VAlign_Fill);
+
+	// The verify card: over the pause menu (never open with it), under settings.
+	UOverlaySlot* VerifySlot = Frame->AddChildToOverlay(VerifyPanel);
+	VerifySlot->SetHorizontalAlignment(HAlign_Fill);
+	VerifySlot->SetVerticalAlignment(VAlign_Fill);
 
 	UOverlaySlot* SettingsSlot = Frame->AddChildToOverlay(SettingsOverlay);
 	SettingsSlot->SetHorizontalAlignment(HAlign_Fill);
@@ -903,6 +929,7 @@ void UApexRootWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTime)
 	UpdateWatch(InDeltaTime);
 	UpdateHotlapWatch();
 	UpdateBackdrop(InDeltaTime);
+	UpdateVerify();
 
 	// The replay ends itself when the lap is over; the garage card comes back.
 	if (HotlapPanel && HotlapPanel->GetView() == EApexHotlapView::Replay)
@@ -1114,7 +1141,98 @@ void UApexRootWidget::HandleFocusChanging(
 bool UApexRootWidget::IsRaceOverlayOpen() const
 {
 	return (PauseMenu && PauseMenu->IsOpen()) || (SettingsOverlay && SettingsOverlay->IsOpen()) || bGarageOpen
-		|| IsHudEditorOpen() || (RaceResults && RaceResults->IsOpen());
+		|| IsHudEditorOpen() || (RaceResults && RaceResults->IsOpen()) || IsVerifyCardOpen();
+}
+
+bool UApexRootWidget::IsVerifyCardOpen() const
+{
+	return VerifyPanel && VerifyPanel->IsCardOpen();
+}
+
+bool UApexRootWidget::IsVerifyTyping() const
+{
+	return VerifyPanel && VerifyPanel->IsTyping();
+}
+
+bool UApexRootWidget::IsVerifyDue() const
+{
+	return VerifyPanel && VerifyPanel->IsActive() && VerifyPanel->IsDue();
+}
+
+void UApexRootWidget::OpenVerifyCard()
+{
+	if (!VerifyPanel || !VerifyPanel->IsActive() || VerifyPanel->IsCardOpen())
+	{
+		return;
+	}
+	if (bPauseMenuOpen)
+	{
+		SetPaused(false);
+	}
+	CloseChat();
+	VerifyPanel->OpenCard();
+	ApplyDriveInput();
+	// As the pause menu: the input-mode switch hands focus to the viewport a tick later.
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::CloseVerifyCard()
+{
+	if (!IsVerifyCardOpen())
+	{
+		return;
+	}
+	VerifyPanel->CloseCard();
+	ApplyDriveInput();
+	RequestFocusDefault();
+}
+
+void UApexRootWidget::UpdateVerify()
+{
+	if (!VerifyPanel || !VerifyPanel->IsActive())
+	{
+		return;
+	}
+	const bool bDriving = bRaceViewActive && !bFinishView && !IsWatching() && !(RaceResults && RaceResults->IsOpen());
+	VerifyPanel->SetDriving(bDriving, bRaceViewActive);
+	// By itself only over nothing else: settings (the bench block's) and the
+	// pause menu finish first.
+	if (VerifyPanel->WantsCard() && !IsSettingsOpen() && !bPauseMenuOpen && !IsHudEditorOpen() && !IsPhotoModeActive())
+	{
+		OpenVerifyCard();
+	}
+}
+
+void UApexRootWidget::HandleVerifyCommand(const TArray<FString>& Args)
+{
+	const FString Verb = Args.Num() ? Args[0].ToLower() : FString(TEXT("open"));
+	if (!VerifyPanel || !VerifyPanel->IsActive())
+	{
+		UE_LOG(LogApexSim, Warning, TEXT("apexsim.verify %s: no verify card (-ApexVerify=)"), *Verb);
+		return;
+	}
+	UE_LOG(LogApexSim, Log, TEXT("apexsim.verify %s"), *FString::Join(Args, TEXT(" ")));
+	if (Verb == TEXT("open"))
+	{
+		OpenVerifyCard();
+	}
+	else if (Verb == TEXT("close"))
+	{
+		CloseVerifyCard();
+	}
+	else
+	{
+		if (!IsVerifyCardOpen())
+		{
+			OpenVerifyCard();
+		}
+		VerifyPanel->HandleCommand(Args);
+	}
+}
+
+void UApexRootWidget::QuitFromVerify()
+{
+	HandlePauseAction(EApexPauseAction::QuitGame);
 }
 
 bool UApexRootWidget::IsHudEditorOpen() const
@@ -1175,7 +1293,7 @@ void UApexRootWidget::ApplyDriveInput()
 			Cast<AApexPlayerController>(UGameplayStatics::GetPlayerController(this, 0)))
 	{
 		PlayerController->SetDriveInputEnabled(bRaceViewActive && !IsWatching() && !bPauseMenuOpen && !bGarageOpen && !IsHudEditorOpen()
-			&& !bFinishView && !bChatOpen);
+			&& !bFinishView && !bChatOpen && !IsVerifyCardOpen());
 	}
 }
 
@@ -1210,6 +1328,11 @@ void UApexRootWidget::FocusDefault()
 	if (SettingsOverlay && SettingsOverlay->IsOpen())
 	{
 		SettingsOverlay->FocusDefault();
+		return;
+	}
+	if (IsVerifyCardOpen())
+	{
+		VerifyPanel->FocusDefault();
 		return;
 	}
 	if (PauseMenu && PauseMenu->IsOpen())
@@ -1256,6 +1379,10 @@ UUserWidget* UApexRootWidget::GetFrontSurface() const
 	if (SettingsOverlay && SettingsOverlay->IsOpen())
 	{
 		return SettingsOverlay;
+	}
+	if (IsVerifyCardOpen())
+	{
+		return VerifyPanel;
 	}
 	if (PauseMenu && PauseMenu->IsOpen())
 	{
@@ -1372,6 +1499,12 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	{
 		return;
 	}
+	// A sitting block whose time is up: the pause key brings its verify card.
+	if (bPaused && IsVerifyDue() && !IsWatching())
+	{
+		OpenVerifyCard();
+		return;
+	}
 	if (bPaused)
 	{
 		CloseChat();
@@ -1381,6 +1514,7 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	if (bPaused)
 	{
 		PauseMenu->SetWatching(IsWatching());
+		PauseMenu->SetVerify(VerifyPanel && VerifyPanel->IsActive(), VerifyPanel ? VerifyPanel->GetBadge() : FString());
 		PauseMenu->Open();
 	}
 	else
@@ -1698,6 +1832,10 @@ void UApexRootWidget::HandlePauseAction(EApexPauseAction Action)
 	case EApexPauseAction::PhotoMode:
 		SetPaused(false);
 		BeginPhotoMode();
+		break;
+
+	case EApexPauseAction::Verify:
+		OpenVerifyCard();
 		break;
 
 	case EApexPauseAction::Rewind:

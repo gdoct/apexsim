@@ -2535,3 +2535,20 @@
     ahead should brake sooner. The dots should not visibly flicker.
   status: open
 
+- id: v-sit-verify-card-from-the-rim
+  title: The verify card walked from the rim
+  area: menus
+  kind: hardware
+  check_by: 0-bench
+  created: 2026-11-07
+  commit: 77dbe565
+  doc: verifier.md#the-verify-card-in-the-game
+  what: >-
+    The in-game verify card driven with the wheel's menu buttons alone: the
+    pause key opens it once the time is up, answer words step to the next check,
+    the note's on-screen keyboard types and Done leaves it, Drive on returns
+    to the car, Next block quits and the runner starts the next block with the
+    answers saved.
+  status: open
+  needs: [wheel]
+

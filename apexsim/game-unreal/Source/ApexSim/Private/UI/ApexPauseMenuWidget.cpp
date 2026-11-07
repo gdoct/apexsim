@@ -38,6 +38,7 @@ namespace
 	const FName ActionRecoverPits  = TEXT("RecoverPits");
 	const FName ActionRewind       = TEXT("Rewind");
 	const FName ActionPhoto        = TEXT("Photo");
+	const FName ActionVerify       = TEXT("Verify");
 	const FName ActionQuit     = TEXT("Quit");
 	const FName ActionPitPlan  = TEXT("PitPlan");
 	const FName ActionPitPlanDone = TEXT("PitPlanDone");
@@ -83,6 +84,9 @@ void UApexPauseMenuWidget::NativeOnInitialized()
 	// Resume is first and filled: it sits where the cursor is already resting,
 	// so a second Escape and a click do the same thing.
 	AddRow(Actions, TEXT("Close menu"), FString(), ActionResume, /*bPrimary*/ true, TEXT("ESC"));
+	// A sitting block: its checks now, before the time is up.
+	VerifyRow = AddRow(Actions, TEXT("VERIFY"), TEXT("Answer the checks"), ActionVerify, false);
+	VerifyRow->SetVisibility(ESlateVisibility::Collapsed);
 	AddRow(Actions, TEXT("SETTINGS"), TEXT("Gameplay · Graphics · Controls"), ActionSettings, false);
 	// The driver's orders for the next stop, and the box-this-lap request.
 	PitPlanRow = AddRow(Actions, TEXT("PIT PLAN"), TEXT("Crew's call"), ActionPitPlan, false);
@@ -293,6 +297,11 @@ void UApexPauseMenuWidget::Open()
 	{
 		LeaveRow->SetLabel(bWatching ? TEXT("STOP WATCHING") : TEXT("BACK TO MAIN MENU"));
 		LeaveRow->SetBadge(bWatching ? TEXT("Back to the menu") : TEXT("Session ends"), Palette::TextMuted);
+	}
+	if (VerifyRow)
+	{
+		VerifyRow->SetVisibility(bVerify && !bWatching ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		VerifyRow->SetBadge(VerifyBadge, Palette::Accent);
 	}
 	if (SaveReplayRow)
 	{
@@ -762,6 +771,10 @@ void UApexPauseMenuWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Action == ActionPhoto)
 	{
 		OnAction.Broadcast(EApexPauseAction::PhotoMode);
+	}
+	else if (Action == ActionVerify)
+	{
+		OnAction.Broadcast(EApexPauseAction::Verify);
 	}
 	else if (Action == ActionPauseSaveReplay)
 	{

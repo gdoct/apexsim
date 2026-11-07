@@ -251,6 +251,66 @@ class ServerTest(unittest.TestCase):
         self.assertTrue(any(c["item"] == "v-sit-a-monza-letgo" for b in sittings["blocks"] for c in b["checks"]))
 
 
+class GameCardTest(unittest.TestCase):
+    """The game's verify card (-ApexVerify=): what it asks, and its answers as reviews."""
+
+    BLOCK = {"id": "a-monza", "checks": [
+        {"id": "letgo", "check": "Letting go", "answers": ["OK", "rings", "holds"], "item": "v-sit-a-monza-letgo"}]}
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.path = Path(self.dir.name) / "items.yml"
+        f = schema.ItemsFile(self.path)
+        f.add(dict(OTHER, id="v-sit-a-monza-letgo", kind="sitting", check_by="a-monza"))
+        f.add(dict(OTHER, id="v-wheel-crown", kind="hardware", check_by="a-monza", title="The crown",
+                   what="The road's crown\n through the rim."))
+        f.add(OTHER)
+        f.save()
+
+    def tearDown(self):
+        self.dir.cleanup()
+
+    def test_the_block_asks_its_checks_then_its_other_items(self):
+        checks = schema.game_checks(self.BLOCK, schema.ItemsFile(self.path).items())
+        self.assertEqual([c["item"] for c in checks], ["v-sit-a-monza-letgo", "v-wheel-crown"])
+        self.assertEqual(checks[0]["answers"], ["OK", "rings", "holds"])
+        self.assertEqual(checks[1]["answers"], schema.HAND_ANSWERS)
+        self.assertEqual(checks[1]["detail"], "The road's crown through the rim.")
+
+    def test_answers_become_reviews(self):
+        f = schema.ItemsFile(self.path)
+        checks = schema.game_checks(self.BLOCK, f.items())
+        done = schema.apply_game_answers(f, checks, [
+            {"item": "v-sit-a-monza-letgo", "answer": "rings", "note": "twice", "at": "2026-11-07T20:00:00"},
+            {"item": "v-wheel-crown", "answer": "can't tell", "at": "2026-11-07T20:01:00", "flag": True},
+        ])
+        f.save()
+        self.assertEqual(done, ["v-sit-a-monza-letgo", "v-wheel-crown"])
+        f = schema.ItemsFile(self.path)
+        self.assertEqual(f.get("v-sit-a-monza-letgo")["status"], "not-right")
+        self.assertEqual(f.get("v-sit-a-monza-letgo")["review"]["comment"], "rings: twice")
+        crown = f.get("v-wheel-crown")
+        self.assertEqual((crown["status"], crown["review"]["comment"], crown["review"]["flag"]),
+                         ("cant-tell", "can't tell", True))
+        self.assertEqual(f.get(OTHER["id"])["status"], "open")
+
+    def test_a_note_without_an_answer_is_a_later_and_nothing_is_skipped(self):
+        f = schema.ItemsFile(self.path)
+        checks = schema.game_checks(self.BLOCK, f.items())
+        done = schema.apply_game_answers(f, checks, [
+            {"item": "v-sit-a-monza-letgo", "answer": "", "note": "ask me again in the wet"},
+            {"item": "v-wheel-crown", "answer": "", "note": ""},
+        ])
+        self.assertEqual(done, ["v-sit-a-monza-letgo"])
+        self.assertEqual(f.get("v-sit-a-monza-letgo")["status"], "later")
+        done = schema.apply_game_answers(f, checks, [{"item": "v-wheel-crown", "answer": "", "flag": True}])
+        self.assertEqual((done, f.get("v-wheel-crown")["status"]), (["v-wheel-crown"], "later"))
+        with self.assertRaises(ValueError):
+            schema.apply_game_answers(f, checks, [{"item": OTHER["id"], "answer": "OK"}])
+        with self.assertRaises(ValueError):
+            schema.apply_game_answers(f, checks, [{"item": "v-wheel-crown", "answer": "rings"}])
+
+
 class BacklogTest(unittest.TestCase):
     def test_the_backlog_is_valid(self):
         f = schema.ItemsFile()

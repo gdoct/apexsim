@@ -74,6 +74,14 @@ gathered into out/sit/<date>/<block>/, with marks.md listing the MARK and
 force lines. `--sit-sheet` writes out/sit/<date>/sheet.md, every block's
 checks with their answer words.
 
+A sitting asks its checks in the game (`-ApexVerify=`, the verify card,
+docs/verifier.md): the block's brief at the start, a clock for its
+`minutes` (`--minutes N` for all), then a card of answer buttons and a
+note per check, driven from the rim. The answers go into the items file
+when the game closes, and the next block starts unless the player chose
+to stop there. `--open` runs every block with a check left to answer;
+`--no-card` leaves the answers to the verifier page.
+
 Needs the ApexSimEditor target built and `cargo build --release` in server/server/
 (both are checked against the source and warned about), the content
 initialised, and the editor closed. With a server of the user's running
@@ -737,13 +745,63 @@ def write_marks(block: dict, work: Path) -> Path:
     return path
 
 
-def sit(block: dict, game: list[str], day: Path, port: int, dry_run: bool, extra: list[str]) -> None:
+def write_verify_card(block: dict, work: Path, minutes: float | None) -> Path:
+    """The game's verify card for the block (-ApexVerify=): its brief, its
+    driving time, its checks with their answer words, where to write the answers."""
+    import json
+    from verifier import schema
+    items = schema.ItemsFile().items()
+    ours = next(b for b in schema.load_sittings() if b["id"] == block["id"])
+    args = [str(a) for a in block.get("args") or []]
+    card = {
+        "block": block["id"],
+        "about": block.get("about", ""),
+        "setup": " ".join(str(block.get("setup") or "").split()),
+        "minutes": float(minutes if minutes is not None else block.get("minutes") or 10),
+        "race": "-ApexAutoRace" in args,
+        "answers": str((work / "verify-answers.json").resolve()),
+        "checks": schema.game_checks(ours, items),
+    }
+    path = work / "verify.json"
+    path.write_text(json.dumps(card, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
+def save_verify_answers(block: dict, work: Path) -> str:
+    """The card's answers into the items file; what the player chose next
+    ("next" or "stop"), "stop" when the game was closed without the card."""
+    import json
+    from verifier import schema
+    path = work / "verify-answers.json"
+    if not path.is_file():
+        log("  no answers from the game (closed without the verify card)")
+        return "stop"
+    answers = json.loads(path.read_text(encoding="utf-8"))
+    card = json.loads((work / "verify.json").read_text(encoding="utf-8"))
+    f = schema.ItemsFile()
+    done = schema.apply_game_answers(f, card["checks"], answers.get("answers") or [])
+    errors, _ = schema.validate(f.items(), check_paths=False)
+    if errors:
+        log(f"  answers not saved: {'; '.join(errors[:3])} (they are in {path})")
+        return "stop"
+    if done:
+        f.save(expect_digest=f.loaded_digest)
+    log(f"  {len(done)} answer(s) saved to {schema.ITEMS_YML.name}")
+    return answers.get("next") or "stop"
+
+
+def sit(block: dict, game: list[str], day: Path, port: int, dry_run: bool, extra: list[str],
+        card: bool = True, minutes: float | None = None) -> str:
+    """One block; with the verify card, what the player chose after it ("next" or "stop")."""
     work = day / block["id"]
     work.mkdir(parents=True, exist_ok=True)
     command = sit_command(block, game, work, port, extra)
+    if card:
+        command.insert(-1, f"-ApexVerify={write_verify_card(block, work, minutes).resolve()}")
+        (work / "verify-answers.json").unlink(missing_ok=True)
     if dry_run:
         log(subprocess.list2cmdline(command))
-        return
+        return "next"
     log(f"\n{block['id']} (sitting {block.get('sitting', '?')}, ~{block.get('minutes', '?')} min): "
         f"{block.get('about', '')}")
     if block.get("setup"):
@@ -779,6 +837,7 @@ def sit(block: dict, game: list[str], day: Path, port: int, dry_run: bool, extra
     summary = write_marks(block, work)
     log(f"  {(time.time() - started) / 60:.0f} min; {len(marks)} mark CSV(s), "
         f"{len(traces)} trace file(s); {summary}")
+    return save_verify_answers(block, work) if card else "next"
 
 
 def write_sit_sheet(sittings: list[dict], day: Path) -> Path:
@@ -807,6 +866,16 @@ def main_sit(args) -> int:
     if args.sit_sheet:
         log(str(write_sit_sheet(sittings, day)))
         return 0
+    if args.open:
+        # Every block with a check still to answer, in the file's order.
+        from verifier import schema
+        items = schema.ItemsFile().items()
+        asking = {b["id"] for b in schema.load_sittings()
+                  if any(c["status"] in schema.ASK_AGAIN for c in schema.game_checks(b, items))}
+        args.runs = args.runs or [b["id"] for b in sittings if b["id"] in asking]
+        if not args.runs:
+            log("every sitting check is answered")
+            return 0
     if args.list or not args.runs:
         for block in sittings:
             log(f"{block['id']:16} sitting {block.get('sitting', '?')}  ~{block.get('minutes', '?'):>2} min  "
@@ -823,8 +892,12 @@ def main_sit(args) -> int:
     if not editor:
         raise SystemExit("no Unreal Engine found: set UE to the folder that holds Engine/")
     game = [str(editor), str(UPROJECT), "-game"]
-    for block in chosen:
-        sit(block, game, day, args.port, args.dry_run, args.game_arg)
+    for n, block in enumerate(chosen):
+        after = sit(block, game, day, args.port, args.dry_run, args.game_arg, card=not args.no_card,
+                    minutes=args.minutes)
+        if after == "stop" and n + 1 < len(chosen):
+            log(f"stopped; not run: {', '.join(b['id'] for b in chosen[n + 1:])}")
+            break
     return 0
 
 
@@ -843,6 +916,12 @@ def main(argv=None) -> int:
     parser.add_argument("--sit-sheet", action="store_true", help="write the sitting's answer sheet")
     parser.add_argument("--sit-dir", default=time.strftime("%Y-%m-%d"),
                         help="the sitting's folder under out/sit (default: today)")
+    parser.add_argument("--open", action="store_true",
+                        help="with --sit: every block with a check still to answer")
+    parser.add_argument("--minutes", type=float,
+                        help="with --sit: the driving time before the verify card (default: the block's minutes)")
+    parser.add_argument("--no-card", action="store_true",
+                        help="with --sit: no verify card in the game (answer on the verifier page)")
     args = parser.parse_args(argv)
 
     if args.sit or args.sit_sheet:

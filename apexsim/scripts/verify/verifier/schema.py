@@ -574,6 +574,69 @@ def load_sittings() -> list[dict]:
     return blocks
 
 
+# The answer words of a non-sitting item asked in the game: confirmed, not right, can't tell.
+HAND_ANSWERS = ["OK", "not right", "can't tell"]
+# A block's checks are asked again only while their item has no review, or one of these.
+ASK_AGAIN = {"open", "judged", "cant-tell", "later"}
+
+
+def game_checks(block: dict, items: list[dict]) -> list[dict]:
+    """What the game's verify card asks after a block (`-ApexVerify=`): the
+    block's own checks, then every other item it is the `check_by` of (its
+    title as the check, its `what` as the detail), each with its answer
+    words and the answer it was last given."""
+    by_id = {i["id"]: i for i in items}
+    checks = []
+    for check in block.get("checks") or []:
+        item = by_id.get(check["item"], {})
+        checks.append({"item": check["item"], "check": check["check"], "answers": check["answers"],
+                       "status": item.get("status", "open"),
+                       "before": (item.get("review") or {}).get("answer", "")})
+    for item in items:
+        if item.get("check_by") == block["id"] and item.get("kind") != "sitting" \
+                and item["id"] not in {c["item"] for c in checks}:
+            checks.append({"item": item["id"], "check": item["title"],
+                           "detail": " ".join(str(item.get("what") or "").split()),
+                           "answers": HAND_ANSWERS, "status": item.get("status", "open"),
+                           "before": (item.get("review") or {}).get("answer", "")})
+    return checks
+
+
+def game_answer_review(check: dict, word: str, at: str, note: str = "") -> tuple[str, dict]:
+    """An answer from the game's verify card as a review: a sitting check's
+    words as `answer_review`; a hand item's OK, not right or can't tell."""
+    if check["answers"] != HAND_ANSWERS:
+        return answer_review(check["answers"], word, at, note)
+    note = note.strip()
+    if word == "OK":
+        return "confirmed", {"at": at, "answer": word, **({"comment": note} if note else {})}
+    if word not in HAND_ANSWERS:
+        raise ValueError(f"{word!r} is not one of {', '.join(HAND_ANSWERS)}")
+    return ("not-right" if word == "not right" else "cant-tell"), \
+        {"at": at, "answer": word, "comment": f"{word}: {note}" if note else word}
+
+
+def apply_game_answers(f: ItemsFile, checks: list[dict], answers: list[dict]) -> list[str]:
+    """The game's answers file into the items file (not saved): each answered
+    check's status and review. A note or a flag with no answer is kept as a `later`."""
+    by_item = {c["item"]: c for c in checks}
+    done = []
+    for a in answers:
+        check = by_item.get(a.get("item"))
+        if not check:
+            raise ValueError(f"{a.get('item')} was not asked")
+        word, note, at = a.get("answer") or "", a.get("note") or "", a.get("at") or ""
+        if word:
+            status, review = game_answer_review(check, word, at, note)
+        elif note.strip() or a.get("flag"):
+            status, review = "later", {"at": at, "comment": note.strip()}
+        else:
+            continue
+        apply_review(f, check["item"], status, {**review, "flag": bool(a.get("flag"))})
+        done.append(check["item"])
+    return done
+
+
 def latest_marks(block: str) -> dict | None:
     """The newest sitting folder's marks.md for a block: its date and its MARK and force lines."""
     found = sorted(SIT_OUT.glob(f"*/{block}/marks.md")) if SIT_OUT.is_dir() else []

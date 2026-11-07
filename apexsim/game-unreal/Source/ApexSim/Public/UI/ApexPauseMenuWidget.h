@@ -34,6 +34,8 @@ enum class EApexPauseAction : uint8
 	Rewind,
 	/** Watching: photo mode over the race (UApexRootWidget::BeginPhotoMode). */
 	PhotoMode,
+	/** A sitting block (-ApexVerify=): its verify card now (UApexVerifyWidget). */
+	Verify,
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FApexOnPauseAction, EApexPauseAction, Action);
@@ -88,6 +90,8 @@ public:
 	 * when the menu opens.
 	 */
 	void SetWatching(bool bInWatching) { bWatching = bInWatching; }
+	/** A sitting block's verify card can be opened from here (the VERIFY row), with its checks counted. */
+	void SetVerify(bool bInVerify, const FString& InBadge) { bVerify = bInVerify; VerifyBadge = InBadge; }
 
 	/**
 	 * The pit plan in place of the menu's rows: the driver's orders for the
@@ -173,6 +177,10 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> PhotoRow;
 
+	/** A sitting block's verify card (-ApexVerify=). */
+	UPROPERTY(Transient)
+	TObjectPtr<UApexButtonWidget> VerifyRow;
+
 	/** Shown while there is a session on record worth a replay. */
 	UPROPERTY(Transient)
 	TObjectPtr<UApexButtonWidget> SaveReplayRow;
@@ -238,4 +246,6 @@ private:
 	bool bLapTracesOpen = false;
 	bool bOpen = false;
 	bool bWatching = false;
+	bool bVerify = false;
+	FString VerifyBadge;
 };

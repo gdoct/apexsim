@@ -178,7 +178,8 @@ the MARK number. `↑` `↓` move between checks, `1`-`9` answer the one under
 the cursor and step on, `n` the note. The answers are held reviews and
 are written by Save like any other. Under the checks, the block's MARK and
 force lines from the newest `out/sit/<date>/<block>/marks.md`, once the
-sitting has been run. For a tablet beside the wheel, `serve --lan` listens
+sitting has been run. The game's verify card (below) answers the same checks from the
+rim and needs no page. For a tablet beside the wheel, `serve --lan` listens
 on every address and prints the LAN URL; anyone on the network can then
 save reviews, so it is for the sitting only.
 
@@ -200,6 +201,67 @@ its logs, its history, its replay command),
 409 when the digest is not the file's; an answer not among the check's
 words is a 400). The page is `scripts/verify/verifier/web/` with the server
 dashboard's tokens and fonts (served from `server/server/src/admin/web/fonts`).
+
+## The verify card (in the game)
+
+A sitting is answered in the game, from the rim, so a human at the wheel
+needs neither the page nor a keyboard. `python scripts/verify/run_checks.py
+--sit <block>...` (or `--sit --open`: every block with a check still
+`open`, `judged`, `cant-tell` or `later`) runs the blocks one after the
+other, each its own launch with its own server, as before; it writes the
+block's card to `out/sit/<date>/<block>/verify.json` and starts the game
+with `-ApexVerify=<that file>`. `--minutes N` sets every block's driving
+time (default: the block's `minutes`); `--no-card` leaves the answers to
+the page.
+
+The card holds the block's `about`, `setup` and `minutes`, whether it is
+a race (`-ApexAutoRace` in its `args`), and its checks
+(`schema.game_checks`): the block's own `v-sit-*` checks with their answer
+words, then every other open item whose `check_by` is the block (its title
+as the check, its `what` as the detail, answered OK / not right / can't
+tell). Each carries the answer it was last given.
+
+In the game (`UI/ApexVerifyWidget.cpp`, `Verify/ApexVerifyCard.h`):
+
+- **Brief and clock.** When the race view comes up (at once for a block
+  with no race, such as the bench), the block's brief and its checks stand
+  on the left for 45 s, and a clock at the top right counts the driving
+  time down. At zero it reads TIME'S UP.
+- **Opening the card.** Once the time is up, the pause key opens the card
+  in place of the pause menu. Before that, the pause menu's VERIFY row
+  opens it (badged with the time left and the answers so far). It opens by
+  itself when the time is up and nothing is being driven, or when a race
+  block's race view has gone (the race finished, the session left). While
+  it is open the car's controls are off, as under the pause menu, and the
+  clock stands still.
+- **One check at a time.** The check in large type, its detail, the
+  answer it was given before, and its answer words as buttons. Picking one
+  moves to the next check. NOTE opens an on-screen keyboard (letters,
+  digits, Shift, Space, Delete, Clear, Done) walked with the wheel's menu
+  directions; a real keyboard types into the note too, and typing on the
+  card opens it. FLAG marks the check to come back to. BACK and SKIP step
+  through the checks. DRIVE ON (or the pause key) closes the card and
+  returns to the car.
+- **The end.** Every answer and note in a list, then NEXT BLOCK, STOP
+  HERE, 3 MORE MINUTES (back to driving with the clock wound on), or BACK.
+  Next and stop write the answers file and quit the game.
+
+The answers file (`verify-answers.json` beside the card, `{block, next,
+answers: [{item, answer, note, flag, at}]}`) is rewritten on every
+change, so a game closed half way keeps what was answered (with `next:
+stop`). When the game exits, the runner turns it into reviews
+(`schema.apply_game_answers`): a sitting check's answer as on the page
+(`answer_review`), a hand item's OK as `confirmed`, not right as
+`not-right` and can't tell as `cant-tell`, the word as the comment. A
+note or a flag with no answer is a `later`. The runner saves straight
+into the items file, so the page should not be open with held reviews
+during a sitting: its Save would be refused (the digest changed) and it
+reloads. Then the next block starts, unless the player chose STOP HERE or
+closed the game.
+
+`apexsim.verify open|close|answer <n>|note|type <text>|flag|skip|back|more|next|stop`
+drives the card from the console, for an unattended look
+(`--game-arg=-ApexExecAfter=...` on the runner).
 
 ## CLI
 

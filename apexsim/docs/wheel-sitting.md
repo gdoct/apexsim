@@ -60,13 +60,17 @@ base feel wrong, Sitting 2's conditions would be judged on a wrong baseline.
 Every block is one command, `python scripts/verify/run_checks.py --sit
 <block>` (ids in `scripts/verify/sittings.yml`: `0-bench`, `a-monza`,
 `b-predict`, `c-nordschleife`, `c-mandarina`, `d-sakhir`, `e-spa-wet`,
-`f-hybrid`, `g-tread`, `h-pad`, `i-imported-pit`). The human drives,
-presses MARK (saying the word aloud or noting it on the sheet), closes the
-game, and fills in the block's rows: on the sheet, or tapped in the
+`f-hybrid`, `g-tread`, `h-pad`, `i-imported-pit`); several in a row, or
+`--sit --open` for every block with a check still to answer. The human
+drives and presses MARK (saying the word aloud). When the block's
+`minutes` are up the game asks its checks on a verify card driven from
+the rim (answer words, a note on an on-screen keyboard, a flag), saves
+the answers as the checks' reviews and starts the next block
+([verifier.md](verifier.md#the-verify-card-in-the-game)). With
+`--no-card` the rows are filled in on the sheet, or tapped in the
 verifier's sitting mode on a tablet beside the wheel (`python
-scripts/verify/verifier.py serve --lan`, then the printed URL;
-[verifier.md](verifier.md)), where each answer is held as the check's
-review and Save writes them all. Every block's `Wheel forces over 15 s
+scripts/verify/verifier.py serve --lan`, then the printed URL), where each
+answer is held as the check's review and Save writes them all. Every block's `Wheel forces over 15 s
 driving:` lines are kept.
 
 ### Sitting 1 — core feel
