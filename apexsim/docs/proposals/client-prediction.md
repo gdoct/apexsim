@@ -99,8 +99,10 @@ An old client ignores both; with an old server prediction never turns on.
 
 ## Not predicted
 
-Other cars (motion buffer); car-car contact (the local step has road and
-walls but no other cars, so a hit arrives as a blended correction); race
+Other cars (motion buffer): the local step meets them as boxes carried on
+from their last telemetry at their speed and turn (the server's car-car
+pass against them), so a touch alongside is predicted, but what they do
+with their wheel or pedals in the round trip arrives as a correction; race
 control (laps, sectors, track limits, records, grid seating, hotlap
 relocation, which snaps by design).
 

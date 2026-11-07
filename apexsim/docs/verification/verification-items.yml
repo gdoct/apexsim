@@ -2160,3 +2160,19 @@
   status: blocked
   needs: [wheel, gear-drive-base]
 
+- id: v-sit-b-predict-traffic
+  title: Prediction with cars alongside
+  area: ffb-input
+  kind: sitting
+  check_by: b-predict
+  created: 2026-11-08
+  commit: be5cd0ed
+  doc: game/client.md#client-prediction-raceapexpredictionsubsystemh
+  what: >-
+    In traffic with prediction on: a car alongside or a touch no longer shows
+    as a jump of the own car; the 5 s 'Prediction (on, 5.0 s)' lines' max correction
+    while the spotter calls a car alongside stays near the alone figures (was
+    140-963 mm)
+  status: open
+  needs: [wheel]
+

@@ -147,6 +147,19 @@ public:
 	 * datagram came in (the UDP worker's time, which the clock is timed by).
 	 */
 	void OnSnapshot(const FApexOwnCarSnapshot& Snapshot, double ArrivalSeconds);
+	/**
+	 * The other cars as the newest telemetry has them, for the steps from
+	 * now on (the library's apx_car_set_others): a replay meets them where
+	 * they will be, carried on from their pose, rather than learning of a
+	 * touch from the server a round trip late.
+	 */
+	void SetOthers(TArrayView<const ApxOtherCar> Others)
+	{
+		if (Car.IsValid())
+		{
+			Car->SetOthers(Others);
+		}
+	}
 	/** Reconciles what came in, moves the clock and steps the car to it. */
 	void Advance(double NowSeconds, double DeltaSeconds);
 

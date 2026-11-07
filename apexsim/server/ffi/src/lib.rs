@@ -30,6 +30,7 @@ use apexsim_sim::car_step::{self, StepClock};
 use apexsim_sim::data::{CarConfig, CarState, PlayerInputData, SessionConditions, TrackConfig};
 use apexsim_sim::feedback::{DriverFeedback, MAX_STEER_SAMPLES};
 use apexsim_sim::own_car::{self, OwnCarSnapshot};
+use apexsim_sim::physics::ContactBox;
 use apexsim_sim::racing_line::{self, LineWindow};
 use apexsim_sim::track_bundle::TrackFiles;
 use apexsim_sim::track_loader::RoadContactMode;
@@ -37,7 +38,7 @@ use apexsim_sim::track_loader::TrackLoader;
 
 /// The C API's version: [`apx_abi_version`]. Bumped whenever a function's
 /// signature or a `#[repr(C)]` struct changes.
-pub const APX_ABI_VERSION: u32 = 8;
+pub const APX_ABI_VERSION: u32 = 9;
 
 /// What every function returns.
 pub type ApxStatus = i32;
@@ -89,7 +90,48 @@ pub struct ApxCar {
     state: CarState,
     /// Scratch for the wall query, kept so a step does not allocate.
     nearby: Vec<u32>,
+    /// The other cars on the road ([`apx_car_set_others`]), as last heard.
+    others: Vec<ApxOtherCar>,
+    /// The others as stepped: seated from `others` at a step that does not
+    /// follow the last one (a replay's first), then carried on a tick at a
+    /// time with what each contact did to them.
+    boxes: Vec<ContactBox>,
+    /// The tick `boxes` stand at; `None` until a step seats them.
+    boxes_tick: Option<u32>,
 }
+
+/// Another car on the road, as a predicting client last heard it: the
+/// session tick its pose is from, where it was, how fast it moved and
+/// turned, its box and its mass ([`apx_car_shape`] of a car made from its
+/// car.toml).
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ApxOtherCar {
+    pub tick: u32,
+    pub pos: [f32; 3],
+    pub yaw_rad: f32,
+    /// World x, y, m/s.
+    pub vel: [f32; 2],
+    pub yaw_rate_rps: f32,
+    pub length_m: f32,
+    pub width_m: f32,
+    pub height_m: f32,
+    pub mass_kg: f32,
+}
+
+/// A car's box and mass, as the car-car pass reads them.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct ApxCarShape {
+    pub length_m: f32,
+    pub width_m: f32,
+    pub height_m: f32,
+    pub mass_kg: f32,
+}
+
+/// How far an other car is carried on from its pose, s, either way: one
+/// heard longer ago is left out.
+pub const APX_OTHER_CAR_MAX_S: f32 = 0.5;
 
 /// The driver's controls for one tick: `ClientMessage::PlayerInput`'s
 /// fields, flattened.
@@ -790,6 +832,9 @@ unsafe fn create_car(
             simulated,
             state,
             nearby: Vec::new(),
+            others: Vec::new(),
+            boxes: Vec::new(),
+            boxes_tick: None,
         }));
         Ok(())
     })
@@ -840,8 +885,42 @@ pub unsafe extern "C" fn apx_car_step(
         let track = &mut (*track).track;
         let clock = StepClock { tick, tick_rate_hz };
         car_step::air_for_tick(track, clock);
+        let dt = clock.dt();
+        if car
+            .boxes_tick
+            .is_some_and(|last| last.wrapping_add(1) == tick)
+        {
+            // The step after the last: each other car on from where the last
+            // left it, a contact's push and speed kept.
+            for (b, other) in car.boxes.iter_mut().zip(&car.others) {
+                b.pos_x += b.vel_x * dt;
+                b.pos_y += b.vel_y * dt;
+                b.yaw_rad += other.yaw_rate_rps * dt;
+            }
+        } else {
+            car.boxes.clear();
+            for other in &car.others {
+                let elapsed = (tick as i64 - other.tick as i64) as f32 * dt;
+                // Too old (or too far ahead) to stand for the car: parked
+                // far below the road, where nothing touches it.
+                let far = elapsed.abs() > APX_OTHER_CAR_MAX_S;
+                car.boxes.push(ContactBox {
+                    pos_x: other.pos[0] + other.vel[0] * elapsed,
+                    pos_y: other.pos[1] + other.vel[1] * elapsed,
+                    pos_z: if far { -1.0e9 } else { other.pos[2] },
+                    yaw_rad: other.yaw_rad + other.yaw_rate_rps * elapsed,
+                    vel_x: other.vel[0],
+                    vel_y: other.vel[1],
+                    length_m: other.length_m,
+                    width_m: other.width_m,
+                    height_m: other.height_m,
+                    mass_kg: other.mass_kg,
+                });
+            }
+        }
+        car.boxes_tick = Some(tick);
         let simulated = car.simulated.as_ref().unwrap_or(&car.shared);
-        car_step::step_lone_car(
+        car_step::step_car_among(
             &mut car.state,
             simulated,
             &car.shared,
@@ -849,7 +928,84 @@ pub unsafe extern "C" fn apx_car_step(
             track,
             clock,
             &mut car.nearby,
+            &mut car.boxes,
         );
+        Ok(())
+    })
+}
+
+/// The other cars the next steps meet ([`apx_car_step`]): at a step that
+/// does not follow the last (a replay's first, or the first after this
+/// call) each is seated from its pose carried on at its speed and turn to
+/// the tick stepped (left out past [`APX_OTHER_CAR_MAX_S`]); each step
+/// after carries it a tick on. The server's car-car pass runs against them:
+/// a contact pushes and slows them too, and they keep that, but they never
+/// steer or brake. Replaces the last set; a count of 0 clears it (the car
+/// alone, as before).
+///
+/// # Safety
+/// `car` is a live handle; `others` is readable for `count` cars (or null
+/// with a count of 0).
+#[no_mangle]
+pub unsafe extern "C" fn apx_car_set_others(
+    car: *mut ApxCar,
+    others: *const ApxOtherCar,
+    count: u32,
+) -> ApxStatus {
+    guard(|| {
+        non_null(car, "car")?;
+        let car = &mut *car;
+        car.boxes_tick = None;
+        if count == 0 {
+            car.others.clear();
+            return Ok(());
+        }
+        non_null(others, "others")?;
+        let given = std::slice::from_raw_parts(others, count as usize);
+        let finite = given.iter().all(|o| {
+            o.pos.iter().chain(&o.vel).all(|v| v.is_finite())
+                && [
+                    o.yaw_rad,
+                    o.yaw_rate_rps,
+                    o.length_m,
+                    o.width_m,
+                    o.height_m,
+                    o.mass_kg,
+                ]
+                .iter()
+                .all(|v| v.is_finite())
+        });
+        if !finite {
+            return Err(Fail::new(
+                APX_ERR_INVALID,
+                "an other car has a non-finite value",
+            ));
+        }
+        car.others.clear();
+        car.others.extend_from_slice(given);
+        Ok(())
+    })
+}
+
+/// The car's box and mass as the car-car pass reads them (its shared
+/// config, the fuel it has now): what a client hands [`apx_car_set_others`]
+/// for a car of this model.
+///
+/// # Safety
+/// `car` is a live handle; `out` is writable.
+#[no_mangle]
+pub unsafe extern "C" fn apx_car_shape(car: *const ApxCar, out: *mut ApxCarShape) -> ApxStatus {
+    guard(|| {
+        non_null(car, "car")?;
+        non_null(out, "out")?;
+        let car = &*car;
+        let b = ContactBox::of(&car.state, &car.shared);
+        *out = ApxCarShape {
+            length_m: b.length_m,
+            width_m: b.width_m,
+            height_m: b.height_m,
+            mass_kg: b.mass_kg,
+        };
         Ok(())
     })
 }
@@ -1164,6 +1320,14 @@ mod tests {
             std::mem::size_of::<ApxBalance>()
         )));
         assert!(header.contains(&format!(
+            "sizeof(ApxOtherCar) == {}",
+            std::mem::size_of::<ApxOtherCar>()
+        )));
+        assert!(header.contains(&format!(
+            "sizeof(ApxCarShape) == {}",
+            std::mem::size_of::<ApxCarShape>()
+        )));
+        assert!(header.contains(&format!(
             "#define APX_FEEDBACK_SAMPLES {APX_FEEDBACK_SAMPLES}"
         )));
         for (name, value) in [
@@ -1188,6 +1352,8 @@ mod tests {
             "apx_car_create(",
             "apx_car_free(",
             "apx_car_step(",
+            "apx_car_set_others(",
+            "apx_car_shape(",
             "apx_car_pose(",
             "apx_car_state_save(",
             "apx_car_state_load(",

@@ -35,8 +35,9 @@ The first four blocks of H1's wheel sitting (0-bench, A Monza, B
 prediction, C Nordschleife; 2026-11-07) are processed: 29 rows confirmed
 and closed. The FFB scale, road, kerbs, braking and soft lock were retuned
 from the answers (`48b956eb`) and wait for the `a2-monza-retune` and
-`c2-nordschleife-kerbs` re-sit. The understeer cue's timing and
-prediction's corrections in traffic are new (B17). Block B was answered
+`c2-nordschleife-kerbs` re-sit. The understeer cue's timing is new (B17).
+Prediction's corrections in traffic were the other cars, missing from the
+predicted step; they are in it since 2026-11-08. Block B was answered
 before its switch to the puppet and is asked again.
 
 ## Legend
@@ -65,7 +66,7 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
-| B17 | Wheel feel: the understeer cue arrives late; prediction corrects in traffic (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
+| B17 | Wheel feel: the understeer cue arrives late (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
 | B16 | Suzuka's crossover: see-through bridge walls (follow-ups #6) | Bug | P2 | 🟡 | S | 2 |
 | C5 | Circuit dressing to the references (roadmap 29): Monzarella's banking, open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
@@ -96,8 +97,8 @@ takes it up (— : no step, taken opportunistically).
 
 1. **H1**'s re-sit and remaining blocks (`run_checks.py --sit --open`:
    B again, `a2-monza-retune`, `c2-nordschleife-kerbs`, then Mandarina
-   Bay onwards), with B15 at a standstill. B17's traffic corrections
-   are read from the code and the run files before that sitting; its
+   Bay onwards), with B15 at a standstill. Block B also judges the
+   other cars in the predicted step (`v-sit-b-predict-traffic`); B17's
    understeer row is judged in `a2-monza-retune`.
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
@@ -121,17 +122,13 @@ stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop fo
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
 
-#### B17. Wheel feel: the cue's timing and prediction in traffic — P1 · 🟡 · M
+#### B17. Wheel feel: the understeer cue's timing — P1 · 🟡 · M
 *Source: follow-ups #42, wheel sitting 2026-11-07.* The understeer cue is
 late on the server's torque but on time on the predicted car's (it reaches
 the rim about 80 ms sooner), so the delay is in delivery, not the tyre
 model. The levers: drive the wheel from the predicted car's torque even
 without added latency (a product call), or send feedback at a finer rate.
-Separately, prediction's corrections reach 140-963 mm with cars alongside
-and on the grass, against p95 under 0.2 mm when the car is alone. The
-suspect is other cars met where the server drew them a round trip ago.
-An agent can find that one from the code and the `out/sit/2026-11-07/b-predict/`
-run files; the cue needs the wheel.
+Needs the wheel.
 
 #### B16. Suzuka's crossover: see-through bridge walls — P2 · 🟡 · S
 *Source: follow-ups #6, the owner's review of `v-track-suzuka-elevation`

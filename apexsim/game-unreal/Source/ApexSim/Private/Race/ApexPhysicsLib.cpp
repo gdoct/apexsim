@@ -317,6 +317,16 @@ namespace ApexPhysics
 		return apx_car_feedback_take(Car, &Out) == APX_OK;
 	}
 
+	bool FCar::SetOthers(TArrayView<const ApxOtherCar> Others)
+	{
+		return apx_car_set_others(Car, Others.Num() > 0 ? Others.GetData() : nullptr, static_cast<uint32>(Others.Num())) == APX_OK;
+	}
+
+	bool FCar::Shape(ApxCarShape& Out) const
+	{
+		return apx_car_shape(Car, &Out) == APX_OK;
+	}
+
 	FLine::~FLine()
 	{
 		if (Line)
@@ -466,6 +476,8 @@ namespace ApexPhysics
 	bool FCar::Save(TArray<uint8>& Out) const { Out.Reset(); return false; }
 	bool FCar::Load(TArrayView<const uint8>) { return false; }
 	bool FCar::TakeFeedback(ApxFeedback& Out) { Out = ApxFeedback{}; return false; }
+	bool FCar::SetOthers(TArrayView<const ApxOtherCar>) { return false; }
+	bool FCar::Shape(ApxCarShape& Out) const { Out = ApxCarShape{}; return false; }
 
 	FLine::~FLine() = default;
 

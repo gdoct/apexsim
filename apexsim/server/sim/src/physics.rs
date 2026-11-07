@@ -4079,6 +4079,123 @@ pub fn check_collisions_refs(
     contacts
 }
 
+/// Another car as the own car's step meets it on a predicting client
+/// (`collide_with_boxes`): where it is at the tick being stepped, how fast it
+/// moves, its box and its mass. A contact pushes it and changes its speed
+/// as the car-car pass does; it does not steer or brake.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct ContactBox {
+    pub pos_x: f32,
+    pub pos_y: f32,
+    pub pos_z: f32,
+    pub yaw_rad: f32,
+    pub vel_x: f32,
+    pub vel_y: f32,
+    pub length_m: f32,
+    pub width_m: f32,
+    pub height_m: f32,
+    pub mass_kg: f32,
+}
+
+impl ContactBox {
+    /// A car's box where its state has it (`config` the shared one, as the
+    /// car-car pass reads it).
+    pub fn of(state: &CarState, config: &CarConfig) -> Self {
+        Self {
+            pos_x: state.pos_x,
+            pos_y: state.pos_y,
+            pos_z: state.pos_z,
+            yaw_rad: state.yaw_rad,
+            vel_x: state.vel_x,
+            vel_y: state.vel_y,
+            length_m: config.length_m,
+            width_m: config.width_m,
+            height_m: config.height_m,
+            mass_kg: car_mass_kg(config, state),
+        }
+    }
+}
+
+/// The car-car pass (`check_collisions_refs`) between one car and other
+/// cars given as boxes: the same overlap test, push-out by mass share and
+/// impulse for both, and for `state` the hit felt, the steering kick and
+/// the damage, box by box in the order given. It clears last tick's contact
+/// first, as the pass does. A predicting client steps its car among the
+/// others with it (`car_step::step_car_among`), the others carried on from
+/// where it last heard them. Returns whether any box touched.
+pub fn collide_with_boxes(
+    state: &mut CarState,
+    config: &CarConfig,
+    boxes: &mut [ContactBox],
+) -> bool {
+    clear_contact(state);
+    if state.is_ghost() {
+        return false;
+    }
+    let mut touched = false;
+    for other in boxes.iter_mut() {
+        let dz = (state.pos_z - other.pos_z).abs();
+        if dz >= (config.height_m + other.height_m) / 2.0 {
+            continue;
+        }
+        let Some(overlap) = obb_overlap(
+            (state.pos_x, state.pos_y),
+            (state.yaw_rad.cos(), state.yaw_rad.sin()),
+            config.length_m / 2.0,
+            config.width_m / 2.0,
+            (other.pos_x, other.pos_y),
+            (other.yaw_rad.cos(), other.yaw_rad.sin()),
+            other.length_m / 2.0,
+            other.width_m / 2.0,
+        ) else {
+            continue;
+        };
+        touched = true;
+        let nx = overlap.normal_x;
+        let ny = overlap.normal_y;
+        state.is_colliding = true;
+        state.collision_normal_x = -nx;
+        state.collision_normal_y = -ny;
+        state.collision_normal_z = -0.0;
+
+        let inv_mass_i = 1.0 / car_mass_kg(config, state).max(1.0);
+        let inv_mass_j = 1.0 / other.mass_kg.max(1.0);
+        let total_inv_mass = inv_mass_i + inv_mass_j;
+        let sep_i = overlap.penetration * inv_mass_i / total_inv_mass;
+        let sep_j = overlap.penetration * inv_mass_j / total_inv_mass;
+        state.pos_x -= nx * sep_i;
+        state.pos_y -= ny * sep_i;
+        other.pos_x += nx * sep_j;
+        other.pos_y += ny * sep_j;
+
+        let rel_vel_x = other.vel_x - state.vel_x;
+        let rel_vel_y = other.vel_y - state.vel_y;
+        let rel_vel_normal = rel_vel_x * nx + rel_vel_y * ny;
+        let closing_mps = (-rel_vel_normal).max(0.0);
+        state.feedback.record_impact(closing_mps);
+        if rel_vel_normal < 0.0 {
+            let restitution = 0.3;
+            let impulse = -(1.0 + restitution) * rel_vel_normal;
+            let impulse = impulse / total_inv_mass;
+            let dv_i = (-impulse * nx * inv_mass_i, -impulse * ny * inv_mass_i);
+            state.vel_x += dv_i.0;
+            state.vel_y += dv_i.1;
+            other.vel_x += impulse * nx * inv_mass_j;
+            other.vel_y += impulse * ny * inv_mass_j;
+            let kick = impact_steer_kick(state, config, dv_i, 0.0, None);
+            state.feedback.record_steer_kick(kick);
+        }
+        state.speed_mps = (state.vel_x.powi(2) + state.vel_y.powi(2) + state.vel_z.powi(2)).sqrt();
+        let impact_speed = rel_vel_normal.abs().min(50.0);
+        if rel_vel_normal < 0.0 && impact_speed > 1.0 {
+            let damage_amount = crate::damage::impact_damage(impact_speed);
+            let angle = (ny.atan2(nx) - state.yaw_rad).rem_euclid(2.0 * PI);
+            apply_damage_to_car(state, angle, damage_amount);
+        }
+    }
+    touched
+}
+
 /// Result of an OBB separating-axis test: the minimum-translation vector.
 struct ObbOverlap {
     /// Unit normal pointing from car A toward car B
@@ -6647,6 +6764,120 @@ mod tests {
             let impact = state.feedback.take(0).impact_mps;
             assert!((impact - 8.0).abs() < 0.01, "impact {impact}");
         }
+    }
+
+    /// A predicting client's contact (`collide_with_boxes`) is the car-car
+    /// pass's: the same push, speed, feel and damage for the car, the same
+    /// push and speed for the other, whichever of the pair the car is.
+    #[test]
+    fn a_contact_with_a_box_is_the_car_car_pass() {
+        let config = create_test_config();
+        let mut configs = HashMap::new();
+        configs.insert(config.id, config.clone());
+        // Side by side and angled in, closing hard.
+        let pair = || {
+            let mut a = CarState::new(
+                Uuid::from_u128(1),
+                config.id,
+                &GridSlot {
+                    position: 1,
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                    yaw_rad: 0.0,
+                },
+            );
+            let mut b = CarState::new(
+                Uuid::from_u128(2),
+                config.id,
+                &GridSlot {
+                    position: 2,
+                    x: 1.1,
+                    y: config.width_m - 0.3,
+                    z: 0.0,
+                    yaw_rad: -0.2,
+                },
+            );
+            a.vel_x = 40.0;
+            a.vel_y = 1.0;
+            b.vel_x = 41.0;
+            b.vel_y = -4.0;
+            (a, b)
+        };
+        for own_first in [true, false] {
+            let (mut a, mut b) = pair();
+            let (mut own, other) = pair();
+            {
+                let mut refs: Vec<&mut CarState> = if own_first {
+                    vec![&mut a, &mut b]
+                } else {
+                    vec![&mut b, &mut a]
+                };
+                let contacts = check_collisions_refs(&mut refs, &configs);
+                assert_eq!(contacts.len(), 1);
+            }
+            let mut boxes = [ContactBox::of(&other, &config)];
+            assert!(collide_with_boxes(&mut own, &config, &mut boxes));
+            let close = |x: f32, y: f32| (x - y).abs() <= 1e-5 * x.abs().max(1.0);
+            for (name, got, want) in [
+                ("pos_x", own.pos_x, a.pos_x),
+                ("pos_y", own.pos_y, a.pos_y),
+                ("vel_x", own.vel_x, a.vel_x),
+                ("vel_y", own.vel_y, a.vel_y),
+                ("speed", own.speed_mps, a.speed_mps),
+                ("normal_x", own.collision_normal_x, a.collision_normal_x),
+                ("normal_y", own.collision_normal_y, a.collision_normal_y),
+                ("other pos_x", boxes[0].pos_x, b.pos_x),
+                ("other pos_y", boxes[0].pos_y, b.pos_y),
+                ("other vel_x", boxes[0].vel_x, b.vel_x),
+                ("other vel_y", boxes[0].vel_y, b.vel_y),
+            ] {
+                assert!(
+                    close(got, want),
+                    "{name} {got} against {want} (own first {own_first})"
+                );
+            }
+            assert!(own.is_colliding);
+            for (name, got, want) in [
+                (
+                    "front",
+                    own.damage.front_damage_percent,
+                    a.damage.front_damage_percent,
+                ),
+                (
+                    "rear",
+                    own.damage.rear_damage_percent,
+                    a.damage.rear_damage_percent,
+                ),
+                (
+                    "left",
+                    own.damage.left_damage_percent,
+                    a.damage.left_damage_percent,
+                ),
+                (
+                    "right",
+                    own.damage.right_damage_percent,
+                    a.damage.right_damage_percent,
+                ),
+                ("hit left", own.damage.hit_at.left, a.damage.hit_at.left),
+                ("hit right", own.damage.hit_at.right, a.damage.hit_at.right),
+            ] {
+                assert!(close(got, want), "damage {name} {got} against {want}");
+            }
+            let (felt, want) = (own.feedback.take(0), a.feedback.take(0));
+            assert!(close(felt.impact_mps, want.impact_mps));
+        }
+        // Apart, nothing happens.
+        let (mut own, mut other) = pair();
+        other.pos_y += 5.0;
+        let before = own.clone();
+        assert!(!collide_with_boxes(
+            &mut own,
+            &config,
+            &mut [ContactBox::of(&other, &config)]
+        ));
+        assert_eq!(own.pos_y, before.pos_y);
+        assert_eq!(own.vel_y, before.vel_y);
     }
 
     #[test]

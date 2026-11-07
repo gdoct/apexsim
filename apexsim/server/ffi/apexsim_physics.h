@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define APX_ABI_VERSION 8u
+#define APX_ABI_VERSION 9u
 
 typedef int32_t ApxStatus;
 #define APX_OK 0
@@ -237,6 +237,51 @@ ApxStatus apx_car_create_balanced(const ApxTrack *track, const uint8_t *car_toml
  * (dt = 1 / tick_rate_hz, worked out as the server does). */
 ApxStatus apx_car_step(ApxCar *car, ApxTrack *track, const ApxInput *input,
                        uint32_t tick, uint16_t tick_rate_hz);
+
+/* Another car on the road as the client last heard it (ABI 9): the session
+ * tick its pose is from, where it was, its velocity (world x, y) and turn,
+ * and its box and mass (apx_car_shape of a car of its model). */
+typedef struct ApxOtherCar {
+    uint32_t tick;
+    float pos[3];
+    float yaw_rad;
+    float vel[2];
+    float yaw_rate_rps;
+    float length_m;
+    float width_m;
+    float height_m;
+    float mass_kg;
+} ApxOtherCar;
+
+/* A car's box and mass as the server's car-car pass reads them. */
+typedef struct ApxCarShape {
+    float length_m;
+    float width_m;
+    float height_m;
+    float mass_kg;
+} ApxCarShape;
+
+#ifdef __cplusplus
+static_assert(sizeof(ApxOtherCar) == 48, "ApxOtherCar layout");
+static_assert(sizeof(ApxCarShape) == 16, "ApxCarShape layout");
+#else
+typedef char apx_other_car_layout[(sizeof(ApxOtherCar) == 48) ? 1 : -1];
+typedef char apx_car_shape_layout[(sizeof(ApxCarShape) == 16) ? 1 : -1];
+#endif
+
+/* How far an other car is carried on from its pose, s (either way); one
+ * heard longer ago is left out of the step. */
+#define APX_OTHER_CAR_MAX_S 0.5f
+
+/* The other cars the next apx_car_step calls meet (ABI 9): each carried on
+ * from its pose at its velocity and turn to the tick stepped, touched as the
+ * server's car-car pass touches it (push-out by mass, impulse, the hit felt,
+ * damage) but never moved. Replaces the last set; count 0 clears it (the
+ * car alone). A non-finite figure is refused and the set left as it was. */
+ApxStatus apx_car_set_others(ApxCar *car, const ApxOtherCar *others, uint32_t count);
+
+/* The car's box and its mass now (fuel in it), for apx_car_set_others. */
+ApxStatus apx_car_shape(const ApxCar *car, ApxCarShape *out);
 
 /* The car's pose, velocities and dash figures. */
 ApxStatus apx_car_pose(const ApxCar *car, ApxCarPose *out);

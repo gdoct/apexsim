@@ -8,7 +8,8 @@
 //! session sets the wind, [`air_for_tick`], before the cars), the pit lane,
 //! DRS, the wake, the road state's passes, debris and recoveries, the
 //! car-car pass. A predicting client holds those at what the server last
-//! said; a hit by another car arrives as a correction.
+//! said, and meets the other cars as boxes carried on from where it last
+//! heard them ([`step_car_among`]).
 //!
 //! [`encode_state`] / [`decode_state`] carry a car's full state as a
 //! versioned blob, the runtime fields serde skips on `CarState` included,
@@ -78,8 +79,35 @@ pub fn step_lone_car(
     clock: StepClock,
     nearby: &mut Vec<u32>,
 ) -> Option<LapEvent> {
+    step_car_among(
+        state,
+        simulated,
+        shared,
+        input,
+        track,
+        clock,
+        nearby,
+        &mut [],
+    )
+}
+
+/// [`step_lone_car`] with other cars on the road as boxes
+/// (`physics::collide_with_boxes`, the car-car pass against them, which
+/// pushes them too): what a predicting client steps, the others carried on
+/// from where it last heard them. With no boxes it is [`step_lone_car`].
+#[allow(clippy::too_many_arguments)]
+pub fn step_car_among(
+    state: &mut CarState,
+    simulated: &CarConfig,
+    shared: &CarConfig,
+    input: &PlayerInputData,
+    track: &TrackConfig,
+    clock: StepClock,
+    nearby: &mut Vec<u32>,
+    others: &mut [physics::ContactBox],
+) -> Option<LapEvent> {
     let event = step_car(state, simulated, input, track, clock, |_| {});
-    physics::clear_contact(state);
+    physics::collide_with_boxes(state, shared, others);
     physics::collide_with_walls(state, shared, track, clock.dt(), nearby);
     event
 }

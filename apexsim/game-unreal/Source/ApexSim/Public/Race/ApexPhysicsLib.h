@@ -85,6 +85,14 @@ namespace ApexPhysics
 		 * after every step, it is that tick's.
 		 */
 		bool TakeFeedback(ApxFeedback& Out);
+		/**
+		 * The other cars the next steps meet (apx_car_set_others): seated at
+		 * a replay's first step from their poses carried on to it, then pushed
+		 * and slowed by a contact as the server's car-car pass would.
+		 */
+		bool SetOthers(TArrayView<const ApxOtherCar> Others);
+		/** The car's box and mass, for another car of this model (apx_car_shape). */
+		bool Shape(ApxCarShape& Out) const;
 
 		ApxCar* Handle() const { return Car; }
 

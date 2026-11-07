@@ -958,6 +958,23 @@ by default.
     crosses it. The fields the session's passes own (pit lane, DRS allowed,
     headlights, wake) stay as the newest blob had them. The first blob
     seats the timeline; nothing is drawn before it.
+  - The other cars are in the step (`apx_car_set_others`,
+    `UApexPredictionSubsystem::UpdateOthers`): with each new telemetry
+    frame, every car within 60 m that is not in a recovery or the garage,
+    at its pose of that tick, its velocity and turn from its last frame
+    (along its heading at its speed without one), and its model's box and
+    mass (`apx_car_shape` of a car made once from its car.toml; the own
+    car's for a model this client has none of). A replay seats them at its
+    first tick, carried on from their pose (left out when that is over
+    0.5 s off), and carries them a tick at a time after; the server's
+    car-car pass runs between the car and each (`physics::collide_with_boxes`:
+    the same push-out, impulse, felt hit and damage, and the other car's
+    share of the push kept for the ticks after), but they never steer or
+    brake. A touch alongside is therefore predicted instead of arriving a
+    round trip late as a correction: replayed 80 ms from the server's state
+    before a contact the car lands within 29 mm of the server, 198 mm alone
+    (`server/ffi/tests/prediction_contact.rs`). A car that steers or brakes
+    in that round trip still arrives as a correction.
   - What a rewind moved the head by becomes a correction offset decaying
     with a 0.1 s time constant; one over 20 m (the motion buffer's
     teleport) snaps. The pose drawn is the head blended back by the clock's
@@ -995,7 +1012,7 @@ by default.
   (the limiter and the autopilot are the server's), in the garage and a
   recovery, while the server drives (unless `PredictServerDriven`), and
   when no snapshot came for 0.5 s; a switch either way blends from where
-  the car was drawn over 0.15 s. Other cars stay on the motion buffer.
+  the car was drawn over 0.15 s. Other cars are drawn from the motion buffer.
 - **Figures.** Every 5 s while it runs the log has a line: snapshots,
   rewinds (and from a whole state), the replay depth's mean and largest,
   the correction's mean, p50, p95 and largest in mm, re-seats, clock
@@ -1019,7 +1036,9 @@ sequence as a client at a ping hears it: `Loop.AtPing` (0, 80, 160 ms:
 correction p95 under 1 mm, largest 3.5 mm at 80 ms; the replay reaches back
 the round trip), `Loop.Loss` (every third snapshot lost), `Loop.Contact`
 (the server's car pushed 0.3 m: one correction, blended away), and
-`Loop.Relocation` (300 m: a re-seat, no blend); `Feel.ReplaysTheServer`
+`Loop.Relocation` (300 m: a re-seat, no blend); `OtherCars` (the car's
+box reads; a car drifting in alongside pushes the fixture's car away, one
+heard a second ago is not there); `Feel.ReplaysTheServer`
 (each tick's feedback from the library, folded per telemetry tick, against
 every `DriverFeedback` the server sent in the window), `Feel.AtPing` (at
 80 ms the torque and revs lead the server's by about the round trip and

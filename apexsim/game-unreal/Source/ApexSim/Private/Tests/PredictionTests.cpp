@@ -687,6 +687,77 @@ bool FApexPredictionReplayTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionOtherCarsTest, "ApexSim.Prediction.OtherCars", ApexTestFlags)
+
+bool FApexPredictionOtherCarsTest::RunTest(const FString& Parameters)
+{
+	if (!LibraryOrWarn(*this))
+	{
+		return true;
+	}
+	FWorld World;
+	if (!World.Load(*this))
+	{
+		return false;
+	}
+	TUniquePtr<ApexPhysics::FCar> Car = World.NewCar(*this);
+	if (!Car)
+	{
+		return false;
+	}
+	const FFixture& F = World.Fixture;
+	ApxCarShape Shape;
+	TestTrue(TEXT("the car's shape reads"), Car->Shape(Shape));
+	TestTrue(FString::Printf(TEXT("a car's box (%.2f x %.2f m, %.0f kg)"), Shape.length_m, Shape.width_m, Shape.mass_kg),
+		Shape.length_m > 3.0f && Shape.width_m > 1.5f && Shape.mass_kg > 500.0f);
+
+	// The fixture's car over 0.2 s from its blob: alone, with a car a
+	// metre to its side that drifts into it, and with that car heard too
+	// long ago to stand for anything.
+	const uint32 Ticks = static_cast<uint32>(F.TickRateHz / 5);
+	auto Run = [&](TArrayView<const ApxOtherCar> Others, ApxCarPose& Out)
+	{
+		Car->Load(F.Blob);
+		Car->SetOthers(Others);
+		for (uint32 Tick = F.BlobTick + 1; Tick <= F.BlobTick + Ticks; ++Tick)
+		{
+			Car->Step(*World.Track, F.InputAt(Tick).Input, Tick, F.TickRateHz);
+		}
+		Car->Pose(Out);
+	};
+	ApxCarPose Alone, Touched, Stale, Start;
+	Car->Load(F.Blob);
+	Car->Pose(Start);
+	Run({}, Alone);
+	const FVector2D Fwd(FMath::Cos(Start.yaw_rad), FMath::Sin(Start.yaw_rad));
+	const FVector2D Left(-Fwd.Y, Fwd.X);
+	const FVector2D Vel(Start.vel_x, Start.vel_y);
+	ApxOtherCar Other = {};
+	Other.tick = F.BlobTick;
+	const FVector2D At = FVector2D(Start.pos_x, Start.pos_y) + Left * (Shape.width_m + 0.4f);
+	Other.pos[0] = At.X;
+	Other.pos[1] = At.Y;
+	Other.pos[2] = Start.pos_z;
+	Other.yaw_rad = Start.yaw_rad;
+	Other.vel[0] = Vel.X - Left.X * 5.0f;
+	Other.vel[1] = Vel.Y - Left.Y * 5.0f;
+	Other.length_m = Shape.length_m;
+	Other.width_m = Shape.width_m;
+	Other.height_m = Shape.height_m;
+	Other.mass_kg = Shape.mass_kg;
+	Run(MakeArrayView(&Other, 1), Touched);
+	ApxOtherCar Old = Other;
+	Old.tick = F.BlobTick - static_cast<uint32>(F.TickRateHz);
+	Run(MakeArrayView(&Old, 1), Stale);
+
+	const float Pushed = FVector2D::DotProduct(FVector2D(Touched.pos_x - Alone.pos_x, Touched.pos_y - Alone.pos_y), -Left);
+	AddInfo(FString::Printf(TEXT("a car drifting in from the left at 5 m/s pushed the car %.0f mm right in 0.2 s"), Pushed * 1000.0f));
+	TestTrue(TEXT("the car alongside pushes it away"), Pushed > 0.05f);
+	TestEqual(TEXT("a car heard a second ago is not there"), Stale.pos_x, Alone.pos_x);
+	TestEqual(TEXT("nor across"), Stale.pos_y, Alone.pos_y);
+	return true;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexPredictionRewindTest, "ApexSim.Prediction.SnapshotRewind", ApexTestFlags)
 
 bool FApexPredictionRewindTest::RunTest(const FString& Parameters)

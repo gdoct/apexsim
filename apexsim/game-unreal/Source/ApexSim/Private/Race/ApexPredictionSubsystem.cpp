@@ -164,6 +164,10 @@ void UApexPredictionSubsystem::Teardown(const FString& Why)
 	PendingRoad.Reset();
 	bRoadRefused = false;
 	LocalCarIndex = -1;
+	OthersSeen.Reset();
+	OtherShapes.Reset();
+	OthersTick = -1;
+	Others.Reset();
 	bInUse = false;
 	bDrawable = false;
 	if (!Why.IsEmpty())
@@ -863,6 +867,10 @@ bool UApexPredictionSubsystem::Tick(float DeltaSeconds)
 		WhyNot = TEXT("the server drives");
 	}
 	bDrawable = WhyNot == nullptr;
+	if (Car)
+	{
+		UpdateOthers(*Net, *Car);
+	}
 	Predictor.SetCounting(bDrawable);
 	Predictor.Advance(Now, DeltaSeconds);
 	bInUse = bDrawable && Mode == 1;
@@ -952,6 +960,107 @@ bool UApexPredictionSubsystem::PlanLineWindow(int32 PointCount, int32& OutStart,
 																		 : EApexLinePhase::Partial);
 	}
 	return true;
+}
+
+namespace ApexPredictionOthers
+{
+	/** Other cars further than this from the own car are left out: 0.5 s apart at a closing 120 m/s would be more. */
+	constexpr double NearM = 60.0;
+}
+
+ApxCarShape UApexPredictionSubsystem::ShapeFor(const UApexNetSubsystem& Net, int32 CarIndex)
+{
+	FString CarId;
+	for (const FApexRosterEntry& Entry : Net.GetSessionRoster().Entries)
+	{
+		if (Entry.CarIndex == CarIndex)
+		{
+			CarId = Entry.CarConfigId;
+			break;
+		}
+	}
+	if (const ApxCarShape* Known = OtherShapes.Find(CarId))
+	{
+		return *Known;
+	}
+	// A car of this model made once on the track for its box and mass; the
+	// own car's stands in for a model this client has no car.toml for.
+	ApxCarShape Shape = {};
+	TArray<uint8> Toml;
+	const FString TomlPath = CarId.IsEmpty() ? FString() : CarTomlPath(CarId);
+	FString Error;
+	TUniquePtr<ApexPhysics::FCar> Model;
+	if (Track && !TomlPath.IsEmpty() && FFileHelper::LoadFileToArray(Toml, *TomlPath))
+	{
+		Model = ApexPhysics::FCar::Create(*Track, Toml, TArrayView<const int8>(), 1, Error);
+	}
+	if (!Model || !Model->Shape(Shape))
+	{
+		Model = Track ? ApexPhysics::FCar::Create(*Track, CarToml, TArrayView<const int8>(), 1, Error) : nullptr;
+		if (!Model || !Model->Shape(Shape))
+		{
+			Shape = ApxCarShape{ 4.6f, 2.0f, 1.2f, 1300.0f };
+		}
+		UE_LOG(LogApexSim, Log, TEXT("Prediction: no car.toml here for car %s; its contacts use %s's box"),
+			CarId.IsEmpty() ? TEXT("(not on the roster)") : *CarId, *CarName);
+	}
+	OtherShapes.Add(CarId, Shape);
+	return Shape;
+}
+
+void UApexPredictionSubsystem::UpdateOthers(const UApexNetSubsystem& Net, const FApexCarTelemetry& Own)
+{
+	const FApexTelemetryFrame& Frame = Net.GetLatestTelemetry();
+	if (Frame.ServerTick == OthersTick || TickRateHz <= 0)
+	{
+		return;
+	}
+	OthersTick = Frame.ServerTick;
+	const double Dt = 1.0 / TickRateHz;
+	Others.Reset();
+	for (const FApexCarTelemetry& One : Frame.Cars)
+	{
+		if (One.CarIndex == Own.CarIndex)
+		{
+			continue;
+		}
+		FOtherSeen& Seen = OthersSeen.FindOrAdd(One.CarIndex);
+		const int64 Ticks = Frame.ServerTick - Seen.Tick;
+		// Speed and turn from the car's last telemetry when it is recent,
+		// so a slide's direction counts; else along its heading.
+		FVector2D Vel(FMath::Cos(One.YawRad) * One.SpeedMps, FMath::Sin(One.YawRad) * One.SpeedMps);
+		float YawRate = 0.0f;
+		if (Seen.Tick >= 0 && Ticks > 0 && Ticks * Dt < 0.25)
+		{
+			const double Seconds = Ticks * Dt;
+			Vel = FVector2D((One.Position.X - Seen.Position.X) / Seconds, (One.Position.Y - Seen.Position.Y) / Seconds);
+			YawRate = static_cast<float>(FMath::FindDeltaAngleRadians(Seen.YawRad, One.YawRad) / Seconds);
+		}
+		Seen.Tick = Frame.ServerTick;
+		Seen.Position = One.Position;
+		Seen.YawRad = One.YawRad;
+		// Out of everyone's way on the server (a recovery, the garage), or far off.
+		if (One.IsRecovering() || One.bInGarage
+			|| FVector::Dist(One.Position, Own.Position) > ApexPredictionOthers::NearM)
+		{
+			continue;
+		}
+		const ApxCarShape Shape = ShapeFor(Net, One.CarIndex);
+		ApxOtherCar& Other = Others.AddDefaulted_GetRef();
+		Other.tick = static_cast<uint32>(Frame.ServerTick);
+		Other.pos[0] = One.Position.X;
+		Other.pos[1] = One.Position.Y;
+		Other.pos[2] = One.Position.Z;
+		Other.yaw_rad = One.YawRad;
+		Other.vel[0] = static_cast<float>(Vel.X);
+		Other.vel[1] = static_cast<float>(Vel.Y);
+		Other.yaw_rate_rps = YawRate;
+		Other.length_m = Shape.length_m;
+		Other.width_m = Shape.width_m;
+		Other.height_m = Shape.height_m;
+		Other.mass_kg = Shape.mass_kg;
+	}
+	Predictor.SetOthers(Others);
 }
 
 bool UApexPredictionSubsystem::GetRenderPose(int32 CarIndex, FVector& OutLocationCm, FQuat& OutRotation,

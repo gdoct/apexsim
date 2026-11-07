@@ -243,6 +243,23 @@ private:
 	FString FailedKey;
 	TArray<uint8> CarToml;
 	FString CarName;
+
+	/** Another car's pose at the last telemetry tick, for its speed and turn (UpdateOthers). */
+	struct FOtherSeen
+	{
+		int64 Tick = -1;
+		FVector Position = FVector::ZeroVector;
+		float YawRad = 0.0f;
+	};
+	TMap<int32, FOtherSeen> OthersSeen;
+	/** Each car model's box and mass, by car id (from its car.toml; the own car's when it has none here). */
+	TMap<FString, ApxCarShape> OtherShapes;
+	/** The telemetry tick the predictor's other cars are from; -1 none yet. */
+	int64 OthersTick = -1;
+	TArray<ApxOtherCar> Others;
+	/** Hands the predictor the other cars near the own one from the newest telemetry, when it is new. */
+	void UpdateOthers(const UApexNetSubsystem& Net, const FApexCarTelemetry& Own);
+	ApxCarShape ShapeFor(const UApexNetSubsystem& Net, int32 CarIndex);
 	FString TrackName;
 	FApexCarSetup CarSetup;
 	int32 GridPosition = 0;
