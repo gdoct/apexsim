@@ -31,6 +31,14 @@ Mandarina Bay superscreens, G9's gloves and sleeves), two not right:
 Monzarella's banking (back to C5) and Suzuka's crossover walls (B16; the
 elevation itself is good).
 
+The first four blocks of H1's wheel sitting (0-bench, A Monza, B
+prediction, C Nordschleife; 2026-11-07) are processed: 29 rows confirmed
+and closed. The FFB scale, road, kerbs, braking and soft lock were retuned
+from the answers (`48b956eb`) and wait for the `a2-monza-retune` and
+`c2-nordschleife-kerbs` re-sit. The understeer cue's timing and
+prediction's corrections in traffic are new (B17). Block B was answered
+before its switch to the puppet and is asked again.
+
 ## Legend
 
 **Priority** (re-assessed across all four docs, not copied from them):
@@ -57,6 +65,7 @@ takes it up (— : no step, taken opportunistically).
 |---|---|---|---|---|---|---|
 | H1 | Wheel, pedals and FFB sitting | Verification | P1 | 🔴 | S | 1 |
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
+| B17 | Wheel feel: the understeer cue arrives late; prediction corrects in traffic (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
 | B16 | Suzuka's crossover: see-through bridge walls (follow-ups #6) | Bug | P2 | 🟡 | S | 2 |
 | C5 | Circuit dressing to the references (roadmap 29): Monzarella's banking, open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
 | G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
@@ -85,8 +94,11 @@ takes it up (— : no step, taken opportunistically).
 
 ## 2. Recommended order
 
-1. **H1** in one sitting (its answers tapped in the verifier's sitting
-   mode on a tablet beside the wheel), with B8's cooling and S1's crown on the wheel.
+1. **H1**'s re-sit and remaining blocks (`run_checks.py --sit --open`:
+   B again, `a2-monza-retune`, `c2-nordschleife-kerbs`, then Mandarina
+   Bay onwards), with B15 at a standstill. B17's traffic corrections
+   are read from the code and the run files before that sitting; its
+   understeer row is judged in `a2-monza-retune`.
 2. **Visual quality pass.** In the realism sheet's ranking
    ([game/realism.md](game/realism.md), agreed 2026-10-31): G13 with G9,
    G14, G11 family by family with C5's columns alongside (C5 places the
@@ -108,6 +120,18 @@ the centring re-arming; the centring was made safe blind (no re-arm on a
 stale flicker, gives up against hands; follow-ups #31). Needs the wheel: stop for 10 s, read the `Wheel
 forces over 5 s standing:` lines, then tune the one they name. Run files:
 `out/sit/2026-10-23/a-monza-1/`.
+
+#### B17. Wheel feel: the cue's timing and prediction in traffic — P1 · 🟡 · M
+*Source: follow-ups #42, wheel sitting 2026-11-07.* The understeer cue is
+late on the server's torque but on time on the predicted car's (it reaches
+the rim about 80 ms sooner), so the delay is in delivery, not the tyre
+model. The levers: drive the wheel from the predicted car's torque even
+without added latency (a product call), or send feedback at a finer rate.
+Separately, prediction's corrections reach 140-963 mm with cars alongside
+and on the grass, against p95 under 0.2 mm when the car is alone. The
+suspect is other cars met where the server drew them a round trip ago.
+An agent can find that one from the code and the `out/sit/2026-11-07/b-predict/`
+run files; the cue needs the wheel.
 
 #### B16. Suzuka's crossover: see-through bridge walls — P2 · 🟡 · S
 *Source: follow-ups #6, the owner's review of `v-track-suzuka-elevation`
@@ -332,11 +356,15 @@ haze in rain, at dusk and at night (`v-r10-create-date-row`,
 that places `sign/flag_pole` (`v-r10-flags-wind`, blocked).
 
 #### H1. Wheel, pedals and FFB sitting — P1 · 🔴 · S
-*Source: verification §2.* The core of a sim, and none of it has been felt:
-clutch, H-shifter, handbrake, front-axle hybrid, peak torques and minimum
-forces, PXN profiles, kerbs, greasy tyres and damage, tread spread, banking
-and crests, gravel and sand, flat spots, puddles, slow punctures. One
-sitting, Nordschleife and Mandarina Bay. Every finding becomes a follow-up.
+*Source: verification §2.* Blocks 0, A, B and C were sat on 2026-11-07
+and processed: the bench, Monza's centring, notch, gravel, clutch, box and
+AI room, prediction's weight and contact, peak torques on the V2.5 and the
+Nordschleife's posts, banking and crests are confirmed. Left: the
+re-sit of the retune (`a2-monza-retune`, `c2-nordschleife-kerbs`), block
+B again, and the blocks not yet sat: Mandarina Bay, Sakhir, Spa in the wet,
+the front-axle hybrid, tread spread, pad and the imported pit stop. The
+H-shifter rows wait for an H-shifter, and the gear and hybrid minimum
+forces for a gear-drive base. Every finding becomes a follow-up.
 Planned block by block, with the agent's prep and follow-up, in
 [wheel-sitting.md](wheel-sitting.md) (also covers H2's wheel rows).
 
