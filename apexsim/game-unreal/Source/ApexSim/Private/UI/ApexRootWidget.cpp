@@ -386,6 +386,8 @@ void UApexRootWidget::BuildShell()
 	VerifyPanel = WidgetTree->ConstructWidget<UApexVerifyWidget>();
 	VerifyPanel->OnCloseRequested.AddUObject(this, &UApexRootWidget::CloseVerifyCard);
 	VerifyPanel->OnQuit.AddUObject(this, &UApexRootWidget::QuitFromVerify);
+	VerifyPanel->OnOpenRequested.AddUObject(this, &UApexRootWidget::OpenVerifyCard);
+	VerifyPanel->OnPauseMenuRequested.AddUObject(this, &UApexRootWidget::PauseMenuFromVerify);
 	SettingsOverlay = WidgetTree->ConstructWidget<UApexSettingsWidget>();
 	SettingsOverlay->OnClosed.AddDynamic(this, &UApexRootWidget::HandleSettingsClosed);
 	SettingsOverlay->OnEditHudLayout.AddDynamic(this, &UApexRootWidget::OpenHudEditor);
@@ -1159,6 +1161,19 @@ bool UApexRootWidget::IsVerifyDue() const
 	return VerifyPanel && VerifyPanel->IsActive() && VerifyPanel->IsDue();
 }
 
+bool UApexRootWidget::IsVerifyActive() const
+{
+	return VerifyPanel && VerifyPanel->IsActive();
+}
+
+void UApexRootWidget::PauseMenuFromVerify()
+{
+	CloseVerifyCard();
+	bPauseMenuPastVerify = true;
+	SetPaused(true);
+	bPauseMenuPastVerify = false;
+}
+
 void UApexRootWidget::OpenVerifyCard()
 {
 	if (!VerifyPanel || !VerifyPanel->IsActive() || VerifyPanel->IsCardOpen())
@@ -1168,6 +1183,11 @@ void UApexRootWidget::OpenVerifyCard()
 	if (bPauseMenuOpen)
 	{
 		SetPaused(false);
+	}
+	// Settings is drawn over the card: it steps out of the way.
+	if (SettingsOverlay && SettingsOverlay->IsOpen())
+	{
+		SettingsOverlay->Close();
 	}
 	CloseChat();
 	VerifyPanel->OpenCard();
@@ -1195,10 +1215,26 @@ void UApexRootWidget::UpdateVerify()
 	}
 	const bool bDriving = bRaceViewActive && !bFinishView && !IsWatching() && !(RaceResults && RaceResults->IsOpen());
 	VerifyPanel->SetDriving(bDriving, bRaceViewActive);
+	// A block with no race (the bench) starts in settings: leaving settings
+	// the first time is the end of its work, and brings the card.
+	bool bSettingsLeft = false;
+	if (!bRaceViewActive && !bVerifyOpenedOnSettingsClose)
+	{
+		if (IsSettingsOpen())
+		{
+			bVerifySettingsSeen = true;
+		}
+		else if (bVerifySettingsSeen)
+		{
+			bSettingsLeft = true;
+		}
+	}
 	// By itself only over nothing else: settings (the bench block's) and the
 	// pause menu finish first.
-	if (VerifyPanel->WantsCard() && !IsSettingsOpen() && !bPauseMenuOpen && !IsHudEditorOpen() && !IsPhotoModeActive())
+	if ((VerifyPanel->WantsCard() || bSettingsLeft) && !IsVerifyCardOpen() && !IsSettingsOpen() && !bPauseMenuOpen
+		&& !IsHudEditorOpen() && !IsPhotoModeActive())
 	{
+		bVerifyOpenedOnSettingsClose |= bSettingsLeft;
 		OpenVerifyCard();
 	}
 }
@@ -1499,8 +1535,9 @@ void UApexRootWidget::SetPaused(bool bPaused)
 	{
 		return;
 	}
-	// A sitting block whose time is up: the pause key brings its verify card.
-	if (bPaused && IsVerifyDue() && !IsWatching())
+	// A sitting block: the pause key brings its verify card (its PAUSE MENU
+	// button is the way to the pause menu itself).
+	if (bPaused && IsVerifyActive() && !IsWatching() && !bPauseMenuPastVerify)
 	{
 		OpenVerifyCard();
 		return;

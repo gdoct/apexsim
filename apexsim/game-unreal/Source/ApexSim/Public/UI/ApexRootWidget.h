@@ -183,8 +183,10 @@ public:
 	bool IsVerifyCardOpen() const;
 	/** The card's note keyboard is up: every key types, the pause key too. */
 	bool IsVerifyTyping() const;
-	/** A verify card was given and its time is up: the pause key opens it in place of the pause menu. */
+	/** A verify card was given and its time is up. */
 	bool IsVerifyDue() const;
+	/** A verify card was given (-ApexVerify=): the pause key opens it, in place of the pause menu. */
+	bool IsVerifyActive() const;
 	/** `apexsim.verify ...`: the card driven from the console, for unattended checks. */
 	void HandleVerifyCommand(const TArray<FString>& Args);
 
@@ -385,6 +387,12 @@ protected:
 	/** Tells the card what the player is doing, and opens it when it asks. */
 	void UpdateVerify();
 	void QuitFromVerify();
+	/** The card's PAUSE MENU: the pause menu itself, past the redirect to the card. */
+	void PauseMenuFromVerify();
+	bool bPauseMenuPastVerify = false;
+	/** A block with no race: settings was open, so its first close brings the card. */
+	bool bVerifySettingsSeen = false;
+	bool bVerifyOpenedOnSettingsClose = false;
 
 	/** Photo mode's lens card and hints, over the HUD's place. */
 	UPROPERTY(Transient)

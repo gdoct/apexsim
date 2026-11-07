@@ -122,6 +122,9 @@ void UApexVerifyWidget::BuildLayout()
 		ClockNote = MakeText(*WidgetTree, FString(), Font::Mono(11.0f), Palette::TextMuted);
 		ClockNote->SetJustification(ETextJustify::Right);
 		AddV(Clock, ClockNote, FMargin(0.0f, 2.0f, 0.0f, 0.0f), HAlign_Right);
+		// Clicked or tapped; from the wheel the pause button does the same.
+		AnswerNowButton = MakeButton(TEXT("Answer now"), EApexButtonVariant::Ghost, 40.0f, 14.0f);
+		AddV(Clock, MakeSized(*WidgetTree, AnswerNowButton, 180.0f, -1.0f), FMargin(0.0f, 8.0f, 0.0f, 0.0f), HAlign_Right);
 		ClockPanel = MakePanel(*WidgetTree, Clock, FMargin(18.0f, 10.0f), MakeBrush(Surface, Palette::Border, 1.0f));
 	}
 
@@ -190,8 +193,10 @@ void UApexVerifyWidget::BuildLayout()
 		SkipButton = MakeButton(TEXT("Skip"), EApexButtonVariant::Ghost, 52.0f, 15.0f);
 		AddH(Way, MakeSized(*WidgetTree, SkipButton, 150.0f, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 		AddH(Way, WidgetTree->ConstructWidget<USpacer>(), FMargin(), VAlign_Fill, 1.0f);
+		PauseMenuButton = MakeButton(TEXT("Pause menu"), EApexButtonVariant::Ghost, 52.0f, 15.0f);
+		AddH(Way, MakeSized(*WidgetTree, PauseMenuButton, 180.0f, -1.0f));
 		DriveButton = MakeButton(TEXT("Drive on"), EApexButtonVariant::Ghost, 52.0f, 15.0f);
-		AddH(Way, MakeSized(*WidgetTree, DriveButton, 200.0f, -1.0f));
+		AddH(Way, MakeSized(*WidgetTree, DriveButton, 200.0f, -1.0f), FMargin(8.0f, 0.0f, 0.0f, 0.0f));
 		AddV(Check, Way, FMargin(0.0f, 22.0f, 0.0f, 0.0f));
 		CheckPanel = Check;
 		AddV(Content, Check);
@@ -354,12 +359,12 @@ void UApexVerifyWidget::RefreshClock()
 	{
 		ClockText->SetText(FText::FromString(TEXT("TIME'S UP")));
 		ClockText->SetColorAndOpacity(ApexUI::Palette::Accent);
-		ClockNote->SetText(FText::FromString(bDriving ? TEXT("PAUSE TO ANSWER") : TEXT("ANSWERING")));
+		ClockNote->SetText(FText::FromString(TEXT("PAUSE BUTTON TO ANSWER")));
 		return;
 	}
 	ClockText->SetText(FText::FromString(ApexVerifyUi::Clock(DueAtS - ElapsedS)));
 	ClockText->SetColorAndOpacity(ApexUI::Palette::TextPrimary);
-	ClockNote->SetText(FText::FromString(FString::Printf(TEXT("%d CHECKS  ·  PAUSE > VERIFY TO ANSWER NOW"), Card.Checks.Num())));
+	ClockNote->SetText(FText::FromString(FString::Printf(TEXT("%d CHECKS  ·  PAUSE BUTTON TO ANSWER NOW"), Card.Checks.Num())));
 }
 
 void UApexVerifyWidget::RefreshVisibility()
@@ -368,7 +373,8 @@ void UApexVerifyWidget::RefreshVisibility()
 	const bool bBrief = bActive && bClockRunning && !bCardOpen && BriefLeftS > 0.0f;
 	if (ClockPanel)
 	{
-		ClockPanel->SetVisibility(bClock ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		// Its ANSWER NOW takes a click; the rest of it lets clicks through.
+		ClockPanel->SetVisibility(bClock ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (BriefPanel)
 	{
@@ -380,8 +386,7 @@ void UApexVerifyWidget::RefreshVisibility()
 	}
 	// Never collapsed while there is a card: a collapsed widget does not tick,
 	// and the tick is the clock.
-	const ESlateVisibility Wanted = bCardOpen ? ESlateVisibility::SelfHitTestInvisible
-		: (bActive ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	const ESlateVisibility Wanted = bActive ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed;
 	if (GetVisibility() != Wanted)
 	{
 		SetVisibility(Wanted);
@@ -454,6 +459,7 @@ void UApexVerifyWidget::Refresh()
 	// Driving on only means something in a race still to drive; more time
 	// also in a block with no race (the bench), where the card waits for it.
 	DriveButton->SetVisibility(Card.bRace && bInRaceView ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	PauseMenuButton->SetVisibility(bInRaceView ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 	MoreTimeButton->SetVisibility(!Card.bRace || bInRaceView ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 
 	if (IsSummary())
@@ -781,6 +787,14 @@ void UApexVerifyWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	else if (Button == DriveButton)
 	{
 		OnCloseRequested.Broadcast();
+	}
+	else if (Button == AnswerNowButton)
+	{
+		OnOpenRequested.Broadcast();
+	}
+	else if (Button == PauseMenuButton)
+	{
+		OnPauseMenuRequested.Broadcast();
 	}
 	else if (Button == MoreTimeButton)
 	{

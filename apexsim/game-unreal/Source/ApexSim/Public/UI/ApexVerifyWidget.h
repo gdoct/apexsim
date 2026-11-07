@@ -62,6 +62,10 @@ public:
 
 	/** The card asks to be closed (Drive on, Back from the first check). */
 	FSimpleMulticastDelegate OnCloseRequested;
+	/** The clock's ANSWER NOW was clicked. */
+	FSimpleMulticastDelegate OnOpenRequested;
+	/** The card's PAUSE MENU: the race's own pause menu, which the pause key no longer opens here. */
+	FSimpleMulticastDelegate OnPauseMenuRequested;
 	/** The card is done: the answers are written, the game should quit. */
 	FSimpleMulticastDelegate OnQuit;
 
@@ -108,6 +112,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ClockKicker;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ClockText;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> ClockNote;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> AnswerNowButton;
 	UPROPERTY(Transient) TObjectPtr<UWidget> BriefPanel;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BriefTitle;
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> BriefSetup;
@@ -129,6 +134,7 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> PrevButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> SkipButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> DriveButton;
+	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> PauseMenuButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> BackToChecksButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> MoreTimeButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> StopButton;

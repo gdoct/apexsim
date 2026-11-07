@@ -107,6 +107,22 @@ bool FApexMenuInputProcessor::HandleKeyDownEvent(FSlateApplication& SlateApp, co
 		}
 	}
 
+	// A sitting block's verify card, outside the race: the pause key opens it
+	// from the menus and from settings (not while a rebind listens, and not a
+	// key that is also the menus' Back).
+	if (!Root->IsRaceViewActive() && Root->IsVerifyActive() && !Root->IsVerifyCardOpen() && !Root->IsSettingsListening()
+		&& !Root->IsHudEditorOpen() && !InKeyEvent.IsRepeat() && !ApexNav::IsBack(InKeyEvent))
+	{
+		const UApexSettingsSubsystem* MenuSettings =
+			Root->GetGameInstance() ? Root->GetGameInstance()->GetSubsystem<UApexSettingsSubsystem>() : nullptr;
+		if ((MenuSettings && MenuSettings->IsPauseKey(Key)) || Key == EKeys::Gamepad_Special_Right)
+		{
+			Root->OpenVerifyCard();
+			ApexUiAudio::Play(Root, EApexUiSound::Accept);
+			return true;
+		}
+	}
+
 	// While settings is up every key may be a rebind in progress, and the HUD
 	// editor takes every key itself; nothing here may get in front of either.
 	if (Root->IsSettingsOpen() || Root->IsHudEditorOpen())

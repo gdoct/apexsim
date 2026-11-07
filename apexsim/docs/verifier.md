@@ -227,13 +227,17 @@ In the game (`UI/ApexVerifyWidget.cpp`, `Verify/ApexVerifyCard.h`):
   with no race, such as the bench), the block's brief and its checks stand
   on the left for 45 s, and a clock at the top right counts the driving
   time down. At zero it reads TIME'S UP.
-- **Opening the card.** Once the time is up, the pause key opens the card
-  in place of the pause menu. Before that, the pause menu's VERIFY row
-  opens it (badged with the time left and the answers so far). It opens by
-  itself when the time is up and nothing is being driven, or when a race
-  block's race view has gone (the race finished, the session left). While
-  it is open the car's controls are off, as under the pause menu, and the
-  clock stands still.
+- **Opening the card.** At any time, without waiting for the clock: the
+  pause key (the wheel's, the pad's Start, the keyboard's; in the race, in
+  the menus and in settings, but not a key that is also the menus' Back)
+  opens the card in place of the pause menu, and the clock's ANSWER NOW
+  takes a click. The card's PAUSE MENU button reaches the pause menu
+  itself (its VERIFY row leads back). In a block with no race (the bench,
+  which starts in settings), leaving settings the first time opens the
+  card. It also opens by itself when the time is up and nothing is being
+  driven, or when a race block's race view has gone (the race finished,
+  the session left). While it is open the car's controls are off, as
+  under the pause menu, and the clock stands still.
 - **One check at a time.** The check in large type, its detail, the
   answer it was given before, and its answer words as buttons. Picking one
   moves to the next check. NOTE opens an on-screen keyboard (letters,

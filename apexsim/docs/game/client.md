@@ -1327,7 +1327,8 @@ They go through Slate's own input path; run them from `-ApexExecAfter`, e.g.
 - Race: `apexsim.recover [track|pits]` (the pause menu's BACK TO TRACK / PITS),
   `apexsim.finish [view|car N|panorama|end]` (the view after the flag, now).
 - Verification: `-ApexVerify=<card.json>` gives a sitting block's verify
-  card (the clock, the brief, the checks answered from the rim; written
+  card (the clock, the brief, the checks answered from the rim, opened
+  with the pause key at any time; written
   by `run_checks.py --sit`), `apexsim.verify open|close|answer <n>|note|type <text>|flag|skip|back|more|next|stop`
   drives it ([verifier.md](../verifier.md#the-verify-card-in-the-game)).
 - Input and audio: `apexsim.input.Devices|Rescan`, `apexsim.ffb.Debug`, `apexsim.audio.RenderCars`.
