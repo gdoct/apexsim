@@ -132,6 +132,16 @@ if (Test-Path $Settings) {
     $text = Get-Content $Settings -Raw
     if ($text -match '(?m)^\s+host:\s*(\S+)') { $serverHost = $Matches[1] }
     if ($text -match '(?m)^\s+port:\s*(\d+)') { $serverPort = [int]$Matches[1] }
+    # 9000 was the default before 4938 ("apex"); a settings.yml written then
+    # still says it. Moved to the server's own port rather than followed.
+    if ($serverPort -eq 9000) {
+        Step 'settings.yml names the old default port 9000; moving it to 4938'
+        $serverPort = 4938
+        if (-not $DryRun) {
+            $text = $text -replace '(?m)^(\s+port:\s*)9000\b', '${1}4938'
+            [System.IO.File]::WriteAllText($Settings, $text, (New-Object System.Text.UTF8Encoding($false)))
+        }
+    }
 }
 $isLocal = $serverHost -in @('127.0.0.1', 'localhost', '::1')
 
