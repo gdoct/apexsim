@@ -424,8 +424,12 @@ clone and needs no engine.
 editor binaries: no cook, so a C++ change is one incremental build from
 playable. If `game-unreal/settings.yml` points at this machine and nothing is
 listening on that port, it builds the release server (`cargo build
---release`) and starts it in its own minimized window; it warns when the
-running server or the editor build is older than the source.
+--release`) and starts it in its own minimized window, with its TCP port
+set from `settings.yml` for that server alone. Its other ports (UDP, health,
+dashboard) are `server.toml`'s, so any other `apexsim-server` running is
+stopped first, and a server that exits before it listens is reported as
+such. It warns when the running server or the editor build is older than
+the source.
 
 | Switch | Effect |
 |---|---|

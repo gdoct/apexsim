@@ -228,15 +228,41 @@ if (-not $NoServer -and $isLocal) {
             finally { Pop-Location }
         }
 
+        # Only the TCP port follows settings.yml: UDP, health and the dashboard
+        # stay on server.toml's 4939-4942, so any other ApexSim server (one on
+        # 4938, or on an older settings port) holds them and the new one would
+        # exit at once with "address in use". Ours to stop, as with -RestartServer.
+        $others = Get-Process -Name 'apexsim-server' -ErrorAction SilentlyContinue
+        foreach ($other in $others) {
+            Step "Stopping the other ApexSim server (pid $($other.Id), $($other.Path)): it holds the server's other ports"
+            if (-not $DryRun) { Stop-Process -Id $other.Id -Force }
+        }
+        if ($others -and -not $DryRun) { Start-Sleep -Seconds 1 }
+
         Step "Starting the server on port $serverPort"
         if (-not $DryRun) {
-            # server.toml binds 4938; follow settings.yml if it names another port.
+            # server.toml binds 4938; follow settings.yml if it names another
+            # port. Set for the server alone: this session's environment is the
+            # caller's, and a leftover bind would follow every server started
+            # from that terminal afterwards.
+            $previousBind = $env:APEXSIM_NETWORK_TCP_BIND
             if ($serverPort -ne 4938) { $env:APEXSIM_NETWORK_TCP_BIND = "0.0.0.0:$serverPort" }
-            # Its own window, so its log is there to read, and working directory
-            # server/, where server.toml and ../../apexsim-content resolve.
-            Start-Process -FilePath $ServerExe -WorkingDirectory $ServerDir -WindowStyle Minimized
+            else { Remove-Item Env:APEXSIM_NETWORK_TCP_BIND -ErrorAction SilentlyContinue }
+            try {
+                # Its own window, so its log is there to read, and working directory
+                # server/, where server.toml and ../../apexsim-content resolve.
+                $server = Start-Process -FilePath $ServerExe -WorkingDirectory $ServerDir -WindowStyle Minimized -PassThru
+            }
+            finally {
+                if ($null -eq $previousBind) { Remove-Item Env:APEXSIM_NETWORK_TCP_BIND -ErrorAction SilentlyContinue }
+                else { $env:APEXSIM_NETWORK_TCP_BIND = $previousBind }
+            }
             $deadline = (Get-Date).AddSeconds(30)
             while (-not (Get-Listener $serverPort)) {
+                if ($server.HasExited) {
+                    throw ("the server exited (code $($server.ExitCode)) before listening on port $serverPort; " +
+                        "run $ServerExe from $ServerDir to read why (a port in use is the usual one)")
+                }
                 if ((Get-Date) -gt $deadline) { throw "the server did not start listening on port $serverPort" }
                 Start-Sleep -Milliseconds 500
             }
