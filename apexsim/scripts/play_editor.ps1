@@ -146,8 +146,10 @@ if (Test-Path $Settings) {
 $isLocal = $serverHost -in @('127.0.0.1', 'localhost', '::1')
 
 function Get-Listener([int]$Port) {
-    $connection = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
-        Select-Object -First 1
+    # Not -State Listen: on some Windows builds the State comes back empty and
+    # that filter matches nothing. A listening socket is the one with no remote end.
+    $connection = Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue |
+        Where-Object { $_.RemotePort -eq 0 } | Select-Object -First 1
     if ($connection) { Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue }
 }
 
