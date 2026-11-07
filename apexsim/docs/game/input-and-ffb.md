@@ -274,9 +274,11 @@ through `ApexFfb::GainFromStrength`; 0.5 plays the effects as designed.
 The torque is the feel: the rim going light is the front tyres letting go.
 Everything else is texture on top.
 
-- **Scale**: the car's reference torque is `WheelTorqueReference` (0.6) of the
+- **Scale**: the car's reference torque is `WheelTorqueReference` (0.8) of the
   base's peak at Force 50%, soft-limited past 0.8 (`WheelSoftKnee`) so a car
-  loaded past its reference still feels stronger rather than clipping.
+  loaded past its reference still feels stronger rather than clipping. Where the
+  stiffness limit below holds the torque (a straight, heavy braking) the
+  reference makes no difference; it is the weight of a corner.
 - **Stiffness limit**: `MaxRimStiffnessPerDeg` (0.025 of the base per rim degree,
   using `FWheelTuning::RimDegreesPerInput`) scales the whole torque down where the
   tyres' slope would make the rim stiffer than the delayed loop can hold. Above it
@@ -289,14 +291,15 @@ Everything else is texture on top.
 - **Road texture** (`RoadTug`): the physics road is smooth, so the client lays
   value noise (0.45, 1.6 and 6 m wavelengths) along the lap, read at the
   telemetry's station run on by speed, so a bump is in the same place every lap.
-  It rides on the constant force after the soft limit, scaled by Road effects,
+  It rides on the constant force after the soft limit (`RoadTextureForce`, 0.12
+  of the base at its peak on a statically loaded front at Road effects 50%), scaled by Road effects,
   speed, `front_load^0.7` and, off track, by the ground (`ApexFfb::GroundMix`
   of `FSignals::OffGravel`, `OffSand`, `OffDesert` from telemetry's
   `WheelGround`, the rest grass): grass 3x, gravel 4.5x, sand 1.8x, the
   desert floor 2.2x.
 - **Vibration channel**: a device plays one vibration at a time, so the loudest
-  of kerbs, the off-track ground (grass 22-40 Hz; gravel harder, 34-56 Hz;
-  sand softer, 11-17 Hz; the desert floor a fine 26-36 Hz), ABS, lockup, a hit, braking grain (62 Hz, the fronts' braking
+  of kerbs (`WheelCurbAmplitude`, 0.4 at Road effects 50%), the off-track ground (grass 22-40 Hz; gravel harder, 34-56 Hz;
+  sand softer, 11-17 Hz; the desert floor a fine 26-36 Hz), ABS (`WheelAbsAmplitude`, 0.25 at 14 Hz), lockup, a hit, braking grain (62 Hz, 0.16, the fronts' braking
   slip from half to all of the peak, `FrontBrakeSlip`), front scrub (55 Hz,
   lower on greasy fronts), a flat spot or a bent suspension (a shake at the
   wheel's turning rate) or a damaged engine takes it.
@@ -307,7 +310,7 @@ Everything else is texture on top.
   almost no friction and overshoots the centre without it. A centring spring is
   used only in the menus.
 - **Soft lock**: past half the steering lock either way the rim meets a soft stop
-  (0.9 of the base over 6 degrees, with a damper), from the rim angle read off the
+  (the base's full force over 3 degrees, with a 0.7 damper), from the rim angle read off the
   device (`ApexInput::ReadWheelSteering`, `FSignals::RimDegrees`).
 - **Centring**: when a car arrives standing still (a session start, leaving the
   hotlap garage) a position loop on the constant force, damped by the rim's speed,

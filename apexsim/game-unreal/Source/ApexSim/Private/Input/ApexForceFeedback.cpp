@@ -74,9 +74,14 @@ namespace
 	 * turned out to be no force reaching the motor at all (base firmware
 	 * behind its driver) and then every force mirrored (DirectInput's sign).
 	 * At 1.1 with both fixed, 25% was too heavy to drive with on an 8 Nm base
-	 * and a hypercar sat at the base's limit a third of the lap.
+	 * and a hypercar sat at the base's limit a third of the lap. At 0.6 a GT3
+	 * at Monza was weak in the corners (2026-11-07 sitting: constant force
+	 * 0.15-0.30 on average, never at the limit). The stiffness limit below
+	 * holds the rim's stiffness per degree whatever this is, so a higher
+	 * reference adds weight in a corner, where the slope is small, and none
+	 * on a straight or under braking, where the limit already holds it.
 	 */
-	constexpr float WheelTorqueReference = 0.6f;
+	constexpr float WheelTorqueReference = 0.8f;
 
 	/**
 	 * Stiffest the rim may be, as a share of the base's force per rim degree.
@@ -126,9 +131,10 @@ namespace
 	 * base and twice that on a front loaded by braking: texture on a belt
 	 * base, detail on a direct drive. Half this was measured at 0.02 rms at
 	 * full road effects, which is below what a belt's own friction lets
-	 * through.
+	 * through, and 0.08 was still weak on a straight at the defaults
+	 * (2026-11-07 sitting: road |mean| 0.01 of the base).
 	 */
-	constexpr float RoadTextureForce = 0.08f;
+	constexpr float RoadTextureForce = 0.12f;
 
 	/** The texture builds with speed, full by here. */
 	constexpr float RoadTextureFullMps = 40.0f;
@@ -184,7 +190,14 @@ namespace
 	 * from half their peak slip ratio to it. Under ABS it sits at full, beneath
 	 * the pulse train.
 	 */
-	constexpr float BrakeGrainAmplitude = 0.22f;
+	constexpr float BrakeGrainAmplitude = 0.16f;
+	/**
+	 * ABS cycling, on the rim. A rim held hard under braking has every pulse
+	 * in the hands; 0.35 read as too strong at the defaults (2026-11-07).
+	 */
+	constexpr float WheelAbsAmplitude = 0.25f;
+	/** Kerb ribs on the rim: 0.55 was too strong at Monza and on the Nordschleife's sausage kerbs. */
+	constexpr float WheelCurbAmplitude = 0.4f;
 	/** A flat spot: its shake on the rim at its worst, and the rolling radius it turns at. */
 	constexpr float FlatSpotWheelAmplitude = 0.35f;
 	constexpr float FlatSpotPadLevel = 0.45f;
@@ -286,11 +299,12 @@ namespace
 	/**
 	 * Past the steering lock the rim meets a stop that builds to this over
 	 * these degrees, with a damper so it does not bounce off it: a wall, but
-	 * not one that snaps a wrist.
+	 * not one that snaps a wrist. 0.9 over 6 degrees with a 0.5 damper was
+	 * weak: the rim was well past the lock before the stop was full.
 	 */
-	constexpr float SoftLockForce = 0.9f;
-	constexpr float SoftLockRampDeg = 6.0f;
-	constexpr float SoftLockDamper = 0.5f;
+	constexpr float SoftLockForce = 1.0f;
+	constexpr float SoftLockRampDeg = 3.0f;
+	constexpr float SoftLockDamper = 0.7f;
 
 	/**
 	 * A profile's minimum force is reached at this much asked-for force and
@@ -1019,7 +1033,7 @@ namespace ApexFfb
 			const float Curb = FMath::Max(Signals.CurbLeft, Signals.CurbRight);
 			if (Curb > 0.0f && Speed > CrawlSpeedMps)
 			{
-				Louder(0.55f * Curb * (0.4f + 0.6f * Road),
+				Louder(WheelCurbAmplitude * Curb * (0.4f + 0.6f * Road),
 					FMath::Clamp(Speed / CurbRibSpacingM, CurbMinHz, CurbMaxHz));
 			}
 
@@ -1048,7 +1062,7 @@ namespace ApexFfb
 			// real car with the brakes cycling.
 			if (Signals.bAbs && Speed > CrawlSpeedMps)
 			{
-				Louder(0.35f, AbsPulseHz);
+				Louder(WheelAbsAmplitude, AbsPulseHz);
 			}
 			if (Signals.bTractionControl)
 			{

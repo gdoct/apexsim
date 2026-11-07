@@ -335,7 +335,7 @@ bool FApexFfbWheelTorqueTest::RunTest(const FString& Parameters)
 	Loaded.SteerTorque = 1.0f;
 	const float AtTheLimit = SettledWheel(Loaded, Designed).Constant;
 	TestTrue(FString::Printf(TEXT("the grip limit is well within the base's force (%.2f)"), AtTheLimit),
-		AtTheLimit > 0.5f && AtTheLimit < 0.7f);
+		AtTheLimit > 0.7f && AtTheLimit < 0.85f);
 
 	Loaded.SteerTorque = -1.0f;
 	TestTrue(TEXT("the other way round pushes the other way"),
@@ -892,7 +892,7 @@ bool FApexFfbWheelLetGoTest::RunTest(const FString& Parameters)
 		TestTrue(FString::Printf(TEXT("a steep slope is held to the limit (%.4f per degree)"), PerDegree(-37.0f)),
 			PerDegree(-37.0f) < 0.026f && PerDegree(-37.0f) > 0.02f);
 		TestTrue(FString::Printf(TEXT("a gentle one is untouched (%.4f per degree)"), PerDegree(-5.0f)),
-			FMath::IsNearlyEqual(PerDegree(-5.0f), 5.0f * 0.6f / TestRimDegPerInput, 0.001f));
+			FMath::IsNearlyEqual(PerDegree(-5.0f), 5.0f * 0.8f / TestRimDegPerInput, 0.001f));
 	}
 
 	// Past the aligning crest the slope pulls on the way the rim is going;
@@ -1196,7 +1196,7 @@ bool FApexFfbWheelProfileTest::RunTest(const FString& Parameters)
 	Corner.SteerTorque = 2.4f;
 	const float ReferenceFast = SettledWheel(Corner, Designed).Constant;
 	const float ScaledFast = SettledWheel(Corner, Strong).Constant;
-	TestTrue(FString::Printf(TEXT("the strong base keeps headroom (%.2f of its peak)"), ScaledFast), ScaledFast < 0.6f);
+	TestTrue(FString::Printf(TEXT("the strong base keeps headroom (%.2f of its peak)"), ScaledFast), ScaledFast < 0.7f);
 	TestTrue(TEXT("and gives more of the fast corner than the reference can"), ScaledFast * 25.0f > ReferenceFast * 8.0f);
 
 	// Curbs are shares of the base as well.
