@@ -95,6 +95,23 @@ pub const SNOW_TECHNIQUE_FULL_COVER: f32 = 0.3;
 pub fn snow_technique_weight(cover: f32) -> f32 {
     (cover / SNOW_TECHNIQUE_FULL_COVER).clamp(0.0, 1.0)
 }
+
+/// In a fog the AI drives to this share of its plan's pace, braking
+/// earlier for a corner it sees late ([`fog_weight`] of it) ...
+pub const FOG_PACE: f32 = 0.9;
+/// ... none of it with this much sight or more, m ...
+pub const FOG_CLEAR_M: f32 = 1000.0;
+
+/// How much of the fog pace a sight of `visibility_m` calls for, 0..1: none
+/// from [`FOG_CLEAR_M`], all of it at the thickest fog
+/// (`climate::FOG_VISIBILITY_M`), on a log scale between as the fog is.
+pub fn fog_weight(visibility_m: f32) -> f32 {
+    let thick = crate::climate::FOG_VISIBILITY_M;
+    if visibility_m >= FOG_CLEAR_M {
+        return 0.0;
+    }
+    ((FOG_CLEAR_M / visibility_m.max(thick)).ln() / (FOG_CLEAR_M / thick).ln()).clamp(0.0, 1.0)
+}
 /// Seconds of steering per unit of yaw-rate error against the rate the path
 /// asks for (`track_path`): damps the weave the wheel and tyre lags make.
 const YAW_DAMPING: f32 = 0.25;
@@ -338,6 +355,8 @@ pub struct AiDriverController<'a> {
     /// ([`Self::with_snow`]): the road's baked cover unless told the live
     /// line's.
     snow: f32,
+    /// The fog pace's weight, 0..1 ([`Self::with_fog`]).
+    fog: f32,
 }
 
 /// The longest a driver saving fuel coasts before a braking zone, s.
@@ -403,6 +422,7 @@ impl<'a> AiDriverController<'a> {
             coast_s: 0.0,
             short_shift: 0.0,
             snow: track_config.track_surface.baked_snow.clamp(0.0, 1.0),
+            fog: 0.0,
         }
     }
 
@@ -412,6 +432,13 @@ impl<'a> AiDriverController<'a> {
     /// away from the bake's.
     pub fn with_snow(mut self, weight: f32) -> Self {
         self.snow = weight.clamp(0.0, 1.0);
+        self
+    }
+
+    /// Drive `weight` (0..1) of the fog pace ([`FOG_PACE`], [`fog_weight`]
+    /// of the sight now).
+    pub fn with_fog(mut self, weight: f32) -> Self {
+        self.fog = weight.clamp(0.0, 1.0);
         self
     }
 
@@ -577,6 +604,8 @@ impl<'a> AiDriverController<'a> {
         // On snow: slower than the plan, everywhere.
         let snow = self.snow();
         let mut target_speed = target_speed * (1.0 - (1.0 - SNOW_PACE) * snow);
+        // In a fog: slower still, by how little the driver can see.
+        target_speed *= 1.0 - (1.0 - FOG_PACE) * self.fog;
 
         // Speed-scaled look-ahead for steering. Too long a look-ahead cuts
         // straight through chicanes (the car aims past the apex and runs
@@ -1928,6 +1957,19 @@ pub fn generate_default_ai_profiles(count: u8) -> Vec<AiDriverProfile> {
 
 #[cfg(test)]
 mod tests {
+
+    /// The fog pace comes in under a kilometre of sight and is all there at
+    /// the thickest fog; clear air has none of it.
+    #[test]
+    fn the_fog_pace_follows_the_sight() {
+        assert_eq!(fog_weight(crate::climate::CLEAR_VISIBILITY_M), 0.0);
+        assert_eq!(fog_weight(FOG_CLEAR_M), 0.0);
+        assert_eq!(fog_weight(crate::climate::FOG_VISIBILITY_M), 1.0);
+        assert_eq!(fog_weight(10.0), 1.0);
+        let mid = fog_weight(400.0);
+        assert!(mid > 0.3 && mid < 0.7, "{mid}");
+        assert!(fog_weight(300.0) > fog_weight(600.0));
+    }
     use super::*;
 
     #[test]

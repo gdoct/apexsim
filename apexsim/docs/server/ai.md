@@ -117,6 +117,12 @@ Built per tick in `ai_input_for` with the car's speed profile
   Zandvoort, Monza, Spa, Silverstone, Hungaroring, seeds 1-2) took contact
   from 643 to 207, off the road from 3893 to 1273, sliding from 1229 to 831
   and passes from 1631 to 1004.
+- **In a fog** the target pace times `FOG_PACE` (0.9) by `fog_weight` of the
+  sky's sight now (`LiveConditions::visibility_m`, `with_fog`): none from
+  `FOG_CLEAR_M` (1 km), all of it at the thickest fog
+  (`climate::FOG_VISIBILITY_M`, 150 m), on a log scale between: a driver
+  who sees the corner late brakes for it early. A survey race at midday
+  has no fog, so it does not move.
 - **Pace noise** (`lap_noise`) is smooth along the lap, new each lap and
   only ever slower than the plan; a driver wanders up to 0.5 m about its
   line on straights by imprecision (`WANDER_*`).

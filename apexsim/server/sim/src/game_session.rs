@@ -7854,7 +7854,8 @@ impl GameSession {
             .with_speed_profile(self.ai_speed_profile(state))
             .with_fuel_save(fuel_save.coast_s)
             .with_short_shift(fuel_save.short_shift)
-            .with_snow(self.snow_technique());
+            .with_snow(self.snow_technique())
+            .with_fog(crate::ai_driver::fog_weight(self.sky.visibility_m()));
         // BTreeMap order: the traffic list, and so the input, is
         // deterministic.
         let safety_car = self.safety_car_body();
