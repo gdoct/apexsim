@@ -901,6 +901,10 @@ by default.
   `apexsim.net.PredictLogSeconds` (5): how often it logs its figures.
   `apexsim.net.PredictServerDriven 1`: draw it while the server drives the
   car too (below), for unattended checks with the debug stand-in.
+  `apexsim.net.PredictOthers 0`: step the car alone, without the other
+  cars (below), for an A/B of the corrections in traffic at the wheel
+  (with the stand-in driving, both ways read about 55 mm at worst per
+  window at 80 ms, its replayed controls' own, so it takes a driver).
 - **What it loads** (`UApexPredictionSubsystem`, on the session's join),
   off the game thread: the track's physics, with the session's conditions
   as `SessionJoined` carried them and the backend it names

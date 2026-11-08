@@ -27,6 +27,10 @@ namespace
 		TEXT("Draw the prediction while the server drives the car (the debug stand-in, an away driver): ")
 		TEXT("the replay holds the controls the server last applied. For unattended checks of the loop."));
 
+	TAutoConsoleVariable<int32> CVarPredictOthers(TEXT("apexsim.net.PredictOthers"), 1,
+		TEXT("Step the predicted car among the other cars (1, the default) or alone, as before 2026-11-08 (0): ")
+		TEXT("for an A/B of the corrections in traffic."));
+
 	TAutoConsoleVariable<bool> CVarPredictDebug(TEXT("apexsim.net.PredictDebug"), false,
 		TEXT("An on-screen line with the prediction's state: lead, round trip, rewinds, replay depth, correction."));
 
@@ -1059,6 +1063,10 @@ void UApexPredictionSubsystem::UpdateOthers(const UApexNetSubsystem& Net, const 
 		Other.width_m = Shape.width_m;
 		Other.height_m = Shape.height_m;
 		Other.mass_kg = Shape.mass_kg;
+	}
+	if (CVarPredictOthers.GetValueOnGameThread() == 0)
+	{
+		Others.Reset();
 	}
 	Predictor.SetOthers(Others);
 }
