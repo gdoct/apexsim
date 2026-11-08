@@ -8101,6 +8101,30 @@ runs:
       - {at: 600, label: "the backdrop at 10 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
       - {at: 660, label: "the backdrop at 11 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
 
+  # An hour's race at the Snorisring, where the D3D12 device-lost crashes
+  # were seen (follow-ups #12): run with --game-arg=-gpucrashdebugging and
+  # follow it with r12-tyre-sets. A grab every ten minutes.
+  - id: g-gpu-hour-race
+    about: "Follow-ups #12. An hour's race in the chase view, watching for the GPU crash"
+    server: {stand_in: true}
+    args:
+      - -ApexAutoRace
+      - -ApexTrack=Snorisring
+      - -ApexCar=SF-26
+      - -ApexAiCount=15
+      - -ApexRaceMinutes=60
+      - -ApexCountdown=5
+      - -ApexWeather=sunny
+      - -ApexTimeOfDay=15:00
+      - -ApexView=chase
+    shots:
+      - {at: 640, label: "the race at 10 min", checks: "still running, nothing torn or black"}
+      - {at: 1240, label: "the race at 20 min", checks: "still running, nothing torn or black"}
+      - {at: 1840, label: "the race at 30 min", checks: "still running, nothing torn or black"}
+      - {at: 2440, label: "the race at 40 min", checks: "still running, nothing torn or black"}
+      - {at: 3040, label: "the race at 50 min", checks: "still running, nothing torn or black"}
+      - {at: 3640, label: "the race at 60 min", checks: "still running, nothing torn or black"}
+
   - id: n11-own-livery
     about: "N11. A player's own livery (cars/custom/liveries) on the player's car"
     # Needs apexsim-content/cars/custom/liveries/lancha-037-rally/<name>/livery.toml:

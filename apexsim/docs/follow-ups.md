@@ -411,8 +411,10 @@ the launcher import with the network off.
   2026-10-25 19:00-19:15), so the virtual shadow map cache is a suspect,
   not a finding. Run after a long one (2026-11-08, `-gpucrashdebugging`:
   `r2-silverstone-stint`, 11 minutes, then `r12-tyre-sets` three times,
-  twice over) it was clean all eight times (`soak.log`); next, a longer
-  session (an hour's race) before the recipe.
+  twice over) it was clean all eight times (`soak.log`), and so were an
+  hour's race at the Snorisring (`g-gpu-hour-race`, 16 cars, chase view)
+  and `r12-tyre-sets` twice right after it. It has not been seen since
+  2026-10-25; a crash's dump is the next lead.
 
 **Check:** the A/B is two screenshots.
 
