@@ -246,7 +246,7 @@ ui:
 
   - id: guide
     about: The track guide at Raidillon (stop 2), on the first trackside camera
-    pick: 1
+    pick: 2
     args: [-ApexGuide=SpaFrankenchamps:GT3, -ApexGuideCorner=2, -ApexGuideCamera=1]
     at: [20, 26, 32]
 
