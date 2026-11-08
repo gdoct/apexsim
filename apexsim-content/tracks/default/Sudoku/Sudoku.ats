@@ -99887,18 +99887,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 194504,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": -417.20096,
-      "y": -10.367161,
-      "z": 11.165433,
-      "yaw_rad": -2.5691295,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 194505,
       "kind": "barrier",
       "asset": "tecpro_2m",
@@ -100095,18 +100083,6 @@
       "y": -26.062933,
       "z": 11.074204,
       "yaw_rad": -2.4193866,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
-      "id": 194521,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": -436.39258,
-      "y": -24.745674,
-      "z": 11.082608,
-      "yaw_rad": -2.429814,
       "scale": 1.0,
       "text": null,
       "source": "groom barrier"

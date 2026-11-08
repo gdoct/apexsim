@@ -60784,18 +60784,6 @@
       "source": "surroundings: car park A2"
     },
     {
-      "id": 5440,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": 778.37,
-      "y": 355.8,
-      "z": -21.41,
-      "yaw_rad": -2.07,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park A2"
-    },
-    {
       "id": 5441,
       "kind": "light",
       "asset": "lamp_post",
@@ -60803,18 +60791,6 @@
       "y": 349.94,
       "z": -20.43,
       "yaw_rad": -2.16,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park A2"
-    },
-    {
-      "id": 5442,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": 721.22,
-      "y": 338.73,
-      "z": -18.66,
-      "yaw_rad": -2.24,
       "scale": 1.0,
       "text": null,
       "source": "surroundings: car park A2"
@@ -64900,18 +64876,6 @@
       "source": "surroundings: car park Industrielager"
     },
     {
-      "id": 5783,
-      "kind": "vehicle",
-      "asset": "car_c",
-      "x": 424.65,
-      "y": 351.02,
-      "z": -1.88,
-      "yaw_rad": 3.14,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Industrielager"
-    },
-    {
       "id": 5784,
       "kind": "vehicle",
       "asset": "car_a",
@@ -64943,18 +64907,6 @@
       "y": 351.02,
       "z": -4.71,
       "yaw_rad": 0.0,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park Industrielager"
-    },
-    {
-      "id": 5787,
-      "kind": "vehicle",
-      "asset": "car_a",
-      "x": 424.65,
-      "y": 360.58,
-      "z": -0.54,
-      "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
       "source": "surroundings: car park Industrielager"
@@ -68867,18 +68819,6 @@
       "y": 594.26,
       "z": -6.29,
       "yaw_rad": 0.0,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car parks"
-    },
-    {
-      "id": 6114,
-      "kind": "vehicle",
-      "asset": "car_b",
-      "x": 396.11,
-      "y": 604.01,
-      "z": -5.53,
-      "yaw_rad": 3.14,
       "scale": 1.0,
       "text": null,
       "source": "surroundings: car parks"
@@ -74800,18 +74740,6 @@
       "source": "surroundings: car park D5"
     },
     {
-      "id": 6608,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": -625.2,
-      "y": 6.1,
-      "z": -21.89,
-      "yaw_rad": 0.85,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park D5"
-    },
-    {
       "id": 6609,
       "kind": "light",
       "asset": "lamp_post",
@@ -77014,18 +76942,6 @@
       "x": -530.2,
       "y": 192.92,
       "z": -29.5,
-      "yaw_rad": 0.86,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: car park D6"
-    },
-    {
-      "id": 6793,
-      "kind": "light",
-      "asset": "lamp_post",
-      "x": -518.37,
-      "y": 166.04,
-      "z": -27.13,
       "yaw_rad": 0.86,
       "scale": 1.0,
       "text": null,
@@ -92836,18 +92752,6 @@
       "source": "surroundings: points of interest"
     },
     {
-      "id": 8111,
-      "kind": "attraction",
-      "asset": "food_stall_6m",
-      "x": 426.2,
-      "y": 637.81,
-      "z": -7.51,
-      "yaw_rad": 2.18,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: points of interest"
-    },
-    {
       "id": 8112,
       "kind": "attraction",
       "asset": "food_stall_6m",
@@ -92873,18 +92777,6 @@
     },
     {
       "id": 8114,
-      "kind": "attraction",
-      "asset": "food_stall_6m",
-      "x": 169.02,
-      "y": 586.37,
-      "z": -0.07,
-      "yaw_rad": -2.24,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: points of interest"
-    },
-    {
-      "id": 8115,
       "kind": "attraction",
       "asset": "food_stall_6m",
       "x": 169.02,
@@ -281632,18 +281524,6 @@
       "source": "surroundings: people"
     },
     {
-      "id": 153083,
-      "kind": "misc",
-      "asset": "crowd_group",
-      "x": 428.85,
-      "y": 645.02,
-      "z": -7.58,
-      "yaw_rad": 2.18,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: people"
-    },
-    {
       "id": 153084,
       "kind": "misc",
       "asset": "crowd_group",
@@ -281669,18 +281549,6 @@
     },
     {
       "id": 153086,
-      "kind": "misc",
-      "asset": "crowd_group",
-      "x": 164.98,
-      "y": 593.75,
-      "z": -1.98,
-      "yaw_rad": -2.25,
-      "scale": 1.0,
-      "text": null,
-      "source": "surroundings: people"
-    },
-    {
-      "id": 153087,
       "kind": "misc",
       "asset": "crowd_group",
       "x": 164.98,

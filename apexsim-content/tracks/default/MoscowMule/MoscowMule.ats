@@ -37300,18 +37300,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 41331,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": -54.991055,
-      "y": 381.85965,
-      "z": 1.7817607,
-      "yaw_rad": 2.6371157,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 41332,
       "kind": "barrier",
       "asset": "armco_4m",

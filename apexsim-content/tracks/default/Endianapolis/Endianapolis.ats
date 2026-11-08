@@ -645,17 +645,6 @@
       "text": null
     },
     {
-      "id": 236,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 41.67114,
-      "y": 323.974,
-      "z": 0.5778539,
-      "yaw_rad": -1.4451115,
-      "scale": 2.6,
-      "text": null
-    },
-    {
       "id": 237,
       "kind": "grandstand",
       "asset": "grandstand_main",

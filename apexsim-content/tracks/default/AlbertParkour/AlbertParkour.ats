@@ -69359,18 +69359,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 237016,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": 737.09406,
-      "y": 62.877514,
-      "z": 1.9731421,
-      "yaw_rad": -1.1118709,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 237017,
       "kind": "barrier",
       "asset": "concrete_4m_rail",
@@ -69480,18 +69468,6 @@
       "y": 43.528828,
       "z": 1.9269797,
       "yaw_rad": -1.2161014,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
-      "id": 237026,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": 749.746,
-      "y": 45.403996,
-      "z": 1.9245511,
-      "yaw_rad": -1.2152416,
       "scale": 1.0,
       "text": null,
       "source": "groom barrier"
@@ -69611,18 +69587,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 237036,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": 761.0602,
-      "y": 27.072273,
-      "z": 1.8516153,
-      "yaw_rad": -1.2818906,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 237037,
       "kind": "barrier",
       "asset": "concrete_4m_rail",
@@ -69732,18 +69696,6 @@
       "y": 6.025524,
       "z": 1.7496516,
       "yaw_rad": -1.3728063,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
-      "id": 237046,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": 771.1488,
-      "y": 7.981427,
-      "z": 1.7560118,
-      "yaw_rad": -1.1387585,
       "scale": 1.0,
       "text": null,
       "source": "groom barrier"
@@ -81073,18 +81025,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 237923,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": -198.41318,
-      "y": 1270.8433,
-      "z": 3.9249225,
-      "yaw_rad": 0.6885957,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 237924,
       "kind": "barrier",
       "asset": "tecpro_2m",
@@ -87714,18 +87654,6 @@
       "y": -351.72443,
       "z": 0.23001903,
       "yaw_rad": -2.5302744,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
-      "id": 238436,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": 757.2346,
-      "y": -350.774,
-      "z": 0.22445735,
-      "yaw_rad": -2.7742164,
       "scale": 1.0,
       "text": null,
       "source": "groom barrier"

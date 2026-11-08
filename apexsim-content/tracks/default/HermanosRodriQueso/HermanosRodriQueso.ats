@@ -1263,61 +1263,6 @@
       "text": null
     },
     {
-      "id": 402,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 311.54376,
-      "y": -88.50396,
-      "z": 0.6724578,
-      "yaw_rad": -0.03153031,
-      "scale": 2.6,
-      "text": null
-    },
-    {
-      "id": 403,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 311.54376,
-      "y": -88.50396,
-      "z": 0.6724578,
-      "yaw_rad": -0.03153031,
-      "scale": 2.6,
-      "text": null
-    },
-    {
-      "id": 404,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 311.54376,
-      "y": -88.50396,
-      "z": 0.6724578,
-      "yaw_rad": -0.03153031,
-      "scale": 2.6,
-      "text": null
-    },
-    {
-      "id": 405,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 311.54376,
-      "y": -88.50396,
-      "z": 0.6724578,
-      "yaw_rad": -0.03153031,
-      "scale": 2.6,
-      "text": null
-    },
-    {
-      "id": 406,
-      "kind": "grandstand",
-      "asset": "grandstand_main",
-      "x": 311.54376,
-      "y": -88.50396,
-      "z": 0.6724578,
-      "yaw_rad": -0.03153031,
-      "scale": 2.6,
-      "text": null
-    },
-    {
       "id": 407,
       "kind": "grandstand",
       "asset": "grandstand_corner",

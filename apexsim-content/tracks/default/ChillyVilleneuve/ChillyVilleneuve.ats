@@ -71408,18 +71408,6 @@
       "source": "groom barrier"
     },
     {
-      "id": 163491,
-      "kind": "barrier",
-      "asset": "concrete_end",
-      "x": -385.98526,
-      "y": 1473.9445,
-      "z": 1.6056092,
-      "yaw_rad": 1.7935076,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
       "id": 163492,
       "kind": "barrier",
       "asset": "concrete_4m_rail",

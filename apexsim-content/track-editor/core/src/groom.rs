@@ -542,6 +542,9 @@ pub struct GroomReport {
     /// Ids of stands/buildings deleted because no spot within
     /// [`FOOTPRINT_MAX_PUSH_M`] of them clears the road and the pit lane.
     pub deleted: Vec<u64>,
+    /// Props dropped for standing exactly where another of the same asset
+    /// already stands ([`drop_duplicates`]).
+    pub duplicates: usize,
 }
 
 impl GroomReport {
@@ -556,7 +559,37 @@ impl GroomReport {
             || self.trees_rebuilt
             || self.hoardings_rebuilt
             || self.pit_rebuilt
+            || self.duplicates > 0
     }
+}
+
+/// Drop every prop that stands exactly where an earlier one of the same
+/// kind and asset already stands, turned the same way: two coplanar
+/// copies z-fight on screen and double a wall in the sidecar. They come
+/// from two barrier runs ending at one point (each laying its end piece),
+/// a stand entered twice by hand, a combined layout taking a prop from
+/// both its circuits. Returns how many went.
+pub fn drop_duplicates(scene: &mut AtsScene) -> usize {
+    let mut seen = std::collections::BTreeSet::new();
+    let before = scene.props.len();
+    scene.props.retain(|p| seen.insert(spot_key(p)));
+    before - scene.props.len()
+}
+
+/// Where a prop stands, as [`drop_duplicates`] compares two: kind, asset,
+/// position to the centimetre and heading to the milliradian.
+type SpotKey = (u8, String, i64, i64, i64, i64);
+
+fn spot_key(p: &Prop) -> SpotKey {
+    let q = |v: f32| (v * 100.0).round() as i64;
+    (
+        p.kind as u8,
+        p.asset.clone(),
+        q(p.x),
+        q(p.y),
+        q(p.z),
+        (p.yaw_rad * 1000.0).round() as i64,
+    )
 }
 
 /// Lateral distance from the centerline a prop's center needs on the side
@@ -684,6 +717,18 @@ pub fn groom_scene_with(
 /// been placed at the blanket's height and rendered floating over, or
 /// buried in, the real hillside.
 pub fn groom_scene_with_dem(
+    track: &TrackFile,
+    scene: &mut AtsScene,
+    layout: Option<&Layout>,
+    dem: Option<&DemFile>,
+) -> Option<GroomReport> {
+    let mut report = groom_passes(track, scene, layout, dem)?;
+    report.duplicates = drop_duplicates(scene);
+    Some(report)
+}
+
+/// Every grooming pass of [`groom_scene_with_dem`], in order.
+fn groom_passes(
     track: &TrackFile,
     scene: &mut AtsScene,
     layout: Option<&Layout>,
@@ -1011,6 +1056,17 @@ pub fn groom_props_with_dem(
         &kept,
         &style,
     );
+    // Two runs ending at one point each lay their end piece there: one is
+    // kept, so a second groom lays the same line again.
+    let mut laid = std::collections::BTreeSet::new();
+    let new_walls: Vec<Prop> = new_walls
+        .into_iter()
+        .filter(|p| laid.insert(spot_key(p)))
+        .collect();
+    let new_rails: Vec<Prop> = new_rails
+        .into_iter()
+        .filter(|p| laid.insert(spot_key(p)))
+        .collect();
     report.removed = 0;
     report.walls = new_walls.len();
     let mut props = kept;
@@ -3352,6 +3408,37 @@ fn yaw_distance(a: f32, b: f32) -> f32 {
 
 #[cfg(test)]
 mod tests {
+
+    /// Two copies of a prop on one spot (two barrier runs' end pieces, a
+    /// stand entered twice) are one prop after grooming; a neighbour turned
+    /// or moved is kept.
+    #[test]
+    fn a_prop_twice_on_one_spot_is_kept_once() {
+        let mut scene = AtsScene::new_for_track(&track(), "Groom.yaml");
+        let prop = |id: u64, x: f32, yaw: f32| Prop {
+            id,
+            kind: PropKind::Barrier,
+            asset: "armco_end".to_string(),
+            x,
+            y: 5.0,
+            z: 1.0,
+            yaw_rad: yaw,
+            pitch_rad: 0.0,
+            scale: 1.0,
+            text: None,
+            length_m: None,
+            source: None,
+        };
+        scene.props = vec![
+            prop(1, 0.0, 0.5),
+            prop(2, 0.0, 0.5),
+            prop(3, 0.0, 0.6),
+            prop(4, 0.3, 0.5),
+        ];
+        assert_eq!(drop_duplicates(&mut scene), 1);
+        let ids: Vec<u64> = scene.props.iter().map(|p| p.id).collect();
+        assert_eq!(ids, vec![1, 3, 4]);
+    }
     use super::*;
     use crate::ats::{Prop, Surface};
     use crate::track_data::TrackNode;

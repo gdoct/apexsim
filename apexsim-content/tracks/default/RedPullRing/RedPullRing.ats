@@ -110108,18 +110108,6 @@
       "source": "groom wall"
     },
     {
-      "id": 166297,
-      "kind": "tire_wall",
-      "asset": "tires_corner",
-      "x": -161.28903,
-      "y": 518.53046,
-      "z": 30.43862,
-      "yaw_rad": -2.1792157,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom wall"
-    },
-    {
       "id": 166298,
       "kind": "tire_wall",
       "asset": "tires_4m",
@@ -110617,18 +110605,6 @@
       "z": 10.256301,
       "yaw_rad": -1.5388907,
       "pitch_rad": -0.07054927,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom wall"
-    },
-    {
-      "id": 166337,
-      "kind": "tire_wall",
-      "asset": "tires_corner",
-      "x": 305.41782,
-      "y": 190.75438,
-      "z": 10.46618,
-      "yaw_rad": -1.5338854,
       "scale": 1.0,
       "text": null,
       "source": "groom wall"
@@ -133302,18 +133278,6 @@
       "y": 602.9339,
       "z": 48.89824,
       "yaw_rad": 2.3504417,
-      "scale": 1.0,
-      "text": null,
-      "source": "groom barrier"
-    },
-    {
-      "id": 168080,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": -883.5146,
-      "y": 601.511,
-      "z": 48.65381,
-      "yaw_rad": 2.3498733,
       "scale": 1.0,
       "text": null,
       "source": "groom barrier"

@@ -84,7 +84,10 @@ what it owns on every run. Ownership is by **kind** for whole kinds and by
 
 `ats-dress` grooms after dressing (`--no-groom` to skip); `ats-groom` run
 alone loads the dossier itself (`groom_scene_with`). Grooming re-seats dressed
-props but never pushes them. Do not hand edit what a dossier field can
+props but never pushes them. Its last step drops a prop standing exactly
+where an earlier one of the same kind and asset stands, turned the same way
+(`groom::drop_duplicates`: two barrier runs' end pieces at one point, a
+stand entered twice, a combined layout's prop from both circuits). Do not hand edit what a dossier field can
 express: the next run throws it away.
 
 ## Layout dossiers (`osm_layout.py`)
