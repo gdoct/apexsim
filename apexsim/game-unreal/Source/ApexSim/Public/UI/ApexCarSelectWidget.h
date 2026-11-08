@@ -139,6 +139,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorPaintRow;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorAccentRow;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorNumberRow;
+	/** The shown car can carry a number (a `car_logo` slot): the Number row is shown. */
+	bool bEditorNumber = true;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorSaveButton;
 	UPROPERTY(Transient) TObjectPtr<UApexButtonWidget> EditorCancelButton;
 	UPROPERTY(Transient) TObjectPtr<UEditableTextBox> EditorNameBox;

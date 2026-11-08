@@ -455,7 +455,15 @@ bool UApexCarSelectWidget::OpenLiveryEditor()
 		return false;
 	}
 	Draft = FApexLiveryDraft();
-	Draft.Number = 1;
+	// The number is drawn onto the flanks' logo: a car without one (the
+	// GT3s) has nowhere to put it, so its row is hidden and none is drawn.
+	const AApexCarPreviewStage* Stage = AApexCarPreviewStage::Find(this);
+	bEditorNumber = !Stage || Stage->CarHasSlot(TEXT("car_logo"));
+	Draft.Number = bEditorNumber ? 1 : -1;
+	if (EditorNumberRow)
+	{
+		EditorNumberRow->SetVisibility(bEditorNumber ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
 	bDraftNamed = false;
 	LiveryEditorPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	RefreshLiveryEditor();
@@ -1242,14 +1250,19 @@ bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 		case EUINavigation::Previous:
 			if (EditorAt > 0)
 			{
-				ApexNav::Focus(EditorRows[EditorAt == CancelAt ? SaveAt - 1 : EditorAt - 1]);
+				int32 To = EditorAt == CancelAt ? SaveAt - 1 : EditorAt - 1;
+				// Past a hidden Number row.
+				To -= EditorRows[To] == EditorNumberRow && !bEditorNumber ? 1 : 0;
+				ApexNav::Focus(EditorRows[To]);
 			}
 			return true;
 		case EUINavigation::Down:
 		case EUINavigation::Next:
 			if (EditorAt < SaveAt)
 			{
-				ApexNav::Focus(EditorRows[EditorAt + 1]);
+				int32 To = EditorAt + 1;
+				To += EditorRows[To] == EditorNumberRow && !bEditorNumber ? 1 : 0;
+				ApexNav::Focus(EditorRows[To]);
 			}
 			return true;
 		case EUINavigation::Left:
@@ -1272,7 +1285,7 @@ bool UApexCarSelectWidget::HandleNavigation(EUINavigation Direction, UWidget* So
 		// Typing: left and right move the caret; up and down leave the box.
 		if (Direction == EUINavigation::Up)
 		{
-			return ApexNav::Focus(EditorNumberRow);
+			return ApexNav::Focus(bEditorNumber ? EditorNumberRow : EditorAccentRow);
 		}
 		if (Direction == EUINavigation::Down)
 		{

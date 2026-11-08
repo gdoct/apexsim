@@ -573,7 +573,9 @@ The turntable wears the draft as it changes. The number is drawn onto the
 (the size of the works logos), then a rounded plate in the accent colour
 composed on the CPU with the number in black or white, whichever reads
 (`ComposeLogo`), transparent round it; without a renderer (`-nullrhi`) a
-livery has no number. SAVE writes a new own livery folder,
+livery has no number. A car with no `car_logo` slot (the GT3s) has nowhere
+to draw one: its Number row is hidden and its livery has none
+(`AApexCarPreviewStage::CarHasSlot`). SAVE writes a new own livery folder,
 `cars/custom/liveries/<car folder>/<name as a folder>/` (a `-2` after a name
 already taken) with `livery.toml` and `logo.png`, rescans the cars' files
 (`UApexCarContentSubsystem::RescanRows`, keeping every built model) and

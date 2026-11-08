@@ -46,6 +46,9 @@ public:
 	/** Paints the shown car (ApexCarLivery.h); null is the model as authored. After SetCarMesh. */
 	void SetCarLivery(const struct FApexCarLivery* Livery);
 
+	/** The shown car has a material slot of this name (`car_logo`: a livery's number has somewhere to go). */
+	bool CarHasSlot(FName Slot) const;
+
 	/** Applies the per-car framing tweaks from the catalog row. */
 	UFUNCTION(BlueprintCallable, Category = "ApexSim|Preview")
 	void SetPreviewTransform(FVector Offset, FRotator Rotation, float Scale);

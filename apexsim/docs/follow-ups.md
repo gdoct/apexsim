@@ -472,9 +472,8 @@ player's own livery is painted on their car in a session only.
 - A race event refuses an own livery (`Error 403`, as `SetLivery`): its
   entrants race in the car's liveries.
 - The livery editor draws its number onto `car_logo`, which the GT3s do
-  not have (no flank wordmark), so on a GT3 the Number row changes nothing
-  on the car. It wants hiding there, or the number drawn on the door's
-  number panel instead.
+  not have (no flank wordmark), so the Number row is hidden there; a
+  number drawn on a GT3's door panel instead would need a slot for it.
 
 **Check:** a live spectator and a saved replay of a session with an own
 livery show it.

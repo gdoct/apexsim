@@ -175,6 +175,11 @@ void AApexCarPreviewStage::SetCarLivery(const FApexCarLivery* Livery)
 	bLiveryApplied = Livery != nullptr;
 }
 
+bool AApexCarPreviewStage::CarHasSlot(FName Slot) const
+{
+	return CarMesh && CarMesh->GetStaticMesh() && CarMesh->GetMaterialIndex(Slot) != INDEX_NONE;
+}
+
 void AApexCarPreviewStage::ResetTurntable()
 {
 	Turntable->SetRelativeRotation(FRotator::ZeroRotator);
