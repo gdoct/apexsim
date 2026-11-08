@@ -4289,6 +4289,8 @@ namespace ApexIncident
 	inline constexpr int32 TrackLimits = 2;
 	inline constexpr int32 Penalty = 3;
 	inline constexpr int32 PenaltyCleared = 4;
+	/** Back on the road in front of `Other` closing fast (`ClosingMps`). */
+	inline constexpr int32 UnsafeRejoin = 5;
 	/** `Car` (and `Other`) of a car no longer in the session. */
 	inline constexpr int32 NoCar = 255;
 	/** A contact's severity. */

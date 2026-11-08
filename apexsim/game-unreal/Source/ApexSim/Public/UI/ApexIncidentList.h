@@ -14,7 +14,7 @@ namespace ApexIncidentList
 	/** A jump into the replay starts this long before the incident, to see it coming. */
 	inline constexpr double LeadSeconds = 3.0;
 
-	/** What happened: "Contact", "Pass under yellow", "Track limits", "Penalty", "Penalty cleared". */
+	/** What happened: "Contact", "Pass under yellow", "Track limits", "Penalty", "Penalty cleared", "Unsafe rejoin". */
 	inline FString What(const FApexIncident& Incident)
 	{
 		switch (Incident.Kind)
@@ -24,11 +24,12 @@ namespace ApexIncidentList
 		case ApexIncident::TrackLimits:    return TEXT("Track limits");
 		case ApexIncident::Penalty:        return TEXT("Penalty");
 		case ApexIncident::PenaltyCleared: return TEXT("Penalty cleared");
+		case ApexIncident::UnsafeRejoin:   return TEXT("Unsafe rejoin");
 		default:                           return TEXT("Incident");
 		}
 	}
 
-	/** Who: "Ada and Bea" for a contact, "Ada passed Bea" under a yellow, else the car's driver. */
+	/** Who: "Ada and Bea" for a contact, "Ada passed Bea" under a yellow, "Ada in front of Bea" rejoining, else the car's driver. */
 	inline FString Cars(const FApexIncident& Incident)
 	{
 		const FString Name = Incident.Name.IsEmpty() ? FString(TEXT("Driver")) : Incident.Name;
@@ -38,6 +39,8 @@ namespace ApexIncidentList
 		}
 		return Incident.Kind == ApexIncident::YellowPass
 			? FString::Printf(TEXT("%s passed %s"), *Name, *Incident.OtherName)
+			: Incident.Kind == ApexIncident::UnsafeRejoin
+			? FString::Printf(TEXT("%s in front of %s"), *Name, *Incident.OtherName)
 			: FString::Printf(TEXT("%s and %s"), *Name, *Incident.OtherName);
 	}
 
@@ -47,6 +50,8 @@ namespace ApexIncidentList
 		return Offence == ApexPenalty::JumpStart ? TEXT("jump start")
 			: Offence == ApexPenalty::YellowPass ? TEXT("overtaking under yellow")
 			: Offence == ApexPenalty::PitExitRed ? TEXT("pit exit on red")
+			: Offence == ApexPenalty::Steward ? TEXT("stewards' decision")
+			: Offence == ApexPenalty::TrackLimits ? TEXT("track limits")
 			: TEXT("race control");
 	}
 
@@ -77,6 +82,8 @@ namespace ApexIncidentList
 			return FString::Printf(TEXT("%s · %s, taken back"),
 				Incident.Penalty == ApexPenalty::DriveThrough ? TEXT("drive-through") : Incident.Penalty == ApexPenalty::StopGo ? TEXT("stop-go") : TEXT("time"),
 				*Offence(Incident.Offence));
+		case ApexIncident::UnsafeRejoin:
+			return FString::Printf(TEXT("back on the road, closing at %.1f m/s"), Incident.ClosingMps);
 		default:
 			return FString();
 		}

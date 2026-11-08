@@ -41,6 +41,20 @@ bool FApexIncidentListWordsTest::RunTest(const FString& Parameters)
 	Penalty.Penalty = ApexPenalty::DriveThrough;
 	TestEqual(TEXT("cleared detail"), ApexIncidentList::Detail(Penalty), FString(TEXT("drive-through · jump start, taken back")));
 
+	Penalty.Kind = ApexIncident::Penalty;
+	Penalty.Offence = ApexPenalty::TrackLimits;
+	Penalty.Penalty = ApexPenalty::Time;
+	TestEqual(TEXT("track limits detail"), ApexIncidentList::Detail(Penalty), FString(TEXT("5 s added · track limits")));
+	Penalty.Offence = ApexPenalty::Steward;
+	TestEqual(TEXT("steward detail"), ApexIncidentList::Detail(Penalty), FString(TEXT("5 s added · stewards' decision")));
+
+	FApexIncident Rejoin = Contact;
+	Rejoin.Kind = ApexIncident::UnsafeRejoin;
+	Rejoin.ClosingMps = 12.5f;
+	TestEqual(TEXT("rejoin what"), ApexIncidentList::What(Rejoin), FString(TEXT("Unsafe rejoin")));
+	TestEqual(TEXT("rejoin cars"), ApexIncidentList::Cars(Rejoin), FString(TEXT("Ada in front of Bea")));
+	TestEqual(TEXT("rejoin detail"), ApexIncidentList::Detail(Rejoin), FString(TEXT("back on the road, closing at 12.5 m/s")));
+
 	TestEqual(TEXT("race clock"), ApexIncidentList::RaceClock(724.5), FString(TEXT("12:04.5")));
 	return true;
 }

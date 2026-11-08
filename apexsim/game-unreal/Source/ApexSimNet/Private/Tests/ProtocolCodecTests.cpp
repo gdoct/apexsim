@@ -1415,7 +1415,7 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			TestTrue(TEXT("Incidents decoded"), List.bValid);
 			TestEqual(TEXT("TickRate"), List.TickRate, 420);
 			TestEqual(TEXT("RaceStartTick"), List.RaceStartTick, static_cast<int64>(2520));
-			if (TestEqual(TEXT("Incidents.Num"), List.Incidents.Num(), 3))
+			if (TestEqual(TEXT("Incidents.Num"), List.Incidents.Num(), 4))
 			{
 				const FApexIncident& Contact = List.Incidents[0];
 				TestEqual(TEXT("contact kind"), Contact.Kind, ApexIncident::Contact);
@@ -1433,6 +1433,10 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 				TestEqual(TEXT("penalty kind"), Penalty.Kind, ApexIncident::Penalty);
 				TestEqual(TEXT("penalty offence"), Penalty.Offence, ApexPenalty::YellowPass);
 				TestEqual(TEXT("penalty paid by"), Penalty.Penalty, ApexPenalty::DriveThrough);
+				const FApexIncident& Rejoin = List.Incidents[3];
+				TestEqual(TEXT("rejoin kind"), Rejoin.Kind, ApexIncident::UnsafeRejoin);
+				TestEqual(TEXT("rejoin cars"), Rejoin.Name + TEXT(" ") + Rejoin.OtherName, FString(TEXT("Bea Ada")));
+				TestEqual(TEXT("rejoin closing"), Rejoin.ClosingMps, 12.5f);
 			}
 		}
 	}

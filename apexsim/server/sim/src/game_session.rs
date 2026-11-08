@@ -3303,6 +3303,9 @@ impl GameSession {
         let limits_ticks =
             (crate::laps::TRACK_LIMITS_SECONDS * tick_rate_hz as f32).max(1.0) as u16;
         let mut struck: Vec<(PlayerId, u16, bool)> = Vec::new();
+        // Cars back on the road this tick from a trip off it, for the
+        // incident list's unsafe-rejoin watch.
+        let mut rejoined: Vec<PlayerId> = Vec::new();
 
         for state in states.iter_mut() {
             let was_struck = state.laps.invalid;
@@ -3343,6 +3346,9 @@ impl GameSession {
             // struck at the line for a missed checkpoint.
             if racing && state.finish_position.is_none() {
                 let off = state.laps.off_track_ticks;
+                if off_before >= limits_ticks && off == 0 && !state.is_ghost() {
+                    rejoined.push(state.player_id);
+                }
                 if off >= limits_ticks && off_before < limits_ticks {
                     struck.push((state.player_id, state.current_lap, false));
                 } else if !was_struck
@@ -3373,6 +3379,39 @@ impl GameSession {
                 *strikes = strikes.saturating_add(1);
                 if crate::race_control::track_limits_penalised(*strikes) {
                     over_the_limits.push(car);
+                }
+            }
+            if !rejoined.is_empty() {
+                let length = crate::laps::track_length_m(&self.track_config).max(1.0);
+                let run = |s: &CarState| s.current_lap as f32 * length + s.track_progress;
+                let participants = &self.session.participants;
+                for car in rejoined {
+                    let Some(state) = participants.get(&car) else {
+                        continue;
+                    };
+                    let behind = participants
+                        .values()
+                        .filter(|o| {
+                            o.player_id != car
+                                && !o.is_ghost()
+                                && o.finish_position.is_none()
+                                && !o.wheels_off_track
+                                && !o.pit.in_lane
+                        })
+                        .map(|o| (o.player_id, run(o), o.speed_mps));
+                    if let Some((other, closing_mps)) =
+                        crate::incidents::unsafe_rejoin(run(state), state.speed_mps, behind)
+                    {
+                        self.incidents.push(crate::incidents::Incident {
+                            tick: current_tick,
+                            lap: state.current_lap,
+                            car,
+                            kind: crate::incidents::IncidentKind::UnsafeRejoin {
+                                other,
+                                closing_mps,
+                            },
+                        });
+                    }
                 }
             }
             let gap_ticks = (crate::incidents::CONTACT_GAP_S * tick_rate_hz as f32) as u32;

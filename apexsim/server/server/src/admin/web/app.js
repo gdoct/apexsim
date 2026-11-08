@@ -1015,7 +1015,7 @@ PAGES.incidents = el => {
     <div class="panel scroll-x"><div style="min-width:860px" id="inc-list"><div class="empty">Loading…</div></div></div>
     <div class="panel" id="inc-pen" hidden></div></div>`;
   const cols = 'grid-template-columns:90px 50px 150px minmax(220px,1.4fr) minmax(200px,1fr) 24px';
-  const KINDS = { contact: 'Contact', yellow_pass: 'Pass under yellow', track_limits: 'Track limits', penalty: 'Penalty', penalty_cleared: 'Penalty cleared' };
+  const KINDS = { contact: 'Contact', yellow_pass: 'Pass under yellow', track_limits: 'Track limits', penalty: 'Penalty', penalty_cleared: 'Penalty cleared', unsafe_rejoin: 'Unsafe rejoin' };
   const words = s => String(s || '').replace(/_/g, ' ');
   const fmtRace = s => { s = Math.max(0, s || 0); const m = Math.floor(s / 60); return m + ':' + (s - m * 60 < 10 ? '0' : '') + (s - m * 60).toFixed(1); };
   let live = [], recorded = [], pick = null, kind = '', report = null, open = null;
@@ -1027,6 +1027,7 @@ PAGES.incidents = el => {
     if (i.kind === 'track_limits') return i.cut ? 'cut the course' : 'four wheels off';
     if (i.kind === 'penalty') return esc(words(i.penalty)) + (i.seconds ? ' ' + i.seconds + ' s' : '') + ' · ' + esc(words(i.offence));
     if (i.kind === 'penalty_cleared') return esc(words(i.penalty)) + ' · ' + esc(words(i.offence)) + ' taken back';
+    if (i.kind === 'unsafe_rejoin') return 'back on the road in front of ' + esc(nameOf(i.other)) + ' · ' + i.closing_mps.toFixed(1) + ' m/s';
     return '';
   }
   function cars(i) { return esc(nameOf(i.car)) + (i.kind === 'contact' ? ' <span class="muted">and</span> ' + esc(nameOf(i.other)) : ''); }

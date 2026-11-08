@@ -278,3 +278,105 @@ fn track_limits_penalise_the_fourth_strike_and_every_fourth_after() {
     let penalised: Vec<u16> = (1..=13).filter(|&s| track_limits_penalised(s)).collect();
     assert_eq!(penalised, vec![4, 8, 12]);
 }
+
+/// A car back on the road from a trip off it, just ahead of a car arriving
+/// fast, is listed as an unsafe rejoin naming that car; rejoining with
+/// nobody coming is not.
+#[test]
+fn a_rejoin_in_front_of_a_car_arriving_fast_is_listed() {
+    let unsafe_rejoins = |race: &GameSession| -> Vec<(PlayerId, PlayerId)> {
+        race.incidents
+            .incidents
+            .iter()
+            .filter_map(|i| match i.kind {
+                IncidentKind::UnsafeRejoin { other, .. } => Some((i.car, other)),
+                _ => None,
+            })
+            .collect()
+    };
+    for arriving in [true, false] {
+        let mut race = race();
+        let ids: Vec<PlayerId> = race.session.participants.keys().copied().collect();
+        let (b, c) = (ids[1], ids[2]);
+        while race.session.state != SessionState::Racing {
+            tick(&mut race);
+        }
+        run(&mut race, 5.0);
+        // C off the road long enough to count.
+        put(&mut race, c, 12.0);
+        run(&mut race, 1.0);
+        assert!(race.session.participants[&c].laps.off_track_ticks > 0);
+        // Back on the line 40 m ahead of B, at rest; B at 60 m/s (or B
+        // parked far behind, nobody coming).
+        let track = race.track_config.clone();
+        let from = race.session.participants[&b]
+            .nearest_centerline_idx
+            .unwrap_or(0) as usize;
+        let n = track.centerline.len();
+        let mut ahead = from;
+        let mut covered = 0.0;
+        while covered < 40.0 {
+            let (p, q) = (&track.centerline[ahead], &track.centerline[(ahead + 1) % n]);
+            covered += (q.x - p.x).hypot(q.y - p.y);
+            ahead = (ahead + 1) % n;
+        }
+        let point = track.centerline[ahead].clone();
+        {
+            let state = race.session.participants.get_mut(&c).unwrap();
+            state.pos_x = point.x;
+            state.pos_y = point.y;
+            state.pos_z = point.z + 0.5;
+            state.yaw_rad = point.heading_rad;
+            state.vel_x = 0.0;
+            state.vel_y = 0.0;
+            state.speed_mps = 0.0;
+            state.nearest_centerline_idx = None;
+            let behind = race.session.participants[&b].track_progress;
+            let state = race.session.participants.get_mut(&c).unwrap();
+            state.track_progress = behind + covered;
+        }
+        // B arriving at 60 m/s, or every other car stopped.
+        for id in ids.iter().filter(|id| **id != c) {
+            let state = race.session.participants.get_mut(id).unwrap();
+            let speed = if arriving && *id == b {
+                60.0
+            } else if arriving {
+                state.speed_mps
+            } else {
+                0.0
+            };
+            state.vel_x = speed * state.yaw_rad.cos();
+            state.vel_y = speed * state.yaw_rad.sin();
+            state.speed_mps = speed;
+        }
+        run(&mut race, 0.3);
+        let listed = unsafe_rejoins(&race);
+        if arriving {
+            assert!(listed.contains(&(c, b)), "{:?}", race.incidents.incidents);
+        } else {
+            assert!(listed.iter().all(|(car, _)| *car != c), "{listed:?}");
+        }
+    }
+}
+
+#[test]
+fn an_unsafe_rejoin_is_the_car_that_would_reach_it_soonest() {
+    use apexsim_sim::incidents::unsafe_rejoin;
+    let (near, far, slow) = (
+        uuid::Uuid::from_u128(1),
+        uuid::Uuid::from_u128(2),
+        uuid::Uuid::from_u128(3),
+    );
+    // Rejoining at 1000 m going 10 m/s.
+    let behind = [(near, 980.0, 40.0), (far, 900.0, 80.0), (slow, 995.0, 15.0)];
+    // near reaches it in 20/30 s, far in 100/70 s, slow closes at 5 m/s.
+    assert_eq!(unsafe_rejoin(1000.0, 10.0, behind), Some((near, 30.0)));
+    // Nobody within reach: far alone needs 100/70 s, under 2 s: listed.
+    assert_eq!(
+        unsafe_rejoin(1000.0, 10.0, [(far, 900.0, 80.0)]),
+        Some((far, 70.0))
+    );
+    assert_eq!(unsafe_rejoin(1000.0, 10.0, [(far, 800.0, 80.0)]), None);
+    // A car ahead of it is no threat.
+    assert_eq!(unsafe_rejoin(1000.0, 10.0, [(near, 1010.0, 80.0)]), None);
+}

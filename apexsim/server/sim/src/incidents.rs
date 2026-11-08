@@ -1,6 +1,7 @@
 //! The race's incident list for stewards: contacts between cars, passes
-//! under a yellow, track-limit offences and the penalties race control gave
-//! or a steward took back, each with the tick and the lap it happened on.
+//! under a yellow, track-limit offences, unsafe rejoins and the penalties
+//! race control gave or a steward took back, each with the tick and the lap
+//! it happened on.
 //!
 //! The list is filled from what the race's tick already finds (the
 //! collision pass's touching pairs, race control's yellow passes, the lap
@@ -25,6 +26,34 @@ pub const CONTACT_HEAVY_MPS: f32 = 8.0;
 /// and it is the same one going on (cars rubbing come apart and back
 /// together from tick to tick).
 pub const CONTACT_GAP_S: f32 = 1.0;
+/// A car back on the road after every wheel was off for
+/// `laps::TRACK_LIMITS_SECONDS` rejoined unsafely when a car behind it on
+/// the lap closes on it faster than this...
+pub const REJOIN_CLOSING_MPS: f32 = 8.0;
+/// ... and would reach it within this, s.
+pub const REJOIN_REACH_S: f32 = 2.0;
+
+/// Of the cars behind a car that rejoins at lap distance `at_m` going
+/// `speed_mps` (each car behind as its lap distance and speed, its id
+/// first), the one it rejoined in front of unsafely: the one that would
+/// reach it soonest within [`REJOIN_REACH_S`], closing faster than
+/// [`REJOIN_CLOSING_MPS`]; with how fast it closed.
+pub fn unsafe_rejoin(
+    at_m: f32,
+    speed_mps: f32,
+    behind: impl IntoIterator<Item = (PlayerId, f32, f32)>,
+) -> Option<(PlayerId, f32)> {
+    behind
+        .into_iter()
+        .filter_map(|(id, run_m, speed)| {
+            let gap = at_m - run_m;
+            let closing = speed - speed_mps;
+            (gap > 0.0 && closing > REJOIN_CLOSING_MPS && gap / closing < REJOIN_REACH_S)
+                .then_some((id, closing, gap / closing))
+        })
+        .min_by(|a, b| a.2.total_cmp(&b.2))
+        .map(|(id, closing, _)| (id, closing))
+}
 
 /// Two cars the collision pass found touching this tick
 /// (`physics::check_collisions_refs`).
@@ -85,6 +114,11 @@ pub enum IncidentKind {
     },
     /// A steward took a penalty back (`GameSession::clear_penalty`).
     PenaltyCleared { offence: String, penalty: String },
+    /// The car came back onto the road from a trip off it (every wheel off
+    /// for `laps::TRACK_LIMITS_SECONDS`) in front of `other`, closing on it
+    /// at `closing_mps` and due to reach it within [`REJOIN_REACH_S`]
+    /// ([`unsafe_rejoin`]).
+    UnsafeRejoin { other: PlayerId, closing_mps: f32 },
 }
 
 /// One incident.

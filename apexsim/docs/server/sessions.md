@@ -994,13 +994,13 @@ with it.
 | `track_limits` | the lap timing: the tick every wheel has been off for `TRACK_LIMITS_SECONDS`, or the lap struck at the line for a missed checkpoint (`cut`) | `car`, `cut` |
 | `penalty` | `GameSession::penalise` | `offence`, `penalty` (`time`, `drive_through`, `stop_go`), `seconds` |
 | `penalty_cleared` | a steward (`GameSession::clear_penalty`) | `offence`, `penalty` |
+| `unsafe_rejoin` | a car back on the road (every wheel off for `TRACK_LIMITS_SECONDS`, then on again) with a car behind it on the lap, on the road and not in the pit lane, closing faster than `REJOIN_CLOSING_MPS` (8 m/s) and due to reach it within `REJOIN_REACH_S` (2 s): the soonest such car (`incidents::unsafe_rejoin`) | `car` the one rejoining, `other` the one arriving, `closing_mps` |
 
 Every incident has its session `tick` (a contact: the tick it began) and the
 `lap` of its `car`. A pair apart for `CONTACT_GAP_S` (1 s) and touching again
 is a new contact; less is the same one rubbing on. The list is emptied as
 the field lines up (`line_up_on_grid`), so it is the race's, and a
-weekend's practice and qualifying keep none. Unsafe rejoins are not
-detected, so not listed.
+weekend's practice and qualifying keep none.
 
 - **Kept**: a race that finishes writes `<records dir>/results/<session
   id>_<unix time>.incidents.json` beside its results (`[records] results`):
