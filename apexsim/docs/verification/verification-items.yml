@@ -1719,15 +1719,13 @@
     commit: e0cfb565
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      The Main Grandstand under the tent roof reads well (1); two general-admission
-      banks of crowd on grass (2, 3), a large roofed (4) and a large open stand
-      (5) seated on the ground. The pit building's membrane storey is not in
-      these shots; it shows in c5-r20-bahrainless 1.
-    shots: [1, 4, 5]
+      Reshot 2026-11-08 at HEAD: the membrane-roofed main stand, both general-admission
+      banks, the large roofed and the large open stand all stand on the ground,
+      crowded, nothing floating.
 
 - id: v-c5-bahrainless-screens-podium
   title: 'Bahrainless: roof screens and podium'
@@ -1748,15 +1746,14 @@
     commit: 879f7e7b
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      Roof screens stand on the pit building above the membrane storey from
-      across the straight (1); a screen and the membrane roof from the entry
-      end (2). The podium itself is not clearly picked out in 2: a dark pillar
-      blocks the near view.
-    shots: [1, 2]
+      Reshot 2026-11-08 with the podium camera moved out over the track and
+      above the stand's canopy (runs.yml): the podium (dark block with its steps)
+      sits on the pit building's roof at the entry end, the roof screens read
+      right from across the straight.
 
 - id: v-c5-albertparkour-sf
   title: 'Albert Parkour: start/finish and the full pit lane'
@@ -1778,14 +1775,14 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: not-readable
     text: >-
-      The long straight and pit lane read at full length (1, 4), the stands
-      from the pit wall (2). The two roof screens are not visible in any shot:
-      the pit roof is low in frame (3). Needs a pose at the pit roof.
-    shots: [1, 3]
+      Reshot 2026-11-08: straight, stands, pit side with the gantry and back
+      up the straight read right, the pit lane at full length; the two roof
+      screens are still not picked out in any shot (only a dark box behind the
+      gantry in 3). Needs a pose at the pit roof.
 
 - id: v-c5-lemons-sf
   title: 'Lemons: start/finish and the full pit lane'
@@ -1807,15 +1804,12 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      The straight reads full length from both ends (1, 4) with the pit building
-      and garages along it; the stands face the grid from the pit wall (2) and
-      the pit side reads from the stands (3). Nothing floats or sits on the
-      road.
-    shots: [1, 4]
+      Reshot 2026-11-08: the four S/F views read right: stands along the straight,
+      pit boxes and gantry, pit buildings behind the wall.
 
 - id: v-c5-gnocchi-landmarks
   title: 'Gnocchi: the Fisht stadium and Olympic park'
@@ -1841,15 +1835,14 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
-    says: looks-right
+    says: not-right
     text: >-
-      The cauldron stands on its plinth (lm 1); the ice arenas read as domed
-      halls seated on the ground (lm 2-4); the Fisht bowl stands with a second
-      dome behind it (kit 1). The sea is not visible behind Fisht at this pose:
-      the horizon is grass. All three arena shots show the same dome mesh.
-    shots: [1]
+      Reshot 2026-11-08: the cauldron and arenas (1) and (2) read right, but
+      ice arena (3) sits on a hillside with its bowl cantilevered over the slope
+      (shot 4): its footprint is not levelled or plinthed. The run has no shot
+      of the stadium toward the sea.
 
 - id: v-c5-monzarella-banking
   title: 'Monzarella: the Sopraelevata banking'
@@ -1918,15 +1911,13 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
-    says: not-readable
+    says: looks-right
     text: >-
-      Shot 1 sees the underside of a canopy from too close to read its shape,
-      and predates C9's stadium canopy; no shot frames Grandstand A's lotus
-      canopy. GA banks (2, 3) and the large roofed stand (4) look right. Needs
-      a re-run with a Grandstand A pose.
-    shots: [1]
+      Reshot 2026-11-08 after C9: shot 1 now shows the stadium stand under its
+      canopy; the GA banks, the large roofed stand and the large open stand
+      are seated and crowded.
 
 - id: v-c5-oskarsleben-trees
   title: 'Oskarsleben: OSM tree rows'
@@ -1948,15 +1939,13 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
-    says: not-readable
+    says: looks-right
     text: >-
-      Broadleaf trees and the broadleaf far forest read (2, 4). The scrub shot
-      (1) shows tall trees, no scrub picked out, and the conifer forest shot
-      (3) frames open grass with the forest only as a far line. The poses miss
-      scrub and conifers.
-    shots: [2, 4]
+      Reshot 2026-11-08: scrub, broadleaf rows and the far forest read as woodland;
+      conifers are mixed into the far forest (shot 4 background) rather than
+      alone in shot 3.
 
 - id: v-c5-shanghaied-trees
   title: 'Shanghaied: OSM tree rows'
@@ -1977,14 +1966,12 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
-    says: not-readable
+    says: looks-right
     text: >-
-      A broadleaf tree reads, seated on the ground (2). The scrub shot (1) shows
-      crowd groups on grass and broadleaf trees; no scrub is identifiable. Pose
-      misses the scrub.
-    shots: [2]
+      Reshot 2026-11-08: scrub and broadleaf trees stand on the grass, nothing
+      floating.
 
 - id: v-c5-nuerburgerring24-layout
   title: The Nurburgring 24h layout
@@ -2006,14 +1993,12 @@
     commit: 35f2c9e7
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      The GP start/finish with pits and grid (1); both connectors run continuous
-      with curbs and barriers along them and nothing on the road (2, 3); no
-      step or seam visible where the scenes meet at these poses.
-    shots: [2, 3]
+      Reshot 2026-11-08: no step or seam visible at either connector; the road
+      runs continuously from the GP onto the Nordschleife and back.
 
 - id: v-c5-armadillos-veil-tower
   title: 'Armadillos: the observation tower in its veil'
@@ -2034,14 +2019,12 @@
     commit: 0751e635
     kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      The observation tower stands at height with its red veil sweeping down
-      from the top (1) and down to the plaza canopy at its foot (2), clear of
-      the road.
-    shots: [1, 2]
+      Reshot 2026-11-08: the tower's red veil rises to the top deck and sweeps
+      down over the plaza canopy; seated on the ground.
 
 - id: v-n10-upscalers
   title: DLSS and FSR in a race
