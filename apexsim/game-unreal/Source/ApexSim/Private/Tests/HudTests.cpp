@@ -1528,6 +1528,19 @@ bool FApexHudDataPenaltiesTest::RunTest(const FString& Parameters)
 	In.TimeSeconds += 1.0;
 	ApexHudData::Build(In, Memory, Data);
 	TestTrue(TEXT("the stewards' toast"), HudValue(Data, TEXT("penalty.latest")).AsString().EndsWith(TEXT(": STEWARDS' DECISION")));
+
+	// Track limits: five seconds, named for what it was.
+	FApexPenalty Limits;
+	Limits.Reason = ApexPenalty::TrackLimits;
+	Limits.Kind = ApexPenalty::Time;
+	Limits.Seconds = 5;
+	Limits.Lap = 3;
+	Limits.Status = ApexPenalty::Added;
+	Roster.Entries[0].Penalties.Add(Limits);
+	In.TimeSeconds += 1.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the track limits toast"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("+5 S: TRACK LIMITS")));
+	Roster.Entries[0].Penalties.Pop();
 	Roster.Entries[0].Penalties.Pop();
 
 	// A HUD first opened on a car with a penalty does not toast it.

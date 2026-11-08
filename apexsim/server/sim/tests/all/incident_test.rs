@@ -200,3 +200,81 @@ fn a_forced_contact_a_trip_off_the_road_and_a_penalty_are_listed() {
     race.line_up_on_grid();
     assert!(race.incidents.incidents.is_empty());
 }
+
+/// Put `id` `side` metres off the road beside where it is (0: back on the
+/// line), at rest.
+fn put(race: &mut GameSession, id: PlayerId, side: f32) {
+    let track = &race.track_config;
+    let state = &race.session.participants[&id];
+    let idx = state.nearest_centerline_idx.unwrap_or(0) as usize;
+    let point = track.centerline[idx].clone();
+    let side = if side > 0.0 {
+        point.width_right_m.max(point.width_left_m) + side
+    } else {
+        0.0
+    };
+    let (nx, ny) = (-point.heading_rad.sin(), point.heading_rad.cos());
+    let state = race.session.participants.get_mut(&id).unwrap();
+    state.pos_x = point.x + nx * side;
+    state.pos_y = point.y + ny * side;
+    state.pos_z = point.z + 0.5;
+    state.yaw_rad = point.heading_rad;
+    state.vel_x = 0.0;
+    state.vel_y = 0.0;
+    state.vel_z = 0.0;
+    state.speed_mps = 0.0;
+}
+
+/// Under the track limits rule a car's first three trips off the road are
+/// warnings and the fourth costs it a time penalty; without the rule none
+/// does.
+#[test]
+fn track_limits_cost_time_after_three_warnings() {
+    use apexsim_sim::race_control::{TRACK_LIMITS_PENALTY_S, TRACK_LIMITS_WARNINGS};
+    for rule in [true, false] {
+        let mut race = race();
+        race.set_race_rules(RaceRules {
+            track_limits_penalty: rule,
+            ..Default::default()
+        });
+        let ids: Vec<PlayerId> = race.session.participants.keys().copied().collect();
+        let car = ids[2];
+        // Into the race proper.
+        while race.session.state != SessionState::Racing {
+            tick(&mut race);
+        }
+        run(&mut race, 5.0);
+        let penalties = |race: &GameSession| race.penalties.get(&car).map_or(0, |p| p.len());
+        for trip in 1..=TRACK_LIMITS_WARNINGS + 1 {
+            put(&mut race, car, 12.0);
+            run(&mut race, 1.0);
+            put(&mut race, car, 0.0);
+            run(&mut race, 1.0);
+            assert_eq!(
+                race.track_limit_strikes.get(&car),
+                Some(&trip),
+                "trip {trip}"
+            );
+            if trip <= TRACK_LIMITS_WARNINGS || !rule {
+                assert_eq!(penalties(&race), 0, "trip {trip} is a warning");
+            }
+        }
+        if rule {
+            let given = &race.penalties[&car];
+            assert_eq!(given.len(), 1);
+            assert_eq!(given[0].offence, Offence::TrackLimits);
+            assert_eq!(given[0].seconds, TRACK_LIMITS_PENALTY_S);
+            assert_eq!(race.penalty_seconds(&car), TRACK_LIMITS_PENALTY_S as u32);
+        }
+        // A new start counts again.
+        race.line_up_on_grid();
+        assert!(race.track_limit_strikes.is_empty());
+    }
+}
+
+#[test]
+fn track_limits_penalise_the_fourth_strike_and_every_fourth_after() {
+    use apexsim_sim::race_control::track_limits_penalised;
+    let penalised: Vec<u16> = (1..=13).filter(|&s| track_limits_penalised(s)).collect();
+    assert_eq!(penalised, vec![4, 8, 12]);
+}

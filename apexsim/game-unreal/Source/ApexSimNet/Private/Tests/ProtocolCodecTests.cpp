@@ -399,7 +399,8 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 		FApexRaceRules Penalties;
 		Penalties.bYellowPenalty = true;
 		Penalties.bPitExitPenalty = true;
-		CheckBytes(TEXT("CreateSession penalising yellow passes and the pit exit light"), CreateWithRules(Penalties),
+		Penalties.bTrackLimitsPenalty = true;
+		CheckBytes(TEXT("CreateSession penalising yellow passes, the pit exit light and track limits"), CreateWithRules(Penalties),
 			ApexGolden::C_CreateSessionPenalties);
 		CheckBytes(TEXT("CreateSession under the default rules has no race_rules"),
 			ApexProtocol::EncodeCreateSession(

@@ -345,6 +345,7 @@ rule, `UApexMenuFlowSubsystem::RaceRulesToSend`; kept in the profile):
 Start (Standing / Formation lap / Rolling: the formation lap is a standing
 start's, a rolling start always drives its pace lap and sends no
 `formation_lap`), Penalise (False starts, Yellow passes, Pit exit light,
+Track limits,
 each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
 (Off / 6 / 8 / 10 / All, All sending 255, which `grid_order_ids` takes as
 the whole field). A Tyres and stints section beside it carries the tyre,
@@ -945,6 +946,7 @@ for an offence the rules leave out.
 | Jump start (0), found by the false-start watch, given at the green | `jump_start` | drive-through |
 | Pass under a yellow (1), from the flags, given `YELLOW_PASS_HANDBACK_S` (10 s) after the pass if the passer is still ahead; handed back within it (the passed car ahead again), it is forgiven, and the order swapping back and forth is one pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
 | Out of a manual pit lane past the red exit light (2): across the last limit line while `pit::exit_closed`, not on the pit route | `pit_exit_penalty` | stop-go, `PIT_EXIT_STOP_GO_S` (10 s) |
+| Track limits (4): a lap struck for track limits (every wheel off the road for `TRACK_LIMITS_SECONDS`, or a checkpoint missed; [lap timing](#lap-timing-track-limits-and-records)), counted per car through the race (`GameSession::track_limit_strikes`, emptied as the field lines up): the first `TRACK_LIMITS_WARNINGS` (3) are warnings, the next and every `TRACK_LIMITS_EVERY` (4) after it penalised (`race_control::track_limits_penalised`: the 4th, 8th, 12th) | `track_limits_penalty` | `TRACK_LIMITS_PENALTY_S` (5 s) time |
 | A steward's decision (3), given from the dashboard (`GameSession::give_penalty`), in a race, to a car not yet past the flag | none: it stands under any rules | the steward's: a time penalty or a stop-go of 1 to `STEWARD_MAX_S` (60) s, or a drive-through |
 
 - **Time** penalties are counted at once (`PenaltyStatus::Added`).

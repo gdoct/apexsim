@@ -106,6 +106,7 @@ pub fn offence_name(offence: Offence) -> &'static str {
         Offence::YellowPass => "yellow_pass",
         Offence::PitExitRed => "pit_exit_red",
         Offence::Steward => "steward",
+        Offence::TrackLimits => "track_limits",
     }
 }
 

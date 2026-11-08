@@ -586,6 +586,10 @@ pub struct GameSession {
     /// Every penalty given this race (`crate::race_control::Penalty`), by
     /// car, in the order given. Emptied as the field lines up.
     pub penalties: std::collections::BTreeMap<PlayerId, Vec<crate::race_control::Penalty>>,
+    /// Each car's laps struck for track limits this race, for the track
+    /// limits rule (`RaceRules::track_limits_penalty`). Emptied as the
+    /// field lines up.
+    pub track_limit_strikes: std::collections::BTreeMap<PlayerId, u16>,
     /// Each pass under a yellow not yet judged, by pair (passer, passed),
     /// the tick it was made: penalised if the passer is still ahead
     /// [`crate::race_control::YELLOW_PASS_HANDBACK_S`] later, forgiven if
@@ -1281,6 +1285,7 @@ impl GameSession {
             race_control: Default::default(),
             race_start: Default::default(),
             penalties: Default::default(),
+            track_limit_strikes: Default::default(),
             yellow_passed: Default::default(),
             incidents: Default::default(),
             sky_day: 0,
@@ -1384,6 +1389,7 @@ impl GameSession {
             race_control: Default::default(),
             race_start: Default::default(),
             penalties: Default::default(),
+            track_limit_strikes: Default::default(),
             yellow_passed: Default::default(),
             incidents: Default::default(),
             sky_day: 0,
@@ -3354,6 +3360,7 @@ impl GameSession {
         let mut state_refs: Vec<&mut CarState> = self.session.participants.values_mut().collect();
         let contacts = physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
+        let mut over_the_limits: Vec<PlayerId> = Vec::new();
         if racing {
             for (car, lap, cut) in struck {
                 self.incidents.push(crate::incidents::Incident {
@@ -3362,6 +3369,11 @@ impl GameSession {
                     car,
                     kind: crate::incidents::IncidentKind::TrackLimits { cut },
                 });
+                let strikes = self.track_limit_strikes.entry(car).or_default();
+                *strikes = strikes.saturating_add(1);
+                if crate::race_control::track_limits_penalised(*strikes) {
+                    over_the_limits.push(car);
+                }
             }
             let gap_ticks = (crate::incidents::CONTACT_GAP_S * tick_rate_hz as f32) as u32;
             let participants = &self.session.participants;
@@ -3369,6 +3381,9 @@ impl GameSession {
                 .note_contacts(&contacts, current_tick, gap_ticks, |id| {
                     participants.get(id).map_or(0, |s| s.current_lap)
                 });
+        }
+        for car in over_the_limits {
+            self.penalise(car, crate::race_control::Offence::TrackLimits);
         }
         self.update_flags();
         self.update_penalties();
@@ -5737,6 +5752,7 @@ impl GameSession {
             self.penalties.clear();
             self.roster_dirty = true;
         }
+        self.track_limit_strikes.clear();
         self.yellow_passed.clear();
         self.incidents.clear();
         // A fresh race, a fresh timing sheet: the session's bests and every

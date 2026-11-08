@@ -4050,6 +4050,14 @@ pub struct RaceRules {
     /// (`race_control::PIT_EXIT_STOP_GO_S`).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub pit_exit_penalty: bool,
+    /// Track limits in a race: a car's struck laps
+    /// (`laps::TRACK_LIMITS_SECONDS` off the road, or a missed checkpoint)
+    /// are warnings up to `race_control::TRACK_LIMITS_WARNINGS`, then the
+    /// next and every `TRACK_LIMITS_EVERY` after it a time penalty
+    /// (`TRACK_LIMITS_PENALTY_S`). Without it a struck lap only loses its
+    /// time.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub track_limits_penalty: bool,
     /// A car stranded on the road brings out a virtual safety car or a
     /// safety car on the road ([`SafetyCar`]).
     #[serde(default, skip_serializing_if = "SafetyCar::is_off")]
@@ -4123,6 +4131,7 @@ impl RaceRules {
             Offence::JumpStart => self.jump_start,
             Offence::YellowPass => self.yellow_penalty,
             Offence::PitExitRed => self.pit_exit_penalty,
+            Offence::TrackLimits => self.track_limits_penalty,
             // A steward's decision stands under any rules.
             Offence::Steward => true,
         }

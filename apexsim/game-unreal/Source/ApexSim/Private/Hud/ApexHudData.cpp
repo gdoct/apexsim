@@ -125,6 +125,7 @@ namespace
 			: Penalty.Reason == ApexPenalty::YellowPass ? TEXT("OVERTAKING UNDER YELLOW")
 			: Penalty.Reason == ApexPenalty::PitExitRed ? TEXT("PIT EXIT ON RED")
 			: Penalty.Reason == ApexPenalty::Steward ? TEXT("STEWARDS' DECISION")
+			: Penalty.Reason == ApexPenalty::TrackLimits ? TEXT("TRACK LIMITS")
 			: TEXT("RACE CONTROL");
 		return FString::Printf(TEXT("%s: %s"), *HudPenaltyKind(Penalty), What);
 	}

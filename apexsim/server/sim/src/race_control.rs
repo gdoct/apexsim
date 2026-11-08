@@ -65,6 +65,21 @@ pub const YELLOW_PASS_SLOWER_SHARE: f32 = 0.7;
 pub const YELLOW_PASS_PENALTY_S: u16 = 5;
 /// Leaving a manual pit lane past its red light: a stop-go of this, s.
 pub const PIT_EXIT_STOP_GO_S: u16 = 10;
+/// Struck laps a car is warned for before track limits cost it time.
+pub const TRACK_LIMITS_WARNINGS: u16 = 3;
+/// Past the warnings, every this many struck laps (the first one past
+/// them included) is a time penalty of [`TRACK_LIMITS_PENALTY_S`].
+pub const TRACK_LIMITS_EVERY: u16 = 4;
+/// Leaving the track once too often: a time penalty of this, s.
+pub const TRACK_LIMITS_PENALTY_S: u16 = 5;
+
+/// Whether a car's `strikes`-th struck lap of the race (from 1) costs it
+/// a penalty: the one after the warnings, then every
+/// [`TRACK_LIMITS_EVERY`] after that.
+pub fn track_limits_penalised(strikes: u16) -> bool {
+    strikes > TRACK_LIMITS_WARNINGS
+        && (strikes - TRACK_LIMITS_WARNINGS - 1).is_multiple_of(TRACK_LIMITS_EVERY)
+}
 /// A drive-through or stop-go must be served within this many laps of the
 /// lap it was given on, or it is added as time.
 pub const SERVE_WITHIN_LAPS: u16 = 3;
@@ -124,6 +139,9 @@ pub enum Offence {
     /// A steward's decision (`GameSession::give_penalty`): whatever the
     /// steward judged, paid as they chose.
     Steward = 3,
+    /// Left the track once too often: laps struck for track limits past
+    /// the warnings ([`track_limits_penalised`]).
+    TrackLimits = 4,
 }
 
 /// How a penalty is paid.
@@ -177,6 +195,7 @@ impl Penalty {
             // A steward names the kind (`Penalty::given`); a bare one is
             // the yellow pass's.
             Offence::Steward => (PenaltyKind::Time, YELLOW_PASS_PENALTY_S),
+            Offence::TrackLimits => (PenaltyKind::Time, TRACK_LIMITS_PENALTY_S),
         };
         Self::given(offence, kind, seconds, lap, tick, can_serve)
     }
