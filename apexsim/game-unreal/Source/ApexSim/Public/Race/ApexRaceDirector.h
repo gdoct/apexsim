@@ -1110,6 +1110,8 @@ private:
 	 * player last chose rather than to the far end of the ladder.
 	 */
 	int32 ChaseLevel = ApexChase::DefaultLevel();
+	/** The T-cam's broadcast look is on the chase camera now (apexsim.cam.TcamLook). */
+	bool AppliedTcamLook = false;
 	/** -ApexView= named a rung: the settings do not get to move it. */
 	bool bChaseLevelFromCommandLine = false;
 

@@ -9383,6 +9383,18 @@ runs:
       - {at: 53, lead: 1, label: "C again", checks: "G10: close", exec: "apexsim.cam.Chase"}
       - {at: 56, lead: 1, label: "C to far, then cockpit", checks: "G10: the cockpit after far", exec: ["apexsim.cam.Chase", "apexsim.cam.Chase", "apexsim.cam.Chase"]}
 
+  - id: g10-tcam-look
+    about: "G10. The T-cam's broadcast look (apexsim.cam.TcamLook) in the SF-26, against the plain rung"
+    server:
+      stand_in: true
+    args: [-ApexAutoRace, -ApexTrack=Armadillos, -ApexCar=SF-26, -ApexAiCount=7, -ApexGridOrder=@host, -ApexLaps=2, -ApexCountdown=12, -ApexWeather=sunny, -ApexTimeOfDay=13:00, -ApexView=tcam, -ApexRacingLine=off]
+    exec:
+      1: ["apexsim.hud.Hide 1", "apexsim.cam.TcamLook 1"]
+    shots:
+      - {at: 30, label: "tcam racing, the look on", checks: "G10: a broadcast lens: bloom on the bright, fringe and vignette at the edges, grain; the picture still clear"}
+      - {at: 36, label: "tcam racing, the look on", checks: "G10"}
+      - {at: 42, lead: 1, label: "tcam racing, the look off", checks: "G10: the plain rung", exec: "apexsim.cam.TcamLook 0"}
+
   - id: g10-tcam-chiffon
     about: "G10. The T-cam rung on a closed car: on the roof, never inside the cabin"
     server:

@@ -152,6 +152,10 @@ goes at the end and takes its place in `Order()`.
 - The hotlap ghost replay borrows the far rung and restores the player's
   afterwards.
 - `apexsim.cam.Chase [0-4|tcam|roof|close|near|far|cockpit]` (no argument steps).
+- `apexsim.cam.TcamLook 1`: the T-cam rung's broadcast look, for shots
+  (`g10-tcam-look`): bloom 0.9, chromatic fringe 2, vignette 0.55 and a
+  little grain on the chase camera's own post-process while on that rung;
+  0, the default, leaves the rung plain.
   `-ApexCameraCycleAfter=N[,N]` with a matching `-ApexScreenshotAfter` list
   walks the whole ladder in one unattended run.
 

@@ -313,6 +313,13 @@ namespace
 		TEXT("Debug: the cockpit's Camera vibration, 0..1, in place of the setting (below 0: the setting). For judging it in shots and clips."),
 		ECVF_Default);
 
+	TAutoConsoleVariable<int32> CVarTcamLook(
+		TEXT("apexsim.cam.TcamLook"),
+		0,
+		TEXT("The T-cam rung's broadcast look, for shots: a touch more bloom, a little chromatic fringe at the ")
+		TEXT("edges, a vignette and grain, as a broadcast lens on a roll hoop gives (0 off, the default)."),
+		ECVF_Default);
+
 	TAutoConsoleVariable<float> CVarSunStepDeg(
 		TEXT("apexsim.sky.SunStepDeg"),
 		0.5f,
@@ -1609,6 +1616,12 @@ void AApexRaceDirector::UpdateCameraTarget()
 void AApexRaceDirector::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
+
+	// The T-cam's look switched from the console: on the rung it is for.
+	if (AppliedTcamLook != (CVarTcamLook.GetValueOnGameThread() > 0 && FCString::Strcmp(ApexChase::Get(ChaseLevel).Name, TEXT("tcam")) == 0))
+	{
+		ApplyChaseView();
+	}
 
 	// A snap (SnapCameras) holds the boom's lag off for a frame or two.
 	if (BoomSnapFrames > 0 && --BoomSnapFrames == 0)
@@ -3659,6 +3672,18 @@ void AApexRaceDirector::ApplyChaseView()
 	// rung changes, before the next look update.
 	CameraBoom->SetRelativeRotation(FRotator(View.PitchDeg, CameraBoom->GetRelativeRotation().Yaw, 0.0f));
 	ChaseCamera->SetFieldOfView(ChaseFovDeg());
+
+	// The T-cam's broadcast look (apexsim.cam.TcamLook), on that rung only.
+	AppliedTcamLook = CVarTcamLook.GetValueOnGameThread() > 0 && FCString::Strcmp(View.Name, TEXT("tcam")) == 0;
+	FPostProcessSettings& Look = ChaseCamera->PostProcessSettings;
+	Look.bOverride_BloomIntensity = AppliedTcamLook;
+	Look.BloomIntensity = 0.9f;
+	Look.bOverride_SceneFringeIntensity = AppliedTcamLook;
+	Look.SceneFringeIntensity = 2.0f;
+	Look.bOverride_VignetteIntensity = AppliedTcamLook;
+	Look.VignetteIntensity = 0.55f;
+	Look.bOverride_FilmGrainIntensity = AppliedTcamLook;
+	Look.FilmGrainIntensity = 0.12f;
 }
 
 void AApexRaceDirector::ApplyCameraMode()

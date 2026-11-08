@@ -364,9 +364,6 @@ the launcher import with the network off.
   fog stops short of the sky (`ApexSky::HazeCutoffCm`), and the planet
   ground sits at the sky's depth. A ground albedo near the haze's, or a
   terrain skirt that runs out under the horizon, would close it.
-- The T-cam rung (`tcam`) has no broadcast look of its own: a touch of
-  barrel distortion and bloom as a console variable, off by default, for
-  shots (`g10-tcam-sf26` is the frame to judge it on).
 - Runtime-built track meshes stay out of the distance-field scene, so
   software Lumen and DF shadows see the road and terrain less well than the
   kit props. The fast build makes no distance field. `-ApexTrackFullBuild`
