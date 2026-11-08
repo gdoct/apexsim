@@ -2773,7 +2773,8 @@ pub struct IncidentData {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cut: bool,
     /// A penalty's offence, as `PenaltyData::reason` (0 a jump start, 1 a
-    /// pass under a yellow, 2 a red-light pit exit).
+    /// pass under a yellow, 2 a red-light pit exit, 3 a steward's decision,
+    /// 4 track limits).
     #[serde(default, skip_serializing_if = "is_zero_u8")]
     pub offence: u8,
     /// A penalty's kind, as `PenaltyData::kind` (0 time, 1 drive-through,
@@ -2816,11 +2817,8 @@ impl IncidentData {
             penalty: 0,
             seconds: 0,
         };
-        let offence_code = |name: &str| match name {
-            "yellow_pass" => 1,
-            "pit_exit_red" => 2,
-            _ => 0,
-        };
+        let offence_code =
+            |name: &str| crate::incidents::offence_named(name).map_or(0, |offence| offence as u8);
         let penalty_code = |name: &str| match name {
             "drive_through" => 1,
             "stop_go" => 2,

@@ -99,6 +99,20 @@ pub struct Incident {
     pub kind: IncidentKind,
 }
 
+/// Every offence, in code order.
+pub const OFFENCES: [Offence; 5] = [
+    Offence::JumpStart,
+    Offence::YellowPass,
+    Offence::PitExitRed,
+    Offence::Steward,
+    Offence::TrackLimits,
+];
+
+/// The offence an [`offence_name`] names.
+pub fn offence_named(name: &str) -> Option<Offence> {
+    OFFENCES.into_iter().find(|o| offence_name(*o) == name)
+}
+
 /// An offence's name in the list.
 pub fn offence_name(offence: Offence) -> &'static str {
     match offence {
@@ -213,6 +227,18 @@ impl IncidentLog {
 
 #[cfg(test)]
 mod tests {
+
+    /// Every offence comes back from its name, as its code
+    /// (`PenaltyData::reason`): a steward's decision and track limits went
+    /// out as a jump start.
+    #[test]
+    fn every_offence_is_found_by_its_name() {
+        for (code, offence) in OFFENCES.into_iter().enumerate() {
+            assert_eq!(offence as usize, code);
+            assert_eq!(offence_named(offence_name(offence)), Some(offence));
+        }
+        assert_eq!(offence_named("nonsense"), None);
+    }
     use super::*;
 
     fn id(n: u128) -> PlayerId {
