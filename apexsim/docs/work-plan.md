@@ -54,7 +54,15 @@ rain's haze over the sky, the driver's arms on by default, the T-cam's
 broadcast look. New agent verdicts wait for the owner on
 `v-track-suzuka-elevation`, `v-c5-monzarella-banking`,
 `v-r10-haze-rain-dusk-night`, `v-r2-rubbered-start` and
-`v-r4-rally-field-snow`.
+`v-r4-rally-field-snow`. Later the same night: the AI slower in a fog,
+the ten open C5 runs shot again and judged (Bahrainless' podium and Albert
+Parkour's roof screens given poses that see them), the DEM's buildings
+taken out of the terrain (`dem_fetch.bare_earth`: Gnocchi's ice arena
+had stood on a mound of its own roof; every dossier circuit re-dressed),
+an unsafe rejoin and the safety car's minimum laps as race rules on the
+create screen, each tyre's studs on the HUD, and the full sim, server
+and client suites green (two server tests still miss only under the
+suite's load).
 
 ## Legend
 
