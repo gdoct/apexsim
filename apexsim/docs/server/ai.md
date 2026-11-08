@@ -107,13 +107,16 @@ Built per tick in `ai_input_for` with the car's speed profile
   `TrackSurface::baked_snow` on a track without a road state;
   `GameSession::snow_technique` into `AiDriverController::with_snow`): snow
   that the forecast brings mid-race brings it, a melted line ends it, and a
-  dry road is driven bit for bit as before. The target pace times `SNOW_PACE` (0.93), so the
+  dry road is driven bit for bit as before. The target pace times `SNOW_PACE` (0.85), so the
   braking comes earlier than the plan's grip says; the steering lag times
   `SNOW_STEER_LAG_SCALE` (1.8); and the throttle squeezed in no faster
   than `SNOW_THROTTLE_STEP` (0.15) a decision. Against the controller
   without it, the snow survey (Silverstone, Monza, Spa, seeds 1-2) went
   from 712 to 432 car-seconds of contact, 4439 to 2271 off the road and
-  773 to 461 sliding.
+  773 to 461 sliding (at 0.93); 0.85 against 0.93 (2026-11-08, Norisring,
+  Zandvoort, Monza, Spa, Silverstone, Hungaroring, seeds 1-2) took contact
+  from 643 to 207, off the road from 3893 to 1273, sliding from 1229 to 831
+  and passes from 1631 to 1004.
 - **Pace noise** (`lap_noise`) is smooth along the lap, new each lap and
   only ever slower than the plan; a driver wanders up to 0.5 m about its
   line on straights by imprecision (`WANDER_*`).

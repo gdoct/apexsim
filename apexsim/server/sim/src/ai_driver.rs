@@ -79,7 +79,7 @@ const STEER_LAG_ACE_S: f32 = 0.04;
 /// [`snow_technique_weight`] of the line's cover, on any tyre): the plan's
 /// pace taken down to this share, so the braking comes earlier and the
 /// corners slower than the grip the plan reads ...
-pub const SNOW_PACE: f32 = 0.93;
+pub const SNOW_PACE: f32 = 0.85;
 /// ... the wheel turned this much slower (the steering lag scaled) ...
 pub const SNOW_STEER_LAG_SCALE: f32 = 1.8;
 /// ... and the throttle fed in no faster than this much a decision.
