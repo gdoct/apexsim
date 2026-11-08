@@ -10784,6 +10784,39 @@ runs:
       - {at: 34, lead: 1, label: "down the straight from above the line", checks: "G15: haze only far away", exec: "apexsim.cam.LookAt -5.5 -148.7 35.4 5.5 60.8 0.1"}
       - {at: 38, lead: 1, label: "the sky down the straight", checks: "G15: the clear sky paler at the horizon", exec: "apexsim.cam.LookAt -5.5 -148.7 2.0 5.5 60.8 40.0"}
 
+  - id: r10-haze-spa-rain
+    about: "R10. The far haze at Spa in heavy rain, 14:00"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=heavyrain, -ApexTimeOfDay=14:00, -ApexDayOfYear=172, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 30, lead: 1, label: "TV, behind the dip up the climb", checks: "R10: the far haze neither glowing nor black", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"}
+      - {at: 34, lead: 1, label: "aerial over the dip and the woods", checks: "R10: the hills fading into the haze's colour", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 117.6 165.2 108.0 433.2 -206.0 -5.4"}
+      - {at: 38, lead: 1, label: "down the straight from above the line", checks: "R10: the haze at the far end of the straight against the sky", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 81.4 -123.7 30.0 -32.1 52.9 2.1"}
+
+  - id: r10-haze-spa-dusk
+    about: "R10. The far haze at Spa at dusk, sunny, 21:30 on 21 June"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=21:30, -ApexDayOfYear=172, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 30, lead: 1, label: "TV, behind the dip up the climb", checks: "R10: the far haze neither glowing nor black", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"}
+      - {at: 34, lead: 1, label: "aerial over the dip and the woods", checks: "R10: the hills fading into the haze's colour", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 117.6 165.2 108.0 433.2 -206.0 -5.4"}
+      - {at: 38, lead: 1, label: "down the straight from above the line", checks: "R10: the haze at the far end of the straight against the sky", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 81.4 -123.7 30.0 -32.1 52.9 2.1"}
+
+  - id: r10-haze-spa-night
+    about: "R10. The far haze at Spa at night, sunny, 23:30 on 21 June"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=SpaFrankenchamps, -ApexCar=Caravan, -ApexClasses=GT3:5, -ApexLaps=2, -ApexCountdown=5, -ApexWeather=sunny, -ApexTimeOfDay=23:30, -ApexDayOfYear=172, -ApexView=cockpit, -ApexRacingLine=off]
+    exec:
+      4: "apexsim.hud.Hide 1"
+    shots:
+      - {at: 30, lead: 1, label: "TV, behind the dip up the climb", checks: "R10: the far haze neither glowing nor black", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 240.2 46.2 -15.6 433.2 -206.0 -5.4"}
+      - {at: 34, lead: 1, label: "aerial over the dip and the woods", checks: "R10: the hills fading into the haze's colour", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 117.6 165.2 108.0 433.2 -206.0 -5.4"}
+      - {at: 38, lead: 1, label: "down the straight from above the line", checks: "R10: the haze at the far end of the straight against the sky", item: v-r10-haze-rain-dusk-night, exec: "apexsim.cam.LookAt 81.4 -123.7 30.0 -32.1 52.9 2.1"}
+
   - id: g10-vibration-spa
     about: "G10. Camera vibration at 100 % in a GT3 at Spa: the cockpit down to Eau Rouge and up the climb; the log's Head shake lines say what moved"
     server: {stand_in: true}

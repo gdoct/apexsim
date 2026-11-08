@@ -348,11 +348,16 @@ bool FApexSkyLiveTest::RunTest(const FString& Parameters)
 		// 290 m under the start (the Nordschleife's) is barely hazier.
 		const float ValleyRatio = FMath::Exp2(Derive(At(EApexWeather::Sunny, 13)).FogHeightFalloff / 1000.0f * 29000.0f);
 		TestTrue(TEXT("a valley is barely hazier"), ValleyRatio > 1.0f && ValleyRatio < 1.5f);
-		// The haze lies on the land and leaves the sky to the atmosphere's
-		// aerosol; a thick fog covers the sky too.
-		TestTrue(TEXT("every weather's haze stops short of the sky"),
-			FogCutoffFor(Derive(At(EApexWeather::HeavyRain, 13)).FogDensity) > 0.0f
-			&& FogCutoffFor(Derive(At(EApexWeather::Sunny, 13)).FogDensity) > 0.0f);
+		// A fair or overcast day's haze lies on the land and leaves the sky to
+		// the atmosphere's aerosol; rain's, snow's and a thick fog cover the
+		// sky too.
+		TestTrue(TEXT("a dry day's haze stops short of the sky"),
+			FogCutoffFor(Derive(At(EApexWeather::Sunny, 13)).FogDensity) > 0.0f
+			&& FogCutoffFor(Derive(At(EApexWeather::Overcast, 13)).FogDensity) > 0.0f);
+		TestTrue(TEXT("rain's and snow's haze cover it"),
+			FogCutoffFor(Derive(At(EApexWeather::LightRain, 13)).FogDensity) == 0.0f
+			&& FogCutoffFor(Derive(At(EApexWeather::HeavyRain, 13)).FogDensity) == 0.0f
+			&& FogCutoffFor(Derive(At(EApexWeather::Snow, 13)).FogDensity) == 0.0f);
 		TestTrue(TEXT("a thick fog covers the sky"), FogCutoffFor(FogDensityForVisibility(250.0f)) == 0.0f);
 		TestTrue(TEXT("a fair sky carries some aerosol, rain more"),
 			Derive(At(EApexWeather::Sunny, 13)).Aerosol > 1.0f

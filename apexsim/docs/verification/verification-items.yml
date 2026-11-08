@@ -395,7 +395,37 @@
     The far haze (each weather's visibility, `ApexSky::FogLuminance`) in rain,
     at dusk and at night, where a haze too bright or too dark shows first, and
     the Nordschleife's horizon again under the thicker fair-day haze.
-  status: open
+  status: judged
+  evidence:
+  - run: r10-haze-spa-dusk
+    date: 2026-11-08
+    commit: d290aef7
+    shots: [1, 2, 3]
+    kind: shot
+  - run: r10-haze-spa-night
+    date: 2026-11-08
+    commit: d290aef7
+    shots: [1, 2, 3]
+    kind: shot
+  - run: r10-haze-spa-rain
+    date: 2026-11-08
+    commit: d290aef7
+    shots: [1, 2, 3]
+    kind: shot
+  verdict:
+    date: 2026-11-08
+    by: agent
+    says: looks-right
+    text: >-
+      Shot at Spa on 21 June (r10-haze-spa-rain, -dusk, -night, 2026-11-08).
+      Rain: the far hills had faded into a haze paler than the cloud deck above,
+      with a hard edge between them (the haze stopped short of the sky); the
+      haze now covers the sky in rain and snow (SkyFogVisibilityM 4 km) and
+      the hills fade into one grey. Dusk: right, the hills fading into the warm
+      haze; a slightly cold pale band at the far right horizon. Night: the sky
+      black, the floodlit grid and the lit car parks right; the unlit grass
+      and the far hills read pale grey, brighter than I would expect at 23:30,
+      worth the owner's eye.
   notes:
   - text: >-
       R10 (Spa, sunny, 13:00): `-ApexTrack=SpaFrankenchamps -ApexWeather=sunny

@@ -610,13 +610,16 @@ namespace ApexSky
 	 * clear 10 km keeps the haze.
 	 */
 	/**
-	 * The fog's cutoff for a density, cm (`HazeCutoffCm`): a haze stops short
-	 * of the sky; a fog thicker than 1.5 km of sight has none, and covers the
-	 * sky as a real one does.
+	 * The fog's cutoff for a density, cm (`HazeCutoffCm`): a fair or overcast
+	 * day's haze stops short of the sky; anything thicker than
+	 * `SkyFogVisibilityM` of sight (the falling weathers' haze, a fog) has
+	 * none, and covers the sky as rain and fog do. Cut off, a rain's haze
+	 * drew the far hills paler than the cloud deck behind them, edge to edge.
 	 */
+	inline constexpr float SkyFogVisibilityM = 4000.0f;
 	inline float FogCutoffFor(float FogDensity)
 	{
-		return FogDensity > FogDensityForVisibility(1500.0f) ? 0.0f : HazeCutoffCm;
+		return FogDensity > FogDensityForVisibility(SkyFogVisibilityM) ? 0.0f : HazeCutoffCm;
 	}
 
 	inline float FogDensityFor(float WeatherDensity, int32 VisibilityM)

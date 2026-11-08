@@ -742,8 +742,11 @@ See [protocol.md](protocol.md) for the append-only rules.
   the director scales by the weather (`FSkyState::Aerosol`,
   `ApexSky::AerosolOf`: sunny 2.5, cloudy 3, else 4 times the engine's
   `MieScatteringScale`, put back for the menu): the clear sky blue
-  overhead and pale toward the horizon. A fog thicker than 1.5 km of sight
-  has no cutoff (`FogCutoffFor`) and covers the sky. The sunny and cloudy
+  overhead and pale toward the horizon. A haze or fog thicker than
+  `SkyFogVisibilityM` (4 km) of sight (rain's, snow's, a fog) has no
+  cutoff (`FogCutoffFor`) and covers the sky: cut off, heavy rain's drew the
+  far hills paler than the cloud deck behind them, with a hard edge between
+  (`r10-haze-spa-rain`, 2026-11-08). The sunny and cloudy
   fog colours are that pale horizon's, measured off the Nordschleife's
   from the start at 14:00, so far hills fade into it. Verify runs
   `g15-haze-<mordschleife|spa|monza>`. One gap: from high over a circuit
