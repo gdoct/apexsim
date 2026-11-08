@@ -58,7 +58,7 @@ from pathlib import Path
 
 import numpy as np
 
-from osm_layout import BBOXES, ROOT, R_EARTH, fit_track
+from osm_layout import BBOXES, ROOT, R_EARTH, Track, fit_track
 
 # Circuits with no dossier, because OSM's raceway ways are another layout
 # variant than the YAML's or miss a stretch (osm_layout.BBOXES' notes), but
@@ -458,6 +458,135 @@ def centerline_z(track) -> np.ndarray:
     return np.interp(track.station, s_raw, z)
 
 
+# ------------------------------------------------------------- bare earth
+
+# GLO-30 is a surface model: a roof is in it as much as the ground is, so an
+# ice arena reads as a 17 m mound, the terrain rises into a grass hill there
+# and the arena placed on its ground overhangs the slope. Under the dossier's
+# buildings the model is capped at a plane fitted to the ground around each:
+# its `structures` (OSM buildings, as oriented boxes) and the landmarks that
+# are buildings on level ground, as circles of their real outline's radius
+# (the prop is often smaller than the building it stands for). Stands stay as
+# measured (many are earth banks), and so do castles (their hill is real).
+LANDMARK_FOOTPRINT_M = {
+    "arena": 100.0,
+    "stadium": 150.0,
+    "expo_pavilion": 85.0,
+    "geodesic_dome": 40.0,
+}
+# Past the outline the 30 m posts still carry the roof's edge ...
+BARE_MARGIN_M = 10.0
+# ... and the ground the plane is fitted to is the ring this wide beyond.
+BARE_RING_M = 30.0
+# The centerline wins within 40 m of the road in `terrain.rs`; nothing near
+# the road is touched, so `dem_elevation.py` reads the same road.
+BARE_ROAD_KEEP_M = 25.0
+# Under this a post is already on the plane (an f32 rounding on a rerun).
+BARE_TOLERANCE_M = 0.05
+
+
+def footprints(stem: str) -> list[tuple]:
+    """The dossier's buildings: `(cx, cy, half_u, half_v, yaw, round)`."""
+    layout = track_dir(stem) / f"{stem}.layout.json"
+    if not layout.exists():
+        return []
+    doc = json.loads(layout.read_text(encoding="utf-8"))
+    out = []
+    for s in doc.get("structures", []):
+        cx, cy = s["centre"]
+        out.append((cx, cy, s["length_m"] / 2, s["depth_m"] / 2, s.get("yaw_rad", 0.0), False))
+    for lm in doc.get("landmarks", []):
+        r = LANDMARK_FOOTPRINT_M.get(lm.get("kind"))
+        if r is not None and "centre" in lm:
+            cx, cy = lm["centre"]
+            out.append((cx, cy, r, r, 0.0, True))
+    return out
+
+
+def _local(gx, gy, f):
+    cx, cy, hu, hv, yaw, rnd = f
+    dx, dy = gx - cx, gy - cy
+    c, s = math.cos(yaw), math.sin(yaw)
+    u = dx * c + dy * s
+    v = -dx * s + dy * c
+    if rnd:
+        # A circle: its distance past the outline, along u.
+        return np.hypot(u, v) - hu, None, u, v
+    return np.abs(u) - hu, np.abs(v) - hv, u, v
+
+
+def _within(f, gx, gy, past_m):
+    du, dv, u, v = _local(gx, gy, f)
+    inside = du <= past_m if dv is None else (du <= past_m) & (dv <= past_m)
+    return inside, u, v
+
+
+def bare_earth(h: np.ndarray, spec: dict, prints: list, road: np.ndarray) -> tuple[int, float]:
+    """Cap `h` under every footprint at a plane fitted to the ground ring
+    around it, in place. Returns the posts lowered and the most any was."""
+    if not prints:
+        return 0, 0.0
+    cell = spec["cell_m"]
+    ring_m = max(BARE_RING_M, 2.0 * cell)
+    xs = spec["origin_x"] + np.arange(spec["cols"]) * cell
+    ys = spec["origin_y"] + np.arange(spec["rows"]) * cell
+    windows = []
+    for f in prints:
+        reach = math.hypot(f[2], f[3]) + BARE_MARGIN_M + ring_m + cell
+        c0, c1 = np.searchsorted(xs, [f[0] - reach, f[0] + reach])
+        r0, r1 = np.searchsorted(ys, [f[1] - reach, f[1] + reach])
+        if c1 <= c0 or r1 <= r0:
+            windows.append(None)
+            continue
+        gx, gy = np.meshgrid(xs[c0:c1], ys[r0:r1])
+        windows.append((r0, r1, c0, c1, gx, gy))
+    # Every building's own posts, so one's ring never reads its neighbour's roof.
+    roofed = np.zeros(h.shape, dtype=bool)
+    for f, w in zip(prints, windows):
+        if w is not None:
+            r0, r1, c0, c1, gx, gy = w
+            roofed[r0:r1, c0:c1] |= _within(f, gx, gy, BARE_MARGIN_M)[0]
+    lowered = np.zeros(h.shape, dtype=bool)
+    most = 0.0
+    for f, w in zip(prints, windows):
+        if w is None:
+            continue
+        r0, r1, c0, c1, gx, gy = w
+        inside, u, v = _within(f, gx, gy, BARE_MARGIN_M)
+        ring = _within(f, gx, gy, BARE_MARGIN_M + ring_m)[0] & ~roofed[r0:r1, c0:c1]
+        z = h[r0:r1, c0:c1]
+        if ring.sum() < 6 or not inside.any():
+            continue
+        # The ground plane, robustly: refit without the ring's highest quarter
+        # (a hedge, a parked truck, a neighbour the dossier does not know).
+        a = np.column_stack([np.ones(int(ring.sum())), u[ring], v[ring]])
+        b = z[ring]
+        coef = np.linalg.lstsq(a, b, rcond=None)[0]
+        res = b - a @ coef
+        keep = res <= np.percentile(res, 75)
+        if keep.sum() >= 3:
+            coef = np.linalg.lstsq(a[keep], b[keep], rcond=None)[0]
+        plane = coef[0] + coef[1] * u + coef[2] * v
+        cut = inside & (z > plane + BARE_TOLERANCE_M)
+        if not cut.any():
+            continue
+        # Never the road's own posts.
+        px, py = gx[cut], gy[cut]
+        d2 = np.full(px.shape, np.inf)
+        for chunk in range(0, len(road), 512):
+            rp = road[chunk : chunk + 512]
+            d2 = np.minimum(d2, ((px[:, None] - rp[None, :, 0]) ** 2 + (py[:, None] - rp[None, :, 1]) ** 2).min(1))
+        far = d2 > BARE_ROAD_KEEP_M**2
+        idx = np.flatnonzero(cut)[far]
+        if idx.size == 0:
+            continue
+        ri, ci = np.unravel_index(idx, z.shape)
+        most = max(most, float((z[ri, ci] - plane[ri, ci]).max()))
+        z[ri, ci] = plane[ri, ci]
+        lowered[r0 + ri, c0 + ci] = True
+    return int(lowered.sum()), most
+
+
 # --------------------------------------------------------------- msgpack out
 
 
@@ -570,6 +699,7 @@ def build(stem: str, offline: bool) -> dict:
 
     grids = {}
     gaps = 0
+    prints = footprints(stem)
     for name, spec in (("inner", inner), ("outer", outer)):
         h = sample_grid(dem, frame, spec)
         hole = ~np.isfinite(h)
@@ -578,11 +708,13 @@ def build(stem: str, offline: bool) -> dict:
         gaps += int(hole.sum())
         h[hole] = 0.0
         h += dz
+        bare, most = bare_earth(h, spec, prints, track.pts)
         spec["heights"] = pack_f32(h)
         grids[name] = spec
         print(
             f"   {name} {spec['cell_m']:.0f} m: {spec['cols']} x {spec['rows']} posts, "
             f"{float(h.min()):.0f} m to {float(h.max()):.0f} m"
+            + (f"; {bare} under {len(prints)} buildings lowered, up to {most:.1f} m" if bare else "")
         )
     if gaps:
         print(f"   {gaps} post(s) had no tile and were taken as sea level")
@@ -618,12 +750,38 @@ def build(stem: str, offline: bool) -> dict:
     }
 
 
+def bare_earth_sidecar(stem: str) -> dict:
+    """The checked-in sidecar with the bare-earth cap applied to its own
+    grids: no refit, no tiles, so a circuit whose OSM extract is not cached
+    keeps its georeference. Idempotent: the ring outside every outline is
+    read, never written."""
+    import msgpack
+
+    path = track_dir(stem) / f"{stem}.dem.msgpack"
+    doc = msgpack.unpackb(path.read_bytes(), strict_map_key=False)
+    prints = footprints(stem)
+    road = Track(stem).pts
+    print(f"== {stem}")
+    for name in ("inner", "outer"):
+        spec = doc[name]
+        h = np.asarray(spec["heights"], dtype=np.float32).reshape(spec["rows"], spec["cols"]).astype(float)
+        bare, most = bare_earth(h, spec, prints, road)
+        spec["heights"] = pack_f32(h)
+        print(f"   {name}: {bare} posts under {len(prints)} buildings lowered, up to {most:.1f} m")
+    return doc
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("tracks", nargs="*", help="track stems, e.g. RedPullRing")
     ap.add_argument("--all", action="store_true", help="every circuit with a dossier")
     ap.add_argument("--offline", action="store_true", help="use the cached tiles only")
     ap.add_argument("--dry-run", action="store_true", help="report without writing")
+    ap.add_argument(
+        "--bare-earth",
+        action="store_true",
+        help="apply the bare-earth cap to the checked-in sidecar only (no refit, no tiles)",
+    )
     args = ap.parse_args()
 
     stems = (
@@ -634,6 +792,14 @@ def main() -> int:
     if not stems:
         ap.print_help()
         return 1
+    if args.bare_earth:
+        for stem in stems:
+            if not (track_dir(stem) / f"{stem}.dem.msgpack").exists():
+                continue
+            doc = bare_earth_sidecar(stem)
+            if not args.dry_run:
+                (track_dir(stem) / f"{stem}.dem.msgpack").write_bytes(pack(doc))
+        return 0
     for stem in stems:
         if stem not in BBOXES and stem not in DEM_ONLY:
             layout = track_dir(stem) / f"{stem}.layout.json"

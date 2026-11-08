@@ -1837,12 +1837,12 @@
   verdict:
     date: 2026-11-08
     by: agent
-    says: not-right
+    says: looks-right
     text: >-
-      Reshot 2026-11-08: the cauldron and arenas (1) and (2) read right, but
-      ice arena (3) sits on a hillside with its bowl cantilevered over the slope
-      (shot 4): its footprint is not levelled or plinthed. The run has no shot
-      of the stadium toward the sea.
+      Reshot 2026-11-08 after the bare-earth DEM (dem_fetch.bare_earth): arena
+      (3) now stands on level ground instead of overhanging a mound that was
+      its own roof in the surface model; the cauldron and arenas (1)-(2) read
+      right, and c5-kit-gnocchi shows Fisht flat on the plain toward the sea.
 
 - id: v-c5-monzarella-banking
   title: 'Monzarella: the Sopraelevata banking'

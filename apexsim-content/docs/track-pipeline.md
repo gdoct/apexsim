@@ -502,6 +502,23 @@ holds their boxes and takes a looser gate (60% covered, 4.5 m), so they get
 a sidecar, the horizon mesh and the far field's tree line. Yas Marina and
 Marina Bay stay without one: reclaimed flat land, where a surface model
 reads the hotels and roofs as hills.
+
+GLO-30 is a surface model: a roof is in it as much as the ground, so a
+45 m ice arena read as a hill and the arena dressed onto its ground hung
+over the slope. `dem_fetch.bare_earth` caps the model under the dossier's
+buildings at a plane fitted to the ground ringed around each (30 m wide,
+10 m past the outline, refitted without the ring's highest quarter): its
+`structures` as oriented boxes and the landmarks that are buildings on
+level ground (`LANDMARK_FOOTPRINT_M`: arena, stadium, expo pavilion,
+geodesic dome) as circles of their real outline. Stands keep their
+heights (many are earth banks), as do castles (their hill is real), and
+nothing within 25 m of the road is touched, so `dem_elevation.py` reads
+the same road. `dem_fetch.py --all --bare-earth` applies it to the
+checked-in sidecars alone (no refit, no tiles; idempotent), for circuits
+whose OSM extract is not cached; a full run applies it as it samples.
+After it, `ats-dress` reseats the buildings on the lowered ground.
+`tools/tests/test_dem_bare_earth.py` holds it (`python -m unittest
+discover -s tools/tests`).
 `track_location.py` writes `metadata.altitude_m` / `latitude_deg` /
 `longitude_deg` from the georeference (its `MANUAL` table covers circuits
 without a DEM); `ats-export` writes `latitude_deg`, `longitude_deg`,
