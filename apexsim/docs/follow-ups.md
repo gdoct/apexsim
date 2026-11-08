@@ -362,8 +362,10 @@ the launcher import with the network off.
   and #6) the sky atmosphere's planet ground shows as a dark sliver, a few
   pixels tall, between the terrain's far edge and the horizon: the height
   fog stops short of the sky (`ApexSky::HazeCutoffCm`), and the planet
-  ground sits at the sky's depth. A ground albedo near the haze's, or a
-  terrain skirt that runs out under the horizon, would close it.
+  ground sits at the sky's depth. The atmosphere's ground albedo set to the
+  haze's colour (tried 2026-11-08 on `g15-haze-mordschleife` #5) only turns
+  the band from navy to a dark grey-blue: left is a terrain skirt that runs
+  out under the horizon.
 - Runtime-built track meshes stay out of the distance-field scene, so
   software Lumen and DF shadows see the road and terrain less well than the
   kit props. The fast build makes no distance field. `-ApexTrackFullBuild`
