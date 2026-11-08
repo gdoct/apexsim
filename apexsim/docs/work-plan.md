@@ -311,7 +311,8 @@ reason in the column's paragraph; the `c5-*` runs in
 `scripts/verify/runs.yml` shoot any circuit again after a later edit.
 The cells built 2026-10-22 (R21, R8, the kit pieces, the 24h layout) wait
 for a person to judge their shots, as the `v-c5-*` items on the verifier's
-page; their shots predate C9's stadium canopy and C10's horizons. Mandarina
+page; they were shot again on 2026-11-08 at HEAD (after C9's stadium canopy,
+C10's horizons and the bare-earth DEM) and carry the agent's verdicts. Mandarina
 Bay's superscreens were confirmed 2026-10-28. Monzarella's Sopraelevata, judged
 not right the same day (`c5-kit-monzarella`, score 3), is laid again
 since 2026-11-08 (the ways chained, modules end to end on the line and
