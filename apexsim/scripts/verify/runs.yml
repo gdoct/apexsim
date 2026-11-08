@@ -149,6 +149,14 @@ runs:
         checks: "FLAT and LEAK read-outs; FlatSpot2 still there"
         exec: "apexsim.cam.Chase cockpit"
 
+  - id: r2-rubbered-start
+    about: "R2. Silverstone, cloudy, a rubbered start: r2-silverstone-stint's corner cameras on the grid with the line already dark"
+    server: {stand_in: true}
+    args: [-ApexAutoRace, -ApexTrack=Shiverstone, -ApexCar=SF-26, -ApexAiCount=11, -ApexLaps=3, -ApexCountdown=5, -ApexWeather=cloudy, -ApexTimeOfDay=13:00, -ApexTrackRubber=0.8, -ApexView=chase, -ApexRacingLine=off]
+    shots:
+      - {at: 38, label: "corner 1045 m on the grid: the line dark", checks: "R2: a rubbered start, the line darker than the road beside it (against r2-silverstone-stint's green start)", item: v-r2-rubbered-start, exec: "apexsim.cam.LookAt 741.1 347.8 12.6 752.7 357.5 10.1"}
+      - {at: 42, label: "corner 5515 m on the grid: the line dark", checks: "R2: a rubbered start", item: v-r2-rubbered-start, exec: "apexsim.cam.LookAt 106.5 -197.6 4.0 94.2 -206.0 1.5"}
+
   - id: r2-silverstone-stint
     about: "R2. Silverstone, cloudy, green start, long stint"
     # The same corner cameras at the green and ten minutes on: rubber 0 to

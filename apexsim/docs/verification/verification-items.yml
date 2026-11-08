@@ -56,7 +56,25 @@
   what: >-
     A rubbered start (`-ApexTrackRubber` above 0): the line dark from the first
     lap.
-  status: open
+  status: judged
+  evidence:
+  - run: r2-rubbered-start
+    date: 2026-11-08
+    commit: 6f572de7
+    shots: [1, 2]
+    kind: shot
+  verdict:
+    date: 2026-11-08
+    by: agent
+    says: looks-right
+    text: >-
+      r2-rubbered-start (2026-11-08, -ApexTrackRubber=0.8) against r2-silverstone-stint's
+      green start at the same seconds: a darker band follows the racing line
+      through both corners on the grid lap (clearest in shot 2), where the green
+      road is even. Faint at chase distance. Both runs' shots are the chase
+      camera, not the run's corner LookAt (the exec did not move the camera
+      at 38 and 42 s in either), so the corner framing is still to get.
+    shots: [1, 2]
   notes:
   - text: >-
       R2 (Silverstone, cloudy, green start, long stint): `-ApexWeather=cloudy
