@@ -3,7 +3,7 @@
   "images": {
     "band-left-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/posh-gt3rs_rear.png",
-      "sha256": "08f0253173ab3d2eb9c0e6e267164f5854e0ee0d41e9fa3e1abef67b4053cd65",
+      "sha256": "e7224f43ad99ec4b4e21df3a39353e938255a8fb40698b4120ff3c5cec2d5c7d",
       "params": {
         "width": 1200,
         "quality": 86
@@ -11,7 +11,7 @@
     },
     "band-left.webp": {
       "src": "../apexsim-content/props/_preview/cars/posh-gt3rs_rear.png",
-      "sha256": "08f0253173ab3d2eb9c0e6e267164f5854e0ee0d41e9fa3e1abef67b4053cd65",
+      "sha256": "e7224f43ad99ec4b4e21df3a39353e938255a8fb40698b4120ff3c5cec2d5c7d",
       "params": {
         "width": 1200,
         "aspect": 2.08,
@@ -223,7 +223,7 @@
     },
     "car-murcetes-amd-gt3-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/murcetes-amd-gt3_hero.png",
-      "sha256": "7772a9b3baaf47efb7c33a44d23ed0d7fafcd3ba1a41db880c4c5850762f156e",
+      "sha256": "38df304fafd6abcca8feda16405d112a97b6341664e24dbfe7c3542b2ecde40b",
       "params": {
         "width": 1200,
         "quality": 86
@@ -231,7 +231,7 @@
     },
     "car-murcetes-amd-gt3.webp": {
       "src": "../apexsim-content/props/_preview/cars/murcetes-amd-gt3_hero.png",
-      "sha256": "7772a9b3baaf47efb7c33a44d23ed0d7fafcd3ba1a41db880c4c5850762f156e",
+      "sha256": "38df304fafd6abcca8feda16405d112a97b6341664e24dbfe7c3542b2ecde40b",
       "params": {
         "width": 800,
         "aspect": 1.9,
@@ -303,7 +303,7 @@
     },
     "car-posh-gt3rs-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/posh-gt3rs_hero.png",
-      "sha256": "73d5c4aeb1b5fe83c1fc662b24832d9996464b0df815f8440fb4f140b6d9a426",
+      "sha256": "e4476e8057afa6714354977b485880b9ef1a97da4db076060f48d9236c40f122",
       "params": {
         "width": 1200,
         "quality": 86
@@ -311,7 +311,7 @@
     },
     "car-posh-gt3rs.webp": {
       "src": "../apexsim-content/props/_preview/cars/posh-gt3rs_hero.png",
-      "sha256": "73d5c4aeb1b5fe83c1fc662b24832d9996464b0df815f8440fb4f140b6d9a426",
+      "sha256": "e4476e8057afa6714354977b485880b9ef1a97da4db076060f48d9236c40f122",
       "params": {
         "width": 800,
         "aspect": 1.9,
