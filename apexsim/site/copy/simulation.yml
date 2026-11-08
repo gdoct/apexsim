@@ -116,7 +116,8 @@ chapters:
       - title: Compounds for every weather
         body: >-
           Soft, medium and hard slicks, intermediates and wets, each with
-          its own grip, wear and window; a rally car's studs on snow. A slick
+          its own grip, wear and window; a rally car's studs on snow, which
+          bare tarmac pulls out. A slick
           in the rain costs what it should.
       - title: You can see it
         body: >-
@@ -276,7 +277,8 @@ chapters:
       - title: Dew and fog
         body: >-
           A still, clear night lays dew and a radiation fog the morning sun
-          burns off.
+          burns off; on a frozen track the dew is frost. Rain and snow haze
+          the distance.
       - title: A rain radar
         body: >-
           The HUD's radar shows the next shower drifting in on the wind.
@@ -342,19 +344,23 @@ chapters:
       - title: Safety cars
         body: >-
           A car stranded on the road brings out a virtual safety car or the
-          real one, which picks up the leader, closes the field up and lets
-          the lapped cars by.
+          real one, which picks up the leader, closes the field up, lets
+          the lapped cars by and stays out the laps the host sets.
       - title: Penalties
         body: >-
-          Passing under yellow, a red light at the pit exit or a jump start
-          costs time, a drive-through or a stop-go, served in the lane.
+          Passing under yellow, a red light at the pit exit, a jump start,
+          too many trips off the track or rejoining in front of a car
+          closing fast: each costs time, a drive-through or a stop-go, as
+          the host chooses which are penalised.
       - title: Track limits
         body: >-
           Four wheels past the kerb band for a fifth of a second strikes the
-          lap; cut the course and it goes too.
+          lap; cut the course and it goes too. Under the rule the first
+          three strikes are warnings on the HUD, then every fourth costs
+          five seconds.
       - title: Stewards
         body: >-
-          Every contact and cut goes on an incident list the results open
+          Every contact, cut and unsafe rejoin goes on an incident list the results open
           in the replay, and a steward hands out or clears a penalty from
           the dashboard.
 
@@ -443,8 +449,9 @@ chapters:
           for the leaders.
       - title: The grip they have
         body: >-
-          They drive to their cold tyres, dirty air and a damaged wing, and
-          reverse out of a barrier they end up against.
+          They drive to their cold tyres, dirty air and a damaged wing, ease
+          off on snow and in a fog, and reverse out of a barrier they end up
+          against.
       - title: A field of levels
         body: >-
           The host picks a level and the field spreads around it, from
@@ -681,7 +688,7 @@ around:
             in the middle.
         - title: Cockpit
           body: >-
-            Wheel, dash and mirrors built per car, the view riding the car's
+            Wheel, dash, mirrors and the driver's gloved hands built per car, the view riding the car's
             bumps and buzz; seat, horizon lock, head motion and how much the
             view shakes are yours to set.
         - title: HDR and colour vision

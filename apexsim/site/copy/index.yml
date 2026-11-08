@@ -41,7 +41,7 @@ overview:
     - {tag: Aero, title: 'Downforce that rides the road', href: 'simulation#aero', body: 'Ride height and rake, a tow that cuts drag, dirty air that takes the front away.'}
     - {tag: Weather, title: 'Rain, snow, wind and thin air', href: 'simulation#weather', body: 'Any hour of any day; a sky that can change, a road that wets and dries.'}
     - {tag: Damage, title: 'Every hit counts, and shows', href: 'simulation#damage', body: 'Five zones scored by closing speed; dents, lost wings, a smoking engine.'}
-    - {tag: Race control, title: 'Flags, safety car and stewards', href: 'simulation#race-control', body: 'Formation laps, rolling starts, yellow and blue flags, penalties served in the lane.'}
+    - {tag: Race control, title: 'Flags, safety car and stewards', href: 'simulation#race-control', body: 'Formation laps, rolling starts, yellow and blue flags, track limits and penalties.'}
     - {tag: AI, title: 'Drivers that race', href: 'simulation#ai', body: 'They pass, defend, plan their stops and drive to the grip they have.'}
     - {tag: Force feedback, title: 'Feel the front let go', href: 'simulation#ffb', body: 'Steering torque from each front tyre: the rim goes light as the grip peaks.'}
 

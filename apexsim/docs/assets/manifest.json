@@ -183,7 +183,7 @@
     },
     "car-limbotiti-caravan-gt3-zoom.webp": {
       "src": "../apexsim-content/props/_preview/cars/limbotiti-caravan-gt3_hero.png",
-      "sha256": "d9f9c17ed00d46ef6faef6231ea0fe3d62b038c0a06b149e549282b982636bca",
+      "sha256": "b5a86ce9956fb157443fe908b843fc129101d4f804f2f0a6be5310334a7e38a8",
       "params": {
         "width": 1200,
         "quality": 86
@@ -191,7 +191,7 @@
     },
     "car-limbotiti-caravan-gt3.webp": {
       "src": "../apexsim-content/props/_preview/cars/limbotiti-caravan-gt3_hero.png",
-      "sha256": "d9f9c17ed00d46ef6faef6231ea0fe3d62b038c0a06b149e549282b982636bca",
+      "sha256": "b5a86ce9956fb157443fe908b843fc129101d4f804f2f0a6be5310334a7e38a8",
       "params": {
         "width": 800,
         "aspect": 1.9,
