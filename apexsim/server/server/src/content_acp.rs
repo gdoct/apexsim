@@ -19,7 +19,7 @@
 //! A HUD component named as a shipped one replaces it on screen, as a
 //! `custom/` component is meant to.
 
-use apexsim_formats::pack::acp::{self, Acp, AcpItem, AcpKind};
+use apexsim_formats::pack::acp::{self, Acp, AcpItem, AcpKind, Payload};
 use serde::Serialize;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -95,7 +95,7 @@ impl Layout {
 /// One file to write: where, and which bytes of the pack.
 struct Write<'a> {
     path: PathBuf,
-    bytes: &'a [u8],
+    payload: &'a Payload,
 }
 
 /// What installing one item does.
@@ -272,11 +272,11 @@ fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
         writes: Vec::new(),
         to: Vec::new(),
     };
-    let put = |plan: &mut Plan<'a>, dir: &Path, files: &'a [(String, Vec<u8>)]| {
-        for (rel, bytes) in files {
+    let put = |plan: &mut Plan<'a>, dir: &Path, files: &'a [(String, Payload)]| {
+        for (rel, payload) in files {
             plan.writes.push(Write {
                 path: dir.join(rel),
-                bytes,
+                payload,
             });
         }
     };
@@ -287,11 +287,11 @@ fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
             plan.to.push(game);
             if let Some(server) = server {
                 // The server reads only car.toml.
-                for (rel, bytes) in &item.files {
+                for (rel, payload) in &item.files {
                     if rel.eq_ignore_ascii_case("car.toml") {
                         plan.writes.push(Write {
                             path: server.join("car.toml"),
-                            bytes,
+                            payload,
                         });
                     }
                 }
@@ -315,7 +315,7 @@ fn plan_item<'a>(layout: &Layout, item: &'a AcpItem) -> Plan<'a> {
 }
 
 /// Why `item` may not go into `layout`, or `None`.
-fn refusal(layout: &Layout, item: &AcpItem) -> Option<String> {
+fn refusal(layout: &Layout, acp: &Acp, item: &AcpItem) -> Option<String> {
     let (key, car, kind) = match item.kind {
         AcpKind::Car => ("id", true, "cars"),
         AcpKind::Track => ("track_id", false, "tracks"),
@@ -337,7 +337,8 @@ fn refusal(layout: &Layout, item: &AcpItem) -> Option<String> {
         .files
         .iter()
         .find(|(rel, _)| rel.eq_ignore_ascii_case(&own))
-        .and_then(|(_, bytes)| item_id(bytes, key));
+        .and_then(|(_, payload)| acp.bytes(payload).ok())
+        .and_then(|bytes| item_id(&bytes, key));
     let Some(id) = id else {
         return Some(format!(
             "the {} {} has no {key} in {own}",
@@ -362,13 +363,6 @@ fn exists_any(plan: &Plan) -> bool {
     plan.clear_dirs.iter().any(|d| d.exists()) || plan.clear_files.iter().any(|f| f.exists())
 }
 
-fn write_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir)?;
-    }
-    std::fs::write(path, bytes)
-}
-
 fn display(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
@@ -384,7 +378,8 @@ pub fn install(
     dry_run: bool,
     only: &[String],
 ) -> Result<Report, String> {
-    let Acp { items, ignored } = acp::read(pack_path).map_err(|e| e.to_string())?;
+    let pack = acp::read(pack_path).map_err(|e| e.to_string())?;
+    let items = &pack.items;
     let id_of = |item: &AcpItem| format!("{}:{}", item.kind.label(), item.name);
     for wanted in only {
         if !items.iter().any(|i| id_of(i).eq_ignore_ascii_case(wanted)) {
@@ -403,7 +398,7 @@ pub fn install(
         let refused = item
             .problem
             .clone()
-            .or_else(|| refusal(layout, item))
+            .or_else(|| refusal(layout, &pack, item))
             .unwrap_or_default();
         if picked && !refused.is_empty() && !dry_run {
             return Err(format!("{} {}: {refused}", item.kind.label(), item.name));
@@ -461,14 +456,15 @@ pub fn install(
                 }
             }
             for w in &plan.writes {
-                write_file(&w.path, w.bytes).map_err(|e| format!("{}: {e}", w.path.display()))?;
+                pack.write_to(w.payload, &w.path)
+                    .map_err(|e| e.to_string())?;
             }
         }
     }
     Ok(Report {
         installed: !dry_run,
         items: rows,
-        ignored,
+        ignored: pack.ignored.clone(),
         summary: summary.join("\n"),
     })
 }

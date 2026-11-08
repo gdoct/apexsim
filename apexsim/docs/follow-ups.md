@@ -317,9 +317,7 @@ blisters readable on the tread faces, the bulge on the rear right.
 - Loose packs (`.acp`): the launcher uninstalls a custom car, track or HUD
   component (`content uninstall`), but nothing records which pack an item
   came from, so a pack is not removed as one. A HUD pack's
-  `layout.json` is not an item, so it is ignored. The installer reads a
-  pack whole into memory before it writes, about 0.9 GB for a release's
-  `apexsim-content-<Version>.acp`.
+  `layout.json` is not an item, so it is ignored.
 - Shanghai's and Monza's surface models are checked against a bare-earth
   one (grandstands, the park's canopy); both still drive their invented z.
 - Verification runs (`scripts/verify`): the tyre close-ups have their

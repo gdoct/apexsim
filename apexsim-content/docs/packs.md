@@ -127,6 +127,10 @@ ignore it).
 <apexsim>`): every item, or only those named by `--only <kind>:<name>`
 (`car:my-gt3`, `track:Ring`, `hud:gauge`, repeated). Installing an item
 that cannot be installed stops the install before anything is written.
+The pack is not held in memory whole: a file over `acp::KEEP_IN_MEMORY`
+(1 MB: a track's mesh, a car's model) stays in the zip as it is read
+(`Payload::InPack`) and is copied out of it as it is written
+(`Acp::write_to`).
 `--dry-run` lists every item with what it would replace, its warnings and,
 for one that cannot be installed, why. The launcher's Manage content >
 Install pack... shows that list with a tick box per item (those that cannot

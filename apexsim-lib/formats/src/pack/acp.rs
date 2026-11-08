@@ -18,11 +18,48 @@
 //!
 //! A file in no item is reported as ignored. A file in two folder items
 //! (a component inside a car folder) belongs to the deeper one.
+//!
+//! [`read`] keeps a file over [`KEEP_IN_MEMORY`] in the zip ([`Payload::InPack`])
+//! and [`Acp::write_to`] copies it out when it is installed, so a pack of
+//! track meshes is not held in memory whole.
 
 use std::collections::BTreeSet;
 
 /// A loose pack file's extension.
 pub const ACP_EXTENSION: &str = "acp";
+
+/// [`read`] holds a file of this size or less in memory; a larger one (a
+/// track's mesh, a car's model) stays in the zip until it is written.
+pub const KEEP_IN_MEMORY: u64 = 1 << 20;
+
+/// A file of a loose pack.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Payload {
+    /// Its bytes.
+    Bytes(Vec<u8>),
+    /// Left in the pack [`Acp::source`] names: its entry and its size.
+    InPack { index: usize, size: u64 },
+}
+
+impl Payload {
+    /// Its size, bytes.
+    pub fn len(&self) -> u64 {
+        match self {
+            Payload::Bytes(b) => b.len() as u64,
+            Payload::InPack { size, .. } => *size,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl From<Vec<u8>> for Payload {
+    fn from(bytes: Vec<u8>) -> Self {
+        Payload::Bytes(bytes)
+    }
+}
 
 /// What an item in a loose pack is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -50,10 +87,10 @@ pub struct AcpItem {
     pub name: String,
     /// The item's own folder, each path relative to it: a car's or HUD
     /// component's folder, a track's server folder.
-    pub files: Vec<(String, Vec<u8>)>,
+    pub files: Vec<(String, Payload)>,
     /// A track's export, relative to the folder the game reads tracks from
     /// (`<Stem>.uemesh`, `<Stem>.textures/road.png`); empty for the others.
-    pub export: Vec<(String, Vec<u8>)>,
+    pub export: Vec<(String, Payload)>,
     /// Why this item cannot be installed (a name that is not a plain
     /// folder name, a track without its mesh); the rest of the pack can.
     pub problem: Option<String>,
@@ -69,6 +106,57 @@ pub struct Acp {
     pub items: Vec<AcpItem>,
     /// Files in no item, by their path in the zip.
     pub ignored: Vec<String>,
+    /// The pack [`read`] read, which holds every [`Payload::InPack`].
+    pub source: Option<std::path::PathBuf>,
+}
+
+#[cfg(feature = "archive")]
+impl Acp {
+    fn open(&self) -> Result<zip::ZipArchive<std::fs::File>, AcpError> {
+        let path = self
+            .source
+            .as_ref()
+            .ok_or_else(|| AcpError("a file left in a pack that was not read from one".into()))?;
+        let fail = |e: &dyn std::fmt::Display| AcpError(format!("{}: {e}", path.display()));
+        let file = std::fs::File::open(path).map_err(|e| fail(&e))?;
+        zip::ZipArchive::new(file).map_err(|e| fail(&e))
+    }
+
+    /// A file's bytes, read out of the pack if it was left there.
+    pub fn bytes<'a>(&self, payload: &'a Payload) -> Result<std::borrow::Cow<'a, [u8]>, AcpError> {
+        use std::io::Read;
+        match payload {
+            Payload::Bytes(b) => Ok(std::borrow::Cow::Borrowed(b)),
+            Payload::InPack { index, size } => {
+                let mut zip = self.open()?;
+                let mut entry = zip.by_index(*index).map_err(|e| AcpError(e.to_string()))?;
+                let mut out = Vec::with_capacity((*size).min(1 << 30) as usize);
+                entry
+                    .read_to_end(&mut out)
+                    .map_err(|e| AcpError(e.to_string()))?;
+                Ok(std::borrow::Cow::Owned(out))
+            }
+        }
+    }
+
+    /// Write a file to `to`, its folders made first; a file left in the
+    /// pack is copied out of it as it unpacks, never held whole.
+    pub fn write_to(&self, payload: &Payload, to: &std::path::Path) -> Result<(), AcpError> {
+        let fail = |e: &dyn std::fmt::Display| AcpError(format!("{}: {e}", to.display()));
+        if let Some(dir) = to.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| fail(&e))?;
+        }
+        match payload {
+            Payload::Bytes(b) => std::fs::write(to, b).map_err(|e| fail(&e)),
+            Payload::InPack { index, .. } => {
+                let mut zip = self.open()?;
+                let mut entry = zip.by_index(*index).map_err(|e| fail(&e))?;
+                let mut out = std::fs::File::create(to).map_err(|e| fail(&e))?;
+                std::io::copy(&mut entry, &mut out).map_err(|e| fail(&e))?;
+                Ok(())
+            }
+        }
+    }
 }
 
 /// Why a loose pack cannot be installed.
@@ -173,8 +261,8 @@ fn export_rest<'a>(path: &'a str, stem: &str) -> Option<&'a str> {
 
 /// Sort a loose pack's files into its items. `pack_stem` (the file name
 /// without `.acp`) names an item whose marker is at the top of the zip.
-pub fn classify(entries: Vec<(String, Vec<u8>)>, pack_stem: &str) -> Result<Acp, AcpError> {
-    let mut files: Vec<(String, Vec<u8>)> = Vec::with_capacity(entries.len());
+pub fn classify(entries: Vec<(String, Payload)>, pack_stem: &str) -> Result<Acp, AcpError> {
+    let mut files: Vec<(String, Payload)> = Vec::with_capacity(entries.len());
     let mut seen = BTreeSet::new();
     for (name, bytes) in entries {
         let Some(path) = normalise_entry(&name) else {
@@ -331,29 +419,36 @@ pub fn read(path: &std::path::Path) -> Result<Acp, AcpError> {
             continue;
         }
         let name = entry.name().to_string();
-        let mut bytes = Vec::with_capacity(entry.size().min(1 << 30) as usize);
+        let size = entry.size();
+        if size > KEEP_IN_MEMORY {
+            entries.push((name, Payload::InPack { index: i, size }));
+            continue;
+        }
+        let mut bytes = Vec::with_capacity(size as usize);
         entry.read_to_end(&mut bytes).map_err(|e| fail(&e))?;
-        entries.push((name, bytes));
+        entries.push((name, Payload::Bytes(bytes)));
     }
     let stem = path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
-    classify(entries, &stem)
+    let mut acp = classify(entries, &stem)?;
+    acp.source = Some(path.to_path_buf());
+    Ok(acp)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn entries(names: &[&str]) -> Vec<(String, Vec<u8>)> {
+    fn entries(names: &[&str]) -> Vec<(String, Payload)> {
         names
             .iter()
-            .map(|n| (n.to_string(), n.as_bytes().to_vec()))
+            .map(|n| (n.to_string(), Payload::Bytes(n.as_bytes().to_vec())))
             .collect()
     }
 
-    fn names(files: &[(String, Vec<u8>)]) -> Vec<&str> {
+    fn names(files: &[(String, Payload)]) -> Vec<&str> {
         let mut v: Vec<&str> = files.iter().map(|(p, _)| p.as_str()).collect();
         v.sort();
         v
@@ -525,5 +620,45 @@ mod tests {
     fn two_items_of_one_kind_and_name_are_refused() {
         let err = classify(entries(&["a/x/car.toml", "b/x/car.toml"]), "pack").unwrap_err();
         assert!(err.0.contains("two cars named x"), "{err}");
+    }
+
+    /// A file over `KEEP_IN_MEMORY` stays in the zip as it is read and
+    /// comes out of it whole when written.
+    #[cfg(feature = "archive")]
+    #[test]
+    fn a_large_file_stays_in_the_pack_until_it_is_written() {
+        use std::io::Write;
+        let dir = std::env::temp_dir().join(format!("apexsim-acp-large-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let pack = dir.join("big.acp");
+        let mesh: Vec<u8> = (0..(KEEP_IN_MEMORY as usize + 4096))
+            .map(|i| (i * 31 % 251) as u8)
+            .collect();
+        {
+            let mut zip = zip::ZipWriter::new(std::fs::File::create(&pack).unwrap());
+            let opts = zip::write::SimpleFileOptions::default();
+            zip.start_file("my-gt3/car.toml", opts).unwrap();
+            zip.write_all(
+                b"id = \"x\"
+",
+            )
+            .unwrap();
+            zip.start_file("my-gt3/body.glb", opts).unwrap();
+            zip.write_all(&mesh).unwrap();
+            zip.finish().unwrap();
+        }
+        let acp = read(&pack).unwrap();
+        let car = &acp.items[0];
+        let body = &car.files.iter().find(|(p, _)| p == "body.glb").unwrap().1;
+        assert!(matches!(body, Payload::InPack { .. }), "{body:?}");
+        assert_eq!(body.len(), mesh.len() as u64);
+        let toml = &car.files.iter().find(|(p, _)| p == "car.toml").unwrap().1;
+        assert!(matches!(toml, Payload::Bytes(_)));
+        let out = dir.join("out/body.glb");
+        acp.write_to(body, &out).unwrap();
+        assert_eq!(std::fs::read(&out).unwrap(), mesh);
+        assert_eq!(acp.bytes(body).unwrap().as_ref(), mesh.as_slice());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
