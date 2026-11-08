@@ -219,6 +219,10 @@ const ICE_COVER_MAX: f32 = 0.9;
 const ICE_SNOWFALL_MAX: f32 = 0.1;
 /// A bin with less water than this does not freeze.
 const ICE_WATER_MIN: f32 = 0.05;
+/// Frost: dew forming on a track under [`FREEZE_C`] glazes a bare bin
+/// toward this much of solid ice (half its grip loss), less where the
+/// wheels keep the line wiped dry; a thin layer, not a frozen puddle.
+pub const FROST_ICE: f32 = 0.5;
 
 /// What one car's pass sheds as marbles into every bin of the cell.
 pub const MARBLES_PER_PASS: f32 = 0.0015;
@@ -1093,6 +1097,8 @@ impl RoadState {
         // Dew condenses toward a film of its own, flat over the road (it
         // does not run into the dips), and wets the dried line again.
         let dew = DEW_FILM * self.dew.clamp(0.0, 1.0);
+        // On a frozen track the dew settles as frost instead.
+        let frost_share = self.dew.clamp(0.0, 1.0);
         let wetting = falling + dew;
         let drain = DRAIN_RATE * evaporation.max(0.0);
         let freezing = self.track_c < FREEZE_C;
@@ -1166,13 +1172,22 @@ impl RoadState {
                 }
                 let cover = *cover;
                 let ice = &mut self.ice[k];
-                if freezing
-                    && cover < ICE_COVER_MAX
-                    && snowfall < ICE_SNOWFALL_MAX
+                let bare = freezing && cover < ICE_COVER_MAX && snowfall < ICE_SNOWFALL_MAX;
+                // Hoar frost from the dew, held down where the line is wiped.
+                let frost = if bare {
+                    FROST_ICE * frost_share * (1.0 - *dry)
+                } else {
+                    0.0
+                };
+                if bare
                     && cell.depth * Self::depth_share(cell, bin_centre(b)) * (1.0 - *dry)
                         > ICE_WATER_MIN
                 {
                     *ice += (1.0 - *ice) * (ICE_FREEZE_RATE * dt).min(1.0);
+                } else if frost > 0.0 && *ice <= FROST_ICE {
+                    // A frosty bin settles on its frost: it forms where the
+                    // dew lies, and the passes scrape the line back.
+                    *ice += (frost - *ice) * (ICE_FREEZE_RATE * dt).min(1.0);
                 } else if *ice > 0.0 && thaw > 0.0 {
                     *ice = (*ice - thaw).max(0.0);
                 }
@@ -2141,6 +2156,49 @@ mod tests {
 
     /// A session that starts on a still, clear dawn finds the night's dew
     /// on its road; an evening start and the default afternoon start dry.
+    /// Dew on a frozen track is frost: the bare road glazes toward
+    /// [`FROST_ICE`], the cars' line much less, and the sun thaws it. Dew
+    /// on a track over freezing lays no ice.
+    #[test]
+    fn dew_on_a_frozen_track_is_frost_the_cars_scrape_off_their_line() {
+        let mut road = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        road.track_c = -4.0;
+        road.dew = 1.0;
+        for _ in 0..3600 {
+            road.step(1.0, 0.3);
+        }
+        let cell = road.cell_index(400.0);
+        let k = |lat: f32| cell * BINS + bin_of(lat).unwrap();
+        let frosted = road.ice[k(2.0)];
+        let grip = road.sample(400.0, 2.0).grip;
+        println!("frost: ice {frosted:.2}, grip {grip:.3}");
+        assert!(
+            frosted > 0.8 * FROST_ICE && frosted <= FROST_ICE + 1e-4,
+            "{frosted}"
+        );
+        assert!(grip < 0.9, "frost is slippery: {grip}");
+        // The cars wipe their line; the frost beside it stays.
+        drive(&mut road, -4.0, 60, 1200.0);
+        let (line, beside) = (road.ice[k(-4.0)], road.ice[k(4.0)]);
+        println!("driven: line {line:.2}, beside {beside:.2}");
+        assert!(line < 0.5 * beside, "line {line}, beside {beside}");
+        // The sun up, over freezing: it thaws.
+        road.dew = 0.0;
+        road.track_c = 5.0;
+        for _ in 0..1800 {
+            road.step(1.0, 1.5);
+        }
+        assert!(road.ice[k(4.0)] < 0.01, "thawed: {}", road.ice[k(4.0)]);
+        // Dew on a track over freezing lays no ice.
+        let mut mild = RoadState::new(&dipped_track(0.0), RUBBER_REFERENCE);
+        mild.track_c = 2.0;
+        mild.dew = 1.0;
+        for _ in 0..3600 {
+            mild.step(1.0, 0.3);
+        }
+        assert!(mild.ice.iter().all(|&i| i == 0.0));
+    }
+
     #[test]
     fn a_dawn_session_starts_on_the_nights_dew() {
         let start = |hh: u16| {

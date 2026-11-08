@@ -467,6 +467,13 @@ twenty cars an hour pack a driven stretch to about 0.7.
   track is under `FREEZE_C` (-1 °C), the cover is under 0.9 and no snow is
   falling: the line freezes overnight and costs `ICE_GRIP_LOSS` (0.6) of
   its grip until it thaws: a covered bake's ice is a tenth of the dry road.
+- **Frost**: dew forming on a track under `FREEZE_C` settles as ice on the
+  bare bins, toward `FROST_ICE` (0.5 of solid ice) times the dew's
+  strength, held down by the line's wiping (times one less its dry), at
+  `ICE_FREEZE_RATE`; the cars' passes scrape their line back toward it, and
+  it thaws as the ice does. A frosted bare bin has some 30% less grip, a
+  line driven for twenty minutes keeps about a fifth of it
+  (`dew_on_a_frozen_track_is_frost_the_cars_scrape_off_their_line`).
 - The asphalt nobody races on glazes instead (`road_state::glazes`): the
   paved run-off's cover (the verge's, `Cell::verge_ice`) and the pit lane's
   (`RoadState::lane_ice`, a figure a lane cell) freeze at `ICE_FREEZE_RATE`
