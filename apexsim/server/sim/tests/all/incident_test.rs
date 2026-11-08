@@ -202,7 +202,10 @@ fn a_forced_contact_a_trip_off_the_road_and_a_penalty_are_listed() {
 }
 
 /// Put `id` `side` metres off the road beside where it is (0: back on the
-/// line), at rest.
+/// line), at rest. Set down on the surface, not dropped from above it: without
+/// the baked ground (CI) a car's height is held past the road's margin, so one
+/// let go above the ground there would hang with its wheels unloaded and never
+/// count as off the track.
 fn put(race: &mut GameSession, id: PlayerId, side: f32) {
     let track = &race.track_config;
     let state = &race.session.participants[&id];
@@ -214,10 +217,15 @@ fn put(race: &mut GameSession, id: PlayerId, side: f32) {
         0.0
     };
     let (nx, ny) = (-point.heading_rad.sin(), point.heading_rad.cos());
+    let (x, y) = (point.x + nx * side, point.y + ny * side);
+    let ground = apexsim_sim::physics::probe_surface(track, x, y, point.z, Some(idx))
+        .expect("the track is under the car")
+        .context
+        .elevation;
     let state = race.session.participants.get_mut(&id).unwrap();
-    state.pos_x = point.x + nx * side;
-    state.pos_y = point.y + ny * side;
-    state.pos_z = point.z + 0.5;
+    state.pos_x = x;
+    state.pos_y = y;
+    state.pos_z = ground;
     state.yaw_rad = point.heading_rad;
     state.vel_x = 0.0;
     state.vel_y = 0.0;
