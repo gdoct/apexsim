@@ -30,6 +30,9 @@ backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md
 - **Livery editor** — no Number row on a car without a logo slot (`a08bee29`)
 - **Verifier** — the C5 runs shot again at HEAD and judged (`92f684db`, `9910a3c1`); the rubbered start, the haze and the Watch soak runs (`c33bc0a3`, `c093708d`)
 - **Tests** — the tick-rate test at half the rate or more (`7ed7df3c`); the lobby broadcast test asks until it sees the session (`24c325e4`)
+- **Packs** — a loose pack installed without holding it in memory (`568b484a`), removed as one with `--pack` (`e43d99aa`)
+- **Settings** — a saved port of 9000, the old default, reads as 4938 (`6ec6f6fa`)
+- **Release** — the `/release` command with `publish_release.py` and `smoke_release.py` (`d4f8241d`); version 0.4.5 (`6d34e126`), published as v0.4.5
 
 ## 2026-11-07
 
