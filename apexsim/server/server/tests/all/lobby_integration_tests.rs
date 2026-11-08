@@ -838,21 +838,21 @@ async fn test_lobby_state_broadcast() {
             .await?;
         println!("  Creator made session: {}", session_id);
 
-        // Client 1 should receive lobby state update (or can request it)
-        // Give some time for broadcast
-        sleep(Duration::from_millis(200)).await;
-
-        // Check if client1 received a lobby state update or request one
-        let updated_lobby = client1.request_lobby_state().await?;
-
-        assert!(
-            updated_lobby.available_sessions.len() > initial_session_count
-                || updated_lobby
-                    .available_sessions
-                    .iter()
-                    .any(|s| s.id == session_id),
-            "Watcher should see the new session"
-        );
+        // Client 1 sees it in the lobby: asked until it is there, for up to
+        // 5 s (a single ask 200 ms on missed it under the whole suite's load).
+        let sees = |lobby: &LobbyStateData| {
+            lobby.available_sessions.len() > initial_session_count
+                || lobby.available_sessions.iter().any(|s| s.id == session_id)
+        };
+        let mut seen = false;
+        for _ in 0..50 {
+            sleep(Duration::from_millis(100)).await;
+            if sees(&client1.request_lobby_state().await?) {
+                seen = true;
+                break;
+            }
+        }
+        assert!(seen, "Watcher should see the new session");
         println!("  ✓ Watcher client sees new session in lobby");
 
         // Cleanup: leave session and disconnect

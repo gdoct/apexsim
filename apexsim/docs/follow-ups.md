@@ -511,10 +511,9 @@ the same files.
   waits on the server now and then misses its timing and passes alone
   (`reconnect_test::a_resumed_driver_is_sent_nothing_of_the_race_until_they_rejoin`,
   `live_spectator_test::a_spectator_joining_mid_race_gets_the_roster_and_the_sectors`,
-  `protocol_test::test_session_ticks_at_the_configured_rate`,
-  `lobby_integration_tests::test_lobby_state_broadcast`, whose 200 ms
-  sleep before asking for the lobby is the likely miss; 2026-11-08). The
-  protocol tests' waits are 60 s (`TEST_TIMEOUT`).
+  `protocol_test::test_session_ticks_at_the_configured_rate`, 2026-11-08).
+  The protocol tests' waits are 60 s (`TEST_TIMEOUT`); the lobby broadcast
+  test asks again until it sees the session, for up to 5 s.
 
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget
