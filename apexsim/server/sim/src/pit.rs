@@ -51,6 +51,9 @@ pub const AI_PIT_WEAR: f32 = 70.0;
 /// Or a tyre carries a flat spot this deep (0..1): the shake costs lap
 /// time and the driver fears for the carcass.
 pub const AI_PIT_FLAT_SPOT: f32 = 0.6;
+/// Or its studded set has lost this share of its studs on average
+/// (`TireData::studs_lost`): a fresh set gives its bite on ice back.
+pub const AI_PIT_STUDS_LOST: f32 = 0.6;
 /// Or any body zone is this damaged, percent.
 pub const AI_PIT_DAMAGE: f32 = 25.0;
 /// Or its engine is, percent: power it would lose for the rest of the race.
@@ -891,6 +894,11 @@ pub fn plan_stop(state: &CarState, ctx: &StopContext) -> Option<StopPlan> {
     .any(|z| *z >= AI_PIT_DAMAGE)
         || d.engine_damage_percent >= AI_PIT_ENGINE_DAMAGE;
     if tyre_fault || damaged {
+        return full;
+    }
+    // A snow set worn bald of its studs, short of the flag: a fresh one.
+    let studs_lost = state.tires.each().iter().map(|t| t.studs_lost).sum::<f32>() / 4.0;
+    if studs_lost >= AI_PIT_STUDS_LOST && laps_left > AI_STAY_OUT_LAPS {
         return full;
     }
     // A fixed stint length about to run out short of the flag: in now.
@@ -2016,6 +2024,37 @@ pub(crate) mod tests {
             lap_fuel_l,
             ..StopContext::default()
         }
+    }
+
+    /// A snow set that has lost most of its studs is changed for a fresh
+    /// one, short of the flag; a few studs gone are not worth a stop.
+    #[test]
+    fn the_ai_stops_for_fresh_studs() {
+        let mut state = CarState::new(
+            uuid::Uuid::nil(),
+            uuid::Uuid::nil(),
+            &crate::data::GridSlot {
+                position: 1,
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+                yaw_rad: 0.0,
+            },
+        );
+        let racing = ctx(12, None);
+        for tyre in state.tires.each_mut() {
+            tyre.studs_lost = 0.3;
+        }
+        assert_eq!(plan_stop(&state, &racing), None, "studs to spare");
+        for tyre in state.tires.each_mut() {
+            tyre.studs_lost = 0.7;
+        }
+        assert!(plan_stop(&state, &racing).is_some(), "bald of studs");
+        let near_flag = StopContext {
+            laps_left: AI_STAY_OUT_LAPS,
+            ..racing
+        };
+        assert_eq!(plan_stop(&state, &near_flag), None, "the flag first");
     }
 
     /// Under a virtual safety car a driver takes the stop it would make

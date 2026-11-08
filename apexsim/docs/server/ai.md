@@ -364,7 +364,10 @@ off by `Racecraft::blend`; the controller holds it across the road
   `PitState::stint_start_laps`, the gap to the car ahead, a car behind
   turning in, its aggressiveness and a roll a lap): a flat spot past
   `AI_PIT_FLAT_SPOT`, a puncture or leak, `AI_PIT_DAMAGE` (25%) in a body
-  zone or `AI_PIT_ENGINE_DAMAGE` (20%) always; a tyre `AI_PIT_WEAR` (70%)
+  zone or `AI_PIT_ENGINE_DAMAGE` (20%) always; a studded set that has lost
+  `AI_PIT_STUDS_LOST` (60%) of its studs on average, more than
+  `AI_STAY_OUT_LAPS` from the flag (the stop's tyre is the weather's, so a
+  fresh snow set while the snow lies); a tyre `AI_PIT_WEAR` (70%)
   worn unless it reaches the flag (`pit::tyres_reach_flag`: under
   `AI_WEAR_TO_FLAG` 92% at this stint's rate) within `AI_STAY_OUT_LAPS`
   (3); or short of fuel with under
