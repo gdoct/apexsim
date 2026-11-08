@@ -40,6 +40,22 @@ Prediction's corrections in traffic were the other cars, missing from the
 predicted step; they are in it since 2026-11-08. Block B was answered
 before its switch to the puppet and is asked again.
 
+The unattended night of 2026-11-08 worked through follow-ups and gaps
+an agent can check alone (one commit each, `b318af2b` onward): the
+predicted car meets the other cars (ffi ABI 9), the stream carries the
+tyres' pickup and blisters, B16's deck closed at its ends, Monzarella's
+banking relaid (both to judge on the verifier's page), a track limits rule
+with warnings on the HUD, unsafe rejoins in the incident list, frost, the
+safety car's two laps, the AI on snow (`SNOW_PACE` 0.85 and the root of
+grip over the plan's: a snow race keeps far more of its field on the
+road), the AI's stop for fresh studs, every DEM circuit placed at its
+start line, duplicate props dropped by groom, the horizon skirt to 80 km,
+rain's haze over the sky, the driver's arms on by default, the T-cam's
+broadcast look. New agent verdicts wait for the owner on
+`v-track-suzuka-elevation`, `v-c5-monzarella-banking`,
+`v-r10-haze-rain-dusk-night`, `v-r2-rubbered-start` and
+`v-r4-rally-field-snow`.
+
 ## Legend
 
 **Priority** (re-assessed across all four docs, not copied from them):
