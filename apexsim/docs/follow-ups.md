@@ -513,10 +513,11 @@ the same files.
   the window's dots, for example a per-instance colour in custom data on one
   instanced mesh.
 
-- Server tests: `protocol_test::test_session_ticks_at_the_configured_rate`
-  measures the tick rate and misses it in a debug build when the whole
-  suite runs at once (it passes alone, and at opt-level 2 as CI runs).
-  The protocol tests' waits are 60 s (`TEST_TIMEOUT`).
+- Server tests under the whole suite's load (a debug build): a test that
+  waits on the server now and then misses its timing and passes alone
+  (`reconnect_test::a_resumed_driver_is_sent_nothing_of_the_race_until_they_rejoin`,
+  `live_spectator_test::a_spectator_joining_mid_race_gets_the_roster_and_the_sectors`,
+  2026-11-08). The protocol tests' waits are 60 s (`TEST_TIMEOUT`).
 
 - Tick pacing: the game loop's tokio interval ticks on a 1 ms grid, so
   at 420 Hz single ticks run 1-4.5 ms apart round the 2.38 ms budget

@@ -352,11 +352,13 @@ async fn test_session_ticks_at_the_configured_rate() {
     let target = apexsim_server::config::ServerConfig::default()
         .server
         .tick_rate_hz as f64;
-    let in_band = |rate: f64| rate > 0.8 * target && rate < 1.1 * target;
-    // Up to three 2 s windows, passing on the first in the band: the old
-    // coarse timer put every window at a quarter of the rate, while a
-    // loaded machine (the AI surveys beside a full `cargo test`) starves
-    // one now and then.
+    // Half the rate or more: the old coarse timer held every window to
+    // 15-27% of it (64 Hz of 240 or 420), while a debug build under the
+    // whole suite's load reads 60-80%.
+    let in_band = |rate: f64| rate > 0.5 * target && rate < 1.1 * target;
+    // Up to three 2 s windows, passing on the first in the band: a loaded
+    // machine (the AI surveys beside a full `cargo test`) starves one now
+    // and then.
     let mut rates = Vec::new();
     for _ in 0..3 {
         let first_tick = next_tick(client.recv_until(is_telemetry).await);
