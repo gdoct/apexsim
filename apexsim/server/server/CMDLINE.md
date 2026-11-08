@@ -42,7 +42,7 @@ The server does not start; the result is JSON on stdout, an error is
 
 ```
 apexsim-server content install <PACK> [--root <INSTALL> | --checkout <CODE>] [--dry-run] [--only <KIND:NAME>]...
-apexsim-server content uninstall <KIND:NAME>... [--root <INSTALL> | --checkout <CODE>]
+apexsim-server content uninstall <KIND:NAME>... [--pack <PACK>] [--root <INSTALL> | --checkout <CODE>]
 apexsim-server content list [--root <INSTALL>]
 apexsim-server content verify [--root <INSTALL>]
 ```

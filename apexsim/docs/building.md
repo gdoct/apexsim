@@ -539,6 +539,38 @@ touched: a car, track or HUD the player downloads later keeps its mark, a
 package without `unblock.txt` unblocks nothing, and a source checkout never
 runs it.
 
+## Publishing a release
+
+A release on GitHub is the package above, its content pack and its notes.
+`/release` in Claude Code (`.claude/commands/release.md`) runs the whole
+of it; by hand the steps are:
+
+```bash
+python scripts/publish_release.py next            # the version after the latest release (--minor)
+python scripts/publish_release.py bump 0.4.5      # ProjectVersion in DefaultGame.ini, committed
+powershell -File scripts/build_release.ps1        # the package, the pack and the zip
+python scripts/smoke_release.py 0.4.5             # the package raced, before anyone downloads it
+python scripts/publish_release.py since           # what the notes cover: days and commits since the last release
+# write artifacts/release/RELEASE_NOTES-0.4.5.md
+python scripts/publish_release.py check 0.4.5     # every precondition, nothing changed
+python scripts/publish_release.py publish 0.4.5   # push main, tag v0.4.5, create the release (--draft)
+```
+
+`smoke_release.py` runs the package's own server on ports 9100-9104 and its
+game with a scratch `settings.yml` (`-ApexSettingsDir`), so a server of
+yours on 4938 is untouched; a package saves its grabs and logs under
+`%LOCALAPPDATA%\ApexSim\Saved`, and the two grabs of its auto race are copied
+to `out/release-smoke/<version>/`. It also installs the content pack with
+`--dry-run` and fails on a refused item.
+
+`publish_release.py check` refuses a dirty tree, a version
+`DefaultGame.ini` does not carry, a tag or release that exists, a package
+whose `release.json` is another version or was built at another commit
+than HEAD, missing assets or notes, and an asset of 2 GiB or more
+(GitHub's limit). The version counts from the latest GitHub release, not
+the latest tag (a stray `v4.0.1` tag on a site commit is not a release).
+`publish` never builds, never edits the notes and never moves a tag.
+
 ## Verification runs and the verifier
 
 The unattended screen runs and the wheel sittings are
