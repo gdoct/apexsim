@@ -255,6 +255,13 @@ fn track_limits_cost_time_after_three_warnings() {
                 Some(&trip),
                 "trip {trip}"
             );
+            // The driver is warned through the roster, under the rule only.
+            let row = race
+                .roster_rows(&HashMap::new())
+                .into_iter()
+                .find(|r| r.player_id == car)
+                .unwrap();
+            assert_eq!(row.track_limit_strikes, if rule { trip } else { 0 });
             if trip <= TRACK_LIMITS_WARNINGS || !rule {
                 assert_eq!(penalties(&race), 0, "trip {trip} is a warning");
             }

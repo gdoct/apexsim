@@ -1470,6 +1470,22 @@ void ApexHudData::Build(const FApexHudInputs& In, FApexHudMemory& Memory, FApexH
 			Memory.LatestPenaltyAt = In.TimeSeconds;
 		}
 		Memory.PenaltiesSeen = Given;
+		// Track limits: each strike short of a penalty is a warning, shown
+		// as the newest penalty would be (the penalised one toasts itself).
+		const int32 Strikes = Own ? Own->TrackLimitStrikes : -1;
+		if (In.bTrackLimitsPenalty && Own && Memory.StrikesSeen >= 0 && Strikes > Memory.StrikesSeen
+			&& ApexPenalty::TrackLimitsLeft(Strikes - 1) != 1)
+		{
+			const int32 Left = ApexPenalty::TrackLimitsLeft(Strikes);
+			Memory.LatestPenalty = Strikes <= ApexPenalty::TrackLimitsWarnings
+				? FString::Printf(TEXT("TRACK LIMITS: WARNING %d OF %d"), Strikes, ApexPenalty::TrackLimitsWarnings)
+				: FString::Printf(TEXT("TRACK LIMITS: %d MORE TO A PENALTY"), Left);
+			Memory.LatestPenaltyAt = In.TimeSeconds;
+		}
+		Memory.StrikesSeen = Strikes;
+		Out.Set(TEXT("penalty.track_limit_strikes"), In.bTrackLimitsPenalty ? FMath::Max(0, Strikes) : 0);
+		Out.Set(TEXT("penalty.track_limits_left"), In.bTrackLimitsPenalty
+			? FApexHudValue::Of(ApexPenalty::TrackLimitsLeft(FMath::Max(0, Strikes))) : FApexHudValue());
 		const bool bLatest = !Memory.LatestPenalty.IsEmpty()
 			&& In.TimeSeconds - Memory.LatestPenaltyAt < ApexHudData::PenaltyShowSeconds;
 		Out.Set(TEXT("penalty.latest"), bLatest ? FApexHudValue::Of(Memory.LatestPenalty) : FApexHudValue());

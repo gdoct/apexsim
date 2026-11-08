@@ -92,6 +92,8 @@ struct APEXSIM_API FApexHudInputs
 	/** Drivers sharing each car (SessionJoined.RaceRules; 0 or 1 is one driver) and the most each may drive, minutes (0 none). */
 	int32 DriversPerCar = 0;
 	int32 MaxDriverMinutes = 0;
+	/** Track limits cost time past the warnings (SessionJoined.RaceRules). */
+	bool bTrackLimitsPenalty = false;
 	/** The session's tick rate (SessionJoined.Physics), for a stint's minutes from the frames' ticks; 0 unknown. */
 	int32 TickRateHz = 0;
 
@@ -276,6 +278,8 @@ struct APEXSIM_API FApexHudMemory
 
 	/** The local car's penalties counted so far (-1 before its roster row is seen), and the newest as shown (`penalty.latest`) and when it came. */
 	int32 PenaltiesSeen = -1;
+	/** The local car's track-limit strikes counted so far (-1 before its roster row is seen). */
+	int32 StrikesSeen = -1;
 	FString LatestPenalty;
 	double LatestPenaltyAt = -1.0e9;
 

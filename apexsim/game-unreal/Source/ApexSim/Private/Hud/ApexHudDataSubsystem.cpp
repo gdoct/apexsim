@@ -446,6 +446,7 @@ void UApexHudDataSubsystem::Refresh()
 		In.MaxStintMinutes = Net->GetSessionRaceRules().MaxStintMinutes;
 		In.DriversPerCar = Net->GetSessionRaceRules().DriversPerCar;
 		In.MaxDriverMinutes = Net->GetSessionRaceRules().MaxDriverMinutes;
+		In.bTrackLimitsPenalty = Net->GetSessionRaceRules().bTrackLimitsPenalty;
 		In.TickRateHz = Net->GetSessionPhysics().TickRateHz;
 		RefreshCarNames();
 		In.CarNames = &CarNames;

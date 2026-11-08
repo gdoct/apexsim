@@ -1031,6 +1031,7 @@ bool FApexProtocolGoldenDecodeTest::RunTest(const FString& Parameters)
 			&& TestEqual(TEXT("one entry"), Penalised.Roster.Entries.Num(), 1))
 		{
 			const FApexRosterEntry& Entry = Penalised.Roster.Entries[0];
+			TestEqual(TEXT("two laps struck for track limits"), Entry.TrackLimitStrikes, 2);
 			if (TestEqual(TEXT("two penalties"), Entry.Penalties.Num(), 2))
 			{
 				TestEqual(TEXT("a jump start"), Entry.Penalties[0].Reason, ApexPenalty::JumpStart);

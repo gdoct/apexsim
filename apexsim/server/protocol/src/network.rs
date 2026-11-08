@@ -2421,6 +2421,11 @@ pub struct RosterEntry {
     /// goes out new.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub used_set_wear: Option<u8>,
+    /// Laps struck for track limits this race under the track limits rule:
+    /// the first three are warnings, the fourth and every fourth after a
+    /// penalty. Left off the wire at 0 (and without the rule).
+    #[serde(default, skip_serializing_if = "is_zero_u16")]
+    pub track_limit_strikes: u16,
 }
 
 /// One penalty (`race_control::Penalty`) as a roster carries it.
@@ -6664,6 +6669,7 @@ mod tests {
                 own_livery: String::new(),
                 new_sets_left: None,
                 used_set_wear: None,
+                track_limit_strikes: 0,
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -6896,6 +6902,7 @@ mod tests {
                 own_livery: String::new(),
                 new_sets_left: None,
                 used_set_wear: None,
+                track_limit_strikes: 2,
             }],
         });
         let roster_bytes = rmp_serde::to_vec_named(&roster).unwrap();
@@ -6905,6 +6912,7 @@ mod tests {
             ServerMessage::SessionRoster(data) => {
                 assert_eq!(data.entries[0].penalties.len(), 2);
                 assert_eq!(data.entries[0].penalties[1].seconds, 5);
+                assert_eq!(data.entries[0].track_limit_strikes, 2);
             }
             _ => panic!("Wrong message type"),
         }
@@ -9126,6 +9134,7 @@ mod tests {
                 own_livery: String::new(),
                 new_sets_left: None,
                 used_set_wear: None,
+                track_limit_strikes: 0,
             };
         // Present and on the grid: no away key; no slot: no grid key.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false, false, 0)).unwrap();
@@ -9304,6 +9313,7 @@ mod tests {
             own_livery: String::new(),
             new_sets_left: None,
             used_set_wear: None,
+            track_limit_strikes: 0,
         };
         // Not ready: no key, so a roster off the grid keeps its bytes.
         let plain = rmp_serde::to_vec_named(&entry(0, "Player", false)).unwrap();
@@ -9402,6 +9412,7 @@ mod tests {
             own_livery: own_livery.to_string(),
             new_sets_left: None,
             used_set_wear: None,
+            track_limit_strikes: 0,
         };
         let plain = rmp_serde::to_vec_named(&entry("")).unwrap();
         assert!(!String::from_utf8_lossy(&plain).contains("OwnLivery"));
@@ -9447,6 +9458,7 @@ mod tests {
             own_livery: String::new(),
             new_sets_left,
             used_set_wear,
+            track_limit_strikes: 0,
         };
         // Without a rule neither key is on the wire.
         let plain = rmp_serde::to_vec_named(&entry(None, None)).unwrap();

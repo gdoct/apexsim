@@ -1355,6 +1355,7 @@ namespace
 			else if (Key == TEXT("QualifyingLaps")) { bOk = Reader.ReadUInt64(Raw); Out.QualifyingLaps = static_cast<int32>(Raw); }
 			else if (Key == TEXT("OwnLivery"))  { bOk = Reader.ReadString(Out.OwnLivery); }
 			else if (Key == TEXT("NewSetsLeft")) { bOk = Reader.ReadUInt64(Raw); Out.NewSetsLeft = static_cast<int32>(Raw); }
+			else if (Key == TEXT("TrackLimitStrikes")) { bOk = Reader.ReadUInt64(Raw); Out.TrackLimitStrikes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else if (Key == TEXT("UsedSetWear")) { bOk = Reader.ReadUInt64(Raw); Out.UsedSetWear = static_cast<int32>(Raw); }
 			else if (Key == TEXT("Penalties"))
 			{

@@ -1543,6 +1543,32 @@ bool FApexHudDataPenaltiesTest::RunTest(const FString& Parameters)
 	Roster.Entries[0].Penalties.Pop();
 	Roster.Entries[0].Penalties.Pop();
 
+	// Track limits under the rule: strikes short of a penalty are warnings.
+	TestEqual(TEXT("no strikes without the rule"), HudValue(Data, TEXT("penalty.track_limit_strikes")).AsNumber(), 0.0);
+	TestTrue(TEXT("nothing left without the rule"), HudValue(Data, TEXT("penalty.track_limits_left")).IsNone());
+	In.bTrackLimitsPenalty = true;
+	In.TimeSeconds += 10.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("four strikes to a penalty"), HudValue(Data, TEXT("penalty.track_limits_left")).AsNumber(), 4.0);
+	Roster.Entries[0].TrackLimitStrikes = 2;
+	In.TimeSeconds += 1.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the second warning"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("TRACK LIMITS: WARNING 2 OF 3")));
+	TestEqual(TEXT("two strikes"), HudValue(Data, TEXT("penalty.track_limit_strikes")).AsNumber(), 2.0);
+	TestEqual(TEXT("two to the penalty"), HudValue(Data, TEXT("penalty.track_limits_left")).AsNumber(), 2.0);
+	Roster.Entries[0].TrackLimitStrikes = 5;
+	In.TimeSeconds += 10.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("past the penalty"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("TRACK LIMITS: 3 MORE TO A PENALTY")));
+	Roster.Entries[0].TrackLimitStrikes = 8;
+	In.TimeSeconds += 10.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestTrue(TEXT("a penalised strike is the penalty's own toast"), !HudValue(Data, TEXT("penalty.latest")).AsString().StartsWith(TEXT("TRACK LIMITS:")));
+	Roster.Entries[0].TrackLimitStrikes = 0;
+	In.bTrackLimitsPenalty = false;
+	In.TimeSeconds += 10.0;
+	ApexHudData::Build(In, Memory, Data);
+
 	// A HUD first opened on a car with a penalty does not toast it.
 	FApexHudMemory Fresh;
 	ApexHudData::Build(In, Fresh, Data);

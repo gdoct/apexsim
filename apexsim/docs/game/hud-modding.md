@@ -523,11 +523,13 @@ which are.
 | `flag.blue` | the blue flag: a car a lap or more up is close behind |
 | `flag.name` | `DOUBLE YELLOW`, `YELLOW` or `BLUE FLAG`, the worst out (*null* while none is) |
 | `flag.yellow_sectors` | how many of the lap's 250 m marshal sectors show a yellow now |
-| `penalty.latest` | the newest penalty to the local car for 8 s after it is given, as `DRIVE-THROUGH: JUMP START`, `+5 S: OVERTAKING UNDER YELLOW` or `STOP-GO 10 S: PIT EXIT ON RED` (*null* otherwise; one the car had when the HUD first saw it is not shown) |
+| `penalty.latest` | the newest penalty to the local car for 8 s after it is given, as `DRIVE-THROUGH: JUMP START`, `+5 S: OVERTAKING UNDER YELLOW`, `STOP-GO 10 S: PIT EXIT ON RED` or `+5 S: TRACK LIMITS`, or a track-limits warning (*null* otherwise; one the car had when the HUD first saw it is not shown) |
 | `penalty.owed` | the local car owes a drive-through or stop-go |
 | `penalty.owed_name` | the first one owed, worded as `penalty.latest` (*null* when none is) |
 | `penalty.laps_left` | laps left to serve it in, the one in progress included; past them it is added as time (*null* when none is owed) |
 | `penalty.time_s` | the seconds the local car's penalties add to its race time |
+| `penalty.track_limit_strikes` | the local car's laps struck for track limits this race under the track limits rule (0 without it); `penalty.latest` shows each one short of a penalty as `TRACK LIMITS: WARNING 2 OF 3`, then `TRACK LIMITS: 3 MORE TO A PENALTY` |
+| `penalty.track_limits_left` | strikes left to the one that is penalised, counting it (1: the next is; *null* without the rule) |
 | `radar.left`, `radar.right` | a car alongside on that side: overlapping the local car along its length and within 3 m of its flank, edge to edge (car sizes from each car's catalog wheels) |
 | `radar.left_m`, `radar.right_m` | the gap to the nearest car alongside on that side, m, edge to edge (*null* while none is) |
 | `radar.count` | how many cars are in `radar_cars` |

@@ -527,6 +527,9 @@ pub struct RosterRow {
     /// (`tyre_sets::CarTyres::take_used`): its most worn tyre's wear,
     /// percent. `None` when the next run goes out new.
     pub used_set_wear: Option<u8>,
+    /// Laps struck for track limits this race, under the track limits rule
+    /// (`RaceRules::track_limits_penalty`); 0 without it.
+    pub track_limit_strikes: u16,
 }
 
 /// A session's state at one tick, to rewind to (`GameSession::snapshot`,
@@ -3377,6 +3380,8 @@ impl GameSession {
                 });
                 let strikes = self.track_limit_strikes.entry(car).or_default();
                 *strikes = strikes.saturating_add(1);
+                // Each strike is a warning on the driver's screen.
+                self.roster_dirty |= self.session.race_rules.track_limits_penalty;
                 if crate::race_control::track_limits_penalised(*strikes) {
                     over_the_limits.push(car);
                 }
@@ -8491,6 +8496,14 @@ impl GameSession {
                         .unwrap_or_default(),
                     new_sets_left: sets.0,
                     used_set_wear: sets.1,
+                    track_limit_strikes: if self.session.race_rules.track_limits_penalty {
+                        self.track_limit_strikes
+                            .get(player_id)
+                            .copied()
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    },
                 }
             })
             .collect()

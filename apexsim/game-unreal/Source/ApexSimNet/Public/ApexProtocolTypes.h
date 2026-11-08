@@ -2186,6 +2186,19 @@ namespace ApexPenalty
 	inline constexpr int32 Added = 2;
 	/** A drive-through or stop-go is served by the lap it was given on plus this (`SERVE_WITHIN_LAPS`). */
 	inline constexpr int32 ServeWithinLaps = 3;
+	/** Track limits: struck laps that are warnings, then every this many a penalty (race_control.rs). */
+	inline constexpr int32 TrackLimitsWarnings = 3;
+	inline constexpr int32 TrackLimitsEvery = 4;
+	/** Strikes left before the one that is penalised, counting it (1: the next is). */
+	inline int32 TrackLimitsLeft(int32 Strikes)
+	{
+		if (Strikes < TrackLimitsWarnings)
+		{
+			return TrackLimitsWarnings + 1 - Strikes;
+		}
+		// The penalised ones are the warnings + 1, then every TrackLimitsEvery on.
+		return TrackLimitsEvery - (Strikes - TrackLimitsWarnings - 1 + TrackLimitsEvery) % TrackLimitsEvery;
+	}
 }
 
 /** `PenaltyData` (network.rs): one penalty race control gave a car, PascalCase keys. */
@@ -2299,6 +2312,10 @@ struct APEXSIMNET_API FApexRosterEntry
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
 	int32 NewSetsLeft = -1;
+
+	/** Laps struck for track limits this race under the track limits rule (`TrackLimitStrikes`); 0 without it. */
+	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Race")
+	int32 TrackLimitStrikes = 0;
 
 	/**
 	 * With no new set left, the next run goes out on a used one: its most
