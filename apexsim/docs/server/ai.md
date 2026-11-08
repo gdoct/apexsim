@@ -576,9 +576,16 @@ What the AI still lacks is in [../simulation-gaps.md](../simulation-gaps.md)
   an F1 or a prototype has no ABS. Without `unlocked_pedal` its AI locked
   the fronts into every slow corner (a 919 lapped Monza in 148 s instead
   of 103 s, off the road at both chicanes).
-- **Grip share goes in at the 0.75 power, not the root.** The physics
-  would say root; the grip moves under the car through a corner as the
-  tread heats, and with the root the AI left the road much more.
+- **Grip share goes in at the 0.75 power under 1, the root over it**
+  (`ai_driver::grip_speed_share`). The physics would say root; under the
+  plan's grip the grip moves under the car through a corner as the tread
+  heats, and with the root the AI left the road much more. Over it (a snow
+  tyre's studs, about twice the grip on a covered road) the 0.75 power read
+  1.68 times the speed where a corner holds 1.41: a Rally field on snow
+  left the road for most of a race (2026-11-08, snow survey at Spa,
+  Monzarella and Zandervoort, seed 1: off-road 1269 to 303 car-seconds for
+  three Rally cars and a GT3, the Rally cars from 157-227 at Spa to
+  34-43). On a dry road the whole calendar, seeds 1-2, ran identical.
 - **Off the road, the lap position is not the leg.** The physics' nearest
   point falls back to a whole-lap search when a car leaves its window, and
   can land on another leg nearby; anything steering a car back to the

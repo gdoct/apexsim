@@ -99,6 +99,23 @@ pub fn snow_technique_weight(cover: f32) -> f32 {
 /// asks for (`track_path`): damps the weave the wheel and tyre lags make.
 const YAW_DAMPING: f32 = 0.25;
 
+/// What a share of the grip the plan was made on does to the speed the AI
+/// drives to: under the plan's grip (cold or cooked tyres, dirty air) its
+/// 0.75 power, a little more off than the root, because the grip changes
+/// under the car through a corner as the tread heats; over it (a snow
+/// tyre's studs on a covered road, about twice the grip) the root, which
+/// is all a corner gives. The 0.75 power there read twice the grip as 1.68
+/// times the speed where the corner held 1.41, and a field on studs left
+/// the road for most of a snow race.
+pub fn grip_speed_share(grip: f32) -> f32 {
+    let grip = grip.max(0.0);
+    if grip <= 1.0 {
+        grip.powf(0.75)
+    } else {
+        grip.sqrt()
+    }
+}
+
 /// The share of its grip a car corners on along a racecraft lane, and how
 /// many seconds of road ahead that lane's bends are read over.
 const LANE_GRIP_SHARE: f32 = 0.9;
@@ -980,7 +997,7 @@ impl<'a> AiDriverController<'a> {
         // takes away.
         let grip = state.tyre_grip_share() * state.aero_load_share;
         (
-            slowest * pace * grip.powf(0.75),
+            slowest * pace * grip_speed_share(grip),
             Some(slowest_k as f32 * speeds.spacing_m),
         )
     }

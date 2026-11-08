@@ -750,7 +750,7 @@ pub fn decide(
     // The plan as this driver can drive it now: its tyres, the air it is
     // in (a car in the dirty air of the one ahead is slower through the
     // corners, and should be), as the controller scales it.
-    let grip = (state.tyre_grip_share() * state.aero_load_share).powf(0.75);
+    let grip = crate::ai_driver::grip_speed_share(state.tyre_grip_share() * state.aero_load_share);
     let pace = crate::ai_driver::profile_pace(profile.skill_level) * grip;
     match ahead {
         Some((o, rel)) if rel - reach(o) < HELD_GAP_S * speed + CLOSE_EXTRA_M => {
