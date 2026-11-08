@@ -7,8 +7,8 @@ unnamed (~3300-3450). Pit lane right (inside), 1000 m.
 
 Maps read: `redbullring-2026-spectator-map.png`, `redbullring-2026-wayfinding.pdf`
 (page 1, rendered `redbullring-fia-media-kit-2026.pdf` p3 (aerial
-photo only). `redbullring-lageplan-2021.jpg` is **not an image**: it is a saved
-HTML page (failed download) and needs re-fetching.
+photo only). The 2021 Projekt Spielberg site plan once listed beside them is gone
+from its host (the download was an HTML page) and was dropped: the 2026 maps cover it.
 
 Media kit follow-up: rendered PDF pages p1-p6 are the cover, contents, circuit details
 with an aerial photo, Murtal/TAUROA hotels, and timetables. None of them is a site plan.

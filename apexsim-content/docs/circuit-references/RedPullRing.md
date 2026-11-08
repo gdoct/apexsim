@@ -35,7 +35,6 @@ Modelled on: Red Bull Ring, Spielberg, Murtal, Styria, Austria (operator Projekt
 | 2026 Austrian GP spectator map (zones and grandstands) | grandstand-map | 2026 | maps/RedPullRing/redbullring-2026-spectator-map.png | https://gpdestinations.com/wp-content/uploads/2026/04/2026-Austrian-Grand-Prix-spectator-map.png |
 | FIA / Red Bull Ring 2026 Austrian GP media kit (circuit map with grandstand labels, venue and road maps) | spectator-map | 2026 | maps/RedPullRing/redbullring-fia-media-kit-2026.pdf | https://www.fia.com/sites/default/files/media_kit_-_2026_austrian_grand_prix.pdf |
 | F1.com detailed track map 2026 | circuit-map | 2026 | maps/RedPullRing/redbullring-f1-2026-track.webp | https://media.formula1.com/image/upload/c_fit,h_704/q_auto/v1740000001/common/f1/2026/track/2026trackspielbergdetailed.webp |
-| Projekt Spielberg official F1 site plan (Lageplan) 2021, English | spectator-map | 2021 | maps/RedPullRing/redbullring-lageplan-2021.jpg | https://www.projekt-spielberg.com/assets/der-spielberg.at/public/formula1/map/overview/_1000x/Red_Bull_Ring_Lageplan_F1_AGP_2021_ENGLISH_SPG2021_0224.jpg |
 
 Also seen: the same wayfinding map as PNG at https://gpdestinations.com/wp-content/uploads/2026/06/2026-Austrian-GP-Red-Bull-Ring-Map.png, and a 2023 grandstand map at https://gpdestinations.com/wp-content/uploads/2023/05/red-bull-ring-2023-grandstand-map.png. No Wikimedia Commons SVG was confirmed: Commons could not be opened.
 

@@ -158,8 +158,6 @@ the same `ApexProps` code.
     line is 263 m further on.
   - Gnocchi's dossier fit covers 35% of the centerline (OSM now maps only
     the short layout), under the 90% gate.
-  - `maps/RedPullRing/redbullring-lageplan-2021.jpg` is a saved HTML
-    error page, not the map: its `sources.json` URL needs replacing.
 
 **Check:** each circuit by hand in the running game; the track-editor tests.
 
