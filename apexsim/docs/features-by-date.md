@@ -6,6 +6,42 @@ day they landed (`git show <hash>` for the change). The open items are in
 backlog ([follow-ups.md](follow-ups.md), [simulation-gaps.md](simulation-gaps.md),
 [verification.md](verification.md)). Add a date's section when items land.
 
+## 2026-11-08
+
+- **Prediction** — the own car predicted among the other cars, their boxes taking their share of a push (ffi ABI 9, `b318af2b`); `apexsim.net.PredictOthers` for an A/B in traffic (`1cd3b797`)
+- **Race rules**
+  - track limits cost a 5 s penalty after three warnings (`a4e373b2`), the warnings on the HUD (`2e5653a6`)
+  - an unsafe rejoin costs a 5 s penalty (`5d28ee9d`)
+  - the safety car out two laps at least (`19e9b66d`), the laps a session rule with an SC laps row on the create screen (`709c4d09`)
+- **Incidents** — a steward's and a track-limits penalty named on the wire (`bafafe29`); unsafe rejoins listed for the stewards (`718c8504`)
+- **AI**
+  - on snow at 85% of the plan's pace (`be3cb1ea`); grip over the plan's raises the pace by its root (`3ab089a6`): a Rally field on studs stays on the road
+  - stops for fresh studs once most are gone (`e87dc32b`)
+  - slower in a fog, by how little it can see (`af0b5f31`)
+- **Weather** — dew on a frozen track is frost (`70c22f53`); rain's and snow's haze covers the sky (`6f572de7`); the horizon skirt to 80 km (`cb2b7d10`)
+- **Telemetry** — the spectator stream carries the tyres' pickup and blisters (`894171e3`); each tyre's studs pulled out, on the HUD as `studs_lost_pct` (`897cfd07`)
+- **Tracks**
+  - B16's bridge deck closed at its ends (`932481d6`)
+  - Monzarella's banking laid as one run, end to end, high side out (`93e96fbe`)
+  - every DEM circuit placed at its fitted start line (`dba9f88a`)
+  - groom keeps one prop where two stand on the same spot (`f2ac0b78`); YasMarinara's doubled armco ends (`33bf00e1`)
+  - the elevation model's buildings taken out of the terrain: no building stands on a mound of its own roof (`9b1933b9`)
+- **Cockpit and cameras** — the driver's arms on by default (`61f5f003`); the tyre parent on a class wheel's tyre slot (`1d65361d`); a broadcast look for the T-cam (`fd5ba736`)
+- **Livery editor** — no Number row on a car without a logo slot (`a08bee29`)
+- **Verifier** — the C5 runs shot again at HEAD and judged (`92f684db`, `9910a3c1`); the rubbered start, the haze and the Watch soak runs (`c33bc0a3`, `c093708d`)
+- **Tests** — the tick-rate test at half the rate or more (`7ed7df3c`); the lobby broadcast test asks until it sees the session (`24c325e4`)
+
+## 2026-11-07
+
+- **Verify card** — sitting checks answered in the game from the wheel (`e9775595`), at once (`a409f213`)
+- **Wheel** — the force feedback retuned from the sitting (`48b956eb`); its 40 reviews processed (`e6126b8d`, `be5cd0ed`)
+- **play_editor** — starts the server when another holds its other ports (`c37a071c`), moves a settings.yml off the old port 9000 (`12e6f903`), finds a listening server (`1b7f4fd8`)
+
+## 2026-11-04
+
+- **Server** — default ports 4938-4942 in place of 9000-9004 (`77dbe565`)
+- **Showcases** — rendered again (`ec95ca2c`)
+
 ## 2026-11-01
 
 - **G9** — gloves and sleeves modelled in Blender with CC0 leather and suit cloth (`1643c993`); the thumb on the faceplate edge (`5ad30a44`), grown out of the palm in one curve, sleeve ends capped (`7789e712`)
