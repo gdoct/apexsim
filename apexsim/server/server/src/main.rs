@@ -52,9 +52,14 @@ enum ContentCommand {
     },
     /// Remove the player's own cars, tracks and HUD components from custom/
     Uninstall {
-        /// `car:<folder>`, `track:<Stem>` or `hud:<id>`; one or more
-        #[arg(value_name = "KIND:NAME", required = true)]
+        /// `car:<folder>`, `track:<Stem>` or `hud:<id>`; one or more, or
+        /// none with --pack
+        #[arg(value_name = "KIND:NAME", required_unless_present = "pack")]
         items: Vec<String>,
+        /// A loose pack (.acp): every item of it that is installed, besides
+        /// those named
+        #[arg(long)]
+        pack: Option<std::path::PathBuf>,
         /// The install folder (holding Server and Game); default: the one
         /// this server sits in
         #[arg(long)]
@@ -110,7 +115,8 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
                 serde_json::to_value(entry).map_err(|e| e.to_string())
             }
             ContentCommand::Uninstall {
-                items,
+                mut items,
+                pack,
                 root,
                 checkout,
             } => {
@@ -119,6 +125,13 @@ fn run_content(command: ContentCommand) -> std::process::ExitCode {
                     Some(code) => Layout::checkout(&code)?,
                     None => Layout::Release(content_pack::install_root(root)?),
                 };
+                if let Some(pack) = pack {
+                    for id in content_acp::installed_from_pack(&layout, &pack)? {
+                        if !items.iter().any(|i| i.eq_ignore_ascii_case(&id)) {
+                            items.push(id);
+                        }
+                    }
+                }
                 serde_json::to_value(content_acp::uninstall(&layout, &items)?)
                     .map_err(|e| e.to_string())
             }

@@ -146,7 +146,11 @@ whether a pack put them there or the player did: the folders and files
 an install of that item would empty. Every id is checked first; one
 that is malformed or has nothing in `custom/` stops it before anything
 is removed. Shipped content is never touched: a custom track named as a
-shipped one loses only its server folder, not the shipped export. The
+shipped one loses only its server folder, not the shipped export.
+`--pack <file>.acp` removes a pack as one: every item of it that is
+installed now (`content_acp::installed_from_pack`), with any named beside
+it; an item replaced since by another of its name goes too, as nothing
+records which pack put an item there. The
 launcher's Manage content gives each of the player's own cars, tracks and
 HUD components a tick box (shipped items and wheels cannot be ticked) and
 uninstalls the ticked ones after asking. In a release it tells the

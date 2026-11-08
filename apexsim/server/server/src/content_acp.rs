@@ -487,6 +487,53 @@ pub struct Removed {
 /// Every id is checked before anything is removed: a malformed one or one
 /// with nothing installed stops it. Shipped content is never touched: a
 /// track export whose stem a shipped track has stays.
+/// The folders and files of the player's own item `kind`/`name` that are
+/// in `layout` now: what uninstalling it removes. A custom track named as
+/// a shipped one owns its server folder only (the export is the shipped
+/// track's).
+fn own_paths(layout: &Layout, kind: AcpKind, name: &str) -> (Vec<PathBuf>, Vec<PathBuf>) {
+    let (mut dirs, mut files) = item_paths(layout, kind, name);
+    if kind == AcpKind::Track
+        && layout
+            .server_dir("tracks")
+            .join("default")
+            .join(name)
+            .exists()
+    {
+        dirs.truncate(1);
+        files.clear();
+    }
+    dirs.retain(|d| d.is_dir());
+    files.retain(|f| f.is_file());
+    (dirs, files)
+}
+
+/// The items of the loose pack at `pack_path` that are installed in
+/// `layout`, as [`uninstall`] takes them (`<kind>:<name>`): what removing
+/// the pack as one removes. An item of the pack not installed (left out
+/// with `--only`, or removed since) is left out; one replaced since by
+/// another of its name is the one installed now, and goes.
+pub fn installed_from_pack(layout: &Layout, pack_path: &Path) -> Result<Vec<String>, String> {
+    let pack = acp::read(pack_path).map_err(|e| e.to_string())?;
+    let ids: Vec<String> = pack
+        .items
+        .iter()
+        .filter(|i| acp::valid_name(&i.name))
+        .filter(|i| {
+            let (dirs, files) = own_paths(layout, i.kind, &i.name);
+            !dirs.is_empty() || !files.is_empty()
+        })
+        .map(|i| format!("{}:{}", i.kind.label(), i.name))
+        .collect();
+    if ids.is_empty() {
+        return Err(format!(
+            "{}: none of its items is installed",
+            pack_path.display()
+        ));
+    }
+    Ok(ids)
+}
+
 pub fn uninstall(layout: &Layout, ids: &[String]) -> Result<Vec<Removed>, String> {
     if ids.is_empty() {
         return Err("name the items to uninstall (car:<folder>, track:<Stem>, hud:<id>)".into());
@@ -507,20 +554,7 @@ pub fn uninstall(layout: &Layout, ids: &[String]) -> Result<Vec<Removed>, String
                 "{id}: not a folder name of letters, digits, - and _"
             ));
         }
-        let (mut dirs, mut files) = item_paths(layout, kind, name);
-        if kind == AcpKind::Track
-            && layout
-                .server_dir("tracks")
-                .join("default")
-                .join(name)
-                .exists()
-        {
-            // The export is the shipped track's: only the server folder is ours.
-            dirs.truncate(1);
-            files.clear();
-        }
-        dirs.retain(|d| d.is_dir());
-        files.retain(|f| f.is_file());
+        let (dirs, files) = own_paths(layout, kind, name);
         if dirs.is_empty() && files.is_empty() {
             return Err(format!("{id}: none of your own is installed"));
         }
@@ -786,6 +820,10 @@ mod tests {
         );
         assert!(uninstall(&layout, &["car:../default".into()]).is_err());
 
+        // The pack as one: its three items, all installed.
+        let from_pack = installed_from_pack(&layout, &root.join("stuff.acp")).unwrap();
+        assert_eq!(from_pack, ["car:my-car", "track:Ring", "hud:standings"]);
+
         let ids: Vec<String> = ["CAR:my-car", "track:Ring", "hud:standings", "track:Shipped"]
             .map(String::from)
             .into();
@@ -804,6 +842,8 @@ mod tests {
         }
         assert!(root.join("Game/Tracks/Shipped.uescene.json").is_file());
         assert!(root.join("Game/Hud/default/standings").is_dir());
+        let err = installed_from_pack(&layout, &root.join("stuff.acp")).unwrap_err();
+        assert!(err.contains("none of its items"), "{err}");
         assert!(root
             .join("Server/content/cars/default/shipped/car.toml")
             .is_file());
