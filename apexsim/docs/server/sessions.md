@@ -995,7 +995,7 @@ with it.
 | `track_limits` | the lap timing: the tick every wheel has been off for `TRACK_LIMITS_SECONDS`, or the lap struck at the line for a missed checkpoint (`cut`) | `car`, `cut` |
 | `penalty` | `GameSession::penalise` | `offence`, `penalty` (`time`, `drive_through`, `stop_go`), `seconds` |
 | `penalty_cleared` | a steward (`GameSession::clear_penalty`) | `offence`, `penalty` |
-| `unsafe_rejoin` | a car back on the road (every wheel off for `TRACK_LIMITS_SECONDS`, then on again) with a car behind it on the lap, on the road and not in the pit lane, closing faster than `REJOIN_CLOSING_MPS` (8 m/s) and due to reach it within `REJOIN_REACH_S` (2 s): the soonest such car (`incidents::unsafe_rejoin`) | `car` the one rejoining, `other` the one arriving, `closing_mps` |
+| `unsafe_rejoin` | a car back on the road (every wheel off for `TRACK_LIMITS_SECONDS`, then on again) with a car behind it on the lap, on the road and not in the pit lane, closing faster than `REJOIN_CLOSING_MPS` (8 m/s) and due to reach it within `REJOIN_REACH_S` (2 s): the soonest such car (`incidents::unsafe_rejoin`); five laps of ten mixed-skill GT3s (2026-11-08) list none at Monzarella, Zandervoort, Shiverstone and Hungoverring and 4 of 20 trips off at the Nordschleife, closing at 12-16 m/s | `car` the one rejoining, `other` the one arriving, `closing_mps` |
 
 Every incident has its session `tick` (a contact: the tick it began) and the
 `lap` of its `car`. A pair apart for `CONTACT_GAP_S` (1 s) and touching again
