@@ -3400,6 +3400,10 @@ struct APEXSIMNET_API FApexCarTelemetry
 	bool bOverRev = false;
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
 	int32 OverRevPct = 0;
+
+	/** Each tyre's studs the road has pulled out, percent, FL FR RL RR
+	 * (`tyre_studs_lost`): 0 on a tyre without studs and from an older server. */
+	float TyreStudsLostPct[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")
 	bool bDownshiftRefused = false;
 	UPROPERTY(BlueprintReadOnly, Category = "ApexSim|Car")

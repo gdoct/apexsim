@@ -1788,6 +1788,12 @@ pub struct CompactCarState {
     /// within the limit and from an older server.
     #[serde(default)]
     pub over_rev_pct: u8,
+    /// How many of each tyre's studs the road has pulled out, percent,
+    /// FL FR RL RR (`TireData::studs_lost`: the bite on ice a studded snow
+    /// tyre gives back with them); 0 on a tyre without studs. Appended
+    /// after `over_rev_pct`; all 0 from an older server.
+    #[serde(default)]
+    pub tyre_studs_lost: [u8; 4],
 }
 
 /// `engine_flags` bits.
@@ -2293,6 +2299,10 @@ impl CompactCarState {
             race_flags: race_flags_of(state),
             engine_flags: engine_flags_of(state),
             over_rev_pct: over_rev_pct_of(state),
+            tyre_studs_lost: state
+                .tires
+                .each()
+                .map(|t| (t.studs_lost.clamp(0.0, 1.0) * 100.0).round() as u8),
         }
     }
 }
@@ -4745,7 +4755,7 @@ mod tests {
     /// The positional shape of `CompactCarState`, pinned because the Unreal
     /// client reads it by position: one field inserted rather than appended
     /// and every value after it lands in the wrong place. The bytes are the
-    /// client's `ApexUdpGolden::S_TelemetryCompactFlatSpot`; print them with
+    /// client's `ApexUdpGolden::S_TelemetryCompactStuds`; print them with
     /// `cargo test telemetry_compact_wire_format -- --nocapture`.
     #[test]
     fn test_telemetry_compact_wire_format() {
@@ -4869,6 +4879,8 @@ mod tests {
         // Shown the blue flag, a double yellow ahead.
         state.flag_blue = true;
         state.flag_yellow = 2;
+        // A third of the rear left's studs pulled out.
+        state.tires.rear_left.studs_lost = 0.334;
 
         // Sector 4 (1000-1250 m) double, 3 warned.
         let msg = ServerMessage::TelemetryCompact(CompactTelemetry {
@@ -4888,7 +4900,7 @@ mod tests {
         });
         let bytes = rmp_serde::to_vec(&msg).unwrap();
         println!(
-            "S_TelemetryCompactFlags: {}",
+            "S_TelemetryCompactStuds: {}",
             bytes
                 .iter()
                 .map(|b| format!("0x{:02X}", b))
@@ -4896,10 +4908,10 @@ mod tests {
                 .join(", ")
         );
 
-        // The car is a 56-field array: 0xDC 0x00 0x38 is the array-16 header.
+        // The car is a 57-field array: 0xDC 0x00 0x39 is the array-16 header.
         assert!(
-            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x38]),
-            "CompactCarState must stay 56 fields; the client reads them by position"
+            bytes.windows(3).any(|w| w == [0xDC, 0x00, 0x39]),
+            "CompactCarState must stay 57 fields; the client reads them by position"
         );
 
         match rmp_serde::from_slice::<ServerMessage>(&bytes).unwrap() {
@@ -4912,6 +4924,7 @@ mod tests {
                 assert_eq!(car.tow_pct, 17, "a 17% tow");
                 assert_eq!(car.engine_flags, 7, "over-rev, refused and risk bits");
                 assert_eq!(car.over_rev_pct, 18);
+                assert_eq!(car.tyre_studs_lost, [0, 0, 33, 0], "percent of the studs");
                 assert_eq!(car.tyre_wear, [12, 13, 31, 100]);
                 assert_eq!(car.compound, 0, "softs");
                 assert_eq!(car.pit_flags, 7, "in the lane, on the limiter, in service");

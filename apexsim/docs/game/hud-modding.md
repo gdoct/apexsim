@@ -675,6 +675,7 @@ finished).
 | `item.puncture` | the same as a word, `flat` or `leak` (*null* for a sound tyre) |
 | `item.water_pct` | water under the tyre, percent of what a downpour leaves on a flat road, over 100 standing water (*null* from a server that sends only the car's one figure) |
 | `item.flat_spot_pct` | how deep a flat spot a locked wheel has ground into the tyre, % of the worst (0 for none; *null* without a car) |
+| `item.studs_lost_pct` | a snow tyre's studs the road has pulled out, % (0 on a tyre without studs, and from an older server; *null* without a car) |
 | `item.brake_c` | the brake on that corner |
 | `item.state` | the tread against the window: `cold`, `ok`, `hot`, `over` (15 °C past it), `unknown` |
 | `item.brake_state` | the brake against its material's window: carbon `cold` under 300, `hot` from 900, `over` from 1050; steel `cold` under 100, `hot` from 600, `over` from 750; `unknown` |

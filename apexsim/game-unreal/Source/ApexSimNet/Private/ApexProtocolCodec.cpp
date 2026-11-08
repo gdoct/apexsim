@@ -2508,7 +2508,7 @@ namespace
 	// subsequent value is garbage — hence the trailing skip loop in each parser.
 
 	/** Number of fields in `CompactCarState` (network.rs:388). */
-	constexpr int32 CompactCarFieldCount = 56;
+	constexpr int32 CompactCarFieldCount = 57;
 	/** Number of fields in `CompactTelemetry` (network.rs:415). */
 	constexpr int32 CompactTelemetryFieldCount = 5;
 
@@ -3290,6 +3290,19 @@ namespace
 					return false;
 				}
 				Out.OverRevPct = static_cast<int32>(FMath::Min<uint64>(Raw, 255));
+				return true;
+			});
+		}
+		// Each tyre's studs pulled out, percent, appended after the over-rev.
+		for (float& Lost : Out.TyreStudsLostPct)
+		{
+			Lost = 0.0f;
+		}
+		if (Index < Known)
+		{
+			bOk &= Next([&]
+			{
+				ReadFour([&Out](int32 Tyre, uint64 Value) { Out.TyreStudsLostPct[Tyre] = static_cast<float>(FMath::Min<uint64>(Value, 100)); });
 				return true;
 			});
 		}

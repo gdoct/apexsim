@@ -276,7 +276,8 @@ goes with them (`Compound::snow_factor_with`, which `grip_multiplier` and `snow_
 read with the set's mean): all of `ice_grip` over 1 is the studs', and `STUD_SNOW_SHARE`
 (0.5) of `snow_grip` over 1, so a set that has lost them all keeps half its bite on snow and
 none on ice. `stud_loss` defaults to 0, which loses none; the rally cars' studs are 0.03 (a
-third of the tread worn on tarmac pulls them all).
+third of the tread worn on tarmac pulls them all). Each tyre's share goes out in telemetry
+(`CompactCarState::tyre_studs_lost`, percent) for the HUD's `studs_lost_pct`.
 
 
 ### Wear, flat spots, punctures
@@ -734,11 +735,12 @@ reordered; effects are the `*_PER_CLICK` consts):
 `tyre_water`, `tyre_marbles` (the road under each tyre, `CarState::tyre_water` /
 `tyre_marbles`, percent), `tyre_state` (bit 0 punctured, bit 1 a slow leak under way),
 `tyre_pickup`, `tyre_blister`, `damage_at2` (each zone's second dent,
-[cars](../../../apexsim-content/docs/cars.md#visible-damage))
+[cars](../../../apexsim-content/docs/cars.md#visible-damage)), `ground`, `disc_wear`,
+`stint_energy_pct`, `race_flags`, `engine_flags`, `over_rev_pct`, `tyre_studs_lost`
 (pit fields: [pit lane](pit-lane.md)); `PlayerInput.drs` / `ers_mode` / `ers_boost`;
 `DriverFeedback.flat_spot`. Golden bytes (in `server/protocol/`, `-- --nocapture`): `cargo test
-telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactFlatSpot` (the older
-`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones,Recover}` stay on the client as older servers'
+telemetry_compact_wire_format` -> `ApexUdpGolden::S_TelemetryCompactStuds` (the older
+`S_TelemetryCompact{Fuel,Tyres,Tow,Heat,Damage,Ers,Zones,Recover,FlatSpot,Ground,Stint,Flags}` stay on the client as older servers'
 frames); `car_setup_wire_format` -> `ApexGolden::C_SetCarSetup`;
 `car_setup_sheet_wire_format` -> `S_CarSetupSheet`; `player_input_headlights_wire_format` ->
 `ApexUdpGolden::C_PlayerInput`; `driver_feedback_wire_format` -> `S_DriverFeedbackFlatSpot`.

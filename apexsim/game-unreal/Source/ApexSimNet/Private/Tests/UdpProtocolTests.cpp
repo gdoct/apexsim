@@ -1117,6 +1117,20 @@ bool FApexUdpLapFieldsTest::RunTest(const FString& Parameters)
 			TestEqual(TEXT("1300 m clear"), Flags.Telemetry.YellowAt(1300.0f), 0);
 			TestFalse(TEXT("no sky in this frame"), Flags.Telemetry.Sky.bValid);
 		}
+		FApexServerMessage Studs;
+		if (TestTrue(TEXT("a frame with the studs pulled out decodes"),
+				ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactStuds, Studs, Error))
+			&& TestEqual(TEXT("one car"), Studs.Telemetry.Cars.Num(), 1))
+		{
+			const FApexCarTelemetry& Car = Studs.Telemetry.Cars[0];
+			TestEqual(TEXT("a third of the rear left's studs gone"), Car.TyreStudsLostPct[2], 33.0f);
+			TestEqual(TEXT("the front left's all there"), Car.TyreStudsLostPct[0], 0.0f);
+			TestTrue(TEXT("the over-rev before it still reads"), Car.bOverRev && Car.OverRevPct == 18);
+		}
+		if (Flags.Telemetry.Cars.Num() == 1)
+		{
+			TestEqual(TEXT("no studs lost from an older server"), Flags.Telemetry.Cars[0].TyreStudsLostPct[2], 0.0f);
+		}
 		if (ApexProtocol::DecodeUdpMessage(ApexUdpGolden::S_TelemetryCompactFlatSpot, Spots, Error)
 			&& Spots.Telemetry.Cars.Num() == 1)
 		{
