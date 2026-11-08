@@ -733,6 +733,7 @@ namespace
 			else if (Key == TEXT("max_stint_minutes"))     { bOk = Reader.ReadUInt64(Raw); Out.MaxStintMinutes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
 			else if (Key == TEXT("drivers_per_car"))       { bOk = Reader.ReadUInt64(Raw); Out.DriversPerCar = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
 			else if (Key == TEXT("max_driver_minutes"))    { bOk = Reader.ReadUInt64(Raw); Out.MaxDriverMinutes = static_cast<int32>(FMath::Min<uint64>(Raw, 65535)); }
+			else if (Key == TEXT("sc_min_laps"))           { bOk = Reader.ReadUInt64(Raw); Out.ScMinLaps = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
 			else                                      { bOk = Reader.SkipValue(); }
 			if (!bOk)
 			{
@@ -4505,6 +4506,11 @@ namespace ApexProtocol
 			{
 				Writer.WriteString("max_driver_minutes");
 				Writer.WriteUInt(static_cast<uint32>(Rules.MaxDriverMinutes));
+			}
+			if (Rules.ScMinLaps != 0)
+			{
+				Writer.WriteString("sc_min_laps");
+				Writer.WriteUInt(Rules.ScMinLaps);
 			}
 		}
 		if (bClasses)

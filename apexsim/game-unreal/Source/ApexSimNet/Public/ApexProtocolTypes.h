@@ -491,6 +491,14 @@ struct APEXSIMNET_API FApexRaceRules
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	int32 MaxDriverMinutes = 0;
 
+	/** The safety car on the road stays out at least this many laps (1-ScMaxMinLaps); 0 is the server's 2. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	uint8 ScMinLaps = 0;
+
+	/** `safety_car::SC_MIN_LAPS` and `SC_MAX_MIN_LAPS`. */
+	static constexpr uint8 ScDefaultMinLaps = 2;
+	static constexpr uint8 ScMaxMinLaps = 5;
+
 	/** `crew::MAX_DRIVERS`. */
 	static constexpr uint8 MaxDrivers = 4;
 
@@ -512,6 +520,12 @@ struct APEXSIMNET_API FApexRaceRules
 		{
 			Out.ReverseGrid = 0;
 		}
+		// Laps the safety car stays out mean nothing without it on the road.
+		if (Out.SafetyCar != EApexSafetyCar::Full)
+		{
+			Out.ScMinLaps = 0;
+		}
+		Out.ScMinLaps = FMath::Min(Out.ScMinLaps, ScMaxMinLaps);
 		// The server's u16s.
 		Out.MaxStintLaps = FMath::Clamp(Out.MaxStintLaps, 0, 65535);
 		Out.MaxStintMinutes = FMath::Clamp(Out.MaxStintMinutes, 0, 65535);
@@ -527,7 +541,8 @@ struct APEXSIMNET_API FApexRaceRules
 			+ (bUnsafeRejoinPenalty ? 1 : 0) + (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
 			+ (ReverseGrid != 0 ? 1 : 0) + (QualifyingTyreSets != 0 ? 1 : 0) + (QualifyingTyreStart != 0 ? 1 : 0)
 			+ (bParcFerme ? 1 : 0) + (WeekendTyreSets != 0 ? 1 : 0) + (MaxStintLaps != 0 ? 1 : 0)
-			+ (MaxStintMinutes != 0 ? 1 : 0) + (DriversPerCar != 0 ? 1 : 0) + (MaxDriverMinutes != 0 ? 1 : 0);
+			+ (MaxStintMinutes != 0 ? 1 : 0) + (DriversPerCar != 0 ? 1 : 0) + (MaxDriverMinutes != 0 ? 1 : 0)
+			+ (ScMinLaps != 0 ? 1 : 0);
 	}
 
 	bool IsDefault() const { return CountSet() == 0; }
@@ -578,7 +593,8 @@ struct APEXSIMNET_API FApexRaceRules
 		}
 		else if (SafetyCar == EApexSafetyCar::Full)
 		{
-			Parts.Add(TEXT("safety car"));
+			Parts.Add(ScMinLaps != 0 ? FString::Printf(TEXT("safety car %d lap%s min"), ScMinLaps, ScMinLaps == 1 ? TEXT("") : TEXT("s"))
+				: FString(TEXT("safety car")));
 		}
 		if (const FString Reverse = DescribeReverse(ReverseGrid); !Reverse.IsEmpty())
 		{
@@ -658,7 +674,8 @@ struct APEXSIMNET_API FApexRaceRules
 			&& QualifyingTyreSets == Other.QualifyingTyreSets && QualifyingTyreStart == Other.QualifyingTyreStart
 			&& bParcFerme == Other.bParcFerme && WeekendTyreSets == Other.WeekendTyreSets
 			&& MaxStintLaps == Other.MaxStintLaps && MaxStintMinutes == Other.MaxStintMinutes
-			&& DriversPerCar == Other.DriversPerCar && MaxDriverMinutes == Other.MaxDriverMinutes;
+			&& DriversPerCar == Other.DriversPerCar && MaxDriverMinutes == Other.MaxDriverMinutes
+			&& ScMinLaps == Other.ScMinLaps;
 	}
 	bool operator!=(const FApexRaceRules& Other) const { return !(*this == Other); }
 };

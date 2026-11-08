@@ -345,7 +345,9 @@ rule, `UApexMenuFlowSubsystem::RaceRulesToSend`; kept in the profile):
 Start (Standing / Formation lap / Rolling: the formation lap is a standing
 start's, a rolling start always drives its pace lap and sends no
 `formation_lap`), Penalise (False starts, Yellow passes, Pit exit light,
-Track limits, Unsafe rejoins, each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
+Track limits, Unsafe rejoins, each a toggle), Safety car (Off / Virtual / On the road), SC laps
+(1 / 2 / 3 / 4, the safety car's minimum laps: 2 sends none, and the row is
+enabled only with the safety car on the road) and Reverse grid
 (Off / 6 / 8 / 10 / All, All sending 255, which `grid_order_ids` takes as
 the whole field). A Tyres and stints section beside it carries the tyre,
 parc fermé and stint keys: Qualifying sets (Free, 1-4), Race on them (Off,
@@ -908,7 +910,9 @@ call to the green.
 - **In this lap** (`Course::ScInThisLap`): once the queue has formed, nobody
   is being let by, the road has been clear for `VSC_CLEAR_S` and the queue is
   closed up again (or `SC_FORM_LAPS` more laps have gone), and the safety car
-  out `SC_MIN_LAPS` (2) laps at least, its lights go out.
+  out its minimum laps at least (`SafetyCar::min_laps`: the session's
+  `sc_min_laps`, 1 to `SC_MAX_MIN_LAPS` (5), or `SC_MIN_LAPS` (2) without
+  one), its lights go out.
   At the pit entry's station it goes into the lane and along it at the limit
   to the first limit line, where it is gone (on a circuit with no lane it
   leaves the road at the line). A car stranded long enough before it reaches

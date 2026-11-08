@@ -351,6 +351,7 @@ void UApexSessionCreateWidget::GatherFocusables(TArray<UWidget*>& Out) const
 			AddAll(StartTypeButtons);
 			AddAll(PenaltyButtons);
 			AddAll(SafetyCarButtons);
+			AddAll(SafetyCarLapsButtons);
 			AddAll(ReverseGridButtons);
 			if (Flow->QualifiesBeforeRace())
 			{
@@ -1276,6 +1277,8 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Penalise"), { TEXT("False starts"), TEXT("Yellow passes"), TEXT("Pit exit light"), TEXT("Track limits"), TEXT("Unsafe rejoins") }, PenaltyButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Safety car"), { TEXT("Off"), TEXT("Virtual"), TEXT("On the road") }, SafetyCarButtons),
+			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
+		ApexUI::AddV(Section, MakeChipRow(TEXT("SC laps"), { TEXT("1"), TEXT("2"), TEXT("3"), TEXT("4") }, SafetyCarLapsButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		TArray<FString> Reverse;
 		for (const int32 Slots : ApexCreateSession::ReverseGridChoices)
@@ -2504,6 +2507,16 @@ void UApexSessionCreateWidget::RefreshSettings()
 			if (SafetyCarButtons[Index])
 			{
 				SafetyCarButtons[Index]->SetSelected(Index == static_cast<int32>(Rules.SafetyCar));
+			}
+		}
+		// The chips are laps 1-4; none sent is the server's own two.
+		const int32 ScLaps = Rules.ScMinLaps != 0 ? Rules.ScMinLaps : FApexRaceRules::ScDefaultMinLaps;
+		for (int32 Index = 0; Index < SafetyCarLapsButtons.Num(); ++Index)
+		{
+			if (SafetyCarLapsButtons[Index])
+			{
+				SafetyCarLapsButtons[Index]->SetSelected(Index + 1 == ScLaps);
+				SafetyCarLapsButtons[Index]->SetIsEnabled(Rules.SafetyCar == EApexSafetyCar::Full);
 			}
 		}
 		const int32 ReverseChip = ApexCreateSession::ReverseGridChip(Rules.ReverseGrid);
@@ -4081,6 +4094,13 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 			: Penalty == 2 ? Flow->CreateRaceRules.bPitExitPenalty
 			: Penalty == 3 ? Flow->CreateRaceRules.bTrackLimitsPenalty : Flow->CreateRaceRules.bUnsafeRejoinPenalty;
 		Rule = !Rule;
+		Changed();
+		return;
+	}
+	if (const int32 ScLaps = ApexNav::IndexOf(SafetyCarLapsButtons, Button); ScLaps != INDEX_NONE)
+	{
+		const uint8 Laps = static_cast<uint8>(FMath::Clamp(ScLaps + 1, 1, static_cast<int32>(FApexRaceRules::ScMaxMinLaps)));
+		Flow->CreateRaceRules.ScMinLaps = Laps == FApexRaceRules::ScDefaultMinLaps ? 0 : Laps;
 		Changed();
 		return;
 	}

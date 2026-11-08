@@ -3513,10 +3513,9 @@ impl GameSession {
                 .values()
                 .next()
                 .and_then(|s| self.car_configs.get(&s.car_config_id));
-            self.race_control.safety_car = Some(crate::safety_car::SafetyCar::deploy(
-                &self.track_config,
-                car,
-            ));
+            let mut sc = crate::safety_car::SafetyCar::deploy(&self.track_config, car);
+            sc.min_laps = self.session.race_rules.safety_car_min_laps();
+            self.race_control.safety_car = Some(sc);
         }
         // The safety car on the road: it moves, and tells each car its pace.
         let mut sc_caps: Option<Vec<f32>> = None;

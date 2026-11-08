@@ -2407,6 +2407,12 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 			: SafetyCarText.Equals(TEXT("off"), ESearchCase::IgnoreCase)                  ? EApexSafetyCar::Off
 			                                                                                 : EApexSafetyCar::Full;
 	}
+	// -ApexScMinLaps=N: the safety car on the road out N laps at least.
+	int32 ScMinLaps = 0;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ApexScMinLaps="), ScMinLaps))
+	{
+		RaceRules.ScMinLaps = static_cast<uint8>(FMath::Clamp(ScMinLaps, 0, static_cast<int32>(FApexRaceRules::ScMaxMinLaps)));
+	}
 	int32 ReverseGrid = 0;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexReverseGrid="), ReverseGrid))
 	{

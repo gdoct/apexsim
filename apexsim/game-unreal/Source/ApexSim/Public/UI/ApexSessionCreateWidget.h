@@ -251,6 +251,8 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UTextBlock> RaceControlInfoText;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> StartTypeButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> PenaltyButtons;
+	/** The safety car's minimum laps: 1, 2 (the server's own, sent as none), 3, 4. */
+	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> SafetyCarLapsButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> SafetyCarButtons;
 	UPROPERTY(Transient) TArray<TObjectPtr<UApexButtonWidget>> ReverseGridButtons;
 	/**

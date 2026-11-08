@@ -4115,6 +4115,11 @@ pub struct RaceRules {
     /// 0 is none.
     #[serde(default, skip_serializing_if = "is_zero_u16")]
     pub max_driver_minutes: u16,
+    /// The safety car on the road stays out at least this many laps
+    /// however soon the road is clear (`safety_car::SafetyCar::min_laps`);
+    /// 0 is `safety_car::SC_MIN_LAPS`.
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub sc_min_laps: u8,
 }
 
 fn is_zero_u16(v: &u16) -> bool {
@@ -4128,6 +4133,16 @@ fn is_zero_u8(v: &u8) -> bool {
 impl RaceRules {
     pub fn is_default(&self) -> bool {
         *self == RaceRules::default()
+    }
+
+    /// The laps the safety car on the road stays out at least: the
+    /// session's own (`sc_min_laps`, at most `safety_car::SC_MAX_MIN_LAPS`)
+    /// or `safety_car::SC_MIN_LAPS`.
+    pub fn safety_car_min_laps(&self) -> u32 {
+        match self.sc_min_laps {
+            0 => crate::safety_car::SC_MIN_LAPS,
+            n => (n as u32).min(crate::safety_car::SC_MAX_MIN_LAPS),
+        }
     }
 
     /// Whether `offence` is penalised under these rules.

@@ -21,7 +21,7 @@
 //! - **In this lap.** With the queue formed, nobody being let by, the road
 //!   clear (`race_control::RaceControl::road_clear`) and the queue closed up
 //!   again (or [`SC_FORM_LAPS`] more laps gone), and the safety car out for
-//!   [`SC_MIN_LAPS`] laps at least, the lights go out: the
+//!   [`SafetyCar::min_laps`] laps at least, the lights go out: the
 //!   safety car goes into the pit lane at its entry (off the road at the
 //!   line where there is none).
 //! - **The restart.** The leader sets the pace, no faster than
@@ -62,6 +62,8 @@ pub const SC_FORM_LAPS: u32 = 2;
 /// is clear and the queue formed: a field bunched behind it for a lap and a
 /// half is not let go on the lap it was caught.
 pub const SC_MIN_LAPS: u32 = 2;
+/// The most a session may ask it to stay out (`RaceRules::sc_min_laps`).
+pub const SC_MAX_MIN_LAPS: u32 = 5;
 /// The leader is free to set its own pace this far before the line, m.
 pub const SC_RESTART_ZONE_M: f32 = 250.0;
 /// A car this close behind the safety car one tick and as close ahead the
@@ -313,6 +315,9 @@ pub struct SafetyCar {
     /// queue formed.
     pub laps: u32,
     formed_at_laps: u32,
+    /// It stays out at least this many laps: [`SC_MIN_LAPS`], or the
+    /// session's own (`RaceRules::safety_car_min_laps`).
+    pub min_laps: u32,
     /// The leader's laps that end the restart: green as it reaches them.
     restart_laps: Option<f32>,
     /// Each car's distance behind the safety car last tick, m.
@@ -381,6 +386,7 @@ impl SafetyCar {
             pit_open: false,
             laps: 0,
             formed_at_laps: 0,
+            min_laps: SC_MIN_LAPS,
             restart_laps: None,
             last_behind_m: Vec::new(),
             let_by: Vec::new(),
@@ -454,7 +460,7 @@ impl SafetyCar {
                     && road_clear
                     && !letting_by
                     && !stranded_long
-                    && self.laps >= SC_MIN_LAPS
+                    && self.laps >= self.min_laps
                     && (queued || self.laps >= self.formed_at_laps + SC_FORM_LAPS)
                 {
                     self.in_this_lap = true;
@@ -805,6 +811,15 @@ mod tests {
         let (_, event) = sc.tick(&cars, &track, 0.0, 55.0, true, false);
         assert_eq!(event, None, "out {} laps of {SC_MIN_LAPS}", sc.laps);
         sc.laps = SC_MIN_LAPS;
+        // A session that keeps it out longer: not yet.
+        sc.min_laps = SC_MIN_LAPS + 2;
+        let (_, event) = sc.tick(&cars, &track, 0.0, 55.0, true, false);
+        assert_eq!(
+            event, None,
+            "out {} laps of the session's {}",
+            sc.laps, sc.min_laps
+        );
+        sc.min_laps = SC_MIN_LAPS;
         let (_, event) = sc.tick(&cars, &track, 0.0, 55.0, true, false);
         assert_eq!(event, Some(ScEvent::InThisLap));
     }

@@ -396,6 +396,12 @@ bool FApexProtocolGoldenEncodeTest::RunTest(const FString& Parameters)
 					EApexQualifyingFormat::Open, 0, FApexRaceRules(), One),
 				ApexGolden::C_CreateSessionDamage);
 		}
+		FApexRaceRules FullSc;
+		FullSc.SafetyCar = EApexSafetyCar::Full;
+		FullSc.ScMinLaps = 3;
+		CheckBytes(TEXT("CreateSession with the safety car on the road out three laps at least"), CreateWithRules(FullSc),
+			ApexGolden::C_CreateSessionFullSafetyCar);
+		TestEqual(TEXT("its laps described"), FullSc.Describe(), FString(TEXT("safety car 3 laps min")));
 		FApexRaceRules Penalties;
 		Penalties.bYellowPenalty = true;
 		Penalties.bPitExitPenalty = true;

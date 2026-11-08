@@ -7223,7 +7223,8 @@ mod tests {
         }
     }
 
-    /// The safety car on the road: a create asking for it, and a frame
+    /// The safety car on the road: a create asking for it (out three laps
+    /// at least, `sc_min_laps`), and a frame
     /// while it is out (`race_phase` 5 and its pose, after a nil clock, sky
     /// and yellows). Printed as `C_CreateSessionFullSafetyCar` /
     /// `S_TelemetryCompactSafetyCar` (`cargo test
@@ -7239,6 +7240,7 @@ mod tests {
         }
         let rules = RaceRules {
             safety_car: SafetyCar::Full,
+            sc_min_laps: 3,
             ..Default::default()
         };
         let create = ClientMessage::CreateSession {
