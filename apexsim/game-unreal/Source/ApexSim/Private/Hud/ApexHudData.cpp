@@ -126,6 +126,7 @@ namespace
 			: Penalty.Reason == ApexPenalty::PitExitRed ? TEXT("PIT EXIT ON RED")
 			: Penalty.Reason == ApexPenalty::Steward ? TEXT("STEWARDS' DECISION")
 			: Penalty.Reason == ApexPenalty::TrackLimits ? TEXT("TRACK LIMITS")
+			: Penalty.Reason == ApexPenalty::UnsafeRejoin ? TEXT("UNSAFE REJOIN")
 			: TEXT("RACE CONTROL");
 		return FString::Printf(TEXT("%s: %s"), *HudPenaltyKind(Penalty), What);
 	}

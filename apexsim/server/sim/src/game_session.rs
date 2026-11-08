@@ -3370,6 +3370,7 @@ impl GameSession {
         let contacts = physics::check_collisions_refs(&mut state_refs, &self.car_configs);
         physics::check_wall_collisions(&mut state_refs, &self.car_configs, &self.track_config, dt);
         let mut over_the_limits: Vec<PlayerId> = Vec::new();
+        let mut unsafe_rejoins: Vec<PlayerId> = Vec::new();
         if racing {
             for (car, lap, cut) in struck {
                 self.incidents.push(crate::incidents::Incident {
@@ -3407,6 +3408,7 @@ impl GameSession {
                     if let Some((other, closing_mps)) =
                         crate::incidents::unsafe_rejoin(run(state), state.speed_mps, behind)
                     {
+                        unsafe_rejoins.push(car);
                         self.incidents.push(crate::incidents::Incident {
                             tick: current_tick,
                             lap: state.current_lap,
@@ -3428,6 +3430,9 @@ impl GameSession {
         }
         for car in over_the_limits {
             self.penalise(car, crate::race_control::Offence::TrackLimits);
+        }
+        for car in unsafe_rejoins {
+            self.penalise(car, crate::race_control::Offence::UnsafeRejoin);
         }
         self.update_flags();
         self.update_penalties();

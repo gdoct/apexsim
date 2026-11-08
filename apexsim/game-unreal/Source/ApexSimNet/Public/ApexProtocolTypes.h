@@ -438,6 +438,10 @@ struct APEXSIMNET_API FApexRaceRules
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	bool bTrackLimitsPenalty = false;
 
+	/** A car back on the road in front of a car closing fast (an unsafe rejoin) is given a time penalty. */
+	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
+	bool bUnsafeRejoinPenalty = false;
+
 	UPROPERTY(BlueprintReadWrite, Category = "ApexSim|Session")
 	EApexSafetyCar SafetyCar = EApexSafetyCar::Off;
 
@@ -520,7 +524,7 @@ struct APEXSIMNET_API FApexRaceRules
 	{
 		return (Start != EApexStartType::Standing ? 1 : 0) + (bFormationLap ? 1 : 0) + (bJumpStart ? 1 : 0)
 			+ (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (bTrackLimitsPenalty ? 1 : 0)
-			+ (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
+			+ (bUnsafeRejoinPenalty ? 1 : 0) + (SafetyCar != EApexSafetyCar::Off ? 1 : 0)
 			+ (ReverseGrid != 0 ? 1 : 0) + (QualifyingTyreSets != 0 ? 1 : 0) + (QualifyingTyreStart != 0 ? 1 : 0)
 			+ (bParcFerme ? 1 : 0) + (WeekendTyreSets != 0 ? 1 : 0) + (MaxStintLaps != 0 ? 1 : 0)
 			+ (MaxStintMinutes != 0 ? 1 : 0) + (DriversPerCar != 0 ? 1 : 0) + (MaxDriverMinutes != 0 ? 1 : 0);
@@ -541,10 +545,11 @@ struct APEXSIMNET_API FApexRaceRules
 		return Reverse >= ReverseWholeField ? FString(TEXT("reverse grid")) : FString::Printf(TEXT("reverse %d"), Reverse);
 	}
 
-	/** How many of the four offences are penalised. */
+	/** How many of the five offences are penalised. */
 	int32 CountPenalties() const
 	{
-		return (bJumpStart ? 1 : 0) + (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (bTrackLimitsPenalty ? 1 : 0);
+		return (bJumpStart ? 1 : 0) + (bYellowPenalty ? 1 : 0) + (bPitExitPenalty ? 1 : 0) + (bTrackLimitsPenalty ? 1 : 0)
+			+ (bUnsafeRejoinPenalty ? 1 : 0);
 	}
 
 	/**
@@ -648,6 +653,7 @@ struct APEXSIMNET_API FApexRaceRules
 		return Start == Other.Start && bFormationLap == Other.bFormationLap && bJumpStart == Other.bJumpStart
 			&& bYellowPenalty == Other.bYellowPenalty && bPitExitPenalty == Other.bPitExitPenalty
 			&& bTrackLimitsPenalty == Other.bTrackLimitsPenalty
+			&& bUnsafeRejoinPenalty == Other.bUnsafeRejoinPenalty
 			&& SafetyCar == Other.SafetyCar && ReverseGrid == Other.ReverseGrid
 			&& QualifyingTyreSets == Other.QualifyingTyreSets && QualifyingTyreStart == Other.QualifyingTyreStart
 			&& bParcFerme == Other.bParcFerme && WeekendTyreSets == Other.WeekendTyreSets
@@ -2176,6 +2182,8 @@ namespace ApexPenalty
 	inline constexpr int32 Steward = 3;
 	/** Track limits: a struck lap past the warnings. */
 	inline constexpr int32 TrackLimits = 4;
+	/** Back on the road in front of a car closing fast. */
+	inline constexpr int32 UnsafeRejoin = 5;
 	/** How it is paid (`PenaltyKind`). */
 	inline constexpr int32 Time = 0;
 	inline constexpr int32 DriveThrough = 1;

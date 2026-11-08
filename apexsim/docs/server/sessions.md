@@ -345,8 +345,7 @@ rule, `UApexMenuFlowSubsystem::RaceRulesToSend`; kept in the profile):
 Start (Standing / Formation lap / Rolling: the formation lap is a standing
 start's, a rolling start always drives its pace lap and sends no
 `formation_lap`), Penalise (False starts, Yellow passes, Pit exit light,
-Track limits,
-each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
+Track limits, Unsafe rejoins, each a toggle), Safety car (Off / Virtual / On the road) and Reverse grid
 (Off / 6 / 8 / 10 / All, All sending 255, which `grid_order_ids` takes as
 the whole field). A Tyres and stints section beside it carries the tyre,
 parc fermé and stint keys: Qualifying sets (Free, 1-4), Race on them (Off,
@@ -948,6 +947,7 @@ for an offence the rules leave out.
 | Pass under a yellow (1), from the flags, given `YELLOW_PASS_HANDBACK_S` (10 s) after the pass if the passer is still ahead; handed back within it (the passed car ahead again), it is forgiven, and the order swapping back and forth is one pass | `yellow_penalty` | `YELLOW_PASS_PENALTY_S` (5 s) time |
 | Out of a manual pit lane past the red exit light (2): across the last limit line while `pit::exit_closed`, not on the pit route | `pit_exit_penalty` | stop-go, `PIT_EXIT_STOP_GO_S` (10 s) |
 | Track limits (4): a lap struck for track limits (every wheel off the road for `TRACK_LIMITS_SECONDS`, or a checkpoint missed; [lap timing](#lap-timing-track-limits-and-records)), counted per car through the race (`GameSession::track_limit_strikes`, emptied as the field lines up): the first `TRACK_LIMITS_WARNINGS` (3) are warnings, the next and every `TRACK_LIMITS_EVERY` (4) after it penalised (`race_control::track_limits_penalised`: the 4th, 8th, 12th); under the rule the roster carries each car's count (`RosterEntry.TrackLimitStrikes`), sent again at each strike, and the HUD warns (`penalty.track_limit_strikes`). The AI is counted too: five laps of ten mixed-skill GT3s (2026-11-08) left 1 strike at Monzarella, none at Shiverstone, 4 at Hungoverring and 13 at Zandervoort (two of the slower cars, two penalties) | `track_limits_penalty` | `TRACK_LIMITS_PENALTY_S` (5 s) time |
+| Unsafe rejoin (5): back on the road in front of a car closing fast, the `unsafe_rejoin` incident ([incidents](#incidents)), given as it is listed | `unsafe_rejoin_penalty` | `UNSAFE_REJOIN_PENALTY_S` (5 s) time |
 | A steward's decision (3), given from the dashboard (`GameSession::give_penalty`), in a race, to a car not yet past the flag | none: it stands under any rules | the steward's: a time penalty or a stop-go of 1 to `STEWARD_MAX_S` (60) s, or a drive-through |
 
 - **Time** penalties are counted at once (`PenaltyStatus::Added`).

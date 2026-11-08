@@ -4058,6 +4058,12 @@ pub struct RaceRules {
     /// time.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub track_limits_penalty: bool,
+    /// An unsafe rejoin in a race (`incidents::unsafe_rejoin`: back on the
+    /// road in front of a car closing fast) is a time penalty
+    /// (`race_control::UNSAFE_REJOIN_PENALTY_S`). Without it the rejoin is
+    /// only listed for the stewards.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unsafe_rejoin_penalty: bool,
     /// A car stranded on the road brings out a virtual safety car or a
     /// safety car on the road ([`SafetyCar`]).
     #[serde(default, skip_serializing_if = "SafetyCar::is_off")]
@@ -4132,6 +4138,7 @@ impl RaceRules {
             Offence::YellowPass => self.yellow_penalty,
             Offence::PitExitRed => self.pit_exit_penalty,
             Offence::TrackLimits => self.track_limits_penalty,
+            Offence::UnsafeRejoin => self.unsafe_rejoin_penalty,
             // A steward's decision stands under any rules.
             Offence::Steward => true,
         }

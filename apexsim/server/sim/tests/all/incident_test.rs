@@ -287,10 +287,12 @@ fn track_limits_penalise_the_fourth_strike_and_every_fourth_after() {
 }
 
 /// A car back on the road from a trip off it, just ahead of a car arriving
-/// fast, is listed as an unsafe rejoin naming that car; rejoining with
-/// nobody coming is not.
+/// fast, is listed as an unsafe rejoin naming that car, and under the
+/// unsafe rejoin rule costs it a time penalty; rejoining with nobody coming
+/// is neither.
 #[test]
 fn a_rejoin_in_front_of_a_car_arriving_fast_is_listed() {
+    use apexsim_sim::race_control::UNSAFE_REJOIN_PENALTY_S;
     let unsafe_rejoins = |race: &GameSession| -> Vec<(PlayerId, PlayerId)> {
         race.incidents
             .incidents
@@ -301,8 +303,12 @@ fn a_rejoin_in_front_of_a_car_arriving_fast_is_listed() {
             })
             .collect()
     };
-    for arriving in [true, false] {
+    for (arriving, rule) in [(true, true), (true, false), (false, true)] {
         let mut race = race();
+        race.set_race_rules(RaceRules {
+            unsafe_rejoin_penalty: rule,
+            ..Default::default()
+        });
         let ids: Vec<PlayerId> = race.session.participants.keys().copied().collect();
         let (b, c) = (ids[1], ids[2]);
         while race.session.state != SessionState::Racing {
@@ -362,6 +368,17 @@ fn a_rejoin_in_front_of_a_car_arriving_fast_is_listed() {
             assert!(listed.contains(&(c, b)), "{:?}", race.incidents.incidents);
         } else {
             assert!(listed.iter().all(|(car, _)| *car != c), "{listed:?}");
+        }
+        let given: Vec<_> = race.penalties.get(&c).map_or(vec![], |p| {
+            p.iter()
+                .filter(|p| p.offence == Offence::UnsafeRejoin)
+                .collect()
+        });
+        if arriving && rule {
+            assert_eq!(given.len(), 1, "{:?}", race.penalties);
+            assert_eq!(given[0].seconds, UNSAFE_REJOIN_PENALTY_S);
+        } else {
+            assert!(given.is_empty(), "{given:?}");
         }
     }
 }

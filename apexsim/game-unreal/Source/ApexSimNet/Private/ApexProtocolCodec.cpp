@@ -722,6 +722,7 @@ namespace
 			else if (Key == TEXT("yellow_penalty"))   { bOk = Reader.ReadBool(Out.bYellowPenalty); }
 			else if (Key == TEXT("pit_exit_penalty")) { bOk = Reader.ReadBool(Out.bPitExitPenalty); }
 			else if (Key == TEXT("track_limits_penalty")) { bOk = Reader.ReadBool(Out.bTrackLimitsPenalty); }
+			else if (Key == TEXT("unsafe_rejoin_penalty")) { bOk = Reader.ReadBool(Out.bUnsafeRejoinPenalty); }
 			else if (Key == TEXT("safety_car"))       { bOk = Reader.ReadUInt64(Raw); Out.SafetyCar = Raw <= 2 ? static_cast<EApexSafetyCar>(Raw) : EApexSafetyCar::Off; }
 			else if (Key == TEXT("reverse_grid"))     { bOk = Reader.ReadUInt64(Raw); Out.ReverseGrid = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
 			else if (Key == TEXT("qualifying_tyre_sets"))  { bOk = Reader.ReadUInt64(Raw); Out.QualifyingTyreSets = static_cast<uint8>(FMath::Min<uint64>(Raw, 255)); }
@@ -4435,6 +4436,11 @@ namespace ApexProtocol
 			if (Rules.bTrackLimitsPenalty)
 			{
 				Writer.WriteString("track_limits_penalty");
+				Writer.WriteBool(true);
+			}
+			if (Rules.bUnsafeRejoinPenalty)
+			{
+				Writer.WriteString("unsafe_rejoin_penalty");
 				Writer.WriteBool(true);
 			}
 			if (Rules.SafetyCar != EApexSafetyCar::Off)

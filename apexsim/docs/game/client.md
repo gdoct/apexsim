@@ -139,7 +139,7 @@ and widget factories), so layouts are reviewable as diffs.
   sections show for the sessions they apply to: Qualifying, Race weekend,
   and, in a race or a qualifying session, Pit stops and Race control
   (Start Standing / Formation lap / Rolling, Penalise False starts /
-  Yellow passes / Pit exit light / Track limits as toggles, Safety car Off / Virtual / On
+  Yellow passes / Pit exit light / Track limits / Unsafe rejoins as toggles, Safety car Off / Virtual / On
   the road, Reverse grid Off / 6 / 8 / 10 / All) and Tyres and stints
   (Qualifying sets Free / 1-4, Race on them Off / Top 10 / All and Parc
   fermé Off / On where the session qualifies, Weekend sets Free / 6 / 8 /
@@ -1233,7 +1233,7 @@ empty for the race's), `-ApexQualifyingCutoff=N`
 (0-3) and `-ApexCompoundChange` (the race's pit rule),
 `-ApexQualifyingFormat=shootout`, `-ApexLapAllowance=N`, the race-control
 rules `-ApexRollingStart`, `-ApexFormationLap`, `-ApexPenalties` (jump
-starts, yellow passes, the pit exit light, track limits), `-ApexSafetyCar=virtual|on`
+starts, yellow passes, the pit exit light, track limits, unsafe rejoins), `-ApexSafetyCar=virtual|on`
 and `-ApexReverseGrid=N`,
 `-ApexGridOrder=@host,@ai:1,...` (the start order), sky
 `-ApexWeather=sunny|cloudy|overcast|lightrain|heavyrain|snow`,

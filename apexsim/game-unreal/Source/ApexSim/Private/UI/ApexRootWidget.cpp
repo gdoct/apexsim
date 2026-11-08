@@ -2390,7 +2390,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	}
 	// The race-control rules (none by default): -ApexRollingStart,
 	// -ApexFormationLap, -ApexPenalties (jump starts, yellow passes, the
-	// pit exit light and track limits), -ApexSafetyCar=virtual|on, -ApexReverseGrid=N.
+	// pit exit light, track limits and unsafe rejoins), -ApexSafetyCar=virtual|on, -ApexReverseGrid=N.
 	FApexRaceRules RaceRules;
 	RaceRules.Start = FParse::Param(FCommandLine::Get(), TEXT("ApexRollingStart")) ? EApexStartType::Rolling : EApexStartType::Standing;
 	RaceRules.bFormationLap = FParse::Param(FCommandLine::Get(), TEXT("ApexFormationLap"));
@@ -2399,6 +2399,7 @@ void UApexRootWidget::TryAutoRace(const FApexLobbyState& LobbyState)
 	RaceRules.bYellowPenalty = bPenalties;
 	RaceRules.bPitExitPenalty = bPenalties;
 	RaceRules.bTrackLimitsPenalty = bPenalties;
+	RaceRules.bUnsafeRejoinPenalty = bPenalties;
 	FString SafetyCarText;
 	if (FParse::Value(FCommandLine::Get(), TEXT("ApexSafetyCar="), SafetyCarText))
 	{

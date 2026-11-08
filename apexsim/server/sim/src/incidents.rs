@@ -134,12 +134,13 @@ pub struct Incident {
 }
 
 /// Every offence, in code order.
-pub const OFFENCES: [Offence; 5] = [
+pub const OFFENCES: [Offence; 6] = [
     Offence::JumpStart,
     Offence::YellowPass,
     Offence::PitExitRed,
     Offence::Steward,
     Offence::TrackLimits,
+    Offence::UnsafeRejoin,
 ];
 
 /// The offence an [`offence_name`] names.
@@ -155,6 +156,7 @@ pub fn offence_name(offence: Offence) -> &'static str {
         Offence::PitExitRed => "pit_exit_red",
         Offence::Steward => "steward",
         Offence::TrackLimits => "track_limits",
+        Offence::UnsafeRejoin => "unsafe_rejoin",
     }
 }
 

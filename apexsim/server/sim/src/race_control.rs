@@ -72,6 +72,9 @@ pub const TRACK_LIMITS_WARNINGS: u16 = 3;
 pub const TRACK_LIMITS_EVERY: u16 = 4;
 /// Leaving the track once too often: a time penalty of this, s.
 pub const TRACK_LIMITS_PENALTY_S: u16 = 5;
+/// Rejoining the road in front of a car closing fast: a time penalty of
+/// this, s.
+pub const UNSAFE_REJOIN_PENALTY_S: u16 = 5;
 
 /// Whether a car's `strikes`-th struck lap of the race (from 1) costs it
 /// a penalty: the one after the warnings, then every
@@ -142,6 +145,9 @@ pub enum Offence {
     /// Left the track once too often: laps struck for track limits past
     /// the warnings ([`track_limits_penalised`]).
     TrackLimits = 4,
+    /// Rejoined the road in front of a car closing fast
+    /// (`incidents::unsafe_rejoin`).
+    UnsafeRejoin = 5,
 }
 
 /// How a penalty is paid.
@@ -196,6 +202,7 @@ impl Penalty {
             // the yellow pass's.
             Offence::Steward => (PenaltyKind::Time, YELLOW_PASS_PENALTY_S),
             Offence::TrackLimits => (PenaltyKind::Time, TRACK_LIMITS_PENALTY_S),
+            Offence::UnsafeRejoin => (PenaltyKind::Time, UNSAFE_REJOIN_PENALTY_S),
         };
         Self::given(offence, kind, seconds, lap, tick, can_serve)
     }

@@ -6818,7 +6818,7 @@ mod tests {
     }
 
     /// Penalties: a create naming the penalised offences (a pass under a
-    /// yellow, a red-light pit exit, track limits) and a roster row carrying a served
+    /// yellow, a red-light pit exit, track limits, an unsafe rejoin) and a roster row carrying a served
     /// drive-through and an added time penalty. Printed as
     /// `C_CreateSessionPenalties` / `S_SessionRosterPenalties` (`cargo test
     /// penalties_wire_format -- --nocapture`).
@@ -6835,6 +6835,7 @@ mod tests {
             yellow_penalty: true,
             pit_exit_penalty: true,
             track_limits_penalty: true,
+            unsafe_rejoin_penalty: true,
             ..Default::default()
         };
         let create = ClientMessage::CreateSession {

@@ -1273,7 +1273,7 @@ UWidget* UApexSessionCreateWidget::BuildRaceTab()
 		ApexUI::AddV(Section, MakeCaption(TEXT("Race control"), &Info), FMargin(0.0f, 0.0f, 0.0f, 8.0f));
 		RaceControlInfoText = Info;
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Start"), { TEXT("Standing"), TEXT("Formation lap"), TEXT("Rolling") }, StartTypeButtons));
-		ApexUI::AddV(Section, MakeChipRow(TEXT("Penalise"), { TEXT("False starts"), TEXT("Yellow passes"), TEXT("Pit exit light"), TEXT("Track limits") }, PenaltyButtons),
+		ApexUI::AddV(Section, MakeChipRow(TEXT("Penalise"), { TEXT("False starts"), TEXT("Yellow passes"), TEXT("Pit exit light"), TEXT("Track limits"), TEXT("Unsafe rejoins") }, PenaltyButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
 		ApexUI::AddV(Section, MakeChipRow(TEXT("Safety car"), { TEXT("Off"), TEXT("Virtual"), TEXT("On the road") }, SafetyCarButtons),
 			FMargin(0.0f, 6.0f, 0.0f, 0.0f));
@@ -2491,7 +2491,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 				StartTypeButtons[Index]->SetSelected(Index == StartChip);
 			}
 		}
-		const bool Penalised[] = { Rules.bJumpStart, Rules.bYellowPenalty, Rules.bPitExitPenalty, Rules.bTrackLimitsPenalty };
+		const bool Penalised[] = { Rules.bJumpStart, Rules.bYellowPenalty, Rules.bPitExitPenalty, Rules.bTrackLimitsPenalty, Rules.bUnsafeRejoinPenalty };
 		for (int32 Index = 0; Index < PenaltyButtons.Num() && Index < UE_ARRAY_COUNT(Penalised); ++Index)
 		{
 			if (PenaltyButtons[Index])
@@ -2521,7 +2521,7 @@ void UApexSessionCreateWidget::RefreshSettings()
 			FApexRaceRules Rest = Sent;
 			Rest.Start = EApexStartType::Standing;
 			Rest.bFormationLap = false;
-			Rest.bJumpStart = Rest.bYellowPenalty = Rest.bPitExitPenalty = Rest.bTrackLimitsPenalty = false;
+			Rest.bJumpStart = Rest.bYellowPenalty = Rest.bPitExitPenalty = Rest.bTrackLimitsPenalty = Rest.bUnsafeRejoinPenalty = false;
 			// The tyre and stint rules have their own section's line.
 			Rest.QualifyingTyreSets = Rest.QualifyingTyreStart = Rest.WeekendTyreSets = 0;
 			Rest.bParcFerme = false;
@@ -4078,7 +4078,8 @@ void UApexSessionCreateWidget::HandleButtonActivated(UApexButtonWidget* Button)
 	{
 		bool& Rule = Penalty == 0 ? Flow->CreateRaceRules.bJumpStart
 			: Penalty == 1 ? Flow->CreateRaceRules.bYellowPenalty
-			: Penalty == 2 ? Flow->CreateRaceRules.bPitExitPenalty : Flow->CreateRaceRules.bTrackLimitsPenalty;
+			: Penalty == 2 ? Flow->CreateRaceRules.bPitExitPenalty
+			: Penalty == 3 ? Flow->CreateRaceRules.bTrackLimitsPenalty : Flow->CreateRaceRules.bUnsafeRejoinPenalty;
 		Rule = !Rule;
 		Changed();
 		return;

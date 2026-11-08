@@ -52,6 +52,7 @@ namespace ApexIncidentList
 			: Offence == ApexPenalty::PitExitRed ? TEXT("pit exit on red")
 			: Offence == ApexPenalty::Steward ? TEXT("stewards' decision")
 			: Offence == ApexPenalty::TrackLimits ? TEXT("track limits")
+			: Offence == ApexPenalty::UnsafeRejoin ? TEXT("unsafe rejoin")
 			: TEXT("race control");
 	}
 

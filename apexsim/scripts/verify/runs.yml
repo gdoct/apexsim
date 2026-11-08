@@ -2292,6 +2292,26 @@ runs:
         label: "put back: None, Free"
         checks: "the profile left as it was"
 
+  # The create screen's Penalise row with Unsafe rejoins on. The chips are
+  # saved to the player's profile as they change: the run turns it off again.
+  - id: r20-create-unsafe-rejoin
+    about: "Race rules: the Penalise row's Unsafe rejoins chip"
+    args:
+      - -ApexNoDemo
+      - -ApexStartScreen=3
+      - -ApexCreateMode=7
+    exec:
+      12: ["apexsim.ui.Texts"]
+      14: ["apexsim.ui.Click Unsafe rejoins"]
+      20: ["apexsim.ui.Click Unsafe rejoins"]
+    shots:
+      - at: 17
+        label: "Create > Race: Unsafe rejoins on"
+        checks: "five chips on the Penalise row, the last one selected, the summary counting it"
+      - at: 23
+        label: "put back: Unsafe rejoins off"
+        checks: "the profile left as it was"
+
   # The create screen's sky: a January date at a northern circuit, a forecast
   # written. The rows are saved to the player's profile as they change: keep a
   # copy of game-unreal/Saved/SaveGames/ApexProfile.sav and put it back after.

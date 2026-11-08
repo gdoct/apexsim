@@ -1540,6 +1540,15 @@ bool FApexHudDataPenaltiesTest::RunTest(const FString& Parameters)
 	In.TimeSeconds += 1.0;
 	ApexHudData::Build(In, Memory, Data);
 	TestEqual(TEXT("the track limits toast"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("+5 S: TRACK LIMITS")));
+
+	// An unsafe rejoin on top of it: five seconds, named for what it was.
+	FApexPenalty Rejoin = Limits;
+	Rejoin.Reason = ApexPenalty::UnsafeRejoin;
+	Roster.Entries[0].Penalties.Add(Rejoin);
+	In.TimeSeconds += 1.0;
+	ApexHudData::Build(In, Memory, Data);
+	TestEqual(TEXT("the unsafe rejoin toast"), HudValue(Data, TEXT("penalty.latest")).AsString(), FString(TEXT("+5 S: UNSAFE REJOIN")));
+	Roster.Entries[0].Penalties.Pop();
 	Roster.Entries[0].Penalties.Pop();
 	Roster.Entries[0].Penalties.Pop();
 
