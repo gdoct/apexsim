@@ -69,7 +69,7 @@ takes it up (— : no step, taken opportunistically).
 | B17 | Wheel feel: the understeer cue arrives late (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
 | B16 | Suzuka's crossover: see-through bridge walls (fixed, to judge) | Bug | P2 | 🟡 | S | 2 |
 | C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge (Monzarella's banking relaid) | Content | P2 | 🟡 | L | 2 |
-| G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
+| G9 | Driver's hands: gloves confirmed and on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
 | G14 | Ground: grass tracks, worn paint, dry patches, raked gravel built; to judge | Rendering | P2 | 🟡 | M | 2 |
@@ -232,8 +232,8 @@ textures). Left: the owner's judgement on the `g8-*` pairs and the
 default. The gloves and sleeves are modelled in Blender with CC0 leather,
 suede and suit cloth (2026-11-01; `g9-arms-gt3`, `g9-arms-formula`), and
 the owner confirmed them from the seat the same day (score 3 of 5: good
-enough to ship, room to improve). Next: "Driver's arms" on by default.
-Then hand over hand past 180 degrees of lock, the paddle pull,
+enough to ship, room to improve), and they are on by default since
+2026-11-08. Next: hand over hand past 180 degrees of lock, the paddle pull,
 the H-shifter and handbrake hand, a car's own wheel, and the outside driver
 figure on the same IK.
 

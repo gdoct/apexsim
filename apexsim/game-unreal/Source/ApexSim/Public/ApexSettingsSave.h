@@ -433,9 +433,17 @@ public:
 	UPROPERTY()
 	bool bCockpitWheel = true;
 
-	/** The driver's gloved hands and arms on the wheel; off until their meshes are refined (G9). */
+	/** The driver's gloved hands and arms on the wheel. */
 	UPROPERTY()
-	bool bCockpitArms = false;
+	bool bCockpitArms = true;
+
+	/**
+	 * The defaults this save has been brought to (UApexSettingsSubsystem::Load):
+	 * a save from before a default changed takes the new one once, on load.
+	 * 0 in a save from before the field (and in a fresh one, brought up at once).
+	 */
+	UPROPERTY()
+	int32 DefaultsRevision = 0;
 
 	/** The mirrors on the car. */
 	UPROPERTY()

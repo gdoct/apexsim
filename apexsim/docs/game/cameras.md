@@ -57,9 +57,11 @@ director spawns `AApexCockpitRig` and attaches it to the followed car:
   gloves are leather with suede palms, a knuckle pad, seams and a strapped
   gauntlet, the sleeves fire-suit cloth, all with CC0 roughness and normal
   maps ([cars.md](../../../apexsim-content/docs/cars.md)). The Camera tab's
-  "Driver's arms" (`bCockpitArms`) turns them on, `-ApexCockpitArms` for
-  unattended shots (`g9-arms-gt3`, `g9-arms-formula`); off by default until
-  the owner has judged them (roadmap 53).
+  "Driver's arms" (`bCockpitArms`, on by default since the owner confirmed
+  the gloves; a settings save from before that takes it once on load,
+  `UApexSettingsSave::DefaultsRevision` 1) turns them off,
+  `-ApexCockpitArms` draws them whatever it says, for unattended shots
+  (`g9-arms-gt3`, `g9-arms-formula`).
 - **Dash** (`UApexCockpitDashWidget`): gear, speed, rev lights, lap time, the
   countdown on the grid, race control's phase in place of the lap (`SC`,
   `VSC`, `FORM`) with the pace it holds the car to after it (`SC 80`, in

@@ -1183,7 +1183,7 @@ UWidget* UApexSettingsWidget::BuildCameraPage()
 	AddV(Right, MakeRow(TEXT("Wheel & display"), TEXT("Steering wheel with gear, speed and revs."),
 		MakeSegment(SegCockpitWheel, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
 	AddV(Right, MakeRow(TEXT("Driver's arms"), TEXT("Gloved hands on the wheel, arms to the shoulders."),
-		MakeSegment(SegCockpitArms, { TEXT("OFF"), TEXT("ON") }, 0, 120.0f)), RowGap);
+		MakeSegment(SegCockpitArms, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
 	AddV(Right, MakeRow(TEXT("Mirrors"), TEXT("On the car, in the cockpit view."),
 		MakeSegment(SegCockpitMirrors, { TEXT("OFF"), TEXT("ON") }, 1, 120.0f)), RowGap);
 	AddV(Right, MakeRow(TEXT("Virtual mirror"), TEXT("Rear view at the top of the HUD, in either view."),

@@ -207,6 +207,17 @@ void UApexSettingsSubsystem::Load()
 		}
 	}
 
+	// Defaults changed since the save was written, taken once.
+	if (Settings && Settings->DefaultsRevision < 1)
+	{
+		// 1 (2026-11-08): the driver's arms on (G9's gloves confirmed).
+		Settings->bCockpitArms = true;
+	}
+	if (Settings)
+	{
+		Settings->DefaultsRevision = FMath::Max(Settings->DefaultsRevision, 1);
+	}
+
 	UApexBootSettingsSubsystem* Boot = GetBoot();
 	if (!Settings || !Boot)
 	{

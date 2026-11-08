@@ -191,11 +191,10 @@ reporting every other dossier unchanged after each dossier edit.
 
 The cockpit can draw gloved hands on every class steering wheel and arms
 solved to the shoulders ([game/cameras.md](game/cameras.md), Driver's arms),
-off by default. The gloves and sleeves are modelled in Blender
+on by default since the owner confirmed them (2026-11-01). The gloves and sleeves are modelled in Blender
 (`build_hands.py`: three phalanges a finger, knuckle pad, seams, strapped
 gauntlet; suit sleeves with elbow folds; CC0 leather, suede and cloth maps)
-and seen from the seat (`g9-arms-gt3`, `g9-arms-formula`); the setting goes
-on by default once the owner has judged them. Left:
+and seen from the seat (`g9-arms-gt3`, `g9-arms-formula`). Left:
 
 - Refinement: the knuckles barely show from the eye; finger pads under
   load.
