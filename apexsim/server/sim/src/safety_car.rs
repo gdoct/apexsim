@@ -20,7 +20,8 @@
 //!   free to pass the queue and the safety car, it goes round to the back.
 //! - **In this lap.** With the queue formed, nobody being let by, the road
 //!   clear (`race_control::RaceControl::road_clear`) and the queue closed up
-//!   again (or [`SC_FORM_LAPS`] more laps gone), the lights go out: the
+//!   again (or [`SC_FORM_LAPS`] more laps gone), and the safety car out for
+//!   [`SC_MIN_LAPS`] laps at least, the lights go out: the
 //!   safety car goes into the pit lane at its entry (off the road at the
 //!   line where there is none).
 //! - **The restart.** The leader sets the pace, no faster than
@@ -57,6 +58,10 @@ pub const SC_PICKUP_M: f32 = 200.0;
 /// the lights go out this many laps after it formed, whether every car has
 /// closed up or not (one off the road, one slow out of the pits).
 pub const SC_FORM_LAPS: u32 = 2;
+/// The safety car stays out at least this many laps, however soon the road
+/// is clear and the queue formed: a field bunched behind it for a lap and a
+/// half is not let go on the lap it was caught.
+pub const SC_MIN_LAPS: u32 = 2;
 /// The leader is free to set its own pace this far before the line, m.
 pub const SC_RESTART_ZONE_M: f32 = 250.0;
 /// A car this close behind the safety car one tick and as close ahead the
@@ -449,6 +454,7 @@ impl SafetyCar {
                     && road_clear
                     && !letting_by
                     && !stranded_long
+                    && self.laps >= SC_MIN_LAPS
                     && (queued || self.laps >= self.formed_at_laps + SC_FORM_LAPS)
                 {
                     self.in_this_lap = true;
@@ -793,8 +799,12 @@ mod tests {
         assert_eq!(event, None, "not in this lap while a car is let by");
         // The third car keeps station on the leader, not the lapped car.
         assert!(orders.caps[2] > 40.0, "{:?}", orders.caps);
-        // Past the safety car and going round to the back: in this lap.
+        // Past the safety car and going round to the back: in this lap,
+        // once it has been out its minimum.
         let cars = [at(24.0, 5), at(total - 200.0, 4), at(48.0, 5)];
+        let (_, event) = sc.tick(&cars, &track, 0.0, 55.0, true, false);
+        assert_eq!(event, None, "out {} laps of {SC_MIN_LAPS}", sc.laps);
+        sc.laps = SC_MIN_LAPS;
         let (_, event) = sc.tick(&cars, &track, 0.0, 55.0, true, false);
         assert_eq!(event, Some(ScEvent::InThisLap));
     }

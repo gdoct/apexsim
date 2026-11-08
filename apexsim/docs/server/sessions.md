@@ -908,7 +908,8 @@ call to the green.
   under the virtual safety car ([ai](ai.md#strategy)).
 - **In this lap** (`Course::ScInThisLap`): once the queue has formed, nobody
   is being let by, the road has been clear for `VSC_CLEAR_S` and the queue is
-  closed up again (or `SC_FORM_LAPS` more laps have gone), its lights go out.
+  closed up again (or `SC_FORM_LAPS` more laps have gone), and the safety car
+  out `SC_MIN_LAPS` (2) laps at least, its lights go out.
   At the pit entry's station it goes into the lane and along it at the limit
   to the first limit line, where it is gone (on a circuit with no lane it
   leaves the road at the line). A car stranded long enough before it reaches
