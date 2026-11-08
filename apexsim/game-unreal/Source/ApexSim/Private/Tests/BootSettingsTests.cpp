@@ -81,6 +81,12 @@ bool FApexBootSettingsTlsTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("no tls key is auto"), Settings.ServerTls.Mode == EApexTlsMode::Auto);
 		TestTrue(TEXT("no tls_verify key verifies"), Settings.ServerTls.bVerify);
 		TestFalse(TEXT("no pin"), Settings.ServerTls.IsPinned());
+		TestEqual(TEXT("the old default port 9000 is the new 4938"), Settings.ServerPort, 4938);
+	}
+	{
+		FApexBootSettings Settings;
+		ApexBootSettingsIo::Parse(TEXT("server:\n  port: 9100\n"), Settings);
+		TestEqual(TEXT("a port of the player's own is kept"), Settings.ServerPort, 9100);
 	}
 
 	// Hand-written: upper-case mode, a bool spelt "no", a fingerprint pasted as

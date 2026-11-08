@@ -186,7 +186,7 @@ void UApexMenuFlowSubsystem::LoadProfileEntry(const FApexProfileEntry& Entry)
 	PendingTrackId = Profile->LastTrackId;
 	PlayerName = Profile->DriverName;
 	ServerHost = Profile->ServerHost;
-	ServerPort = Profile->ServerPort;
+	ServerPort = ApexBootSettingsIo::MovedFromOldDefault(Profile->ServerPort);
 	CreateMaxPlayers = Profile->MaxPlayers;
 	CreateAiCount = Profile->AiCount;
 	CreateLapLimit = Profile->LapLimit;

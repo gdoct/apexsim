@@ -659,6 +659,10 @@ rewrites it when those values change in game.
   parent. `-ApexSettingsDir=<folder>` reads and writes `<folder>/settings.yml`
   instead: a test run against its own server (a scratch folder with
   `server: port: 9100`) neither reads nor rewrites the player's file.
+- `server.port` 9000, the server's default before 0.4.5, reads as 4938
+  (`ApexBootSettingsIo::MovedFromOldDefault`), here and in a profile's
+  saved port: an upgraded install, or a new one seeded from an old
+  profile, finds the server it launches. Any other port is kept.
 - The file wins over the save slots for the values it covers.
   `UApexSettingsSubsystem` and `UApexMenuFlowSubsystem` declare it as an
   `InitializeDependency`, adopt its values on load and push back on save.

@@ -230,6 +230,7 @@ void ApexBootSettingsIo::Parse(const FString& Text, FApexBootSettings& InOut)
 			{
 				WarnBadValue(LineNumber, TEXT("port"), Value, TEXT("expected 1 to 65535"));
 			}
+			InOut.ServerPort = ApexBootSettingsIo::MovedFromOldDefault(InOut.ServerPort);
 		}
 		else if (Path == TEXT("server.tls"))
 		{

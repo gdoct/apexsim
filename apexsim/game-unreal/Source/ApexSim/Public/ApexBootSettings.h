@@ -86,6 +86,18 @@ namespace ApexBootSettingsIo
 	 */
 	APEXSIM_API void Parse(const FString& Text, FApexBootSettings& InOut);
 
+	/** The server's default port before 0.4.5 (9000-9004 became 4938-4942). */
+	inline constexpr int32 OldDefaultPort = 9000;
+	inline constexpr int32 DefaultPort = 4938;
+
+	/**
+	 * A port read from a settings.yml or a profile written before the
+	 * ports moved: the old default 9000 is the new 4938, so an install
+	 * upgraded in place, or a new one seeded from an old profile, finds
+	 * the server it launches. Any other port is the player's own and kept.
+	 */
+	inline int32 MovedFromOldDefault(int32 Port) { return Port == OldDefaultPort ? DefaultPort : Port; }
+
 	/** The whole file, comments and all. Every write regenerates it wholesale. */
 	APEXSIM_API FString Serialise(const FApexBootSettings& Settings);
 }
