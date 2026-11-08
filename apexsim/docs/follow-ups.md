@@ -155,8 +155,6 @@ the same `ApexProps` code.
     the FIA map puts the control line about 40% of the way from T15 to T1.
   - Nuerburgerring's start lights stand at the finish line; the start
     line is 263 m further on.
-  - Hockeyheimring's `metadata.longitude_deg` (8.48963) is about 5 km
-    west of the venue (8.566): the sun and weather are placed there.
   - Gnocchi's dossier fit covers 35% of the centerline (OSM now maps only
     the short layout), under the 90% gate.
   - `maps/RedPullRing/redbullring-lageplan-2021.jpg` is a saved HTML
@@ -344,14 +342,6 @@ blisters readable on the tread faces, the bulge on the rear right.
   line's speed-limit stretch (the other four Poznan layouts, and Spa, Red
   Bull Ring, Laguna Seca, Zandvoort, Silverstone, Barcelona and Imola, pass
   both `PIT_CUSTOM=1` pit surveys).
-
-- Circuit locations: `track_location.py` took the DEM georeference's
-  `lon0`/`lat0`, the centre of the OSM extract's frame, for the circuit, so
-  Zandervoort sat 98 km west in the North Sea and Barcelunatic 25 km off.
-  It places the start line through the fit now (`to_lonlat`); those two
-  YAMLs are rewritten and baked. The other DEM circuits move by under 6 km
-  (seconds of solar noon) on the next `track_location.py --all` in the
-  refresh order, each a YAML checksum and an export.
 
 **Check:** the track-editor tests; a fresh-clone `initialize_content.ps1`;
 the launcher import with the network off.
