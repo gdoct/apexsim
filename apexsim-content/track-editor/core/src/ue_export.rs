@@ -3539,9 +3539,11 @@ impl Bake<'_> {
     /// from a crest (the Nordschleife's) ran out to a band of open sky
     /// eight kilometres off, read as sea.
     fn horizon_skirt(&mut self, dem: &DemFile, section: i32) {
-        /// How far past the grid's edge the land goes, m: a 165 m crest
-        /// sees about 46 km, and the fog has the rest long before that.
-        const SKIRT_M: f32 = 30_000.0;
+        /// How far past the grid's edge the land goes, m: past the horizon
+        /// of a camera high over the circuit (a 165 m crest sees about
+        /// 46 km), which at 30 km saw the sky's dark planet ground as a
+        /// sliver beyond the skirt; the fog has the rest.
+        const SKIRT_M: f32 = 80_000.0;
         /// Every so many edge posts carry a spoke: the far land is a blur.
         const STRIDE: usize = 8;
         const EARTH_RADIUS_M: f32 = 6_371_000.0;

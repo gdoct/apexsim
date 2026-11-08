@@ -486,9 +486,12 @@ the centerline wins (a surface model reads canopy and knows no cuttings), past
 220 m the model wins. `ue_export` bakes the `outer` grid as a `horizon` mesh
 (real geometry, lit and fogged) with a hole under the detailed ground, and
 a skirt past its edge (`horizon_skirt`): a spoke from every eighth edge
-post out 30 km, held at that post's height and falling with the earth's
+post out 80 km, held at that post's height and falling with the earth's
 curvature, so the land runs on into the haze from a crest instead of
-ending in a band of sky.
+ending in a band of sky; past the horizon of a camera high over the
+circuit (from 120 m some 40 km off), so no sliver of the sky's dark
+planet ground shows between (30 km left one on `g15-haze-mordschleife`'s
+aerials).
 
 Three circuits have no dossier because OSM carries another layout variant
 than the YAML's, or misses a stretch (`osm_layout.BBOXES`' notes:
