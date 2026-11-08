@@ -336,6 +336,13 @@ blisters readable on the tread faces, the bulge on the rear right.
   wheel (`apexsim.photo move` from a known pose). The stand-in pits at a
   0.6 flat spot, wear 70 or damage 25 (`pit::plan_stop`): keep the
   events under those.
+- Verification runs: in `-ApexView=chase` with the race under way, an
+  `apexsim.cam.LookAt` exec sets the shot camera (its `Shot camera:` log
+  line, three seconds before the grab) and the screenshot still shows the
+  chase camera (`r2-silverstone-stint` and `r2-rubbered-start`, 2026-11-08;
+  `g6-grid-above` takes it in chase view during a long countdown, the
+  cockpit and TV runs take it racing). Fourteen runs combine the two.
+
 - Imported pit lanes (`ac_import/pit.py`): Poznan's `drift` layout gets no
   pit lane: none of its 32 `AC_PIT` markers is within 20 m of its pit
   line's speed-limit stretch (the other four Poznan layouts, and Spa, Red
