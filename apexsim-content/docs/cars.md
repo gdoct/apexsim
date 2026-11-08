@@ -326,7 +326,10 @@ the drawn car moved along its nose, capped at `apexsim.car.WheelMaxDegPerFrame`
 `kind` (`slick`, `intermediate`, `wet`) onto `Compounds`; without the tables a
 car has the five defaults (soft, medium, hard, intermediate, wet). The
 `wheel_tyre` slot is an instance of `M_ApexCarTyre` (`ApexMaterialBake`,
-`BuildCarTyre`), one per wheel model like every slot; each wheel component's
+`BuildCarTyre`), one per wheel model like every slot; a wheel model that
+came with another material there (the cooked class wheels, from
+Interchange) is given the tyre parent when a car takes it
+(`ApexWheels::AdoptTyreParent`); each wheel component's
 custom primitive data (`ApexCarMaterials::TyreCpd`, from index 16, past the
 damage graph the rims read) carries its tyre's own state, written by
 `FApexCarWheelSet` only when a value changes. The class tyres carry no UVs

@@ -291,16 +291,14 @@ face reads as plain black at 50 mm in sunshine, after half a minute at
 127-131 °C (the heat tint), with FS 43 on the front left (the glazed
 patch) and a slow leak on the rear right (the bulge).
 
-- The flat spot and the heat tint are carried and still do not read: check
-  first that the car's tyre slot is on `M_ApexCarTyre`
-  (`FApexCarWheelSet::UsesTyreParent`; any other tyre material draws a
-  plain tint with no surfaces). A wheel read from its runtime GLB gets it
-  (`FApexCarParents::For`), but the cooked class wheels (`SM_Wheel_f1`,
-  `_gt3`, `_hypercar`, `_lmp2`, and the 499P's) carry Interchange's
-  `M_Default` on `wheel_tyre` (listed 2026-10-25), so a car whose wheel
-  falls back to them draws none. Then the tread material on a car held
-  still in a replay, live against a replay, and whether the tread is lit
-  at all from its face (the shots look unlit black from every side).
+- The flat spot and the heat tint are carried and still do not read. The
+  cooked class wheels (`SM_Wheel_*`) came in with Interchange's own
+  material on `wheel_tyre`; a wheel now puts the tyre parent there when it
+  takes such a mesh (`ApexWheels::AdoptTyreParent`, 2026-11-08). Left: the
+  tread face reads uniformly black on the SF-26 in `r2-tread-replay`
+  (2026-11-08, every wheel, every angle, while the sidewall's markings
+  show): whether `M_ApexCarTyre` lights the tread from its face at all,
+  checked in the editor on a car held still in a replay.
 - The deflated rear right shows no bulge from 2.5 m; check the sag
   (`FApexCarWheelSet::SagCm`) reaches the drawn wheel in a replay.
 

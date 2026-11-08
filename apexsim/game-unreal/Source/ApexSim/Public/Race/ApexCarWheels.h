@@ -6,6 +6,7 @@
 #include "ApexCarWheels.generated.h"
 
 class UStaticMeshComponent;
+class UMaterialInterface;
 
 /**
  * The four wheels drawn on a car body.
@@ -92,6 +93,17 @@ namespace ApexWheels
 	 * tread itself. False for a slick, which keeps the model's own material.
 	 */
 	APEXSIM_API bool TreadedTint(EApexCompoundKind Kind, FLinearColor& OutBaseColour, float& OutRoughness);
+
+	/**
+	 * Puts `Tyre` (`M_ApexCarTyre`) on the wheel's `wheel_tyre` slot when the
+	 * mesh carries another material there: the cooked class wheels
+	 * (`SM_Wheel_*`) came in with Interchange's default, so a car on them
+	 * drew its tread plain, without its flat spots, heat or wear. The tyre
+	 * parent draws the tread from each wheel's own custom data, so one shared
+	 * parent serves every wheel. True when the slot is on the tyre parent
+	 * after (false without a slot or a parent).
+	 */
+	APEXSIM_API bool AdoptTyreParent(UStaticMeshComponent& Wheel, UMaterialInterface* Tyre);
 
 	/** The class wheels' compound ring on the sidewall (apexsim-content/docs/cars.md, Wheels). */
 	inline const FName BandSlot(TEXT("wheel_band"));

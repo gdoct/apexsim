@@ -1,6 +1,11 @@
 #include "ApexTestCommon.h"
 #include "Race/ApexCarWheels.h"
 
+#include "Cars/ApexCarMaterials.h"
+#include "Components/StaticMeshComponent.h"
+#include "Engine/StaticMesh.h"
+#include "Materials/Material.h"
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 namespace ApexWheelsTest
@@ -72,6 +77,36 @@ bool FApexWheelsPlacementTest::RunTest(const FString& Parameters)
 	TestEqual(TEXT("wheels box reaches the front tyre's leading edge"), Box.Max.Y, 156.0 + 32.8, 0.01);
 	TestEqual(TEXT("wheels box floor"), Box.Min.Z, 0.0, 0.01);
 	TestFalse(TEXT("no box for an empty spec"), ApexWheels::WheelsBox(FApexWheelSpec()).IsValid != 0);
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FApexWheelsTyreParentTest, "ApexSim.Wheels.TyreParent", ApexTestFlags)
+
+bool FApexWheelsTyreParentTest::RunTest(const FString& Parameters)
+{
+	// The cooked class wheel: its tyre slot on whatever Interchange gave it,
+	// then on the tyre parent, which draws the flat spots and the heat.
+	UStaticMesh* Mesh = ApexWheelsTest::F1Spec().Mesh.LoadSynchronous();
+	UMaterialInterface* Tyre = ApexCarMaterials::LoadParents().Tyre.Get();
+	if (!Mesh || !Tyre)
+	{
+		AddWarning(TEXT("no cooked f1 wheel or no M_ApexCarTyre in this project (a fresh clone): skipped"));
+		return true;
+	}
+	UStaticMeshComponent* Wheel = NewObject<UStaticMeshComponent>(GetTransientPackage());
+	Wheel->SetStaticMesh(Mesh);
+	const int32 Slot = Wheel->GetMaterialIndex(ApexWheels::TyreSlot);
+	if (!TestTrue(TEXT("the class wheel has a tyre slot"), Slot != INDEX_NONE))
+	{
+		return false;
+	}
+	const UMaterialInterface* Before = Wheel->GetMaterial(Slot);
+	AddInfo(FString::Printf(TEXT("the cooked wheel's tyre slot: %s"), Before ? *Before->GetName() : TEXT("none")));
+	TestTrue(TEXT("adopted"), ApexWheels::AdoptTyreParent(*Wheel, Tyre));
+	UMaterialInterface* After = Wheel->GetMaterial(Slot);
+	TestTrue(TEXT("the tyre slot is on the tyre parent"),
+		After && After->GetBaseMaterial() && After->GetBaseMaterial()->GetFName() == FName(ApexCarMaterials::TyreName));
+	TestFalse(TEXT("no slot, no parent: nothing"), ApexWheels::AdoptTyreParent(*Wheel, nullptr));
 	return true;
 }
 

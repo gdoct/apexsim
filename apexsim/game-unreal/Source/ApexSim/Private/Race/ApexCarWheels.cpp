@@ -202,6 +202,22 @@ float ApexWheels::ContactTheta(const FTransform& WheelWorld)
 	return static_cast<float>(FMath::Atan2(Down.Z, Down.Y));
 }
 
+bool ApexWheels::AdoptTyreParent(UStaticMeshComponent& Wheel, UMaterialInterface* Tyre)
+{
+	const int32 Slot = Wheel.GetStaticMesh() ? Wheel.GetMaterialIndex(TyreSlot) : INDEX_NONE;
+	if (Slot == INDEX_NONE || !Tyre)
+	{
+		return false;
+	}
+	UMaterialInterface* Current = Wheel.GetMaterial(Slot);
+	const UMaterial* Base = Current ? Current->GetBaseMaterial() : nullptr;
+	if (!Base || Base->GetFName() != FName(ApexCarMaterials::TyreName))
+	{
+		Wheel.SetMaterial(Slot, Tyre);
+	}
+	return true;
+}
+
 void FApexCarWheelSet::CreateComponents(UObject& Owner, USceneComponent* Body)
 {
 	static const TCHAR* Names[ApexWheels::NumWheels] = {
@@ -244,6 +260,18 @@ void FApexCarWheelSet::SetSpec(const FApexWheelSpec& InSpec)
 			// Overrides are per slot index (a skin's rims): not the old model's on the new one.
 			Wheel->EmptyOverrideMaterials();
 			Wheel->SetStaticMesh(Mesh);
+		}
+		if (Wheel && Mesh)
+		{
+			// A wheel model's tyre drawn by the tyre parent whatever it came with.
+			static TWeakObjectPtr<UMaterialInterface> TyreParent;
+			static bool bLooked = false;
+			if (!bLooked)
+			{
+				bLooked = true;
+				TyreParent = ApexCarMaterials::LoadParents().Tyre.Get();
+			}
+			ApexWheels::AdoptTyreParent(*Wheel, TyreParent.Get());
 		}
 	}
 	// A new mesh draws its own tyre; the look is put back on it below.
