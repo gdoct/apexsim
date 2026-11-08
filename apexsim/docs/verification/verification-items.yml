@@ -1806,7 +1806,7 @@
   what: >-
     Monzarella's Sopraelevata, Nord and Sud: OSM's banked curves laid as `building/banked_oval_10m`
     modules from the dossier's `banking` (C5 Landmark column).
-  status: not-right
+  status: judged
   evidence:
   - run: c5-kit-monzarella
     date: 2026-10-22
@@ -1817,23 +1817,28 @@
     commit: 67e3f7d1
     shots: [1, 2, 3]
     kind: shot
+  - run: c5-kit-monzarella
+    date: 2026-11-08
+    commit: 932481d6
+    shots: [1, 2, 3]
+    kind: shot
   verdict:
-    date: 2026-10-28
+    date: 2026-11-08
     by: agent
     says: looks-right
     text: >-
-      Re-run with a pose over the trees: the Nord banking follows its curve
-      on the ground, clear of the road (1); the Sud banking now shows its banked_oval
-      modules running along the forest edge where the dossier lays them (2,
-      3), seated on the ground.
-    shots: [1, 3]
-  review:
-    at: 2026-10-28T18:20:31
-    score: 3
-    comment: >-
-      the track doesnt align. halfway it switches the banking side. and the
-      pieces are layerd in a rabat shape
-    processed: true
+      Relaid 2026-11-08 after the owner's not-right (2026-10-28): the eight
+      OSM ways chained into one line per banking, each module on the chord of
+      the line 5 m either side and pitched to the ground at its ends, the high
+      side away from the oval's infield. Shot 1 against 2026-10-28: the Nord
+      run is one smooth band with no steps and no flipped piece; the far half
+      now runs into the park's woods (the trees beside it, not on it).
+    shots: [1, 2, 3]
+  notes:
+  - date: 2026-10-28
+    text: >-
+      Review (not-right, score 3): the track doesnt align. halfway it switches
+      the banking side. and the pieces are layerd in a rabat shape
 
 - id: v-c5-shanghaied-stands
   title: 'Shanghaied: Grandstand A under the lotus canopy'

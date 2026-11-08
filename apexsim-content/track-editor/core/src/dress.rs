@@ -379,16 +379,9 @@ pub fn dress_scene_with_dem(
         }
     }
 
-    for (i, line) in layout.banking.iter().enumerate() {
-        let props = lay_banking(&path, &terrain, line);
+    for (name, props) in lay_banking(&path, &terrain, &layout.banking) {
         report.landmarks += usize::from(!props.is_empty());
-        laid.extend(stamped(
-            props,
-            format!(
-                "banking {}",
-                line.name.clone().unwrap_or_else(|| i.to_string())
-            ),
-        ));
+        laid.extend(stamped(props, format!("banking {name}")));
     }
 
     // Anything the circuit has of its own is respected: a venue with its
@@ -770,68 +763,137 @@ fn paint_runoff(path: &CenterlinePath, scene: &mut AtsScene) -> usize {
 /// own garages, Shanghai's started 62 m off the road in a field and
 /// Melbourne's 8 m short of it, and on seven circuits it ran too close to
 /// the road for more than a handful of garages.
-/// An old banked oval's line laid as `building/banked_oval_10m` modules,
-/// one every 10 m along it, each turned so its high side faces the
-/// outside of the curve, the ones within [`BANKING_ROAD_CLEAR_M`] of the
-/// circuit's road left out (where the oval meets the lap, or the span
-/// over it stands).
+/// An old banked oval's lines laid as `building/banked_oval_10m` modules.
+///
+/// OSM maps a banking as several ways; those that meet end to end (within
+/// [`BANKING_JOIN_M`], either way round) are chained into one line first,
+/// named after the first. Along each line a module every 10 m stands on
+/// the chord between the line's points 5 m either side of its middle, so
+/// consecutive modules meet end to end on the line, and is pitched to the
+/// ground at its two ends, so a run on a grade joins instead of stepping.
+/// Its high side (+Y) faces away from the middle of all the banking's
+/// points (the oval's infield), so a way mapped turning the other way (an
+/// entry's S-bend) does not flip it to the other edge. Modules within
+/// [`BANKING_ROAD_CLEAR_M`] of the circuit's road are left out (where the
+/// oval meets the lap, or the span over it stands).
 fn lay_banking(
     path: &CenterlinePath,
     terrain: &TerrainHeightfield,
-    line: &crate::layout::Line,
-) -> Vec<Prop> {
-    let pts = &line.line;
-    // Which way the line turns overall: left turns put the centre on the
-    // left, so the outside, the module's +Y, is on the right.
-    let turn: f32 = pts
-        .windows(3)
-        .map(|w| {
-            let (a, b) = (
-                (w[1][0] - w[0][0], w[1][1] - w[0][1]),
-                (w[2][0] - w[1][0], w[2][1] - w[1][1]),
-            );
-            a.0 * b.1 - a.1 * b.0
-        })
-        .sum();
-    let flip = if turn > 0.0 {
-        std::f32::consts::PI
-    } else {
-        0.0
-    };
+    lines: &[crate::layout::Line],
+) -> Vec<(String, Vec<Prop>)> {
+    let all: Vec<[f32; 2]> = lines.iter().flat_map(|l| l.line.iter().copied()).collect();
+    if all.is_empty() {
+        return Vec::new();
+    }
+    let n = all.len() as f32;
+    let infield = (
+        all.iter().map(|p| p[0]).sum::<f32>() / n,
+        all.iter().map(|p| p[1]).sum::<f32>() / n,
+    );
+    let half = BANKING_MODULE_M / 2.0;
     let mut out = Vec::new();
-    let mut carry = BANKING_MODULE_M / 2.0;
-    for seg in pts.windows(2) {
-        let (a, b) = (seg[0], seg[1]);
-        let len = (b[0] - a[0]).hypot(b[1] - a[1]);
-        let heading = (b[1] - a[1]).atan2(b[0] - a[0]);
-        let mut d = carry;
-        while d < len {
-            let (x, y) = (
-                a[0] + (b[0] - a[0]) * d / len,
-                a[1] + (b[1] - a[1]) * d / len,
+    for (name, pts) in chain_banking(lines) {
+        let length: f32 = pts
+            .windows(2)
+            .map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1]))
+            .sum();
+        let count = (length / BANKING_MODULE_M).floor() as usize;
+        // The run centred on the line: what is left over split at both ends.
+        let lead = (length - count as f32 * BANKING_MODULE_M) / 2.0;
+        let mut props = Vec::new();
+        for k in 0..count {
+            let d0 = lead + k as f32 * BANKING_MODULE_M;
+            let (a, b) = (
+                point_along(&pts, d0),
+                point_along(&pts, d0 + BANKING_MODULE_M),
             );
-            d += BANKING_MODULE_M;
+            let (x, y) = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+            let mut yaw = (b.1 - a.1).atan2(b.0 - a.0);
+            // +Y (left of +X) must point away from the infield.
+            let plus_y = (-yaw.sin(), yaw.cos());
+            if plus_y.0 * (x - infield.0) + plus_y.1 * (y - infield.1) < 0.0 {
+                yaw += std::f32::consts::PI;
+            }
             let (sample, lat) = nearest_cross_section(path, x, y);
             let side = if lat >= 0.0 { Side::Left } else { Side::Right };
             if lat.abs() - side_half_width(&sample, side) < BANKING_ROAD_CLEAR_M {
                 continue;
             }
-            out.push(Prop {
+            let (sin_y, cos_y) = yaw.sin_cos();
+            let end = |s: f32| {
+                let (ex, ey) = (x + s * half * cos_y, y + s * half * sin_y);
+                seat_z(terrain, &sample, lat, ex, ey)
+            };
+            props.push(Prop {
                 id: 0,
                 kind: PropKind::Building,
                 asset: "banked_oval_10m".to_string(),
                 x,
                 y,
                 z: seat_z(terrain, &sample, lat, x, y),
-                yaw_rad: heading + flip,
-                pitch_rad: 0.0,
+                yaw_rad: yaw,
+                pitch_rad: (end(1.0) - end(-1.0)).atan2(BANKING_MODULE_M),
                 scale: 1.0,
                 text: None,
                 length_m: None,
                 source: None,
             });
         }
-        carry = d - len;
+        out.push((name, props));
+    }
+    out
+}
+
+/// Banking ways whose ends are this close are one line.
+const BANKING_JOIN_M: f32 = 2.0;
+
+/// The banking's ways chained end to end where they meet (either way
+/// round), each chain named after its first way (or its index).
+fn chain_banking(lines: &[crate::layout::Line]) -> Vec<(String, Vec<[f32; 2]>)> {
+    let close = |a: [f32; 2], b: [f32; 2]| (a[0] - b[0]).hypot(a[1] - b[1]) <= BANKING_JOIN_M;
+    let mut used = vec![false; lines.len()];
+    let mut out = Vec::new();
+    for i in 0..lines.len() {
+        if used[i] || lines[i].line.len() < 2 {
+            continue;
+        }
+        used[i] = true;
+        let mut pts = lines[i].line.clone();
+        // Grow at either end until no unused way meets it.
+        loop {
+            let mut grew = false;
+            for j in 0..lines.len() {
+                let other = &lines[j].line;
+                if used[j] || other.len() < 2 {
+                    continue;
+                }
+                let (first, last) = (pts[0], pts[pts.len() - 1]);
+                let (o_first, o_last) = (other[0], other[other.len() - 1]);
+                let mut piece = other.clone();
+                if close(last, o_first) || close(last, o_last) {
+                    if close(last, o_last) {
+                        piece.reverse();
+                    }
+                    pts.extend(piece.into_iter().skip(1));
+                } else if close(first, o_last) || close(first, o_first) {
+                    if close(first, o_first) {
+                        piece.reverse();
+                    }
+                    piece.pop();
+                    piece.extend(pts);
+                    pts = piece;
+                } else {
+                    continue;
+                }
+                used[j] = true;
+                grew = true;
+            }
+            if !grew {
+                break;
+            }
+        }
+        let name = lines[i].name.clone().unwrap_or_else(|| i.to_string());
+        out.push((name, pts));
     }
     out
 }
@@ -4859,6 +4921,88 @@ mod tests {
                 "a module's high side faces the centre"
             );
         }
+    }
+
+    /// A banking mapped as several ways, one of them the wrong way round and
+    /// one an entry bending the other way, is laid as one run: its modules
+    /// meet end to end and every high side faces out of the oval
+    /// (Monzarella's Sopraelevata, judged 2026-10-28).
+    #[test]
+    fn a_banking_mapped_in_pieces_is_one_run_with_its_high_side_out() {
+        let track = track();
+        let mut layout = layout();
+        let arc: Vec<[f32; 2]> = (0..=24)
+            .map(|i| {
+                let a = -0.6 + 1.2 * i as f32 / 24.0;
+                [400.0 + 200.0 * a.sin(), -300.0 + 200.0 * (1.0 - a.cos())]
+            })
+            .collect();
+        let line = |pts: Vec<[f32; 2]>| crate::layout::Line {
+            kind: "banking".to_string(),
+            name: Some("Oval".to_string()),
+            line: pts,
+            closed: false,
+            bridge: false,
+            tunnel: false,
+        };
+        // The arc's second half mapped backwards, and an entry before it
+        // that bends gently the other way.
+        let mut second: Vec<[f32; 2]> = arc[12..].to_vec();
+        second.reverse();
+        let start = arc[0];
+        let entry: Vec<[f32; 2]> = (0..=6)
+            .rev()
+            .map(|i| {
+                let t = i as f32 * 10.0;
+                [start[0] - t * 0.83, start[1] + t * 0.56 - 0.002 * t * t]
+            })
+            .collect();
+        layout.banking = vec![line(arc[..=12].to_vec()), line(second), line(entry)];
+        let mut scene = scene(&track);
+        dress_scene(&track, &mut scene, &layout).unwrap();
+        let mods: Vec<_> = scene
+            .props
+            .iter()
+            .filter(|p| p.asset == "banked_oval_10m")
+            .collect();
+        assert!(mods.len() >= 28, "{} modules", mods.len());
+        assert!(
+            mods.iter()
+                .all(|m| m.source.as_deref() == Some("banking Oval")),
+            "one run"
+        );
+        let centre = (400.0f32, -100.0f32);
+        for m in &mods {
+            let plus_y = (-m.yaw_rad.sin(), m.yaw_rad.cos());
+            let out = (m.x - centre.0, m.y - centre.1);
+            assert!(
+                plus_y.0 * out.0 + plus_y.1 * out.1 > 0.0,
+                "a module's high side faces in at ({:.1}, {:.1}) yaw {:.2}",
+                m.x,
+                m.y,
+                m.yaw_rad
+            );
+        }
+        // Consecutive modules share their ends: no overlap, no gap.
+        let ends = |m: &Prop| {
+            let (s, c) = m.yaw_rad.sin_cos();
+            [
+                (m.x - 5.0 * c, m.y - 5.0 * s),
+                (m.x + 5.0 * c, m.y + 5.0 * s),
+            ]
+        };
+        let mut joined = 0;
+        for w in mods.windows(2) {
+            let (a, b) = (ends(w[0]), ends(w[1]));
+            let meet = a
+                .iter()
+                .flat_map(|p| b.iter().map(move |q| (p.0 - q.0).hypot(p.1 - q.1)))
+                .fold(f32::MAX, f32::min);
+            if meet < 0.01 {
+                joined += 1;
+            }
+        }
+        assert_eq!(joined, mods.len() - 1, "modules meet end to end");
     }
 
     /// A general-admission area is laid as loose knots of standing

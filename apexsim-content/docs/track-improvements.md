@@ -234,10 +234,10 @@ Open: Gnocchi (the Fisht stadium, `building/stadium_bowl` on its OSM
 centre, built 2026-10-22; `c5-lm-gnocchi` waits for a person) and
 Monzarella (the Sopraelevate, OSM's banked curves laid as
 `building/banked_oval_10m` modules from the dossier's `banking`, built
-2026-10-22; judged not right on `c5-kit-monzarella` 2026-10-28: the
-modules do not follow the banking's line, halfway round the banked side
-flips to the other edge, and the pieces overlap stepwise like
-weatherboarding instead of joining end to end).
+2026-10-22; judged not right on `c5-kit-monzarella` 2026-10-28, laid
+again 2026-11-08: the ways chained, the modules on the line's chords end
+to end and pitched to the ground, the high side out of the oval
+everywhere; the new shots wait for a person).
 
 **Stands column.** Done but for one circuit: the rules (stand families,
 `STAND_FAMILY`, `DROP_STRUCTURES`, stands clear of the run-off), the dossier

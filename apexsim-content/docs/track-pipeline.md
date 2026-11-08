@@ -280,9 +280,13 @@ stamp.
   circuit's neighbours are the `skyline_*` set.
 - **An old banked oval** (the dossier's `banking`: OSM's raceway ways by
   name, `BANKING_WAYS` in `osm_layout.py`, bridges left out) is tiled with
-  `building/banked_oval_10m` every 10 m along its line, the high side on
-  the curve's outside, nothing within 15 m of the circuit's road
-  (`dress::lay_banking`): Monza's Sopraelevate.
+  `building/banked_oval_10m` every 10 m along its line: the ways that
+  meet end to end chained into one line first, each module on the chord
+  between the line's points 5 m either side and pitched to the ground at
+  its ends (so a run joins end to end, no steps), the high side facing
+  away from the middle of all the banking's points (the oval's infield,
+  so an entry bending the other way does not flip it), nothing within
+  15 m of the circuit's road (`dress::lay_banking`): Monza's Sopraelevate.
 - **A stand laid against another leg** (most of its bays nearer the road
   150 m or more past its own span: a dossier side error) is laid and
   reported as a `check` line by `--verbose` and `dossier_check.py`.

@@ -139,12 +139,13 @@ the same `ApexProps` code.
   bay is placed twice (ids 235 and 236 at 41.7, 324.0).
   Removing them from the calendar is the owner's option
   ([track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)).
-- Monzarella's Sopraelevata (`building/banked_oval_10m` from the
-  dossier's `banking`), judged not right 2026-10-28 on
-  `c5-kit-monzarella`: the modules do not line up with the banking's
-  curve, halfway round the banked side switches to the other edge (a
-  heading or side flip along the OSM way), and consecutive pieces overlap
-  stepwise like weatherboarding rather than meeting end to end.
+- `groom` and the walls sidecar place a `building/banked_oval_10m`
+  module's footprint as a building's, behind its pivot, but the module is
+  laid with the banking's line through its middle
+  (`ue_export::footprint_is_centred`). Centring it (tried 2026-11-08)
+  drops 67 barrier pieces of the lap where Monzarella's oval comes within
+  30 m of it (the barrier pass keeps 6 m off a building), so it waits for
+  a look at what the lap's barriers should do there.
 - Found by the dressing audit, outside dressing:
   - AlbertParkour's centerline is the pre-2021 layout (the Lakeside
     chicane at 2520-2670 m), and Barcelunatic's takes the RACC chicane

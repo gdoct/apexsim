@@ -28,7 +28,7 @@ GT3 footwell fixed; the nine `ApexSim.Prediction` tests pass again.
 The owner's verifier reviews of 2026-10-28 and 2026-11-01 are processed
 (2026-11-01): three confirmed and closed (R4's driver swaps, C5's
 Mandarina Bay superscreens, G9's gloves and sleeves), two not right:
-Monzarella's banking (back to C5) and Suzuka's crossover walls (B16; the
+Monzarella's banking (back to C5, relaid 2026-11-08) and Suzuka's crossover walls (B16; the
 elevation itself is good).
 
 The first four blocks of H1's wheel sitting (0-bench, A Monza, B
@@ -68,7 +68,7 @@ takes it up (— : no step, taken opportunistically).
 | B15 | Rim shakes violently at a standstill (follow-ups #31) | Bug | P1 | 🔴 | S | 1 |
 | B17 | Wheel feel: the understeer cue arrives late (follow-ups #42) | Bug | P1 | 🟡 | M | 1 |
 | B16 | Suzuka's crossover: see-through bridge walls (fixed, to judge) | Bug | P2 | 🟡 | S | 2 |
-| C5 | Circuit dressing to the references (roadmap 29): Monzarella's banking, open cells and shots to judge | Content | P2 | 🟡 | L | 2 |
+| C5 | Circuit dressing to the references (roadmap 29): open cells and shots to judge (Monzarella's banking relaid) | Content | P2 | 🟡 | L | 2 |
 | G9 | Driver's hands: gloves confirmed, arms on by default; hand over hand, paddle pull, the outside figure (roadmap 53) | Rendering | P2 | 🟡 | L | 2 |
 | G10 | Cockpit camera vibration: built, the feel to judge | Rendering | P2 | 🟡 | S | 2 |
 | G13 | Cockpit interior materials and lighting (roadmap 57) | Rendering | P2 | 🟢 | M | 2 |
@@ -296,12 +296,11 @@ reason in the column's paragraph; the `c5-*` runs in
 The cells built 2026-10-22 (R21, R8, the kit pieces, the 24h layout) wait
 for a person to judge their shots, as the `v-c5-*` items on the verifier's
 page; their shots predate C9's stadium canopy and C10's horizons. Mandarina
-Bay's superscreens were confirmed 2026-10-28. Monzarella's Sopraelevata was
-judged not right the same day (`c5-kit-monzarella`, score 3; follow-ups
-#6): the `banked_oval_10m` modules do not follow the banking's line, the
-banked side flips to the other edge halfway round, and the pieces overlap
-stepwise instead of joining end to end; fix the laying from the dossier's
-`banking`, re-dress and shoot `c5-kit-monzarella` again. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
+Bay's superscreens were confirmed 2026-10-28. Monzarella's Sopraelevata, judged
+not right the same day (`c5-kit-monzarella`, score 3), is laid again
+since 2026-11-08 (the ways chained, modules end to end on the line and
+pitched to the ground, the high side out of the oval) and its new shots
+wait for the owner. Left: the Nordschleife's T13 pumps and media tower (no source places them); the four
 circuits without a dossier (their OSM fits fail on layout variants:
 `BBOXES`' notes); one track with selectable routes (follow-ups).
 **Watch out:** hand-placed props are discarded on the next dress; the
