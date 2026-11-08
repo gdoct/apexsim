@@ -137,7 +137,19 @@
     on the covered road: the AI fits the studded snow tyre, the wheels draw
     the snow tread with its steel studs and the ice-white ring, and the field
     laps clearly quicker and stays on the road longer than a GT3 field.
-  status: open
+  status: judged
+  verdict:
+    date: 2026-11-08
+    by: agent
+    says: not-right
+    text: >-
+      The field half, measured off-screen (2026-11-08, AI survey, SURVEY_WEATHER=snow,
+      seed 1, 180 s races of ten): the Rally cars leave the road more than a
+      GT3 field, not less. Off-road car-seconds Spa: oudi-kwattro-s1 519, pugeot-205-t16
+      586, lancha-037-rally 427 against posh-gt3rs 188; Monzarella 228, 337,
+      241 against 131; Zandervoort 147, 194, 132 against 83; contact likewise
+      higher at Spa (84-123 against 51). The wheels' snow tread, studs and ring
+      are still to see on screen.
   notes:
   - text: >-
       R4 (Snow at Spa, changeable, into the evening): `-ApexWeather=snow -ApexChangeable=1
