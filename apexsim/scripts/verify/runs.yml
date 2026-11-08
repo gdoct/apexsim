@@ -8037,6 +8037,23 @@ runs:
         lead: 1
         exec: "apexsim.cam.LookAt 305.1 -47.1 -24.2 303.6 -37.3 -25.4"
 
+  - id: c3-watch-soak
+    about: "C3. Ten minutes of the -ApexWatch backdrop, watching for the silent exit (follow-ups #11)"
+    server: {stand_in: true}
+    args: [-ApexWatch]
+    shots:
+      - {at: 60, label: "the backdrop at 1 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 120, label: "the backdrop at 2 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 180, label: "the backdrop at 3 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 240, label: "the backdrop at 4 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 300, label: "the backdrop at 5 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 360, label: "the backdrop at 6 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 420, label: "the backdrop at 7 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 480, label: "the backdrop at 8 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 540, label: "the backdrop at 9 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 600, label: "the backdrop at 10 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+      - {at: 660, label: "the backdrop at 11 min", checks: "C3: still running (a silent exit leaves the grabs missing)"}
+
   - id: n11-own-livery
     about: "N11. A player's own livery (cars/custom/liveries) on the player's car"
     # Needs apexsim-content/cars/custom/liveries/lancha-037-rally/<name>/livery.toml:

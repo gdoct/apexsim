@@ -316,7 +316,8 @@ blisters readable on the tread faces, the bulge on the rear right.
   stale showcases skipped them, played a local file, restarted on another
   track and kept running; with fresh showcases a 7-minute run was clean.
   If it comes back, the run's `-abslog` and the Windows event log are the
-  places to look.
+  places to look. `c3-watch-soak` (eleven minutes of `-ApexWatch`, a
+  grab a minute) ran clean through four demo restarts on 2026-11-08.
 - Loose packs (`.acp`): the launcher uninstalls a custom car, track or HUD
   component (`content uninstall`), but nothing records which pack an item
   came from, so a pack is not removed as one. A HUD pack's
