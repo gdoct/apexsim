@@ -1777,12 +1777,12 @@
   verdict:
     date: 2026-11-08
     by: agent
-    says: not-readable
+    says: looks-right
     text: >-
-      Reshot 2026-11-08: straight, stands, pit side with the gantry and back
-      up the straight read right, the pit lane at full length; the two roof
-      screens are still not picked out in any shot (only a dark box behind the
-      gantry in 3). Needs a pose at the pit roof.
+      Reshot 2026-11-08 with a fifth pose across the straight at the pit roof:
+      both roof screens stand on the pit building facing the track, header boards
+      on top (5); the straight, stands and pit side read right at full length
+      (1-4).
 
 - id: v-c5-lemons-sf
   title: 'Lemons: start/finish and the full pit lane'

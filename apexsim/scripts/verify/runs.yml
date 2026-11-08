@@ -3640,6 +3640,10 @@ runs:
         label: "back up the straight from above T1's side"
         checks: "C5 S/F: the audit page's S/F dossier pass, against the maps"
         exec: "apexsim.cam.LookAt -159.5 151.3 33.1 27.8 -29.0 0.6"
+      - at: 32
+        label: "the two roof screens on the pit building"
+        checks: "C5 S/F: the pit building's two roof screens (R21)"
+        exec: "apexsim.cam.LookAt 60.0 -170.0 22.0 150.0 -107.0 13.0"
 
   - id: c5-sf-armadillos
     about: "C5. Start/finish dressing: Circuit of the Armadillos"
