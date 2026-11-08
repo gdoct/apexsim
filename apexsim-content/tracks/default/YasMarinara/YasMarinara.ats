@@ -6048,17 +6048,6 @@
       "text": null
     },
     {
-      "id": 35887,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": 130.11412,
-      "y": 921.48285,
-      "z": 1.2967542,
-      "yaw_rad": -1.6719538,
-      "scale": 1.0,
-      "text": null
-    },
-    {
       "id": 35888,
       "kind": "barrier",
       "asset": "armco_4m",
@@ -12809,17 +12798,6 @@
       "y": -576.1551,
       "z": 1.5054067,
       "yaw_rad": 3.007512,
-      "scale": 1.0,
-      "text": null
-    },
-    {
-      "id": 36502,
-      "kind": "barrier",
-      "asset": "armco_end",
-      "x": 473.95172,
-      "y": -576.4182,
-      "z": 1.5079044,
-      "yaw_rad": 3.0101368,
       "scale": 1.0,
       "text": null
     },

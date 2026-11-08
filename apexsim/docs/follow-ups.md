@@ -135,9 +135,7 @@ the same `ApexProps` code.
   alone there. Endianapolis keeps the stands of the generator before the dossiers: its
   eight `grandstand_corner` bays (2x scale) stand 116 m out from the
   centerline on the grass at the four turns, two straight sections with a
-  gap at each (`r8-ims-corners`, 2026-10-25). YasMarinara keeps two
-  `armco_end` pieces placed twice by hand (it has no dossier, and
-  `ats-groom` there re-lays all its kit, which was left for a refresh).
+  gap at each (`r8-ims-corners`, 2026-10-25).
   Removing them from the calendar is the owner's option
   ([track-improvements.md](../../apexsim-content/docs/track-improvements.md#status)).
 - `groom` and the walls sidecar place a `building/banked_oval_10m`
